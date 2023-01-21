@@ -1,0 +1,19 @@
+{
+	"name": "ran/plugin-lib",
+	"description": "RocketsAreNostalgic: A standard shared library of plugin classes to interact with WordPress",
+	"type": "library",
+	"license": "MIT",
+	"autoload": {
+		"psr-4": {
+			"Ran\\PluginLib\\": "inc/"
+		}
+	},
+	"authors": [
+		{
+			"name": "Ben Rush",
+			"email": "bnjmnrsh@gmail.com"
+		}
+	],
+	"minimum-stability": "dev",
+	"require": {}
+}
