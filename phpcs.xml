@@ -88,13 +88,11 @@
 	https://github.com/WordPress/WordPress-Coding-Standards/wiki/Customizable-sniff-properties
 	-->
 
-
 	<rule ref="WordPress.NamingConventions.PrefixAllGlobals">
 		<properties>
 			<property name="prefixes" type="array">
-				<element value="Ran\PluginLib"/>
+				<element value="ran_plib"/>
 			</property>
 		</properties>
 	</rule>
-
 </ruleset>
