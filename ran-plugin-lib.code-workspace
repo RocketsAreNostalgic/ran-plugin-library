@@ -5,6 +5,8 @@
 		}
 	],
 	"settings": {
+		// Force use of PHP Sniffer & Beautifier Plugin for formatting,
+		// Otherwise PHP Intelephense or other formatter will confilct with WP Standards rules
 		"[php]": {
 			"editor.formatOnSave": true,
 			"editor.defaultFormatter": "valeryanm.vscode-phpsab"
@@ -28,7 +30,7 @@
 		"phpsab.fixerArguments": [],
 		"phpsab.snifferShowSources": true,
 		"phpsab.standard": "./.phpcs.xml",
-		"phpsab.debug": false,
+		"phpsab.debug": true,
 		"phpsab.allowedAutoRulesets": [
 			".phpcs.xml",
 			".phpcs.xml.dist",
@@ -112,13 +114,17 @@
 			"zlib",
 			"wordpress"
 		],
+		"intelephense.trace.server": "off",
+		"intelephense.references.exclude": [],
+		"intelephense.rename.exclude": [],
+		"intelephense.environment.documentRoot": "./",
+		"intelephense.environment.includePaths": ["./inc/**"],
+		"intelephense.telemetry.enabled": false,
 		"intelephense.completion.fullyQualifyGlobalConstantsAndFunctions": true,
 		"intelephense.environment.shortOpenTag": false,
 		"intelephense.phpdoc.useFullyQualifiedNames": true,
 		"intelephense.rename.namespaceMode": "all",
-		"intelephense.environment.documentRoot": "./",
-		"intelephense.environment.includePaths": ["./inc/**"],
 		"intelephense.format.braces": "psr12",
-		"intelephense.format.enable": false
+		"intelephense.files.associations": ["*.php", "*.phtml"]
 	}
 }
