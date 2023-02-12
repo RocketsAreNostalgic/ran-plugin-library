@@ -1,24 +1,24 @@
 <?xml version="1.0"?>
 <ruleset name="Plugin Wordpress Coding Standards">
-    <description>RAN Wordpress Coding Standards</description>
+	<description>RAN Wordpress Coding Standards</description>
 
-    <!-- Temp fix for php 8.* compatibility issue with Config Standards -->
-    <!-- https://github.com/WordPress/WordPress-Coding-Standards/issues/2035 -->
-    <ini name="error_reporting" value="E_ALL &#38; ~E_DEPRECATED" />
+	<!-- Temp fix for php 8.* compatibility issue with Config Standards -->
+	<!-- https://github.com/WordPress/WordPress-Coding-Standards/issues/2035 -->
+	<ini name="error_reporting" value="E_ALL &#38; ~E_DEPRECATED" />
 
 	<config name="minimum_supported_wp_version" value="6.0.0"/>
 
-    <!-- Scan all files in directory -->
-    <file>.</file>
+	<!-- Scan all files in directory -->
+	<file>.</file>
 
-    <!-- Scan only PHP files -->
-    <arg name="extensions" value="php"/>
+	<!-- Scan only PHP files -->
+	<arg name="extensions" value="php"/>
 
-    <!-- Show colors in console -->
-    <arg value="-colors"/>
+	<!-- Show colors in console -->
+	<arg value="-colors"/>
 
-    <!-- Show sniff codes in all reports -->
-    <arg value="ns"/>
+	<!-- Show sniff codes in all reports -->
+	<arg value="ns"/>
 
 	<!-- Exclude WP Core folders and files from being checked. -->
 	<exclude-pattern>/docroot/wp-admin/*</exclude-pattern>
@@ -36,9 +36,9 @@
 
 	<!-- Exclude minified Javascript files. -->
 	<exclude-pattern>*.min.js</exclude-pattern>
-    <!-- Include the WordPress-Extra. -->
-    <rule ref="WordPress-Extra">
-        <!--
+	<!-- Include the WordPress-Extra. -->
+	<rule ref="WordPress-Extra">
+		<!--
 		We may want a middle ground though. The best way to do this is add the
 		entire ruleset, then rule by rule, remove ones that don't suit a project.
 		We can do this by running `phpcs` with the '-s' flag, which allows us to
@@ -54,16 +54,18 @@
 		<exclude name="WordPress.WhiteSpace.ControlStructureSpacing"/>
 		<exclude name="WordPress.Security.EscapeOutput"/>
 		-->
-        <exclude name="WordPress.PHP.DisallowShortTernary"/>
-    </rule>
 
+		<!-- Exceptions for PRS-4 autoloading -->
+		<exclude name="WordPress.Files.FileName.NotHyphenatedLowercase"/>
+		<exclude name="WordPress.Files.FileName.InvalidClassFileName"/>
 
-    <!-- Check that everything is properly documented. -->
-    <rule ref="WordPress-Docs"/>
+		<exclude name="WordPress.PHP.DisallowShortTernary"/>
+	</rule>
 
+	<!-- Check that everything is properly documented. -->
+	<rule ref="WordPress-Docs"/>
 
-
-    <!-- Extra rules from other standards. -->
+	<!-- Extra rules from other standards. -->
 
 	<!-- Class opening braces should be on the same line as the statement. -->
 	<rule ref="Generic.Classes.OpeningBraceSameLine"/>
@@ -72,8 +74,8 @@
 	<!-- Covers rule: Braces shall be used for all blocks. -->
 	<rule ref="Squiz.ControlStructures.ControlSignature"/>
 
-    <rule ref="Generic.CodeAnalysis.UnusedFunctionParameter"/>
-    <rule ref="Generic.Commenting.Todo"/>
+	<rule ref="Generic.CodeAnalysis.UnusedFunctionParameter"/>
+	<rule ref="Generic.Commenting.Todo"/>
 
 	<!-- Check for PHP cross-version compatibility. -->
 	<!--
