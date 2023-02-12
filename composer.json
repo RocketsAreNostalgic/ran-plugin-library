@@ -6,7 +6,7 @@
 	"license": "MIT",
 	"authors": [
 		{
-			"name": "Benjmn Rush <bnjmnrsh>",
+			"name": "Benjamin Rush <bnjmnrsh>",
 			"email": "bnjmnrsh@gmail.com"
 		}
 	],
@@ -23,7 +23,7 @@
 		}
 	},
 	"require-dev": {
-		"php": ">=8.0",
+		"php": ">=8.1",
 		"squizlabs/php_codesniffer": "*",
 		"wp-coding-standards/wpcs": "*",
 		"dealerdirect/phpcodesniffer-composer-installer": "*",
