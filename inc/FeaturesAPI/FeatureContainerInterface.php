@@ -5,6 +5,7 @@
  * @package  RanPlugin
  */
 
+declare(strict_types=1);
 namespace Ran\PluginLib\FeaturesAPI;
 
 use Ran\PluginLib\FeaturesAPI\RegistrableFeatureInterface;
@@ -38,7 +39,7 @@ interface FeatureContainerInterface {
 	 *
 	 * @var \stdClass
 	 *
-	 * * private readonly \stdClass $deps;
+	 * private readonly \stdClass $deps;
 	 */
 
 

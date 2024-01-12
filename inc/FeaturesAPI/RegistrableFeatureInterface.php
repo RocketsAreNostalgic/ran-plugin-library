@@ -5,6 +5,7 @@
  * @package  RanPlugin
  */
 
+declare(strict_types=1);
 namespace Ran\PluginLib\FeaturesAPI;
 
 /**

@@ -5,9 +5,10 @@
  * @package  RanPlugin
  */
 
- namespace Ran\PluginLib\FeaturesAPI;
+declare(strict_types=1);
+namespace Ran\PluginLib\FeaturesAPI;
 
- use Ran\PluginLib\FeaturesAPI\FeatureContainerInterface;
+use Ran\PluginLib\FeaturesAPI\FeatureContainerInterface;
 
 /**
  * A cache or registry of features, stored as an array of FeatureContainers.

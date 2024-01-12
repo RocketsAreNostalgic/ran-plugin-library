@@ -1,4 +1,6 @@
 <?php
+
+declare(strict_types=1);
 /**
  * FilterHookAttributeInterface is used by an object that needs to subscribe to
  * WordPress filter hooks.
@@ -8,12 +10,13 @@
  *  @package  RanPluginLib
  */
 
-namespace Ran\PluginLib\HooksAttribute;
+namespace Ran\PluginLib\HooksAccessory;
 
 /**
  * ActionHookAttributeInterface is used by an object that needs to subscribe to WordPress filter hooks.
  */
-interface FilterHooksAttributeInterface {
+interface FilterHooksInterface
+{
 
 	/**
 	 * Returns an array of filters that the object needs to be subscribed to.
@@ -32,6 +35,5 @@ interface FilterHooksAttributeInterface {
 	 *
 	 * @return array
 	 */
-	public static function get_filter():array;
-
+	public static function get_filter(): array;
 }

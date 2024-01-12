@@ -5,9 +5,10 @@
  * @package  RanPlugin
  */
 
+declare(strict_types=1);
 namespace Ran\PluginLib\FeaturesAPI;
 
-use Ran\PluginLib\Plugin\PluginInterface;
+use Ran\PluginLib\Config\ConfigInterface;
 
 /**
  * Feature controllers must implement a RegistrableFeatureInterface, with a register() method in order to be activated by the RegisterService class.
@@ -21,14 +22,14 @@ abstract class FeatureControllerAbstract implements RegistrableFeatureInterface 
 	 *
 	 * @var object
 	 */
-	protected PluginInterface $plugin;
+	protected ConfigInterface $plugin;
 
 	/**
 	 * Array of plugin data returned from the Plugin object.
 	 *
 	 * @var array
 	 */
-	protected array $plugin_data = array();
+	protected array $plugin_array = array();
 
 	/**
 	 * Array of feature 'managers' or admin settings screens.
@@ -40,11 +41,11 @@ abstract class FeatureControllerAbstract implements RegistrableFeatureInterface 
 	/**
 	 * Constructor.
 	 *
-	 * @param  PluginInterface $plugin Plugin instance that conforms to the interface.
+	 * @param  ConfigInterface $plugin Plugin instance that conforms to the interface.
 	 */
-	public function __construct( PluginInterface $plugin ) {
+	public function __construct( ConfigInterface $plugin ) {
 		$this->plugin = $plugin;
-		$this->plugin_data = $plugin->get_plugin();
+		$this->plugin_array = $plugin->plugin_array;
 	}
 	/**
 	 * Base initialization method for FeatureControllers.
@@ -66,7 +67,7 @@ abstract class FeatureControllerAbstract implements RegistrableFeatureInterface 
 	 * @return mixed If will return the value of the key array|string or else false
 	 */
 	public function is_activated( string $key, string $option_name = '' ):mixed {
-		$option_name = $option_name ?: $this->plugin_data['PluginOption'];
+		$option_name = $option_name ?: $this->plugin_array['PluginOption'];
 
 		$option = get_option( $option_name );
 
