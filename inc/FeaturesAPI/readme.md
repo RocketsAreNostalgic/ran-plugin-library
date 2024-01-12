@@ -1,30 +1,40 @@
 # Features API
 
-The Features API handles the loading our plugin's 'Features'. Features are self contained bits of our plugin's functionality, such as a shortcode, or an admin page –– any discreet tasks or groups of tasks can be considered a Feature. The work done by a Feature is managed in its `FeatureController`.
+The Features API handles the the registration and loading of our plugin's 'Features'. Features are self contained bits of our plugin's functionality, such as a shortcode, or an admin page –– any discreet tasks or groups of tasks can be considered a 'Feature'. The work done by a Feature is carried by its `FeatureController`, and by convention these are found in the directory `/plugin-root/inc/features/SomeFeatureController.php`.
 
-At a high level, the `FeatureManager` class registers the details for each Feature, its qualified namespace, slug, and any dependencies into separate `FeatureContainer` objects, each with a unique key (slug). Each `FeatureContainer` object is then register into a `FeatureRegistry` object which contains all registered features.
+At a high level, in a bootstrapping file, the `FeatureManager::register_feature()` method handles the registration of each Feature, storing its qualified namespace, `slug_id`, and dependencies into separate `FeatureManager` objects.
+
+A unique string key (slug_id) acts as both the key to each `FeatureContainer` object in the `FeatureRegistry`, and as a internal field on the `FeatureContainer` which may be used as a identifier in wp_options, and in urls.
 
 ## Feature Containers
 
-`FeatureContainers` are controller classes that contain the implementation of that discreet chunks of functionality, and they are loaded by the `FeaturesManager` class. In order for a FeatureContainer to be recognized as a valid feature it must implement `Ran\PluginLib\FeaturesAPI\RegistrableFeatureInterface` which requires the implementation of a `init()` method.
+`FeatureContainers` as previously stated are controller classes that contain the implementation of discreet chunks of functionality, and they are loaded by the `FeaturesManager` class. In order for a `FeatureContainer` to be recognized as a valid feature it must implement `Ran\PluginLib\FeaturesAPI\RegistrableFeatureInterface` which requires the implementation of a `init()` method.
 
 ### Dependencies
 
-When registering a Feature with `FeaturesManager->register_feature()`, there is an optional array of dependencies that can be passed, which will be injected into the FeatureController during instantiation. Each of the keys must correspond to a public property on the your `FeatureController` class.
+When registering a Feature with `FeaturesManager->register_feature()`, there is an optional array of dependencies that can be passed, which will be injected into the FeatureController during instantiation. Each of the keys must correspond to a property on the your `FeatureController` class. As of PHP 8.2 arbitrary property declarations are deprecated, so this step helps to future proof your `FeatureContainer` code.
 
-### Attributes (synopsis)
+If the property is `public`, then the `FeatureManager` will assign the value directly, and setting a PHP type declaration will help in controlling the kinds of values that can be set. If the property is `protected`, or `private` then the `FeatureManager` will look for a matching setter method with the name `set_<yourproperty>($value)`. This is useful if you need to keep the value from being accessed from outside the class, or if you want to do other operations on the incoming value.
 
-Attributes are ways to interact with WordPress API's that are commonly used, but otherwise involve complex implementation or excessive boilerplate. They are triggered by adding an Attribute interface to an registered `FeatureController`.
+The `FeatureManager` will throw exceptions if the property is not found, or if it cannot access it, either directly or with an optional setter method.
 
-`Attributes` are just interfaces that have an associated `XXAttributeManager` class. Its the job of the `AttributeManager` to call any required methods within the Feature. For example the `HooksAttribute` provides a means to interact with WordPresses' Action Hooks and Filters APIs.
+### Plugin
 
-During the `FeatureManager->load_all()` process, `FeatureControllers` are checked to see if they `implement` any Attribute interface(s). If an Attribute interface is found, its implementation is executed while loading.
+After registration, each`FeatureController` is instantiated and passed a reference to the `Plugin` class as a required parameter. The Plugin class contains relevant parameters such as paths and text domains, which can be accessed as an array with the `Plugin::get_plugin()` method. See readme Plugin for more information.
 
-Each Attribute's interface has detailed notes as to what is required by the controller to implement that interface.
+### Accessories (synopsis)
+
+Accessories are ways to interact with WordPress API's that are commonly used, but otherwise involve complex implementation or excessive boilerplate. They are triggered by adding an Attribute interface to an registered `FeatureController`.
+
+Accessories interfaces that have an associated `XXAccessoryManager` class. Its the job of an `AccessoryManager` to call any required methods within the `FeatureController`. For example the `HooksAccessory` provides a means to interact with WordPresses' Action Hooks and Filters APIs.
+
+During the `FeatureManager->load()` process, `FeatureControllers` are checked to see if they `implement` any Accessory interface(s). If an Attribute interface is found, its implementation is executed while loading.
+
+Each Accessory's interface has detailed notes as to what is required by a FeatureController to implement that interface.
 
 ## `FeatureManager` Class
 
-In your bootstrap file FeatureControllers can be registered using the `FeatureManager->register_feature()` method:
+In your bootstrap file `FeatureControllers` can be registered using the `FeatureManager->register_feature()` method:
 
 ```php
 
@@ -58,14 +68,14 @@ Under the hood, `register_feature()` loads the above values unto `FeatureContain
 
 ### `load_all()`
 
-The `load_all()` method is called after all features have been registered. This method iterates over all registered features does the following:
+The `load_all()` method should be called after all FeatureControllers have been registered. This method iterates over all registered features and does the following:
 
--   Checks that the feature has implemented the `Registerable` interface.
--   Iterates over all the implemented interfaces looking for any Attributes † that should be called on the feature.
+-   Checks that the feature has implemented the `Registerable` interface
+-   Creates a new instance of the `FeatureController`
+-   Iterates over all the implemented interfaces looking for any Accessories † which should be called on the `FeatureController`
+-   Instantiates the feature by calling its `init()` method
 
 ### `load($slug_id)`
-
-**TODO: Implement**
 
 The `load(FeatureContainer)` takes a feature and checks that it is not in the registry and if not, adds it and immediately invokes it.
 
@@ -88,4 +98,4 @@ A `FeatureContainer` is an intermediary object that contains details about a spe
     public readonly \stdClass $deps
 ```
 
-Additionally FeatureContainers can store a `private` reference to the instantiated FeatureContainer, which can be accessed via  
+Additionally FeatureContainers can store a `private` reference to the instantiated FeatureContainer, which can be accessed via
