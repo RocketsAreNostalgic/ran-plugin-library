@@ -1,4 +1,6 @@
 <?php
+
+declare(strict_types=1);
 /**
  * TestsAccessory is implemented by any FeatureController instance.
  *
@@ -14,12 +16,12 @@ use Ran\PluginLib\AccessoryAPI\AccessoryBaseInterface;
 /**
  * TestsAccessory is used by an object that needs to subscribe to WordPress filter hooks.
  */
-interface TestAccessory extends AccessoryBaseInterface {
-
+interface TestAccessory extends AccessoryBaseInterface
+{
 	/**
 	 * Test so far...
 	 *
 	 * @return array
 	 */
-	public function test():string;
+	public function test(): string;
 }
