@@ -6,7 +6,7 @@ The Accessory API is an elegant way for Features to implement functionality that
 
 To use an Accessory, your FeatureController must implement an interface belonging to one or more Accessories. Each Accessory's interface requires your FeatureController to implement any combination of public functions and variables it may require. You can find full instructions for each Accessory within it's interface's comments.
 
-When the `FeatureManager->load_all()` method is called, each `FeatureController` is scanned for compatible Accessory interfaces, and when they are found that Accessory's `Manager` is called to carry out the work. You may of course inspect the manager, but knowladge about its inner owrkings isn't required, so long as you impliment the interface as required and your `FeatureController` passes back the data that the Accessory requires.
+When the `FeatureManager->load_all()` method is called, each `FeatureController` is scanned for compatible Accessory interfaces, and when they are found that Accessory's `Manager` is called to carry out the work. You may of course inspect the manager, but knowledge about its inner workings isn't required, so long as you implement the interface as required and your `FeatureController` passes back the data that the Accessory requires.
 
 Another way to think of Accessory are as flags. If your `FeatureController` wants to access the goodness of any Accessory, simply add the Accessory's flag to the `implements` section on the class, implement the required functions that it will call, and profit.
 
@@ -55,31 +55,30 @@ The reason for this is that we need to predict where the Manger class will be fo
 Our implementation to Accessories relies on several design decisions using interfaces that could be considered problematic:
 
 1. Use of marker interfaces (ie interfaces without any implementation as found in our `AccessoryBaseInterface`) is actually a form of metadata, even our [How To Use](#how-to-use) mentions a conceptual model of 'flags'.
-2. Using Marker Interfaces as metadata is 'magical' or atypical.
+2. Using Marker Interfaces as metadata could be considered 'magical' or atypical.
 3. PHP Attributes are designed for just this purpose (adding metadata to classes).
 4. Marker Interfaces are inherited and so each FeatureController that implements a Accessory interface cannot be decoupled from it.
 
-The design challenge with `Accessories` is that we would like one 'simple' means for plugin authors to implement complex or tedious WordPress APIs. In every use case conceived so far, an arbitrary `XAccessoryInterface` would require specific implementation (and offer extensive documentation) of what needs to implemented on a `FeatureController` to use that `Accessory`. So while our `AccessoryBaseInterface` acts as a['marker' interface](https://en.wikipedia.org/wiki/Marker_interface_pattern) with no implementation requirements of its own, we do not expect this interface to be implemented directly on a `FeatureController` only its ancestors, ie `XAccessoryInterface extends AccessoryBaseInterface` and then offers its own implementation. This way it is possible to check, using `Reflection` in our `FeaturesManager` if a `FeatureController` implements this common ancestor `AccessoryBaseInterface`, and then call its manager `XAccessoryManager` to do the work.
+### Marker Interface
 
-Using `Reflection` happens to be exactly how arbitrary `Attributes` are managed on classes as well, so why not use them instead? This is a fair question and it might be possible, but has some drawbacks.
+The design challenge with `Accessories` is that we would like to fashion a 'simple' means for plugin authors to implement complex or tedious WordPress APIs. In every use case conceived so far, an arbitrary `XAccessoryInterface` imposes specific implementation details (and offers extensive documentation) of what authors need to add to their `FeatureController`. So while our `AccessoryBaseInterface` does act as a['marker' interface](https://en.wikipedia.org/wiki/Marker_interface_pattern) with no implementation requirements of its own, we don't intend this interface to implemented it directly, only its ancestors. This way due to inheritance, and using `Reflection` we can test in the `FeaturesManager` if a `FeatureController` implements the common ancestor `AccessoryBaseInterface`. If it does, we then access its manager `XAccessoryManager` to do any heavy lifting required to implement the `Accessory`.
 
-At this stage, we don't know how complex the data may be that we might need to pass to an Accessory, nor what conditional logic a developer might want to implement, other then to say it will likely be a more complex then a string `#[Attrbute($some-compex-data)]`. Further, there may be logic developers might need to invoke beforehand (permissions etc). These two factors make `Attributes` as typically used a less likely candidate as the implimentation becomes [more atypical](https://en.wikipedia.org/wiki/Principle_of_least_astonishment). at least if an `Attribute` were to be applied to the `FeatureController` itself.
+### Attributes vs Interfaces
 
-So as we have seen, yes we are using a `marker interface` but it its use is internal and not user facing. The 'magic' if any of this, is that child Accessories are automatically called in an almost identical way as `Attributes` using `Reflection`.
+Using `Reflection` happens to be exactly how arbitrary `Attributes` are managed on classes as well, so why not use them instead? This is a fair question and it might be possible, but has some drawbacks for our use case. Consider this quote from Brent Roose, Dev Advocate for PHPStorm:
 
-One of the nice things with Attributes is that they automatically call the constructor on their named classes, a feature we are essentially with our adjacent `YAccessoryManager` class. One of the principle difference here is that while we may or may not use a constructor we can also invoke these manually using the enforced `init()`. This gives us greater control as to how our Accessory is triggered in the `FeatureManager`, is it triggered when the FeatureController is registered, where `__contruct()` is called, or could can it be called with a post registration method after all Accessories have been registered and initialized?
+> Keep in mind the goal of attributes: they are meant to add meta data to classes and methods, nothing more. They shouldn't — and can't — be used for, for example, argument input validation. In other words: you wouldn't have access to the parameters passed to a method within its attributes.
+> \> [Brent Roose, PHP 8: Attributes](https://stitcher.io/blog/attributes-in-php-8)
 
-The last point on the potential problem of inheritance has yet to be addressed, and cannot be resolved if the plan is to further extend our `FeatureController`. This is why we strongly recommend that all FeatureControllers are declared as `final`, to keep your inheritance tree relatively flat.
+While we do use our Interfaces as a flag (metadata) as an `Attribute` could be, our Accessory Interfaces also enforce implementation details and guidance for developers on what is expected, directly within the `FeatureController` they are authoring. This is good, as we don't know the complexity or shape of the data that future `Accessiories` may require, or the logic a developer might want to cary out when preparing them. Further as Brent points out, Attributes were not designed to be used in this way, so passing complex programmatically derived data to them can be become difficult and convoluted.
 
-### How could we pass complex parameters to an `Attribute` if we went that direction?
+### Inheritance
 
-One way to do this, would be to separate the configuration passed to an `Attribute`, into a separate class, perhaps as static methods, or even reference a static class on the current class, which would be convoluted but keep all the logic in one place. While this approach could would indeed separate out our concerns, which is good, it makes it much harder to support `Interfaces` to structure the implementation on these new classes and methods being passed in. Further, most `Accessory` classes as envisioned wouldn't require so much logic that they would bloat the `FeatureController` significantly, indeed the goal of the Accessory API is to remove most of that bloat.
-
-It allows us keep any required methods and data need by the `Accessory` on the `FeatureController` class itself if we wish, and not shunt them onto other class, or use convoluted references static methods.
+The final point on Interface inheritance (subtyping) cannot be avoided, and this could become problematic as any descendant `FeatureControllers` will be required to implement methods that they might not need. This said, it would be quite unusual to extend a `FeatureController` to the point where this would be an issue, and in the vast majority of cases each new `FeatureController` should be considered `final` if not declared as such. If this did become an issue, then composition becomes a better approach, and the Dependency array enables soft dependancies to be set on a `FeatureController` during registration (as key value pairs, where the key is the name of a public property declared on the `FeatureControler`). This approach would likely mean you would rolling your own implementation the WordPress API's, and so loose some of the connivence of `Accessories` though it may be possible to extend an `AttributeManager`.
 
 ### Conclusion
 
-We have chosen to stick with an `Interface` implementation of our `Accessory API` as it seems to offer the most flexibility, while also providing guidance for developers with a straight forward implementation.
+So as we have seen, yes we are using a `marker interface` but it its use is internal and not user facing. The 'magic' of this if any, is that child Accessories are automatically evaluated in an almost identical way to `Attributes` are using `Reflection` in our `FeatureManager`. We have chosen to stick with an `Interface` implementation of our `Accessory API` as it seems to offer the most flexibility, while also providing guidance for developers with a straight forward implementation.
 
 Sources:
 
@@ -87,4 +86,4 @@ Sources:
 -   [Stack Overflow: What's the Good of Marker Interface](https://stackoverflow.com/questions/56862117/whats-the-good-of-marker-interface)
 -   [Marker Interface Isn't a Pattern or a Good Idea](https://dzone.com/articles/marker-interface-isnt-a-pattern-or-a-good-idea)
 -   [Principle of least astonishment](https://en.wikipedia.org/wiki/Principle_of_least_astonishment)
--   [PHP 8: Attributes](https://stitcher.io/blog/attributes-in-php-8)
+-   [Brent Roose, PHP 8: Attributes](https://stitcher.io/blog/attributes-in-php-8)

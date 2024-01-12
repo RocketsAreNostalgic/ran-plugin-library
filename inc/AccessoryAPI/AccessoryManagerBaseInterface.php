@@ -1,4 +1,6 @@
 <?php
+
+declare(strict_types=1);
 /**
  * AccessoryManagerBaseInterface must be implemented by any Accessory Manager.
  *
@@ -7,8 +9,8 @@
 
 namespace Ran\PluginLib\AccessoryAPI;
 
-interface AccessoryManagerBaseInterface {
-
+interface AccessoryManagerBaseInterface
+{
 	/**
 	 * A Feature's AccessoryManager must have an init method to fire when loaded.
 	 *
@@ -16,5 +18,5 @@ interface AccessoryManagerBaseInterface {
 	 *
 	 * @return void
 	 */
-	public function init ( AccessoryBaseInterface $feature ):void;
+	public function init(AccessoryBaseInterface $feature): void;
 }
