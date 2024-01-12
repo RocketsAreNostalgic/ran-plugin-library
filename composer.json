@@ -1,20 +1,55 @@
 {
 	"name": "ran/plugin-lib",
-	"description": "RocketsAreNostalgic: A standard shared library of plugin classes to interact with WordPress",
+	"description": "RocketsAreNostalgic: A shared library of plugin classes to interact with WordPress",
 	"type": "library",
 	"version": "0.0.1",
 	"license": "MIT",
+	"authors": [
+		{
+			"name": "Benjamin Rush <bnjmnrsh>",
+			"email": "bnjmnrsh@gmail.com"
+		}
+	],
+	"minimum-stability": "dev",
+	"prefer-stable": true,
 	"autoload": {
 		"psr-4": {
 			"Ran\\PluginLib\\": "inc/"
 		}
 	},
-	"authors": [
-		{
-			"name": "Ben Rush",
-			"email": "bnjmnrsh@gmail.com"
+	"autoload-dev": {
+		"psr-4": {
+			"Ran\\PluginLib\\Tests\\": "Tests/"
 		}
-	],
-	"minimum-stability": "dev",
-	"require": {}
+	},
+	"require-dev": {
+		"php": ">=8.1",
+		"squizlabs/php_codesniffer": "*",
+		"wp-coding-standards/wpcs": "*",
+		"dealerdirect/phpcodesniffer-composer-installer": "*",
+		"yoast/phpunit-polyfills": "^1.0",
+		"phpunit/phpunit": "^9",
+		"10up/wp_mock": "^0.5.0"
+	},
+	"config": {
+		"allow-plugins": {
+			"dealerdirect/phpcodesniffer-composer-installer": true
+		}
+	},
+	"scripts": {
+		"check-cs": [
+			"@php ./vendor/bin/phpcs"
+		],
+		"fix-cs": [
+			"@php ./vendor/bin/phpcbf"
+		],
+		"test": [
+			"@putenv XDEBUG_MODE=coverage",
+			"@php ./vendor/bin/phpunit --color=always"
+		]
+	},
+	"support": {
+		"issues": "https://github.com/RocketsAreNostalgic/ran-plugin-library/issues",
+		"source": "https://github.com/RocketsAreNostalgic/ran-plugin-library"
+	}
 }

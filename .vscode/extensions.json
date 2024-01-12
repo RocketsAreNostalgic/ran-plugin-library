@@ -1,0 +1,10 @@
+{
+	"recommendations": [
+        "neilbrayfield.php-docblocker",
+        "xdebug.php-debug",
+        "valeryanm.vscode-phpsab",
+        "bmewburn.vscode-intelephense-client",
+        "mehedidracula.php-namespace-resolver",
+        "claudiosanches.wpcs-whitelist-flags"
+    ]
+}
