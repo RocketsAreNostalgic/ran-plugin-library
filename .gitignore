@@ -10,6 +10,7 @@ cache
 .parcel-cache/
 .sass-cache/
 *.sass-cache
+.phpunit.cache
 .phpunit.result.cache
 
 vendor/
