@@ -1,4 +1,4 @@
-<?php
+<?php declare(strict_types=1);
 /**
  * AccessoryBaseInterface must be implemented by any Accessory Interface implemented on a FeatureController.
  *
