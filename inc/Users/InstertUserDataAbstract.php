@@ -1,10 +1,11 @@
 <?php
 /**
- * A helper class for inserting users into the database.
+ * An abstract helper class for inserting user data into the database.
  *
  *  @package  RanPlugin
  */
 
+declare(strict_types=1);
 namespace Ran\PluginLib\Users;
 
 /**
