@@ -1,4 +1,6 @@
 <?php
+
+declare(strict_types=1);
 /**
  * ActionHooksInterface is used by an object that needs to subscribe to
  * WordPress action hooks.
@@ -8,14 +10,15 @@
  *  @package  RanPluginLib
  */
 
-namespace Ran\PluginLib\HooksAsset;
+namespace Ran\PluginLib\HooksAccessory;
 
-use Ran\PluginLib\AssetsAPI\AssetBaseInterface;
+use Ran\PluginLib\AccessoryAPI\AccessoryBaseInterface;
 
 /**
  * ActionHooksInterface is used by an object that needs to subscribe to WordPress action hooks.
  */
-interface ActionHooksInterface extends AssetBaseInterface {
+interface ActionHooksInterface extends AccessoryBaseInterface
+{
 
 	/**
 	 * Returns an array of actions that the object needs to be subscribed to.
@@ -36,6 +39,5 @@ interface ActionHooksInterface extends AssetBaseInterface {
 	 *
 	 * @return array
 	 */
-	public static function get_actions():array;
-
+	public static function get_actions(): array;
 }
