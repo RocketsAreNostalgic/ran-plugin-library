@@ -3,6 +3,7 @@
  * @package  RanPluginLib
  */
 
+declare(strict_types=1);
 namespace Ran\PluginLib;
 
 /**
@@ -14,7 +15,7 @@ namespace Ran\PluginLib;
  * @package  RanPluginLib
  */
 
-use Ran\PluginLib\Plugin\PluginInterface;
+use Ran\PluginLib\Config\ConfigInterface;
 
 interface ActivationInterface {
 
@@ -22,10 +23,10 @@ interface ActivationInterface {
 	 * Static activation method called by WordPress register_activation_hook when the plugin is activated.
 	 * This must be called as a static method, ideally in the plugin root file.
 	 *
-	 * @param  PluginInterface $plugin An instance of the Plugin class.
+	 * @param  ConfigInterface $config An instance of the Plugin class.
 	 * @param  mixed           ...$args Any required arguments.
 	 *
 	 * @return void
 	 */
-	public static function activate( PluginInterface $plugin, mixed ...$args ): void;
+	public static function activate( ConfigInterface $config, mixed ...$args ): void;
 }

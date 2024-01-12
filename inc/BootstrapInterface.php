@@ -1,15 +1,18 @@
 <?php
 /**
+ * Interface for the Bootstrap class.
+ *
  * @package  RanPluginLib
  */
 
+declare(strict_types=1);
 namespace Ran\PluginLib;
 
-use Ran\PluginLib\Plugin\PluginInterface;
+use Ran\PluginLib\Config\ConfigInterface;
 
 /**
  * Interface for the Bootstrap class.
- * The Bootstrap class should ideally have only one method called init where all the configuration takes place.
+ * The Bootstrap's init class init method is called on plugin activation.
  *
  * @package  RanPluginLib
  */
@@ -22,5 +25,5 @@ interface BootstrapInterface {
 	 *
 	 * @return PluginInterface
 	 */
-	public function init():PluginInterface;
+	public function init():ConfigInterface;
 }
