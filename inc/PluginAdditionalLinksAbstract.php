@@ -5,6 +5,7 @@
  * @package  RanPlugin
  */
 
+declare(strict_types=1);
 namespace Ran\PluginLib;
 
 use Ran\PluginLib\FeaturesAPI\FeatureControllerAbstract;
@@ -27,7 +28,6 @@ abstract class  PluginAdditionalLinksAbstract extends FeatureControllerAbstract 
 
 		return $this;
 	}
-
 
 	/**
 	 * Modifies the plugin action link array.
