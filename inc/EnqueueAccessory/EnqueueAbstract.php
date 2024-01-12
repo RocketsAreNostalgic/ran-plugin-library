@@ -1,16 +1,19 @@
 <?php
+
+declare(strict_types=1);
 /**
  * @package  RanPluginLib
  */
 
-namespace Ran\PluginLib;
+namespace Ran\PluginLib\EnqueueAccessory;
 
 /**
  * This class is meant to be extended and be instantiated via the RegisterServices Class.
  *
  * @package  RanPluginLib
  */
-abstract class EnqueueAbstract implements EnqueueInterface {
+abstract class EnqueueAbstract implements EnqueueInterface
+{
 
 	public array $styles = array();
 	public array $scripts = array();
@@ -24,7 +27,7 @@ abstract class EnqueueAbstract implements EnqueueInterface {
 	 *
 	 * @return null
 	 */
-	abstract public function load():void;
+	abstract public function load(): void;
 
 	/**
 	 * Chain-able call to add styles to be loaded.
@@ -33,7 +36,8 @@ abstract class EnqueueAbstract implements EnqueueInterface {
 	 *
 	 * @return self
 	 */
-	public function add_styles( array $styles ):self {
+	public function add_styles(array $styles): self
+	{
 		$this->styles = $styles;
 
 		return $this;
@@ -46,7 +50,8 @@ abstract class EnqueueAbstract implements EnqueueInterface {
 	 *
 	 * @return self
 	 */
-	public function add_scripts( array $scripts ):self {
+	public function add_scripts(array $scripts): self
+	{
 		$this->scripts = $scripts;
 
 		return $this;
@@ -59,7 +64,8 @@ abstract class EnqueueAbstract implements EnqueueInterface {
 	 *
 	 * @return self
 	 */
-	public function add_media( array $media ):self {
+	public function add_media(array $media): self
+	{
 		$this->media = $media;
 
 		return $this;
@@ -72,10 +78,11 @@ abstract class EnqueueAbstract implements EnqueueInterface {
 	 *
 	 * @return self
 	 */
-	public function enqueue_scripts( array $scripts ):self {
+	public function enqueue_scripts(array $scripts): self
+	{
 
-		foreach ( $scripts as $script ) {
-			wp_enqueue_script( ...$script );
+		foreach ($scripts as $script) {
+			wp_enqueue_script(...$script);
 		}
 		return $this;
 	}
@@ -87,10 +94,11 @@ abstract class EnqueueAbstract implements EnqueueInterface {
 	 *
 	 * @return self
 	 */
-	public function enqueue_styles( array $styles ):self {
+	public function enqueue_styles(array $styles): self
+	{
 
-		foreach ( $styles as $style ) {
-			wp_enqueue_style( ...$style );
+		foreach ($styles as $style) {
+			wp_enqueue_style(...$style);
 		}
 		return $this;
 	}
@@ -102,10 +110,11 @@ abstract class EnqueueAbstract implements EnqueueInterface {
 	 *
 	 * @return self
 	 */
-	public function enqueue_media( array $media ):self {
+	public function enqueue_media(array $media): self
+	{
 
-		foreach ( $media as $args ) {
-			wp_enqueue_media( $args );
+		foreach ($media as $args) {
+			wp_enqueue_media($args);
 		}
 
 		return $this;
@@ -116,9 +125,10 @@ abstract class EnqueueAbstract implements EnqueueInterface {
 	 *
 	 * @return void
 	 */
-	public function enqueue():void {
-		$this->enqueue_scripts( $this->scripts );
-		$this->enqueue_styles( $this->styles );
-		$this->enqueue_media( $this->media );
+	public function enqueue(): void
+	{
+		$this->enqueue_scripts($this->scripts);
+		$this->enqueue_styles($this->styles);
+		$this->enqueue_media($this->media);
 	}
 }
