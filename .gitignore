@@ -18,6 +18,8 @@ vendor/
 node_modules/
 npm-debug.log
 
+tests/coverage/html-coverage/*
+
 .vscode/*
 !.vscode/launch.json
 !.vscode/extensions.json
