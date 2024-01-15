@@ -10,12 +10,11 @@ namespace Ran\PluginLib;
 
 use Ran\PluginLib\FeaturesAPI\FeatureControllerAbstract;
 use Ran\PluginLib\FeaturesAPI\RegistrableFeatureInterface;
-use Ran\PluginLib\Plugin\PluginInterface;
 
 /**
  * Modify the action and meta arrays for the plugin's entry in the admin plugins page.
  */
-abstract class  PluginAdditionalLinksAbstract extends FeatureControllerAbstract implements RegistrableFeatureInterface {
+abstract class PluginAdditionalLinksAbstract extends FeatureControllerAbstract implements RegistrableFeatureInterface {
 
 	/**
 	 * Our init hook to add_filter hooks.
@@ -23,7 +22,7 @@ abstract class  PluginAdditionalLinksAbstract extends FeatureControllerAbstract 
 	 * @return PluginAdditionalLinksAbstract
 	 */
 	public function init(): PluginAdditionalLinksAbstract {
-		add_filter( 'plugin_action_links_' . $this->plugin_data['FileName'], array( $this, 'plugin_action_links_callback' ) );
+		add_filter( 'plugin_action_links_' . $this->plugin_array['FileName'], array( $this, 'plugin_action_links_callback' ) );
 		add_filter( 'plugin_row_meta', array( $this, 'plugin_meta_links_callback' ), 10, 4 );
 
 		return $this;
@@ -38,7 +37,7 @@ abstract class  PluginAdditionalLinksAbstract extends FeatureControllerAbstract 
 	 *
 	 * @return array
 	 */
-	public function plugin_action_links_callback( array $links ):array {
+	public function plugin_action_links_callback( array $links ): array {
 
 		/**
 		 * We can modify the links array here, but must return the array.
@@ -63,9 +62,9 @@ abstract class  PluginAdditionalLinksAbstract extends FeatureControllerAbstract 
 	 *
 	 * @return array The modified plugin meta array.
 	 */
-	public function plugin_meta_links_callback( array $plugin_meta, string $plugin_file, array $plugin_data, string $status ):array {
+	public function plugin_meta_links_callback( array $plugin_meta, string $plugin_file, array $plugin_data, string $status ): array {
 
-		if ( stripos( $plugin_file, $this->plugin_data['FileName'] ) === false ) {
+		if ( stripos( $plugin_file, $this->plugin_array['FileName'] ) === false ) {
 			return $plugin_meta;
 		}
 
