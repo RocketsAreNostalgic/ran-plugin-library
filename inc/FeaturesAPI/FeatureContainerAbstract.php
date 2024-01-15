@@ -10,7 +10,6 @@ namespace Ran\PluginLib\FeaturesAPI;
 
 use Ran\PluginLib\FeaturesAPI\FeatureContainerInterface;
 use Ran\PluginLib\FeaturesAPI\RegistrableFeatureInterface;
-use \stdClass;
 
 /**
  * Abstract Feature Container class.
@@ -22,7 +21,7 @@ abstract class FeatureContainerAbstract implements FeatureContainerInterface {
 	 *
 	 * @var ?RegistrableFeatureInterface|null The feature instance.
 	 */
-	private ? RegistrableFeatureInterface $instance = null;
+	private ?RegistrableFeatureInterface $instance = null;
 
 	/**
 	 * Construct function uses PHP 8.0 constructor promoted properties to set readonly properties on the instance.
@@ -47,7 +46,7 @@ abstract class FeatureContainerAbstract implements FeatureContainerInterface {
 	 *
 	 * @return bool
 	 */
-	public function set_instance( RegistrableFeatureInterface $instance ):RegistrableFeatureInterface|false {
+	public function set_instance( RegistrableFeatureInterface $instance ): RegistrableFeatureInterface|false {
 		if ( $this->instance ) {
 			return false;
 		}
@@ -60,7 +59,7 @@ abstract class FeatureContainerAbstract implements FeatureContainerInterface {
 	 *
 	 * @return RegistrableFeatureInterface|null
 	 */
-	public function get_instance():RegistrableFeatureInterface|null {
+	public function get_instance(): RegistrableFeatureInterface|null {
 		return $this->instance;
 	}
 }
