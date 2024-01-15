@@ -58,13 +58,12 @@ interface FeatureContainerInterface {
 	 *
 	 * @return bool
 	 */
-	public function set_instance( RegistrableFeatureInterface $instance ):RegistrableFeatureInterface|false;
+	public function set_instance( RegistrableFeatureInterface $instance ): RegistrableFeatureInterface|false;
 
 	/**
 	 * Get the instance associated with a slug identifier string
 	 *
 	 * @return RegistrableFeatureInterface|null
 	 */
-	public function get_instance():RegistrableFeatureInterface | null;
-
+	public function get_instance(): RegistrableFeatureInterface|null;
 }
