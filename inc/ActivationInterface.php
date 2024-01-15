@@ -1,5 +1,7 @@
 <?php
 /**
+ * Interface for the Activation class
+ *
  * @package  RanPluginLib
  */
 
