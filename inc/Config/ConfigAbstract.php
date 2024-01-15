@@ -1,5 +1,4 @@
 <?php
-
 /**
  * Abstract implementation of Config class.
  *
@@ -57,14 +56,14 @@ abstract class ConfigAbstract implements ConfigInterface {
 	 */
 	public function __construct( string $plugin_file ) {
 
-		$plugin_array['PATH'] = plugin_dir_path( dirname( __FILE__, 5 ) );
-		$plugin_array['URL'] = plugin_dir_url( dirname( __FILE__, 5 ) );
+		$plugin_array['PATH'] = plugin_dir_path( dirname( __DIR__, 4 ) );
+		$plugin_array['URL'] = plugin_dir_url( dirname( __DIR__, 4 ) );
 		$plugin_array['FileName'] = plugin_basename( $plugin_file );
 		$plugin_array['File'] = $plugin_file;
 
 		if ( ! function_exists( 'get_plugin_array' ) ) {
 			// @codeCoverageIgnoreStart
-			require_once( ABSPATH . 'wp-admin/includes/plugin.php' );
+			require_once ABSPATH . 'wp-admin/includes/plugin.php';
 			// @codeCoverageIgnoreEnd
 		}
 		// Get header data from plugin docblock.
@@ -83,6 +82,15 @@ abstract class ConfigAbstract implements ConfigInterface {
 	}
 
 	/**
+	 * Returns the array of plugin properties.
+	 *
+	 * @return array plugin array
+	 */
+	public function get_plugin(): array {
+		return $this->plugin_array;
+	}
+
+	/**
 	 * Returns the value of the current plugins primary WordPress option, or false if none has been set.
 	 * * You can optionally pass in any string value to see if an option by that name has been set,
 	 * * or a Option and Key to see if a specific key has been set.
@@ -98,7 +106,10 @@ abstract class ConfigAbstract implements ConfigInterface {
 			return -1;
 		}
 
-		$option = empty( $option ) ?: $this->plugin_array['PluginOption'];
+		$option = $this->plugin_array['PluginOption'];
+		if ( empty( $option ) ) {
+			$option = null;
+		}
 
 		$option = get_option( $option, $default );
 
@@ -130,7 +141,12 @@ abstract class ConfigAbstract implements ConfigInterface {
 		);
 		foreach ( $required_headers as $header ) {
 			if ( ! array_key_exists( $header, $plugin_array ) || empty( $plugin_array[ $header ] ) ) {
-				throw new \Exception( \sprintf( 'Ran Config Header is missing assignment: %s.', $header ) );
+				throw new \Exception(
+					\sprintf(
+						'Ran Config Header is missing assignment: %s.',
+						esc_html( $header )
+					)
+				);
 			}
 		}
 		return $plugin_array;
