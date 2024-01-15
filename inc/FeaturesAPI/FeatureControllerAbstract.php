@@ -53,7 +53,7 @@ abstract class FeatureControllerAbstract implements RegistrableFeatureInterface 
 	 *
 	 * @return FeatureControllerAbstract
 	 */
-	abstract public function init():FeatureControllerAbstract;
+	abstract public function init(): FeatureControllerAbstract;
 
 	/**
 	 * Returns the value of an active option, or false.
@@ -66,8 +66,13 @@ abstract class FeatureControllerAbstract implements RegistrableFeatureInterface 
 	 *
 	 * @return mixed If will return the value of the key array|string or else false
 	 */
-	public function is_activated( string $key, string $option_name = '' ):mixed {
-		$option_name = $option_name ?: $this->plugin_array['PluginOption'];
+	public function is_activated( string $key, string $option_name = '' ): mixed {
+
+		if ( $option_name ) {
+			$option_name = $this->plugin_array['PluginOption'];
+		}
+
+		$option = get_option( $option_name );
 
 		$option = get_option( $option_name );
 
