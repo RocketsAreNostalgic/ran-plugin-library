@@ -73,12 +73,12 @@ abstract class FeaturesManagerAbstract {
 		string $slug_id,
 		string $qualified_classname,
 		array $deps = array(),
-		) {
+	) {
 
 		$slug_id = sanitize_title( $slug_id );
 
 		if ( ! $slug_id || array_key_exists( $slug_id, $this->registery->get_registery() ) ) {
-			throw new Exception( \sprintf( '"A unique feature slug is required for managed class: "%s', $qualified_classname ) );
+			throw new Exception( \sprintf( '"A unique feature slug is required for managed class: "%s', esc_html( $qualified_classname ) ) );
 		}
 
 		$feature = new FeatureContainer(
@@ -100,7 +100,7 @@ abstract class FeaturesManagerAbstract {
 	 *
 	 * @return void
 	 */
-	public function load_all():void {
+	public function load_all(): void {
 		$features = $this->registery->get_registery();
 		foreach ( $features as $feature ) {
 			$this->load_feature_container( $feature );
@@ -127,7 +127,7 @@ abstract class FeaturesManagerAbstract {
 	 *
 	 * @return void
 	 */
-	protected function load_feature_container( FeatureContainer $feature ):void {
+	protected function load_feature_container( FeatureContainer $feature ): void {
 
 		// Create new feature class.
 		$instance = $this->create_new_feature_class(
@@ -153,13 +153,18 @@ abstract class FeaturesManagerAbstract {
 	 * @throws \Exception Throws if the calling class does not extend FeatureControllerAbstract or implement RegistrableFeatureInterface or .
 	 * @throws \Exception Throws if $deps property hasn't been declared on the FeatureController before trying to set its value.
 	 */
-	protected function create_new_feature_class( ConfigInterface $plugin, string $class, array $deps ):RegistrableFeatureInterface {
+	protected function create_new_feature_class( ConfigInterface $plugin, string $class, array $deps ): RegistrableFeatureInterface {
 
 		if ( ! isset( class_implements( $class )['Ran\PluginLib\FeaturesAPI\RegistrableFeatureInterface'] ) ) {
-			throw new \Exception( \sprintf( 'Each FeatureController must impliment RegistrableFeatureInterface:  %s', print_r( $class ) ) );
+			throw new \Exception(
+				\sprintf(
+					'Each FeatureController must impliment RegistrableFeatureInterface:  %s',
+					esc_html( print_r( $class ) )
+				)
+			);
 		}
 		if ( ! is_subclass_of( $class, 'Ran\PluginLib\FeaturesAPI\FeatureControllerAbstract' ) ) {
-			throw new \Exception( \sprintf( 'Each FeatureController must extend FeatureControllerAbstract:  %s', print_r( $class ) ) );
+			throw new \Exception( \sprintf( 'Each FeatureController must extend FeatureControllerAbstract:  %s', esc_html( print_r( $class ) ) ) );
 		}
 
 		// Create new instance.
@@ -186,7 +191,7 @@ abstract class FeaturesManagerAbstract {
 	 * @return void
 	 * @throws \Exception Will throw if the property is not present, public, or if the property is protected|private and a sett_*() method has not been defined.
 	 */
-	protected function set_instance_dependencies( RegistrableFeatureInterface $instance, array $deps ):void {
+	protected function set_instance_dependencies( RegistrableFeatureInterface $instance, array $deps ): void {
 
 		$reflected_instance = new \ReflectionClass( $instance );
 
@@ -208,14 +213,14 @@ abstract class FeaturesManagerAbstract {
 							// We have a public setter method, so set the property.
 							$instance->$setter( $value[ key( $value ) ] );
 						} else {
-							throw new Exception( \sprintf( 'Can not set property "%s" because it is not "public", and a public method "set_%s()" has not been declared on "%s".', key( $value ), key( $value ), get_class( $instance ) ) );
+							throw new Exception( \sprintf( 'Can not set property "%s" because it is not "public", and a public method "set_%s()" has not been declared on "%s".', esc_html( key( $value ) ), esc_html( key( $value ) ), esc_html( get_class( $instance ) ) ) );
 						}
 					} else {
-						throw new Exception( \sprintf( 'Can not set property "%s" because the public method "set_%s()" has not been declared on "%s".', key( $value ), key( $value ), get_class( $instance ) ) );
+						throw new Exception( \sprintf( 'Can not set property "%s" because the public method "set_%s()" has not been declared on "%s".', esc_html( key( $value ) ), esc_html( key( $value ) ), esc_html( get_class( $instance ) ) ) );
 					}
 				}
 			} else {
-				throw new Exception( \sprintf( 'Can not set property "%s" because it has not been declared on "%s"', key( $value ), get_class( $instance ) ) );
+				throw new Exception( \sprintf( 'Can not set property "%s" because it has not been declared on "%s"', esc_html( key( $value ) ), esc_html( get_class( $instance ) ) ) );
 			}
 		}
 	}
@@ -230,7 +235,7 @@ abstract class FeaturesManagerAbstract {
 	 * @throws \Exception Throws when the Accessory is missing its <Accessory>Manager adjacent class.
 	 * @throws \Exception Throws when the <Accessory>Manager adjacent class doesn't implement AccessoryManagerBaseInterface.
 	 */
-	protected function enable_instance_accessiories( RegistrableFeatureInterface $instance ):void {
+	protected function enable_instance_accessiories( RegistrableFeatureInterface $instance ): void {
 		// Array of implemented interfaces.
 		$interfaces  = \class_implements( $instance );
 
@@ -250,10 +255,10 @@ abstract class FeaturesManagerAbstract {
 						$manager = new $adjacent_class();
 						$manager->init( $instance );
 					} else {
-						throw new \Exception( \sprintf( 'The Manager class for AccessoryInterface "%s" does not impliment the "AccessoryManagerBaseInterface" and cannot be called.', $interface_name, $adjacent_class, \get_class( $instance ) ) );
+						throw new \Exception( \sprintf( 'The Manager class for AccessoryInterface "%s" does not impliment the "AccessoryManagerBaseInterface" and cannot be called.', esc_html( $interface_name ), esc_html( $adjacent_class ), esc_html( get_class( $instance ) ) ) );
 					}
 				} else {
-					throw new \Exception( \sprintf( 'The AccessoryInterface "%s" is missing its adjacent Manager "%s".', $interface_name, $adjacent_class, \get_class( $instance ) ) );
+					throw new \Exception( \sprintf( 'The AccessoryInterface "%s" is missing its adjacent Manager "%s".', esc_html( $interface_name ), esc_html( $adjacent_class ), esc_html( \get_class( $instance ) ) ) );
 				}
 			}
 		}
@@ -264,7 +269,7 @@ abstract class FeaturesManagerAbstract {
 	 *
 	 * @return array of FeatureContainer objects.
 	 */
-	public function get_registry():array {
+	public function get_registry(): array {
 		return $this->registery->get_registery();
 	}
 
@@ -275,9 +280,7 @@ abstract class FeaturesManagerAbstract {
 	 *
 	 * @return FeatureContainer|null
 	 */
-	public function get_registered_feature( string $slug_id ):FeatureContainer|null {
+	public function get_registered_feature( string $slug_id ): FeatureContainer|null {
 		return $this->registery->get_feature( $slug_id );
 	}
-
-
 }
