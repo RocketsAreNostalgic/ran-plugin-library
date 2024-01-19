@@ -27,6 +27,7 @@
 		"squizlabs/php_codesniffer": "*",
 		"wp-coding-standards/wpcs": "*",
 		"dealerdirect/phpcodesniffer-composer-installer": "*",
+		"slevomat/coding-standard": "~8.0",
 		"yoast/phpunit-polyfills": "^1.0",
 		"phpunit/phpunit": "^9",
 		"10up/wp_mock": "^0.5.0"
