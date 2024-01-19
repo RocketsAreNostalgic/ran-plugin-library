@@ -1,9 +1,11 @@
 <?php
-
-declare(strict_types=1);
 /**
+ * EnqueuePublic class adds scripts with the wp_enqueue_scripts WP hook.
+ *
  * @package  RanPluginLib
  */
+
+declare(strict_types=1);
 
 namespace Ran\PluginLib\EnqueueAccessory;
 
@@ -12,17 +14,15 @@ namespace Ran\PluginLib\EnqueueAccessory;
  *
  * @package  RanPluginLib
  */
-final class EnqueuePublic extends EnqueueAbstract implements EnqueueInterface
-{
+final class EnqueuePublic extends EnqueueAbstract implements EnqueueInterface {
+
 
 	/**
 	 * A class registration function to add the wp_enqueue_scripts hook to WP.
 	 * The hook callback function is $this->enqueue()
 	 *
-	 * @return null
 	 */
-	public function load(): void
-	{
-		add_action('wp_enqueue_scripts', array($this, 'enqueue'));
+	public function load(): void {
+		add_action( 'wp_enqueue_scripts', array( $this, 'enqueue' ) );
 	}
 }

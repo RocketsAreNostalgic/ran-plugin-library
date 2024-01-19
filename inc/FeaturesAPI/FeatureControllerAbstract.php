@@ -53,7 +53,7 @@ abstract class FeatureControllerAbstract implements RegistrableFeatureInterface 
 	 *
 	 * @return FeatureControllerAbstract
 	 */
-	abstract public function init(): FeatureControllerAbstract;
+	abstract public function init(): FeatureControllerAbstract|false;
 
 	/**
 	 * Returns the value of an active option, or false.

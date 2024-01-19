@@ -12,8 +12,8 @@ namespace Ran\PluginLib\EnqueueAccessory;
  *
  * @package  RanPluginLib
  */
-interface EnqueueInterface
-{
+interface EnqueueInterface {
+
 
 	/**
 	 * A class registration function to add admin_enqueue_scripts/wp_enqueue_scripts hooks to WP.
@@ -30,7 +30,7 @@ interface EnqueueInterface
 	 *
 	 * @return self
 	 */
-	public function add_styles(array $styles): self;
+	public function add_styles( array $styles ): self;
 
 	/**
 	 * Chain-able call to add scripts to be loaded.
@@ -39,7 +39,7 @@ interface EnqueueInterface
 	 *
 	 * @return self
 	 */
-	public function add_scripts(array $scripts): self;
+	public function add_scripts( array $scripts ): self;
 
 	/**
 	 * Chain-able call to add media to be loaded.
@@ -48,7 +48,7 @@ interface EnqueueInterface
 	 *
 	 * @return self
 	 */
-	public function add_media(array $media): self;
+	public function add_media( array $media ): self;
 
 	/**
 	 * Enqueue an array of scripts
@@ -57,7 +57,7 @@ interface EnqueueInterface
 	 *
 	 * @return self
 	 */
-	public function enqueue_scripts(array $scripts): self;
+	public function enqueue_scripts( array $scripts ): self;
 
 	/**
 	 * Enqueue an array of scripts
@@ -66,7 +66,7 @@ interface EnqueueInterface
 	 *
 	 * @return self;
 	 */
-	public function enqueue_styles(array $styles): self;
+	public function enqueue_styles( array $styles ): self;
 
 	/**
 	 * Enqueue an array of media
@@ -75,7 +75,7 @@ interface EnqueueInterface
 	 *
 	 * @return self
 	 */
-	public function enqueue_media(array $media): self;
+	public function enqueue_media( array $media ): self;
 
 	/**
 	 * * Enqueue all registered assets.
