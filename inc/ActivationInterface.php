@@ -11,7 +11,7 @@ namespace Ran\PluginLib;
 /**
  * Interface for the Activation class
  *
- * @param  Plugin $plugin the current plugin instance.
+ * @param  Config $config the current plugin config instance.
  * @param  mixed ...$args mixed array of arguments.
  *
  * @package  RanPluginLib
