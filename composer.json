@@ -30,7 +30,10 @@
 		"slevomat/coding-standard": "^8.14",
 		"yoast/phpunit-polyfills": "^2.0",
 		"phpunit/phpunit": "^9.6",
-		"10up/wp_mock": "^1.0"
+		"10up/wp_mock": "^1.0",
+		"phpcompatibility/phpcompatibility-wp": "*",
+		"wp-phpunit/wp-phpunit": "^6.4",
+		"rmccue/requests": "^2.0"
 	},
 	"config": {
 		"allow-plugins": {
@@ -38,10 +41,10 @@
 		}
 	},
 	"scripts": {
-		"check-cs": [
+		"lint": [
 			"@php ./vendor/bin/phpcs"
 		],
-		"fix-cs": [
+		"format": [
 			"@php ./vendor/bin/phpcbf"
 		],
 		"test": [
