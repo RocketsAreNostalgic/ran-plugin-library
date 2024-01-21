@@ -17,6 +17,20 @@ use Ran\PluginLib\FeaturesAPI\RegistrableFeatureInterface;
 abstract class PluginAdditionalLinksAbstract extends FeatureControllerAbstract implements RegistrableFeatureInterface {
 
 	/**
+	 * Array of plugin_action_links.
+	 *
+	 * @var array<mixed>
+	 */
+	public array $action_links = array();
+
+	/**
+	 * Array of plugin_row_meta.
+	 *
+	 * @var array<mixed>
+	 */
+	public array $plugin_row_meta = array();
+
+	/**
 	 * Our init hook to add_filter hooks.
 	 *
 	 * @return PluginAdditionalLinksAbstract

@@ -11,6 +11,7 @@ namespace Ran\PluginLib\Config;
 
 use Exception;
 use Ran\PluginLib\Config\ConfigInterface;
+use Ran\PluginLib\Singleton\Singleton;
 
 /**
  * Config class collates basic information about the environment using the WordPress docblock in the plugin root.
@@ -18,7 +19,9 @@ use Ran\PluginLib\Config\ConfigInterface;
  * This class relies heavily on the results of get_plugin_data() which involves a file system read, fetch the Config's docblock headers.
  * As such the Config class is best instantiated once and then passed using dependency injection.
  */
-abstract class ConfigAbstract implements ConfigInterface {
+abstract class ConfigAbstract extends Singleton implements ConfigInterface {
+
+	private static string $plugin_file;
 
 	/**
 	 * Holds useful plugin details, including paths, URL's and filenames, plus details pulled from WordPress plugin header.
@@ -49,17 +52,22 @@ abstract class ConfigAbstract implements ConfigInterface {
 	 */
 	public readonly array $plugin_array;
 
+
 	/**
 	 * Constructor for the plugin for the Config object.
-	 *
-	 * @param string $plugin_file Is the plugin root file or __FILE__.
 	 */
-	public function __construct( string $plugin_file ) {
+	protected function __construct() {
+
+		if ( empty( self::$plugin_file ) ) {
+			// @codeCoverageIgnoreStart
+			throw new Exception( 'No plugin file provided. call ::init($path_to_main_plugin_file) first.' );
+			// @codeCoverageIgnoreEnd
+		}
 
 		$plugin_array['PATH'] = plugin_dir_path( dirname( __DIR__, 4 ) );
 		$plugin_array['URL'] = plugin_dir_url( dirname( __DIR__, 4 ) );
-		$plugin_array['FileName'] = plugin_basename( $plugin_file );
-		$plugin_array['File'] = $plugin_file;
+		$plugin_array['FileName'] = plugin_basename( self::$plugin_file );
+		$plugin_array['File'] = self::$plugin_file;
 
 		if ( ! function_exists( 'get_plugin_array' ) ) {
 			// @codeCoverageIgnoreStart
@@ -67,7 +75,7 @@ abstract class ConfigAbstract implements ConfigInterface {
 			// @codeCoverageIgnoreEnd
 		}
 		// Get header data from plugin docblock.
-		$data = get_plugin_data( $plugin_file );
+		$data = get_plugin_data( self::$plugin_file );
 
 		// Merge in the plugin docblock data.
 		$plugin_array = array_merge( $plugin_array, $data );
@@ -80,6 +88,19 @@ abstract class ConfigAbstract implements ConfigInterface {
 		$this->validate_plugin_array( $plugin_array );
 		$this->plugin_array = $plugin_array;
 	}
+
+	/**
+	 * Initializes and returns an instance of the Config object.
+	*
+	* @var string $plugin_file The path to the plugin's root file.
+	* @return Singleton The current instance of the Config object.
+	*/
+	public static function init( string $plugin_file )
+	{
+		self::$plugin_file = $plugin_file;
+		return self::get_instance();
+	}
+
 
 	/**
 	 * Returns the array of plugin properties.
@@ -143,7 +164,7 @@ abstract class ConfigAbstract implements ConfigInterface {
 			if ( ! array_key_exists( $header, $plugin_array ) || empty( $plugin_array[ $header ] ) ) {
 				throw new \Exception(
 					\sprintf(
-						'Ran Config Header is missing assignment: %s.',
+						'RanPluginLib: Config Header is missing assignment: "%s".',
 						esc_html( $header )
 					)
 				);
