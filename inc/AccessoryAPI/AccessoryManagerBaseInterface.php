@@ -9,6 +9,8 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\AccessoryAPI;
 
+use Ran\PluginLib\AccessoryAPI\AccessoryBaseInterface;
+
 interface AccessoryManagerBaseInterface
 {
 	/**
