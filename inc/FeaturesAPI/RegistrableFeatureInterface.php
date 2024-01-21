@@ -2,7 +2,7 @@
 /**
  * An interface for a registrable feature.
  *
- * @package  RanPlugin
+ * @package  RanPluginLib
  */
 
 declare(strict_types=1);

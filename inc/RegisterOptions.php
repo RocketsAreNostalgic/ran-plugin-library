@@ -10,8 +10,6 @@ namespace Ran\PluginLib;
 
 /**
  * Activation class that establishes the
- *
- * @package  RanPlugin
  */
 final class RegisterOptions
 {

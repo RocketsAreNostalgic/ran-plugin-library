@@ -2,7 +2,7 @@
 /**
  * A container for feature configuration.
  *
- * @package  RanPlugin
+ * @package  RanPluginLib
  */
 
 declare(strict_types=1);
