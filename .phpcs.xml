@@ -60,7 +60,7 @@
 	<rule ref="WordPress.NamingConventions.PrefixAllGlobals">
 		<properties>
 			<property name="prefixes" type="array">
-				<element value="ran_plugin_lib"/>
+				<element value="ran_plugLib"/>
 			</property>
 		</properties>
 	</rule>
