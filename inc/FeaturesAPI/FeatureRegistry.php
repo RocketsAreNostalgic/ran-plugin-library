@@ -2,7 +2,7 @@
 /**
  * A feature cacheing class.
  *
- * @package  RanPlugin
+ * @package  RanPluginLib
  */
 
 declare(strict_types=1);

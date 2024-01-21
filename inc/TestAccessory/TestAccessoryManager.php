@@ -2,7 +2,7 @@
 /**
  * Abstract implementation of TestManager class.
  *
- * @package  RanPlugin
+ * @package  RanPluginLib
  */
 
 namespace Ran\PluginLib\TestAccessory;

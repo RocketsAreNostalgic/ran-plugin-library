@@ -2,7 +2,7 @@
 /**
  * FeatureControllerAbstract class.
  *
- * @package  RanPlugin
+ * @package  RanPluginLib
  */
 
 declare(strict_types=1);
@@ -12,8 +12,6 @@ use Ran\PluginLib\Config\ConfigInterface;
 
 /**
  * Feature controllers must implement a RegistrableFeatureInterface, with a register() method in order to be activated by the RegisterService class.
- *
- * @package  RanPluginLib
  */
 abstract class FeatureControllerAbstract implements RegistrableFeatureInterface {
 

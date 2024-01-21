@@ -3,14 +3,14 @@
  * Abstract implementation of Plugin class.
  *
  * TODO: it is an open question as to if Accessory interfaces should be called before or after the FeatureController's init method is called.
- *  * Currently in we:
+ * Currently in we:
  *  *  create a new FeatureController object
  *  *  inject any dependencies that have been declared
  *  *  trigger any Accessories found on the FeatureController
  *  *  and then return the new FeatureController.
  *  *  We leave it to the Bootstrap method to call the init method.
  *
- * @package  RanPlugin
+ * @package  RanPluginLib
  */
 
 declare(strict_types=1);

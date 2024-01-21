@@ -2,7 +2,7 @@
 /**
  * An abstract helper class for inserting user data into the database.
  *
- *  @package  RanPlugin
+ *  @package  RanPluginLib
  */
 
 declare(strict_types=1);
