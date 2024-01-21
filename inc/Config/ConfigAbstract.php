@@ -86,7 +86,7 @@ abstract class ConfigAbstract implements ConfigInterface {
 	 *
 	 * @return array plugin array
 	 */
-	public function get_plugin(): array {
+	public function get_plugin_config(): array {
 		return $this->plugin_array;
 	}
 

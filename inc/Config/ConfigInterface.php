@@ -31,5 +31,5 @@ interface ConfigInterface {
 	 *
 	 * @return array config array
 	 */
-	public function get_plugin(): array;
+	public function get_plugin_config(): array;
 }
