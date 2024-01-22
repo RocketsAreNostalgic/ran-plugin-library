@@ -60,7 +60,7 @@ abstract class ConfigAbstract extends Singleton implements ConfigInterface {
 
 		if ( empty( self::$plugin_file ) ) {
 			// @codeCoverageIgnoreStart
-			throw new Exception( 'No plugin file provided. call ::init($path_to_main_plugin_file) first.' );
+			throw new Exception( 'Ran PluginLib: No plugin file provided. First call ::init(path/to/entrance/plugin-name.php)' );
 			// @codeCoverageIgnoreEnd
 		}
 
