@@ -80,8 +80,29 @@ final class RegisterOptions
 		return $registered;
 	}
 
-	public function get_option($option_name): mixed
+	/**
+	 * Retrieves an option value from the WordPress options table.
+	 *
+	 * @param  string $option_name The name of the option to retrieve. Spaces will be replaced by underscores.
+	 * @param  mixed  $default     Optional. Default value to return if the option does not exist.
+	 *
+	 * @return mixed The value of the option, or the default value if option not found.
+	 */
+	public function get_option(string $option_name, mixed $default = false): mixed
 	{
+		if (!current_user_can('activate_plugins')) {
+			return -1;
+		}
+
+		$option_name = \str_replace(' ', '_', $option_name); // Spaces to underscores.
+
+		// Check if we have it in our local cache first
+		if (isset($this->options[$option_name]) && isset($this->options[$option_name][0])) {
+			return $this->options[$option_name][0];
+		}
+
+		// Otherwise get it directly from WordPress
+		return \get_option($option_name, $default);
 	}
 
 	/**
@@ -133,26 +154,38 @@ final class RegisterOptions
 		}
 	}
 
-	private function refresh_option(string $option)
+	/**
+	 * Refreshes a single option by synchronizing the local cache with the WordPress options table.
+	 *
+	 * @param string $option The option name to refresh.
+	 *
+	 * @return mixed|null The refreshed option value or null if not found.
+	 */
+	private function refresh_option(string $option): mixed
 	{
-		// echo '<pre>';
-		// $wp_opt_table_val = \get_option($option);
-		// echo ('option:</br>');
-		// print_r($option);
-		// print_r($this->options[$option]);
-		// echo '</br>';
-		// print_r($wp_opt_table_val);
-		// echo '</pre>';
+		// Get the current value from WordPress options table
+		$wp_opt_table_val = \get_option($option, null);
 
-		// 	// If we have a value that the database doesn't (shouldn't ever happen)
-		// 	if (!$wp_opt_table_val && $this->options[$option]) {
-		// 		// Try to set any options to the table
-		// 		$this->register_option($option, $value[$option_key], $value['autoload'] ?? true);
-		// 	}
-		// 	if ($wp_opt_table_val === $this->options[$option][0]) {
-		// 		return $this->options[$option][0];
-		// 	} else {
-		// 		$this->options[$option][0] = $wp_opt_table_val;
-		// 	}
+		// If the option doesn't exist in our local cache but exists in the database
+		if (!isset($this->options[$option]) && $wp_opt_table_val !== null) {
+			// Add it to our local cache
+			$this->options[$option] = array($wp_opt_table_val);
+			return $wp_opt_table_val;
+		}
+
+		// If we have a value in our cache that the database doesn't have
+		if (isset($this->options[$option]) && $wp_opt_table_val === null) {
+			// Try to set the option in the database
+			$autoload = $this->options[$option]['autoload'] ?? null;
+			$this->register_option($option, $this->options[$option][0], $autoload);
+			return $this->options[$option][0];
+		}
+
+		// If both exist but values are different, update our local cache
+		if (isset($this->options[$option]) && $wp_opt_table_val !== null && $wp_opt_table_val !== $this->options[$option][0]) {
+			$this->options[$option][0] = $wp_opt_table_val;
+		}
+
+		return isset($this->options[$option]) ? $this->options[$option][0] : null;
 	}
 }
