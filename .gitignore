@@ -3,7 +3,6 @@ Thumbs.db
 .cache
 .project
 .settings
-
 .svn
 .CVS
 cache
@@ -12,14 +11,12 @@ cache
 *.sass-cache
 .phpunit.cache
 .phpunit.result.cache
-
+composer.lock
 vendor/
 !vendor/autoload.php
 node_modules/
 npm-debug.log
-
 tests/coverage/html-coverage/*
-
 .vscode/*
 !.vscode/launch.json
 !.vscode/extensions.json

@@ -1,59 +1,64 @@
 {
-	"name": "ran/plugin-lib",
-	"description": "RocketsAreNostalgic: A shared library of plugin classes to interact with WordPress",
-	"type": "library",
-	"version": "0.0.2",
-	"license": "MIT",
-	"authors": [
-		{
-			"name": "Benjamin Rush <bnjmnrsh>",
-			"email": "bnjmnrsh@gmail.com"
-		}
-	],
-	"minimum-stability": "dev",
-	"prefer-stable": true,
-	"autoload": {
-		"psr-4": {
-			"Ran\\PluginLib\\": "inc/"
-		}
-	},
-	"autoload-dev": {
-		"psr-4": {
-			"Ran\\PluginLib\\Tests\\": "Tests/"
-		}
-	},
-	"require-dev": {
-		"php": ">=8.1",
-		"squizlabs/php_codesniffer": "^3.8",
-		"wp-coding-standards/wpcs": "^3.0",
-		"dealerdirect/phpcodesniffer-composer-installer": "^1.0",
-		"slevomat/coding-standard": "^8.14",
-		"yoast/phpunit-polyfills": "^2.0",
-		"phpunit/phpunit": "^9.6",
-		"10up/wp_mock": "^1.0",
-		"phpcompatibility/phpcompatibility-wp": "*",
-		"wp-phpunit/wp-phpunit": "^6.4",
-		"rmccue/requests": "^2.0"
-	},
-	"config": {
-		"allow-plugins": {
-			"dealerdirect/phpcodesniffer-composer-installer": true
-		}
-	},
-	"scripts": {
-		"lint": [
-			"@php ./vendor/bin/phpcs"
-		],
-		"format": [
-			"@php ./vendor/bin/phpcbf"
-		],
-		"test": [
-			"@putenv XDEBUG_MODE=coverage",
-			"@php ./vendor/bin/phpunit --color=always"
-		]
-	},
-	"support": {
-		"issues": "https://github.com/RocketsAreNostalgic/ran-plugin-library/issues",
-		"source": "https://github.com/RocketsAreNostalgic/ran-plugin-library"
-	}
+  "name": "ran/plugin-lib",
+  "description": "RocketsAreNostalgic: A shared library of plugin classes to interact with WordPress",
+  "type": "library",
+  "license": "MIT",
+  "authors": [
+    {
+      "name": "Benjamin Rush <bnjmnrsh>",
+      "email": "bnjmnrsh@gmail.com"
+    }
+  ],
+  "repositories": [
+    {
+      "url": "git@github.com:RocketsAreNostalgic/ran-starter-plugin.git",
+      "type": "git"
+    }
+  ],
+  "support": {
+    "issues": "https://github.com/RocketsAreNostalgic/ran-plugin-library/issues",
+    "source": "https://github.com/RocketsAreNostalgic/ran-plugin-library"
+  },
+  "minimum-stability": "dev",
+  "prefer-stable": true,
+  "autoload": {
+    "psr-4": {
+      "Ran\\PluginLib\\": "inc/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Ran\\PluginLib\\Tests\\": "Tests/"
+    }
+  },
+  "require-dev": {
+    "php": ">=8.1",
+    "squizlabs/php_codesniffer": "^3.8",
+    "wp-coding-standards/wpcs": "^3.0",
+    "dealerdirect/phpcodesniffer-composer-installer": "^1.0",
+    "slevomat/coding-standard": "^8.14",
+    "yoast/phpunit-polyfills": "^2.0",
+    "phpunit/phpunit": "^9.6",
+    "10up/wp_mock": "^1.0",
+    "phpcompatibility/phpcompatibility-wp": "*",
+    "wp-phpunit/wp-phpunit": "^6.4",
+    "rmccue/requests": "^2.0"
+  },
+  "config": {
+    "allow-plugins": {
+      "dealerdirect/phpcodesniffer-composer-installer": true
+    }
+  },
+  "scripts": {
+    "lint": [
+      "@php ./vendor/bin/phpcs"
+    ],
+    "format": [
+      "@php ./vendor/bin/phpcbf"
+    ],
+    "test": [
+      "@putenv XDEBUG_MODE=coverage",
+      "@php ./vendor/bin/phpunit --color=always"
+    ]
+  }
 }
