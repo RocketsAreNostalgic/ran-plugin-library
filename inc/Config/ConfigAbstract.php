@@ -75,7 +75,12 @@ abstract class ConfigAbstract extends Singleton implements ConfigInterface {
 			// @codeCoverageIgnoreEnd
 		}
 		// Get header data from plugin docblock.
-		$data = get_plugin_data( self::$plugin_file );
+		$data = get_plugin_data( self::$plugin_file, false, false );
+
+		// if debug is enabled, log the data.
+		if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+			error_log( 'Ran PluginLib: Config Data from ' . self::$plugin_file . ': ' . print_r( $data, true ) );
+		}
 
 		// Merge in the plugin docblock data.
 		$plugin_array = array_merge( $plugin_array, $data );
