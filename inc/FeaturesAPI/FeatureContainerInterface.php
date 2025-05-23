@@ -5,7 +5,8 @@
  * @package  RanPluginLib
  */
 
-declare(strict_types=1);
+declare(strict_types = 1);
+
 namespace Ran\PluginLib\FeaturesAPI;
 
 use Ran\PluginLib\FeaturesAPI\RegistrableFeatureInterface;
@@ -62,8 +63,6 @@ interface FeatureContainerInterface {
 
 	/**
 	 * Get the instance associated with a slug identifier string
-	 *
-	 * @return RegistrableFeatureInterface|null
 	 */
 	public function get_instance(): RegistrableFeatureInterface|null;
 }

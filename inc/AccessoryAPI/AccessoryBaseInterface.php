@@ -1,9 +1,11 @@
-<?php declare(strict_types=1);
+<?php
 /**
  * AccessoryBaseInterface must be implemented by any Accessory Interface implemented on a FeatureController.
  *
  * @package  RanPluginLib
  */
+
+declare(strict_types = 1);
 
 namespace Ran\PluginLib\AccessoryAPI;
 

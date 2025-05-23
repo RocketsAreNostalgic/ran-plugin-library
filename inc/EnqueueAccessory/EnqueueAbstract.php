@@ -1,14 +1,16 @@
 <?php
-
-declare(strict_types=1);
 /**
  * Abstract Enqueue implementation.
+ *
+ * This class provides functionality for enqueueing scripts, styles, and media in WordPress.
  * TODO: add optional support to add cache busting query param to end of urls.
  * - It will be difficult with our current approach to do this on a per item basis.
  * - It would be easy however to add a flag to enqueue_*($scripts, $cashbust=true)
  *
  * @package  RanPluginLib
  */
+
+declare(strict_types = 1);
 
 namespace Ran\PluginLib\EnqueueAccessory;
 
@@ -22,21 +24,21 @@ abstract class EnqueueAbstract implements EnqueueInterface {
 	/**
 	 * Array of styles to enqueue.
 	 *
-	 * @var array
+	 * @var array<int, array<int, mixed>>
 	 */
 	public array $styles = array();
 
 	/**
-	 *  Array of urls to enqueue.
+	 * Array of urls to enqueue.
 	 *
-	 * @var array
+	 * @var array<int, array<int, mixed>>
 	 */
 	public array $scripts = array();
 
 	/**
-	 *  Array of media elements to enqueue.
+	 * Array of media elements to enqueue.
 	 *
-	 * @var array
+	 * @var array<int, array<string, mixed>>
 	 */
 	public array $media = array();
 
@@ -45,17 +47,13 @@ abstract class EnqueueAbstract implements EnqueueInterface {
 	 * The hook callback function is $this->enqueue()
 	 *
 	 * It runs: add_action('admin_enqueue_scripts', array($this, 'enqueue'));
-	 *
-	 * @return null
 	 */
 	abstract public function load(): void;
 
 	/**
 	 * Chain-able call to add styles to be loaded.
 	 *
-	 * @param  array $styles - The array of styles to enqueue.
-	 *
-	 * @return self
+	 * @param  array<int, array<int, mixed>> $styles - The array of styles to enqueue.
 	 */
 	public function add_styles( array $styles ): self {
 		$this->styles = $styles;
@@ -66,9 +64,7 @@ abstract class EnqueueAbstract implements EnqueueInterface {
 	/**
 	 * Chain-able call to add scripts to be loaded.
 	 *
-	 * @param  array $scripts - The array of scripts to enqueue.
-	 *
-	 * @return self
+	 * @param  array<int, array<int, mixed>> $scripts - The array of scripts to enqueue.
 	 */
 	public function add_scripts( array $scripts ): self {
 		$this->scripts = $scripts;
@@ -79,9 +75,7 @@ abstract class EnqueueAbstract implements EnqueueInterface {
 	/**
 	 * Chain-able call to add media to be loaded.
 	 *
-	 * @param  array $media - The array of media to enqueue.
-	 *
-	 * @return self
+	 * @param  array<int, array<string, mixed>> $media - The array of media to enqueue.
 	 */
 	public function add_media( array $media ): self {
 		$this->media = $media;
@@ -92,9 +86,7 @@ abstract class EnqueueAbstract implements EnqueueInterface {
 	/**
 	 * Enqueue an array of scripts.
 	 *
-	 * @param  array $scripts - The array of scripts to enqueue.
-	 *
-	 * @return self
+	 * @param  array<int, array<int, mixed>> $scripts - The array of scripts to enqueue.
 	 */
 	public function enqueue_scripts( array $scripts ): self {
 		foreach ( $scripts as $script ) {
@@ -106,9 +98,7 @@ abstract class EnqueueAbstract implements EnqueueInterface {
 	/**
 	 * Enqueue an array of styles.
 	 *
-	 * @param  array $styles - The array of styles to enqueue.
-	 *
-	 * @return self
+	 * @param  array<int, array<int, mixed>> $styles - The array of styles to enqueue.
 	 */
 	public function enqueue_styles( array $styles ): self {
 
@@ -121,9 +111,7 @@ abstract class EnqueueAbstract implements EnqueueInterface {
 	/**
 	 * Enqueue an array of media.
 	 *
-	 * @param  array $media - The array of media to enqueue.
-	 *
-	 * @return self
+	 * @param  array<int, array<string, mixed>> $media - The array of media to enqueue.
 	 */
 	public function enqueue_media( array $media ): self {
 
@@ -136,8 +124,6 @@ abstract class EnqueueAbstract implements EnqueueInterface {
 
 	/**
 	 * Enqueue all registered scripts, styles and media
-	 *
-	 * @return void
 	 */
 	public function enqueue(): void {
 		$this->enqueue_scripts( $this->scripts );

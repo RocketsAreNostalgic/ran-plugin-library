@@ -13,7 +13,8 @@
  * @package  RanPluginLib
  */
 
-declare(strict_types=1);
+declare(strict_types = 1);
+
 namespace Ran\PluginLib\FeaturesAPI;
 
 use Exception;
@@ -30,21 +31,21 @@ abstract class FeaturesManagerAbstract {
 	/**
 	 * The container object for individual registered features.
 	 *
-	 * @var FeatureContainer
+	 * @var FeatureContainer Container for storing feature information.
 	 */
 	protected FeatureContainer $feature;
 
 	/**
 	 * A registry or object cache of registered features.
 	 *
-	 * @var FeatureRegistry A registry or object cache of registered features.
+	 * @var FeatureRegistry Registry for storing multiple feature containers.
 	 */
 	private FeatureRegistry $registery;
 
 	/**
 	 * Reference to the current Plugin object.
 	 *
-	 * @var ConfigInterface
+	 * @var ConfigInterface Reference to the plugin configuration object.
 	 */
 	protected ConfigInterface $plugin;
 
@@ -62,18 +63,17 @@ abstract class FeaturesManagerAbstract {
 	/**
 	 * Does some sanitization, of the $slug_id, and then sets  incoming feature values to a FeatureContainer and registers it to the FeatureRegistry.
 	 *
-	 * @param  string $slug_id Required. A url safe slug for the feature page in the admin.
-	 * @param  string $qualified_classname Required. The string representation of a fully qualified feature class.
-	 * @param  array  $deps Optional. An array of dependancies that the feature container may need. NOTE the array is cast to an object in the registered FeatureContainer for DX.
+	 * @param  string               $slug_id Required. A url safe slug for the feature page in the admin.
+	 * @param  string               $qualified_classname Required. The string representation of a fully qualified feature class.
+	 * @param  array<string, mixed> $deps Optional. An array of dependancies that the feature container may need. NOTE the array is cast to an object in the registered FeatureContainer for DX.
 	 *
-	 * @return void
 	 * @throws Exception Throws if the slug_id is not unique.
 	 */
 	public function register_feature(
 		string $slug_id,
 		string $qualified_classname,
 		array $deps = array(),
-	) {
+	): void {
 
 		$slug_id = sanitize_title( $slug_id );
 
@@ -97,8 +97,6 @@ abstract class FeaturesManagerAbstract {
 	 * Here we inspect each interface that the Feature class implements.
 	 * * If the interface implements the InterfacesAPIInterface then we check if there is a manager class.
 	 * * If the
-	 *
-	 * @return void
 	 */
 	public function load_all(): void {
 		$features = $this->registery->get_registery();
@@ -111,10 +109,8 @@ abstract class FeaturesManagerAbstract {
 	 * Load a single FeatureController by its $slug_id.
 	 *
 	 * @param  string $slug_id The string id of the FeatureController.
-	 *
-	 * @return void
 	 */
-	public function load( string $slug_id ) {
+	public function load( string $slug_id ): void {
 		 $feature = $this->get_registered_feature( $slug_id );
 
 		 $this->load_feature_container( $feature );
@@ -124,8 +120,6 @@ abstract class FeaturesManagerAbstract {
 	 * Load a single Feature from its FeatureContainer.
 	 *
 	 * @param  FeatureContainer $feature A FeatureContainer object.
-	 *
-	 * @return void
 	 */
 	protected function load_feature_container( FeatureContainer $feature ): void {
 
@@ -145,15 +139,20 @@ abstract class FeaturesManagerAbstract {
 	/**
 	 * Create new feature class and sets dependencies, provided it is a child of FeatureControllerAbstract and implements the RegistrableFeatureInterface.
 	 *
-	 * @param  ConfigInterface $plugin The current Plugin instance.
-	 * @param  string          $class The fully qualified name of the class to be instantiated.
-	 * @param  array           $deps An array of dependencies for the FeatureController.
+	 * @param  ConfigInterface      $plugin The current Plugin instance.
+	 * @param  string               $class The fully qualified class name.
+	 * @param  array<string, mixed> $deps An array of dependencies to set on the new instance.
 	 *
-	 * @return RegistrableFeatureInterface New instance of the given feature class.
-	 * @throws \Exception Throws if the calling class does not extend FeatureControllerAbstract or implement RegistrableFeatureInterface or .
+	 * @throws \Exception Throws when the feature class doesn't exist.
+	 * @throws \Exception Throws when the feature class doesn't implement the RegistrableFeatureInterface.
+	 * @throws \Exception Throws when the feature class doesn't extend FeatureControllerAbstract or implement RegistrableFeatureInterface or .
 	 * @throws \Exception Throws if $deps property hasn't been declared on the FeatureController before trying to set its value.
 	 */
-	protected function create_new_feature_class( ConfigInterface $plugin, string $class, array $deps ): RegistrableFeatureInterface {
+	protected function create_new_feature_class(
+		ConfigInterface $plugin,
+		string $class,
+		array $deps
+	): RegistrableFeatureInterface {
 
 		if ( ! isset( class_implements( $class )['Ran\PluginLib\FeaturesAPI\RegistrableFeatureInterface'] ) ) {
 			throw new \Exception(
@@ -182,13 +181,12 @@ abstract class FeaturesManagerAbstract {
 	 *
 	 * If the FeatureController
 	 * * has a public property with the same name as the array key of the dependency it will set it directly (type checking would be wise).
-	 * * has a private or protected property of the same name as the array key of the dependency it will look for a set_* method and call that instead.
-	 * * This second option allows you to do any logic or validation that may be required before setting property value.
+	 * * has a private or protected property with the same name as the array key of the dependency it will look for a public setter method named set_{property_name}().
+	 * * has a public method named set_{property_name}() it will call that method with the dependency value.
 	 *
-	 * @param  RegistrableFeatureInterface $instance The instance of our FeatureController.
-	 * @param  array                       $deps The array of dependencies that were set when our feature was registered.
+	 * @param  RegistrableFeatureInterface $instance The FeatureController instance.
+	 * @param  array<string, mixed>        $deps An array of dependencies to set on the instance.
 	 *
-	 * @return void
 	 * @throws \Exception Will throw if the property is not present, public, or if the property is protected|private and a sett_*() method has not been defined.
 	 */
 	protected function set_instance_dependencies( RegistrableFeatureInterface $instance, array $deps ): void {
@@ -231,7 +229,6 @@ abstract class FeaturesManagerAbstract {
 	 *
 	 * @param  RegistrableFeatureInterface $instance The FeatureController instance.
 	 *
-	 * @return void
 	 * @throws \Exception Throws when the Accessory is missing its <Accessory>Manager adjacent class.
 	 * @throws \Exception Throws when the <Accessory>Manager adjacent class doesn't implement AccessoryManagerBaseInterface.
 	 */
@@ -267,7 +264,7 @@ abstract class FeaturesManagerAbstract {
 	/**
 	 * Returns the array of registered FeaturesControllers.
 	 *
-	 * @return array of FeatureContainer objects.
+	 * @return array<string, FeatureContainer> Array of FeatureContainer objects indexed by slug.
 	 */
 	public function get_registry(): array {
 		return $this->registery->get_registery();
@@ -277,8 +274,6 @@ abstract class FeaturesManagerAbstract {
 	 * Returns a FeatureContainer object for the passed slug_id, or null.
 	 *
 	 * @param  string $slug_id The feature's slug ID string passed through sanitize_title().
-	 *
-	 * @return FeatureContainer|null
 	 */
 	public function get_registered_feature( string $slug_id ): FeatureContainer|null {
 		return $this->registery->get_feature( $slug_id );

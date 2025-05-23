@@ -5,7 +5,7 @@
  * @package  RanPluginLib
  */
 
-declare(strict_types=1);
+declare(strict_types = 1);
 
 namespace Ran\PluginLib\EnqueueAccessory;
 
@@ -20,7 +20,6 @@ final class EnqueuePublic extends EnqueueAbstract implements EnqueueInterface {
 	/**
 	 * A class registration function to add the wp_enqueue_scripts hook to WP.
 	 * The hook callback function is $this->enqueue()
-	 *
 	 */
 	public function load(): void {
 		add_action( 'wp_enqueue_scripts', array( $this, 'enqueue' ) );

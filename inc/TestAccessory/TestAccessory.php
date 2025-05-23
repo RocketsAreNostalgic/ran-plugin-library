@@ -7,7 +7,8 @@
  * @package  RanPluginLib
  */
 
-declare(strict_types=1);
+declare(strict_types = 1);
+
 namespace Ran\PluginLib\TestAccessory;
 
 use Ran\PluginLib\AccessoryAPI\AccessoryBaseInterface;
@@ -19,8 +20,6 @@ interface TestAccessory extends AccessoryBaseInterface {
 
 	 /**
 	  * Test so far...
-	  *
-	  * @return string
 	  */
 	public function test(): string;
 }

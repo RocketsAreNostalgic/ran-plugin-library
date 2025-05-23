@@ -5,7 +5,8 @@
  * @package  RanPluginLib
  */
 
-declare(strict_types=1);
+declare(strict_types = 1);
+
 namespace Ran\PluginLib;
 
 /**
@@ -27,8 +28,6 @@ interface ActivationInterface {
 	 *
 	 * @param  ConfigInterface $config An instance of the Plugin class.
 	 * @param  mixed           ...$args Any required arguments.
-	 *
-	 * @return void
 	 */
 	public static function activate( ConfigInterface $config, mixed ...$args ): void;
 }

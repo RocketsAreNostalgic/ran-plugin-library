@@ -14,33 +14,24 @@
 			- https://github.com/slevomat/coding-standard/blob/master/doc/type-hints.md
 			- https://github.com/slevomat/coding-standard/blob/master/doc/classes.md
 	-->
+	<config name="minimum_supported_wp_version" value="6.7.0"/>
 
-	<config name="minimum_supported_wp_version" value="6.0.0"/>
-	<!-- Scan all files in directory -->
+	<!-- What to scan -->
 	<file>.</file>
-	<!-- Scan only PHP files -->
-	<arg name="extensions" value="php"/>
-	<!-- Show colors in console -->
+	<exclude-pattern>/vendor/</exclude-pattern>
+	<exclude-pattern>/node_modules/</exclude-pattern>
+
+	<!-- How to scan -->
+	<arg value="sp"/>
+	<arg name="basepath" value="./"/>
+	<arg name="colors"/>
 	<arg value="-colors"/>
-	<!-- Show sniff codes in all reports -->
+	<arg name="extensions" value="php"/>
+	<arg name="parallel" value="4"/>
 	<arg value="ns"/>
 
-	<!-- Exclude WP Core folders and files from being checked. -->
-	<exclude-pattern>/docroot/wp-admin/*</exclude-pattern>
-	<exclude-pattern>/docroot/wp-includes/*</exclude-pattern>
-	<exclude-pattern>/docroot/wp-*.php</exclude-pattern>
-	<exclude-pattern>/docroot/index.php</exclude-pattern>
-	<exclude-pattern>/docroot/xmlrpc.php</exclude-pattern>
-	<exclude-pattern>/docroot/wp-content/plugins/*</exclude-pattern>
-	<!-- Exclude the Composer Vendor directory. -->
-	<exclude-pattern>/vendor/*</exclude-pattern>
-	<!-- Exclude the Node Modules directory. -->
-	<exclude-pattern>/node_modules/*</exclude-pattern>
-	<!-- Exclude minified Javascript files. -->
-	<exclude-pattern>*.min.js</exclude-pattern>
-
 	<!-- Check for PHP cross-version compatibility. -->
-    <!--
+	<!--
 		To enable this, the PHPCompatibilityWP standard needs
 		to be installed.
 		See the readme for installation instructions:
@@ -48,19 +39,30 @@
 		For more information, also see:
 		https://github.com/PHPCompatibility/PHPCompatibility
 	-->
-    <!--
+	<!--
 	<config name="testVersion" value="5.2-"/>
 	<rule ref="PHPCompatibilityWP"/>
 	-->
 
 	<!--
 		WPCS custom properties.
-		!UPDATE THESE TO SUITE YOUR PROJECT
+		!UPDATE THESE TO SUIT YOUR PROJECT
 		https://github.com/WordPress/WordPress-Coding-Standards/wiki/Customizable-sniff-properties
 	-->
 	<rule ref="WordPress-Core"/>
 	<rule ref="WordPress-Docs"/>
 	<rule ref="WordPress-Extra"/>
+
+	<!-- Include the WordPress ruleset with some exclusions -->
+    <rule ref="WordPress">
+        <!-- Exclude sniffs that have issues with PHP 8.1+ -->
+        <exclude name="WordPress.NamingConventions.PrefixAllGlobals" />
+        <exclude name="WordPress.WP.I18n" />
+
+        <!-- Exclude deprecated sniffs -->
+        <exclude name="Generic.Functions.CallTimePassByReference" />
+        <exclude name="Squiz.WhiteSpace.LanguageConstructSpacing" />
+    </rule>
 
 	<rule ref="WordPress.NamingConventions.PrefixAllGlobals">
 		<properties>
@@ -70,7 +72,7 @@
 		</properties>
 	</rule>
 
-	<!-- WordPress-Extra is a superset of WordPress-Core rules with recomended best practices. -->
+	<!-- WordPress-Extra is a superset of WordPress-Core rules with recommended best practices. -->
 	<rule ref="WordPress-Extra">
 		<!--
 			Modify WordPress-CS by adding an entire ruleset, then rule by rule, remove ones that don't suit a project.
@@ -83,6 +85,8 @@
 		<!-- Exceptions for PRS-4 autoloading -->
 		<exclude name="WordPress.Files.FileName.NotHyphenatedLowercase"/>
 		<exclude name="WordPress.Files.FileName.InvalidClassFileName"/>
+		<!-- Exclude problematic sniff causing errors -->
+		<exclude name="WordPress.WP.EnqueuedResources"/>
 		<!-- Exception for Short Ternary -->
 		<exclude name="Universal.Operators.DisallowShortTernary"/>
 	</rule>

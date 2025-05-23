@@ -5,7 +5,7 @@
  * @package  RanConfig
  */
 
-declare(strict_types=1);
+declare(strict_types = 1);
 
 namespace Ran\PluginLib\Config;
 
@@ -21,6 +21,11 @@ use Ran\PluginLib\Singleton\Singleton;
  */
 abstract class ConfigAbstract extends Singleton implements ConfigInterface {
 
+	/**
+	 * The path to the plugin's root file.
+	 *
+	 * @var string Path to the main plugin file.
+	 */
 	private static string $plugin_file;
 
 	/**
@@ -48,13 +53,15 @@ abstract class ConfigAbstract extends Singleton implements ConfigInterface {
 	 * ['RequiresPHP'] The required PHP version of the plugin.
 	 * ['RequiresWP'] The required WordPress version of the plugin.
 	 *
-	 * @var array $plugin_array
+	 * @var array<string, mixed> $plugin_array
 	 */
 	public readonly array $plugin_array;
 
 
 	/**
 	 * Constructor for the plugin for the Config object.
+	 *
+	 * @throws Exception If no plugin file is provided.
 	 */
 	protected function __construct() {
 
@@ -96,12 +103,11 @@ abstract class ConfigAbstract extends Singleton implements ConfigInterface {
 
 	/**
 	 * Initializes and returns an instance of the Config object.
-	*
-	* @var string $plugin_file The path to the plugin's root file.
-	* @return Singleton The current instance of the Config object.
-	*/
-	public static function init( string $plugin_file )
-	{
+	 *
+	 * @param string $plugin_file The path to the plugin's root file.
+	 * @return Singleton The current instance of the Config object.
+	 */
+	public static function init( string $plugin_file ): Singleton {
 		self::$plugin_file = $plugin_file;
 		return self::get_instance();
 	}
@@ -110,7 +116,7 @@ abstract class ConfigAbstract extends Singleton implements ConfigInterface {
 	/**
 	 * Returns the array of plugin properties.
 	 *
-	 * @return array plugin array
+	 * @return array<string, mixed> Plugin configuration array with various properties.
 	 */
 	public function get_plugin_config(): array {
 		return $this->plugin_array;
@@ -146,9 +152,9 @@ abstract class ConfigAbstract extends Singleton implements ConfigInterface {
 	 * Validate that the root plugin array has the required fields set.
 	 * These are gathered from the plugin docblock using the WP get_plugin_array().
 	 *
-	 * @param  array $plugin_array The plugin data array.
+	 * @param  array<string, mixed> $plugin_array The plugin data array.
 	 *
-	 * @return array|Exception Returns the validated array provided, or throws an exception.
+	 * @return array<string, mixed>|Exception Returns the validated array provided, or throws an exception.
 	 * @throws \Exception Throws if the minimum headers have not been set.
 	 */
 	public function validate_plugin_array( array $plugin_array ): array|Exception {
