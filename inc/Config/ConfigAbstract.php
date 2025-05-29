@@ -5,103 +5,297 @@
  * @package  RanConfig
  */
 
-declare(strict_types=1);
+declare(strict_types = 1);
 
 namespace Ran\PluginLib\Config;
 
 use Exception;
 use Ran\PluginLib\Config\ConfigInterface;
 use Ran\PluginLib\Singleton\Singleton;
+use Ran\PluginLib\Util\Logger;
 
 /**
- * Config class collates basic information about the environment using the WordPress docblock in the plugin root.
- * This class must be passed the path to the root file, typically __FILE__  during instantiation.
- * This class relies heavily on the results of get_plugin_data() which involves a file system read, fetch the Config's docblock headers.
- * As such the Config class is best instantiated once and then passed using dependency injection.
+ * Abstract base class for plugin configuration management.
+ *
+ * ConfigAbstract is responsible for reading and parsing all headers from a plugin's
+ * main file. This includes standard WordPress plugin headers (like Name, Version,
+ * Author, etc.) as well as any custom headers defined by the plugin developer
+ * (e.g., "Log Constant Name", "My Custom API Key").
+ *
+ * During instantiation (via the `init()` method, passing the plugin's main file path),
+ * it:
+ * 1. Retrieves standard WordPress headers using `get_plugin_data()`.
+ * 2. Reads the raw content of the plugin file to find and extract all headers.
+ * 3. Normalizes the names of custom headers to PascalCase (e.g., "My Custom Header"
+ *    becomes "MyCustomHeader") to serve as array keys.
+ * 4. Merges both standard and normalized custom headers into a single, accessible
+ *    `$plugin_array` property (which is `public readonly`). Standard WordPress
+ *    headers take precedence in case of naming conflicts after normalization.
+ *
+ * This class provides a centralized and consistent way to access plugin metadata
+ * and custom configuration values throughout the plugin. It's designed to be
+ * instantiated once (as a Singleton) and then passed via dependency injection or
+ * accessed via its static `get_instance()` method.
+ *
+ * It relies on filesystem reads for header parsing, so a single instantiation
+ * is recommended for performance.
  */
 abstract class ConfigAbstract extends Singleton implements ConfigInterface {
-
+	/**
+	 * The path to the plugin's root file.
+	 *
+	 * @var string Path to the main plugin file.
+	 */
 	private static string $plugin_file;
 
 	/**
-	 * Holds useful plugin details, including paths, URL's and filenames, plus details pulled from WordPress plugin header.
-	 * This list may change depending on what is included in the plugin header. Note that this EXTENDS the WordPress minimum header requirements.
-	 * * Array keys are in CamelCase, where many have representational space separated DockBlock names within the plugin header.
-	 * *  with Exception of "Name" which is identified as "Config Name". Other marked 'derived' are either created by WordPress itself or in our constructor.
-	 * * https://developer.wordpress.org/plugins/plugin-basics/header-requirements/
+	 * Holds the logger instance.
 	 *
-	 * ['Name'] The name of the plugin (declared as 'Config Name' in headers).
-	 * ['Version'] The version of the plugin.
-	 * ['Description'] The description of the plugin.
-	 * ['ConfigURI'] The project URI for the plugin.
-	 * ['UpdatesURI] The plugin updates URI, not required if hosted on the WP Config Directory.
-	 * ['Title'] (derived) The title of the plugin rendered as a link pointing to the plugin URI.
-	 * ['FileName'] (derived) The file name of the root plugin file.
-	 * ['URL'] (derived) URL to the plugin's containing directory within WordPress.
-	 * ['PATH'] (derived) Full file path to the plugin's containing directory.
-	 * ['PluginOption'] (derived) The name of the plugin in the WP options table, which is auto generated from the text domain in lower_snake_case.
-	 * ['Author'] The author of the plugin.
-	 * ['AuthorURI'] The author's webpage URI.
-	 * ['AuthorName'] (derived) The author of the plugin rendered as a link pointing to the author URI.
-	 * ['TextDomain'] (optional|derived) The text domain of the plugin, used as the plugin slug in urls.
-	 * ['DomainPath'] The path to the plugin translation files.
-	 * ['RequiresPHP'] The required PHP version of the plugin.
-	 * ['RequiresWP'] The required WordPress version of the plugin.
+	 * @var ?Logger The logger instance.
+	 */
+	private ?Logger $logger = null;
+
+	/**
+	 * Holds useful plugin details, including paths, URLs, filenames, and data from the WordPress plugin header.
+	 * Standard WordPress headers are included, along with any custom headers defined in the plugin's main file.
+	 * Custom headers are parsed, their names normalized to PascalCase (e.g., "My Custom Value" becomes `MyCustomValue`),
+	 * and then merged into this array. Standard WordPress headers take precedence in case of naming conflicts after normalization.
 	 *
-	 * @var array $plugin_array
+	 * The array keys are typically PascalCase or CamelCase. Some keys for standard WordPress headers might differ
+	 * from their raw header names (e.g., 'Plugin URI' header becomes 'PluginURI' key, 'Name' header becomes 'Name' key but is often referred to as 'Plugin Name').
+	 * Values marked '(derived)' are generated by WordPress or this class, not directly from headers.
+	 *
+	 * See: https://developer.wordpress.org/plugins/plugin-basics/header-requirements/
+	 *
+	 * Standard and Derived Properties:
+	 * ['Name'] string The official name of the plugin (from "Name" header).
+	 * ['Version'] string The plugin version (from "Version" header).
+	 * ['Description'] string Plugin description (from "Description" header).
+	 * ['PluginURI'] string The plugin's homepage URI (from "Plugin URI" header).
+	 * ['UpdatesURI'] string The plugin updates URI (from "Updates URI" header, optional).
+	 * ['Title'] string (derived) HTML link for the plugin title.
+	 * ['FileName'] string (derived) The base filename of the plugin.
+	 * ['URL'] string (derived) The base URL to the plugin directory.
+	 * ['PATH'] string (derived) The absolute server path to the plugin directory.
+	 * ['PluginOption'] string (derived) The auto-generated WordPress option name for the plugin (based on TextDomain).
+	 * ['Author'] string The plugin author's name (from "Author" header).
+	 * ['AuthorURI'] string The author's website URI (from "Author URI" header).
+	 * ['AuthorName'] string (derived) HTML link for the author's name.
+	 * ['TextDomain'] string The plugin's text domain for localization (from "Text Domain" header).
+	 * ['DomainPath'] string Path to translation files relative to plugin root (from "Domain Path" header).
+	 * ['RequiresPHP'] string Minimum required PHP version (from "Requires PHP" header).
+	 * ['RequiresWP'] string Minimum required WordPress version (from "Requires WP" header).
+	 *
+	 * Logging Headers provided by PluginLib:
+	 * ['LogConstantName'] string (optional) Value of the "Log Constant Name" header. Used to define the
+	 *                        PHP constant name that controls logging activation and level for the plugin's Logger.
+	 * ['LogRequestParam'] string (optional) Value of the "Log Request Param" header. Used to define the
+	 *                        URL parameter that controls logging activation and level. Defaults to 'LogConstantName's value if not set.
+	 * Custom Header Examples (illustrative, actual keys depend on your plugin's headers):
+	 * ['MyCustomSetting'] string (optional) Value of a "My Custom Setting" header, normalized to `MyCustomSetting`.
+	 *
+	 * @var array<string, mixed> $plugin_array
 	 */
 	public readonly array $plugin_array;
 
 
 	/**
+	 * Normalizes a raw header name into a camelCase or PascalCase string suitable for an array key.
+	 *
+	 * Examples:
+	 * - "Log Constant Name" -> "LogConstantName"
+	 * - "Plugin URI"        -> "PluginURI"
+	 * - "X-My-Header"       -> "XMyHeader"
+	 * - "requires_php"      -> "RequiresPHP"
+	 *
+	 * @param string $header_name The raw header name.
+	 * @return string The normalized header key.
+	 */
+	private static function _normalize_header_key( string $header_name ): string {
+		$normalized = trim( $header_name );
+
+		// If the string contains separators (space, hyphen, underscore), process it.
+		// Otherwise, assume it's already in a desired format like 'SomeVal' or 'TextDomain'.
+		if ( preg_match( '/[\s_-]/', $normalized ) ) {
+			$normalized = str_replace( array( '-', '_' ), ' ', $normalized );
+			$normalized = ucwords( strtolower( $normalized ) );
+			$normalized = str_replace( ' ', '', $normalized );
+
+			// Apply common acronym capitalization improvements.
+			// Order matters for some (e.g., 'Uri' before 'Url' if 'Url' could be part of 'Uri').
+			$replacements = array(
+				'Uri'   => 'URI',
+				'Url'   => 'URL',
+				'Id'    => 'ID',
+				'Php'   => 'PHP',
+				'Html'  => 'HTML',
+				'Xml'   => 'XML',
+				'Css'   => 'CSS',
+				'Js'    => 'JS',
+				'Json'  => 'JSON',
+				'Api'   => 'API',
+				'Sql'   => 'SQL',
+				'Sdk'   => 'SDK',
+				'Jwt'   => 'JWT',
+				'Rest'  => 'REST',
+				'Http'  => 'HTTP',
+				'Https' => 'HTTPS',
+				'Ajax'  => 'AJAX',
+				'Crud'  => 'CRUD',
+				'Oauth' => 'OAuth',
+				'Ssl'   => 'SSL',
+				'Www'   => 'WWW',
+				// Add more common acronyms as needed.
+			);
+
+			foreach ( $replacements as $search => $replace ) {
+				// Ensure we replace whole words or parts that match common patterns.
+				// Example: 'PluginUri' becomes 'PluginURI'. The replacements are generally safe for typical header acronyms.
+				// A more complex approach might be needed if an acronym could be a common substring in non-acronym contexts
+				// (e.g., if 'Ver' was an acronym, a word like 'Silverlight' should not become 'SilVERlight').
+				// This simple str_replace is usually fine for common header patterns.
+				$normalized = str_replace( $search, $replace, $normalized );
+			}
+		}
+		// Ensure the first letter is uppercase if it's not already (e.g. 'network' -> 'Network')
+		// but don't mess with already PascalCased like 'TextDomain' or 'SomeVal'.
+		if ( ctype_lower( substr( $normalized, 0, 1 ) ) && ! preg_match( '/[A-Z]/', substr( $normalized, 1 ) ) ) {
+			$normalized = ucfirst( $normalized );
+		}
+
+		return $normalized;
+	}
+
+	/**
 	 * Constructor for the plugin for the Config object.
+	 *
+	 * @throws Exception If no plugin file is provided.
 	 */
 	protected function __construct() {
-
 		if ( empty( self::$plugin_file ) ) {
 			// @codeCoverageIgnoreStart
 			throw new Exception( 'Ran PluginLib: No plugin file provided. First call ::init(path/to/entrance/plugin-name.php)' );
 			// @codeCoverageIgnoreEnd
 		}
 
-		$plugin_array['PATH'] = plugin_dir_path( dirname( __DIR__, 4 ) );
-		$plugin_array['URL'] = plugin_dir_url( dirname( __DIR__, 4 ) );
+		$plugin_array['PATH']     = plugin_dir_path( dirname( __DIR__, 4 ) );
+		$plugin_array['URL']      = plugin_dir_url( dirname( __DIR__, 4 ) );
 		$plugin_array['FileName'] = plugin_basename( self::$plugin_file );
-		$plugin_array['File'] = self::$plugin_file;
+		$plugin_array['File']     = self::$plugin_file;
 
-		if ( ! function_exists( 'get_plugin_array' ) ) {
+		if ( ! function_exists( 'get_plugin_data' ) ) {
 			// @codeCoverageIgnoreStart
 			require_once ABSPATH . 'wp-admin/includes/plugin.php';
 			// @codeCoverageIgnoreEnd
 		}
-		// Get header data from plugin docblock.
-		$data = get_plugin_data( self::$plugin_file, false, false );
 
-		// if debug is enabled, log the data.
-		if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
-			error_log( 'Ran PluginLib: Config Data from ' . self::$plugin_file . ': ' . print_r( $data, true ) );
+		// 1. Get standard headers using get_plugin_data().
+		// These are already processed and have normalized keys (Name, Version, TextDomain etc.).
+		$standard_headers_data = get_plugin_data( self::$plugin_file, false, false );
+		// Filter out empty values that get_plugin_data might return for non-existent standard headers.
+		$standard_headers_data = array_filter(
+			$standard_headers_data,
+			function ( $value ) {
+				return '' !== $value;
+			}
+		);
+
+		// 2. Read raw plugin file header content to find custom headers.
+		$raw_file_content    = file_get_contents( self::$plugin_file, false, null, 0, 8 * 1024 ); // Read first 8KB.
+		$custom_headers_data = array();
+		$doc_comment_block   = '';
+
+		if ( $raw_file_content ) {
+			// Attempt to extract the main docblock (/** ... */) at the beginning of the file.
+			if ( preg_match( '/^\s*<\?php\s*\/\*\*(.*?)\*\//s', $raw_file_content, $matches ) ) {
+				$doc_comment_block = $matches[1];
+			} elseif ( preg_match( '/^\s*\/\*\*(.*?)\*\//s', $raw_file_content, $matches ) ) { // If no <?php but starts with /** .
+				$doc_comment_block = $matches[1];
+			}
+
+			if ( ! empty( $doc_comment_block ) ) {
+				// 3. Define standard WordPress header *display names* to differentiate them.
+				$wp_standard_display_names = array(
+					'Plugin Name',
+					'Plugin URI',
+					'Description',
+					'Version',
+					'Requires at least',
+					'Requires PHP',
+					'Author',
+					'Author URI',
+					'License',
+					'License URI',
+					'Text Domain',
+					'Domain Path',
+					'DomainPath',
+					'Network',
+					'Update URI',
+					'Requires Plugins',
+				);
+				$standard_display_names_lower = array_map( 'strtolower', $wp_standard_display_names );
+
+				// 4. Extract all declared headers (Key: Value) from the isolated doc_comment_block.
+				// Regex adjusted for lines typically starting with an asterisk in a docblock.
+				preg_match_all( '/^[ \t\*]*([^:]+):\s*(.+)$/m', $doc_comment_block, $all_declared_headers_matches, PREG_SET_ORDER );
+
+				if ( ! empty( $all_declared_headers_matches ) ) {
+					foreach ( $all_declared_headers_matches as $match ) {
+						$raw_header_name_candidate = trim( $match[1] );
+						$raw_header_value          = trim( $match[2] ); // Value is fine as is.
+
+						// Clean the raw header name: remove leading asterisks and then trim any whitespace again.
+						// This ensures '* Plugin Name' becomes 'Plugin Name'.
+						$cleaned_header_name = trim( ltrim( $raw_header_name_candidate, " \t\n\r\0\x0B*" ) );
+
+						// 5. Identify if it's a custom header by checking against the standard display names.
+						if ( ! in_array( strtolower( $cleaned_header_name ), $standard_display_names_lower, true ) ) {
+							// This is a custom header.
+							$normalized_key = self::_normalize_header_key( $cleaned_header_name ); // Pass the fully cleaned name.
+							if ( ! empty( $normalized_key ) ) {
+								$custom_headers_data[ $normalized_key ] = $raw_header_value;
+							}
+						}
+					}
+				}
+			}
 		}
 
-		// Merge in the plugin docblock data.
-		$plugin_array = array_merge( $plugin_array, $data );
+		// 6. Merge all data sources.
+		// Start with initial path/URL data already in $plugin_array.
+		// Then add custom headers.
+		// Finally, add standard headers from get_plugin_data(), which will overwrite any custom headers
+		// that might have produced a clashing key after normalization, giving precedence to WordPress's interpretation.
+		$plugin_array = array_merge( $plugin_array, $custom_headers_data, $standard_headers_data );
 
-		// Add plugin option name with snake case.
-		$text_domain = array( 'PluginOption' => str_replace( '-', '_', sanitize_title( $plugin_array['TextDomain'] ) ) );
-		$plugin_array = array_merge( array_slice( $plugin_array, 0, 9 ), $text_domain, array_slice( $plugin_array, 9 ) );
+		// Calculate and add/overwrite PluginOption.
+		if ( ! empty( $plugin_array['TextDomain'] ) ) {
+			$plugin_array['PluginOption'] = str_replace( '-', '_', sanitize_title( $plugin_array['TextDomain'] ) );
+		} else {
+			// validate_plugin_array will catch missing TextDomain, but good to be safe.
+			$plugin_array['PluginOption'] = '';
+		}
 
 		// Validate that we have all the headers required for our plugin.
 		$this->validate_plugin_array( $plugin_array );
 		$this->plugin_array = $plugin_array;
+
+		// Log the fully processed plugin configuration data using the configured logger.
+		// The logger will only output if its specific activation constant/param is met (e.g., set to DEBUG level).
+		$config_string = print_r( $this->plugin_array, true );
+		$this->get_logger()->debug(
+			'Ran PluginLib: Final plugin configuration data loaded for ' . ( self::$plugin_file ?? 'Unknown Plugin' ) . "\n--- Plugin Configuration ---\n" . $config_string,
+			array() // Pass empty context as the data is now in the message string.
+		);
 	}
 
 	/**
 	 * Initializes and returns an instance of the Config object.
-	*
-	* @var string $plugin_file The path to the plugin's root file.
-	* @return Singleton The current instance of the Config object.
-	*/
-	public static function init( string $plugin_file )
-	{
+	 *
+	 * @param string $plugin_file The path to the plugin's root file.
+	 * @return Singleton The current instance of the Config object.
+	 */
+	public static function init( string $plugin_file ): Singleton {
 		self::$plugin_file = $plugin_file;
 		return self::get_instance();
 	}
@@ -110,7 +304,7 @@ abstract class ConfigAbstract extends Singleton implements ConfigInterface {
 	/**
 	 * Returns the array of plugin properties.
 	 *
-	 * @return array plugin array
+	 * @return array<string, mixed> Plugin configuration array with various properties.
 	 */
 	public function get_plugin_config(): array {
 		return $this->plugin_array;
@@ -125,7 +319,7 @@ abstract class ConfigAbstract extends Singleton implements ConfigInterface {
 	 *
 	 * @param  mixed  $default Optional. Default value to return if the option does not exist.
 	 *
-	 * @return mixed the value of the option key (string or array), or false
+	 * @return mixed the value of the option key (string or array), or false.
 	 */
 	public function get_plugin_options( string $option, mixed $default = false ): mixed {
 		if ( ! function_exists( 'get_option' ) ) {
@@ -143,12 +337,42 @@ abstract class ConfigAbstract extends Singleton implements ConfigInterface {
 	}
 
 	/**
+	 * Returns an instance of the Logger.
+	 * Lazily instantiates the logger if it hasn't been already.
+	 *
+	 * @return Logger The logger instance.
+	 */
+	public function get_logger(): Logger {
+		if ( null === $this->logger ) {
+			/**
+			 * These keys correspond to headers in the main plugin file:
+			 * "Log Constant Name: MY_PLUGIN_LOG_CONSTANT" -> $this->plugin_array['LogConstantName']
+			 * "Log Request Param: my_plugin_log_param"   -> $this->plugin_array['LogRequestParam']
+			 */
+
+			$default_constant_name = strtoupper( str_replace( '-', '_', sanitize_title( $this->plugin_array['TextDomain'] ?? 'RAN_PLUGIN_LIB' ) ) ) . '_DEBUG_MODE';
+
+			// Use the normalized keys as stored in plugin_array after custom header parsing.
+			$logger_constant_name = $this->plugin_array['LogConstantName'] ?? $default_constant_name;
+			$logger_request_param = $this->plugin_array['LogRequestParam'] ?? $logger_constant_name; // Default request param to constant name if 'LogRequestParam' isn't set.
+
+			$logger_config_params = array(
+				'custom_debug_constant_name' => $logger_constant_name,
+				'debug_request_param'        => $logger_request_param,
+			);
+
+			$this->logger = new Logger( $logger_config_params );
+		}
+		return $this->logger;
+	}
+
+	/**
 	 * Validate that the root plugin array has the required fields set.
 	 * These are gathered from the plugin docblock using the WP get_plugin_array().
 	 *
-	 * @param  array $plugin_array The plugin data array.
+	 * @param  array<string, mixed> $plugin_array The plugin data array.
 	 *
-	 * @return array|Exception Returns the validated array provided, or throws an exception.
+	 * @return array<string, mixed>|Exception Returns the validated array provided, or throws an exception.
 	 * @throws \Exception Throws if the minimum headers have not been set.
 	 */
 	public function validate_plugin_array( array $plugin_array ): array|Exception {
