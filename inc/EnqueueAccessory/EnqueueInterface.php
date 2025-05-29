@@ -1,86 +1,88 @@
 <?php
-
-declare(strict_types=1);
 /**
- * @package  RanPluginLib
+ * EnqueueInterface file.
+ *
+ * This file contains the interface for enqueueing scripts and styles in WordPress.
+ *
+ * @package  Ran\PluginLib\EnqueueAccessory
  */
+
+declare(strict_types = 1);
 
 namespace Ran\PluginLib\EnqueueAccessory;
 
 /**
- * An basic interface for enqueueing script and styles, which be instantiated via the RegisterServices Class.
+ * An interface for enqueueing scripts and styles, which can be instantiated via the RegisterServices Class.
  *
- * @package  RanPluginLib
+ * @since 1.0.0
  */
 interface EnqueueInterface {
-
-
 	/**
 	 * A class registration function to add admin_enqueue_scripts/wp_enqueue_scripts hooks to WP.
 	 * The hook callback function is $this->enqueue()
 	 *
-	 * @return null
+	 * @since 1.0.0
 	 */
 	public function load(): void;
 
 	/**
 	 * Chain-able call to add styles to be loaded.
 	 *
-	 * @param  array $styles
-	 *
-	 * @return self
+	 * @since 1.0.0
+	 * @param array<string, mixed> $styles Array of styles to be registered.
+	 * @return self Returns the current instance for method chaining.
 	 */
 	public function add_styles( array $styles ): self;
 
 	/**
 	 * Chain-able call to add scripts to be loaded.
 	 *
-	 * @param  array $scripts
-	 *
-	 * @return self
+	 * @since 1.0.0
+	 * @param array<string, mixed> $scripts Array of scripts to be registered.
+	 * @return self Returns the current instance for method chaining.
 	 */
 	public function add_scripts( array $scripts ): self;
 
 	/**
 	 * Chain-able call to add media to be loaded.
 	 *
-	 * @param  array $media
-	 *
-	 * @return self
+	 * @since 1.0.0
+	 * @param array<string, mixed> $media Array of media to be registered.
+	 * @return self Returns the current instance for method chaining.
 	 */
 	public function add_media( array $media ): self;
 
 	/**
-	 * Enqueue an array of scripts
+	 * Enqueue an array of scripts.
 	 *
-	 * @param  array $scripts
-	 *
-	 * @return self
+	 * @since 1.0.0
+	 * @param array<string, mixed> $scripts Array of scripts to be enqueued.
+	 * @return self Returns the current instance for method chaining.
 	 */
 	public function enqueue_scripts( array $scripts ): self;
 
 	/**
-	 * Enqueue an array of scripts
+	 * Enqueue an array of styles.
 	 *
-	 * @param  array $styles
-	 *
-	 * @return self;
+	 * @since 1.0.0
+	 * @param array<string, mixed> $styles Array of styles to be enqueued.
+	 * @return self Returns the current instance for method chaining.
 	 */
 	public function enqueue_styles( array $styles ): self;
 
 	/**
-	 * Enqueue an array of media
+	 * Enqueue an array of media.
 	 *
-	 * @param  array $media
-	 *
-	 * @return self
+	 * @since 1.0.0
+	 * @param array<string, mixed> $media Array of media to be enqueued.
+	 * @return self Returns the current instance for method chaining.
 	 */
 	public function enqueue_media( array $media ): self;
 
 	/**
-	 * * Enqueue all registered assets.
+	 * Enqueue all registered assets.
 	 *
-	 * @return void
+	 * @since 1.0.0
 	 */
 	public function enqueue(): void;
 }
