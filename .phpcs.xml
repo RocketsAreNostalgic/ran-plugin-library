@@ -16,19 +16,23 @@
 	-->
 	<config name="minimum_supported_wp_version" value="6.7.0"/>
 
-	<!-- What to scan -->
-	<file>.</file>
-	<exclude-pattern>/vendor/</exclude-pattern>
-	<exclude-pattern>/node_modules/</exclude-pattern>
-
 	<!-- How to scan -->
 	<arg value="sp"/>
+	<!-- Basepath was removed to test issues with paths containing spaces. -->
 	<arg name="basepath" value="./"/>
 	<arg name="colors"/>
 	<arg value="-colors"/>
 	<arg name="extensions" value="php"/>
 	<arg name="parallel" value="4"/>
 	<arg value="ns"/>
+
+	<!-- What to scan -->
+	<file>./</file>
+	<file>./inc</file>
+	<file>./tests</file>
+	<file>./scripts</file>
+	<exclude-pattern>/vendor/</exclude-pattern>
+	<exclude-pattern>/node_modules/</exclude-pattern>
 
 	<!-- Check for PHP cross-version compatibility. -->
 	<!--
