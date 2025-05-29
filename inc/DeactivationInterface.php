@@ -20,7 +20,6 @@ use Ran\PluginLib\Config\ConfigInterface;
  * @package  RanPluginLib
  */
 interface DeactivationInterface {
-
 	/**
 	 * Deactivation function called by WordPress register_deactivation_hook when the plugin is deactivated.
 	 * This must be called as a static method, ideally in the plugin root file or Bootstrap.php

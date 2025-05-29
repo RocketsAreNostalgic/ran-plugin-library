@@ -5,7 +5,8 @@
  * @package  RanPluginLib
  */
 
-declare(strict_types=1);
+declare(strict_types = 1);
+
 namespace Ran\PluginLib\FeaturesAPI;
 
 use Ran\PluginLib\FeaturesAPI\FeatureContainerInterface;
@@ -15,7 +16,6 @@ use Ran\PluginLib\FeaturesAPI\RegistrableFeatureInterface;
  * Abstract Feature Container class.
  */
 abstract class FeatureContainerAbstract implements FeatureContainerInterface {
-
 	/**
 	 * A reference to the feature instance.
 	 *
@@ -26,9 +26,9 @@ abstract class FeatureContainerAbstract implements FeatureContainerInterface {
 	/**
 	 * Construct function uses PHP 8.0 constructor promoted properties to set readonly properties on the instance.
 	 *
-	 * @param  string $qualified_classname The string representation of a fully qualified feature class.
-	 * @param  string $slug A unique string slug used as key in the registry and as page id slugs in any admin screens. Should be passed through WordPress sanitize_title().
-	 * @param  array  $deps An object of named dependancies required by the feature.
+	 * @param  string        $qualified_classname The string representation of a fully qualified feature class.
+	 * @param  string        $slug A unique string slug used as key in the registry and as page id slugs in any admin screens. Should be passed through WordPress sanitize_title().
+	 * @param  array<string> $deps An array of named dependancies required by the feature.
 	 *
 	 * @return void
 	 */
@@ -36,7 +36,8 @@ abstract class FeatureContainerAbstract implements FeatureContainerInterface {
 		public readonly string $qualified_classname,
 		public readonly string $slug,
 		public readonly array $deps = array()
-	) {}
+	) {
+	}
 
 
 	/**
@@ -56,8 +57,6 @@ abstract class FeatureContainerAbstract implements FeatureContainerInterface {
 
 	/**
 	 * Get the instance associated with a slug identifier string
-	 *
-	 * @return RegistrableFeatureInterface|null
 	 */
 	public function get_instance(): RegistrableFeatureInterface|null {
 		return $this->instance;

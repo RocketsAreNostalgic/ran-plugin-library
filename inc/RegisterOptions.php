@@ -1,60 +1,58 @@
 <?php
-
 /**
+ * WordPress Options Registration and Management.
+ *
  * @package  RanPluginLib
  */
 
-declare(strict_types=1);
+declare(strict_types = 1);
 
 namespace Ran\PluginLib;
 
 /**
- * Activation class that establishes the
+ * Activation class that establishes and manages WordPress options.
+ *
+ * This class provides methods for registering, retrieving, and updating WordPress options.
  */
-final class RegisterOptions
-{
+final class RegisterOptions {
 	/**
 	 * An object store of options to be saved to the WP Options table.
 	 *
-	 * @var array an array of WordPress options.
+	 * @var array<string, array<int|string, mixed>> An array of WordPress options.
 	 */
 	private array $options = array();
 
 	/**
 	 * Creates new RegisterOptions object, with a provided array of options.
 	 *
-	 * @param  array $options an array options to be set to WordPress options table.
+	 * @param  array<string, array<string, mixed>> $options An array options to be set to WordPress options table.
+	 * @throws \Exception If invalid options array is provided.
 	 */
-	public function __construct(array $options = array())
-	{
-		foreach ($options as $key => $value) {
-			if (\is_array($value)) {
-				$option_key = array_key_first($value);
-				if (!is_array($value[$option_key])) {
-					$value[$option_key] = array($value[$option_key]);
+	public function __construct( array $options = array() ) {
+		foreach ( $options as $key => $value ) {
+			if ( \is_array( $value ) ) {
+				$option_key = array_key_first( $value );
+				if ( ! is_array( $value[ $option_key ] ) ) {
+					$value[ $option_key ] = array( $value[ $option_key ] );
 				}
-				$autoload = $value[$option_key]['autoload'] ?? null;
-				$this->set_option($option_key, $value[$option_key], $autoload);
+				$autoload = $value[ $option_key ]['autoload'] ?? null;
+				$this->set_option( $option_key, $value[ $option_key ], $autoload );
 			} else {
-				throw new \Exception("RegisterOptions: invalid options array provided on instantionation.");
+				throw new \Exception( 'RegisterOptions: invalid options array provided on instantionation.' );
 			}
 		}
 	}
 
 	/**
 	 * Registers all plugin options with values present in the options array in wp_options table.
-	 *
-	 * @return void
 	 */
-	public function register_options(): void
-	{
+	public function register_options(): void {
 		/**
 		 * Registers all options with the array key becoming the option name. If the value is an array, then we look for 'autoload' key and set it if present. Defaults to true as does WordPress.
-		 *
 		 */
-		foreach ($this->options as $key => $value) {
-			$option_key = array_key_first($value);
-			$this->register_option($option_key, $value[$option_key], $value['autoload'] ?? true);
+		foreach ( $this->options as $key => $value ) {
+			$option_key = array_key_first( $value );
+			$this->register_option( $option_key, $value[ $option_key ], $value['autoload'] ?? true );
 		}
 	}
 
@@ -65,17 +63,16 @@ final class RegisterOptions
 	 *
 	 * @param  string $option_name The name of the option to be set. Spaces will be replaced by underscores.
 	 * @param  mixed  $value The (serializable) value of the option being set. Expected to not be SQL-escaped.
-	 * @param mixed $autoload
+	 * @param  mixed  $autoload Optional. Whether to load the option when WordPress starts up. Default null.
 	 * @return int|bool  Returns true or false if option is updated successfully, -1 is returned if user does not have permissions.
 	 */
-	public function set_option(string $option_name, mixed $value, $autoload = null): mixed
-	{
-		$value = array($value);
-		$option_name = \str_replace(' ', '_', $option_name); // Spaces to underscores.
-		$registered = $this->register_option($option_name, $value[0], $autoload = null);
+	public function set_option( string $option_name, mixed $value, mixed $autoload = null ): mixed {
+		$value             = array( $value );
+		$option_name       = \str_replace( ' ', '_', $option_name ); // Spaces to underscores.
+		$registered        = $this->register_option( $option_name, $value[0], $autoload = null );
 		$value['autoload'] = $autoload;
-		if ($registered || $registered !== -1) {
-			$this->options[$option_name] = $value;
+		if ( true === $registered || -1 !== $registered ) {
+			$this->options[ $option_name ] = $value;
 		}
 		return $registered;
 	}
@@ -88,33 +85,32 @@ final class RegisterOptions
 	 *
 	 * @return mixed The value of the option, or the default value if option not found.
 	 */
-	public function get_option(string $option_name, mixed $default = false): mixed
-	{
-		if (!current_user_can('activate_plugins')) {
+	public function get_option( string $option_name, mixed $default = false ): mixed {
+		if ( ! current_user_can( 'activate_plugins' ) ) {
 			return -1;
 		}
 
-		$option_name = \str_replace(' ', '_', $option_name); // Spaces to underscores.
+		$option_name = \str_replace( ' ', '_', $option_name ); // Spaces to underscores.
 
-		// Check if we have it in our local cache first
-		if (isset($this->options[$option_name]) && isset($this->options[$option_name][0])) {
-			return $this->options[$option_name][0];
+		// Check if we have it in our local cache first.
+		if ( isset( $this->options[ $option_name ] ) && isset( $this->options[ $option_name ][0] ) ) {
+			return $this->options[ $option_name ][0];
 		}
 
-		// Otherwise get it directly from WordPress
-		return \get_option($option_name, $default);
+		// Otherwise get it directly from WordPress.
+		return \get_option( $option_name, $default );
 	}
 
 	/**
+	 * Updates an existing WordPress option.
 	 *
-	 * @param string $option_name $option_name The name of the option to be set. Spaces will be replaced by underscores.
-	 * @param array $value An array containing the (serializable) value of the option being set. Expected to not be SQL-escaped.
-	 * @param mixed $autoload null|true|false|'yes'|'no'
+	 * @param string               $option_name The name of the option to be set. Spaces will be replaced by underscores.
+	 * @param array<string, mixed> $value An array containing the (serializable) value of the option being set. Expected to not be SQL-escaped.
+	 * @param mixed                $autoload null|true|false|'yes'|'no'.
 	 * @return bool|int Returns true or false if option is updated successfully, -1 is returned if user does not have permissions.
 	 */
-	public function update_option(string $option_name, array $value, $autoload = null): bool|int
-	{
-		return $this->set_option($option_name,  $value, $autoload);
+	public function update_option( string $option_name, array $value, mixed $autoload = null ): bool|int {
+		return $this->set_option( $option_name, $value, $autoload );
 	}
 
 	/**
@@ -124,33 +120,33 @@ final class RegisterOptions
 	 *
 	 * @param mixed $option_name The name of the option to be updated. Spaces will be replaced by underscores.
 	 * @param mixed $value The (serializable) value of the option being set. Expected to not be SQL-escaped.
-	 * @param mixed $autoload null|true|false|'yes'|'no'
+	 * @param mixed $autoload null|true|false|'yes'|'no'.
 	 * @return bool|int Returns true or false if option is updated successfully, -1 is returned if user does not have permissions.
 	 */
-	private function register_option($option_name, $value, $autoload = null): bool|int
-	{
-		if (!current_user_can('activate_plugins')) {
+	private function register_option( mixed $option_name, mixed $value, mixed $autoload = null ): bool|int {
+		if ( ! current_user_can( 'activate_plugins' ) ) {
 			return -1;
 		}
 		// Either update the option or create it.
-		return update_option($option_name, $value, $autoload);
+		return update_option( $option_name, $value, $autoload );
 	}
 
 	/**
-	 * Returns the the array of options set on RegisterOptions.
+	 * Returns the array of options set on RegisterOptions.
 	 *
-	 * @return array
+	 * @return array<string, array<int|string, mixed>> The array of registered options.
 	 */
-	public function get_options(): array
-	{
+	public function get_options(): array {
 		$this->refresh_options();
 		return $this->options;
 	}
 
-	private function refresh_options(): void
-	{
-		foreach ($this->options as $option => $value) {
-			$this->refresh_option($option);
+	/**
+	 * Refreshes all options by synchronizing the local cache with the WordPress options table.
+	 */
+	private function refresh_options(): void {
+		foreach ( $this->options as $option => $value ) {
+			$this->refresh_option( $option );
 		}
 	}
 
@@ -161,31 +157,30 @@ final class RegisterOptions
 	 *
 	 * @return mixed|null The refreshed option value or null if not found.
 	 */
-	private function refresh_option(string $option): mixed
-	{
-		// Get the current value from WordPress options table
-		$wp_opt_table_val = \get_option($option, null);
+	private function refresh_option( string $option ): mixed {
+		// Get the current value from WordPress options table.
+		$wp_opt_table_val = \get_option( $option, null );
 
-		// If the option doesn't exist in our local cache but exists in the database
-		if (!isset($this->options[$option]) && $wp_opt_table_val !== null) {
-			// Add it to our local cache
-			$this->options[$option] = array($wp_opt_table_val);
+		// If the option doesn't exist in our local cache but exists in the database.
+		if ( ! isset( $this->options[ $option ] ) && null !== $wp_opt_table_val ) {
+			// Add it to our local cache.
+			$this->options[ $option ] = array( $wp_opt_table_val );
 			return $wp_opt_table_val;
 		}
 
-		// If we have a value in our cache that the database doesn't have
-		if (isset($this->options[$option]) && $wp_opt_table_val === null) {
-			// Try to set the option in the database
-			$autoload = $this->options[$option]['autoload'] ?? null;
-			$this->register_option($option, $this->options[$option][0], $autoload);
-			return $this->options[$option][0];
+		// If we have a value in our cache that the database doesn't have.
+		if ( isset( $this->options[ $option ] ) && null === $wp_opt_table_val ) {
+			// Try to set the option in the database.
+			$autoload = $this->options[ $option ]['autoload'] ?? null;
+			$this->register_option( $option, $this->options[ $option ][0], $autoload );
+			return $this->options[ $option ][0];
 		}
 
-		// If both exist but values are different, update our local cache
-		if (isset($this->options[$option]) && $wp_opt_table_val !== null && $wp_opt_table_val !== $this->options[$option][0]) {
-			$this->options[$option][0] = $wp_opt_table_val;
+		// If both exist but values are different, update our local cache.
+		if ( isset( $this->options[ $option ] ) && null !== $wp_opt_table_val && $wp_opt_table_val !== $this->options[ $option ][0] ) {
+			$this->options[ $option ][0] = $wp_opt_table_val;
 		}
 
-		return isset($this->options[$option]) ? $this->options[$option][0] : null;
+		return isset( $this->options[ $option ] ) ? $this->options[ $option ][0] : null;
 	}
 }

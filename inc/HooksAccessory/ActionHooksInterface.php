@@ -1,14 +1,14 @@
 <?php
-
-declare(strict_types=1);
 /**
  * ActionHooksInterface is used by an object that needs to subscribe to
  * WordPress action hooks.
  *
  * @author https://carlalexander.ca/polymorphism-wordpress-interfaces/
  *
- *  @package  RanPluginLib
+ * @package  RanPluginLib
  */
+
+declare(strict_types = 1);
 
 namespace Ran\PluginLib\HooksAccessory;
 
@@ -17,9 +17,7 @@ use Ran\PluginLib\AccessoryAPI\AccessoryBaseInterface;
 /**
  * ActionHooksInterface is used by an object that needs to subscribe to WordPress action hooks.
  */
-interface ActionHooksInterface extends AccessoryBaseInterface
-{
-
+interface ActionHooksInterface extends AccessoryBaseInterface {
 	/**
 	 * Returns an array of actions that the object needs to be subscribed to.
 	 *
@@ -37,7 +35,7 @@ interface ActionHooksInterface extends AccessoryBaseInterface
 	 *
 	 *  Here 'method_name' is the name of your public callback method found your FeatureController.
 	 *
-	 * @return array
+	 * @return array<string, array<int|string, mixed>> An array of actions to be subscribed to.
 	 */
 	public static function get_actions(): array;
 }

@@ -16,7 +16,6 @@ use Ran\PluginLib\Config\ConfigInterface;
  * The Bootstrap's init class init method is called on plugin activation.
  */
 interface BootstrapInterface {
-
 	/**
 	 * The initializing function which should be called by the WordPress register_activation_hook when the plugin is activated.
 	 * The init method is ideally called from the the plugin root file, and passed a reference to __FILE__.
