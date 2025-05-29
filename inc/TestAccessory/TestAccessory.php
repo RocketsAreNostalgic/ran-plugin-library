@@ -7,7 +7,8 @@
  * @package  RanPluginLib
  */
 
-declare(strict_types=1);
+declare(strict_types = 1);
+
 namespace Ran\PluginLib\TestAccessory;
 
 use Ran\PluginLib\AccessoryAPI\AccessoryBaseInterface;
@@ -16,11 +17,8 @@ use Ran\PluginLib\AccessoryAPI\AccessoryBaseInterface;
  * TestsAccessory is used by an object that needs to subscribe to WordPress filter hooks.
  */
 interface TestAccessory extends AccessoryBaseInterface {
-
-	 /**
-	  * Test so far...
-	  *
-	  * @return string
-	  */
+	/**
+	 * Test so far...
+	 */
 	public function test(): string;
 }
