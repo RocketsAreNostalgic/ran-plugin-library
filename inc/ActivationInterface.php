@@ -21,7 +21,6 @@ namespace Ran\PluginLib;
 use Ran\PluginLib\Config\ConfigInterface;
 
 interface ActivationInterface {
-
 	/**
 	 * Static activation method called by WordPress register_activation_hook when the plugin is activated.
 	 * This must be called as a static method, ideally in the plugin root file.

@@ -5,14 +5,14 @@
  *  @package  RanPluginLib
  */
 
-declare(strict_types=1);
+declare(strict_types = 1);
+
 namespace Ran\PluginLib\Users;
 
 /**
  * A helper class for inserting users into the database, which doesn't fail silently with an WP_Error failure.
  */
 abstract class UserInsertData {
-
 	/**
 	 * Wrapper for wp_insert_user that doesn't fail silently with WP_Error.
 	 *
@@ -20,10 +20,9 @@ abstract class UserInsertData {
 	 * @param  string $first_name User's first name.
 	 * @param  string $last_name User's last name.
 	 *
-	 * @return int
 	 * @throws \Exception Throws if a WP_Error is encountered.
 	 */
-	public static function insert_user( string $email, string $first_name, string $last_name ) : int {
+	public static function insert_user( string $email, string $first_name, string $last_name ): int {
 		if ( ! function_exists( 'wp_insert_user' ) ) {
 			return -1;
 		}
@@ -31,15 +30,15 @@ abstract class UserInsertData {
 		$wp_user_args = array(
 			'user_email' => strtolower( $email ),
 			'user_login' => strtolower( $email ),
-			'user_pass' => null,
+			'user_pass'  => null,
 			'first_name' => $first_name,
-			'last_name' => $last_name,
+			'last_name'  => $last_name,
 		);
 
 		$results = wp_insert_user( $wp_user_args, true );
 
 		if ( is_a( $results, 'WP_Error' ) ) {
-			throw new \Exception( \sprintf( 'Could not insert user %s', $email ) );
+			throw new \Exception( \sprintf( 'Could not insert user %s', esc_html( $email ) ) );
 		}
 
 		return $results;
@@ -55,15 +54,15 @@ abstract class UserInsertData {
 	 * @return int
 	 * @throws \Exception Throws if 'update_user_meta' is unavailable, or if the result is a WP_Error object.
 	 */
-	public static function insert_user_metta( int $user_id, string $meta_key, mixed $meta_value ) : int|false {
+	public static function insert_user_metta( int $user_id, string $meta_key, mixed $meta_value ): int|false {
 		if ( ! function_exists( 'update_user_meta' ) ) {
-			throw new \Exception( \sprintf( 'Error updating user meta as the function update_user_meta is not available. User ID $i', $user_id ) );
+			throw new \Exception( \sprintf( 'Error updating user meta as the function update_user_meta is not available. User ID %d', esc_html( $user_id ) ) );
 		}
 
 		$results = update_user_meta( $user_id, $meta_key, $meta_value );
 
 		if ( is_a( $results, 'WP_Error' ) ) {
-			throw new \Exception( $results );
+			throw new \Exception( esc_html( $results->get_error_message() ) );
 		}
 		return $results;
 	}
