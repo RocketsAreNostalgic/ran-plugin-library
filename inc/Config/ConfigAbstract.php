@@ -171,19 +171,19 @@ abstract class ConfigAbstract extends Singleton implements ConfigInterface {
 	 *
 	 * @throws Exception If no plugin file is provided.
 	 */
-	protected function __construct() {
+	public function __construct() {
 		if ( empty( self::$plugin_file ) ) {
 			// @codeCoverageIgnoreStart
 			throw new Exception( 'Ran PluginLib: No plugin file provided. First call ::init(path/to/entrance/plugin-name.php)' );
 			// @codeCoverageIgnoreEnd
 		}
 
-		$plugin_array['PATH']     = plugin_dir_path( dirname( __DIR__, 4 ) );
-		$plugin_array['URL']      = plugin_dir_url( dirname( __DIR__, 4 ) );
-		$plugin_array['FileName'] = plugin_basename( self::$plugin_file );
+		$plugin_array['PATH']     = \plugin_dir_path( self::$plugin_file );
+		$plugin_array['URL']      = \plugin_dir_url( self::$plugin_file );
+		$plugin_array['FileName'] = \plugin_basename( self::$plugin_file );
 		$plugin_array['File']     = self::$plugin_file;
 
-		if ( ! function_exists( 'get_plugin_data' ) ) {
+		if ( ! \function_exists( 'get_plugin_data' ) ) {
 			// @codeCoverageIgnoreStart
 			require_once ABSPATH . 'wp-admin/includes/plugin.php';
 			// @codeCoverageIgnoreEnd
@@ -191,7 +191,7 @@ abstract class ConfigAbstract extends Singleton implements ConfigInterface {
 
 		// 1. Get standard headers using get_plugin_data().
 		// These are already processed and have normalized keys (Name, Version, TextDomain etc.).
-		$standard_headers_data = get_plugin_data( self::$plugin_file, false, false );
+		$standard_headers_data = \get_plugin_data( self::$plugin_file, false, false );
 		// Filter out empty values that get_plugin_data might return for non-existent standard headers.
 		$standard_headers_data = array_filter(
 			$standard_headers_data,
@@ -201,7 +201,7 @@ abstract class ConfigAbstract extends Singleton implements ConfigInterface {
 		);
 
 		// 2. Read raw plugin file header content to find custom headers.
-		$raw_file_content    = file_get_contents( self::$plugin_file, false, null, 0, 8 * 1024 ); // Read first 8KB.
+		$raw_file_content    = $this->_read_plugin_file_header_content( self::$plugin_file );
 		$custom_headers_data = array();
 		$doc_comment_block   = '';
 
@@ -287,6 +287,18 @@ abstract class ConfigAbstract extends Singleton implements ConfigInterface {
 			'Ran PluginLib: Final plugin configuration data loaded for ' . ( self::$plugin_file ?? 'Unknown Plugin' ) . "\n--- Plugin Configuration ---\n" . $config_string,
 			array() // Pass empty context as the data is now in the message string.
 		);
+	}
+
+	/**
+	 * Reads the first 8KB of a specified plugin file to extract raw header content.
+	 *
+	 * This method is a wrapper around file_get_contents to allow for easier testing by mocking.
+	 *
+	 * @param string $file_path The full path to the plugin file.
+	 * @return string|false The raw content of the plugin file's header (first 8KB), or false on failure.
+	 */
+	protected function _read_plugin_file_header_content( string $file_path ): string|false {
+		return file_get_contents( $file_path, false, null, 0, 8 * 1024 ); // Read first 8KB.
 	}
 
 	/**
