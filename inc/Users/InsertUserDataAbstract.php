@@ -12,7 +12,7 @@ namespace Ran\PluginLib\Users;
 /**
  * A helper class for inserting users into the database, which doesn't fail silently with an WP_Error failure.
  */
-abstract class UserInsertData {
+abstract class InsertUserDataAbstract {
 	/**
 	 * Wrapper for wp_insert_user that doesn't fail silently with WP_Error.
 	 *
