@@ -53,7 +53,7 @@ final class ConfigTest extends RanTestCase {
 		$this->plugin_root_url = 'http://example.com/wp-content/plugins/ran-starter-plugin/';
 
 		// Update plugin_data to reflect the plugin being tested
-		$this->plugin_data = [
+		$this->plugin_data = array(
 			'Name'        => 'Ran Starter Plugin',
 			'Version'     => '1.0.0',
 			'Description' => 'Test plugin description for Ran Starter Plugin',
@@ -65,7 +65,7 @@ final class ConfigTest extends RanTestCase {
 			'DomainPath'  => '/languages',
 			'RequiresPHP' => '7.4',
 			'RequiresWP'  => '5.8',
-		];
+		);
 	}
 
 	/**
@@ -74,7 +74,7 @@ final class ConfigTest extends RanTestCase {
 	public function tearDown(): void {
 		// Manually remove the Config instance from SingletonAbstract::$instances
 		try {
-			$reflectionClass = new \ReflectionClass(\Ran\PluginLib\Singleton\SingletonAbstract::class);
+			$reflectionClass   = new \ReflectionClass(\Ran\PluginLib\Singleton\SingletonAbstract::class);
 			$instancesProperty = $reflectionClass->getProperty('instances');
 			$instancesProperty->setAccessible(true);
 			$current_instances = $instancesProperty->getValue(null);
@@ -94,7 +94,7 @@ final class ConfigTest extends RanTestCase {
 	 *
 	 * @var array<string, string>
 	 */
-	private array $plugin_data = []; // Initialized in setUp()
+	private array $plugin_data = array(); // Initialized in setUp()
 
 	/**
 	 * Tests the Config constructor.
@@ -125,29 +125,29 @@ final class ConfigTest extends RanTestCase {
 
 		// Set up expected plugin array.
 		$expected_plugin_array = array(
-			'PATH'            => $this->plugin_root_path,
-			'URL'             => $this->plugin_root_url,
-			'FileName'        => $this->plugin_file_name,
-			'File'            => $this->full_plugin_file_path,
+			'PATH'     => $this->plugin_root_path,
+			'URL'      => $this->plugin_root_url,
+			'FileName' => $this->plugin_file_name,
+			'File'     => $this->full_plugin_file_path,
 			// Custom Headers (Normalized from mock file content)
 			'LogConstantName' => 'TEST_DEBUG_MODE',
 			'AnotherCustom'   => 'Value For Custom',
 			'RequiresWp'      => $this->plugin_data['RequiresWP'], // Match buggy behavior of _get_custom_headers
 			'PluginOption'    => 'ran_starter_plugin',
 			// Standard Headers (from get_plugin_data mock, these take precedence)
-			'Name'            => $this->plugin_data['Name'],
-			'PluginURI'       => $this->plugin_data['PluginURI'],
-			'Version'         => $this->plugin_data['Version'],
-			'Description'     => $this->plugin_data['Description'],
-			'Author'          => $this->plugin_data['Author'],
-			'AuthorURI'       => $this->plugin_data['AuthorURI'],
-			'TextDomain'      => $this->plugin_data['TextDomain'],
-			'DomainPath'      => $this->plugin_data['DomainPath'],
-			'RequiresWP'      => $this->plugin_data['RequiresWP'],
-			'RequiresPHP'     => $this->plugin_data['RequiresPHP'],
-			'UpdatesURI'      => $this->plugin_data['UpdatesURI'],
+			'Name'        => $this->plugin_data['Name'],
+			'PluginURI'   => $this->plugin_data['PluginURI'],
+			'Version'     => $this->plugin_data['Version'],
+			'Description' => $this->plugin_data['Description'],
+			'Author'      => $this->plugin_data['Author'],
+			'AuthorURI'   => $this->plugin_data['AuthorURI'],
+			'TextDomain'  => $this->plugin_data['TextDomain'],
+			'DomainPath'  => $this->plugin_data['DomainPath'],
+			'RequiresWP'  => $this->plugin_data['RequiresWP'],
+			'RequiresPHP' => $this->plugin_data['RequiresPHP'],
+			'UpdatesURI'  => $this->plugin_data['UpdatesURI'],
 			// Calculated by ConfigAbstract
-			'PluginOption'    => str_replace( '-', '_', $this->plugin_data['TextDomain'] ),
+			'PluginOption' => str_replace( '-', '_', $this->plugin_data['TextDomain'] ),
 		);
 
 		// Create Config object.
@@ -242,11 +242,11 @@ final class ConfigTest extends RanTestCase {
 			" * Requires WP: {$this->plugin_data['RequiresWP']}\n" .
 			" * Log Constant Name: TEST_DEBUG_MODE\n" .
 			" * Another Custom: Value For Custom\n" .
-			" */";
+			' */';
 
 		// Create a partial mock of the Config class, disabling the original constructor for now.
 		$the_actual_mock_instance = $this->getMockBuilder(Config::class)
-			->onlyMethods(['_read_plugin_file_header_content'])
+			->onlyMethods(array('_read_plugin_file_header_content'))
 			->disableOriginalConstructor()
 			->getMock();
 
@@ -259,15 +259,15 @@ final class ConfigTest extends RanTestCase {
 
 		// Manually invoke the original constructor (from ConfigAbstract) on our mock instance.
 		// Now, when the constructor calls _read_plugin_file_header_content, the expectation will be met.
-		$reflection = new \ReflectionObject($the_actual_mock_instance);
+		$reflection  = new \ReflectionObject($the_actual_mock_instance);
 		$constructor = $reflection->getParentClass()->getConstructor(); // Config inherits constructor from ConfigAbstract
 		$constructor->invoke($the_actual_mock_instance);
 
 		// Use Reflection to set our mock instance into the SingletonAbstract's static property.
-		$reflectionClass = new \ReflectionClass(\Ran\PluginLib\Singleton\SingletonAbstract::class);
+		$reflectionClass   = new \ReflectionClass(\Ran\PluginLib\Singleton\SingletonAbstract::class);
 		$instancesProperty = $reflectionClass->getProperty('instances');
 		$instancesProperty->setAccessible(true); // Make it accessible
-		$current_instances = $instancesProperty->getValue(null); // Get current static instances
+		$current_instances                = $instancesProperty->getValue(null); // Get current static instances
 		$current_instances[Config::class] = $the_actual_mock_instance; // Set our mock
 		$instancesProperty->setValue(null, $current_instances); // Write back
 

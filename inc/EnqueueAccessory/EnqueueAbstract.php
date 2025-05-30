@@ -140,7 +140,7 @@ abstract class EnqueueAbstract implements EnqueueInterface {
 			$this->get_logger()->debug( 'EnqueueAbstract::add_scripts - Entered. Current script count: ' . count( $this->scripts ) . '. Adding ' . count( $scripts_to_add ) . ' new script(s).' );
 			foreach ( $scripts_to_add as $script_key => $script_data ) {
 				$handle = $script_data['handle'] ?? 'N/A';
-				$src    = $script_data['src'] ?? 'N/A';
+				$src    = $script_data['src']    ?? 'N/A';
 				$this->get_logger()->debug( "EnqueueAbstract::add_scripts - Adding script. Key: {$script_key}, Handle: {$handle}, Src: {$src}" );
 			}
 		}
@@ -271,11 +271,11 @@ abstract class EnqueueAbstract implements EnqueueInterface {
 	public function enqueue_styles( array $styles ): self {
 		foreach ( $styles as $style ) {
 			// Extract style parameters from object format.
-			$handle    = $style['handle'] ?? '';
-			$src       = $style['src'] ?? '';
-			$deps      = $style['deps'] ?? array();
-			$ver       = $style['version'] ?? false;
-			$media     = $style['media'] ?? 'all';
+			$handle    = $style['handle']    ?? '';
+			$src       = $style['src']       ?? '';
+			$deps      = $style['deps']      ?? array();
+			$ver       = $style['version']   ?? false;
+			$media     = $style['media']     ?? 'all';
 			$condition = $style['condition'] ?? null;
 
 			// Check if the condition is met.
@@ -298,7 +298,7 @@ abstract class EnqueueAbstract implements EnqueueInterface {
 	 */
 	public function enqueue_media( array $media ): self {
 		foreach ( $media as $item ) {
-			$args      = $item['args'] ?? array();
+			$args      = $item['args']      ?? array();
 			$condition = $item['condition'] ?? null;
 
 			// Check if the condition is met.
@@ -365,12 +365,12 @@ abstract class EnqueueAbstract implements EnqueueInterface {
 			}
 			foreach ( $this->inline_scripts as $inline_script_key => $inline_script_data ) {
 				// Ensure keys exist before accessing.
-				$inline_handle      = $inline_script_data['handle'] ?? null;
+				$inline_handle      = $inline_script_data['handle']      ?? null;
 				$inline_parent_hook = $inline_script_data['parent_hook'] ?? null;
 
 				if ( $inline_handle === $handle && $inline_parent_hook === $hook ) {
-					$content   = $inline_script_data['content'] ?? '';
-					$position  = $inline_script_data['position'] ?? 'after';
+					$content   = $inline_script_data['content']   ?? '';
+					$position  = $inline_script_data['position']  ?? 'after';
 					$condition = $inline_script_data['condition'] ?? null;
 
 					if ( empty( $content ) ) {
@@ -459,10 +459,10 @@ abstract class EnqueueAbstract implements EnqueueInterface {
 			$this->get_logger()->debug( 'EnqueueAbstract::enqueue_inline_scripts - Entered method.' );
 		}
 		foreach ( $this->inline_scripts as $inline_script ) {
-			$handle      = $inline_script['handle'] ?? '';
-			$content     = $inline_script['content'] ?? '';
-			$position    = $inline_script['position'] ?? 'after';
-			$condition   = $inline_script['condition'] ?? null;
+			$handle      = $inline_script['handle']      ?? '';
+			$content     = $inline_script['content']     ?? '';
+			$position    = $inline_script['position']    ?? 'after';
+			$condition   = $inline_script['condition']   ?? null;
 			$parent_hook = $inline_script['parent_hook'] ?? null;
 
 			if ( $this->get_logger()->is_active() ) {
@@ -580,14 +580,14 @@ abstract class EnqueueAbstract implements EnqueueInterface {
 	 * @return string The script handle that was registered, or empty string if conditions not met.
 	 */
 	private function process_single_script( array $script ): string {
-		$handle     = $script['handle'] ?? '';
-		$src        = $script['src'] ?? '';
-		$deps       = $script['deps'] ?? array();
-		$ver        = $script['version'] ?? false;
-		$in_footer  = $script['in_footer'] ?? false;
-		$condition  = $script['condition'] ?? null;
+		$handle     = $script['handle']     ?? '';
+		$src        = $script['src']        ?? '';
+		$deps       = $script['deps']       ?? array();
+		$ver        = $script['version']    ?? false;
+		$in_footer  = $script['in_footer']  ?? false;
+		$condition  = $script['condition']  ?? null;
 		$attributes = $script['attributes'] ?? array();
-		$wp_data    = $script['wp_data'] ?? array();
+		$wp_data    = $script['wp_data']    ?? array();
 
 		// Check if the condition is met.
 		if ( is_callable( $condition ) && ! $condition() ) {

@@ -42,14 +42,14 @@ final class RegisterOptionsTest extends RanTestCase {
 		// Mock for RegisterOptions constructor call to get_option($this->main_wp_option_name, [])
 		WP_Mock::userFunction( 'get_option' )
 			->once()
-			->with( $this->plugin_data['PluginOption'], [] )
-			->andReturn( [] );
+			->with( $this->plugin_data['PluginOption'], array() )
+			->andReturn( array() );
 
 		// Mock for refresh_option's call to get_option($option_name, null) which happens during $registery->get_options()
 		WP_Mock::userFunction( 'get_option' )
 			->once()
 			->with( $this->plugin_data['PluginOption'], null )
-			->andReturnValues( [$some_data] );
+			->andReturnValues( array($some_data) );
 
 		WP_Mock::userFunction( 'update_option' )
 			->with( $this->plugin_data['PluginOption'], $some_data, null )
@@ -76,8 +76,8 @@ final class RegisterOptionsTest extends RanTestCase {
 	 * We should be able to add multiple options to the RegisterOptions class on instantiation.
 	 */
 	public function test_add_mutiple_options_on_instantiation(): void {
-		$some_data_value       = array( 'some key' => 'some value' ); // Value for the first option
-		$other_data_value_part = array( 'some key' => 'some other value' ); // Value part for the 'taco_truck' option
+		$some_data_value            = array( 'some key' => 'some value' ); // Value for the first option
+		$other_data_value_part      = array( 'some key' => 'some other value' ); // Value part for the 'taco_truck' option
 		$other_data_for_constructor = array(
 			'value'    => $other_data_value_part, // Explicit 'value' key
 			'autoload' => false,                 // Explicit 'autoload' key
@@ -150,8 +150,8 @@ final class RegisterOptionsTest extends RanTestCase {
 		// Mock for RegisterOptions constructor call to get_option($this->main_wp_option_name, [])
 		WP_Mock::userFunction( 'get_option' )
 			->once()
-			->with( $this->plugin_data['PluginOption'], [] )
-			->andReturn( [] );
+			->with( $this->plugin_data['PluginOption'], array() )
+			->andReturn( array() );
 
 		$registery = new RegisterOptions( $this->plugin_data['PluginOption'] );
 

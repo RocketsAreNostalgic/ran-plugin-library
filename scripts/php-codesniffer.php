@@ -25,7 +25,6 @@ ini_set( 'display_errors', '1' ); // phpcs:ignore WordPress.PHP.IniSet.display_e
  * Stores paths and settings used by the runner script.
  */
 class PhpcsRunnerConfig {
-
 	/**
 	 * Path to the project root directory.
 	 *
@@ -76,11 +75,11 @@ class PhpcsRunnerConfig {
 	 * Initializes paths based on the script's location.
 	 */
 	public function __construct() {
-		$this->project_root = dirname( __DIR__ ); // Assumes script is in a subdirectory like /scripts.
-		$this->vendor_dir = $this->project_root . '/vendor';
-		$this->phpcs_executable = $this->vendor_dir . '/bin/phpcs';
-		$this->phpcbf_executable = $this->vendor_dir . '/bin/phpcbf';
-		$this->source_ruleset_path = $this->project_root . '/.phpcs.xml';
+		$this->project_root                  = dirname( __DIR__ ); // Assumes script is in a subdirectory like /scripts.
+		$this->vendor_dir                    = $this->project_root . '/vendor';
+		$this->phpcs_executable              = $this->vendor_dir . '/bin/phpcs';
+		$this->phpcbf_executable             = $this->vendor_dir . '/bin/phpcbf';
+		$this->source_ruleset_path           = $this->project_root . '/.phpcs.xml';
 		$this->generated_runner_ruleset_path = $this->project_root . '/.phpcs-runner.xml';
 	}
 }
@@ -89,7 +88,6 @@ class PhpcsRunnerConfig {
  * Main class to handle PHPCS runner generation and execution.
  */
 class PhpcsRunner {
-
 	/**
 	 * Configuration object for the runner.
 	 *
@@ -122,7 +120,7 @@ class PhpcsRunner {
 	 * Initializes configuration and parses CLI arguments.
 	 */
 	public function __construct() {
-		$this->config = new PhpcsRunnerConfig();
+		$this->config   = new PhpcsRunnerConfig();
 		$this->cli_args = $this->parse_cli_arguments( $GLOBALS['argv'] ?? array() );
 	}
 
@@ -144,7 +142,7 @@ class PhpcsRunner {
 		$this->check_runner_file_exists(); // Check after generation and potential warning.
 
 		$resolved_executable = $this->resolve_phpcs_executable( $this->cli_args['is_fix_mode'] );
-		$full_command = $this->assemble_command( $resolved_executable, $this->cli_args['phpcs_args'] );
+		$full_command        = $this->assemble_command( $resolved_executable, $this->cli_args['phpcs_args'] );
 
 		$this->output_debug_info( $full_command );
 
@@ -201,7 +199,7 @@ WARNING;
 	 */
 	private function parse_cli_arguments( array $argv ): array {
 		$is_fix_mode = false;
-		$phpcs_args = array();
+		$phpcs_args  = array();
 		$script_name = array_shift( $argv ); // Remove script name.
 
 		foreach ( $argv as $arg ) {
@@ -218,7 +216,7 @@ WARNING;
 		}
 		return array(
 			'is_fix_mode' => $is_fix_mode,
-			'phpcs_args' => $phpcs_args,
+			'phpcs_args'  => $phpcs_args,
 		);
 	}
 
@@ -229,7 +227,7 @@ WARNING;
 	 */
 	private function resolve_phpcs_executable( bool $is_fix_mode ): string {
 		$executable_to_use = $is_fix_mode ? $this->config->phpcbf_executable : $this->config->phpcs_executable;
-		$resolved_command = '';
+		$resolved_command  = '';
 
 		if ( is_executable( $executable_to_use ) ) {
 			$resolved_command = realpath( $executable_to_use );
@@ -297,7 +295,7 @@ WARNING;
 	 */
 	private function command_exists( string $command_name ): bool {
 		$test_command = escapeshellarg( $command_name ) . ' --version';
-		$last_line = exec( $test_command, $output, $retval );
+		$last_line    = exec( $test_command, $output, $retval );
 		return 0 === $retval;
 	}
 
@@ -313,7 +311,7 @@ WARNING;
 			if ( false === chdir( $this->config->project_root ) ) {
 				fwrite( STDERR, "Error: Could not change directory to {$this->config->project_root}\n" );
 				if ( getcwd() !== $original_cwd ) {
-					 chdir( $original_cwd );
+					chdir( $original_cwd );
 				}
 				exit( 1 );
 			}
@@ -341,7 +339,7 @@ WARNING;
 	 */
 	private function create_formatted_dom_comment( \DOMDocument $doc, string $raw_text ): \DOMComment {
 		// 1. Sanitize input.
-		$clean_text = str_replace( array( '<!--', '-->' ), '', $raw_text );
+		$clean_text     = str_replace( array( '<!--', '-->' ), '', $raw_text );
 		$sanitized_text = str_replace( '--', '- -', $clean_text );
 
 		$trimmed_overall_sanitized_text = trim( $sanitized_text );
@@ -352,7 +350,7 @@ WARNING;
 			$comment_content = "\n    \n  ";
 		} else {
 			// Process lines from the original (but sanitized) text to preserve blank line structure.
-			$lines_from_source = explode( "\n", $sanitized_text );
+			$lines_from_source    = explode( "\n", $sanitized_text );
 			$final_indented_lines = array();
 
 			foreach ( $lines_from_source as $original_line ) {
@@ -405,7 +403,7 @@ WARNING;
 	 * @return \DOMDocument|null The new DOMDocument for the runner, or null on failure.
 	 */
 	private function modify_ruleset_for_runner( \DOMDocument $source_doc_for_context ): ?\DOMDocument {
-		$target_doc = new \DOMDocument( '1.0', 'UTF-8' );
+		$target_doc               = new \DOMDocument( '1.0', 'UTF-8' );
 		$target_doc->formatOutput = true; // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase -- For pretty printing.
 
 		$source_ruleset_element_for_context = $source_doc_for_context->getElementsByTagName( 'ruleset' )->item( 0 );
@@ -453,7 +451,7 @@ WARNING;
 		\DOMDocument $doc_to_modify,
 		string $project_root
 	): ?\DOMElement {
-		$path = $source_node->nodeValue; // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase -- Get node value.
+		$path          = $source_node->nodeValue; // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase -- Get node value.
 		$absolute_path = realpath( $project_root . DIRECTORY_SEPARATOR . $path );
 
 		if ( $absolute_path && ( is_file( $absolute_path ) || is_dir( $absolute_path ) ) ) {
@@ -478,10 +476,10 @@ WARNING;
 		\DOMDocument $doc_to_modify,
 		string $project_root
 	): \DOMElement {
-		$pattern = $source_node->nodeValue; // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
+		$pattern     = $source_node->nodeValue; // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
 		$target_node = $doc_to_modify->createElement( 'exclude-pattern' );
 
-		$is_glob = strpbrk( $pattern, '*?[' ) !== false;
+		$is_glob       = strpbrk( $pattern, '*?[' ) !== false;
 		$final_pattern = '';
 
 		if ( $is_glob ) {
@@ -491,8 +489,8 @@ WARNING;
 			$final_pattern = $pattern;
 		} else {
 			// Not a glob. Determine if it's an absolute path or needs to be made absolute.
-			$path_is_device_absolute = preg_match( '/^[a-zA-Z]:(\\|\/)/', $pattern ) || strpos( $pattern, '\\' ) === 0; // C:\foo or \\server\share.
-			$path_is_unix_root_prefixed = strpos( $pattern, '/' ) === 0;
+			$path_is_device_absolute    = preg_match( '/^[a-zA-Z]:(\\|\/)/', $pattern ) || strpos( $pattern, '\\' ) === 0; // C:\foo or \\server\share.
+			$path_is_unix_root_prefixed = strpos( $pattern, '/' )                                                   === 0;
 
 			if ( $path_is_device_absolute ) { // True absolute like C:\foo.
 				$current_final_pattern = str_replace( DIRECTORY_SEPARATOR, '/', $pattern );
@@ -506,11 +504,11 @@ WARNING;
 					// It's like /vendor/ (not a root dir) or /non/existent/absolute or a symlink needing resolution relative to project.
 					// Treat as $project_root . $pattern (e.g., /path/to/project . /vendor/).
 					// Ensure $project_root does not have a trailing slash and $pattern starts with one, or add one if needed..
-					$resolved_pattern = rtrim( $project_root, DIRECTORY_SEPARATOR . '/' ) . '/' . ltrim( $pattern, DIRECTORY_SEPARATOR . '/' );
+					$resolved_pattern      = rtrim( $project_root, DIRECTORY_SEPARATOR . '/' ) . '/' . ltrim( $pattern, DIRECTORY_SEPARATOR . '/' );
 					$current_final_pattern = str_replace( DIRECTORY_SEPARATOR, '/', $resolved_pattern );
 				}
 			} else { // Relative path like 'src/foo' or 'vendor/' (without leading slash).
-				$resolved_pattern = rtrim( $project_root, DIRECTORY_SEPARATOR . '/' ) . DIRECTORY_SEPARATOR . ltrim( $pattern, DIRECTORY_SEPARATOR . '/' );
+				$resolved_pattern      = rtrim( $project_root, DIRECTORY_SEPARATOR . '/' ) . DIRECTORY_SEPARATOR . ltrim( $pattern, DIRECTORY_SEPARATOR . '/' );
 				$current_final_pattern = str_replace( DIRECTORY_SEPARATOR, '/', $resolved_pattern );
 			}
 			$final_pattern = $current_final_pattern;
@@ -536,10 +534,10 @@ WARNING;
 						"The original parallel processing argument from .phpcs.xml is preserved as a\n" .
 						'comment below for reference.';
 
-		$nodes = array();
-		$nodes[] = $this->create_formatted_dom_comment( $doc_to_modify, $explanation_text );
+		$nodes                     = array();
+		$nodes[]                   = $this->create_formatted_dom_comment( $doc_to_modify, $explanation_text );
 		$xml_string_of_source_node = $source_node->ownerDocument->saveXML( $source_node ); // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
-		$nodes[] = $this->create_formatted_dom_comment( $doc_to_modify, $xml_string_of_source_node );
+		$nodes[]                   = $this->create_formatted_dom_comment( $doc_to_modify, $xml_string_of_source_node );
 		return $nodes;
 	}
 
@@ -551,7 +549,7 @@ WARNING;
 	 * @return array<\DOMComment|\DOMElement> Array of nodes (comment and imported config node) to add.
 	 */
 	private function process_installed_paths_node( \DOMElement $source_node, \DOMDocument $doc_to_modify ): array {
-		$nodes = array();
+		$nodes        = array();
 		$warning_text = <<<TEXT
 		IMPORTANT: Regarding 'installed_paths' in this generated ruleset:
 		1. The paths below are copied AS-IS from your source .phpcs.xml.
@@ -561,9 +559,9 @@ WARNING;
 		3. If you encounter "Referenced sniff ... does not exist" errors, ensure the paths
 		are absolute and correct in your source .phpcs.xml.
 		TEXT;
-		$nodes[] = $this->create_formatted_dom_comment( $doc_to_modify, $warning_text );
-		$imported_node = $doc_to_modify->importNode( $source_node, true );
-		$nodes[] = $imported_node;
+		$nodes[]                         = $this->create_formatted_dom_comment( $doc_to_modify, $warning_text );
+		$imported_node                   = $doc_to_modify->importNode( $source_node, true );
+		$nodes[]                         = $imported_node;
 		$this->processed_installed_paths = true; // Indicate that we found and will process an installed_paths node.
 
 		return $nodes;
@@ -586,7 +584,7 @@ WARNING;
 	 * @param \DOMDocument $doc_to_modify The runner DOM document.
 	 */
 	private function process_comment_node( \DOMComment $source_node, \DOMDocument $doc_to_modify ): ?\DOMComment {
-		if ( strpos( $source_node->nodeValue, 'This is a generated file' ) === false && // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
+		if ( strpos( $source_node->nodeValue, 'This is a generated file' )   === false && // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
 			strpos( $source_node->nodeValue, 'created by php-codesniffer.php' ) === false ) { // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
 			return $doc_to_modify->importNode( $source_node, true );
 		}
@@ -630,7 +628,7 @@ WARNING;
 
 			if ( XML_ELEMENT_NODE === $source_child_node->nodeType ) { // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
 				$source_child_element = $source_child_node;
-				$node_name = $source_child_element->nodeName; // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
+				$node_name            = $source_child_element->nodeName; // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
 
 				// All process_* methods now use $runner_doc to create new nodes.
 				switch ( $node_name ) {
@@ -648,7 +646,7 @@ WARNING;
 						break;
 					case 'arg':
 						if ( $source_child_element->getAttribute( 'name' ) === 'parallel' ) {
-							$parallel_nodes = $this->process_parallel_arg_node( $source_child_element, $runner_doc );
+							$parallel_nodes            = $this->process_parallel_arg_node( $source_child_element, $runner_doc );
 							$nodes_to_append_to_runner = array_merge( $nodes_to_append_to_runner, $parallel_nodes );
 						} else {
 							$generic_node = $this->process_generic_element_node( $source_child_element, $runner_doc );
@@ -659,7 +657,7 @@ WARNING;
 						break;
 					case 'config':
 						if ( $source_child_element->getAttribute( 'name' ) === 'installed_paths' ) {
-							$path_nodes = $this->process_installed_paths_node( $source_child_element, $runner_doc );
+							$path_nodes                = $this->process_installed_paths_node( $source_child_element, $runner_doc );
 							$nodes_to_append_to_runner = array_merge( $nodes_to_append_to_runner, $path_nodes );
 						} else {
 							$generic_node = $this->process_generic_element_node( $source_child_element, $runner_doc );
@@ -679,10 +677,10 @@ WARNING;
 				$source_child_comment = $source_child_node;
 				// Avoid logging every comment if too verbose, or shorten it.
 				// fwrite(STDERR, "DEBUG: Processing XML_COMMENT_NODE from source. Value: " . substr($source_child_comment->nodeValue, 0, 50) . "...\n");.
-				if ( strpos( $source_child_comment->nodeValue, 'This is a generated file' ) === false && // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase -- Check comment content.
+				if ( strpos( $source_child_comment->nodeValue, 'This is a generated file' )        === false && // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase -- Check comment content.
 					 strpos( $source_child_comment->nodeValue, 'created by ' . basename( __FILE__ ) ) === false && // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase -- Match new comment format.
-					 strpos( $source_child_comment->nodeValue, 'created by .php-codesniffer.php' ) === false // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase -- Match old comment format.
-					) {
+					 strpos( $source_child_comment->nodeValue, 'created by .php-codesniffer.php' )    === false // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase -- Match old comment format.
+				) {
 					$comment_node = $this->process_comment_node( $source_child_comment, $runner_doc );
 					if ( $comment_node ) {
 						$nodes_to_append_to_runner[] = $comment_node;
@@ -705,6 +703,6 @@ WARNING;
 }
 
 // --- Main Script Execution ---
-$runner = new PhpcsRunner();
+$runner    = new PhpcsRunner();
 $exit_code = $runner->run();
 exit( $exit_code );
