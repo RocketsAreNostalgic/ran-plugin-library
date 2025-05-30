@@ -69,6 +69,7 @@
     "standards:fix": "phpcbf --standard=.phpcs.xml --report=summary",
     "runner:standards:full": "php ./scripts/php-codesniffer.php -s",
     "runner:standards:fix": "php ./scripts/php-codesniffer.php --fix --report=summary",
+    "test": "vendor/bin/phpunit",
     "build-assets": "bash ./scripts/build-assets.sh",
     "build": [
       "@format",
