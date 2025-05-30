@@ -45,7 +45,7 @@ final class RegisterOptions {
 				if ( is_array( $definition ) ) {
 					// If $definition is an array, check if it's a structured definition
 					// with 'value' and/or 'autoload' keys, or if it's the value itself.
-					$actual_value     = $definition['value'] ?? $definition;
+					$actual_value     = $definition['value']    ?? $definition;
 					$autoload_setting = $definition['autoload'] ?? null; // Default to null if not specified.
 					$this->set_option( $option_name, $actual_value, $autoload_setting );
 				} else {
