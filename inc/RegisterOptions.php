@@ -2,200 +2,222 @@
 /**
  * WordPress Options Registration and Management.
  *
+ * This class manages plugin options by storing them as a single array
+ * under a specified main option name in the WordPress options table.
+ * This approach enhances encapsulation and keeps the wp_options table cleaner.
+ *
  * @package  RanPluginLib
  */
 
-declare(strict_types = 1);
+declare(strict_types=1);
 
 namespace Ran\PluginLib;
 
+use Ran\PluginLib\Config\ConfigAbstract;
+use Ran\PluginLib\Util\Logger;
+
 /**
- * Activation class that establishes and manages WordPress options.
+ * Manages plugin options by storing them as a single array in the wp_options table.
  *
- * This class provides methods for registering, retrieving, and updating WordPress options.
+ * This class provides methods for registering, retrieving, and updating plugin settings,
+ * all grouped under one main WordPress option. This improves organization and reduces
+ * the number of individual rows added to the wp_options table.
  */
-final class RegisterOptions {
+class RegisterOptions {
 	/**
-	 * An object store of options to be saved to the WP Options table.
+	 * The in-memory store for all plugin options.
+	 * Structure: ['option_key' => ['value' => mixed, 'autoload_hint' => bool|null]]
 	 *
-	 * @var array<string, array<int|string, mixed>> An array of WordPress options.
+	 * @var array<string, array{"value": mixed, "autoload_hint": bool|null}>
 	 */
 	private array $options = array();
 
 	/**
-	 * The main WordPress option name that stores all plugin settings.
+	 * The main WordPress option name under which all plugin settings are stored as an array.
 	 *
 	 * @var string
 	 */
 	private string $main_wp_option_name;
 
 	/**
-	 * Creates new RegisterOptions object, with a provided array of options.
+	 * Whether the main WordPress option group should be autoloaded by WordPress.
 	 *
-	 * @param  array<string, array<string, mixed>> $options An array options to be set to WordPress options table.
-	 * @throws \Exception If invalid options array is provided.
+	 * @var bool
 	 */
-	public function __construct( string $main_wp_option_name, array $options = array() ) {
-		$this->main_wp_option_name = $main_wp_option_name;
-		$this->options             = get_option( $this->main_wp_option_name, array() ); // Fetch existing options.
+	private bool $main_option_autoload;
 
-		// If options are provided at instantiation, add/update them.
-		if ( ! empty( $options ) ) {
-			foreach ( $options as $option_name => $definition ) {
-				if ( is_array( $definition ) ) {
-					// If $definition is an array, check if it's a structured definition
-					// with 'value' and/or 'autoload' keys, or if it's the value itself.
-					$actual_value     = $definition['value']    ?? $definition;
-					$autoload_setting = $definition['autoload'] ?? null; // Default to null if not specified.
-					$this->set_option( $option_name, $actual_value, $autoload_setting );
-				} else {
-					// If $definition is not an array, treat it as the direct value.
-					$this->set_option( $option_name, $definition, null ); // Autoload defaults to null.
+	/**
+	 * Logger instance.
+	 *
+	 * @var Logger|null
+	 */
+	private ?Logger $logger = null;
+
+	/**
+	 * Creates a new RegisterOptions instance.
+	 *
+	 * Initializes options by loading them from the database under `$main_wp_option_name`.
+	 * If initial `$default_options` are provided, they are merged with existing options
+	 * and the entire set is saved back to the database.
+	 *
+	 * @param string $main_wp_option_name The primary key in wp_options where all settings for this instance are stored.
+	 * @param array<string, array{"value": mixed, "autoload_hint": bool|null}|mixed> $initial_options Optional. An array of default options to set if not already present or to merge.
+	 *                                   Each key is the option name. Value can be the direct value or an array ['value' => mixed, 'autoload_hint' => bool].
+	 * @param bool $main_option_autoload  Whether the entire group of options should be autoloaded by WordPress. Defaults to true.
+	 */
+	public function __construct(string $main_wp_option_name, array $initial_options = array(), bool $main_option_autoload = true) {
+		$this->main_wp_option_name  = $main_wp_option_name;
+		$this->main_option_autoload = $main_option_autoload;
+
+		// Load all existing options from the single database entry.
+		$this->options = \get_option($this->main_wp_option_name, array());
+		if ($this->get_logger()->is_active()) {
+			$this->get_logger()->debug("RegisterOptions: Initialized with main option '{$this->main_wp_option_name}'. Loaded " . count($this->options) . ' existing sub-options.');
+		}
+
+		// If initial/default options are provided, merge and save them.
+		if (!empty($initial_options)) {
+			$options_changed = false;
+			foreach ($initial_options as $option_name => $definition) {
+				$option_name_clean    = \str_replace(' ', '_', $option_name);
+				$current_value_exists = isset($this->options[$option_name_clean]);
+
+				$value_to_set  = is_array($definition) && isset($definition['value']) ? $definition['value'] : $definition;
+				$autoload_hint = is_array($definition) && isset($definition['autoload_hint']) ? $definition['autoload_hint'] : ($this->options[$option_name_clean]['autoload_hint'] ?? null);
+
+				// Set if new, or if existing value is different (for complex types, this is a simple check).
+				if (!$current_value_exists || ($current_value_exists && $this->options[$option_name_clean]['value'] !== $value_to_set)) {
+					$this->options[$option_name_clean] = array('value' => $value_to_set, 'autoload_hint' => $autoload_hint);
+					$options_changed                   = true;
+					if ($this->get_logger()->is_active()) {
+						$this->get_logger()->debug("RegisterOptions: Initial option '{$option_name_clean}' set/updated.");
+					}
 				}
 			}
-			// After processing all initial options, save them.
-			$this->register_options();
+
+			if ($options_changed) {
+				$this->save_all_options();
+				if ($this->get_logger()->is_active()) {
+					$this->get_logger()->debug("RegisterOptions: Initial options processed and saved to '{$this->main_wp_option_name}'.");
+				}
+			}
 		}
 	}
 
 	/**
-	 * Registers all plugin options with values present in the options array in wp_options table.
+	 * Saves all currently held options to the database under the main option name.
+	 *
+	 * @return bool True if the option was successfully updated or added, false otherwise.
 	 */
-	public function register_options(): void {
-		/**
-		 * Registers all options with the array key becoming the option name. If the value is an array, then we look for 'autoload' key and set it if present. Defaults to true as does WordPress.
-		 */
-		foreach ( $this->options as $key => $value ) {
-			$option_key = array_key_first( $value );
-			$this->register_option( $option_key, $value[ $option_key ], $value['autoload'] ?? true );
+	private function save_all_options(): bool {
+		if ($this->get_logger()->is_active()) {
+			$this->get_logger()->debug("RegisterOptions: Saving all options to '{$this->main_wp_option_name}'. Total sub-options: " . count($this->options) . '. Autoload: ' . ($this->main_option_autoload ? 'true' : 'false'));
 		}
+		return \update_option($this->main_wp_option_name, $this->options, $this->main_option_autoload);
 	}
 
 	/**
-	 * Add an option to the plugin options array.
-	 * Will later be set to WordPress add_option using this classes register_options() method.
-	 * https://developer.wordpress.org/reference/functions/add_option/
+	 * Sets or updates a specific option's value within the main options array and saves all options.
 	 *
-	 * @param  string $option_name The name of the option to be set. Spaces will be replaced by underscores.
-	 * @param  mixed  $value The (serializable) value of the option being set. Expected to not be SQL-escaped.
-	 * @param  mixed  $autoload Optional. Whether to load the option when WordPress starts up. Default null.
-	 * @return int|bool  Returns true or false if option is updated successfully, -1 is returned if user does not have permissions.
+	 * @param string     $option_name The name of the sub-option to set. Spaces will be replaced by underscores.
+	 * @param mixed      $value       The value for the sub-option.
+	 * @param bool|null  $autoload_hint Optional. A hint for whether this specific sub-option might have been intended for autoloading (for metadata purposes only).
+	 * @return bool True if the options were successfully saved, false otherwise.
 	 */
-	public function set_option( string $option_name, mixed $value, mixed $autoload = null ): mixed {
-		$value             = array( $value );
-		$option_name       = \str_replace( ' ', '_', $option_name ); // Spaces to underscores.
-		$registered        = $this->register_option( $option_name, $value[0], $autoload );
-		$value['autoload'] = $autoload;
-		if ( true === $registered || -1 !== $registered ) {
-			$this->options[ $option_name ] = $value;
+	public function set_option(string $option_name, mixed $value, ?bool $autoload_hint = null): bool {
+		$option_name_clean = \str_replace(' ', '_', $option_name);
+
+		if ($this->get_logger()->is_active()) {
+			$this->get_logger()->debug("RegisterOptions: Setting option '{$option_name_clean}' in '{$this->main_wp_option_name}'.");
 		}
-		return $registered;
+
+		$this->options[$option_name_clean] = array(
+			'value'         => $value,
+			'autoload_hint' => $autoload_hint ?? ($this->options[$option_name_clean]['autoload_hint'] ?? null)
+		);
+		return $this->save_all_options();
 	}
 
 	/**
-	 * Retrieves an option value from the WordPress options table.
+	 * Retrieves a specific option's value from the main options array.
 	 *
-	 * @param  string $option_name The name of the option to retrieve. Spaces will be replaced by underscores.
-	 * @param  mixed  $default     Optional. Default value to return if the option does not exist.
-	 *
-	 * @return mixed The value of the option, or the default value if option not found.
+	 * @param string $option_name The name of the sub-option to retrieve. Spaces will be replaced by underscores.
+	 * @param mixed  $default     Optional. Default value to return if the sub-option does not exist.
+	 * @return mixed The value of the sub-option, or the default value if not found.
 	 */
-	public function get_option( string $option_name, mixed $default = false ): mixed {
-		if ( ! current_user_can( 'activate_plugins' ) ) {
-			return -1;
+	public function get_option(string $option_name, mixed $default = false): mixed {
+		$option_name_clean = \str_replace(' ', '_', $option_name);
+		$value             = $this->options[$option_name_clean]['value'] ?? $default;
+
+		if ($this->get_logger()->is_active()) {
+			$log_value = is_scalar($value) ? (string) $value : (is_array($value) ? 'Array' : 'Object');
+			if (strlen($log_value) > 100) {
+				$log_value = substr($log_value, 0, 97) . '...';
+			}
+			$found_status = isset($this->options[$option_name_clean]['value']) ? 'Found' : 'Not found, using default';
+			$this->get_logger()->debug("RegisterOptions: Getting option '{$option_name_clean}' from '{$this->main_wp_option_name}'. Status: {$found_status}. Value: {$log_value}");
 		}
-
-		$option_name = \str_replace( ' ', '_', $option_name ); // Spaces to underscores.
-
-		// Check if we have it in our local cache first.
-		if ( isset( $this->options[ $option_name ] ) && isset( $this->options[ $option_name ][0] ) ) {
-			return $this->options[ $option_name ][0];
-		}
-
-		// Otherwise get it directly from WordPress.
-		return \get_option( $option_name, $default );
+		return $value;
 	}
 
 	/**
-	 * Updates an existing WordPress option.
+	 * Updates a specific option's value. Alias for set_option.
 	 *
-	 * @param string               $option_name The name of the option to be set. Spaces will be replaced by underscores.
-	 * @param array<string, mixed> $value An array containing the (serializable) value of the option being set. Expected to not be SQL-escaped.
-	 * @param mixed                $autoload null|true|false|'yes'|'no'.
-	 * @return bool|int Returns true or false if option is updated successfully, -1 is returned if user does not have permissions.
+	 * @param string     $option_name The name of the sub-option to update.
+	 * @param mixed      $value       The new value for the sub-option.
+	 * @param bool|null  $autoload_hint Optional. Autoload hint for the sub-option.
+	 * @return bool True if options were saved successfully, false otherwise.
 	 */
-	public function update_option( string $option_name, array $value, mixed $autoload = null ): bool|int {
-		return $this->set_option( $option_name, $value, $autoload );
+	public function update_option(string $option_name, mixed $value, ?bool $autoload_hint = null): bool {
+		return $this->set_option($option_name, $value, $autoload_hint);
 	}
 
 	/**
-	 * Register the incoming value in the wp_options table.
-	 * update_option() creates the option if it doesn't exist.
-	 * User must be able to 'activate_plugins'.
+	 * Returns the entire array of options currently held by this instance.
 	 *
-	 * @param mixed $option_name The name of the option to be updated. Spaces will be replaced by underscores.
-	 * @param mixed $value The (serializable) value of the option being set. Expected to not be SQL-escaped.
-	 * @param mixed $autoload null|true|false|'yes'|'no'.
-	 * @return bool|int Returns true or false if option is updated successfully, -1 is returned if user does not have permissions.
-	 */
-	private function register_option( mixed $option_name, mixed $value, mixed $autoload = null ): bool|int {
-		if ( ! current_user_can( 'activate_plugins' ) ) {
-			return -1;
-		}
-		// Either update the option or create it.
-		return update_option( $option_name, $value, $autoload );
-	}
-
-	/**
-	 * Returns the array of options set on RegisterOptions.
-	 *
-	 * @return array<string, array<int|string, mixed>> The array of registered options.
+	 * @return array<string, array{"value": mixed, "autoload_hint": bool|null}> The array of all sub-options.
 	 */
 	public function get_options(): array {
-		$this->refresh_options();
+		if ($this->get_logger()->is_active()) {
+			$this->get_logger()->debug("RegisterOptions: Getting all options from '{$this->main_wp_option_name}'. Count: " . count($this->options));
+		}
 		return $this->options;
 	}
 
 	/**
-	 * Refreshes all options by synchronizing the local cache with the WordPress options table.
+	 * Refreshes the local options cache by reloading them from the database.
 	 */
-	private function refresh_options(): void {
-		foreach ( $this->options as $option => $value ) {
-			$this->refresh_option( $option );
+	public function refresh_options(): void {
+		if ($this->get_logger()->is_active()) {
+			$this->get_logger()->debug("RegisterOptions: Refreshing options from database for '{$this->main_wp_option_name}'.");
 		}
+		$this->options = \get_option($this->main_wp_option_name, array());
 	}
 
 	/**
-	 * Refreshes a single option by synchronizing the local cache with the WordPress options table.
+	 * Retrieves the logger instance.
 	 *
-	 * @param string $option The option name to refresh.
-	 *
-	 * @return mixed|null The refreshed option value or null if not found.
+	 * @return Logger The logger instance.
 	 */
-	private function refresh_option( string $option ): mixed {
-		// Get the current value from WordPress options table.
-		$wp_opt_table_val = \get_option( $option, null );
-
-		// If the option doesn't exist in our local cache but exists in the database.
-		if ( ! isset( $this->options[ $option ] ) && null !== $wp_opt_table_val ) {
-			// Add it to our local cache.
-			$this->options[ $option ] = array( $wp_opt_table_val );
-			return $wp_opt_table_val;
+	protected function get_logger(): Logger {
+		if (null === $this->logger) {
+			// Ensure ConfigAbstract is loaded and get its instance to access the logger.
+			// This assumes ConfigAbstract and its get_instance() method are available.
+			// You might need to adjust this depending on your plugin's architecture
+			// for accessing shared services like the logger.
+			if (class_exists(ConfigAbstract::class) && method_exists(ConfigAbstract::class, 'get_instance')) {
+				$config_instance = ConfigAbstract::get_instance();
+				if (method_exists($config_instance, 'get_logger')) {
+					$this->logger = $config_instance->get_logger();
+				} else {
+					// Fallback if get_logger is somehow not on ConfigAbstract instance
+					$this->logger = new Logger(); // Basic fallback
+				}
+			} else {
+				// Fallback if ConfigAbstract is not available
+				$this->logger = new Logger(); // Basic fallback
+			}
 		}
-
-		// If we have a value in our cache that the database doesn't have.
-		if ( isset( $this->options[ $option ] ) && null === $wp_opt_table_val ) {
-			// Try to set the option in the database.
-			$autoload = $this->options[ $option ]['autoload'] ?? null;
-			$this->register_option( $option, $this->options[ $option ][0], $autoload );
-			return $this->options[ $option ][0];
-		}
-
-		// If both exist but values are different, update our local cache.
-		if ( isset( $this->options[ $option ] ) && null !== $wp_opt_table_val && $wp_opt_table_val !== $this->options[ $option ][0] ) {
-			$this->options[ $option ][0] = $wp_opt_table_val;
-		}
-
-		return isset( $this->options[ $option ] ) ? $this->options[ $option ][0] : null;
+		return $this->logger;
 	}
 }
