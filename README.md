@@ -365,14 +365,14 @@ Below is a brief overview of some core components. Documentation and functionali
 
 - **`AccessoryAPI` (`inc/AccessoryAPI/`)**: This API aims to simplify interactions with complex or boilerplate-heavy WordPress functionalities. "Features" (see `FeaturesAPI` below) can opt-in to use an "Accessory" by implementing its corresponding interface. The system then automatically handles much of the setup. For example, an accessory might make it easier to register custom post types or manage admin notices.
 - **`FeaturesAPI` (`inc/FeaturesAPI/`)**: This is a foundational part of the library designed to help organize your plugin's code into modular, manageable "Features." Each distinct piece of functionality (like a shortcode, an admin settings page, or a custom REST endpoint) can be encapsulated in its own `FeatureController` class. The `FeaturesManager` handles registering these features, injecting dependencies, and loading them at the appropriate time. It also integrates with the `AccessoryAPI`.
-- **`HooksAccessory` (`inc/HooksAccessory/`);;;;;;**: This is an example of an "Accessory" built on the `AccessoryAPI`. It provides a streamlined and declarative way for your `FeatureController` classes to register WordPress action and filter hooks by simply defining methods that return arrays of hook configurations.
-- **`Users` (`inc/Users/`);;;;;;**: This component provides utility functions related to WordPress user management. For instance, it includes methods for inserting new users and adding user metadata, with a focus on robust error handling (e.g., throwing exceptions instead of WordPress's typical `WP_Error` returns, which can sometimes be missed).
+- **`HooksAccessory` (`inc/HooksAccessory/`)**: This is an example of an "Accessory" built on the `AccessoryAPI`. It provides a streamlined and declarative way for your `FeatureController` classes to register WordPress action and filter hooks by simply defining methods that return arrays of hook configurations.
+- **`Users` (`inc/Users/`)**: This component provides utility functions related to WordPress user management. For instance, it includes methods for inserting new users and adding user metadata, with a focus on robust error handling (e.g., throwing exceptions instead of WordPress's typical `WP_Error` returns, which can sometimes be missed).
 
 Further details on these and other components will be added as the library matures.
 
 ## Contributing
 
-We welcome contributions to the RAN PluginLib! To ensure consistency and maintain high code quality, please adhere to the following;1.InitializePluginLibConfigReplace`MyAwesomePlugin\Base\Config`withyourpluginplugins_loaded\activate_plugin\deactivate_pluginNameCustomConfigValuePlugininitialized.NameBootstrapinit.handlemy-plugin-public-stylesrcURLassets/css/public.cssdepsversionVersionhandlemy-plugin-public-scriptsrcURLassets/js/public.jsdepsjqueryversionVersionin_footerpagemy-awesome-plugin-settingspagehandlemy-plugin-admin-stylesrcURLassets/css/admin.cssconditionsinternallist.Eachscriptdefinitionisanassociativearraydetailingthescriptsinternallist.Eachstyledefinitionisanassociativearraydetailingthestylesinternallist.ThisisusefulforaddingsmallJavaScriptsnippetsorlocalizingdataforaregisteredscript.Eachinlinescriptdefinitionisanassociativearray.`loadThisisacrucialmethodthatfinalizestheassetregistrationprocess.Ititeratesthroughallscript,style,andinlinescriptdefinitionsthathavebeenaddedtotheenqueuerinstanceandregisterstheappropriateWordPressactionhooksThesehooksensurethatWordPressenqueuestheassetsatthecorrecttimeduringpageload.**Important guidelines:
+We welcome contributions to the RAN PluginLib! To ensure consistency and maintain high code quality, please adhere to the following  guidelines:
 
 ### 1. Setting Up a Local Development Environment for PluginLib
 
@@ -406,16 +406,32 @@ After the script completes successfully, your environment will be ready for deve
 
 Our project follows a modified version of the WordPress Coding Standards, enforced by PHP_CodeSniffer (PHPCS). The primary rulesets include:
 
-- **WordPress-Core:** The foundational WordPress coding conventions.
-- **WordPress-Docs:** Strict rules for PHPDoc comments and inline documentation. All code, including classes, methods, functions, and hooks, must be thoroughly documented.
-- **WordPress-Extra:** Additional best practices for enhanced code quality.
+- **WordPress Standards:**
+  - `WordPress`: The main WordPress ruleset, with specific exclusions for compatibility (e.g., `PrefixAllGlobals`, `I18n`) and to avoid deprecated sniffs.
+  - `WordPress-Core`: The foundational WordPress coding conventions.
+  - `WordPress-Extra`: A superset of `WordPress-Core`, incorporating additional best practices. We customize this to exclude specific rules (e.g., related to file naming for PSR-4 autoloading, enqueued resources, and short ternaries).
+  - `WordPress-Docs`: Strict rules for PHPDoc comments and inline documentation. All code, including classes, methods, functions, and hooks, must be thoroughly documented.
+
+- **PHP_CodeSniffer Generic Sniffs:**
+  - Covers general coding style aspects like class opening brace placement (`Generic.Classes.OpeningBraceSameLine`).
+  - Enforces the use of braces for all control structures (`Generic.ControlStructures.InlineControlStructure`).
+  - Provides warnings for unused function parameters (`Generic.CodeAnalysis.UnusedFunctionParameter`).
+  - Flags `@todo` and `@fixme` comments (`Generic.Commenting.Todo`, `Generic.Commenting.Fixme`).
+- **Squiz Sniffs:**
+  - Includes rules like `Squiz.ControlStructures.ControlSignature` to enforce consistent control structure syntax, including the use of braces.
+- **Slevomat Coding Standard:**
+  - A comprehensive set of sniffs focused on modern PHP features and strictness.
+  - Enforces `declare(strict_types=1);`.
+  - Manages type hint syntax (e.g., disallowing old array syntax, preferring long type hints, ensuring correct nullable type usage).
+  - Requires type hints for parameters, properties, and return types, along with consistent spacing.
+  - Includes rules for class and trait structure, such as requiring multi-line method signatures and standardizing trait usage.
 
 **Key project-specific conventions include:**
 
 - **Global Prefix:** All global PHP constructs (functions, classes, constants, hooks) must be prefixed with `ran_plugLib` to avoid conflicts (as defined in `.phpcs.xml`).
 - **File Naming:** We follow PSR-4 autoloading standards, so class file names should match the class name (e.g., `MyClass.php`). This means standard WordPress hyphenated file naming rules are relaxed for class files.
 - **PHP Version:** Code should be compatible with PHP 8.1+ as per the library's requirements.
-- **WordPress; Version:** The library targets WordPress `6.7.0` and above (as configured in `.phpcs.xml`).
+- **WordPress;guidelines Version:** The library targets WordPress `6.7.0` and above (as configured in `.phpcs.xml`).
 
 While the `WordPress.WP.I18n` sniff is currently excluded from strict linting in `.phpcs.xml`, contributions are encouraged to follow WordPress internationalization best practices for broader plugin usability.
 
@@ -423,7 +439,7 @@ While the `WordPress.WP.I18n` sniff is currently excluded from strict linting in
 
 Before submitting a pull request, please ensure your code passes our linting checks.
 
-1. **Install; Dependencies:**
+1. **Install Dependencies:**
    If you haven't already, install project dependencies, including PHPCS and the required coding standards:
 
    ```bash
@@ -457,7 +473,7 @@ To address this, we provide a custom; script: `scripts/php-codesniffer.php`. Thi
 
 You can use this custom runner via the following Composer; scripts:
 
-- **To check for standards; violations (using the custom runner):**
+- **To check for standards violations (using the custom runner):**
   This command utilizes `scripts/php-codesniffer.php` to lint the library, often providing more stable path resolution when the library is a nested dependency.
 
   ```bash
