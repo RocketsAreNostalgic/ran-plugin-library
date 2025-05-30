@@ -12,6 +12,6 @@ namespace Ran\PluginLib\Config;
 /**
  * Final Config class which holds key information about the plugin.
  */
-final class Config extends ConfigAbstract implements ConfigInterface {
+class Config extends ConfigAbstract implements ConfigInterface {
 	// Go extend your own.
 }
