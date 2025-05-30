@@ -200,6 +200,10 @@ abstract class ConfigAbstract extends Singleton implements ConfigInterface {
 			}
 		);
 
+		if ( $this->get_logger()->is_active() ) {
+			$this->get_logger()->debug( 'Standard headers retrieved: ' . print_r( $standard_headers_data, true ) );
+		}
+
 		// 2. Read raw plugin file header content to find custom headers.
 		$raw_file_content    = $this->_read_plugin_file_header_content( self::$plugin_file );
 		$custom_headers_data = array();
@@ -254,6 +258,9 @@ abstract class ConfigAbstract extends Singleton implements ConfigInterface {
 							$normalized_key = self::_normalize_header_key( $cleaned_header_name ); // Pass the fully cleaned name.
 							if ( ! empty( $normalized_key ) ) {
 								$custom_headers_data[ $normalized_key ] = $raw_header_value;
+								if ( $this->get_logger()->is_active() ) {
+									$this->get_logger()->debug( "Custom header identified: '{$cleaned_header_name}' normalized to '{$normalized_key}' with value: '{$raw_header_value}'" );
+								}
 							}
 						}
 					}
@@ -268,12 +275,20 @@ abstract class ConfigAbstract extends Singleton implements ConfigInterface {
 		// that might have produced a clashing key after normalization, giving precedence to WordPress's interpretation.
 		$plugin_array = array_merge( $plugin_array, $custom_headers_data, $standard_headers_data );
 
+		if ( $this->get_logger()->is_active() ) {
+			$this->get_logger()->debug( 'Final plugin_array after merging standard and custom headers: ' . print_r( $this->plugin_array, true ) );
+		}
+
 		// Calculate and add/overwrite PluginOption.
 		if ( ! empty( $plugin_array['TextDomain'] ) ) {
 			$plugin_array['PluginOption'] = str_replace( '-', '_', sanitize_title( $plugin_array['TextDomain'] ) );
 		} else {
 			// validate_plugin_array will catch missing TextDomain, but good to be safe.
 			$plugin_array['PluginOption'] = '';
+		}
+
+		if ( $this->get_logger()->is_active() ) {
+			$this->get_logger()->debug( 'Derived PluginOption: ' . $this->plugin_array['PluginOption'] );
 		}
 
 		// Validate that we have all the headers required for our plugin.
