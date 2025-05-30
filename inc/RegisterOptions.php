@@ -23,23 +23,38 @@ final class RegisterOptions {
 	private array $options = array();
 
 	/**
+	 * The main WordPress option name that stores all plugin settings.
+	 *
+	 * @var string
+	 */
+	private string $main_wp_option_name;
+
+	/**
 	 * Creates new RegisterOptions object, with a provided array of options.
 	 *
 	 * @param  array<string, array<string, mixed>> $options An array options to be set to WordPress options table.
 	 * @throws \Exception If invalid options array is provided.
 	 */
-	public function __construct( array $options = array() ) {
-		foreach ( $options as $key => $value ) {
-			if ( \is_array( $value ) ) {
-				$option_key = array_key_first( $value );
-				if ( ! is_array( $value[ $option_key ] ) ) {
-					$value[ $option_key ] = array( $value[ $option_key ] );
+	public function __construct( string $main_wp_option_name, array $options = array() ) {
+		$this->main_wp_option_name = $main_wp_option_name;
+		$this->options             = get_option( $this->main_wp_option_name, array() ); // Fetch existing options.
+
+		// If options are provided at instantiation, add/update them.
+		if ( ! empty( $options ) ) {
+			foreach ( $options as $option_name => $definition ) {
+				if ( is_array( $definition ) ) {
+					// If $definition is an array, check if it's a structured definition
+					// with 'value' and/or 'autoload' keys, or if it's the value itself.
+					$actual_value     = $definition['value'] ?? $definition;
+					$autoload_setting = $definition['autoload'] ?? null; // Default to null if not specified.
+					$this->set_option( $option_name, $actual_value, $autoload_setting );
+				} else {
+					// If $definition is not an array, treat it as the direct value.
+					$this->set_option( $option_name, $definition, null ); // Autoload defaults to null.
 				}
-				$autoload = $value[ $option_key ]['autoload'] ?? null;
-				$this->set_option( $option_key, $value[ $option_key ], $autoload );
-			} else {
-				throw new \Exception( 'RegisterOptions: invalid options array provided on instantionation.' );
 			}
+			// After processing all initial options, save them.
+			$this->register_options();
 		}
 	}
 
@@ -69,7 +84,7 @@ final class RegisterOptions {
 	public function set_option( string $option_name, mixed $value, mixed $autoload = null ): mixed {
 		$value             = array( $value );
 		$option_name       = \str_replace( ' ', '_', $option_name ); // Spaces to underscores.
-		$registered        = $this->register_option( $option_name, $value[0], $autoload = null );
+		$registered        = $this->register_option( $option_name, $value[0], $autoload );
 		$value['autoload'] = $autoload;
 		if ( true === $registered || -1 !== $registered ) {
 			$this->options[ $option_name ] = $value;
