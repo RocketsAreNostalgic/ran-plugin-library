@@ -117,6 +117,7 @@ abstract class EnqueueAbstract implements EnqueueInterface {
 	 *     @type string      $hook       Optional. WordPress hook to use for deferred enqueuing..
 	 */
 	public function add_styles( array $styles ): self {
+		$this->get_logger()->debug( 'EnqueueAbstract: Adding ' . count( $styles ) . ' styles to the queue.' );
 		$this->styles = $styles;
 
 		return $this;
@@ -173,6 +174,7 @@ abstract class EnqueueAbstract implements EnqueueInterface {
 	 *     @type string      $hook       (optional) WordPress hook to use for deferred enqueuing.
 	 */
 	public function add_media( array $media ): self {
+		$this->get_logger()->debug( 'EnqueueAbstract: Adding ' . count( $media ) . ' media items to the queue.' );
 		$this->media = $media;
 
 		return $this;
@@ -193,6 +195,7 @@ abstract class EnqueueAbstract implements EnqueueInterface {
 	 *     @type string             $hook       (optional) WordPress hook to use for deferred enqueuing.
 	 */
 	public function enqueue_scripts( array $scripts ): self {
+		$this->get_logger()->debug( 'EnqueueAbstract::enqueue_scripts - Entered. Processing ' . count( $scripts ) . ' script definition(s).' );
 		// Track which hooks have new scripts added.
 		$hooks_with_new_scripts = array();
 
@@ -221,10 +224,11 @@ abstract class EnqueueAbstract implements EnqueueInterface {
 
 			// Skip empty handles (condition not met).
 			if ( empty( $handle ) ) {
+				$this->get_logger()->debug( 'EnqueueAbstract::enqueue_scripts - Skipping script as handle is empty (condition likely not met for: ' . ($script['handle'] ?? 'N/A') . ').' );
 				continue;
 			}
 
-			error_log( 'Enqueueing script: ' . $handle );
+			$this->get_logger()->debug( 'EnqueueAbstract::enqueue_scripts - Enqueuing script (handle from process_single_script): ' . $handle );
 
 			// Enqueue the script.
 			if ( $this->get_logger()->is_active() ) {
@@ -254,6 +258,7 @@ abstract class EnqueueAbstract implements EnqueueInterface {
 			}
 		}
 
+		$this->get_logger()->debug( 'EnqueueAbstract::enqueue_scripts - Exited.' );
 		return $this;
 	}
 
@@ -269,7 +274,9 @@ abstract class EnqueueAbstract implements EnqueueInterface {
 	 *     @type callable               $condition  (optional) Callback function that determines if the stylesheet should be enqueued.
 	 */
 	public function enqueue_styles( array $styles ): self {
+		$this->get_logger()->debug( 'EnqueueAbstract::enqueue_styles - Entered. Processing ' . count( $styles ) . ' style definition(s).' );
 		foreach ( $styles as $style ) {
+			$this->get_logger()->debug( 'EnqueueAbstract::enqueue_styles - Processing style: ' . ($style['handle'] ?? 'N/A') );
 			// Extract style parameters from object format.
 			$handle    = $style['handle']    ?? '';
 			$src       = $style['src']       ?? '';
@@ -280,12 +287,15 @@ abstract class EnqueueAbstract implements EnqueueInterface {
 
 			// Check if the condition is met.
 			if ( is_callable( $condition ) && ! $condition() ) {
+				$this->get_logger()->debug( 'EnqueueAbstract::enqueue_styles - Condition not met for style: ' . $handle . '. Skipping.' );
 				continue;
 			}
 
 			// Enqueue the style.
+			$this->get_logger()->debug( 'EnqueueAbstract::enqueue_styles - Calling wp_enqueue_style for: ' . $handle . ' (Src: ' . $src . ')' );
 			wp_enqueue_style( $handle, $src, $deps, $ver, $media );
 		}
+		$this->get_logger()->debug( 'EnqueueAbstract::enqueue_styles - Exited.' );
 		return $this;
 	}
 
@@ -297,19 +307,25 @@ abstract class EnqueueAbstract implements EnqueueInterface {
 	 *     @type callable    $condition  (optional) Callback function that determines if the media should be enqueued..
 	 */
 	public function enqueue_media( array $media ): self {
-		foreach ( $media as $item ) {
+		$this->get_logger()->debug( 'EnqueueAbstract::enqueue_media - Entered. Processing ' . count( $media ) . ' media item definition(s).' );
+		foreach ( $media as $index => $item ) { // Added $index for more specific logging
+			$this->get_logger()->debug( 'EnqueueAbstract::enqueue_media - Processing media item at index: ' . $index );
 			$args      = $item['args']      ?? array();
 			$condition = $item['condition'] ?? null;
 
 			// Check if the condition is met.
 			if ( is_callable( $condition ) && ! $condition() ) {
+				$this->get_logger()->debug( 'EnqueueAbstract::enqueue_media - Condition not met for media item at index: ' . $index . '. Skipping.' );
 				continue;
 			}
 
 			// Enqueue the media.
+			// Note: wp_enqueue_media() doesn't take a handle, so logging $args might be verbose.
+			// We'll log a generic message indicating the call.
+			$this->get_logger()->debug( 'EnqueueAbstract::enqueue_media - Calling wp_enqueue_media() for item at index: ' . $index . '. Args: ' . wp_json_encode($args) );
 			wp_enqueue_media( $args );
 		}
-
+		$this->get_logger()->debug( 'EnqueueAbstract::enqueue_media - Exited.' );
 		return $this;
 	}
 
@@ -317,10 +333,46 @@ abstract class EnqueueAbstract implements EnqueueInterface {
 	 * Enqueue all registered scripts, styles, media, and inline scripts.
 	 */
 	public function enqueue(): void {
-		$this->enqueue_scripts( $this->scripts );
-		$this->enqueue_styles( $this->styles );
-		$this->enqueue_media( $this->media );
+		$script_count = count( $this->scripts );
+		$style_count  = count( $this->styles );
+		$media_count  = count( $this->media );
+		// enqueue_inline_scripts() processes $this->inline_scripts internally.
+		// We can count it here for the initial log.
+		$inline_script_count = count( $this->inline_scripts );
+
+		$this->get_logger()->debug(
+			sprintf(
+				'EnqueueAbstract::enqueue - Main enqueue process started. Scripts: %d, Styles: %d, Media: %d, Inline Scripts: %d.',
+				$script_count,
+				$style_count,
+				$media_count,
+				$inline_script_count
+			)
+		);
+
+		if ( $script_count > 0 ) {
+			$this->enqueue_scripts( $this->scripts );
+		} else {
+			$this->get_logger()->debug( 'EnqueueAbstract::enqueue - No scripts to process.' );
+		}
+
+		if ( $style_count > 0 ) {
+			$this->enqueue_styles( $this->styles );
+		} else {
+			$this->get_logger()->debug( 'EnqueueAbstract::enqueue - No styles to process.' );
+		}
+
+		if ( $media_count > 0 ) {
+			$this->enqueue_media( $this->media );
+		} else {
+			$this->get_logger()->debug( 'EnqueueAbstract::enqueue - No media to process.' );
+		}
+
+		// enqueue_inline_scripts() has its own internal logging, including for empty cases.
+		// It also directly uses $this->inline_scripts.
 		$this->enqueue_inline_scripts();
+
+		$this->get_logger()->debug( 'EnqueueAbstract::enqueue - Main enqueue process finished.' );
 	}
 
 	/**
@@ -399,6 +451,7 @@ abstract class EnqueueAbstract implements EnqueueInterface {
 		}
 		// Optional: Clear the processed deferred scripts for this hook to prevent re-processing if the hook fires multiple times or is called directly again..
 		// unset($this->deferred_scripts[$hook]).
+		$this->get_logger()->debug( "EnqueueAbstract::enqueue_deferred_scripts - Exited for hook: \"{$hook}\"" );
 	}
 
 	/**
@@ -418,6 +471,12 @@ abstract class EnqueueAbstract implements EnqueueInterface {
 
 		$processed_inline_scripts = array();
 		foreach ( $inline_scripts_to_add as $inline_script_data ) {
+			if ( $this->get_logger()->is_active() ) {
+				$log_handle         = $inline_script_data['handle']   ?? 'N/A';
+				$log_position       = $inline_script_data['position'] ?? 'after';
+				$log_content_length = strlen($inline_script_data['content'] ?? '');
+				$this->get_logger()->debug( "EnqueueAbstract::add_inline_scripts - Processing inline script for handle '{$log_handle}', position '{$log_position}', content length {$log_content_length}." );
+			}
 			$parent_handle = $inline_script_data['handle'] ?? null;
 			// Ensure parent_hook is initialized, it might be overridden if the parent script is deferred.
 			// If $inline_script_data['parent_hook'] is already set by the caller, respect that.

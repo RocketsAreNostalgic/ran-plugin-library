@@ -21,28 +21,57 @@ final class EnqueuePublic extends EnqueueAbstract implements EnqueueInterface {
 	 * Also registers any deferred script hooks.
 	 */
 	public function load(): void {
+		if ( $this->get_logger()->is_active() ) {
+			$this->get_logger()->debug( 'EnqueuePublic::load() - Method entered.' );
+		}
+
 		// Register the main enqueue action.
+		if ( $this->get_logger()->is_active() ) {
+			$this->get_logger()->debug( 'EnqueuePublic::load() - Hooking enqueue() to wp_enqueue_scripts.' );
+		}
 		add_action( 'wp_enqueue_scripts', array( $this, 'enqueue' ) );
 
 		// Register head callbacks if any exist.
+		if ( $this->get_logger()->is_active() ) {
+			$this->get_logger()->debug( 'EnqueuePublic::load() - Checking for head callbacks. Count: ' . count( $this->head_callbacks ) );
+		}
 		if ( ! empty( $this->head_callbacks ) ) {
+			if ( $this->get_logger()->is_active() ) {
+				$this->get_logger()->debug( 'EnqueuePublic::load() - Hooking render_head() to wp_head.' );
+			}
 			add_action( 'wp_head', array( $this, 'render_head' ) );
 		}
 
 		// Register footer callbacks if any exist.
+		if ( $this->get_logger()->is_active() ) {
+			$this->get_logger()->debug( 'EnqueuePublic::load() - Checking for footer callbacks. Count: ' . count( $this->footer_callbacks ) );
+		}
 		if ( ! empty( $this->footer_callbacks ) ) {
+			if ( $this->get_logger()->is_active() ) {
+				$this->get_logger()->debug( 'EnqueuePublic::load() - Hooking render_footer() to wp_footer.' );
+			}
 			add_action( 'wp_footer', array( $this, 'render_footer' ) );
 		}
 
 		// Register deferred script hooks.
+		if ( $this->get_logger()->is_active() ) {
+			$this->get_logger()->debug( 'EnqueuePublic::load() - Checking for deferred script hooks. Count: ' . count( $this->deferred_scripts ) );
+		}
 		foreach ( array_keys( $this->deferred_scripts ) as $hook ) {
 			// Use a closure to capture the current hook.
+			if ( $this->get_logger()->is_active() ) {
+				$this->get_logger()->debug( "EnqueuePublic::load() - Hooking enqueue_deferred_scripts() to action '{$hook}'." );
+			}
 			add_action(
 				$hook,
 				function () use ( $hook ): void {
 					$this->enqueue_deferred_scripts( $hook );
 				}
 			);
+		}
+
+		if ( $this->get_logger()->is_active() ) {
+			$this->get_logger()->debug( 'EnqueuePublic::load() - Method exited.' );
 		}
 	}
 }
