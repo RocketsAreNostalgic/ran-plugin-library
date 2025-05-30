@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# Setup development environment for TNY Google Key plugin
-echo "Setting up development environment for TNY Google Key plugin..."
+# Setup development environment for ran-plugin-lib
+echo "Setting up development environment for ran-plugin-lib..."
 
 # Check if composer is installed
 if ! command -v composer &> /dev/null; then
