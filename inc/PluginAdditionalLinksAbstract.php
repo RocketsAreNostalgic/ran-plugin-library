@@ -36,7 +36,8 @@ abstract class PluginAdditionalLinksAbstract extends FeatureControllerAbstract i
 	public function init(): PluginAdditionalLinksAbstract {
 		add_filter( 'plugin_action_links_' . $this->plugin_array['Basename'], array( $this, 'plugin_action_links_callback' ) );
 		add_filter( 'plugin_row_meta', array( $this, 'plugin_meta_links_callback' ), 10, 4 );
-
+		// Silence is golden.
+		defined( 'ABSPATH' ) || die( '' );
 		return $this;
 	}
 
