@@ -31,6 +31,11 @@ namespace Ran\PluginLib\Util;
  *   that can also activate logging and set the log level. If not provided, it
  *   defaults to the value of 'custom_debug_constant_name'.
  *   Example: 'my_plugin_debug'.
+ * - 'error_log_handler': (callable, optional) A custom callable function
+ *   to handle log messages. If provided, this function will be called with
+ *   the formatted log string instead of PHP's `error_log()`. Useful for
+ *   testing or custom log routing.
+ *   Example: `function(string $message) { echo $message; }`.
  *
  * --- Activation and Log Levels ---
  * Logging is activated if either the specified PHP constant is defined or the
@@ -148,21 +153,50 @@ class Logger {
 	private string $debug_request_param;
 
 	/**
+	 * Indicates how the logger was activated (e.g., 'url', 'constant').
+	 *
+	 * @var string|null $activation_mode Null if not activated by a specific mode or logger inactive.
+	 */
+	private string $activation_mode = '';
+
+	/**
+	 * Optional custom error log handler.
+	 *
+	 * @var callable|null
+	 */
+	private $error_log_handler = null;
+
+	/**
 	 * Logger constructor.
 	 *
 	 * @param array<string, mixed> $config Configuration array. Must include 'custom_debug_constant_name'.
 	 *                      'debug_request_param' is optional and defaults to 'custom_debug_constant_name'.
 	 */
-	public function __construct( array $config ) {
-		if ( empty( $config['custom_debug_constant_name'] ) ) {
-			// Optionally, trigger a warning or throw an exception if this crucial config is missing.
-			// For now, we'll let it proceed, but logging won't activate via constant.
-			$this->custom_debug_constant_name = '';
-		} else {
+	public function __construct( array $config = array() ) {
+		// Determine custom_debug_constant_name
+		if ( array_key_exists( 'custom_debug_constant_name', $config ) ) {
 			$this->custom_debug_constant_name = $config['custom_debug_constant_name'];
+		} elseif ( isset( $config['TextDomain'] ) && ! empty( $config['TextDomain'] ) ) {
+			$this->custom_debug_constant_name = strtoupper( $config['TextDomain'] ) . '_DEBUG_MODE';
+		} else {
+        // Neither 'custom_debug_constant_name' was explicitly passed, nor 'TextDomain' was validly passed.
+			if ( empty( $config ) ) { // True if new Logger() or new Logger([]) was called.
+            // For test_constructor_defaults_constant_name_to_generic.
+				$this->custom_debug_constant_name = 'PLUGIN_LIB_DEBUG_MODE';
+			} else {
+				// For test_constructor_handles_missing_constant_name_config.
+				// Config was passed but didn't include the above keys (e.g., new Logger(['foo' => 'bar'])).
+				$this->custom_debug_constant_name = '';
+			}
 		}
 
-		$this->debug_request_param          = $config['debug_request_param'] ?? $this->custom_debug_constant_name;
+		// Determine debug_request_param, defaulting to the now-set custom_debug_constant_name
+		$this->debug_request_param = $config['debug_request_param'] ?? $this->custom_debug_constant_name;
+
+		if (isset($config['error_log_handler']) && is_callable($config['error_log_handler'])) {
+			$this->error_log_handler = $config['error_log_handler'];
+		}
+
 		$this->config                       = $config;
 		$this->effective_log_level_severity = self::LOG_LEVELS_MAP[ self::LEVEL_WARNING ]; // Default.
 
@@ -176,70 +210,82 @@ class Logger {
 	 */
 	private function determine_effective_log_level(): void {
 		$this->is_active                    = false;
-		$this->effective_log_level_severity = self::LOG_LEVELS_MAP[ self::LEVEL_ERROR ] + 100; // Default to higher than any level.
-
-		$numeric_to_text_level = array_flip( self::LOG_LEVELS_MAP ); // e.g., [100 => 'DEBUG', ...].
+		$this->effective_log_level_severity = self::LOG_LEVELS_MAP[self::LEVEL_ERROR] + 100; // Default to higher than any level.
+		$this->activation_mode              = '';
 
 		$sources_values = array();
 		// phpcs:disable Squiz.Commenting.InlineComment.InvalidEndChar -- Reading a debug param, not processing form data.
 		// phpcs:disable WordPress.Security.NonceVerification.Recommended -- Reading a debug param, not processing form data.
 		// phpcs:disable WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Input is checked against known values or used as a boolean flag.
-		if ( ! empty( $this->debug_request_param ) && array_key_exists( $this->debug_request_param, $_GET ) ) {
-			$sources_values['url'] = $this->_unslash( $_GET[ $this->debug_request_param ] );
+		if (!empty($this->debug_request_param) && array_key_exists($this->debug_request_param, $_GET)) {
+			$sources_values['url'] = \wp_unslash($_GET[$this->debug_request_param]);
 		}
 		// phpcs:enable WordPress.Security.NonceVerification.Recommended
 		// phpcs:enable WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 		// phpcs:enable Squiz.Commenting.InlineComment.InvalidEndChar
 
-		if ( ! empty( $this->custom_debug_constant_name ) && defined( $this->custom_debug_constant_name ) ) {
-			$sources_values['constant'] = constant( $this->custom_debug_constant_name );
+		if (!empty($this->custom_debug_constant_name) && defined($this->custom_debug_constant_name)) {
+			$sources_values['constant'] = constant($this->custom_debug_constant_name);
 		}
 
 		$determined_level_text = null;
 
-		foreach ( array( 'url', 'constant' ) as $source_type ) {
-			if ( ! isset( $sources_values[ $source_type ] ) ) {
+		foreach (array('url', 'constant') as $source_type) {
+			if (!isset($sources_values[$source_type])) {
 				continue; // Skip if this source is not set.
 			}
 
-			$raw_value             = $sources_values[ $source_type ];
-			$level_value_str_upper = is_string( $raw_value ) ? strtoupper( trim( $raw_value ) ) : null;
+			$raw_value    = $sources_values[$source_type];
+			$parsed_level = $this->parse_log_level_value($raw_value);
 
-			// 1. Check for direct textual level match (DEBUG, INFO, etc.)
-			if ( null !== $level_value_str_upper && isset( self::LOG_LEVELS_MAP[ $level_value_str_upper ] ) ) {
-				$determined_level_text = $level_value_str_upper;
+			if (null !== $parsed_level) {
+				$determined_level_text = $parsed_level;
+				$this->activation_mode = $source_type;
 				break;
 			}
-			// 2. Check for numeric level match (100, 200, etc.)
-			if ( is_numeric( $raw_value ) && isset( $numeric_to_text_level[ (int) $raw_value ] ) ) {
-				$determined_level_text = $numeric_to_text_level[ (int) $raw_value ];
-				break;
-			}
-
-			// 3. Unified defaulting logic for both URL parameters and Constants:
-			// Activates DEBUG if the value is an empty string (naked URL param or empty constant)
-			// OR if the value explicitly evaluates to boolean true (e.g., "true", "1", "yes", "on", or boolean true for constants).
-			// Any other value (including arbitrary strings like "sometext", or explicit false values) will not activate logging from this source.
-			if ( '' === $raw_value ) { // Naked param (URL) or empty string constant.
-				$determined_level_text = self::LEVEL_DEBUG;
-				break;
-			}
-
-			// Check for explicit true values (e.g., "true", "1", "yes", "on").
-			// For constants, this also handles actual boolean `true`.
-			$filter_val_bool = filter_var( $raw_value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE );
-			if ( true === $filter_val_bool ) {
-				$determined_level_text = self::LEVEL_DEBUG;
-				break;
-			}
-			// If none of the above conditions were met (explicit level, empty string, or explicit true),
-			// this source does not activate logging. The loop continues to check the next source, or finishes if this was the last source.
 		} // end foreach source_type
 
-		if ( null !== $determined_level_text && isset( self::LOG_LEVELS_MAP[ $determined_level_text ] ) ) {
+		if (null !== $determined_level_text && isset(self::LOG_LEVELS_MAP[$determined_level_text])) {
 			$this->is_active                    = true;
-			$this->effective_log_level_severity = self::LOG_LEVELS_MAP[ $determined_level_text ];
+			$this->effective_log_level_severity = self::LOG_LEVELS_MAP[$determined_level_text];
 		}
+	}
+
+	/**
+	 * Parses a raw value from a debug source (URL param or constant) to determine a log level.
+	 *
+	 * @param mixed $raw_value The raw value to parse.
+	 * @return string|null The textual log level (e.g., 'DEBUG') or null if no valid level is determined.
+	 */
+	private function parse_log_level_value($raw_value): ?string {
+		$numeric_to_text_level = array_flip(self::LOG_LEVELS_MAP); // e.g., [100 => 'DEBUG', ...].
+		$level_value_str_upper = is_string($raw_value) ? strtoupper(trim($raw_value)) : null;
+
+		// 1. Check for direct textual level match (DEBUG, INFO, etc.)
+		if (null !== $level_value_str_upper && isset(self::LOG_LEVELS_MAP[$level_value_str_upper])) {
+			return $level_value_str_upper;
+		}
+
+		// 2. Check for numeric level match (100, 200, etc.)
+		if (is_numeric($raw_value) && isset($numeric_to_text_level[(int) $raw_value])) {
+			return $numeric_to_text_level[(int) $raw_value];
+		}
+
+		// 3. Unified defaulting logic for both URL parameters and Constants:
+		// Activates DEBUG if the value is an empty string (naked URL param or empty constant)
+		if ('' === $raw_value) {
+			return self::LEVEL_DEBUG;
+		}
+
+		// Check for explicit true values (e.g., "true", "1", "yes", "on").
+		// For constants, this also handles actual boolean `true`.
+		$filter_val_bool = filter_var($raw_value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+		if (true === $filter_val_bool) {
+			return self::LEVEL_DEBUG;
+		}
+
+		// If none of the above conditions were met, this value does not activate logging.
+		return null;
 	}
 
 	/**
@@ -250,17 +296,6 @@ class Logger {
 	 */
 	private function _get_level_severity( string $level_string ): int {
 		return self::LOG_LEVELS_MAP[ strtoupper( $level_string ) ] ?? self::LOG_LEVELS_MAP[ self::LEVEL_DEBUG ];
-	}
-
-	/**
-	 * Unslashes a string using `wp_unslash()`, if available.
-	 *
-	 * @param  string $value
-	 *
-	 * @return string
-	 */
-	private function _unslash( string $value ): string {
-		return wp_unslash( $value );
 	}
 
 	/**
@@ -282,6 +317,9 @@ class Logger {
 	 * @return int The integer value of the effective log level. Returns 0 if not active or no level set.
 	 */
 	public function get_log_level(): int {
+		if (! $this->is_active) {
+			return 0;
+		}
 		return $this->effective_log_level_severity;
 	}
 
@@ -352,6 +390,12 @@ class Logger {
 			$formatted_message .= ' Context: ' . wp_json_encode( $context );
 		}
 
-		error_log( $formatted_message );
+		if (null !== $this->error_log_handler) {
+			call_user_func($this->error_log_handler, $formatted_message);
+		} else {
+			// @codeCoverageIgnoreStart
+			error_log($formatted_message);
+			// @codeCoverageIgnoreEnd
+		}
 	}
 }

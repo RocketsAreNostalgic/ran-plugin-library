@@ -58,7 +58,7 @@ final class ConfigTest extends RanTestCase {
 		$this->plugin_root_url = 'http://example.com/wp-content/plugins/ran-starter-plugin/';
 
 		// Update plugin_data to reflect the plugin being tested
-		$this->plugin_data = [
+		$this->plugin_data = array(
 			'Name'        => 'Ran Starter Plugin Test',
 			'Version'     => '1.0.0',
 			'TextDomain'  => 'ran-starter-plugin',
@@ -70,7 +70,7 @@ final class ConfigTest extends RanTestCase {
 			'UpdatesURI'  => 'http://example.com/updates-uri-test',
 			'RequiresPHP' => '7.4',
 			'RequiresWP'  => '5.5',
-		];
+		);
 
 		// IMPORTANT: Set the static plugin_file property on ConfigAbstract for all tests.
 		// This ensures that direct `new Config()` instantiations use the correct file path.
@@ -111,15 +111,15 @@ final class ConfigTest extends RanTestCase {
 	 */
 	protected function get_config(?array $custom_ran_headers = null): Config|\Mockery\MockInterface {
 		// Define default custom RAN headers for this helper, can be overridden by $custom_ran_headers
-		$default_ran_headers = [
-			'Log Constant Name'     => 'TEST_DEBUG_MODE',
-			'Log Request Param'     => 'my_test_param',
-			'Plugin Option'         => 'my_explicit_option_key',
-			'Another Custom'        => 'Value For Custom',
-			'My Test Uri'           => 'some/path', // Will be normalized to RANMyTestUri
-			'Alllowercase'          => 'some value', // Will be normalized to RANAlllowercase
-			'Some Version'          => '8.0', // Will be normalized to RANSomeVerion
-		];
+		$default_ran_headers = array(
+			'Log Constant Name' => 'TEST_DEBUG_MODE',
+			'Log Request Param' => 'my_test_param',
+			'Plugin Option'     => 'my_explicit_option_key',
+			'Another Custom'    => 'Value For Custom',
+			'My Test Uri'       => 'some/path', // Will be normalized to RANMyTestUri
+			'Alllowercase'      => 'some value', // Will be normalized to RANAlllowercase
+			'Some Version'      => '8.0', // Will be normalized to RANSomeVerion
+		);
 
 		$final_ran_headers = $custom_ran_headers ? array_merge($default_ran_headers, $custom_ran_headers) : $default_ran_headers;
 
@@ -128,7 +128,7 @@ final class ConfigTest extends RanTestCase {
 		foreach ($final_ran_headers as $key => $value) {
 			$mocked_file_header_content .= " * @RAN: {$key}: {$value}\n";
 		}
-		$mocked_file_header_content .= " */";
+		$mocked_file_header_content .= ' */';
 
 		// Mock get_plugin_data to return only standard WP headers
 		// Custom RAN headers will come from the mocked _read_plugin_file_header_content
@@ -168,7 +168,7 @@ final class ConfigTest extends RanTestCase {
 		// Manually call the constructor on the mock instance
 		// This ensures our mocks for WordPress functions are in place before the constructor logic runs.
 		$reflection_class = new \ReflectionClass(Config::class);
-		$constructor = $reflection_class->getConstructor();
+		$constructor      = $reflection_class->getConstructor();
 		$constructor->invoke($config_mock, $this->full_plugin_file_path);
 
 		return $config_mock;
@@ -253,7 +253,6 @@ final class ConfigTest extends RanTestCase {
 
 		$this->assertArrayHasKey('RANLogRequestParam', $config_instance->get_plugin_config(), 'plugin_array should have RANLogRequestParam key.');
 		$this->assertEquals('RAN_PLUGIN', $config_instance->get_plugin_config()['RANLogRequestParam'], 'Incorrect RANLogRequestParam value.');
-
 	}
 
 	/**
@@ -344,12 +343,12 @@ final class ConfigTest extends RanTestCase {
 			'Basename' => $this->plugin_basename,
 			'File'     => $this->full_plugin_file_path,
 			// Custom Headers (Normalized from mock file content with @RAN: prefix)
-			'RANLogConstantName'    => 'TEST_DEBUG_MODE',
-			'RANLogRequestParam'    => 'my_test_param',
-			'RANAnotherCustom'      => 'Value For Custom',
-			'RANMyTestUri'          => 'some/path',
-			'RANAlllowercase'       => 'some value',
-			'RANSomeVersion'        => '8.0',
+			'RANLogConstantName' => 'TEST_DEBUG_MODE',
+			'RANLogRequestParam' => 'my_test_param',
+			'RANAnotherCustom'   => 'Value For Custom',
+			'RANMyTestUri'       => 'some/path',
+			'RANAlllowercase'    => 'some value',
+			'RANSomeVersion'     => '8.0',
 			// Standard Headers (from get_plugin_data mock, these take precedence)
 			'Name'        => $this->plugin_data['Name'],
 			'PluginURI'   => $this->plugin_data['PluginURI'],
@@ -402,7 +401,7 @@ final class ConfigTest extends RanTestCase {
 		$expected_wp_option_name = 'my_explicit_option_key';
 
 		$mock_db_options = array(
-			'Version' => '0.0.1',
+			'Version'     => '0.0.1',
 			'SomeSetting' => 'TestValue'
 		);
 
@@ -433,7 +432,6 @@ final class ConfigTest extends RanTestCase {
 	 * @uses \Ran\PluginLib\Config\ConfigAbstract::__construct
 	 */
 	public function test_get_plugin_options_with_empty_plugin_option_header(): void {
-
 		// 1. Mock WordPress environment functions.
 		WP_Mock::userFunction( 'plugin_dir_path' )->with( $this->full_plugin_file_path )->andReturn( $this->plugin_root_path )->zeroOrMoreTimes();
 		WP_Mock::userFunction( 'plugin_dir_url' )->with( $this->full_plugin_file_path )->andReturn( $this->plugin_root_url )->zeroOrMoreTimes();
@@ -516,7 +514,7 @@ final class ConfigTest extends RanTestCase {
 		$this->assertEquals($default_passed_to_method, $options, 'Should return the default value passed to get_plugin_options when RANPluginOption is empty.');
 	}
 
-		/**
+	/**
 	 * Tests that logger debug mode is enabled when the specified constant in plugin header is defined and true.
 	 *
 	 * @covers \Ran\PluginLib\Config\ConfigAbstract::get_logger
@@ -589,7 +587,6 @@ final class ConfigTest extends RanTestCase {
 	 * @covers \Ran\PluginLib\Config\ConfigAbstract::__construct
 	 */
 	public function test_constructor_throws_on_ran_prefixed_standard_header(): void {
-
 		// 1. Mock WordPress environment functions (minimal needed for constructor).
 		WP_Mock::userFunction('plugin_dir_path')->with($this->full_plugin_file_path)->andReturn($this->plugin_root_path);
 		WP_Mock::userFunction('plugin_dir_url')->with($this->full_plugin_file_path)->andReturn($this->plugin_root_url);
@@ -643,12 +640,12 @@ final class ConfigTest extends RanTestCase {
 	 */
 	public function test_constructor_parses_docblock_without_leading_php_tag(): void {
 		// 1. Define mock file content that starts with a docblock, no <?php tag (radically simplified).
-		$mock_file_content_no_php_tag = "/**@RAN: Test Simple: Value Simple*/";
+		$mock_file_content_no_php_tag = '/**@RAN: Test Simple: Value Simple*/';
 
 		// 2. Prepare plugin data that get_plugin_data would return.
 		// This should align with the standard headers in the mock file content
 		// and include all required standard headers.
-		$test_specific_plugin_data = [
+		$test_specific_plugin_data = array(
 			'Name'        => 'Test Plugin For No PHP Tag', // Test specific
 			'Version'     => '1.0.1', // Test specific
 			'TextDomain'  => 'test-no-php-tag', // Test specific
@@ -660,7 +657,7 @@ final class ConfigTest extends RanTestCase {
 			'RequiresPHP' => '7.4', // Required
 			'RequiresWP'  => '5.5', // Required
 			'UpdatesURI'  => 'http://example.com/updates-no-php-tag', // Required
-		];
+		);
 
 		// 3. Set up mocks
 		WP_Mock::userFunction('plugin_dir_path')
@@ -692,7 +689,7 @@ final class ConfigTest extends RanTestCase {
 		// The static plugin_file property is already set in setUp().
 		/** @var Config|\PHPUnit\Framework\MockObject\MockObject $config_mock */
 		$config_mock = $this->getMockBuilder(Config::class)
-			->onlyMethods(['_read_plugin_file_header_content'])
+			->onlyMethods(array('_read_plugin_file_header_content'))
 			->disableOriginalConstructor()
 			->getMock();
 
@@ -731,39 +728,38 @@ final class ConfigTest extends RanTestCase {
 	 * @uses \Ran\PluginLib\Config\ConfigAbstract::__construct
 	 */
 	public function test_logger_debug_mode_via_custom_request_param(): void {
-
 		$fixed_param_name = 'my_test_debug_param';
 
 		// Backup original $_GET
 		$original_get = $_GET;
 
 		// Scenario 1: Parameter NOT set
-		$_GET = []; // Clear $_GET completely for this part
-		$config_inactive = $this->get_config(['Log Request Param' => $fixed_param_name]);
+		$_GET            = array(); // Clear $_GET completely for this part
+		$config_inactive = $this->get_config(array('Log Request Param' => $fixed_param_name));
 		$logger_inactive = $config_inactive->get_logger();
 		$this->assertFalse($logger_inactive->is_active(), 'Logger should be INACTIVE when param is NOT set.');
 
 		// Scenario 2: Parameter SET to 'true'
-		$_GET = []; // Clear $_GET again
+		$_GET                    = array(); // Clear $_GET again
 		$_GET[$fixed_param_name] = 'true'; // Set the param
-		$config_active_true = $this->get_config(['Log Request Param' => $fixed_param_name]);
-		$logger_active_true = $config_active_true->get_logger();
+		$config_active_true      = $this->get_config(array('Log Request Param' => $fixed_param_name));
+		$logger_active_true      = $config_active_true->get_logger();
 		$this->assertTrue($logger_active_true->is_active(), "Logger should be ACTIVE when param '{$fixed_param_name}' is 'true'.");
 		$this->assertSame(Logger::LOG_LEVELS_MAP[Logger::LEVEL_DEBUG], $logger_active_true->get_log_level(), "Logger level should be DEBUG when param '{$fixed_param_name}' is 'true'.");
 
 		// Scenario 3: Parameter SET to 'INFO' (string level)
-		$_GET = [];
+		$_GET                    = array();
 		$_GET[$fixed_param_name] = 'INFO';
-		$config_active_info = $this->get_config(['Log Request Param' => $fixed_param_name]);
-		$logger_active_info = $config_active_info->get_logger();
+		$config_active_info      = $this->get_config(array('Log Request Param' => $fixed_param_name));
+		$logger_active_info      = $config_active_info->get_logger();
 		$this->assertTrue($logger_active_info->is_active(), "Logger should be ACTIVE when param '{$fixed_param_name}' is 'INFO'.");
 		$this->assertSame(Logger::LOG_LEVELS_MAP[Logger::LEVEL_INFO], $logger_active_info->get_log_level(), "Logger level should be INFO when param '{$fixed_param_name}' is 'INFO'.");
 
 		// Scenario 4: Parameter SET to an unknown string (should not activate)
-		$_GET = [];
+		$_GET                    = array();
 		$_GET[$fixed_param_name] = 'bogusvalue';
-		$config_active_bogus = $this->get_config(['Log Request Param' => $fixed_param_name]);
-		$logger_active_bogus = $config_active_bogus->get_logger();
+		$config_active_bogus     = $this->get_config(array('Log Request Param' => $fixed_param_name));
+		$logger_active_bogus     = $config_active_bogus->get_logger();
 		$this->assertFalse($logger_active_bogus->is_active(), "Logger should be INACTIVE when param '{$fixed_param_name}' is 'bogusvalue'.");
 
 		// Restore original $_GET
