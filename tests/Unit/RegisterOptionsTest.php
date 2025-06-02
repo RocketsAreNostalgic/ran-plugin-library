@@ -314,4 +314,278 @@ final class RegisterOptionsTest extends PluginLibTestCase {
 		$this->assertEquals($option2_val, $options_manager->get_option('second_setting_with_spaces')); // Test with normalized key
 		$this->assertEquals($option3_val, $options_manager->get_option($option3_key));
 	}
+
+	/**
+	 * Test constructor merges initial options with existing DB options.
+	 *
+	 * @covers \Ran\PluginLib\RegisterOptions::__construct
+	 * @covers \Ran\PluginLib\RegisterOptions::get_options
+	 * @uses \Ran\PluginLib\Config\Config::get_instance
+	 * @uses \Ran\PluginLib\Singleton\SingletonAbstract::get_instance
+	 */
+	public function test_constructor_merges_initial_options_with_existing_db_options(): void {
+		$main_option_name    = 'test_plugin_settings_merge';
+		$existing_db_options = array(
+			'existing_key' => array('value' => 'db_value', 'autoload_hint' => true),
+			'overlap_key'  => array('value' => 'db_overlap_value', 'autoload_hint' => null),
+		);
+		$initial_constructor_options = array(
+			'new_key'     => array('value' => 'new_value', 'autoload_hint' => false),
+			'overlap_key' => array('value' => 'initial_overlap_value', 'autoload_hint' => true), // This should overwrite DB
+		);
+
+		$expected_merged_options = array(
+			'existing_key' => array('value' => 'db_value', 'autoload_hint' => true),
+			'overlap_key'  => array('value' => 'initial_overlap_value', 'autoload_hint' => true),
+			'new_key'      => array('value' => 'new_value', 'autoload_hint' => false),
+		);
+
+		// Mock for constructor's get_option to return existing DB options.
+		WP_Mock::userFunction('get_option')
+			->once()
+			->with($main_option_name, array())
+			->andReturn($existing_db_options);
+
+		// Mock for update_option, expecting the merged set.
+		WP_Mock::userFunction('update_option')
+			->once()
+			->with($main_option_name, $expected_merged_options, true) // Assuming main_option_autoload defaults to true.
+			->andReturnTrue();
+
+		$options_manager = $this->getMockBuilder(RegisterOptions::class)
+			->setConstructorArgs(array($main_option_name, $initial_constructor_options, true))
+			->onlyMethods(array('get_logger'))
+			->getMock();
+		$options_manager->method('get_logger')->willReturn($this->logger_mock);
+
+		$this->assertEquals($expected_merged_options, $options_manager->get_options(), 'Options after constructor do not match expected merged options.');
+	}
+
+	/**
+	 * Test refresh_options reloads options from the database.
+	 *
+	 * @covers \Ran\PluginLib\RegisterOptions::refresh_options
+	 * @covers \Ran\PluginLib\RegisterOptions::get_options
+	 * @uses \Ran\PluginLib\Config\Config::get_instance
+	 * @uses \Ran\PluginLib\Singleton\SingletonAbstract::get_instance
+	 */
+	public function test_refresh_options_reloads_from_database(): void {
+		$main_option_name     = 'test_plugin_settings_refresh';
+		$initial_db_options   = array('initial_key' => array('value' => 'initial_value', 'autoload_hint' => null));
+		$refreshed_db_options = array('refreshed_key' => array('value' => 'refreshed_value', 'autoload_hint' => true));
+
+		// Mock for constructor's get_option.
+		WP_Mock::userFunction('get_option')
+			->once()
+			->with($main_option_name, array())
+			->andReturn($initial_db_options);
+
+		$options_manager = $this->getMockBuilder(RegisterOptions::class)
+			->setConstructorArgs(array($main_option_name, array(), true)) // No initial options for this test, rely on DB.
+			->onlyMethods(array('get_logger'))
+			->getMock();
+		$options_manager->method('get_logger')->willReturn($this->logger_mock);
+
+		// Verify initial state.
+		$this->assertEquals($initial_db_options, $options_manager->get_options(), 'Initial options do not match.');
+
+		// Mock for refresh_options' call to get_option.
+		WP_Mock::userFunction('get_option')
+			->once()
+			->with($main_option_name, array())
+			->andReturn($refreshed_db_options);
+
+		$options_manager->refresh_options();
+
+		$this->assertEquals($refreshed_db_options, $options_manager->get_options(), 'Options after refresh do not match expected refreshed options.');
+	}
+
+	/**
+	 * Test get_option returns default value when key does not exist.
+	 *
+	 * @covers \Ran\PluginLib\RegisterOptions::get_option
+	 * @uses \Ran\PluginLib\Config\Config::get_instance
+	 * @uses \Ran\PluginLib\Singleton\SingletonAbstract::get_instance
+	 */
+	public function test_get_option_returns_default_when_key_not_exists(): void {
+		$main_option_name = 'test_plugin_settings_default';
+		$default_value    = 'this_is_a_default';
+
+		// Mock for constructor's get_option to return an empty array.
+		WP_Mock::userFunction('get_option')
+			->once()
+			->with($main_option_name, array())
+			->andReturn(array());
+
+		$options_manager = $this->getMockBuilder(RegisterOptions::class)
+			->setConstructorArgs(array($main_option_name, array(), true))
+			->onlyMethods(array('get_logger'))
+			->getMock();
+		$options_manager->method('get_logger')->willReturn($this->logger_mock);
+
+		$retrieved_value = $options_manager->get_option('non_existent_key', $default_value);
+		$this->assertSame($default_value, $retrieved_value, 'get_option did not return the default value for a non-existent key.');
+	}
+
+	/**
+	 * Test set_option correctly handles explicit autoload hints.
+	 *
+	 * @covers \Ran\PluginLib\RegisterOptions::set_option
+	 * @covers \Ran\PluginLib\RegisterOptions::get_options
+	 * @uses \Ran\PluginLib\Config\Config::get_instance
+	 * @uses \Ran\PluginLib\Singleton\SingletonAbstract::get_instance
+	 */
+	public function test_set_option_with_explicit_autoload_hints(): void {
+		$main_option_name = 'test_plugin_settings_autoload';
+
+		// Mock for constructor's get_option.
+		WP_Mock::userFunction('get_option')
+			->once()
+			->with($main_option_name, array())
+			->andReturn(array());
+
+		// Mock update_option to check autoload hints.
+		WP_Mock::userFunction('update_option')
+			->times(3) // Expect it to be called for each set_option call.
+			->withArgs(function ($option_name, $options_array, $autoload_main) use ($main_option_name) {
+				$this->assertSame($main_option_name, $option_name);
+				$this->assertTrue($autoload_main); // Main option group autoload
+				if (isset($options_array['key_autoload_true'])) {
+					$this->assertTrue($options_array['key_autoload_true']['autoload_hint']);
+				} elseif (isset($options_array['key_autoload_false'])) {
+					$this->assertFalse($options_array['key_autoload_false']['autoload_hint']);
+				} elseif (isset($options_array['key_autoload_null'])) {
+					$this->assertNull($options_array['key_autoload_null']['autoload_hint']);
+				}
+				return true; // Important for withArgs to return true if args match.
+			})
+			->andReturnTrue();
+
+		$options_manager = $this->getMockBuilder(RegisterOptions::class)
+			->setConstructorArgs(array($main_option_name, array(), true))
+			->onlyMethods(array('get_logger'))
+			->getMock();
+		$options_manager->method('get_logger')->willReturn($this->logger_mock);
+
+		$options_manager->set_option('key_autoload_true', 'value1', true);
+		$options_manager->set_option('key_autoload_false', 'value2', false);
+		$options_manager->set_option('key_autoload_null', 'value3', null);
+
+		$final_options = $options_manager->get_options();
+		$this->assertTrue($final_options['key_autoload_true']['autoload_hint']);
+		$this->assertFalse($final_options['key_autoload_false']['autoload_hint']);
+		$this->assertNull($final_options['key_autoload_null']['autoload_hint']);
+	}
+
+	/**
+	 * Test update_option works as an alias for set_option.
+	 *
+	 * @covers \Ran\PluginLib\RegisterOptions::update_option
+	 * @covers \Ran\PluginLib\RegisterOptions::set_option
+	 * @covers \Ran\PluginLib\RegisterOptions::save_all_options
+	 * @uses \Ran\PluginLib\Config\Config::get_instance
+	 * @uses \Ran\PluginLib\Singleton\SingletonAbstract::get_instance
+	 */
+	public function test_update_option_works_as_alias_for_set_option(): void {
+		$main_option_name = 'test_plugin_settings_update_alias';
+		$option_key       = 'alias_test_key';
+		$option_value     = 'alias_test_value';
+		$option_autoload  = true;
+
+		$expected_options_to_save = array(
+			$option_key => array('value' => $option_value, 'autoload_hint' => $option_autoload),
+		);
+
+		// Mock for constructor's get_option.
+		WP_Mock::userFunction('get_option')
+			->once()
+			->with($main_option_name, array())
+			->andReturn(array());
+
+		// Mock for update_option (WordPress function) called by save_all_options.
+		WP_Mock::userFunction('update_option')
+			->once()
+			->with($main_option_name, $expected_options_to_save, true) // Assuming main_option_autoload is true.
+			->andReturnTrue();
+
+		$options_manager = $this->getMockBuilder(RegisterOptions::class)
+			->setConstructorArgs(array($main_option_name, array(), true))
+			->onlyMethods(array('get_logger'))
+			->getMock();
+		$options_manager->method('get_logger')->willReturn($this->logger_mock);
+
+		// Call the update_option method.
+		$result = $options_manager->update_option($option_key, $option_value, $option_autoload);
+
+		$this->assertTrue($result, 'update_option should return true on success.');
+		$this->assertEquals($expected_options_to_save, $options_manager->get_options(), 'Options array after update_option does not match expected.');
+	}
+
+	/**
+	 * Test get_logger returns an already initialized logger instance.
+	 *
+	 * @covers \Ran\PluginLib\RegisterOptions::get_logger
+	 * @uses \Ran\PluginLib\Config\Config::get_instance
+	 * @uses \Ran\PluginLib\Singleton\SingletonAbstract::get_instance
+	 */
+	public function test_get_logger_returns_existing_logger(): void {
+		$main_option_name = 'test_plugin_settings_existing_logger';
+
+		// Mock for constructor's get_option.
+		WP_Mock::userFunction('get_option')
+			->once()
+			->with($main_option_name, array())
+			->andReturn(array());
+
+		$options_manager = new RegisterOptions($main_option_name);
+
+		// Manually set a logger instance using reflection to simulate it being pre-initialized.
+		$reflection      = new \ReflectionClass($options_manager);
+		$logger_property = $reflection->getProperty('logger');
+		$logger_property->setAccessible(true);
+		$logger_property->setValue($options_manager, $this->logger_mock);
+
+		// Access the protected get_logger method using reflection.
+		$method = $reflection->getMethod('get_logger');
+		$method->setAccessible(true);
+		$retrieved_logger = $method->invoke($options_manager);
+
+		$this->assertSame($this->logger_mock, $retrieved_logger, 'get_logger did not return the pre-existing logger instance.');
+	}
+
+	/**
+	 * Test get_logger retrieves logger from Config if not already set and caches it.
+	 *
+	 * @covers \Ran\PluginLib\RegisterOptions::get_logger
+	 * @uses \Ran\PluginLib\Config\Config
+	 * @uses \Ran\PluginLib\Singleton\SingletonAbstract
+	 */
+	public function test_get_logger_retrieves_from_config_if_not_set(): void {
+		$main_option_name = 'test_plugin_settings_config_logger';
+
+		// Config is primed with $this->logger_mock from setUp().
+
+		WP_Mock::userFunction('get_option') // For the constructor
+			->once()
+			->with($main_option_name, array())
+			->andReturn(array());
+
+		$options_manager = new RegisterOptions($main_option_name); // Constructor runs
+
+		// Verify that the internal logger property is now set to the logger from Config,
+		// implying the constructor called get_logger().
+		$reflection      = new \ReflectionClass($options_manager);
+		$logger_property = $reflection->getProperty('logger');
+		$logger_property->setAccessible(true);
+		$internal_logger_after_construction = $logger_property->getValue($options_manager);
+
+		$this->assertInstanceOf(\Ran\PluginLib\Util\Logger::class, $internal_logger_after_construction, 'Internal logger should be a Logger instance after construction.');
+
+		// Now, explicitly call get_logger() again and verify it returns the same (cached) instance.
+		$method = $reflection->getMethod('get_logger');
+		$method->setAccessible(true);
+		$retrieved_logger_explicit_call = $method->invoke($options_manager);
+
+		$this->assertSame($internal_logger_after_construction, $retrieved_logger_explicit_call, 'Explicit call to get_logger() did not return the cached instance, which should have been set by constructor.');
+	}
 }

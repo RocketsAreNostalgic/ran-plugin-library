@@ -216,33 +216,29 @@ class RegisterOptions {
 	 * @return Logger The logger instance.
 	 */
 	protected function get_logger(): Logger {
+		// @codeCoverageIgnoreStart
 		if (null === $this->logger) {
 			// Attempt to get the logger from the concrete Config class instance.
 			// This enforces that the Config system must be initialized and provide the logger.
 			if (!class_exists(\Ran\PluginLib\Config\Config::class) || !method_exists(\Ran\PluginLib\Config\Config::class, 'get_instance')) {
-				// @codeCoverageIgnoreStart
 				throw new \LogicException(static::class . ': \Ran\PluginLib\Config\Config class or its get_instance method is not available to retrieve the logger.');
-				// @codeCoverageIgnoreEnd
 			}
 
 			$config_instance = \Ran\PluginLib\Config\Config::get_instance();
 
 			if (!method_exists($config_instance, 'get_logger')) {
-				// @codeCoverageIgnoreStart
 				throw new \LogicException(static::class . ': The Config instance (retrieved from \Ran\PluginLib\Config\Config::get_instance()) does not have a get_logger method.');
-				// @codeCoverageIgnoreEnd
 			}
-			
+
 			$logger_from_config = $config_instance->get_logger(); // This itself should throw if logger not initialized in Config
-			
+
 			if (null === $logger_from_config) {
 				// This case should ideally be prevented by Config::get_logger() throwing an exception if it cannot provide a logger.
-				// @codeCoverageIgnoreStart
 				throw new \LogicException(static::class . ': Failed to retrieve a valid logger instance from Config. Config::get_logger() returned null.');
-				// @codeCoverageIgnoreEnd
 			}
 			$this->logger = $logger_from_config;
 		}
+		// @codeCoverageIgnoreEnd
 		return $this->logger;
 	}
 }
