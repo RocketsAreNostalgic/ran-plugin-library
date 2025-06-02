@@ -71,9 +71,11 @@ class RegisterOptions {
 
 		// Load all existing options from the single database entry.
 		$this->options = \get_option($this->main_wp_option_name, array());
+		// @codeCoverageIgnoreStart
 		if ($this->get_logger()->is_active()) {
 			$this->get_logger()->debug("RegisterOptions: Initialized with main option '{$this->main_wp_option_name}'. Loaded " . count($this->options) . ' existing sub-options.');
 		}
+		// @codeCoverageIgnoreEnd
 
 		// If initial/default options are provided, merge and save them.
 		if (!empty($initial_options)) {
@@ -89,17 +91,21 @@ class RegisterOptions {
 				if (!$current_value_exists || ($current_value_exists && $this->options[$option_name_clean]['value'] !== $value_to_set)) {
 					$this->options[$option_name_clean] = array('value' => $value_to_set, 'autoload_hint' => $autoload_hint);
 					$options_changed                   = true;
+					// @codeCoverageIgnoreStart
 					if ($this->get_logger()->is_active()) {
 						$this->get_logger()->debug("RegisterOptions: Initial option '{$option_name_clean}' set/updated.");
 					}
+					// @codeCoverageIgnoreEnd
 				}
 			}
 
 			if ($options_changed) {
 				$this->save_all_options();
+				// @codeCoverageIgnoreStart
 				if ($this->get_logger()->is_active()) {
 					$this->get_logger()->debug("RegisterOptions: Initial options processed and saved to '{$this->main_wp_option_name}'.");
 				}
+				// @codeCoverageIgnoreEnd
 			}
 		}
 	}
@@ -110,9 +116,11 @@ class RegisterOptions {
 	 * @return bool True if the option was successfully updated or added, false otherwise.
 	 */
 	private function save_all_options(): bool {
+		// @codeCoverageIgnoreStart
 		if ($this->get_logger()->is_active()) {
 			$this->get_logger()->debug("RegisterOptions: Saving all options to '{$this->main_wp_option_name}'. Total sub-options: " . count($this->options) . '. Autoload: ' . ($this->main_option_autoload ? 'true' : 'false'));
 		}
+		// @codeCoverageIgnoreEnd
 		return \update_option($this->main_wp_option_name, $this->options, $this->main_option_autoload);
 	}
 
@@ -127,9 +135,11 @@ class RegisterOptions {
 	public function set_option(string $option_name, mixed $value, ?bool $autoload_hint = null): bool {
 		$option_name_clean = \str_replace(' ', '_', $option_name);
 
+		// @codeCoverageIgnoreStart
 		if ($this->get_logger()->is_active()) {
 			$this->get_logger()->debug("RegisterOptions: Setting option '{$option_name_clean}' in '{$this->main_wp_option_name}'.");
 		}
+		// @codeCoverageIgnoreEnd
 
 		$this->options[$option_name_clean] = array(
 			'value'         => $value,
@@ -149,6 +159,7 @@ class RegisterOptions {
 		$option_name_clean = \str_replace(' ', '_', $option_name);
 		$value             = $this->options[$option_name_clean]['value'] ?? $default;
 
+		// @codeCoverageIgnoreStart
 		if ($this->get_logger()->is_active()) {
 			$log_value = is_scalar($value) ? (string) $value : (is_array($value) ? 'Array' : 'Object');
 			if (strlen($log_value) > 100) {
@@ -157,6 +168,7 @@ class RegisterOptions {
 			$found_status = isset($this->options[$option_name_clean]['value']) ? 'Found' : 'Not found, using default';
 			$this->get_logger()->debug("RegisterOptions: Getting option '{$option_name_clean}' from '{$this->main_wp_option_name}'. Status: {$found_status}. Value: {$log_value}");
 		}
+		// @codeCoverageIgnoreEnd
 		return $value;
 	}
 
@@ -178,9 +190,11 @@ class RegisterOptions {
 	 * @return array<string, array{"value": mixed, "autoload_hint": bool|null}> The array of all sub-options.
 	 */
 	public function get_options(): array {
+		// @codeCoverageIgnoreStart
 		if ($this->get_logger()->is_active()) {
 			$this->get_logger()->debug("RegisterOptions: Getting all options from '{$this->main_wp_option_name}'. Count: " . count($this->options));
 		}
+		// @codeCoverageIgnoreEnd
 		return $this->options;
 	}
 
@@ -188,9 +202,11 @@ class RegisterOptions {
 	 * Refreshes the local options cache by reloading them from the database.
 	 */
 	public function refresh_options(): void {
+		// @codeCoverageIgnoreStart
 		if ($this->get_logger()->is_active()) {
 			$this->get_logger()->debug("RegisterOptions: Refreshing options from database for '{$this->main_wp_option_name}'.");
 		}
+		// @codeCoverageIgnoreEnd
 		$this->options = \get_option($this->main_wp_option_name, array());
 	}
 
@@ -201,22 +217,31 @@ class RegisterOptions {
 	 */
 	protected function get_logger(): Logger {
 		if (null === $this->logger) {
-			// Ensure ConfigAbstract is loaded and get its instance to access the logger.
-			// This assumes ConfigAbstract and its get_instance() method are available.
-			// You might need to adjust this depending on your plugin's architecture
-			// for accessing shared services like the logger.
-			if (class_exists(ConfigAbstract::class) && method_exists(ConfigAbstract::class, 'get_instance')) {
-				$config_instance = ConfigAbstract::get_instance();
-				if (method_exists($config_instance, 'get_logger')) {
-					$this->logger = $config_instance->get_logger();
-				} else {
-					// Fallback if get_logger is somehow not on ConfigAbstract instance
-					$this->logger = new Logger(); // Basic fallback
-				}
-			} else {
-				// Fallback if ConfigAbstract is not available
-				$this->logger = new Logger(); // Basic fallback
+			// Attempt to get the logger from the concrete Config class instance.
+			// This enforces that the Config system must be initialized and provide the logger.
+			if (!class_exists(\Ran\PluginLib\Config\Config::class) || !method_exists(\Ran\PluginLib\Config\Config::class, 'get_instance')) {
+				// @codeCoverageIgnoreStart
+				throw new \LogicException(static::class . ': \Ran\PluginLib\Config\Config class or its get_instance method is not available to retrieve the logger.');
+				// @codeCoverageIgnoreEnd
 			}
+
+			$config_instance = \Ran\PluginLib\Config\Config::get_instance();
+
+			if (!method_exists($config_instance, 'get_logger')) {
+				// @codeCoverageIgnoreStart
+				throw new \LogicException(static::class . ': The Config instance (retrieved from \Ran\PluginLib\Config\Config::get_instance()) does not have a get_logger method.');
+				// @codeCoverageIgnoreEnd
+			}
+			
+			$logger_from_config = $config_instance->get_logger(); // This itself should throw if logger not initialized in Config
+			
+			if (null === $logger_from_config) {
+				// This case should ideally be prevented by Config::get_logger() throwing an exception if it cannot provide a logger.
+				// @codeCoverageIgnoreStart
+				throw new \LogicException(static::class . ': Failed to retrieve a valid logger instance from Config. Config::get_logger() returned null.');
+				// @codeCoverageIgnoreEnd
+			}
+			$this->logger = $logger_from_config;
 		}
 		return $this->logger;
 	}
