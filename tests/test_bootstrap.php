@@ -38,4 +38,19 @@ abstract class RanTestCase extends TestCase {
 	public function tearDown(): void {
 		\WP_Mock::tearDown();
 	}
+
+	/**
+	 * Gets the value of a protected/private property from an object.
+	 *
+	 * @param object $object The object to get the property from.
+	 * @param string $property_name The name of the property.
+	 * @return mixed The value of the property.
+	 * @throws \ReflectionException If the property does not exist.
+	 */
+	protected function get_protected_property_value(object $object, string $property_name) {
+		$reflection = new \ReflectionClass($object);
+		$property   = $reflection->getProperty($property_name);
+		$property->setAccessible(true);
+		return $property->getValue($object);
+	}
 }

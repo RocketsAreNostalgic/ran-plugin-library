@@ -48,6 +48,8 @@ class ConcreteConfigForTesting extends ConfigAbstract {
  *     private MockObject $logger_mock; // Example if MyClassThatUsesConfig needs a logger mock
  *
  *     public function setUp(): void {
+        $this->defined_constants = []; // Reset for each test
+        $this->defined_constants = []; // Reset for each test
  *         parent::setUp(); // Sets up mock plugin file, data, and WP mocks via PluginLibTestCase
  *
  *         // This ensures ConfigAbstract is initialized and a concrete instance is available.
@@ -122,6 +124,12 @@ abstract class PluginLibTestCase extends RanTestCase {
 	protected string $mock_plugin_basename;
 
 	/**
+	 * Stores names of constants defined during a test.
+	 * @var string[]
+	 */
+	protected array $defined_constants = array();
+
+	/**
 	 * Sets up the test environment before each test.
 	 *
 	 * Initializes mock plugin file paths, data, and creates the mock plugin file.
@@ -129,6 +137,7 @@ abstract class PluginLibTestCase extends RanTestCase {
 	 * @return void
 	 */
 	public function setUp(): void {
+		$this->defined_constants = array(); // Reset for each test
 		parent::setUp();
 
 		$this->mock_plugin_file_path = __DIR__ . '/mock-plugin-file.php';
@@ -173,6 +182,20 @@ abstract class PluginLibTestCase extends RanTestCase {
 			unlink($this->mock_plugin_file_path);
 		}
 		parent::tearDown();
+	}
+
+	/**
+	 * Defines a constant if it's not already defined and tracks its name.
+	 *
+	 * @param string $name The name of the constant.
+	 * @param mixed $value The value of the constant.
+	 * @return void
+	 */
+	protected function define_constant(string $name, $value): void {
+		if (!defined($name)) {
+			define($name, $value);
+		}
+		$this->defined_constants[] = $name;
 	}
 
 	/**
