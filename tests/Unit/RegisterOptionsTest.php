@@ -3,6 +3,8 @@
  * Tests for RegisterOptions class.
  *
  * @package  Ran/PluginLib
+ *
+ * @uses \Ran\PluginLib\Util\Logger
  */
 
 declare(strict_types = 1);
@@ -19,7 +21,10 @@ use WP_Mock;
 /**
  * Tests for RegisterOptions class.
  *
- * @covers Ran\PluginLib\RegisterOptions
+ * @covers \Ran\PluginLib\RegisterOptions
+ * @uses \Ran\PluginLib\Util\Logger
+ * @uses \Ran\PluginLib\Config\ConfigAbstract
+ * @uses \Ran\PluginLib\Singleton\SingletonAbstract
  */
 final class RegisterOptionsTest extends PluginLibTestCase {
 	/**
@@ -60,6 +65,14 @@ final class RegisterOptionsTest extends PluginLibTestCase {
 
 	/**
 	 * Test setting a single option and verify it's saved correctly.
+	 *
+	 * @covers \Ran\PluginLib\RegisterOptions::set_option
+	 * @covers \Ran\PluginLib\RegisterOptions::get_options
+	 * @covers \Ran\PluginLib\RegisterOptions::get_option
+	 * @covers \Ran\PluginLib\RegisterOptions::__construct
+	 * @uses \Ran\PluginLib\Config\Config::get_instance
+	 * @uses \Ran\PluginLib\Config\ConfigAbstract::__construct
+	 * @uses \Ran\PluginLib\Singleton\SingletonAbstract::get_instance
 	 */
 	public function test_set_single_option_and_verify_save(): void {
 		$main_option_name    = 'test_plugin_settings';
@@ -129,6 +142,13 @@ final class RegisterOptionsTest extends PluginLibTestCase {
 
 	/**
 	 * Test constructor with initial options when no pre-existing options are in the DB.
+	 *
+	 * @covers \Ran\PluginLib\RegisterOptions::__construct
+	 * @covers \Ran\PluginLib\RegisterOptions::get_options
+	 * @covers \Ran\PluginLib\RegisterOptions::get_option
+	 * @uses \Ran\PluginLib\Config\ConfigAbstract::__construct
+	 * @uses \Ran\PluginLib\Config\Config::get_instance
+	 * @uses \Ran\PluginLib\Singleton\SingletonAbstract::get_instance
 	 */
 	public function test_constructor_with_initial_options_no_existing_in_db(): void {
 		$main_option_name       = 'test_plugin_settings_constructor';
@@ -199,6 +219,14 @@ final class RegisterOptionsTest extends PluginLibTestCase {
 
 	/**
 	 * Test setting multiple options sequentially and verify the combined state and saves.
+	 *
+	 * @covers \Ran\PluginLib\RegisterOptions::set_option
+	 * @covers \Ran\PluginLib\RegisterOptions::get_options
+	 * @covers \Ran\PluginLib\RegisterOptions::get_option
+	 * @covers \Ran\PluginLib\RegisterOptions::__construct
+	 * @uses \Ran\PluginLib\Config\Config::get_instance
+	 * @uses \Ran\PluginLib\Config\ConfigAbstract::__construct
+	 * @uses \Ran\PluginLib\Singleton\SingletonAbstract::get_instance
 	 */
 	public function test_set_multiple_options_sequentially(): void {
 		$main_option_name = $this->plugin_data['PluginOption']; // Using 'ran_plugin' from test class property

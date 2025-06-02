@@ -34,7 +34,7 @@ abstract class PluginAdditionalLinksAbstract extends FeatureControllerAbstract i
 	 * Our init hook to add_filter hooks.
 	 */
 	public function init(): PluginAdditionalLinksAbstract {
-		add_filter( 'plugin_action_links_' . $this->plugin_array['FileName'], array( $this, 'plugin_action_links_callback' ) );
+		add_filter( 'plugin_action_links_' . $this->plugin_array['Basename'], array( $this, 'plugin_action_links_callback' ) );
 		add_filter( 'plugin_row_meta', array( $this, 'plugin_meta_links_callback' ), 10, 4 );
 
 		return $this;
@@ -78,7 +78,7 @@ abstract class PluginAdditionalLinksAbstract extends FeatureControllerAbstract i
 		array $plugin_data,
 		string $status
 	): array {
-		if ( stripos( $plugin_file, $this->plugin_array['FileName'] ) === false ) {
+		if ( stripos( $plugin_file, $this->plugin_array['Basename'] ) === false ) {
 			return $plugin_meta;
 		}
 
