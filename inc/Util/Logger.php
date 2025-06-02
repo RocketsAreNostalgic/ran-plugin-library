@@ -97,12 +97,12 @@ namespace Ran\PluginLib\Util;
  * /// The context array is serialized and appended to the log message.
  */
 class Logger {
-	public const LEVEL_DEBUG   = 'DEBUG';
-	public const LEVEL_INFO    = 'INFO';
-	public const LEVEL_WARNING = 'WARNING';
-	public const LEVEL_ERROR   = 'ERROR';
+	public const LEVEL_DEBUG   = 'DEBUG';   // 100
+	public const LEVEL_INFO    = 'INFO';    // 200
+	public const LEVEL_WARNING = 'WARNING'; // 300
+	public const LEVEL_ERROR   = 'ERROR';   // 400
 
-	private const LOG_LEVELS_MAP = array(
+	public const LOG_LEVELS_MAP = array(
 		self::LEVEL_DEBUG   => 100,
 		self::LEVEL_INFO    => 200,
 		self::LEVEL_WARNING => 300,
@@ -185,7 +185,7 @@ class Logger {
 		// phpcs:disable WordPress.Security.NonceVerification.Recommended -- Reading a debug param, not processing form data.
 		// phpcs:disable WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Input is checked against known values or used as a boolean flag.
 		if ( ! empty( $this->debug_request_param ) && array_key_exists( $this->debug_request_param, $_GET ) ) {
-			$sources_values['url'] = wp_unslash( $_GET[ $this->debug_request_param ] );
+			$sources_values['url'] = $this->_unslash( $_GET[ $this->debug_request_param ] );
 		}
 		// phpcs:enable WordPress.Security.NonceVerification.Recommended
 		// phpcs:enable WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
@@ -248,8 +248,19 @@ class Logger {
 	 * @param string $level_string The log level string (e.g., 'DEBUG').
 	 * @return int The integer severity.
 	 */
-	private function get_level_severity( string $level_string ): int {
+	private function _get_level_severity( string $level_string ): int {
 		return self::LOG_LEVELS_MAP[ strtoupper( $level_string ) ] ?? self::LOG_LEVELS_MAP[ self::LEVEL_DEBUG ];
+	}
+
+	/**
+	 * Unslashes a string using `wp_unslash()`, if available.
+	 *
+	 * @param  string $value
+	 *
+	 * @return string
+	 */
+	private function _unslash( string $value ): string {
+		return wp_unslash( $value );
 	}
 
 	/**
@@ -259,6 +270,19 @@ class Logger {
 	 */
 	public function is_active(): bool {
 		return $this->is_active;
+	}
+
+	/**
+	 * Gets the current effective log level severity.
+	 *
+	 * Returns the integer severity value (e.g., 100 for DEBUG, 200 for INFO).
+	 * Note: The logger also has an `is_active()` method. This method returns the
+	 * configured severity level, which is only acted upon if `is_active()` is true.
+	 *
+	 * @return int The integer value of the effective log level. Returns 0 if not active or no level set.
+	 */
+	public function get_log_level(): int {
+		return $this->effective_log_level_severity;
 	}
 
 	/**
@@ -313,7 +337,7 @@ class Logger {
 			return;
 		}
 
-		$current_level_severity = $this->get_level_severity( $level );
+		$current_level_severity = $this->_get_level_severity( $level );
 		if ( $current_level_severity < $this->effective_log_level_severity ) {
 			return;
 		}

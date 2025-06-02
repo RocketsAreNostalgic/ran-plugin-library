@@ -1,7 +1,7 @@
 {
   "name": "ran/plugin-lib",
   "description": "RocketsAreNostalgic: A shared library of plugin classes to interact with WordPress",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "type": "library",
   "license": "MIT",
   "authors": [
@@ -69,7 +69,7 @@
     "standards:fix": "phpcbf --standard=.phpcs.xml --report=summary",
     "runner:standards:full": "php ./scripts/php-codesniffer.php -s",
     "runner:standards:fix": "php ./scripts/php-codesniffer.php --fix --report=summary",
-    "test": "vendor/bin/phpunit",
+    "test": "phpdbg -qrr vendor/bin/phpunit --coverage-text",
     "build-assets": "bash ./scripts/build-assets.sh",
     "build": [
       "@format",
