@@ -11,7 +11,7 @@ namespace Ran\PluginLib\Singleton;
 
 use Exception;
 /**
- * Our Singleton class defines the alternative constructor method `GetInstance`
+ * Our Singleton class defines the alternative constructor method `get_instance`
  * which will always return the same instance of the class.
  */
 abstract class SingletonAbstract {
