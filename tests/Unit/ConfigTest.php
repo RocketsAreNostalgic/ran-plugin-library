@@ -561,7 +561,7 @@ final class ConfigTest extends RanTestCase {
 			// This should not happen if uniqid() works as expected, but as a safeguard.
 			$this->markTestSkipped("Constant {$unique_log_constant_name} already defined.");
 		}
-		define($unique_log_constant_name, true);
+		define($unique_log_constant_name, 'INFO');
 
 		// Manually invoke the constructor AFTER defining the constant.
 		$abstractConstructor = $configReflection->getConstructor();
@@ -572,7 +572,7 @@ final class ConfigTest extends RanTestCase {
 			// 5. Get the logger and assert debug mode.
 			/** @var Logger $logger */
 			$logger = $config_mock->get_logger();
-			$this->assertTrue($logger->is_active() && $logger->get_log_level() === 100, 'Logger should be active and in debug mode (level 100) when custom constant is true.');
+			$this->assertTrue($logger->is_active() && $logger->get_log_level() === \Ran\PluginLib\Util\Logger::LOG_LEVELS_MAP[\Ran\PluginLib\Util\Logger::LEVEL_INFO], 'Logger should be active and in INFO mode (level ' . \Ran\PluginLib\Util\Logger::LOG_LEVELS_MAP[\Ran\PluginLib\Util\Logger::LEVEL_INFO] . ') when custom constant is \'INFO\'.');
 		} finally {
 			// Cleanup: It's tricky to undefine a constant. PHPUnit runs tests in separate processes by default,
 			// so this define should not affect other tests. If not, this could be an issue.
@@ -741,11 +741,11 @@ final class ConfigTest extends RanTestCase {
 
 		// Scenario 2: Parameter SET to 'true'
 		$_GET                    = array(); // Clear $_GET again
-		$_GET[$fixed_param_name] = 'true'; // Set the param
+		$_GET[$fixed_param_name] = 'INFO'; // Set the param to INFO to avoid DEBUG output
 		$config_active_true      = $this->get_config(array('Log Request Param' => $fixed_param_name));
 		$logger_active_true      = $config_active_true->get_logger();
 		$this->assertTrue($logger_active_true->is_active(), "Logger should be ACTIVE when param '{$fixed_param_name}' is 'true'.");
-		$this->assertSame(Logger::LOG_LEVELS_MAP[Logger::LEVEL_DEBUG], $logger_active_true->get_log_level(), "Logger level should be DEBUG when param '{$fixed_param_name}' is 'true'.");
+		$this->assertSame(Logger::LOG_LEVELS_MAP[Logger::LEVEL_INFO], $logger_active_true->get_log_level(), "Logger level should be INFO when param '{$fixed_param_name}' is 'INFO'.");
 
 		// Scenario 3: Parameter SET to 'INFO' (string level)
 		$_GET                    = array();

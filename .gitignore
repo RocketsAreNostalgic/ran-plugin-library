@@ -26,4 +26,3 @@ tests/coverage/html-coverage/*
 .phpcs-runner.xml
 .phpunit.cache/
 coverage/
-
