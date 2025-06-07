@@ -16,7 +16,9 @@ use WP_Mock;
  * This class is used internally by PluginLibTestCase to create a tangible instance
  * of ConfigAbstract for testing purposes, as ConfigAbstract itself is abstract.
  */
-class ConcreteConfigForTesting extends ConfigAbstract {
+if (!\class_exists(\Ran\PluginLib\Tests\Unit\ConcreteConfigForTesting::class)) {
+	class ConcreteConfigForTesting extends ConfigAbstract {
+	}
 }
 
 /**
