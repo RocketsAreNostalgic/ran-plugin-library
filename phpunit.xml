@@ -17,7 +17,7 @@
 	convertErrorsToExceptions="true"
 	convertNoticesToExceptions="true"
 	convertWarningsToExceptions="true"
-	verbose="true"
+	verbose="false"
 >
 	<testsuites>
 		<testsuite name="Unit Tests">
@@ -30,7 +30,7 @@
 		processUncoveredFiles="true"
 		>
 		<include>
-			<directory suffix=".php">inc</directory>
+			<directory suffix=".php">./inc</directory>
 		</include>
 		<report>
 			<html outputDirectory="tests/coverage/html-coverage" lowUpperBound="50" highLowerBound="90"/>

@@ -42,6 +42,7 @@
     "yoast/phpunit-polyfills": "^2.0",
     "phpunit/phpunit": "^9.6",
     "10up/wp_mock": "^1.0",
+    "mockery/mockery": "^1.6",
     "phpcompatibility/phpcompatibility-wp": "*",
     "wp-phpunit/wp-phpunit": "^6.4",
     "rmccue/requests": "^2.0",
@@ -69,7 +70,8 @@
     "standards:fix": "phpcbf --standard=.phpcs.xml --report=summary",
     "runner:standards:full": "php ./scripts/php-codesniffer.php -s",
     "runner:standards:fix": "php ./scripts/php-codesniffer.php --fix --report=summary",
-    "test": "phpdbg -qrr vendor/bin/phpunit --coverage-text",
+    "test": "phpdbg -qrr vendor/bin/phpunit",
+    "test:coverage": "phpdbg -qrr vendor/bin/phpunit --coverage-text",
     "build-assets": "bash ./scripts/build-assets.sh",
     "build": [
       "@format",
