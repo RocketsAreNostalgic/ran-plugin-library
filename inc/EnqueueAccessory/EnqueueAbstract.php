@@ -1285,7 +1285,7 @@ abstract class EnqueueAbstract implements EnqueueInterface {
 		return true;
 	}
 
-	// MEDIA HANDLING
+	// WORDPRESS MEDIA TOOLS HANDLING
 
 	/**
 	 * Array of configurations for loading the WordPress media tools (uploader, library interface, etc.).
@@ -1470,6 +1470,8 @@ abstract class EnqueueAbstract implements EnqueueInterface {
 			$logger->debug( "EnqueueAbstract::enqueue_deferred_media_tools - Exited for hook: \"{$hook_name}\"." );
 		}
 	}
+
+	// ENQUEUE ALL ASSETS
 
 	/**
 	 * Enqueues all assets that have been added to the plugin by calling their respective processing methods.
