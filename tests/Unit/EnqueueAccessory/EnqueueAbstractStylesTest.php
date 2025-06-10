@@ -181,30 +181,30 @@ class EnqueueAbstractStylesTest extends PluginLibTestCase {
 		// Style 1: direct-style-1
 		// Log from enqueue_styles() - just the initial processing log for the style
 		$this->logger_mock->shouldReceive('debug')->with('EnqueueAbstract::enqueue_styles - Processing style: "direct-style-1", original index: 0.')->once();
-		// Logs from process_single_style() for 'direct-style-1'
-		$this->logger_mock->shouldReceive('debug')->with('EnqueueAbstract::process_single_style - Processing style \'direct-style-1\' in context \'enqueue_styles\'.')->once();
-		$this->logger_mock->shouldReceive('debug')->with('EnqueueAbstract::process_single_style - Registering style \'direct-style-1\'.')->once();
-		$this->logger_mock->shouldReceive('debug')->with('EnqueueAbstract::process_single_style - Enqueuing style \'direct-style-1\'.')->once();
-		$this->logger_mock->shouldReceive('debug')->with('EnqueueAbstract::process_single_style - Checking for inline styles for \'direct-style-1\'.')->once();
-		// Logs from process_inline_styles() for 'direct-style-1'
-		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::process_inline_styles (context: enqueue_styles) - Checking for inline styles for parent handle 'direct-style-1'.")->once();
-		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::process_inline_styles (context: enqueue_styles) - No inline styles found or processed for 'direct-style-1'.")->once();
-		// Log from process_single_style() finishing 'direct-style-1'
-		$this->logger_mock->shouldReceive('debug')->with('EnqueueAbstract::process_single_style - Finished processing style \'direct-style-1\'.')->once();
+		// Logs from _process_single_style() for 'direct-style-1'
+		$this->logger_mock->shouldReceive('debug')->with('EnqueueAbstract::_process_single_style - Processing style \'direct-style-1\' in context \'enqueue_styles\'.')->once();
+		$this->logger_mock->shouldReceive('debug')->with('EnqueueAbstract::_process_single_style - Registering style \'direct-style-1\'.')->once();
+		$this->logger_mock->shouldReceive('debug')->with('EnqueueAbstract::_process_single_style - Enqueuing style \'direct-style-1\'.')->once();
+		$this->logger_mock->shouldReceive('debug')->with('EnqueueAbstract::_process_single_style - Checking for inline styles for \'direct-style-1\'.')->once();
+		// Logs from _process_inline_styles() for 'direct-style-1'
+		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::_process_inline_styles (context: enqueue_styles) - Checking for inline styles for parent handle 'direct-style-1'.")->once();
+		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::_process_inline_styles (context: enqueue_styles) - No inline styles found or processed for 'direct-style-1'.")->once();
+		// Log from _process_single_style() finishing 'direct-style-1'
+		$this->logger_mock->shouldReceive('debug')->with('EnqueueAbstract::_process_single_style - Finished processing style \'direct-style-1\'.')->once();
 
 		// Style 2: direct-style-2
 		// Log from enqueue_styles() - just the initial processing log for the style
 		$this->logger_mock->shouldReceive('debug')->with('EnqueueAbstract::enqueue_styles - Processing style: "direct-style-2", original index: 1.')->once();
-		// Logs from process_single_style() for 'direct-style-2'
-		$this->logger_mock->shouldReceive('debug')->with('EnqueueAbstract::process_single_style - Processing style \'direct-style-2\' in context \'enqueue_styles\'.')->once();
-		$this->logger_mock->shouldReceive('debug')->with('EnqueueAbstract::process_single_style - Registering style \'direct-style-2\'.')->once();
-		$this->logger_mock->shouldReceive('debug')->with('EnqueueAbstract::process_single_style - Enqueuing style \'direct-style-2\'.')->once();
-		$this->logger_mock->shouldReceive('debug')->with('EnqueueAbstract::process_single_style - Checking for inline styles for \'direct-style-2\'.')->once();
-		// Logs from process_inline_styles() for 'direct-style-2'
-		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::process_inline_styles (context: enqueue_styles) - Checking for inline styles for parent handle 'direct-style-2'.")->once();
-		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::process_inline_styles (context: enqueue_styles) - No inline styles found or processed for 'direct-style-2'.")->once();
-		// Log from process_single_style() finishing 'direct-style-2'
-		$this->logger_mock->shouldReceive('debug')->with('EnqueueAbstract::process_single_style - Finished processing style \'direct-style-2\'.')->once();
+		// Logs from _process_single_style() for 'direct-style-2'
+		$this->logger_mock->shouldReceive('debug')->with('EnqueueAbstract::_process_single_style - Processing style \'direct-style-2\' in context \'enqueue_styles\'.')->once();
+		$this->logger_mock->shouldReceive('debug')->with('EnqueueAbstract::_process_single_style - Registering style \'direct-style-2\'.')->once();
+		$this->logger_mock->shouldReceive('debug')->with('EnqueueAbstract::_process_single_style - Enqueuing style \'direct-style-2\'.')->once();
+		$this->logger_mock->shouldReceive('debug')->with('EnqueueAbstract::_process_single_style - Checking for inline styles for \'direct-style-2\'.')->once();
+		// Logs from _process_inline_styles() for 'direct-style-2'
+		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::_process_inline_styles (context: enqueue_styles) - Checking for inline styles for parent handle 'direct-style-2'.")->once();
+		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::_process_inline_styles (context: enqueue_styles) - No inline styles found or processed for 'direct-style-2'.")->once();
+		// Log from _process_single_style() finishing 'direct-style-2'
+		$this->logger_mock->shouldReceive('debug')->with('EnqueueAbstract::_process_single_style - Finished processing style \'direct-style-2\'.')->once();
 
 		// Final log from enqueue_styles()
 		$this->logger_mock->shouldReceive('debug')->with('EnqueueAbstract::enqueue_styles - Exited.')->once();
@@ -260,20 +260,20 @@ class EnqueueAbstractStylesTest extends PluginLibTestCase {
 
 		// Style 1 (fail) expectations
 		$this->logger_mock->shouldReceive('debug')->with('EnqueueAbstract::enqueue_styles - Processing style: "style-fail", original index: 0.')->once();
-		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::process_single_style - Processing style 'style-fail' in context 'enqueue_styles'.")->once();
-		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::process_single_style - Condition not met for style 'style-fail'. Skipping.")->once();
-		// No "Finished processing style 'style-fail'" log as process_single_style exits early.
+		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::_process_single_style - Processing style 'style-fail' in context 'enqueue_styles'.")->once();
+		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::_process_single_style - Condition not met for style 'style-fail'. Skipping.")->once();
+		// No "Finished processing style 'style-fail'" log as _process_single_style exits early.
 		// No registration, enqueueing, or inline style processing logs for style-fail.
 
 		// Style 2 (pass) expectations
 		$this->logger_mock->shouldReceive('debug')->with('EnqueueAbstract::enqueue_styles - Processing style: "style-pass", original index: 1.')->once();
-		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::process_single_style - Processing style 'style-pass' in context 'enqueue_styles'.")->once();
-		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::process_single_style - Registering style 'style-pass'.")->once();
-		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::process_single_style - Enqueuing style 'style-pass'.")->once();
-		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::process_single_style - Checking for inline styles for 'style-pass'.")->once();
-		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::process_inline_styles (context: enqueue_styles) - Checking for inline styles for parent handle 'style-pass'.")->once();
-		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::process_inline_styles (context: enqueue_styles) - No inline styles found or processed for 'style-pass'.")->once();
-		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::process_single_style - Finished processing style 'style-pass'.")->once();
+		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::_process_single_style - Processing style 'style-pass' in context 'enqueue_styles'.")->once();
+		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::_process_single_style - Registering style 'style-pass'.")->once();
+		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::_process_single_style - Enqueuing style 'style-pass'.")->once();
+		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::_process_single_style - Checking for inline styles for 'style-pass'.")->once();
+		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::_process_inline_styles (context: enqueue_styles) - Checking for inline styles for parent handle 'style-pass'.")->once();
+		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::_process_inline_styles (context: enqueue_styles) - No inline styles found or processed for 'style-pass'.")->once();
+		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::_process_single_style - Finished processing style 'style-pass'.")->once();
 
 		$this->logger_mock->shouldReceive('debug')->with('EnqueueAbstract::enqueue_styles - Exited.')->once();
 
@@ -334,10 +334,10 @@ class EnqueueAbstractStylesTest extends PluginLibTestCase {
 		    ->with('EnqueueAbstract::enqueue_styles - Processing style: "N/A", original index: 0.') // handle_for_log is 'N/A'
 		    ->once();
 		$this->logger_mock->shouldReceive('debug')
-		    ->with("EnqueueAbstract::process_single_style - Processing style 'N/A' in context 'enqueue_styles'.")
+		    ->with("EnqueueAbstract::_process_single_style - Processing style 'N/A' in context 'enqueue_styles'.")
 		    ->once();
 		$this->logger_mock->shouldReceive('warning')
-		    ->with("EnqueueAbstract::process_single_style - Invalid style definition. Missing handle or src. Skipping. Handle: 'N/A'.")
+		    ->with("EnqueueAbstract::_process_single_style - Invalid style definition. Missing handle or src. Skipping. Handle: 'N/A'.")
 		    ->once();
 
 		// Style 2 (missing src)
@@ -345,10 +345,10 @@ class EnqueueAbstractStylesTest extends PluginLibTestCase {
 		    ->with('EnqueueAbstract::enqueue_styles - Processing style: "missing-src-style", original index: 1.')
 		    ->once();
 		$this->logger_mock->shouldReceive('debug')
-		    ->with("EnqueueAbstract::process_single_style - Processing style 'missing-src-style' in context 'enqueue_styles'.")
+		    ->with("EnqueueAbstract::_process_single_style - Processing style 'missing-src-style' in context 'enqueue_styles'.")
 		    ->once();
 		$this->logger_mock->shouldReceive('warning')
-		    ->with("EnqueueAbstract::process_single_style - Invalid style definition. Missing handle or src. Skipping. Handle: 'missing-src-style'.")
+		    ->with("EnqueueAbstract::_process_single_style - Invalid style definition. Missing handle or src. Skipping. Handle: 'missing-src-style'.")
 		    ->once();
 
 		// Style 3 (valid)
@@ -356,25 +356,25 @@ class EnqueueAbstractStylesTest extends PluginLibTestCase {
 		    ->with('EnqueueAbstract::enqueue_styles - Processing style: "valid-style", original index: 2.')
 		    ->once();
 		$this->logger_mock->shouldReceive('debug')
-		    ->with("EnqueueAbstract::process_single_style - Processing style 'valid-style' in context 'enqueue_styles'.")
+		    ->with("EnqueueAbstract::_process_single_style - Processing style 'valid-style' in context 'enqueue_styles'.")
 		    ->once();
 		$this->logger_mock->shouldReceive('debug')
-		    ->with("EnqueueAbstract::process_single_style - Registering style 'valid-style'.")
+		    ->with("EnqueueAbstract::_process_single_style - Registering style 'valid-style'.")
 		    ->once();
 		$this->logger_mock->shouldReceive('debug')
-		    ->with("EnqueueAbstract::process_single_style - Enqueuing style 'valid-style'.")
+		    ->with("EnqueueAbstract::_process_single_style - Enqueuing style 'valid-style'.")
 		    ->once();
 		$this->logger_mock->shouldReceive('debug')
-		    ->with("EnqueueAbstract::process_single_style - Checking for inline styles for 'valid-style'.")
+		    ->with("EnqueueAbstract::_process_single_style - Checking for inline styles for 'valid-style'.")
 		    ->once();
 		$this->logger_mock->shouldReceive('debug')
-		    ->with("EnqueueAbstract::process_inline_styles (context: enqueue_styles) - Checking for inline styles for parent handle 'valid-style'.")
+		    ->with("EnqueueAbstract::_process_inline_styles (context: enqueue_styles) - Checking for inline styles for parent handle 'valid-style'.")
 		    ->once();
 		$this->logger_mock->shouldReceive('debug')
-		    ->with("EnqueueAbstract::process_inline_styles (context: enqueue_styles) - No inline styles found or processed for 'valid-style'.")
+		    ->with("EnqueueAbstract::_process_inline_styles (context: enqueue_styles) - No inline styles found or processed for 'valid-style'.")
 		    ->once();
 		$this->logger_mock->shouldReceive('debug')
-		    ->with("EnqueueAbstract::process_single_style - Finished processing style 'valid-style'.")
+		    ->with("EnqueueAbstract::_process_single_style - Finished processing style 'valid-style'.")
 		    ->once();
 
 		$this->logger_mock->shouldReceive('debug')
@@ -449,22 +449,22 @@ class EnqueueAbstractStylesTest extends PluginLibTestCase {
 		$this->logger_mock->shouldReceive('debug')->with('EnqueueAbstract::enqueue_styles - Entered. Processing 1 style definition(s).')->once();
 		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::enqueue_styles - Processing style: \"{$main_style_handle}\", original index: 0.")->once();
 
-		// Logs from process_single_style (context: 'enqueue_styles')
-		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::process_single_style - Processing style '{$main_style_handle}' in context 'enqueue_styles'.")->once()->ordered();
+		// Logs from _process_single_style (context: 'enqueue_styles')
+		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::_process_single_style - Processing style '{$main_style_handle}' in context 'enqueue_styles'.")->once()->ordered();
 		// REMOVED: Style status log, as it no longer exists
-		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::process_single_style - Registering style '{$main_style_handle}'.")->once()->ordered();
+		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::_process_single_style - Registering style '{$main_style_handle}'.")->once()->ordered();
 		// REMOVED: Registered style log, as it no longer exists
-		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::process_single_style - Enqueuing style '{$main_style_handle}'.")->once()->ordered();
+		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::_process_single_style - Enqueuing style '{$main_style_handle}'.")->once()->ordered();
 		// REMOVED: Enqueued style log, as it no longer exists
-		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::process_single_style - Checking for inline styles for '{$main_style_handle}'.")->once()->ordered();
+		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::_process_single_style - Checking for inline styles for '{$main_style_handle}'.")->once()->ordered();
 
-		// Logs from process_inline_styles (context: 'enqueue_styles', parent_handle: $main_style_handle)
-		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::process_inline_styles (context: enqueue_styles) - Checking for inline styles for parent handle '{$main_style_handle}'.")->once()->ordered();
-		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::process_inline_styles (context: enqueue_styles) - Adding inline style for '{$main_style_handle}' (key: {$inline_style_key}, position: after).")->once()->ordered();
-		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::process_inline_styles (context: enqueue_styles) - Removed processed inline style with key '{$inline_style_key}' for handle '{$main_style_handle}'.")->once()->ordered();
+		// Logs from _process_inline_styles (context: 'enqueue_styles', parent_handle: $main_style_handle)
+		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::_process_inline_styles (context: enqueue_styles) - Checking for inline styles for parent handle '{$main_style_handle}'.")->once()->ordered();
+		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::_process_inline_styles (context: enqueue_styles) - Adding inline style for '{$main_style_handle}' (key: {$inline_style_key}, position: after).")->once()->ordered();
+		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::_process_inline_styles (context: enqueue_styles) - Removed processed inline style with key '{$inline_style_key}' for handle '{$main_style_handle}'.")->once()->ordered();
 
-		// Log from process_single_style after inline styles
-		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::process_single_style - Finished processing style '{$main_style_handle}'.")->once()->ordered();
+		// Log from _process_single_style after inline styles
+		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::_process_single_style - Finished processing style '{$main_style_handle}'.")->once()->ordered();
 
 		// Log from enqueue_styles itself
 		$this->logger_mock->shouldReceive('debug')->with('EnqueueAbstract::enqueue_styles - Exited.')->once()->ordered();
@@ -534,20 +534,20 @@ class EnqueueAbstractStylesTest extends PluginLibTestCase {
 		$this->logger_mock->shouldReceive('debug')->with('EnqueueAbstract::enqueue_styles - Entered. Processing 1 style definition(s).')->once()->ordered();
 		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::enqueue_styles - Processing style: \"{$main_style_handle}\", original index: 0.")->once()->ordered();
 
-		// Logs from process_single_style (context: 'enqueue_styles')
-		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::process_single_style - Processing style '{$main_style_handle}' in context 'enqueue_styles'.")->once()->ordered();
-		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::process_single_style - Registering style '{$main_style_handle}'.")->once()->ordered();
-		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::process_single_style - Enqueuing style '{$main_style_handle}'.")->once()->ordered();
-		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::process_single_style - Checking for inline styles for '{$main_style_handle}'.")->once()->ordered();
+		// Logs from _process_single_style (context: 'enqueue_styles')
+		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::_process_single_style - Processing style '{$main_style_handle}' in context 'enqueue_styles'.")->once()->ordered();
+		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::_process_single_style - Registering style '{$main_style_handle}'.")->once()->ordered();
+		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::_process_single_style - Enqueuing style '{$main_style_handle}'.")->once()->ordered();
+		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::_process_single_style - Checking for inline styles for '{$main_style_handle}'.")->once()->ordered();
 
-		// Logs from process_inline_styles (context: 'enqueue_styles', parent_handle: $main_style_handle)
-		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::process_inline_styles (context: enqueue_styles) - Checking for inline styles for parent handle '{$main_style_handle}'.")->once()->ordered();
+		// Logs from _process_inline_styles (context: 'enqueue_styles', parent_handle: $main_style_handle)
+		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::_process_inline_styles (context: enqueue_styles) - Checking for inline styles for parent handle '{$main_style_handle}'.")->once()->ordered();
 		// REMOVED: Condition ... is TRUE log, as it doesn't exist.
-		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::process_inline_styles (context: enqueue_styles) - Adding inline style for '{$main_style_handle}' (key: {$inline_style_key_true}, position: after).")->once()->ordered(); // Position 'after' is from the inline style definition
-		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::process_inline_styles (context: enqueue_styles) - Removed processed inline style with key '{$inline_style_key_true}' for handle '{$main_style_handle}'.")->once()->ordered();
+		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::_process_inline_styles (context: enqueue_styles) - Adding inline style for '{$main_style_handle}' (key: {$inline_style_key_true}, position: after).")->once()->ordered(); // Position 'after' is from the inline style definition
+		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::_process_inline_styles (context: enqueue_styles) - Removed processed inline style with key '{$inline_style_key_true}' for handle '{$main_style_handle}'.")->once()->ordered();
 
-		// Log from process_single_style after inline styles
-		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::process_single_style - Finished processing style '{$main_style_handle}'.")->once()->ordered();
+		// Log from _process_single_style after inline styles
+		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::_process_single_style - Finished processing style '{$main_style_handle}'.")->once()->ordered();
 
 		// Log from enqueue_styles itself
 		$this->logger_mock->shouldReceive('debug')->with('EnqueueAbstract::enqueue_styles - Exited.')->once()->ordered();
@@ -582,20 +582,20 @@ class EnqueueAbstractStylesTest extends PluginLibTestCase {
 		$this->logger_mock->shouldReceive('debug')->with('EnqueueAbstract::enqueue_styles - Entered. Processing 1 style definition(s).')->once()->ordered();
 		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::enqueue_styles - Processing style: \"{$main_style_handle}\", original index: 0.")->once()->ordered();
 
-		// Logs from process_single_style (context: 'enqueue_styles', handle: $main_style_handle)
-		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::process_single_style - Processing style '{$main_style_handle}' in context 'enqueue_styles'.")->once()->ordered();
-		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::process_single_style - Registering style '{$main_style_handle}'.")->once()->ordered();
-		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::process_single_style - Enqueuing style '{$main_style_handle}'.")->once()->ordered();
-		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::process_single_style - Checking for inline styles for '{$main_style_handle}'.")->once()->ordered();
+		// Logs from _process_single_style (context: 'enqueue_styles', handle: $main_style_handle)
+		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::_process_single_style - Processing style '{$main_style_handle}' in context 'enqueue_styles'.")->once()->ordered();
+		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::_process_single_style - Registering style '{$main_style_handle}'.")->once()->ordered();
+		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::_process_single_style - Enqueuing style '{$main_style_handle}'.")->once()->ordered();
+		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::_process_single_style - Checking for inline styles for '{$main_style_handle}'.")->once()->ordered();
 
-		// Logs from process_inline_styles (context: 'enqueue_styles', parent_handle: $main_style_handle)
-		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::process_inline_styles (context: enqueue_styles) - Checking for inline styles for parent handle '{$main_style_handle}'.")->once()->ordered();
-		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::process_inline_styles (context: enqueue_styles) - Condition false for inline style targeting '{$main_style_handle}' (key: {$inline_style_key_false}).")->once()->ordered();
+		// Logs from _process_inline_styles (context: 'enqueue_styles', parent_handle: $main_style_handle)
+		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::_process_inline_styles (context: enqueue_styles) - Checking for inline styles for parent handle '{$main_style_handle}'.")->once()->ordered();
+		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::_process_inline_styles (context: enqueue_styles) - Condition false for inline style targeting '{$main_style_handle}' (key: {$inline_style_key_false}).")->once()->ordered();
 		// The inline style is still removed from the internal array even if skipped
-		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::process_inline_styles (context: enqueue_styles) - Removed processed inline style with key '{$inline_style_key_false}' for handle '{$main_style_handle}'.")->once()->ordered();
+		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::_process_inline_styles (context: enqueue_styles) - Removed processed inline style with key '{$inline_style_key_false}' for handle '{$main_style_handle}'.")->once()->ordered();
 
-		// Log from process_single_style after inline styles
-		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::process_single_style - Finished processing style '{$main_style_handle}'.")->once()->ordered();
+		// Log from _process_single_style after inline styles
+		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::_process_single_style - Finished processing style '{$main_style_handle}'.")->once()->ordered();
 
 		// Log from enqueue_styles itself
 		$this->logger_mock->shouldReceive('debug')->with('EnqueueAbstract::enqueue_styles - Exited.')->once()->ordered();
@@ -635,19 +635,19 @@ class EnqueueAbstractStylesTest extends PluginLibTestCase {
 		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::enqueue_deferred_styles - Processing deferred style: \"{$style_def['handle']}\" (original index 0) for hook: \"{$hook_name}\".")->once()->ordered();
 
 		// (wp_style_is calls will return false for 'registered' and 'enqueued' as per WP_Mock setup below)
-		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::process_single_style - Processing style '{$style_def['handle']}' on hook '{$hook_name}' in context 'enqueue_deferred'.")->once()->ordered();
+		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::_process_single_style - Processing style '{$style_def['handle']}' on hook '{$hook_name}' in context 'enqueue_deferred'.")->once()->ordered();
 		// No 'Condition not met' log as condition is null for $style_def.
-		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::process_single_style - Registering style '{$style_def['handle']}' on hook '{$hook_name}'.")->once()->ordered();
-		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::process_single_style - Enqueuing style '{$style_def['handle']}' on hook '{$hook_name}'.")->once()->ordered();
-		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::process_single_style - Checking for inline styles for '{$style_def['handle']}' on hook '{$hook_name}'.")->once()->ordered();
+		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::_process_single_style - Registering style '{$style_def['handle']}' on hook '{$hook_name}'.")->once()->ordered();
+		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::_process_single_style - Enqueuing style '{$style_def['handle']}' on hook '{$hook_name}'.")->once()->ordered();
+		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::_process_single_style - Checking for inline styles for '{$style_def['handle']}' on hook '{$hook_name}'.")->once()->ordered();
 
-		// Logs from process_inline_styles (called by process_single_style)
+		// Logs from _process_inline_styles (called by _process_single_style)
 		// This test doesn't set up inline styles for $style_def, so it should log that none were found.
-		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::process_inline_styles (context: enqueue_deferred) - Checking for inline styles for parent handle '{$style_def['handle']}' on hook '{$hook_name}'.")->once()->ordered();
-		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::process_inline_styles (context: enqueue_deferred) - No inline styles found or processed for '{$style_def['handle']}' on hook '{$hook_name}'.")->once()->ordered();
+		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::_process_inline_styles (context: enqueue_deferred) - Checking for inline styles for parent handle '{$style_def['handle']}' on hook '{$hook_name}'.")->once()->ordered();
+		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::_process_inline_styles (context: enqueue_deferred) - No inline styles found or processed for '{$style_def['handle']}' on hook '{$hook_name}'.")->once()->ordered();
 
-		// Final log from process_single_style
-		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::process_single_style - Finished processing style '{$style_def['handle']}' on hook '{$hook_name}'.")->once()->ordered();
+		// Final log from _process_single_style
+		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::_process_single_style - Finished processing style '{$style_def['handle']}' on hook '{$hook_name}'.")->once()->ordered();
 
 		// Final log from enqueue_deferred_styles itself
 		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::enqueue_deferred_styles - Exited for hook: \"{$hook_name}\".")->once()->ordered();
@@ -741,11 +741,11 @@ class EnqueueAbstractStylesTest extends PluginLibTestCase {
 		$this->logger_mock->shouldReceive('debug')
 			->with("EnqueueAbstract::enqueue_deferred_styles - Processing deferred style: \"{$style_def['handle']}\" (original index 0) for hook: \"{$hook_name}\".")
 			->once();
-		$this->logger_mock->shouldReceive('debug') // Log from process_single_style before condition check
-			->with("EnqueueAbstract::process_single_style - Processing style '{$style_def['handle']}' on hook '{$hook_name}' in context 'enqueue_deferred'.")
+		$this->logger_mock->shouldReceive('debug') // Log from _process_single_style before condition check
+			->with("EnqueueAbstract::_process_single_style - Processing style '{$style_def['handle']}' on hook '{$hook_name}' in context 'enqueue_deferred'.")
 			->once();
-		$this->logger_mock->shouldReceive('debug') // Corrected log from process_single_style for condition not met
-			->with("EnqueueAbstract::process_single_style - Condition not met for style '{$style_def['handle']}' on hook '{$hook_name}'. Skipping.")
+		$this->logger_mock->shouldReceive('debug') // Corrected log from _process_single_style for condition not met
+			->with("EnqueueAbstract::_process_single_style - Condition not met for style '{$style_def['handle']}' on hook '{$hook_name}'. Skipping.")
 			->once();
 		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::enqueue_deferred_styles - Exited for hook: \"{$hook_name}\".")->once();
 
@@ -799,18 +799,18 @@ class EnqueueAbstractStylesTest extends PluginLibTestCase {
 		$this->logger_mock->shouldReceive('debug')
 			->with("EnqueueAbstract::enqueue_deferred_styles - Processing deferred style: \"N/A_at_original_index_0\" (original index 0) for hook: \"{$hook_name}\".")
 			->once();
-		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::process_single_style - Processing style 'N/A' on hook '{$hook_name}' in context 'enqueue_deferred'.")->once();
+		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::_process_single_style - Processing style 'N/A' on hook '{$hook_name}' in context 'enqueue_deferred'.")->once();
 		$this->logger_mock->shouldReceive('warning')
-			->with("EnqueueAbstract::process_single_style - Invalid style definition. Missing handle or src. Skipping. Handle: 'N/A' on hook '{$hook_name}'.")
+			->with("EnqueueAbstract::_process_single_style - Invalid style definition. Missing handle or src. Skipping. Handle: 'N/A' on hook '{$hook_name}'.")
 			->once();
 
 		// For style_missing_src
 		$this->logger_mock->shouldReceive('debug')
 			->with("EnqueueAbstract::enqueue_deferred_styles - Processing deferred style: \"{$style_missing_src['handle']}\" (original index 1) for hook: \"{$hook_name}\".")
 			->once();
-		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::process_single_style - Processing style '{$style_missing_src['handle']}' on hook '{$hook_name}' in context 'enqueue_deferred'.")->once();
+		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::_process_single_style - Processing style '{$style_missing_src['handle']}' on hook '{$hook_name}' in context 'enqueue_deferred'.")->once();
 		$this->logger_mock->shouldReceive('warning')
-			->with("EnqueueAbstract::process_single_style - Invalid style definition. Missing handle or src. Skipping. Handle: '{$style_missing_src['handle']}' on hook '{$hook_name}'.")
+			->with("EnqueueAbstract::_process_single_style - Invalid style definition. Missing handle or src. Skipping. Handle: '{$style_missing_src['handle']}' on hook '{$hook_name}'.")
 			->once();
 		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::enqueue_deferred_styles - Exited for hook: \"{$hook_name}\".")->once(); // Added this line
 
@@ -869,29 +869,29 @@ class EnqueueAbstractStylesTest extends PluginLibTestCase {
 		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::enqueue_deferred_styles - Entered for hook: \"{$hook_name}\".")->once();
 		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::enqueue_deferred_styles - Processing deferred style: \"{$style_handle}\" (original index 0) for hook: \"{$hook_name}\".")->once();
 
-		// Logs from process_single_style (context: 'enqueue_deferred', hook: $hook_name, handle: $style_handle)
-		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::process_single_style - Processing style '{$style_handle}' on hook '{$hook_name}' in context 'enqueue_deferred'.")->once();
-		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::process_single_style - Registering style '{$style_handle}' on hook '{$hook_name}'.")->once();
-		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::process_single_style - Enqueuing style '{$style_handle}' on hook '{$hook_name}'.")->once();
-		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::process_single_style - Checking for inline styles for '{$style_handle}' on hook '{$hook_name}'.")->once();
+		// Logs from _process_single_style (context: 'enqueue_deferred', hook: $hook_name, handle: $style_handle)
+		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::_process_single_style - Processing style '{$style_handle}' on hook '{$hook_name}' in context 'enqueue_deferred'.")->once();
+		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::_process_single_style - Registering style '{$style_handle}' on hook '{$hook_name}'.")->once();
+		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::_process_single_style - Enqueuing style '{$style_handle}' on hook '{$hook_name}'.")->once();
+		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::_process_single_style - Checking for inline styles for '{$style_handle}' on hook '{$hook_name}'.")->once();
 
 		// Ensure that the 'Failed to register style' warning is NOT logged for the parent style
-		$regex_failed_to_register = "/^EnqueueAbstract::process_single_style - Failed to register style '{$style_handle}' on hook '{$hook_name}'. WP_Styles registration status: .*$/";
+		$regex_failed_to_register = "/^EnqueueAbstract::_process_single_style - Failed to register style '{$style_handle}' on hook '{$hook_name}'. WP_Styles registration status: .*$/";
 		$this->logger_mock->shouldNotReceive('warning')->with(Mockery::pattern($regex_failed_to_register));
 
-		// Logs from process_inline_styles (context: 'enqueue_deferred', parent_handle: $style_handle, hook: $hook_name)
-		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::process_inline_styles (context: enqueue_deferred) - Checking for inline styles for parent handle '{$style_handle}' on hook '{$hook_name}'.")->once();
-		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::process_inline_styles (context: enqueue_deferred) - Condition false for inline style targeting '{$style_handle}' (key: {$inline_style_key}) on hook '{$hook_name}'.")->once();
-		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::process_inline_styles (context: enqueue_deferred) - Removed processed inline style with key '{$inline_style_key}' for handle '{$style_handle}' on hook '{$hook_name}'.")->once(); // Still removed from array
+		// Logs from _process_inline_styles (context: 'enqueue_deferred', parent_handle: $style_handle, hook: $hook_name)
+		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::_process_inline_styles (context: enqueue_deferred) - Checking for inline styles for parent handle '{$style_handle}' on hook '{$hook_name}'.")->once();
+		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::_process_inline_styles (context: enqueue_deferred) - Condition false for inline style targeting '{$style_handle}' (key: {$inline_style_key}) on hook '{$hook_name}'.")->once();
+		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::_process_inline_styles (context: enqueue_deferred) - Removed processed inline style with key '{$inline_style_key}' for handle '{$style_handle}' on hook '{$hook_name}'.")->once(); // Still removed from array
 
-		// Log from process_single_style after processing inline styles
-		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::process_single_style - Finished processing style '{$style_handle}' on hook '{$hook_name}'.")->once();
+		// Log from _process_single_style after processing inline styles
+		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::_process_single_style - Finished processing style '{$style_handle}' on hook '{$hook_name}'.")->once();
 
 		// Log from enqueue_deferred_styles itself
 		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::enqueue_deferred_styles - Exited for hook: \"{$hook_name}\".")->once();
 
-		// Ensure 'Adding inline style' log from process_inline_styles is NOT called
-		$this->logger_mock->shouldNotReceive('debug')->with("EnqueueAbstract::process_inline_styles (context: enqueue_deferred) - Adding inline style for parent '{$style_handle}' (position: after).");
+		// Ensure 'Adding inline style' log from _process_inline_styles is NOT called
+		$this->logger_mock->shouldNotReceive('debug')->with("EnqueueAbstract::_process_inline_styles (context: enqueue_deferred) - Adding inline style for parent '{$style_handle}' (position: after).");
 
 		// --- WP_Mock Expectations ---
 		WP_Mock::userFunction('wp_style_is')->with($style_handle, 'registered')->once()->andReturn(false);
@@ -948,26 +948,26 @@ class EnqueueAbstractStylesTest extends PluginLibTestCase {
 		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::enqueue_deferred_styles - Entered for hook: \"{$hook_name}\".")->once()->ordered();
 		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::enqueue_deferred_styles - Processing deferred style: \"{$style_handle}\" (original index 0) for hook: \"{$hook_name}\".")->once()->ordered(); // Added (original index 0)
 
-		// Logs from process_single_style (called by enqueue_deferred_styles for the parent style)
-		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::process_single_style - Processing style '{$style_handle}' on hook '{$hook_name}' in context 'enqueue_deferred'.")->once()->ordered();
+		// Logs from _process_single_style (called by enqueue_deferred_styles for the parent style)
+		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::_process_single_style - Processing style '{$style_handle}' on hook '{$hook_name}' in context 'enqueue_deferred'.")->once()->ordered();
 		// Parent style condition is null, so it passes.
 		// wp_style_is(..., 'registered') returns false (mocked), so registration is attempted.
-		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::process_single_style - Registering style '{$style_handle}' on hook '{$hook_name}'.")->once()->ordered();
+		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::_process_single_style - Registering style '{$style_handle}' on hook '{$hook_name}'.")->once()->ordered();
 		// wp_style_is(..., 'enqueued') returns false (mocked), so enqueueing is attempted.
-		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::process_single_style - Enqueuing style '{$style_handle}' on hook '{$hook_name}'.")->once()->ordered();
-		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::process_single_style - Checking for inline styles for '{$style_handle}' on hook '{$hook_name}'.")->once()->ordered();
-		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::process_inline_styles (context: enqueue_deferred) - Checking for inline styles for parent handle '{$style_handle}' on hook '{$hook_name}'.")->once()->ordered();
+		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::_process_single_style - Enqueuing style '{$style_handle}' on hook '{$hook_name}'.")->once()->ordered();
+		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::_process_single_style - Checking for inline styles for '{$style_handle}' on hook '{$hook_name}'.")->once()->ordered();
+		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::_process_inline_styles (context: enqueue_deferred) - Checking for inline styles for parent handle '{$style_handle}' on hook '{$hook_name}'.")->once()->ordered();
 
-		// Logs from process_inline_styles (called by process_single_style)
+		// Logs from _process_inline_styles (called by _process_single_style)
 		// The inline style has missing content.
-		$this->logger_mock->shouldReceive('warning')->with("EnqueueAbstract::process_inline_styles (context: enqueue_deferred) - Empty content for inline style targeting '{$style_handle}' (key: {$inline_style_key}) on hook '{$hook_name}'. Skipping addition.")->once()->ordered();
+		$this->logger_mock->shouldReceive('warning')->with("EnqueueAbstract::_process_inline_styles (context: enqueue_deferred) - Empty content for inline style targeting '{$style_handle}' (key: {$inline_style_key}) on hook '{$hook_name}'. Skipping addition.")->once()->ordered();
 		// Ensure 'Adding inline style' and 'Removed processed inline style' are NOT logged for this specific inline style
-		$this->logger_mock->shouldNotReceive('debug')->with("EnqueueAbstract::process_inline_styles (context: enqueue_deferred) - Adding inline style for handle '{$style_handle}' (position 'after') on hook '{$hook_name}'.");
+		$this->logger_mock->shouldNotReceive('debug')->with("EnqueueAbstract::_process_inline_styles (context: enqueue_deferred) - Adding inline style for handle '{$style_handle}' (position 'after') on hook '{$hook_name}'.");
 		// The 'Removed processed inline style' log WILL occur because the key is added to keys_to_unset even if content is empty.
-		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::process_inline_styles (context: enqueue_deferred) - Removed processed inline style with key '{$inline_style_key}' for handle '{$style_handle}' on hook '{$hook_name}'.")->once()->ordered();
+		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::_process_inline_styles (context: enqueue_deferred) - Removed processed inline style with key '{$inline_style_key}' for handle '{$style_handle}' on hook '{$hook_name}'.")->once()->ordered();
 
-		// Log from process_single_style (finishing parent style)
-		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::process_single_style - Finished processing style '{$style_handle}' on hook '{$hook_name}'.")->once()->ordered();
+		// Log from _process_single_style (finishing parent style)
+		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::_process_single_style - Finished processing style '{$style_handle}' on hook '{$hook_name}'.")->once()->ordered();
 
 		// Log from enqueue_deferred_styles itself (exiting)
 		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::enqueue_deferred_styles - Exited for hook: \"{$hook_name}\".")->once()->ordered();
@@ -1026,22 +1026,22 @@ class EnqueueAbstractStylesTest extends PluginLibTestCase {
 		$this->logger_mock->shouldReceive('debug')->with('EnqueueAbstract::enqueue_styles - Entered. Processing 1 style definition(s).')->once()->ordered();
 		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::enqueue_styles - Processing style: \"{$main_style_handle}\", original index: 0.")->once()->ordered();
 
-		// Logs from process_single_style (context: 'enqueue_styles')
-		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::process_single_style - Processing style '{$main_style_handle}' in context 'enqueue_styles'.")->once()->ordered();
-		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::process_single_style - Registering style '{$main_style_handle}'.")->once()->ordered();
-		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::process_single_style - Enqueuing style '{$main_style_handle}'.")->once()->ordered();
-		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::process_single_style - Checking for inline styles for '{$main_style_handle}'.")->once()->ordered();
+		// Logs from _process_single_style (context: 'enqueue_styles')
+		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::_process_single_style - Processing style '{$main_style_handle}' in context 'enqueue_styles'.")->once()->ordered();
+		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::_process_single_style - Registering style '{$main_style_handle}'.")->once()->ordered();
+		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::_process_single_style - Enqueuing style '{$main_style_handle}'.")->once()->ordered();
+		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::_process_single_style - Checking for inline styles for '{$main_style_handle}'.")->once()->ordered();
 
-		// Logs from process_inline_styles (context: 'enqueue_styles', parent_handle: $main_style_handle)
-		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::process_inline_styles (context: enqueue_styles) - Checking for inline styles for parent handle '{$main_style_handle}'.")->once()->ordered();
-		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::process_inline_styles (context: enqueue_styles) - No inline styles found or processed for '{$main_style_handle}'.")->once()->ordered();
+		// Logs from _process_inline_styles (context: 'enqueue_styles', parent_handle: $main_style_handle)
+		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::_process_inline_styles (context: enqueue_styles) - Checking for inline styles for parent handle '{$main_style_handle}'.")->once()->ordered();
+		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::_process_inline_styles (context: enqueue_styles) - No inline styles found or processed for '{$main_style_handle}'.")->once()->ordered();
 
-		// Log from process_single_style (finishing parent style)
-		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::process_single_style - Finished processing style '{$main_style_handle}'.")->once()->ordered();
+		// Log from _process_single_style (finishing parent style)
+		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::_process_single_style - Finished processing style '{$main_style_handle}'.")->once()->ordered();
 
-		// Crucially, no logs for adding or removing this specific inline style from process_inline_styles
-		$this->logger_mock->shouldNotReceive('debug')->with("EnqueueAbstract::process_inline_styles (context: enqueue_styles) - Adding inline style for parent '{$main_style_handle}'.");
-		$this->logger_mock->shouldNotReceive('debug')->with("EnqueueAbstract::process_inline_styles (context: enqueue_styles) - Removed processed inline style with key '{$inline_style_key_deferred}'.");
+		// Crucially, no logs for adding or removing this specific inline style from _process_inline_styles
+		$this->logger_mock->shouldNotReceive('debug')->with("EnqueueAbstract::_process_inline_styles (context: enqueue_styles) - Adding inline style for parent '{$main_style_handle}'.");
+		$this->logger_mock->shouldNotReceive('debug')->with("EnqueueAbstract::_process_inline_styles (context: enqueue_styles) - Removed processed inline style with key '{$inline_style_key_deferred}'.");
 
 		// Log from enqueue_styles itself
 		$this->logger_mock->shouldReceive('debug')->with('EnqueueAbstract::enqueue_styles - Exited.')->once()->ordered();
@@ -1498,22 +1498,22 @@ class EnqueueAbstractStylesTest extends PluginLibTestCase {
 		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::enqueue_deferred_styles - Entered for hook: \"{$hook_name}\".")->once()->ordered();
 		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::enqueue_deferred_styles - Processing deferred style: \"{$style_handle}\" (original index 0) for hook: \"{$hook_name}\".")->once()->ordered();
 
-		// Logs from process_single_style (context: 'enqueue_deferred', hook: $hook_name)
-		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::process_single_style - Processing style '{$style_handle}' on hook '{$hook_name}' in context 'enqueue_deferred'.")->once()->ordered();
+		// Logs from _process_single_style (context: 'enqueue_deferred', hook: $hook_name)
+		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::_process_single_style - Processing style '{$style_handle}' on hook '{$hook_name}' in context 'enqueue_deferred'.")->once()->ordered();
 		// No 'Style status' log expected here.
-		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::process_single_style - Registering style '{$style_handle}' on hook '{$hook_name}'.")->once()->ordered();
+		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::_process_single_style - Registering style '{$style_handle}' on hook '{$hook_name}'.")->once()->ordered();
 		// No 'Registered style' (after WP call) log expected here.
-		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::process_single_style - Enqueuing style '{$style_handle}' on hook '{$hook_name}'.")->once()->ordered();
+		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::_process_single_style - Enqueuing style '{$style_handle}' on hook '{$hook_name}'.")->once()->ordered();
 		// No 'Enqueued style' (after WP call) log expected here.
-		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::process_single_style - Checking for inline styles for '{$style_handle}' on hook '{$hook_name}'.")->once()->ordered();
+		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::_process_single_style - Checking for inline styles for '{$style_handle}' on hook '{$hook_name}'.")->once()->ordered();
 
-		// Logs from process_inline_styles (context: 'enqueue_deferred', parent_handle: $style_handle, hook: $hook_name)
+		// Logs from _process_inline_styles (context: 'enqueue_deferred', parent_handle: $style_handle, hook: $hook_name)
 		// This test doesn't set up inline styles, so it should log that none were found.
-		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::process_inline_styles (context: enqueue_deferred) - Checking for inline styles for parent handle '{$style_handle}' on hook '{$hook_name}'.")->once()->ordered();
-		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::process_inline_styles (context: enqueue_deferred) - No inline styles found or processed for '{$style_handle}' on hook '{$hook_name}'.")->once()->ordered();
+		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::_process_inline_styles (context: enqueue_deferred) - Checking for inline styles for parent handle '{$style_handle}' on hook '{$hook_name}'.")->once()->ordered();
+		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::_process_inline_styles (context: enqueue_deferred) - No inline styles found or processed for '{$style_handle}' on hook '{$hook_name}'.")->once()->ordered();
 
-		// Log from process_single_style after processing inline styles
-		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::process_single_style - Finished processing style '{$style_handle}' on hook '{$hook_name}'.")->once()->ordered();
+		// Log from _process_single_style after processing inline styles
+		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::_process_single_style - Finished processing style '{$style_handle}' on hook '{$hook_name}'.")->once()->ordered();
 
 		// Log from enqueue_deferred_styles itself
 		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::enqueue_deferred_styles - Exited for hook: \"{$hook_name}\".")->once()->ordered();
@@ -1609,45 +1609,45 @@ class EnqueueAbstractStylesTest extends PluginLibTestCase {
 
 		// Style 1 (deferred-style-1-on-hook) - Processed (original index 0)
 		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::enqueue_deferred_styles - Processing deferred style: \"{$deferred_style_1_handle}\" (original index 0) for hook: \"{$hook_name}\".")->once()->ordered();
-		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::process_single_style - Processing style '{$deferred_style_1_handle}' on hook '{$hook_name}' in context 'enqueue_deferred'.")->once()->ordered();
-		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::process_single_style - Registering style '{$deferred_style_1_handle}' on hook '{$hook_name}'.")->once()->ordered();
-		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::process_single_style - Enqueuing style '{$deferred_style_1_handle}' on hook '{$hook_name}'.")->once()->ordered();
-		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::process_single_style - Checking for inline styles for '{$deferred_style_1_handle}' on hook '{$hook_name}'.")->once()->ordered();
+		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::_process_single_style - Processing style '{$deferred_style_1_handle}' on hook '{$hook_name}' in context 'enqueue_deferred'.")->once()->ordered();
+		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::_process_single_style - Registering style '{$deferred_style_1_handle}' on hook '{$hook_name}'.")->once()->ordered();
+		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::_process_single_style - Enqueuing style '{$deferred_style_1_handle}' on hook '{$hook_name}'.")->once()->ordered();
+		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::_process_single_style - Checking for inline styles for '{$deferred_style_1_handle}' on hook '{$hook_name}'.")->once()->ordered();
 		// Inline style 'inline_key_1' for deferred_style_1_handle (condition true)
 		$this->logger_mock->shouldReceive('debug')
-            ->with("EnqueueAbstract::process_inline_styles (context: enqueue_deferred) - Checking for inline styles for parent handle '{$deferred_style_1_handle}' on hook '{$hook_name}'.")
+            ->with("EnqueueAbstract::_process_inline_styles (context: enqueue_deferred) - Checking for inline styles for parent handle '{$deferred_style_1_handle}' on hook '{$hook_name}'.")
             ->ordered();
 		$this->logger_mock->shouldReceive('debug')
-		    ->with("EnqueueAbstract::process_inline_styles (context: enqueue_deferred) - Condition callback for inline style key: inline_key_1 for parent handle: {$deferred_style_1_handle} on hook: {$hook_name} evaluated to true.")
+		    ->with("EnqueueAbstract::_process_inline_styles (context: enqueue_deferred) - Condition callback for inline style key: inline_key_1 for parent handle: {$deferred_style_1_handle} on hook: {$hook_name} evaluated to true.")
 		    ->ordered();
 		// wp_add_inline_style is NOT called for inline_key_1
 		// Logger "Added inline style key: inline_key_1..." is NOT called
 		// Based on assertEmpty failure, inline_key_1 is NOT unset, so "Removed processed..." log is NOT made.
 		$this->logger_mock->shouldReceive('debug')
-		    ->with("EnqueueAbstract::process_inline_styles (context: enqueue_deferred) - No inline styles found or processed for '{$deferred_style_1_handle}' on hook '{$hook_name}'.") // This matches previous errors
+		    ->with("EnqueueAbstract::_process_inline_styles (context: enqueue_deferred) - No inline styles found or processed for '{$deferred_style_1_handle}' on hook '{$hook_name}'.") // This matches previous errors
 		    ->ordered();
-		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::process_single_style - Finished processing style '{$deferred_style_1_handle}' on hook '{$hook_name}'.")->once()->ordered();
+		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::_process_single_style - Finished processing style '{$deferred_style_1_handle}' on hook '{$hook_name}'.")->once()->ordered();
 
 		// Style 2 (deferred-style-2-skipped-condition) - Skipped by condition (original index 1)
 		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::enqueue_deferred_styles - Processing deferred style: \"{$deferred_style_2_handle}\" (original index 1) for hook: \"{$hook_name}\".")->once()->ordered();
-		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::process_single_style - Processing style '{$deferred_style_2_handle}' on hook '{$hook_name}' in context 'enqueue_deferred'.")->once()->ordered();
-		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::process_single_style - Condition not met for style '{$deferred_style_2_handle}' on hook '{$hook_name}'. Skipping.")->once()->ordered();
+		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::_process_single_style - Processing style '{$deferred_style_2_handle}' on hook '{$hook_name}' in context 'enqueue_deferred'.")->once()->ordered();
+		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::_process_single_style - Condition not met for style '{$deferred_style_2_handle}' on hook '{$hook_name}'. Skipping.")->once()->ordered();
 		// No 'Finished processing' log for skipped style
 
 		// Style 3 (deferred-style-3-no-condition) - Processed (original index 2)
 		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::enqueue_deferred_styles - Processing deferred style: \"{$deferred_style_3_handle}\" (original index 2) for hook: \"{$hook_name}\".")->once()->ordered();
-		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::process_single_style - Processing style '{$deferred_style_3_handle}' on hook '{$hook_name}' in context 'enqueue_deferred'.")->once()->ordered();
-		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::process_single_style - Registering style '{$deferred_style_3_handle}' on hook '{$hook_name}'.")->once()->ordered();
-		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::process_single_style - Enqueuing style '{$deferred_style_3_handle}' on hook '{$hook_name}'.")->once()->ordered();
-		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::process_single_style - Checking for inline styles for '{$deferred_style_3_handle}' on hook '{$hook_name}'.")->once()->ordered();
+		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::_process_single_style - Processing style '{$deferred_style_3_handle}' on hook '{$hook_name}' in context 'enqueue_deferred'.")->once()->ordered();
+		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::_process_single_style - Registering style '{$deferred_style_3_handle}' on hook '{$hook_name}'.")->once()->ordered();
+		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::_process_single_style - Enqueuing style '{$deferred_style_3_handle}' on hook '{$hook_name}'.")->once()->ordered();
+		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::_process_single_style - Checking for inline styles for '{$deferred_style_3_handle}' on hook '{$hook_name}'.")->once()->ordered();
 		// Inline styles for deferred_style_3_handle
-		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::process_inline_styles (context: enqueue_deferred) - Checking for inline styles for parent handle '{$deferred_style_3_handle}' on hook '{$hook_name}'.")->once()->ordered();
+		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::_process_inline_styles (context: enqueue_deferred) - Checking for inline styles for parent handle '{$deferred_style_3_handle}' on hook '{$hook_name}'.")->once()->ordered();
 		// -> Inline style 'inline_key_4' (numeric key 2) for deferred_style_3_handle (condition false)
 		$this->logger_mock->shouldReceive('debug')
-            ->with("EnqueueAbstract::process_inline_styles (context: enqueue_deferred) - Adding inline style for '{$deferred_style_3_handle}' (key: 2, position: after) on hook '{$hook_name}'.") // Logged before condition check
+            ->with("EnqueueAbstract::_process_inline_styles (context: enqueue_deferred) - Adding inline style for '{$deferred_style_3_handle}' (key: 2, position: after) on hook '{$hook_name}'.") // Logged before condition check
             ->ordered();
 		$this->logger_mock->shouldReceive('debug')
-		    ->with("EnqueueAbstract::process_inline_styles (context: enqueue_deferred) - Condition callback for inline style key: 2 for parent handle: {$deferred_style_3_handle} on hook: {$hook_name} evaluated to false.")
+		    ->with("EnqueueAbstract::_process_inline_styles (context: enqueue_deferred) - Condition callback for inline style key: 2 for parent handle: {$deferred_style_3_handle} on hook: {$hook_name} evaluated to false.")
 		    ->ordered();
 		// wp_add_inline_style is NOT called for key 2
 		// Logger "Added inline style key: 2..." is NOT called
@@ -1655,21 +1655,21 @@ class EnqueueAbstractStylesTest extends PluginLibTestCase {
 
 		// -> Inline style 'inline_key_5' (numeric key 3) for deferred_style_3_handle (no condition, so true)
 		$this->logger_mock->shouldReceive('debug')
-		    ->with("EnqueueAbstract::process_inline_styles (context: enqueue_deferred) - Adding inline style for '{$deferred_style_3_handle}' (key: 3, position: after) on hook '{$hook_name}'.") // Logged before wp_add_inline_style attempt
+		    ->with("EnqueueAbstract::_process_inline_styles (context: enqueue_deferred) - Adding inline style for '{$deferred_style_3_handle}' (key: 3, position: after) on hook '{$hook_name}'.") // Logged before wp_add_inline_style attempt
 		    ->ordered();
 		// Condition is implicitly true as it's not set for inline_key_5
 		// WP_Mock::wp_add_inline_style is NOT called for key 3 (based on SUT error)
 		// Logger "Added inline style key: 3..." is NOT called
 		// Based on assertEmpty failure for deferred_style_1_handle, key 3 is NOT unset, so "Removed processed..." log is NOT made.
 		$this->logger_mock->shouldReceive('debug')
-		    ->with("EnqueueAbstract::process_inline_styles (context: enqueue_deferred) - No inline styles found or processed for '{$deferred_style_3_handle}' on hook '{$hook_name}'.") // This matches the error
+		    ->with("EnqueueAbstract::_process_inline_styles (context: enqueue_deferred) - No inline styles found or processed for '{$deferred_style_3_handle}' on hook '{$hook_name}'.") // This matches the error
 		    ->ordered();
-		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::process_single_style - Finished processing style '{$deferred_style_3_handle}' on hook '{$hook_name}'.")->once()->ordered();
+		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::_process_single_style - Finished processing style '{$deferred_style_3_handle}' on hook '{$hook_name}'.")->once()->ordered();
 
 		// Style 4 (invalid-style-no-src) - Warning (original index 3)
 		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::enqueue_deferred_styles - Processing deferred style: \"invalid-style-no-src\" (original index 3) for hook: \"{$hook_name}\".")->once()->ordered();
-		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::process_single_style - Processing style 'invalid-style-no-src' on hook '{$hook_name}' in context 'enqueue_deferred'.")->once()->ordered();
-		$this->logger_mock->shouldReceive('warning')->with("EnqueueAbstract::process_single_style - Invalid style definition. Missing handle or src. Skipping. Handle: 'invalid-style-no-src' on hook '{$hook_name}'.")->once()->ordered();
+		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::_process_single_style - Processing style 'invalid-style-no-src' on hook '{$hook_name}' in context 'enqueue_deferred'.")->once()->ordered();
+		$this->logger_mock->shouldReceive('warning')->with("EnqueueAbstract::_process_single_style - Invalid style definition. Missing handle or src. Skipping. Handle: 'invalid-style-no-src' on hook '{$hook_name}'.")->once()->ordered();
 		// No 'Finished processing' log for invalid style
 
 		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::enqueue_deferred_styles - Exited for hook: \"{$hook_name}\".")->once()->ordered();
@@ -1767,10 +1767,10 @@ class EnqueueAbstractStylesTest extends PluginLibTestCase {
 		// Back to register_styles logging
 		$this->logger_mock->shouldReceive('debug')->with('EnqueueAbstract::register_styles - Processing 1 style definition(s) for registration.')->once()->ordered();
 		$this->logger_mock->shouldReceive('debug')->with('EnqueueAbstract::register_styles - Attempting to process style: "test-style", original index: 0.')->once()->ordered();
-		// Logs from process_single_style (context: 'register_styles', handle: 'test-style', hook_name: null)
-		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::process_single_style - Processing style 'test-style' in context 'register_styles'.")->once()->ordered();
-		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::process_single_style - Registering style 'test-style'.")->once()->ordered();
-		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::process_single_style - Finished processing style 'test-style'.")->once()->ordered();
+		// Logs from _process_single_style (context: 'register_styles', handle: 'test-style', hook_name: null)
+		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::_process_single_style - Processing style 'test-style' in context 'register_styles'.")->once()->ordered();
+		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::_process_single_style - Registering style 'test-style'.")->once()->ordered();
+		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::_process_single_style - Finished processing style 'test-style'.")->once()->ordered();
 
 		WP_Mock::userFunction('wp_register_style', array(
 			'times' => 1,
@@ -1978,7 +1978,7 @@ class EnqueueAbstractStylesTest extends PluginLibTestCase {
 	/**
 	 * @test
 	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAbstract::enqueue_styles
-	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAbstract::process_single_style
+	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAbstract::_process_single_style
 	 */
 	public function test_enqueue_styles_immediate_style_empty_handle_logs_warning_and_skips(): void {
 		$style_src         = 'path/to/valid-for-empty-handle.css';
@@ -2000,12 +2000,12 @@ class EnqueueAbstractStylesTest extends PluginLibTestCase {
 			->with('EnqueueAbstract::enqueue_styles - Processing style: "", original index: 0.')
 			->once();
 
-		// process_single_style logs (handle is also an empty string here)
+		// _process_single_style logs (handle is also an empty string here)
 		$this->logger_mock->shouldReceive('debug')
-			->with("EnqueueAbstract::process_single_style - Processing style '' in context 'enqueue_styles'.")
+			->with("EnqueueAbstract::_process_single_style - Processing style '' in context 'enqueue_styles'.")
 			->once();
 		$this->logger_mock->shouldReceive('warning')
-			->with("EnqueueAbstract::process_single_style - Invalid style definition. Missing handle or src. Skipping. Handle: ''.")
+			->with("EnqueueAbstract::_process_single_style - Invalid style definition. Missing handle or src. Skipping. Handle: ''.")
 			->once();
 
 		$this->logger_mock->shouldReceive('debug')
@@ -2037,7 +2037,7 @@ class EnqueueAbstractStylesTest extends PluginLibTestCase {
 	/**
 	 * @test
 	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAbstract::enqueue_styles
-	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAbstract::process_single_style
+	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAbstract::_process_single_style
 	 */
 	public function test_enqueue_styles_immediate_style_empty_src_logs_warning_and_skips(): void {
 		$style_handle      = 'valid-handle-empty-src';
@@ -2059,10 +2059,10 @@ class EnqueueAbstractStylesTest extends PluginLibTestCase {
 			->once();
 
 		$this->logger_mock->shouldReceive('debug')
-			->with("EnqueueAbstract::process_single_style - Processing style '{$style_handle}' in context 'enqueue_styles'.")
+			->with("EnqueueAbstract::_process_single_style - Processing style '{$style_handle}' in context 'enqueue_styles'.")
 			->once();
 		$this->logger_mock->shouldReceive('warning')
-			->with("EnqueueAbstract::process_single_style - Invalid style definition. Missing handle or src. Skipping. Handle: '{$style_handle}'.")
+			->with("EnqueueAbstract::_process_single_style - Invalid style definition. Missing handle or src. Skipping. Handle: '{$style_handle}'.")
 			->once();
 
 		$this->logger_mock->shouldReceive('debug')
@@ -2127,8 +2127,8 @@ class EnqueueAbstractStylesTest extends PluginLibTestCase {
 	 * @test
 	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAbstract::enqueue_deferred_styles
 	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAbstract::enqueue_styles
-	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAbstract::process_single_style
-	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAbstract::process_inline_styles
+	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAbstract::_process_single_style
+	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAbstract::_process_inline_styles
 	 */
 	public function test_enqueue_deferred_styles_processes_single_style_correctly(): void {
 		$hook_name    = 'my_custom_deferred_hook';
@@ -2163,28 +2163,28 @@ class EnqueueAbstractStylesTest extends PluginLibTestCase {
 		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::enqueue_deferred_styles - Entered for hook: \"{$hook_name}\".")->once()->ordered();
 		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::enqueue_deferred_styles - Processing deferred style: \"{$style_handle}\" (original index {$original_idx}) for hook: \"{$hook_name}\".")->once()->ordered();
 
-		// Logger expectations for process_single_style() called from enqueue_deferred_styles()
-		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::process_single_style - Processing style '{$style_handle}' on hook '{$hook_name}' in context 'enqueue_deferred'.")->once()->ordered();
+		// Logger expectations for _process_single_style() called from enqueue_deferred_styles()
+		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::_process_single_style - Processing style '{$style_handle}' on hook '{$hook_name}' in context 'enqueue_deferred'.")->once()->ordered();
 		WP_Mock::userFunction('wp_style_is')->with($style_handle, 'registered')->andReturn(false)->once();
-		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::process_single_style - Registering style '{$style_handle}' on hook '{$hook_name}'.")->once()->ordered();
+		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::_process_single_style - Registering style '{$style_handle}' on hook '{$hook_name}'.")->once()->ordered();
 		WP_Mock::userFunction('wp_register_style')->with($style_handle, $style_src, array(), false, 'all')->once();
 
 		WP_Mock::userFunction('wp_style_is')->with($style_handle, 'enqueued')->andReturn(false)->once();
-		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::process_single_style - Enqueuing style '{$style_handle}' on hook '{$hook_name}'.")->once()->ordered();
+		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::_process_single_style - Enqueuing style '{$style_handle}' on hook '{$hook_name}'.")->once()->ordered();
 		WP_Mock::userFunction('wp_enqueue_style')->with($style_handle)->once();
 
-		// Logger expectations for process_single_style() indicating it will check for inline styles
-		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::process_single_style - Checking for inline styles for '{$style_handle}' on hook '{$hook_name}'.")->once()->ordered();
+		// Logger expectations for _process_single_style() indicating it will check for inline styles
+		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::_process_single_style - Checking for inline styles for '{$style_handle}' on hook '{$hook_name}'.")->once()->ordered();
 
-		// Logger expectations for process_inline_styles() itself
+		// Logger expectations for _process_inline_styles() itself
 		$this->logger_mock->shouldReceive('debug')
-			->with("EnqueueAbstract::process_inline_styles (context: enqueue_deferred) - Checking for inline styles for parent handle '{$style_handle}' on hook '{$hook_name}'.")
+			->with("EnqueueAbstract::_process_inline_styles (context: enqueue_deferred) - Checking for inline styles for parent handle '{$style_handle}' on hook '{$hook_name}'.")
 			->once();
 		$this->logger_mock->shouldReceive('debug')
-			->with("EnqueueAbstract::process_inline_styles (context: enqueue_deferred) - No inline styles found or processed for '{$style_handle}' on hook '{$hook_name}'.")
+			->with("EnqueueAbstract::_process_inline_styles (context: enqueue_deferred) - No inline styles found or processed for '{$style_handle}' on hook '{$hook_name}'.")
 			->once();
 
-		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::process_single_style - Finished processing style '{$style_handle}' on hook '{$hook_name}'.")->once()->ordered();
+		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::_process_single_style - Finished processing style '{$style_handle}' on hook '{$hook_name}'.")->once()->ordered();
 
 		// Final log for enqueue_deferred_styles()
 		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::enqueue_deferred_styles - Exited for hook: \"{$hook_name}\".")->once()->ordered();
@@ -2200,8 +2200,8 @@ class EnqueueAbstractStylesTest extends PluginLibTestCase {
 	 * @test
 	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAbstract::enqueue_deferred_styles
 	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAbstract::enqueue_styles
-	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAbstract::process_single_style
-	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAbstract::process_inline_styles
+	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAbstract::_process_single_style
+	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAbstract::_process_inline_styles
 	 */
 	public function test_enqueue_deferred_styles_processes_multiple_styles_for_same_hook(): void {
 		$hook_name     = 'my_multi_style_hook';
@@ -2252,31 +2252,31 @@ class EnqueueAbstractStylesTest extends PluginLibTestCase {
 
 		// Expectations for Style 1 processing
 		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::enqueue_deferred_styles - Processing deferred style: \"{$style1_handle}\" (original index {$original_idx1}) for hook: \"{$hook_name}\".")->once()->ordered();
-		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::process_single_style - Processing style '{$style1_handle}' on hook '{$hook_name}' in context 'enqueue_deferred'.")->once()->ordered();
+		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::_process_single_style - Processing style '{$style1_handle}' on hook '{$hook_name}' in context 'enqueue_deferred'.")->once()->ordered();
 		WP_Mock::userFunction('wp_style_is')->with($style1_handle, 'registered')->andReturn(false)->once();
-		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::process_single_style - Registering style '{$style1_handle}' on hook '{$hook_name}'.")->once()->ordered();
+		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::_process_single_style - Registering style '{$style1_handle}' on hook '{$hook_name}'.")->once()->ordered();
 		WP_Mock::userFunction('wp_register_style')->with($style1_handle, $style1_src, array(), false, 'all')->once();
 		WP_Mock::userFunction('wp_style_is')->with($style1_handle, 'enqueued')->andReturn(false)->once();
-		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::process_single_style - Enqueuing style '{$style1_handle}' on hook '{$hook_name}'.")->once()->ordered();
+		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::_process_single_style - Enqueuing style '{$style1_handle}' on hook '{$hook_name}'.")->once()->ordered();
 		WP_Mock::userFunction('wp_enqueue_style')->with($style1_handle)->once();
-		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::process_single_style - Checking for inline styles for '{$style1_handle}' on hook '{$hook_name}'.")->once()->ordered();
-		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::process_inline_styles (context: enqueue_deferred) - Checking for inline styles for parent handle '{$style1_handle}' on hook '{$hook_name}'.")->once()->ordered();
-		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::process_inline_styles (context: enqueue_deferred) - No inline styles found or processed for '{$style1_handle}' on hook '{$hook_name}'.")->once()->ordered();
-		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::process_single_style - Finished processing style '{$style1_handle}' on hook '{$hook_name}'.")->once()->ordered();
+		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::_process_single_style - Checking for inline styles for '{$style1_handle}' on hook '{$hook_name}'.")->once()->ordered();
+		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::_process_inline_styles (context: enqueue_deferred) - Checking for inline styles for parent handle '{$style1_handle}' on hook '{$hook_name}'.")->once()->ordered();
+		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::_process_inline_styles (context: enqueue_deferred) - No inline styles found or processed for '{$style1_handle}' on hook '{$hook_name}'.")->once()->ordered();
+		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::_process_single_style - Finished processing style '{$style1_handle}' on hook '{$hook_name}'.")->once()->ordered();
 
 		// Expectations for Style 2 processing
 		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::enqueue_deferred_styles - Processing deferred style: \"{$style2_handle}\" (original index {$original_idx2}) for hook: \"{$hook_name}\".")->once()->ordered();
-		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::process_single_style - Processing style '{$style2_handle}' on hook '{$hook_name}' in context 'enqueue_deferred'.")->once()->ordered();
+		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::_process_single_style - Processing style '{$style2_handle}' on hook '{$hook_name}' in context 'enqueue_deferred'.")->once()->ordered();
 		WP_Mock::userFunction('wp_style_is')->with($style2_handle, 'registered')->andReturn(false)->once();
-		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::process_single_style - Registering style '{$style2_handle}' on hook '{$hook_name}'.")->once()->ordered();
+		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::_process_single_style - Registering style '{$style2_handle}' on hook '{$hook_name}'.")->once()->ordered();
 		WP_Mock::userFunction('wp_register_style')->with($style2_handle, $style2_src, array(), false, 'all')->once();
 		WP_Mock::userFunction('wp_style_is')->with($style2_handle, 'enqueued')->andReturn(false)->once();
-		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::process_single_style - Enqueuing style '{$style2_handle}' on hook '{$hook_name}'.")->once()->ordered();
+		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::_process_single_style - Enqueuing style '{$style2_handle}' on hook '{$hook_name}'.")->once()->ordered();
 		WP_Mock::userFunction('wp_enqueue_style')->with($style2_handle)->once();
-		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::process_single_style - Checking for inline styles for '{$style2_handle}' on hook '{$hook_name}'.")->once()->ordered();
-		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::process_inline_styles (context: enqueue_deferred) - Checking for inline styles for parent handle '{$style2_handle}' on hook '{$hook_name}'.")->once()->ordered();
-		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::process_inline_styles (context: enqueue_deferred) - No inline styles found or processed for '{$style2_handle}' on hook '{$hook_name}'.")->once()->ordered();
-		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::process_single_style - Finished processing style '{$style2_handle}' on hook '{$hook_name}'.")->once()->ordered();
+		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::_process_single_style - Checking for inline styles for '{$style2_handle}' on hook '{$hook_name}'.")->once()->ordered();
+		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::_process_inline_styles (context: enqueue_deferred) - Checking for inline styles for parent handle '{$style2_handle}' on hook '{$hook_name}'.")->once()->ordered();
+		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::_process_inline_styles (context: enqueue_deferred) - No inline styles found or processed for '{$style2_handle}' on hook '{$hook_name}'.")->once()->ordered();
+		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::_process_single_style - Finished processing style '{$style2_handle}' on hook '{$hook_name}'.")->once()->ordered();
 
 		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::enqueue_deferred_styles - Exited for hook: \"{$hook_name}\".")->once()->ordered();
 
@@ -2291,7 +2291,7 @@ class EnqueueAbstractStylesTest extends PluginLibTestCase {
 	/**
 	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAbstract::enqueue_styles
 	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAbstract::enqueue_deferred_styles
-	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAbstract::process_single_style
+	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAbstract::_process_single_style
 	 */
 	public function test_enqueue_deferred_styles_handles_missing_handle_gracefully(): void {
 		$hook_name            = 'my_deferred_hook_with_invalid';
@@ -2344,22 +2344,22 @@ class EnqueueAbstractStylesTest extends PluginLibTestCase {
 
 		// Processing for the valid style (original_idx_valid = 0)
 		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::enqueue_deferred_styles - Processing deferred style: \"{$valid_style_handle}\" (original index {$original_idx_valid}) for hook: \"{$hook_name}\".")->once()->ordered();
-		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::process_single_style - Processing style '{$valid_style_handle}' on hook '{$hook_name}' in context 'enqueue_deferred'.")->once()->ordered();
+		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::_process_single_style - Processing style '{$valid_style_handle}' on hook '{$hook_name}' in context 'enqueue_deferred'.")->once()->ordered();
 		WP_Mock::userFunction('wp_style_is')->with($valid_style_handle, 'registered')->andReturn(false)->once();
-		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::process_single_style - Registering style '{$valid_style_handle}' on hook '{$hook_name}'.")->once()->ordered();
+		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::_process_single_style - Registering style '{$valid_style_handle}' on hook '{$hook_name}'.")->once()->ordered();
 		WP_Mock::userFunction('wp_register_style')->with($valid_style_handle, $valid_style_src, array(), false, 'all')->once();
 		WP_Mock::userFunction('wp_style_is')->with($valid_style_handle, 'enqueued')->andReturn(false)->once();
-		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::process_single_style - Enqueuing style '{$valid_style_handle}' on hook '{$hook_name}'.")->once()->ordered();
+		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::_process_single_style - Enqueuing style '{$valid_style_handle}' on hook '{$hook_name}'.")->once()->ordered();
 		WP_Mock::userFunction('wp_enqueue_style')->with($valid_style_handle)->once();
-		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::process_single_style - Checking for inline styles for '{$valid_style_handle}' on hook '{$hook_name}'.")->once()->ordered();
-		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::process_inline_styles (context: enqueue_deferred) - Checking for inline styles for parent handle '{$valid_style_handle}' on hook '{$hook_name}'.")->once()->ordered();
-		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::process_inline_styles (context: enqueue_deferred) - No inline styles found or processed for '{$valid_style_handle}' on hook '{$hook_name}'.")->once()->ordered();
-		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::process_single_style - Finished processing style '{$valid_style_handle}' on hook '{$hook_name}'.")->once()->ordered();
+		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::_process_single_style - Checking for inline styles for '{$valid_style_handle}' on hook '{$hook_name}'.")->once()->ordered();
+		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::_process_inline_styles (context: enqueue_deferred) - Checking for inline styles for parent handle '{$valid_style_handle}' on hook '{$hook_name}'.")->once()->ordered();
+		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::_process_inline_styles (context: enqueue_deferred) - No inline styles found or processed for '{$valid_style_handle}' on hook '{$hook_name}'.")->once()->ordered();
+		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::_process_single_style - Finished processing style '{$valid_style_handle}' on hook '{$hook_name}'.")->once()->ordered();
 
 		// Processing for the invalid style (original_idx_invalid = 1)
 		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::enqueue_deferred_styles - Processing deferred style: \"\" (original index {$original_idx_invalid}) for hook: \"{$hook_name}\".")->once()->ordered(); // Handle is empty string
-		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::process_single_style - Processing style '' on hook '{$hook_name}' in context 'enqueue_deferred'.")->once()->ordered(); // Reverted: Expect '' as per error message
-		$this->logger_mock->shouldReceive('warning')->with("EnqueueAbstract::process_single_style - Invalid style definition. Missing handle or src. Skipping. Handle: '' on hook '{$hook_name}'.")->once()->ordered(); // Reverted: Expect '' as per error message logic
+		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::_process_single_style - Processing style '' on hook '{$hook_name}' in context 'enqueue_deferred'.")->once()->ordered(); // Reverted: Expect '' as per error message
+		$this->logger_mock->shouldReceive('warning')->with("EnqueueAbstract::_process_single_style - Invalid style definition. Missing handle or src. Skipping. Handle: '' on hook '{$hook_name}'.")->once()->ordered(); // Reverted: Expect '' as per error message logic
 
 		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::enqueue_deferred_styles - Exited for hook: \"{$hook_name}\".")->once()->ordered();
 
@@ -2395,7 +2395,7 @@ class EnqueueAbstractStylesTest extends PluginLibTestCase {
 	/**
 	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAbstract::register_styles
 	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAbstract::add_styles
-	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAbstract::process_single_style
+	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAbstract::_process_single_style
 	 */
 	public function test_register_styles_with_direct_styles_argument(): void {
 		// Ensure logger is considered active and verbose for this test, overriding defaults if necessary.
@@ -2438,13 +2438,13 @@ class EnqueueAbstractStylesTest extends PluginLibTestCase {
 		// Second style (direct-arg-style) - should be processed
 		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::register_styles - Attempting to process style: \"{$direct_style_handle}\", original index: 1.")->once()->ordered();
 
-		// process_single_style logs for direct_style_handle
-		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::process_single_style - Processing style '{$direct_style_handle}' in context 'register_styles'.")->once()->ordered();
-		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::process_single_style - Registering style '{$direct_style_handle}'.")->once()->ordered();
+		// _process_single_style logs for direct_style_handle
+		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::_process_single_style - Processing style '{$direct_style_handle}' in context 'register_styles'.")->once()->ordered();
+		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::_process_single_style - Registering style '{$direct_style_handle}'.")->once()->ordered();
 		WP_Mock::userFunction('wp_register_style')->with($direct_style_handle, $direct_style_src, array(), false, 'all')->once()->ordered();
 		// Enqueue and inline processing should be skipped for direct_style_handle in this context
 		WP_Mock::userFunction('wp_style_is')->with($direct_style_handle, 'enqueued')->never();
-		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::process_single_style - Finished processing style '{$direct_style_handle}'.")->once()->ordered();
+		$this->logger_mock->shouldReceive('debug')->with("EnqueueAbstract::_process_single_style - Finished processing style '{$direct_style_handle}'.")->once()->ordered();
 
 		// Final log from register_styles
 		$this->logger_mock->shouldReceive('debug')->with('EnqueueAbstract::register_styles - Exited.')->once()->ordered();
@@ -2472,10 +2472,10 @@ class EnqueueAbstractStylesTest extends PluginLibTestCase {
 	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAbstract::get_logger
 	 */
 	public function test_enqueue_inline_styles_no_immediate_styles(): void {
-		// Create a partial mock for EnqueueAbstract to mock process_inline_styles and get_logger
+		// Create a partial mock for EnqueueAbstract to mock _process_inline_styles and get_logger
 		$sut = $this->getMockBuilder(EnqueueAbstract::class)
 			->setConstructorArgs(array($this->config_instance_mock))
-			->onlyMethods(array('process_inline_styles', 'get_logger'))
+			->onlyMethods(array('_process_inline_styles', 'get_logger'))
 			->getMockForAbstractClass();
 
 		// Ensure the SUT uses our logger mock
@@ -2495,9 +2495,9 @@ class EnqueueAbstractStylesTest extends PluginLibTestCase {
 			->with('EnqueueAbstract::enqueue_inline_styles - No immediate inline styles found needing processing.')
 			->once();
 
-		// process_inline_styles should never be called
+		// _process_inline_styles should never be called
 		$sut->expects($this->never())
-			->method('process_inline_styles');
+			->method('_process_inline_styles');
 
 		// Act
 		$result = $sut->enqueue_inline_styles();
@@ -2514,7 +2514,7 @@ class EnqueueAbstractStylesTest extends PluginLibTestCase {
 	public function test_enqueue_inline_styles_with_one_immediate_style_unique_handle(): void {
 		$sut = $this->getMockBuilder(EnqueueAbstract::class)
 			->setConstructorArgs(array($this->config_instance_mock))
-			->onlyMethods(array('process_inline_styles', 'get_logger'))
+			->onlyMethods(array('_process_inline_styles', 'get_logger'))
 			->getMockForAbstractClass();
 
 		$sut->method('get_logger')->willReturn($this->logger_mock);
@@ -2543,7 +2543,7 @@ class EnqueueAbstractStylesTest extends PluginLibTestCase {
 			->once();
 
 		$sut->expects($this->once())
-			->method('process_inline_styles')
+			->method('_process_inline_styles')
 			->with(
 				$this->equalTo($parent_handle),
 				$this->isNull(),
@@ -2553,7 +2553,7 @@ class EnqueueAbstractStylesTest extends PluginLibTestCase {
 
 		$this->logger_mock->shouldReceive('debug')
 			->with('EnqueueAbstract::enqueue_inline_styles - Exited method.')
-			->once(); // After process_inline_styles is notionally called
+			->once(); // After _process_inline_styles is notionally called
 
 		// Act
 		$result = $sut->enqueue_inline_styles();
@@ -2569,7 +2569,7 @@ class EnqueueAbstractStylesTest extends PluginLibTestCase {
 	public function test_enqueue_inline_styles_multiple_immediate_styles_various_handles(): void {
 		$sut = $this->getMockBuilder(EnqueueAbstract::class)
 			->setConstructorArgs(array($this->config_instance_mock))
-			->onlyMethods(array('process_inline_styles', 'get_logger'))
+			->onlyMethods(array('_process_inline_styles', 'get_logger'))
 			->getMockForAbstractClass();
 
 		$sut->method('get_logger')->willReturn($this->logger_mock);
@@ -2602,14 +2602,14 @@ class EnqueueAbstractStylesTest extends PluginLibTestCase {
 			->once();
 
 		$sut->expects($this->exactly(count($expected_processed_handles)))
-			->method('process_inline_styles')
+			->method('_process_inline_styles')
 			->withConsecutive(
 				array($this->equalTo($handle_alpha), $this->isNull(), $this->equalTo('enqueue_inline_styles')),
 				array($this->equalTo($handle_beta),  $this->isNull(), $this->equalTo('enqueue_inline_styles')),
 				array($this->equalTo($handle_delta), $this->isNull(), $this->equalTo('enqueue_inline_styles'))
 			);
 		// Note: Mockery's ordered() applies to all expectations on $this->logger_mock.
-		// PHPUnit's withConsecutive asserts order for these specific calls to process_inline_styles.
+		// PHPUnit's withConsecutive asserts order for these specific calls to _process_inline_styles.
 
 		$this->logger_mock->shouldReceive('debug')
 			->with('EnqueueAbstract::enqueue_inline_styles - Exited method.')
@@ -2622,14 +2622,14 @@ class EnqueueAbstractStylesTest extends PluginLibTestCase {
 		$this->assertSame($sut, $result, 'Method should be chainable.');
 	}
 	// endregion Enqueue Inline Styles
-	// region Tests for process_inline_styles error handling
+	// region Tests for _process_inline_styles error handling
 
 	/**
 	 * @test
-	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAbstract::process_inline_styles
+	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAbstract::_process_inline_styles
 	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAbstract::get_logger
 	 */
-	public function test_process_inline_styles_skips_non_array_item_and_logs_warning(): void {
+	public function test__process_inline_styles_skips_non_array_item_and_logs_warning(): void {
 		$sut = $this->instance;
 
 		$parent_handle      = 'parent-for-invalid-item';
@@ -2653,10 +2653,10 @@ class EnqueueAbstractStylesTest extends PluginLibTestCase {
 		// Expect logs and WP_Mock calls in order
 		$this->logger_mock->shouldReceive('debug') // 1. Initial check
 			->with(Mockery::on(function ($message) use ($parent_handle, $processing_context) {
-				return strpos($message, "EnqueueAbstract::process_inline_styles (context: {$processing_context}) - Checking for inline styles for parent handle '{$parent_handle}'.") !== false;
+				return strpos($message, "EnqueueAbstract::_process_inline_styles (context: {$processing_context}) - Checking for inline styles for parent handle '{$parent_handle}'.") !== false;
 			}))
 			->once()
-	// endregion Tests for process_inline_styles error handling
+	// endregion Tests for _process_inline_styles error handling
 			->ordered();
 
 		$this->logger_mock->shouldReceive('debug') // 2. Processing valid item (log "Adding")
@@ -2670,7 +2670,7 @@ class EnqueueAbstractStylesTest extends PluginLibTestCase {
 			->once();
 
 		$this->logger_mock->shouldReceive('warning') // 4. Warning for invalid item
-			->with("EnqueueAbstract::process_inline_styles (context: test_context_invalid_item) -  Invalid inline style data at key '1'. Skipping.")
+			->with("EnqueueAbstract::_process_inline_styles (context: test_context_invalid_item) -  Invalid inline style data at key '1'. Skipping.")
 			->once();
 
 		$this->logger_mock->shouldReceive('debug') // 5. Removal of processed valid item (log "Removed")
@@ -2681,7 +2681,7 @@ class EnqueueAbstractStylesTest extends PluginLibTestCase {
 
 		// Call the protected method
 		$reflection = new \ReflectionObject($sut);
-		$method     = $reflection->getMethod('process_inline_styles');
+		$method     = $reflection->getMethod('_process_inline_styles');
 		$method->setAccessible(true);
 		$method->invoke($sut, $parent_handle, null, $processing_context);
 
@@ -2696,10 +2696,10 @@ class EnqueueAbstractStylesTest extends PluginLibTestCase {
 
 	/**
 	 * @test
-	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAbstract::process_inline_styles
+	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAbstract::_process_inline_styles
 	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAbstract::get_logger
 	 */
-	public function test_process_inline_styles_processes_item_when_callable_condition_is_true(): void {
+	public function test__process_inline_styles_processes_item_when_callable_condition_is_true(): void {
 		$sut                = $this->instance;
 		$parent_handle      = 'test-parent-style-callable-condition-true';
 		$hook_name          = 'test_hook_callable_condition_true';
@@ -2723,7 +2723,7 @@ class EnqueueAbstractStylesTest extends PluginLibTestCase {
 		// Mock logger expectations
 		$this->logger_mock->shouldReceive('debug') // 1. Initial check
 			->with(Mockery::on(function ($message) use ($parent_handle, $hook_name, $processing_context) {
-				return strpos($message, "EnqueueAbstract::process_inline_styles (context: {$processing_context}) - Checking for inline styles for parent handle '{$parent_handle}' on hook '{$hook_name}'.") !== false;
+				return strpos($message, "EnqueueAbstract::_process_inline_styles (context: {$processing_context}) - Checking for inline styles for parent handle '{$parent_handle}' on hook '{$hook_name}'.") !== false;
 			}))
 			->once();
 
@@ -2731,7 +2731,7 @@ class EnqueueAbstractStylesTest extends PluginLibTestCase {
 
 		$this->logger_mock->shouldReceive('debug') // 2. Adding inline style log
 			->with(Mockery::on(function ($message) use ($parent_handle, $hook_name, $style_key, $style_position, $processing_context) {
-				$expected_log_part   = "EnqueueAbstract::process_inline_styles (context: {$processing_context}) - Adding inline style for '{$parent_handle}' (key: {$style_key}, position: {$style_position})";
+				$expected_log_part   = "EnqueueAbstract::_process_inline_styles (context: {$processing_context}) - Adding inline style for '{$parent_handle}' (key: {$style_key}, position: {$style_position})";
 				$expected_log_suffix = " on hook '{$hook_name}'.";
 				return strpos($message, $expected_log_part) !== false && strpos($message, $expected_log_suffix) !== false;
 			}))
@@ -2744,7 +2744,7 @@ class EnqueueAbstractStylesTest extends PluginLibTestCase {
 
 		$this->logger_mock->shouldReceive('debug') // 3. Removed processed style log
 			->with(Mockery::on(function ($message) use ($parent_handle, $hook_name, $style_key, $processing_context) {
-				$expected_log_part   = "EnqueueAbstract::process_inline_styles (context: {$processing_context}) - Removed processed inline style with key '{$style_key}' for handle '{$parent_handle}'";
+				$expected_log_part   = "EnqueueAbstract::_process_inline_styles (context: {$processing_context}) - Removed processed inline style with key '{$style_key}' for handle '{$parent_handle}'";
 				$expected_log_suffix = " on hook '{$hook_name}'.";
 				return strpos($message, $expected_log_part) !== false && strpos($message, $expected_log_suffix) !== false;
 			}))
@@ -2752,7 +2752,7 @@ class EnqueueAbstractStylesTest extends PluginLibTestCase {
 
 		// Call the protected method
 		$reflection = new \ReflectionObject($sut);
-		$method     = $reflection->getMethod('process_inline_styles');
+		$method     = $reflection->getMethod('_process_inline_styles');
 		$method->setAccessible(true);
 		$method->invoke($sut, $parent_handle, $hook_name, $processing_context);
 
@@ -2763,10 +2763,10 @@ class EnqueueAbstractStylesTest extends PluginLibTestCase {
 
 	/**
 	 * @test
-	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAbstract::process_inline_styles
+	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAbstract::_process_inline_styles
 	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAbstract::get_logger
 	 */
-	public function test_process_inline_styles_skips_item_when_callable_condition_is_false(): void {
+	public function test__process_inline_styles_skips_item_when_callable_condition_is_false(): void {
 		$sut                = $this->instance;
 		$parent_handle      = 'test-parent-style-callable-condition-false';
 		$hook_name          = 'test_hook_callable_condition_false';
@@ -2788,13 +2788,13 @@ class EnqueueAbstractStylesTest extends PluginLibTestCase {
 		// Mock logger expectations
 		$this->logger_mock->shouldReceive('debug') // 1. Initial check
 			->with(Mockery::on(function ($message) use ($parent_handle, $hook_name, $processing_context) {
-				return strpos($message, "EnqueueAbstract::process_inline_styles (context: {$processing_context}) - Checking for inline styles for parent handle '{$parent_handle}' on hook '{$hook_name}'.") !== false;
+				return strpos($message, "EnqueueAbstract::_process_inline_styles (context: {$processing_context}) - Checking for inline styles for parent handle '{$parent_handle}' on hook '{$hook_name}'.") !== false;
 			}))
 			->once();
 
 		$this->logger_mock->shouldReceive('debug') // 2. Condition false log
 			->with(Mockery::on(function ($message) use ($parent_handle, $hook_name, $style_key, $processing_context) {
-				$expected_log_part   = "EnqueueAbstract::process_inline_styles (context: {$processing_context}) - Condition false for inline style targeting '{$parent_handle}' (key: {$style_key})";
+				$expected_log_part   = "EnqueueAbstract::_process_inline_styles (context: {$processing_context}) - Condition false for inline style targeting '{$parent_handle}' (key: {$style_key})";
 				$expected_log_suffix = " on hook '{$hook_name}'.";
 				return strpos($message, $expected_log_part) !== false && strpos($message, $expected_log_suffix) !== false;
 			}))
@@ -2804,7 +2804,7 @@ class EnqueueAbstractStylesTest extends PluginLibTestCase {
 
 		$this->logger_mock->shouldReceive('debug') // 3. Removed processed style log
 			->with(Mockery::on(function ($message) use ($parent_handle, $hook_name, $style_key, $processing_context) {
-				$expected_log_part   = "EnqueueAbstract::process_inline_styles (context: {$processing_context}) - Removed processed inline style with key '{$style_key}' for handle '{$parent_handle}'";
+				$expected_log_part   = "EnqueueAbstract::_process_inline_styles (context: {$processing_context}) - Removed processed inline style with key '{$style_key}' for handle '{$parent_handle}'";
 				$expected_log_suffix = " on hook '{$hook_name}'.";
 				return strpos($message, $expected_log_part) !== false && strpos($message, $expected_log_suffix) !== false;
 			}))
@@ -2812,7 +2812,7 @@ class EnqueueAbstractStylesTest extends PluginLibTestCase {
 
 		// Call the protected method
 		$reflection = new \ReflectionObject($sut);
-		$method     = $reflection->getMethod('process_inline_styles');
+		$method     = $reflection->getMethod('_process_inline_styles');
 		$method->setAccessible(true);
 		$method->invoke($sut, $parent_handle, $hook_name, $processing_context);
 
@@ -2823,10 +2823,10 @@ class EnqueueAbstractStylesTest extends PluginLibTestCase {
 
 	/**
 	 * @test
-	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAbstract::process_inline_styles
+	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAbstract::_process_inline_styles
 	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAbstract::get_logger
 	 */
-	public function test_process_inline_styles_skips_item_with_empty_content_and_logs_warning(): void {
+	public function test__process_inline_styles_skips_item_with_empty_content_and_logs_warning(): void {
 		$sut                = $this->instance;
 		$parent_handle      = 'test-parent-style-empty-content';
 		$hook_name          = 'test_hook_empty_content'; // Ensuring hook_name is present for full log message
@@ -2848,14 +2848,14 @@ class EnqueueAbstractStylesTest extends PluginLibTestCase {
 		// Mock logger expectations
 		$this->logger_mock->shouldReceive('debug') // 1. Initial check
 			->with(Mockery::on(function ($message) use ($parent_handle, $hook_name, $processing_context) {
-				$expected_message = "EnqueueAbstract::process_inline_styles (context: {$processing_context}) - Checking for inline styles for parent handle '{$parent_handle}' on hook '{$hook_name}'.";
+				$expected_message = "EnqueueAbstract::_process_inline_styles (context: {$processing_context}) - Checking for inline styles for parent handle '{$parent_handle}' on hook '{$hook_name}'.";
 				return $message === $expected_message;
 			}))
 			->once();
 
 		$this->logger_mock->shouldReceive('warning') // 2. Empty content warning
 			->with(Mockery::on(function ($message) use ($parent_handle, $hook_name, $style_key, $processing_context) {
-				$expected_message = "EnqueueAbstract::process_inline_styles (context: {$processing_context}) - Empty content for inline style targeting '{$parent_handle}' (key: {$style_key}) on hook '{$hook_name}'. Skipping addition.";
+				$expected_message = "EnqueueAbstract::_process_inline_styles (context: {$processing_context}) - Empty content for inline style targeting '{$parent_handle}' (key: {$style_key}) on hook '{$hook_name}'. Skipping addition.";
 				return $message === $expected_message;
 			}))
 			->once();
@@ -2864,14 +2864,14 @@ class EnqueueAbstractStylesTest extends PluginLibTestCase {
 
 		$this->logger_mock->shouldReceive('debug') // 3. Removed processed style log
 			->with(Mockery::on(function ($message) use ($parent_handle, $hook_name, $style_key, $processing_context) {
-				$expected_message = "EnqueueAbstract::process_inline_styles (context: {$processing_context}) - Removed processed inline style with key '{$style_key}' for handle '{$parent_handle}' on hook '{$hook_name}'.";
+				$expected_message = "EnqueueAbstract::_process_inline_styles (context: {$processing_context}) - Removed processed inline style with key '{$style_key}' for handle '{$parent_handle}' on hook '{$hook_name}'.";
 				return $message === $expected_message;
 			}))
 			->once();
 
 		// Call the protected method
 		$reflection = new \ReflectionObject($sut);
-		$method     = $reflection->getMethod('process_inline_styles');
+		$method     = $reflection->getMethod('_process_inline_styles');
 		$method->setAccessible(true);
 		$method->invoke($sut, $parent_handle, $hook_name, $processing_context);
 
@@ -2882,10 +2882,10 @@ class EnqueueAbstractStylesTest extends PluginLibTestCase {
 
 	/**
 	 * @test
-	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAbstract::process_inline_styles
+	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAbstract::_process_inline_styles
 	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAbstract::get_logger
 	 */
-	public function test_process_inline_styles_logs_when_no_matching_styles_found(): void {
+	public function test__process_inline_styles_logs_when_no_matching_styles_found(): void {
 		$sut                = $this->instance;
 		$parent_handle      = 'test-parent-no-match';
 		$hook_name          = 'test_hook_no_match';
@@ -2897,14 +2897,14 @@ class EnqueueAbstractStylesTest extends PluginLibTestCase {
 		// Mock logger expectations
 		$this->logger_mock->shouldReceive('debug') // 1. Initial check
 			->with(Mockery::on(function ($message) use ($parent_handle, $hook_name, $processing_context) {
-				$expected_message = "EnqueueAbstract::process_inline_styles (context: {$processing_context}) - Checking for inline styles for parent handle '{$parent_handle}' on hook '{$hook_name}'.";
+				$expected_message = "EnqueueAbstract::_process_inline_styles (context: {$processing_context}) - Checking for inline styles for parent handle '{$parent_handle}' on hook '{$hook_name}'.";
 				return $message === $expected_message;
 			}))
 			->once();
 
 		$this->logger_mock->shouldReceive('debug') // 2. No styles found/processed log
 			->with(Mockery::on(function ($message) use ($parent_handle, $hook_name, $processing_context) {
-				$expected_message = "EnqueueAbstract::process_inline_styles (context: {$processing_context}) - No inline styles found or processed for '{$parent_handle}' on hook '{$hook_name}'.";
+				$expected_message = "EnqueueAbstract::_process_inline_styles (context: {$processing_context}) - No inline styles found or processed for '{$parent_handle}' on hook '{$hook_name}'.";
 				return $message === $expected_message;
 			}))
 			->once();
@@ -2914,7 +2914,7 @@ class EnqueueAbstractStylesTest extends PluginLibTestCase {
 
 		// Call the protected method
 		$reflection = new \ReflectionObject($sut);
-		$method     = $reflection->getMethod('process_inline_styles');
+		$method     = $reflection->getMethod('_process_inline_styles');
 		$method->setAccessible(true);
 		$method->invoke($sut, $parent_handle, $hook_name, $processing_context);
 
@@ -2925,10 +2925,10 @@ class EnqueueAbstractStylesTest extends PluginLibTestCase {
 
 	/**
 	 * @test
-	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAbstract::process_inline_styles
+	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAbstract::_process_inline_styles
 	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAbstract::get_logger
 	 */
-	public function test_process_inline_styles_skips_non_array_item_and_it_persists(): void {
+	public function test__process_inline_styles_skips_non_array_item_and_it_persists(): void {
 		$sut                = $this->instance;
 		$parent_handle      = 'test-parent-mixed-items';
 		$hook_name          = 'test_hook_mixed_items';
@@ -2956,7 +2956,7 @@ class EnqueueAbstractStylesTest extends PluginLibTestCase {
 		));
 
 		// Mock logger expectations
-		$log_prefix = "EnqueueAbstract::process_inline_styles (context: {$processing_context}) - ";
+		$log_prefix = "EnqueueAbstract::_process_inline_styles (context: {$processing_context}) - ";
 
 		$this->logger_mock->shouldReceive('debug')
 			->with($log_prefix . "Checking for inline styles for parent handle '{$parent_handle}' on hook '{$hook_name}'.")
@@ -2994,7 +2994,7 @@ class EnqueueAbstractStylesTest extends PluginLibTestCase {
 
 		// Call the protected method
 		$reflection = new \ReflectionObject($sut);
-		$method     = $reflection->getMethod('process_inline_styles');
+		$method     = $reflection->getMethod('_process_inline_styles');
 		$method->setAccessible(true);
 		$method->invoke($sut, $parent_handle, $hook_name, $processing_context);
 
@@ -3007,10 +3007,10 @@ class EnqueueAbstractStylesTest extends PluginLibTestCase {
 
 	/**
 	 * @test
-	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAbstract::process_inline_styles
+	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAbstract::_process_inline_styles
 	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAbstract::get_logger
 	 */
-	public function test_process_inline_styles_skips_item_with_mismatched_hook_deferred_context(): void {
+	public function test__process_inline_styles_skips_item_with_mismatched_hook_deferred_context(): void {
 		$sut                       = $this->instance;
 		$parent_handle             = 'test-parent-hook-mismatch';
 		$correct_hook_name         = 'correct_hook';
@@ -3027,7 +3027,7 @@ class EnqueueAbstractStylesTest extends PluginLibTestCase {
 		$this->set_protected_property_value($sut, 'inline_styles', array($style_with_wrong_hook));
 
 		// Mock logger expectations
-		$log_prefix = "EnqueueAbstract::process_inline_styles (context: {$processing_context}) - ";
+		$log_prefix = "EnqueueAbstract::_process_inline_styles (context: {$processing_context}) - ";
 
 		$this->logger_mock->shouldReceive('debug') // 1. Initial check
 			->with($log_prefix . "Checking for inline styles for parent handle '{$parent_handle}' on hook '{$correct_hook_name}'.")
@@ -3044,7 +3044,7 @@ class EnqueueAbstractStylesTest extends PluginLibTestCase {
 
 		// Call the protected method, passing the correct_hook_name
 		$reflection = new \ReflectionObject($sut);
-		$method     = $reflection->getMethod('process_inline_styles');
+		$method     = $reflection->getMethod('_process_inline_styles');
 		$method->setAccessible(true);
 		$method->invoke($sut, $parent_handle, $correct_hook_name, $processing_context);
 
@@ -3056,10 +3056,10 @@ class EnqueueAbstractStylesTest extends PluginLibTestCase {
 
 	/**
 	 * @test
-	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAbstract::process_inline_styles
+	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAbstract::_process_inline_styles
 	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAbstract::get_logger
 	 */
-	public function test_process_inline_styles_skips_item_in_immediate_context_if_style_has_parent_hook(): void {
+	public function test__process_inline_styles_skips_item_in_immediate_context_if_style_has_parent_hook(): void {
 		$sut                = $this->instance;
 		$parent_handle      = 'test-parent-immediate-mismatch';
 		$processing_context = 'test_context_immediate_mismatch';
@@ -3074,7 +3074,7 @@ class EnqueueAbstractStylesTest extends PluginLibTestCase {
 		$this->set_protected_property_value($sut, 'inline_styles', array($style_with_parent_hook));
 
 		// Mock logger expectations
-		$log_prefix = "EnqueueAbstract::process_inline_styles (context: {$processing_context}) - ";
+		$log_prefix = "EnqueueAbstract::_process_inline_styles (context: {$processing_context}) - ";
 
 		$this->logger_mock->shouldReceive('debug') // 1. Initial check (ends with '.')
 			->with($log_prefix . "Checking for inline styles for parent handle '{$parent_handle}'.")
@@ -3091,7 +3091,7 @@ class EnqueueAbstractStylesTest extends PluginLibTestCase {
 
 		// Call the protected method with hook_name = null for immediate context
 		$reflection = new \ReflectionObject($sut);
-		$method     = $reflection->getMethod('process_inline_styles');
+		$method     = $reflection->getMethod('_process_inline_styles');
 		$method->setAccessible(true);
 		$method->invoke($sut, $parent_handle, null, $processing_context);
 
@@ -3103,10 +3103,10 @@ class EnqueueAbstractStylesTest extends PluginLibTestCase {
 
 	/**
 	 * @test
-	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAbstract::process_inline_styles
+	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAbstract::_process_inline_styles
 	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAbstract::get_logger
 	 */
-	public function test_process_inline_styles_skips_item_with_mismatched_handle(): void {
+	public function test__process_inline_styles_skips_item_with_mismatched_handle(): void {
 		$sut                      = $this->instance;
 		$parent_handle_to_process = 'correct-parent-handle';
 		$style_handle_in_item     = 'wrong-style-handle'; // This will not match
@@ -3122,7 +3122,7 @@ class EnqueueAbstractStylesTest extends PluginLibTestCase {
 		$this->set_protected_property_value($sut, 'inline_styles', array($style_with_wrong_handle));
 
 		// Mock logger expectations
-		$log_prefix = "EnqueueAbstract::process_inline_styles (context: {$processing_context}) - ";
+		$log_prefix = "EnqueueAbstract::_process_inline_styles (context: {$processing_context}) - ";
 
 		$this->logger_mock->shouldReceive('debug') // 1. Initial check (immediate context, so ends with '.')
 			->with($log_prefix . "Checking for inline styles for parent handle '{$parent_handle_to_process}'.")
@@ -3139,7 +3139,7 @@ class EnqueueAbstractStylesTest extends PluginLibTestCase {
 
 		// Call the protected method with hook_name = null for immediate context
 		$reflection = new \ReflectionObject($sut);
-		$method     = $reflection->getMethod('process_inline_styles');
+		$method     = $reflection->getMethod('_process_inline_styles');
 		$method->setAccessible(true);
 		$method->invoke($sut, $parent_handle_to_process, null, $processing_context);
 
@@ -3151,10 +3151,10 @@ class EnqueueAbstractStylesTest extends PluginLibTestCase {
 
 	/**
 	 * @test
-	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAbstract::process_inline_styles
+	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAbstract::_process_inline_styles
 	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAbstract::get_logger
 	 */
-	public function test_process_inline_styles_uses_default_position_when_not_specified(): void {
+	public function test__process_inline_styles_uses_default_position_when_not_specified(): void {
 		$sut                = $this->instance;
 		$parent_handle      = 'test-parent-default-pos';
 		$hook_name          = 'test_hook_default_pos';
@@ -3170,7 +3170,7 @@ class EnqueueAbstractStylesTest extends PluginLibTestCase {
 
 		$this->set_protected_property_value($sut, 'inline_styles', array($style_data_no_position));
 
-		$log_prefix = "EnqueueAbstract::process_inline_styles (context: {$processing_context}) - ";
+		$log_prefix = "EnqueueAbstract::_process_inline_styles (context: {$processing_context}) - ";
 
 		$this->logger_mock->shouldReceive('debug')
 			->with($log_prefix . "Checking for inline styles for parent handle '{$parent_handle}' on hook '{$hook_name}'.")
@@ -3194,7 +3194,7 @@ class EnqueueAbstractStylesTest extends PluginLibTestCase {
 		$this->logger_mock->shouldNotReceive('warning');
 
 		$reflection = new \ReflectionObject($sut);
-		$method     = $reflection->getMethod('process_inline_styles');
+		$method     = $reflection->getMethod('_process_inline_styles');
 		$method->setAccessible(true);
 		$method->invoke($sut, $parent_handle, $hook_name, $processing_context);
 
@@ -3204,10 +3204,10 @@ class EnqueueAbstractStylesTest extends PluginLibTestCase {
 
 	/**
 	 * @test
-	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAbstract::process_inline_styles
+	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAbstract::_process_inline_styles
 	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAbstract::get_logger
 	 */
-	public function test_process_inline_styles_adds_style_when_condition_key_is_missing(): void {
+	public function test__process_inline_styles_adds_style_when_condition_key_is_missing(): void {
 		$sut                = $this->instance;
 		$parent_handle      = 'test-parent-no-condition-key';
 		$hook_name          = 'test_hook_no_condition_key';
@@ -3223,7 +3223,7 @@ class EnqueueAbstractStylesTest extends PluginLibTestCase {
 
 		$this->set_protected_property_value($sut, 'inline_styles', array($style_data_no_condition_key));
 
-		$log_prefix = "EnqueueAbstract::process_inline_styles (context: {$processing_context}) - ";
+		$log_prefix = "EnqueueAbstract::_process_inline_styles (context: {$processing_context}) - ";
 
 		$this->logger_mock->shouldReceive('debug')
 			->with($log_prefix . "Checking for inline styles for parent handle '{$parent_handle}' on hook '{$hook_name}'.")
@@ -3247,7 +3247,7 @@ class EnqueueAbstractStylesTest extends PluginLibTestCase {
 		$this->logger_mock->shouldNotReceive('warning');
 
 		$reflection = new \ReflectionObject($sut);
-		$method     = $reflection->getMethod('process_inline_styles');
+		$method     = $reflection->getMethod('_process_inline_styles');
 		$method->setAccessible(true);
 		$method->invoke($sut, $parent_handle, $hook_name, $processing_context);
 
@@ -3258,14 +3258,14 @@ class EnqueueAbstractStylesTest extends PluginLibTestCase {
 	/**
 	 * @test
 	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAbstract::enqueue_inline_styles
-	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAbstract::process_inline_styles
+	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAbstract::_process_inline_styles
 	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAbstract::get_logger
 	 */
 	public function test_enqueue_inline_styles_skips_non_array_item_and_logs_warning(): void {
-		// Create a partial mock of EnqueueAbstract to mock process_inline_styles and get_logger
+		// Create a partial mock of EnqueueAbstract to mock _process_inline_styles and get_logger
 		$sut = $this->getMockBuilder(EnqueueAbstract::class)
 			->setConstructorArgs(array($this->config_mock, $this->logger_mock)) // Corrected order: config, then logger
-			->onlyMethods(array('process_inline_styles', 'get_logger'))
+			->onlyMethods(array('_process_inline_styles', 'get_logger'))
 			->getMockForAbstractClass();
 
 		// Ensure get_logger returns our specific logger_mock for expectation setting
@@ -3306,9 +3306,9 @@ class EnqueueAbstractStylesTest extends PluginLibTestCase {
 			->with("EnqueueAbstract::enqueue_inline_styles - Found 1 unique parent handle(s) with immediate inline styles to process: {$valid_immediate_handle}")
 			->once()->ordered();
 
-		// Expect process_inline_styles to be called for the immediate style
+		// Expect _process_inline_styles to be called for the immediate style
 		$sut->expects($this->once())
-			->method('process_inline_styles')
+			->method('_process_inline_styles')
 			->with(
 				$this->equalTo($valid_immediate_handle),
 				$this->isNull(),
@@ -3328,10 +3328,10 @@ class EnqueueAbstractStylesTest extends PluginLibTestCase {
 
 	/**
 	 * @test
-	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAbstract::process_single_style
+	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAbstract::_process_single_style
 	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAbstract::get_logger
 	 */
-	public function test_process_single_style_deferred_skips_register_if_already_registered(): void {
+	public function test__process_single_style_deferred_skips_register_if_already_registered(): void {
 		$handle     = 'test-style-deferred-reg-skip';
 		$style_data = array(
 			'handle'  => $handle, // Added handle to style_data
@@ -3347,7 +3347,7 @@ class EnqueueAbstractStylesTest extends PluginLibTestCase {
 
 		// Logger expectations
 		$this->logger_mock->shouldReceive('debug')
-			->with("EnqueueAbstract::process_single_style - Processing style '{$handle}' on hook '{$hook_name}' in context '{$processing_context}'.")
+			->with("EnqueueAbstract::_process_single_style - Processing style '{$handle}' on hook '{$hook_name}' in context '{$processing_context}'.")
 			->once()->ordered();
 
 		// Mock wp_style_is for registration check
@@ -3357,7 +3357,7 @@ class EnqueueAbstractStylesTest extends PluginLibTestCase {
 			->andReturn(true); // Style is already registered
 
 		$this->logger_mock->shouldReceive('debug')
-			->with("EnqueueAbstract::process_single_style - Style '{$handle}' on hook '{$hook_name}' already registered. Skipping wp_register_style.")
+			->with("EnqueueAbstract::_process_single_style - Style '{$handle}' on hook '{$hook_name}' already registered. Skipping wp_register_style.")
 			->once()->ordered();
 
 		// wp_register_style should NOT be called
@@ -3370,7 +3370,7 @@ class EnqueueAbstractStylesTest extends PluginLibTestCase {
 			->andReturn(false);
 
 		$this->logger_mock->shouldReceive('debug')
-			->with("EnqueueAbstract::process_single_style - Enqueuing style '{$handle}' on hook '{$hook_name}'.")
+			->with("EnqueueAbstract::_process_single_style - Enqueuing style '{$handle}' on hook '{$hook_name}'.")
 			->once()->ordered();
 
 		WP_Mock::userFunction('wp_enqueue_style')
@@ -3378,19 +3378,19 @@ class EnqueueAbstractStylesTest extends PluginLibTestCase {
 			->once();
 
 		$this->logger_mock->shouldReceive('debug')
-			->with("EnqueueAbstract::process_single_style - Finished processing style '{$handle}' on hook '{$hook_name}'.")
+			->with("EnqueueAbstract::_process_single_style - Finished processing style '{$handle}' on hook '{$hook_name}'.")
 			->once()->ordered();
 
-		$result = $this->instance->process_single_style($style_data, $processing_context, $hook_name, $do_register, $do_enqueue);
-		$this->assertTrue($result, 'process_single_style should return true when successfully processing a style, even if registration is skipped.');
+		$result = $this->instance->_process_single_style($style_data, $processing_context, $hook_name, $do_register, $do_enqueue);
+		$this->assertTrue($result, '_process_single_style should return true when successfully processing a style, even if registration is skipped.');
 	}
 
 	/**
 	 * @test
-	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAbstract::process_single_style
+	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAbstract::_process_single_style
 	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAbstract::get_logger
 	 */
-	public function test_process_single_style_deferred_skips_enqueue_if_already_enqueued(): void {
+	public function test__process_single_style_deferred_skips_enqueue_if_already_enqueued(): void {
 		$handle     = 'test-style-deferred-enq-skip';
 		$style_data = array(
 			'handle'  => $handle, // Added handle to style_data
@@ -3406,7 +3406,7 @@ class EnqueueAbstractStylesTest extends PluginLibTestCase {
 
 		// Logger expectations
 		$this->logger_mock->shouldReceive('debug')
-			->with("EnqueueAbstract::process_single_style - Processing style '{$handle}' on hook '{$hook_name}' in context '{$processing_context}'.")
+			->with("EnqueueAbstract::_process_single_style - Processing style '{$handle}' on hook '{$hook_name}' in context '{$processing_context}'.")
 			->once()->ordered();
 
 		// Mock wp_style_is for registration check (assume not registered, so it proceeds)
@@ -3416,7 +3416,7 @@ class EnqueueAbstractStylesTest extends PluginLibTestCase {
 			->andReturn(false);
 
 		$this->logger_mock->shouldReceive('debug')
-			->with("EnqueueAbstract::process_single_style - Registering style '{$handle}' on hook '{$hook_name}'.")
+			->with("EnqueueAbstract::_process_single_style - Registering style '{$handle}' on hook '{$hook_name}'.")
 			->once()->ordered();
 
 		WP_Mock::userFunction('wp_register_style')
@@ -3430,17 +3430,17 @@ class EnqueueAbstractStylesTest extends PluginLibTestCase {
 			->andReturn(true); // Style is already enqueued
 
 		$this->logger_mock->shouldReceive('debug')
-			->with("EnqueueAbstract::process_single_style - Style '{$handle}' on hook '{$hook_name}' already enqueued. Skipping wp_enqueue_style.")
+			->with("EnqueueAbstract::_process_single_style - Style '{$handle}' on hook '{$hook_name}' already enqueued. Skipping wp_enqueue_style.")
 			->once()->ordered();
 
 		// wp_enqueue_style should NOT be called
 		WP_Mock::userFunction('wp_enqueue_style')->never();
 
 		$this->logger_mock->shouldReceive('debug')
-			->with("EnqueueAbstract::process_single_style - Finished processing style '{$handle}' on hook '{$hook_name}'.")
+			->with("EnqueueAbstract::_process_single_style - Finished processing style '{$handle}' on hook '{$hook_name}'.")
 			->once()->ordered();
 
-		$result = $this->instance->process_single_style($style_data, $processing_context, $hook_name, $do_register, $do_enqueue);
-		$this->assertTrue($result, 'process_single_style should return true when successfully processing a style, even if enqueueing is skipped.');
+		$result = $this->instance->_process_single_style($style_data, $processing_context, $hook_name, $do_register, $do_enqueue);
+		$this->assertTrue($result, '_process_single_style should return true when successfully processing a style, even if enqueueing is skipped.');
 	}
 }

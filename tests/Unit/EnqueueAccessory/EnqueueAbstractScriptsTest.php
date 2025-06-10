@@ -156,7 +156,7 @@ class EnqueueAbstractScriptsTest extends PluginLibTestCase {
 	 * Test enqueuing scripts with a condition that fails, ensuring they are skipped.
 	 *
 	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAbstract::enqueue_scripts
-	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAbstract::process_single_script
+	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAbstract::_process_single_script
 	 */
 	public function test_enqueue_scripts_with_failing_condition(): void {
 		// Setup logger expectations
@@ -311,7 +311,7 @@ class EnqueueAbstractScriptsTest extends PluginLibTestCase {
 	/**
 	 * Test registering scripts with wp_data and attributes.
 	 *
-	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAbstract::process_single_script
+	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAbstract::_process_single_script
 	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAbstract::enqueue_scripts
 	 */
 	public function test_enqueue_scripts_with_wp_data_and_attributes(): void {
@@ -371,7 +371,7 @@ class EnqueueAbstractScriptsTest extends PluginLibTestCase {
 	}
 
 	/**
-	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAbstract::process_single_script
+	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAbstract::_process_single_script
 	 */
 	public function test_process_single_script_attribute_filter_skips_src_attribute(): void {
 		$this->logger_mock->shouldReceive('debug')->withAnyArgs()->zeroOrMoreTimes();
@@ -405,15 +405,15 @@ class EnqueueAbstractScriptsTest extends PluginLibTestCase {
 		            ->getMock();
 		$sut->method('get_logger')->willReturn($this->logger_mock);
 
-		// Call process_single_script directly using reflection on the new SUT instance
-		$method = new \ReflectionMethod(ConcreteEnqueueForScriptTesting::class, 'process_single_script');
+		// Call _process_single_script directly using reflection on the new SUT instance
+		$method = new \ReflectionMethod(ConcreteEnqueueForScriptTesting::class, '_process_single_script');
 		$method->setAccessible(true);
 		$result = $method->invoke($sut, $script_definition);
 		$this->assertSame($script_definition['handle'], $result);
 	}
 
 	/**
-	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAbstract::process_single_script
+	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAbstract::_process_single_script
 	 * Tests that the script_loader_tag filter callback correctly handles malformed script tags
 	 * by returning them unchanged (indirectly, by ensuring add_filter is called).
 	 */
@@ -422,7 +422,7 @@ class EnqueueAbstractScriptsTest extends PluginLibTestCase {
 
 		$script_handle     = 'test-script-malformed-tag';
 		$script_actual_src = 'path/to/actual-script-malformed.js';
-		// Attributes are needed to trigger the add_filter call within process_single_script
+		// Attributes are needed to trigger the add_filter call within _process_single_script
 		$script_attributes = array('id' => 'some-id-for-malformed-test');
 
 		$script_definition = array(
@@ -447,8 +447,8 @@ class EnqueueAbstractScriptsTest extends PluginLibTestCase {
 		            ->getMock();
 		$sut->method('get_logger')->willReturn($this->logger_mock);
 
-		// Call process_single_script directly using reflection on the new SUT instance
-		$method = new \ReflectionMethod(ConcreteEnqueueForScriptTesting::class, 'process_single_script');
+		// Call _process_single_script directly using reflection on the new SUT instance
+		$method = new \ReflectionMethod(ConcreteEnqueueForScriptTesting::class, '_process_single_script');
 		$method->setAccessible(true);
 		$result = $method->invoke($sut, $script_definition);
 		$this->assertSame($script_definition['handle'], $result);
@@ -456,8 +456,8 @@ class EnqueueAbstractScriptsTest extends PluginLibTestCase {
 
 
 	/**
-	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAbstract::process_single_script
-	 * Tests that process_single_script skips wp_script_add_data if wp_data is not an array.
+	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAbstract::_process_single_script
+	 * Tests that _process_single_script skips wp_script_add_data if wp_data is not an array.
 	 */
 	public function test_process_single_script_wp_data_not_array_skips_add_data(): void {
 		$this->logger_mock->shouldReceive('debug')->withAnyArgs()->zeroOrMoreTimes();
@@ -490,7 +490,7 @@ class EnqueueAbstractScriptsTest extends PluginLibTestCase {
 		            ->getMock();
 		$sut->method('get_logger')->willReturn($this->logger_mock);
 
-		$method = new \ReflectionMethod(ConcreteEnqueueForScriptTesting::class, 'process_single_script');
+		$method = new \ReflectionMethod(ConcreteEnqueueForScriptTesting::class, '_process_single_script');
 		$method->setAccessible(true);
 		$result = $method->invoke($sut, $script_definition);
 
@@ -499,8 +499,8 @@ class EnqueueAbstractScriptsTest extends PluginLibTestCase {
 
 
 	/**
-	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAbstract::process_single_script
-	 * Tests that process_single_script skips add_filter if attributes is not an array.
+	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAbstract::_process_single_script
+	 * Tests that _process_single_script skips add_filter if attributes is not an array.
 	 */
 	public function test_process_single_script_attributes_not_array_skips_add_filter(): void {
 		$this->logger_mock->shouldReceive('debug')->withAnyArgs()->zeroOrMoreTimes();
@@ -536,7 +536,7 @@ class EnqueueAbstractScriptsTest extends PluginLibTestCase {
 		            ->getMock();
 		$sut->method('get_logger')->willReturn($this->logger_mock);
 
-		$method = new \ReflectionMethod(ConcreteEnqueueForScriptTesting::class, 'process_single_script');
+		$method = new \ReflectionMethod(ConcreteEnqueueForScriptTesting::class, '_process_single_script');
 		$method->setAccessible(true);
 		$result = $method->invoke($sut, $script_definition);
 
@@ -545,8 +545,8 @@ class EnqueueAbstractScriptsTest extends PluginLibTestCase {
 
 
 	/**
-	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAbstract::process_single_script
-	 * Tests that process_single_script returns null if the handle is empty.
+	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAbstract::_process_single_script
+	 * Tests that _process_single_script returns null if the handle is empty.
 	 */
 	public function test_process_single_script_empty_handle_returns_null(): void {
 		$this->logger_mock->shouldReceive('debug')->withAnyArgs()->zeroOrMoreTimes();
@@ -569,7 +569,7 @@ class EnqueueAbstractScriptsTest extends PluginLibTestCase {
 		            ->getMock();
 		$sut->method('get_logger')->willReturn($this->logger_mock);
 
-		$method = new \ReflectionMethod(ConcreteEnqueueForScriptTesting::class, 'process_single_script');
+		$method = new \ReflectionMethod(ConcreteEnqueueForScriptTesting::class, '_process_single_script');
 		$method->setAccessible(true);
 
 		// Test with empty handle string
@@ -582,8 +582,8 @@ class EnqueueAbstractScriptsTest extends PluginLibTestCase {
 	}
 
 	/**
-	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAbstract::process_single_script
-	 * Tests that process_single_script returns null if wp_register_script fails.
+	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAbstract::_process_single_script
+	 * Tests that _process_single_script returns null if wp_register_script fails.
 	 */
 	public function test_process_single_script_registration_fails_returns_null(): void {
 		$this->logger_mock->shouldReceive('debug')->withAnyArgs()->zeroOrMoreTimes();
@@ -610,7 +610,7 @@ class EnqueueAbstractScriptsTest extends PluginLibTestCase {
 		            ->getMock();
 		$sut->method('get_logger')->willReturn($this->logger_mock);
 
-		$method = new \ReflectionMethod(ConcreteEnqueueForScriptTesting::class, 'process_single_script');
+		$method = new \ReflectionMethod(ConcreteEnqueueForScriptTesting::class, '_process_single_script');
 		$method->setAccessible(true);
 		$result = $method->invoke($sut, $script_definition);
 
@@ -737,7 +737,7 @@ class EnqueueAbstractScriptsTest extends PluginLibTestCase {
 	 * Test register_scripts method with valid scripts.
 	 *
 	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAbstract::register_scripts
-	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAbstract::process_single_script
+	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAbstract::_process_single_script
 	 */
 	public function test_register_scripts(): void {
 		// Setup logger expectations
@@ -797,7 +797,7 @@ class EnqueueAbstractScriptsTest extends PluginLibTestCase {
 	 * Test register_scripts with empty array and with scripts from instance property.
 	 *
 	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAbstract::register_scripts
-	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAbstract::process_single_script
+	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAbstract::_process_single_script
 	 */
 	public function test_register_scripts_from_instance_property(): void {
 		// Setup logger expectations
@@ -835,7 +835,7 @@ class EnqueueAbstractScriptsTest extends PluginLibTestCase {
 	 * Test register_scripts with a script with failing condition.
 	 *
 	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAbstract::register_scripts
-	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAbstract::process_single_script
+	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAbstract::_process_single_script
 	 */
 	public function test_register_scripts_with_failing_condition(): void {
 		// Setup logger expectations
@@ -927,16 +927,16 @@ class EnqueueAbstractScriptsTest extends PluginLibTestCase {
 		    ->once()
 		    ->ordered();
 
-		// process_single_script should only be called for the script without a hook
-		$this->instance->shouldReceive('process_single_script')
+		// _process_single_script should only be called for the script without a hook
+		$this->instance->shouldReceive('_process_single_script')
 		    ->with(Mockery::on(function($arg) use ($script_without_hook) {
 		    	return is_array($arg) && isset($arg['handle']) && $arg['handle'] === $script_without_hook['handle'];
 		    }))
 		    ->once()
 		    ->ordered();
 
-		// process_single_script should NOT be called for the script WITH a hook
-		$this->instance->shouldNotReceive('process_single_script')
+		// _process_single_script should NOT be called for the script WITH a hook
+		$this->instance->shouldNotReceive('_process_single_script')
 		    ->with(Mockery::on(function($arg) use ($script_with_hook) {
 		    	return is_array($arg) && isset($arg['handle']) && $arg['handle'] === $script_with_hook['handle'];
 		    }));
@@ -1460,7 +1460,7 @@ class EnqueueAbstractScriptsTest extends PluginLibTestCase {
 			->ordered()
 			->once();
 
-		// 3. wp_register_script for deferred-script-1 (will be called by process_single_script)
+		// 3. wp_register_script for deferred-script-1 (will be called by _process_single_script)
 		WP_Mock::userFunction('wp_register_script')
 			->with('deferred-script-1', 'path/to/deferred-script-1.js', array('jquery'), '1.0.0', true) // Match args from $deferred_scripts_data
 			->andReturn(true)
@@ -1488,7 +1488,7 @@ class EnqueueAbstractScriptsTest extends PluginLibTestCase {
 			->andReturn(true);
 
 		// --- Mocks for deferred-script-2 processing (ordered) ---
-		// Its condition `static fn() => false` will cause process_single_script to return null.
+		// Its condition `static fn() => false` will cause _process_single_script to return null.
 		// It will be checked for registered/enqueued status before its condition is evaluated.
 		// 7. Initial check: 'deferred-script-2' is not registered.
 		WP_Mock::userFunction('wp_script_is')
@@ -1530,7 +1530,7 @@ class EnqueueAbstractScriptsTest extends PluginLibTestCase {
 
 		// Expect a warning for deferred-script-2 not being processed (condition false)
 		$this->logger_mock->shouldReceive('warning')
-			->with('EnqueueAbstract::enqueue_deferred_scripts - process_single_script returned an unexpected handle (\'\') or empty for original handle \'deferred-script-2\' on hook "admin_footer". Skipping main script enqueue and its inline scripts.')
+			->with('EnqueueAbstract::enqueue_deferred_scripts - _process_single_script returned an unexpected handle (\'\') or empty for original handle \'deferred-script-2\' on hook "admin_footer". Skipping main script enqueue and its inline scripts.')
 			->once();
 
 		$this->instance->enqueue_deferred_scripts($hook); // This processes and clears deferred_scripts[$hook]
@@ -1607,7 +1607,7 @@ class EnqueueAbstractScriptsTest extends PluginLibTestCase {
 	 * @test
 	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAbstract::register_scripts
 	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAbstract::add_scripts
-	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAbstract::process_single_script
+	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAbstract::_process_single_script
 	 */
 	public function test_register_scripts_passed_directly_with_logger_states(): void {
 		$direct_scripts = array(
@@ -1617,7 +1617,7 @@ class EnqueueAbstractScriptsTest extends PluginLibTestCase {
 			),
 		);
 
-		// Mock wp_register_script as it will be called by process_single_script
+		// Mock wp_register_script as it will be called by _process_single_script
 		// This needs to be defined before the first call to register_scripts
 		WP_Mock::userFunction('wp_register_script')
 			->with('direct-script-1', 'path/to/direct-script-1.js', array(), false, false)
@@ -1727,7 +1727,7 @@ class EnqueueAbstractScriptsTest extends PluginLibTestCase {
 		/** @var \Ran\PluginLib\Tests\Unit\EnqueueAccessory\ConcreteEnqueueForScriptTesting&\PHPUnit\Framework\MockObject\MockObject $sut */
 		$sut = $this->getMockBuilder(ConcreteEnqueueForScriptTesting::class)
 			->setConstructorArgs(array($this->config_mock)) // from PluginLibTestCase
-			->onlyMethods(array('get_logger', 'process_single_script'))
+			->onlyMethods(array('get_logger', '_process_single_script'))
 			->getMock();
 
 		$sut->method('get_logger')->willReturn($this->logger_mock);
@@ -1746,7 +1746,7 @@ class EnqueueAbstractScriptsTest extends PluginLibTestCase {
 			->ordered();
 
 		// Ensure no processing methods are called
-		$sut->expects($this->never())->method('process_single_script');
+		$sut->expects($this->never())->method('_process_single_script');
 		WP_Mock::userFunction('wp_enqueue_script')->never();
 		WP_Mock::userFunction('wp_add_inline_script')->never();
 
@@ -1763,7 +1763,7 @@ class EnqueueAbstractScriptsTest extends PluginLibTestCase {
 		/** @var \Ran\PluginLib\Tests\Unit\EnqueueAccessory\ConcreteEnqueueForScriptTesting&\PHPUnit\Framework\MockObject\MockObject $sut */
 		$sut = $this->getMockBuilder(ConcreteEnqueueForScriptTesting::class)
 			->setConstructorArgs(array($this->config_mock))
-			->onlyMethods(array('get_logger', 'process_single_script'))
+			->onlyMethods(array('get_logger', '_process_single_script'))
 			->getMock();
 
 		$sut->method('get_logger')->willReturn($this->logger_mock);
@@ -1781,7 +1781,7 @@ class EnqueueAbstractScriptsTest extends PluginLibTestCase {
 			->once()
 			->ordered();
 
-		$sut->expects($this->never())->method('process_single_script');
+		$sut->expects($this->never())->method('_process_single_script');
 		WP_Mock::userFunction('wp_enqueue_script')->never();
 		WP_Mock::userFunction('wp_add_inline_script')->never();
 
@@ -1803,7 +1803,7 @@ class EnqueueAbstractScriptsTest extends PluginLibTestCase {
 		/** @var \Ran\PluginLib\Tests\Unit\EnqueueAccessory\ConcreteEnqueueForScriptTesting&\PHPUnit\Framework\MockObject\MockObject $sut */
 		$sut = $this->getMockBuilder(ConcreteEnqueueForScriptTesting::class)
 			->setConstructorArgs(array($this->config_mock))
-			->onlyMethods(array('get_logger', 'process_single_script'))
+			->onlyMethods(array('get_logger', '_process_single_script'))
 			->getMock();
 
 		$sut->method('get_logger')->willReturn($this->logger_mock);
@@ -1821,7 +1821,7 @@ class EnqueueAbstractScriptsTest extends PluginLibTestCase {
 			->once()
 			->ordered();
 
-		$sut->expects($this->never())->method('process_single_script');
+		$sut->expects($this->never())->method('_process_single_script');
 		WP_Mock::userFunction('wp_script_is')->never(); // Should not be called if handle is missing
 		WP_Mock::userFunction('wp_enqueue_script')->never();
 		WP_Mock::userFunction('wp_add_inline_script')->never();
@@ -1837,7 +1837,7 @@ class EnqueueAbstractScriptsTest extends PluginLibTestCase {
 	/**
 	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAbstract::enqueue_deferred_scripts
 	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAbstract::get_logger
-	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAbstract::process_single_script
+	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAbstract::_process_single_script
 	 */
 	public function test_enqueue_deferred_scripts_process_single_script_fails(): void {
 		$hook_name         = 'hook_process_fail';
@@ -1850,15 +1850,15 @@ class EnqueueAbstractScriptsTest extends PluginLibTestCase {
 		/** @var \Ran\PluginLib\Tests\Unit\EnqueueAccessory\ConcreteEnqueueForScriptTesting&\PHPUnit\Framework\MockObject\MockObject $sut */
 		$sut = $this->getMockBuilder(ConcreteEnqueueForScriptTesting::class)
 			->setConstructorArgs(array($this->config_mock))
-			->onlyMethods(array('get_logger', 'process_single_script'))
+			->onlyMethods(array('get_logger', '_process_single_script'))
 			->getMock();
 
 		$sut->method('get_logger')->willReturn($this->logger_mock);
 		$this->set_protected_property_value($sut, 'deferred_scripts', array($hook_name => array($script_definition)));
 
-		// Mock process_single_script to simulate failure
+		// Mock _process_single_script to simulate failure
 		$sut->expects($this->once())
-			->method('process_single_script')
+			->method('_process_single_script')
 			->with($script_definition)
 			->willReturn(null); // Simulate failure
 
@@ -1883,7 +1883,7 @@ class EnqueueAbstractScriptsTest extends PluginLibTestCase {
 			->ordered();
 
 		$this->logger_mock->shouldReceive('warning')
-			->with("EnqueueAbstract::enqueue_deferred_scripts - process_single_script returned an unexpected handle ('') or empty for original handle '{$script_handle}' on hook \"{$hook_name}\". Skipping main script enqueue and its inline scripts.")
+			->with("EnqueueAbstract::enqueue_deferred_scripts - _process_single_script returned an unexpected handle ('') or empty for original handle '{$script_handle}' on hook \"{$hook_name}\". Skipping main script enqueue and its inline scripts.")
 			->once()
 			->ordered();
 
@@ -1900,7 +1900,7 @@ class EnqueueAbstractScriptsTest extends PluginLibTestCase {
 	/**
 	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAbstract::enqueue_deferred_scripts
 	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAbstract::get_logger
-	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAbstract::process_single_script
+	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAbstract::_process_single_script
 	 */
 	public function test_enqueue_deferred_scripts_success_with_inline_script(): void {
 		$hook_name              = 'hook_success_inline';
@@ -1924,16 +1924,16 @@ class EnqueueAbstractScriptsTest extends PluginLibTestCase {
 		/** @var \Ran\PluginLib\Tests\Unit\EnqueueAccessory\ConcreteEnqueueForScriptTesting&\PHPUnit\Framework\MockObject\MockObject $sut */
 		$sut = $this->getMockBuilder(ConcreteEnqueueForScriptTesting::class)
 			->setConstructorArgs(array($this->config_mock))
-			->onlyMethods(array('get_logger', 'process_single_script'))
+			->onlyMethods(array('get_logger', '_process_single_script'))
 			->getMock();
 
 		$sut->method('get_logger')->willReturn($this->logger_mock);
 		$this->set_protected_property_value($sut, 'deferred_scripts', array($hook_name => array($main_script_definition)));
 		$this->set_protected_property_value($sut, 'inline_scripts', array($inline_script_data)); // Add the inline script
 
-		// Mock process_single_script to simulate success
+		// Mock _process_single_script to simulate success
 		$sut->expects($this->once())
-			->method('process_single_script')
+			->method('_process_single_script')
 			->with($main_script_definition)
 			->willReturn($main_script_handle); // Simulate success
 
@@ -1999,7 +1999,7 @@ class EnqueueAbstractScriptsTest extends PluginLibTestCase {
 		/** @var \Ran\PluginLib\Tests\Unit\EnqueueAccessory\ConcreteEnqueueForScriptTesting&\PHPUnit\Framework\MockObject\MockObject $sut */
 		$sut = $this->getMockBuilder(ConcreteEnqueueForScriptTesting::class)
 			->setConstructorArgs(array($this->config_mock))
-			->onlyMethods(array('get_logger', 'process_single_script'))
+			->onlyMethods(array('get_logger', '_process_single_script'))
 			->getMock();
 
 		$sut->method('get_logger')->willReturn($this->logger_mock);
@@ -2020,7 +2020,7 @@ class EnqueueAbstractScriptsTest extends PluginLibTestCase {
 			->once()->ordered();
 
 		// Main script processing and enqueue should be skipped
-		$sut->expects($this->never())->method('process_single_script');
+		$sut->expects($this->never())->method('_process_single_script');
 		WP_Mock::userFunction('wp_enqueue_script')->with($main_script_handle)->never();
 
 		// Inline script processing should still occur
@@ -2073,11 +2073,11 @@ class EnqueueAbstractScriptsTest extends PluginLibTestCase {
 		/** @var \Ran\PluginLib\Tests\Unit\EnqueueAccessory\ConcreteEnqueueForScriptTesting&\PHPUnit\Framework\MockObject\MockObject $sut */
 		$sut = $this->getMockBuilder(ConcreteEnqueueForScriptTesting::class)
 			->setConstructorArgs(array($this->config_mock))
-			->onlyMethods(array('get_logger', 'process_single_script'))
+			->onlyMethods(array('get_logger', '_process_single_script'))
 			->getMock();
 
 		$sut->method('get_logger')->willReturn($sut_logger_mock);
-		$sut->method('process_single_script')
+		$sut->method('_process_single_script')
 			->with($main_script_definition)
 			->willReturn($main_script_handle);
 
