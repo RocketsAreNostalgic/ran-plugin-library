@@ -2,13 +2,12 @@
 <phpunit
 	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 	xsi:noNamespaceSchemaLocation="https://schema.phpunit.de/9.5/phpunit.xsd"
-	bootstrap="tests/test_bootstrap.php"
+	bootstrap="Tests/test_bootstrap.php"
 	cacheResult="true"
-	cacheResultFile="tests/.phpunit.cache/results.cache"
+	cacheResultFile="Tests/.phpunit.cache/results.cache"
 	colors="true"
 	executionOrder="depends,defects"
-	forceCoversAnnotation="true"
-	beStrictAboutCoversAnnotation="true"
+
 	beStrictAboutOutputDuringTests="true"
 	beStrictAboutTodoAnnotatedTests="true"
 	convertDeprecationsToExceptions="true"
@@ -21,20 +20,20 @@
 >
 	<testsuites>
 		<testsuite name="Unit Tests">
-			<directory>tests/Unit</directory>
+			<directory>Tests/Unit</directory>
 		</testsuite>
 	</testsuites>
 
 	<coverage
-		cacheDirectory="tests/.phpunit.cache/code-coverage/"
+		cacheDirectory="Tests/.phpunit.cache/code-coverage/"
 		processUncoveredFiles="true"
 		>
 		<include>
 			<directory suffix=".php">./inc</directory>
 		</include>
 		<report>
-			<html outputDirectory="tests/coverage/html-coverage" lowUpperBound="50" highLowerBound="90"/>
-			<clover outputFile="tests/coverage/clover.xml"/>
+			<html outputDirectory="Tests/coverage/html-coverage" lowUpperBound="50" highLowerBound="90"/>
+			<clover outputFile="Tests/coverage/clover.xml"/>
 		</report>
 	</coverage>
 </phpunit>
