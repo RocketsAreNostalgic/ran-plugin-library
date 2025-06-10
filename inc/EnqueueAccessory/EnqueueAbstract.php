@@ -564,12 +564,12 @@ abstract class EnqueueAbstract implements EnqueueInterface {
 	}
 
 	/**
-	 * Process a single script - registers it and sets up attributes and data.
+	 * Processes a single script definition, handling registration, enqueuing, attributes, and inline data.
 	 *
 	 * @param array<string, mixed> $script The script configuration array.
 	 * @return string The script handle that was registered, or empty string if conditions not met.
 	 */
-	protected function process_single_script( array $script ): ?string { // Return type changed to ?string
+	protected function _process_single_script( array $script ): ?string { // Return type changed to ?string
 		$handle     = $script['handle']     ?? '';
 		$src        = $script['src']        ?? '';
 		$deps       = $script['deps']       ?? array();
@@ -579,13 +579,21 @@ abstract class EnqueueAbstract implements EnqueueInterface {
 		$attributes = $script['attributes'] ?? array();
 		$wp_data    = $script['wp_data']    ?? array();
 
-		// Check if the condition is met.
-		if ( is_callable( $condition ) && ! $condition() ) {
-			return '';
+		if (empty($handle)) {
+			return null;
 		}
 
-		// Register the script.
-		wp_register_script( $handle, $src, $deps, $ver, $in_footer );
+		if (is_callable($condition)) {
+			if (!$condition()) { // Direct call to callable
+				return null;
+			}
+		}
+
+		$registered = wp_register_script( $handle, $src, $deps, $ver, $in_footer );
+
+		if (!$registered) {
+			return null;
+		}
 
 		// Apply WordPress script data.
 		if ( ! empty( $wp_data ) && is_array( $wp_data ) ) {
@@ -599,45 +607,12 @@ abstract class EnqueueAbstract implements EnqueueInterface {
 			add_filter(
 				'script_loader_tag',
 				function ( $tag, $tag_handle, $tag_src ) use ( $handle, $attributes ) {
-					// Only modify our specific script.
-					if ( $tag_handle !== $handle ) {
-						return $tag;
-					}
-
-					// Find the position to insert attributes.
-					$pos = strpos( $tag, '>' );
-					if ( false === $pos ) {
-						return $tag; // Malformed tag, return as is.
-					}
-
-					// Special handling for module scripts.
-					if ( isset( $attributes['type'] ) && 'module' === $attributes['type'] ) {
-						// Position type="module" right after <script.
-						$tag = preg_replace( '/<script\s/', '<script type="module" ', $tag );
-
-						// Remove type from attributes so it's not added again..
-						unset( $attributes['type'] );
-					}
-
-					// Build attributes string.
-					$attr_str = '';
-					foreach ( $attributes as $attr => $value ) {
-						// Skip src attribute as it's already in the tag.
-						if ( 'src' === $attr ) {
-							continue;
-						}
-
-						// Boolean attributes (value is true).
-						if ( true === $value ) {
-							$attr_str .= ' ' . esc_attr( $attr );
-						} elseif ( false !== $value && null !== $value ) { // Regular attributes with values.
-							$attr_str .= ' ' . esc_attr( $attr ) . '="' . esc_attr( $value ) . '"';
-						}
-					}
-
-					// Insert attributes before the closing bracket.
-					$modified_tag = substr( $tag, 0, $pos ) . $attr_str . substr( $tag, $pos );
-					return $modified_tag;
+					return $this->_modify_script_tag_for_attributes(
+						$tag,
+						$tag_handle,
+						$handle,     // Pass the specific handle for *this* script
+						$attributes  // Pass the specific attributes for *this* script
+					);
 				},
 				10,
 				3
@@ -645,6 +620,67 @@ abstract class EnqueueAbstract implements EnqueueInterface {
 		}
 
 		return $handle;
+	}
+
+	/**
+	 * Modifies a script tag by adding attributes, intended for use with the 'script_loader_tag' filter.
+	 *
+	 * This method adjusts the script tag by adding attributes as specified in the $attributes_to_apply array.
+	 * It's designed to work within the context of the 'script_loader_tag' filter, allowing for dynamic
+	 * modification of script tags based on the handle of the script being filtered.
+	 *
+	 * @param string $tag The original HTML script tag.
+	 * @param string $filter_tag_handle The handle of the script currently being filtered by WordPress.
+	 * @param string $script_handle_to_match The handle of the script we are targeting for modification.
+	 * @param array  $attributes_to_apply The attributes to apply to the script tag.
+	 * @return string The modified (or original) HTML script tag.
+	 */
+	protected function _modify_script_tag_for_attributes(
+		string $tag,
+		string $filter_tag_handle,
+		string $script_handle_to_match,
+		array $attributes_to_apply
+	): string {
+		// If the filter is not for the script we're interested in, return the original tag.
+		if ( $filter_tag_handle !== $script_handle_to_match ) {
+			return $tag;
+		}
+
+		// Work on a local copy of attributes to handle modifications like unsetting 'type'
+		$local_attributes = $attributes_to_apply;
+
+		// Special handling for module scripts.
+		if ( isset( $local_attributes['type'] ) && 'module' === $local_attributes['type'] ) {
+			// Position type="module" right after <script.
+			$tag = preg_replace( '/<script\\s/', '<script type="module" ', $tag );
+			// Remove type from attributes so it's not added again.
+			unset( $local_attributes['type'] );
+		}
+
+		// Check for malformed tag (no closing '>') AFTER potential tag modification
+		$pos = strpos( $tag, '>' );
+		if ( false === $pos ) {
+			return $tag;
+		}
+
+		$attr_str = '';
+		foreach ( $local_attributes as $attr => $value ) {
+			// Skip src attribute as it's already in the tag.
+			if ( 'src' === $attr ) {
+				continue;
+			}
+
+			// Boolean attributes (value is true).
+			if ( true === $value ) {
+				$attr_str .= ' ' . esc_attr( $attr );
+			} elseif ( false !== $value && null !== $value ) { // Regular attributes with values.
+				$attr_str .= ' ' . esc_attr( $attr ) . '="' . esc_attr( $value ) . '"';
+			}
+		}
+
+		// Insert attributes before the closing bracket.
+		$modified_tag = substr( $tag, 0, $pos ) . $attr_str . substr( $tag, $pos );
+		return $modified_tag;
 	}
 
 	// STYLES HANDLING
