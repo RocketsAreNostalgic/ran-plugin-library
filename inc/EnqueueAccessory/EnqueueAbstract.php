@@ -744,11 +744,83 @@ abstract class EnqueueAbstract implements EnqueueInterface {
 	 * @see    self::enqueue()
 	 */
 	public function add_styles( array $styles ): self {
-		if ( $this->get_logger()->is_active() ) {
-			$this->get_logger()->debug( 'EnqueueAbstract: Adding ' . count( $styles ) . ' styles to the queue.' );
+		$logger = $this->get_logger();
+		if ( $logger->is_active() ) {
+			$logger->debug( 'EnqueueAbstract: Adding ' . count( $styles ) . ' styles to the queue.' );
 		}
 		$this->styles = $styles;
 
+		return $this;
+	}
+
+	/**
+	 * Registers styles with WordPress without enqueueing them.
+	 *
+	 * This method provides a way to explicitly register styles, making them known to WordPress
+	 * without immediately adding them to the page. This can be useful for styles that might be
+	 * enqueued later by other components or conditionally. Styles with a 'hook' defined
+	 * will be skipped, as their registration is handled by the deferred enqueueing mechanism.
+	 *
+	 * @param  array<int, array<string, mixed>> $styles Optional. An array of style definitions to add and register.
+	 *                                                  If provided, these styles will be added to the internal
+	 *                                                  collection before processing. It's generally recommended
+	 *                                                  to use `add_styles()` separately for clarity.
+	 * @return self Returns the instance of this class for method chaining.
+	 */
+	public function register_styles( array $styles = array() ): self {
+		$logger = $this->get_logger();
+		if ( $logger->is_active() ) {
+			$logger->debug( 'EnqueueAbstract::register_styles - Entered.' );
+		}
+
+		if ( ! empty( $styles ) ) {
+			if ( $logger->is_active() ) {
+				$logger->debug( 'EnqueueAbstract::register_styles - Styles directly passed. Adding them to internal collection via add_styles().' );
+			}
+			$this->add_styles( $styles ); // Use internal add_styles to ensure consistency and hook processing
+		}
+
+		// Always use the internal styles array for consistency.
+		$current_styles_to_process = $this->styles; // Use a local copy to avoid issues if $this->styles is modified during iteration by add_styles called elsewhere
+
+		if ( $logger->is_active() ) {
+			$logger->debug( 'EnqueueAbstract::register_styles - Processing ' . count( $current_styles_to_process ) . ' style definition(s) for registration.' );
+		}
+
+		foreach ( $current_styles_to_process as $index => $style_definition ) {
+			$handle_for_log = $style_definition['handle'] ?? 'N/A_at_index_' . $index;
+
+			// Log initial processing attempt for this style within register_styles context
+			if ( $logger->is_active() ) {
+				$logger->debug( "EnqueueAbstract::register_styles - Attempting to process style: \"{$handle_for_log}\", original index: {$index}." );
+			}
+
+			// Skip styles with hooks (they'll be registered when the hook fires during enqueue_deferred_styles)
+			if ( ! empty( $style_definition['hook'] ) ) {
+				if ( $logger->is_active() ) {
+					$logger->debug( "EnqueueAbstract::register_styles - Style \"{$handle_for_log}\" has a hook '{$style_definition['hook']}'. Skipping registration here (deferred handling)." );
+				}
+				continue;
+			}
+
+			// Call _process_single_style
+			// $hook_name is null because we are skipping hooked styles
+			// $do_register = true, $do_enqueue = false, $do_process_inline = false
+			$this->_process_single_style(
+				$style_definition,
+				'register_styles', // processing_context
+				null,              // hook_name
+				true,              // do_register
+				false,             // do_enqueue
+				false              // do_process_inline
+			);
+			// _process_single_style now handles its own internal logging for success/failure/skip.
+			// The "Called wp_register_style for..." log is now inside _process_single_style if registration occurs.
+		}
+
+		if ( $logger->is_active() ) {
+			$logger->debug( 'EnqueueAbstract::register_styles - Exited.' );
+		}
 		return $this;
 	}
 
@@ -786,139 +858,123 @@ abstract class EnqueueAbstract implements EnqueueInterface {
 	 * @see    wp_enqueue_style()
 	 */
 	public function enqueue_styles( array $styles ): self {
-		$this->get_logger()->debug( 'EnqueueAbstract::enqueue_styles - Entered. Processing ' . count( $styles ) . ' style definition(s).' );
+		$logger = $this->get_logger();
+		if ($logger->is_active()) {
+			$logger->debug( 'EnqueueAbstract::enqueue_styles - Entered. Processing ' . count( $styles ) . ' style definition(s).' );
+		}
 
-		foreach ( $styles as $index => $style_definition ) { // Use $index for unique storage in deferred array.
+		foreach ( $styles as $index => $style_definition ) {
 			$handle_for_log = $style_definition['handle'] ?? 'N/A';
-			$this->get_logger()->debug( "EnqueueAbstract::enqueue_styles - Processing style: \"{$handle_for_log}\", original index: {$index}." );
-
+			if ($logger->is_active()) {
+				$logger->debug( "EnqueueAbstract::enqueue_styles - Processing style: \"{$handle_for_log}\", original index: {$index}." );
+			}
 			$hook = $style_definition['hook'] ?? null;
 
 			if ( ! empty( $hook ) ) {
 				// Defer this style.
-				$this->get_logger()->debug( "EnqueueAbstract::enqueue_styles - Deferring style \"{$handle_for_log}\" (original index {$index}) to hook: \"{$hook}\"." );
-				$this->deferred_styles[ $hook ][ $index ] = $style_definition; // Preserve original index.
+				if ($logger->is_active()) {
+					$logger->debug( "EnqueueAbstract::enqueue_styles - Deferring style \"{$handle_for_log}\" (original index {$index}) to hook: \"{$hook}\"." );
+				}
+				$this->deferred_styles[ $hook ][ $index ] = $style_definition;
 
+				// Ensure the action for deferred styles is added only once per hook.
+				// The has_action check is crucial here.
 				if ( ! has_action( $hook, array( $this, 'enqueue_deferred_styles' ) ) ) {
-					add_action( $hook, array( $this, 'enqueue_deferred_styles' ), 10, 1 ); // Pass hook name.
-					$this->get_logger()->debug( "EnqueueAbstract::enqueue_styles - Added action for 'enqueue_deferred_styles' on hook: \"{$hook}\"." );
+					$this->_do_add_action( $hook, array( $this, 'enqueue_deferred_styles' ), 10, 1 );
+					if ($logger->is_active()) {
+						$logger->debug( "EnqueueAbstract::enqueue_styles - Added action for 'enqueue_deferred_styles' on hook: \"{$hook}\"." );
+					}
+				} else {
+					if ($logger->is_active()) {
+						$logger->debug( "EnqueueAbstract::enqueue_styles - Action for 'enqueue_deferred_styles' on hook '{$hook}' already exists." );
+					}
 				}
 			} else {
-				// Process immediately.
-				$this->get_logger()->debug( "EnqueueAbstract::enqueue_styles - Processing style \"{$handle_for_log}\" immediately." );
-				$handle    = $style_definition['handle']    ?? '';
-				$src       = $style_definition['src']       ?? '';
-				$deps      = $style_definition['deps']      ?? array();
-				$ver       = $style_definition['version']   ?? false;
-				$media     = $style_definition['media']     ?? 'all';
-				$condition = $style_definition['condition'] ?? null;
-
-				if ( empty( $handle ) || empty( $src ) ) {
-					$this->get_logger()->warning( "EnqueueAbstract::enqueue_styles - Invalid immediate style definition. Missing handle or src. Skipping. Handle: \"{$handle_for_log}\"." );
-					continue;
-				}
-
-				if ( is_callable( $condition ) && ! $condition() ) {
-					$this->get_logger()->debug( "EnqueueAbstract::enqueue_styles - Condition not met for immediate style \"{$handle}\". Skipping." );
-					continue;
-				}
-				$this->get_logger()->debug( "EnqueueAbstract::enqueue_styles - Registering immediate style: \"{$handle}\"." );
-				wp_register_style( $handle, $src, $deps, $ver, $media );
-				$this->get_logger()->debug( "EnqueueAbstract::enqueue_styles - Enqueuing immediate style: \"{$handle}\"." );
-				wp_enqueue_style( $handle );
+				// Process immediately using _process_single_style
+				// $hook_name is null for immediate styles
+				// $do_register = true, $do_enqueue = true, $do_process_inline = true
+				$this->_process_single_style(
+					$style_definition,
+					'enqueue_styles', // processing_context
+					null,             // hook_name
+					true,             // do_register
+					true,             // do_enqueue
+					true              // do_process_inline
+				);
 			}
 		}
-		$this->get_logger()->debug( 'EnqueueAbstract::enqueue_styles - Exited.' );
+		if ($logger->is_active()) {
+			$logger->debug( 'EnqueueAbstract::enqueue_styles - Exited.' );
+		}
 		return $this;
 	}
 
 	/**
 	 * Enqueues styles that were deferred to a specific WordPress hook.
-	 *
-	 * This method is typically called by an action hook that was registered
-	 * when a style with a 'hook' parameter was processed by `enqueue_styles()`.
-	 * It iterates through the styles stored in `$this->deferred_styles` for the
-	 * given hook, checks their conditions, registers and enqueues them using
-	 * `wp_register_style()` and `wp_enqueue_style()`.
-	 *
-	 * It also processes any inline styles associated with these deferred styles
-	 * that were also deferred to the same hook.
-	 *
-	 * @param string $hook_name The WordPress hook name that triggered this method.
-	 * @return void This method returns `void` because it's primarily designed as a callback for WordPress action hooks.
-	 *              When executed within a hook, its main role is to perform enqueueing operations (side effects),
-	 *              rather than being part of a fluent setup chain.
-	 * @see self::enqueue_styles()
-	 * @see wp_register_style()
-	 * @see wp_enqueue_style()
-	 * @see wp_add_inline_style()
+	*
+	* This method is typically called by an action hook that was registered
+	* when a style with a 'hook' parameter was processed by `enqueue_styles()`.
+	* It iterates through the styles stored in `$this->deferred_styles` for the
+	* given hook, checks their conditions, registers and enqueues them using
+	* `wp_register_style()` and `wp_enqueue_style()`.
+	*
+	* It also processes any inline styles associated with these deferred styles
+	* that were also deferred to the same hook.
+	*
+	* @param string $hook_name The WordPress hook name that triggered this method.
+	* @return void This method returns `void` because it's primarily designed as a callback for WordPress action hooks.
+	*              When executed within a hook, its main role is to perform enqueueing operations (side effects),
+	*              rather than being part of a fluent setup chain.
+	* @see self::enqueue_styles()
+	* @see wp_register_style()
+	* @see wp_enqueue_style()
+	* @see wp_add_inline_style()
 	 */
 	public function enqueue_deferred_styles( string $hook_name ): void {
-		$this->get_logger()->debug( "EnqueueAbstract::enqueue_deferred_styles - Entered for hook: \"{$hook_name}\"." );
+		$logger = $this->get_logger();
+		if ($logger->is_active()) {
+			$logger->debug( "EnqueueAbstract::enqueue_deferred_styles - Entered for hook: \"{$hook_name}\"." );
+		}
 
 		if ( ! isset( $this->deferred_styles[ $hook_name ] ) || empty( $this->deferred_styles[ $hook_name ] ) ) {
-			$this->get_logger()->debug( "EnqueueAbstract::enqueue_deferred_styles - No deferred styles found or already processed for hook: \"{$hook_name}\"." );
+			if ($logger->is_active()) {
+				$logger->debug( "EnqueueAbstract::enqueue_deferred_styles - No styles found deferred for hook: \"{$hook_name}\". Exiting." );
+			}
+			// Unset even if empty to clean up the key, though it might already be unset or never set.
+			unset( $this->deferred_styles[ $hook_name ] );
 			return;
 		}
 
-		$styles_on_this_hook = $this->deferred_styles[ $hook_name ];
+		$styles_for_hook = $this->deferred_styles[ $hook_name ];
 
-		foreach ( $styles_on_this_hook as $style_definition ) {
-			$handle_for_log = $style_definition['handle'] ?? 'N/A';
-			$this->get_logger()->debug( "EnqueueAbstract::enqueue_deferred_styles - Processing deferred style: \"{$handle_for_log}\" for hook: \"{$hook_name}\"." );
-
-			$handle    = $style_definition['handle']    ?? '';
-			$src       = $style_definition['src']       ?? '';
-			$deps      = $style_definition['deps']      ?? array();
-			$ver       = $style_definition['version']   ?? false; // Or plugin version
-			$media     = $style_definition['media']     ?? 'all';
-			$condition = $style_definition['condition'] ?? null;
-
-			if ( empty( $handle ) || empty( $src ) ) {
-				$this->get_logger()->warning( "EnqueueAbstract::enqueue_deferred_styles - Invalid style definition for hook \"{$hook_name}\". Missing handle or src. Skipping. Handle: \"{$handle_for_log}\"." );
-				continue;
+		foreach ( $styles_for_hook as $original_index => $style_definition ) {
+			// $handle is extracted inside _process_single_style, use it from there for logging if needed
+			// For the initial log here, we can use the handle from the definition.
+			$handle_for_log = $style_definition['handle'] ?? 'N/A_at_original_index_' . $original_index;
+			if ($logger->is_active()) {
+				$logger->debug( "EnqueueAbstract::enqueue_deferred_styles - Processing deferred style: \"{$handle_for_log}\" (original index {$original_index}) for hook: \"{$hook_name}\"." );
 			}
 
-			if ( is_callable( $condition ) && ! $condition() ) {
-				$this->get_logger()->debug( "EnqueueAbstract::enqueue_deferred_styles - Condition not met for deferred style \"{$handle}\" on hook \"{$hook_name}\". Skipping." );
-				continue;
-			}
-
-			$this->get_logger()->debug( "EnqueueAbstract::enqueue_deferred_styles - Registering deferred style: \"{$handle}\" for hook: \"{$hook_name}\"." );
-			wp_register_style( $handle, $src, $deps, $ver, $media );
-
-			$this->get_logger()->debug( "EnqueueAbstract::enqueue_deferred_styles - Enqueuing deferred style: \"{$handle}\" for hook: \"{$hook_name}\"." );
-			wp_enqueue_style( $handle );
-
-			// Process inline styles associated with this handle AND this hook.
-			$this->get_logger()->debug( "EnqueueAbstract::enqueue_deferred_styles - Checking for inline styles for handle '{$handle}' on hook '{$hook_name}'." );
-			foreach ( $this->inline_styles as $inline_style_key => $inline_style_data ) {
-				$inline_handle      = $inline_style_data['handle']      ?? null;
-				$inline_parent_hook = $inline_style_data['parent_hook'] ?? null;
-
-				if ( $inline_handle === $handle && $inline_parent_hook === $hook_name ) {
-					$content          = $inline_style_data['content']   ?? '';
-					$condition_inline = $inline_style_data['condition'] ?? null;
-
-					if ( empty( $content ) ) {
-						$this->get_logger()->error( "EnqueueAbstract::enqueue_deferred_styles - Skipping inline style for deferred '{$handle}' due to missing content." );
-						continue;
-					}
-
-					if ( is_callable( $condition_inline ) && ! $condition_inline() ) {
-						$this->get_logger()->debug( "EnqueueAbstract::enqueue_deferred_styles - Condition false for inline style for deferred '{$handle}'." );
-						continue;
-					}
-					$this->get_logger()->debug( "EnqueueAbstract::enqueue_deferred_styles - Adding inline style for deferred '{$handle}' on hook '{$hook_name}'." );
-					wp_add_inline_style( $handle, $content );
-					// Remove the inline style from $this->inline_styles once processed.
-					unset( $this->inline_styles[ $inline_style_key ] );
-				}
-			}
+			// Call _process_single_style for each deferred style
+			// $do_register = true, $do_enqueue = true, $do_process_inline = true
+			$this->_process_single_style(
+				$style_definition,
+				'enqueue_deferred', // processing_context
+				$hook_name,         // hook_name
+				true,               // do_register
+				true,               // do_enqueue
+				true                // do_process_inline
+			);
+			// All detailed logging for registration, enqueueing, conditions, and inline styles
+			// is now handled within _process_single_style and _process_inline_styles.
+			// The MEMORY abe280e6-5111-4b59-9785-3a87a46f9dd1 details the expected log sequence.
 		}
+
 		// Clear the processed deferred styles for this hook to prevent re-processing.
 		unset( $this->deferred_styles[ $hook_name ] );
-		$this->get_logger()->debug( "EnqueueAbstract::enqueue_deferred_styles - Exited for hook: \"{$hook_name}\"." );
+		if ($logger->is_active()) {
+			$logger->debug( "EnqueueAbstract::enqueue_deferred_styles - Exited for hook: \"{$hook_name}\"." );
+		}
 	}
 
 	/**
@@ -932,8 +988,9 @@ abstract class EnqueueAbstract implements EnqueueInterface {
 	 * @return self
 	 */
 	public function add_inline_styles( string $handle, string $content, string $position = 'after', ?callable $condition = null, ?string $parent_hook = null ): self {
-		if ( $this->get_logger()->is_active() ) {
-			$this->get_logger()->debug( 'EnqueueAbstract::add_inline_styles - Entered. Current inline style count: ' . count( $this->inline_styles ) . '. Adding new inline style for handle: ' . esc_html( $handle ) );
+		$logger = $this->get_logger();
+		if ( $logger->is_active() ) {
+			$logger->debug( 'EnqueueAbstract::add_inline_styles - Entered. Current inline style count: ' . count( $this->inline_styles ) . '. Adding new inline style for handle: ' . esc_html( $handle ) );
 		}
 
 		$inline_style_item = array(
@@ -952,8 +1009,8 @@ abstract class EnqueueAbstract implements EnqueueInterface {
 				if ( null === $inline_style_item['parent_hook'] ) {
 					$inline_style_item['parent_hook'] = $original_style_definition['hook'];
 				}
-				if ( $this->get_logger()->is_active() ) {
-					$this->get_logger()->debug( "EnqueueAbstract::add_inline_styles - Inline style for '{$handle}' associated with parent hook: '{$inline_style_item['parent_hook']}'. Original parent style hook: '" . ( $original_style_definition['hook'] ?? 'N/A' ) . "'." );
+				if ( $logger->is_active() ) {
+					$logger->debug( "EnqueueAbstract::add_inline_styles - Inline style for '{$handle}' associated with parent hook: '{$inline_style_item['parent_hook']}'. Original parent style hook: '" . ( $original_style_definition['hook'] ?? 'N/A' ) . "'." );
 				}
 				break; // Found the parent style, no need to check further.
 			}
@@ -961,10 +1018,94 @@ abstract class EnqueueAbstract implements EnqueueInterface {
 
 		$this->inline_styles[] = $inline_style_item;
 
-		if ( $this->get_logger()->is_active() ) {
-			$this->get_logger()->debug( 'EnqueueAbstract::add_inline_styles - Exiting. New total inline style count: ' . count( $this->inline_styles ) );
+		if ( $logger->is_active() ) {
+			$logger->debug( 'EnqueueAbstract::add_inline_styles - Exiting. New total inline style count: ' . count( $this->inline_styles ) );
 		}
 		return $this;
+	}
+
+	/**
+	 * Processes inline styles associated with a specific parent style handle and hook context.
+	 *
+	 * This method iterates through the collected inline styles, finds those matching
+	 * the parent handle and hook context, checks their conditions, adds them using
+	 * `wp_add_inline_style`, logs the actions, and removes them from the collection
+	 * to prevent reprocessing.
+	 *
+	 * @param string      $parent_handle      The handle of the parent style.
+	 * @param string|null $hook_name          (Optional) The hook name if processing for a deferred context.
+	 *                                        Null for immediate context.
+	 * @param string      $processing_context A string indicating the context (e.g., 'immediate', 'deferred')
+	 *                                        for logging purposes.
+	 * @return void
+	 */
+	protected function _process_inline_styles(string $parent_handle, ?string $hook_name = null, string $processing_context = 'immediate'): void {
+		$logger = $this->get_logger();
+		// Corrected log prefix to match the actual method name for clarity
+		$log_prefix_base = "EnqueueAbstract::_process_inline_styles (context: {$processing_context}) - ";
+
+		$logger->debug( "{$log_prefix_base}Checking for inline styles for parent handle '{$parent_handle}'" . ($hook_name ? " on hook '{$hook_name}'." : '.') );
+
+		$keys_to_unset = array();
+
+		foreach ( $this->inline_styles as $key => $inline_style_data ) {
+			// Basic validation of inline_style_data structure
+			if (!is_array($inline_style_data)) {
+				$logger->warning("{$log_prefix_base} Invalid inline style data at key '{$key}'. Skipping.");
+				continue;
+			}
+
+			$inline_target_handle = $inline_style_data['handle']      ?? null;
+			$inline_parent_hook   = $inline_style_data['parent_hook'] ?? null;
+			$is_match             = false;
+
+			if ( $inline_target_handle === $parent_handle ) {
+				if ( $hook_name ) { // Deferred context
+					if ( $inline_parent_hook === $hook_name ) {
+						$is_match = true;
+					}
+				} else { // Immediate context
+					if ( empty( $inline_parent_hook ) ) {
+						$is_match = true;
+					}
+				}
+			}
+
+			if ( $is_match ) {
+				$content          = $inline_style_data['content']   ?? '';
+				$position         = $inline_style_data['position']  ?? 'after';
+				$condition_inline = $inline_style_data['condition'] ?? null;
+
+				if ( is_callable( $condition_inline ) && ! $condition_inline() ) {
+					$logger->debug( "{$log_prefix_base}Condition false for inline style targeting '{$parent_handle}' (key: {$key})" . ($hook_name ? " on hook '{$hook_name}'." : '.') );
+					$keys_to_unset[] = $key;
+					continue;
+				}
+
+				if ( empty( $content ) ) {
+					$logger->warning( "{$log_prefix_base}Empty content for inline style targeting '{$parent_handle}' (key: {$key})" . ($hook_name ? " on hook '{$hook_name}'." : '.') . ' Skipping addition.' );
+					$keys_to_unset[] = $key;
+					continue;
+				}
+
+				$logger->debug( "{$log_prefix_base}Adding inline style for '{$parent_handle}' (key: {$key}, position: {$position})" . ($hook_name ? " on hook '{$hook_name}'." : '.') );
+				wp_add_inline_style( $parent_handle, $content, $position );
+				$keys_to_unset[] = $key;
+			}
+		}
+
+		if ( ! empty( $keys_to_unset ) ) {
+			foreach ( $keys_to_unset as $key_to_unset ) {
+				if (isset($this->inline_styles[$key_to_unset])) {
+					$removed_handle_for_log = $this->inline_styles[$key_to_unset]['handle'] ?? 'N/A';
+					unset( $this->inline_styles[ $key_to_unset ] );
+					$logger->debug( "{$log_prefix_base}Removed processed inline style with key '{$key_to_unset}' for handle '{$removed_handle_for_log}'" . ($hook_name ? " on hook '{$hook_name}'." : '.') );
+				}
+			}
+			$this->inline_styles = array_values( $this->inline_styles );
+		} else {
+			$logger->debug( "{$log_prefix_base}No inline styles found or processed for '{$parent_handle}'" . ($hook_name ? " on hook '{$hook_name}'." : '.') );
+		}
 	}
 
 	/**
@@ -977,65 +1118,157 @@ abstract class EnqueueAbstract implements EnqueueInterface {
 	 * @return self
 	 */
 	public function enqueue_inline_styles(): self {
-		if ( $this->get_logger()->is_active() ) {
-			$this->get_logger()->debug( 'EnqueueAbstract::enqueue_inline_styles - Entered method.' );
+		$logger = $this->get_logger();
+		if ($logger->is_active()) {
+			$logger->debug( 'EnqueueAbstract::enqueue_inline_styles - Entered method. Attempting to process any remaining immediate inline styles.' );
 		}
-		foreach ( $this->inline_styles as $inline_style ) {
-			$handle      = $inline_style['handle']      ?? '';
-			$content     = $inline_style['content']     ?? '';
-			$condition   = $inline_style['condition']   ?? null;
-			$parent_hook = $inline_style['parent_hook'] ?? null;
 
-			if ( $this->get_logger()->is_active() ) {
-				$this->get_logger()->debug( "EnqueueAbstract::enqueue_inline_styles - Processing inline style for handle: '" . esc_html( $handle ) . "'. Parent hook: '" . esc_html( $parent_hook ?: 'None' ) . "'." );
-			}
-
-			// If this inline style is tied to a parent style on a specific hook, skip it here.
-			// It will be handled by a corresponding deferred styles mechanism if implemented.
-			if ( ! empty( $parent_hook ) ) {
-				if ( $this->get_logger()->is_active() ) {
-					$this->get_logger()->debug( "EnqueueAbstract::enqueue_inline_styles - Deferring inline style for '{$handle}' because its parent is on hook '{$parent_hook}'." );
+		// Collect unique parent handles for immediate inline styles
+		$immediate_parent_handles = array();
+		// Iterate by key to potentially allow unsetting if needed, though _process_inline_styles handles unsetting from $this->inline_styles
+		foreach ( $this->inline_styles as $key => $inline_style_data ) {
+			// Basic validation of the structure of $inline_style_data
+			if (!is_array($inline_style_data)) {
+				if ($logger->is_active()) {
+					$logger->warning("EnqueueAbstract::enqueue_inline_styles - Invalid inline style data at key '{$key}'. Skipping.");
 				}
 				continue;
 			}
+			$parent_hook = $inline_style_data['parent_hook'] ?? null;
+			$handle      = $inline_style_data['handle']      ?? null;
 
-			// Skip if required parameters are missing.
-			if ( empty( $handle ) || empty( $content ) ) {
-				if ( $this->get_logger()->is_active() ) {
-					$this->get_logger()->error( 'EnqueueAbstract::enqueue_inline_styles - Skipping (non-deferred) inline style due to missing handle or content. Handle: ' . esc_html( $handle ) );
+			if ( empty( $parent_hook ) && !empty($handle) ) {
+				// This is an immediate inline style
+				// We only need to call _process_inline_styles once per parent handle
+				if ( !in_array($handle, $immediate_parent_handles, true) ) {
+					$immediate_parent_handles[] = $handle;
 				}
-				continue;
 			}
+		}
 
-			// Check if the condition is met.
-			if ( is_callable( $condition ) && ! $condition() ) {
-				if ( $this->get_logger()->is_active() ) {
-					$this->get_logger()->debug( "EnqueueAbstract::enqueue_inline_styles - Condition not met for inline style '{$handle}'. Skipping." );
-				}
-				continue;
+		if (empty($immediate_parent_handles)) {
+			if ($logger->is_active()) {
+				$logger->debug( 'EnqueueAbstract::enqueue_inline_styles - No immediate inline styles found needing processing.' );
 			}
+			return $this;
+		}
 
-			// Check if the parent style is registered or enqueued.
-			$is_registered = wp_style_is( $handle, 'registered' );
-			$is_enqueued   = wp_style_is( $handle, 'enqueued' );
-			if ( $this->get_logger()->is_active() ) {
-				$this->get_logger()->debug( "EnqueueAbstract::enqueue_inline_styles - (Non-deferred) Style '" . esc_html( $handle ) . "' is_registered: " . ( $is_registered ? 'TRUE' : 'FALSE' ) );
-				$this->get_logger()->debug( "EnqueueAbstract::enqueue_inline_styles - (Non-deferred) Style '" . esc_html( $handle ) . "' is_enqueued: " . ( $is_enqueued ? 'TRUE' : 'FALSE' ) );
-			}
-			if ( ! $is_registered && ! $is_enqueued ) {
-				if ( $this->get_logger()->is_active() ) {
-					$this->get_logger()->error( "EnqueueAbstract::enqueue_inline_styles - (Non-deferred) Cannot add inline style. Parent style '" . esc_html( $handle ) . "' is not registered or enqueued." );
-				}
-				continue;
-			}
+		if ($logger->is_active()) {
+			$logger->debug( 'EnqueueAbstract::enqueue_inline_styles - Found ' . count($immediate_parent_handles) . ' unique parent handle(s) with immediate inline styles to process: ' . implode(', ', array_map('esc_html', $immediate_parent_handles) ) );
+		}
 
-			// Add the inline style using WordPress functions.
-			if ( $this->get_logger()->is_active() ) {
-				$this->get_logger()->debug( "EnqueueAbstract::enqueue_inline_styles - (Non-deferred) Attempting to add inline style for '" . esc_html( $handle ) . "'." );
-			}
-			wp_add_inline_style( $handle, $content );
+		foreach ( $immediate_parent_handles as $parent_handle_to_process ) {
+			// Call _process_inline_styles for immediate context (hook_name is null)
+			// The _process_inline_styles method handles checking parent registration, conditions, adding, and unsetting.
+			$this->_process_inline_styles(
+				$parent_handle_to_process,
+				null, // hook_name (null for immediate)
+				'enqueue_inline_styles' // processing_context
+			);
+		}
+
+		if ($logger->is_active()) {
+			$logger->debug( 'EnqueueAbstract::enqueue_inline_styles - Exited method.' );
 		}
 		return $this;
+	}
+
+	/**
+	 * Processes a single style definition, handling registration, enqueuing, and inline styles.
+	 *
+	 * @param array<string, mixed> $style_definition    The style definition array.
+	 * @param string               $processing_context  Context of the call (e.g., 'register', 'enqueue_immediate', 'enqueue_deferred').
+	 *                                                  Used for logging and conditional logic (like wp_style_is checks).
+	 * @param string|null          $hook_name           The hook name if processing in a deferred context, null otherwise.
+	 * @param bool                 $do_register         Whether to register the style.
+	 * @param bool                 $do_enqueue          Whether to enqueue the style.
+	 * @param bool                 $do_process_inline   Whether to process associated inline styles.
+	 * @return bool True if the style was processed successfully, false otherwise (e.g., condition failed, invalid definition).
+	 */
+	protected function _process_single_style(
+		array $style_definition,
+		string $processing_context,
+		?string $hook_name = null,
+		bool $do_register = true,
+		bool $do_enqueue = false,
+		bool $do_process_inline = false
+	): bool {
+		$logger = $this->get_logger();
+
+		// Parameter extraction with defaults
+		$handle    = $style_definition['handle']    ?? null;
+		$src       = $style_definition['src']       ?? null;
+		$deps      = $style_definition['deps']      ?? array();
+		$version   = $style_definition['version']   ?? false;
+		$media     = $style_definition['media']     ?? 'all';
+		$condition = $style_definition['condition'] ?? null;
+
+		$log_handle_context = $handle ?? 'N/A';
+		$log_hook_context   = $hook_name ? " on hook '{$hook_name}'" : '';
+
+		if ( $logger->is_active() ) {
+			$logger->debug( "EnqueueAbstract::_process_single_style - Processing style '{$log_handle_context}'{$log_hook_context} in context '{$processing_context}'." );
+		}
+
+		// Validate essential parameters
+		if ( empty( $handle ) || ( $do_register && empty( $src ) ) ) {
+			if ( $logger->is_active() ) {
+				$logger->warning( "EnqueueAbstract::_process_single_style - Invalid style definition. Missing handle or src. Skipping. Handle: '{$log_handle_context}'{$log_hook_context}." );
+			}
+			return false;
+		}
+
+		// Check condition
+		if ( is_callable( $condition ) && ! $condition() ) {
+			if ( $logger->is_active() ) {
+				$logger->debug( "EnqueueAbstract::_process_single_style - Condition not met for style '{$handle}'{$log_hook_context}. Skipping." );
+			}
+			return false;
+		}
+
+		// Registration
+		if ( $do_register ) {
+			// Specific logic for 'enqueue_deferred' context: check if already registered.
+			if ( 'enqueue_deferred' === $processing_context && wp_style_is( $handle, 'registered' ) ) {
+				if ( $logger->is_active() ) {
+					$logger->debug( "EnqueueAbstract::_process_single_style - Style '{$handle}'{$log_hook_context} already registered. Skipping wp_register_style.");
+				}
+			} else {
+				if ( $logger->is_active() ) {
+					$logger->debug( "EnqueueAbstract::_process_single_style - Registering style '{$handle}'{$log_hook_context}." );
+				}
+				wp_register_style( $handle, $src, $deps, $version, $media );
+			}
+		}
+
+		// Enqueueing
+		if ( $do_enqueue ) {
+			// Specific logic for 'enqueue_deferred' context: check if already enqueued.
+			if ( 'enqueue_deferred' === $processing_context && wp_style_is( $handle, 'enqueued' ) ) {
+				if ( $logger->is_active() ) {
+					$logger->debug( "EnqueueAbstract::_process_single_style - Style '{$handle}'{$log_hook_context} already enqueued. Skipping wp_enqueue_style.");
+				}
+			} else {
+				if ( $logger->is_active() ) {
+					$logger->debug( "EnqueueAbstract::_process_single_style - Enqueuing style '{$handle}'{$log_hook_context}." );
+				}
+				wp_enqueue_style( $handle );
+			}
+		}
+
+		// Inline Styles
+		if ( $do_process_inline ) {
+			if ( $logger->is_active() ) {
+				$logger->debug( "EnqueueAbstract::_process_single_style - Checking for inline styles for '{$handle}'{$log_hook_context}." );
+			}
+			$this->_process_inline_styles( $handle, $hook_name, $processing_context ); // Pass hook_name and processing_context for context
+		}
+
+		if ( $logger->is_active() ) {
+			$logger->debug( "EnqueueAbstract::_process_single_style - Finished processing style '{$handle}'{$log_hook_context}." );
+		}
+
+		return true;
 	}
 
 	// MEDIA HANDLING
