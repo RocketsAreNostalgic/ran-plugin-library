@@ -1025,6 +1025,85 @@ abstract class EnqueueAbstract implements EnqueueInterface {
 	}
 
 	/**
+	 * Process and add all registered inline styles.
+	 *
+	 * Iterates through the `$inline_styles` property, checks conditions,
+	 * and uses `wp_add_inline_style()` to add them.
+	 * Similar to `enqueue_inline_scripts` but for styles.
+	 *
+	 * @return self
+	 */
+	public function enqueue_inline_styles(): self {
+		$logger = $this->get_logger();
+		if ($logger->is_active()) {
+			$logger->debug( 'EnqueueAbstract::enqueue_inline_styles - Entered method. Attempting to process any remaining immediate inline styles.' );
+		}
+
+		// Collect unique parent handles for immediate inline styles
+		$immediate_parent_handles = array();
+		// Iterate by key to potentially allow unsetting if needed, though _process_inline_styles handles unsetting from $this->inline_styles
+		foreach ( $this->inline_styles as $key => $inline_style_data ) {
+			// Basic validation of the structure of $inline_style_data
+			if (!is_array($inline_style_data)) {
+				if ($logger->is_active()) {
+					$logger->warning("EnqueueAbstract::enqueue_inline_styles - Invalid inline style data at key '{$key}'. Skipping.");
+				}
+				continue;
+			}
+			$parent_hook = $inline_style_data['parent_hook'] ?? null;
+			$handle      = $inline_style_data['handle']      ?? null;
+
+			if ( empty( $parent_hook ) && !empty($handle) ) {
+				// This is an immediate inline style
+				// We only need to call _process_inline_styles once per parent handle
+				if ( !in_array($handle, $immediate_parent_handles, true) ) {
+					$immediate_parent_handles[] = $handle;
+				}
+			}
+		}
+
+		if (empty($immediate_parent_handles)) {
+			if ($logger->is_active()) {
+				$logger->debug( 'EnqueueAbstract::enqueue_inline_styles - No immediate inline styles found needing processing.' );
+			}
+			return $this;
+		}
+
+		if ($logger->is_active()) {
+			$logger->debug( 'EnqueueAbstract::enqueue_inline_styles - Found ' . count($immediate_parent_handles) . ' unique parent handle(s) with immediate inline styles to process: ' . implode(', ', array_map('esc_html', $immediate_parent_handles) ) );
+		}
+
+		foreach ( $immediate_parent_handles as $parent_handle_to_process ) {
+			// Call _process_inline_styles for immediate context (hook_name is null)
+			// The _process_inline_styles method handles checking parent registration, conditions, adding, and unsetting.
+			$this->_process_inline_styles(
+				$parent_handle_to_process,
+				null, // hook_name (null for immediate)
+				'enqueue_inline_styles' // processing_context
+			);
+		}
+
+		if ($logger->is_active()) {
+			$logger->debug( 'EnqueueAbstract::enqueue_inline_styles - Exited method.' );
+		}
+		return $this;
+	}
+
+	/**
+	 * Wraps the global add_action function to allow for easier mocking in tests.
+	 *
+	 * @param string   $hook          The name of the action to which the $function_to_add is hooked.
+	 * @param callable $callback      The name of the function you wish to be called.
+	 * @param int      $priority      Optional. Used to specify the order in which the functions
+	 *                                associated with a particular action are executed. Default 10.
+	 * @param int      $accepted_args Optional. The number of arguments the function accepts. Default 1.
+	 * @return void
+	 */
+	protected function _do_add_action( string $hook, callable $callback, int $priority = 10, int $accepted_args = 1 ): void {
+		add_action( $hook, $callback, $priority, $accepted_args );
+	}
+
+	/**
 	 * Processes inline styles associated with a specific parent style handle and hook context.
 	 *
 	 * This method iterates through the collected inline styles, finds those matching
@@ -1106,71 +1185,6 @@ abstract class EnqueueAbstract implements EnqueueInterface {
 		} else {
 			$logger->debug( "{$log_prefix_base}No inline styles found or processed for '{$parent_handle}'" . ($hook_name ? " on hook '{$hook_name}'." : '.') );
 		}
-	}
-
-	/**
-	 * Process and add all registered inline styles.
-	 *
-	 * Iterates through the `$inline_styles` property, checks conditions,
-	 * and uses `wp_add_inline_style()` to add them.
-	 * Similar to `enqueue_inline_scripts` but for styles.
-	 *
-	 * @return self
-	 */
-	public function enqueue_inline_styles(): self {
-		$logger = $this->get_logger();
-		if ($logger->is_active()) {
-			$logger->debug( 'EnqueueAbstract::enqueue_inline_styles - Entered method. Attempting to process any remaining immediate inline styles.' );
-		}
-
-		// Collect unique parent handles for immediate inline styles
-		$immediate_parent_handles = array();
-		// Iterate by key to potentially allow unsetting if needed, though _process_inline_styles handles unsetting from $this->inline_styles
-		foreach ( $this->inline_styles as $key => $inline_style_data ) {
-			// Basic validation of the structure of $inline_style_data
-			if (!is_array($inline_style_data)) {
-				if ($logger->is_active()) {
-					$logger->warning("EnqueueAbstract::enqueue_inline_styles - Invalid inline style data at key '{$key}'. Skipping.");
-				}
-				continue;
-			}
-			$parent_hook = $inline_style_data['parent_hook'] ?? null;
-			$handle      = $inline_style_data['handle']      ?? null;
-
-			if ( empty( $parent_hook ) && !empty($handle) ) {
-				// This is an immediate inline style
-				// We only need to call _process_inline_styles once per parent handle
-				if ( !in_array($handle, $immediate_parent_handles, true) ) {
-					$immediate_parent_handles[] = $handle;
-				}
-			}
-		}
-
-		if (empty($immediate_parent_handles)) {
-			if ($logger->is_active()) {
-				$logger->debug( 'EnqueueAbstract::enqueue_inline_styles - No immediate inline styles found needing processing.' );
-			}
-			return $this;
-		}
-
-		if ($logger->is_active()) {
-			$logger->debug( 'EnqueueAbstract::enqueue_inline_styles - Found ' . count($immediate_parent_handles) . ' unique parent handle(s) with immediate inline styles to process: ' . implode(', ', array_map('esc_html', $immediate_parent_handles) ) );
-		}
-
-		foreach ( $immediate_parent_handles as $parent_handle_to_process ) {
-			// Call _process_inline_styles for immediate context (hook_name is null)
-			// The _process_inline_styles method handles checking parent registration, conditions, adding, and unsetting.
-			$this->_process_inline_styles(
-				$parent_handle_to_process,
-				null, // hook_name (null for immediate)
-				'enqueue_inline_styles' // processing_context
-			);
-		}
-
-		if ($logger->is_active()) {
-			$logger->debug( 'EnqueueAbstract::enqueue_inline_styles - Exited method.' );
-		}
-		return $this;
 	}
 
 	/**
@@ -1333,7 +1347,6 @@ abstract class EnqueueAbstract implements EnqueueInterface {
 
 		return $this;
 	}
-
 
 	/**
 	 * Processes an array of media tool configurations, deferring all to WordPress action hooks
