@@ -97,21 +97,21 @@ abstract class EnqueueAbstract implements EnqueueInterface {
 	 *
 	 * @var array<int, array<int, mixed>>
 	 */
-	private array $scripts = array();
+	protected array $scripts = array();
 
 	/**
 	 * Array of inline scripts to be added.
 	 *
 	 * @var array<int, array<string, mixed>>
 	 */
-	private array $inline_scripts = array();
+	protected array $inline_scripts = array();
 
 	/**
 	 * Array of scripts to be enqueued at specific hooks.
 	 *
 	 * @var array<string, array<int, array<string, mixed>>>
 	 */
-	private array $deferred_scripts = array();
+	protected array $deferred_scripts = array();
 
 	/**
 	 * Get the array of registered scripts.
@@ -569,7 +569,7 @@ abstract class EnqueueAbstract implements EnqueueInterface {
 	 * @param array<string, mixed> $script The script configuration array.
 	 * @return string The script handle that was registered, or empty string if conditions not met.
 	 */
-	private function process_single_script( array $script ): string {
+	protected function process_single_script( array $script ): ?string { // Return type changed to ?string
 		$handle     = $script['handle']     ?? '';
 		$src        = $script['src']        ?? '';
 		$deps       = $script['deps']       ?? array();
@@ -654,7 +654,7 @@ abstract class EnqueueAbstract implements EnqueueInterface {
 	 *
 	 * @var array<int, array<int, mixed>>
 	 */
-	private array $styles = array();
+	protected array $styles = array();
 
 	/**
 	 * Array of inline styles to be added.
