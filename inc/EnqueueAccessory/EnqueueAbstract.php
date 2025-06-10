@@ -29,15 +29,15 @@ use Ran\PluginLib\Util\Logger;
  * their internal processing within this class differs slightly:
  *
  * Scripts:
- * - Utilize a protected `process_single_script()` method to encapsulate the registration
+ * - Utilize a protected `_process_single_script()` method to encapsulate the registration
  *   (`wp_register_script`), attribute handling (e.g., `async`, `defer`, `type="module"`),
  *   and `wp_script_add_data()` calls for each script. This centralization helps manage
  *   the greater complexity often associated with script attributes and associated WordPress data.
  * - Inline scripts associated with a parent script can be processed immediately after the parent
- *   by `process_single_script()` if not deferred.
+ *   by `_process_single_script()` if not deferred.
  *
  * Styles:
- * - Do not have a direct `process_single_style()` counterpart. Parent style registration
+ * - Do not have a direct `_process_single_style()` counterpart. Parent style registration
  *   (`wp_register_style`) and enqueuing (`wp_enqueue_style`) are handled more directly within
  *   the `enqueue_styles()` method (for non-deferred styles) or within dedicated hook callbacks
  *   (for deferred styles).
@@ -147,15 +147,16 @@ abstract class EnqueueAbstract implements EnqueueInterface {
 	 * @return self Returns the instance of this class for method chaining.
 	 * @see    self::enqueue_scripts()
 	 * @see    self::enqueue()
-	 * @see    self::process_single_script()
+	 * @see    self::_process_single_script()
 	 */
 	public function add_scripts( array $scripts_to_add ): self {
-		if ( $this->get_logger()->is_active() ) {
-			$this->get_logger()->debug( 'EnqueueAbstract::add_scripts - Entered. Current script count: ' . count( $this->scripts ) . '. Adding ' . count( $scripts_to_add ) . ' new script(s).' );
+		$logger = $this->get_logger();
+		if ( $logger->is_active() ) {
+			$logger->debug( 'EnqueueAbstract::add_scripts - Entered. Current script count: ' . count( $this->scripts ) . '. Adding ' . count( $scripts_to_add ) . ' new script(s).' );
 			foreach ( $scripts_to_add as $script_key => $script_data ) {
 				$handle = $script_data['handle'] ?? 'N/A';
 				$src    = $script_data['src']    ?? 'N/A';
-				$this->get_logger()->debug( "EnqueueAbstract::add_scripts - Adding script. Key: {$script_key}, Handle: {$handle}, Src: {$src}" );
+				$logger->debug( "EnqueueAbstract::add_scripts - Adding script. Key: {$script_key}, Handle: {$handle}, Src: {$src}" );
 			}
 		}
 
@@ -166,13 +167,13 @@ abstract class EnqueueAbstract implements EnqueueInterface {
 			$this->scripts[] = $script; // Simple append.
 		}
 
-		if ( $this->get_logger()->is_active() ) {
-			$this->get_logger()->debug( 'EnqueueAbstract::add_scripts - Exiting. New total script count: ' . count( $this->scripts ) );
+		if ( $logger->is_active() ) {
+			$logger->debug( 'EnqueueAbstract::add_scripts - Exiting. New total script count: ' . count( $this->scripts ) );
 			$current_handles = array();
 			foreach ( $this->scripts as $s ) {
 				$current_handles[] = $s['handle'] ?? 'N/A';
 			}
-			$this->get_logger()->debug( 'EnqueueAbstract::add_scripts - All current script handles after add: ' . implode( ', ', $current_handles ) );
+			$logger->debug( 'EnqueueAbstract::add_scripts - All current script handles after add: ' . implode( ', ', $current_handles ) );
 		}
 
 		return $this;
@@ -184,17 +185,20 @@ abstract class EnqueueAbstract implements EnqueueInterface {
 	 * @return self Returns the instance for method chaining.
 	 */
 	public function register_scripts( array $scripts = array() ): self {
+		$logger = $this->get_logger();
 		// If scripts are directly passed, add them to the internal array and log a notice
 		if ( ! empty( $scripts ) ) {
-			$this->get_logger()->debug( 'EnqueueAbstract::register_scripts - Scripts directly passed. Consider using add_scripts() first for better maintainability.' );
+			if ( $logger->is_active() ) {
+				$logger->debug( 'EnqueueAbstract::register_scripts - Scripts directly passed. Consider using add_scripts() first for better maintainability.' );
+			}
 			$this->add_scripts( $scripts );
 		}
 
 		// Always use the internal scripts array for consistency
 		$scripts = $this->scripts;
 
-		if ( $this->get_logger()->is_active() ) {
-			$this->get_logger()->debug( 'EnqueueAbstract::register_scripts - Registering ' . count( $scripts ) . ' script(s).' );
+		if ( $logger->is_active() ) {
+			$logger->debug( 'EnqueueAbstract::register_scripts - Registering ' . count( $scripts ) . ' script(s).' );
 		}
 
 		foreach ( $scripts as $script ) {
@@ -203,9 +207,9 @@ abstract class EnqueueAbstract implements EnqueueInterface {
 				continue;
 			}
 
-			// process_single_script handles all registration logic including conditions,
+			// _process_single_script handles all registration logic including conditions,
 			// wp_data, and attributes
-			$this->process_single_script( $script );
+			$this->_process_single_script( $script );
 		}
 
 		return $this;
@@ -219,31 +223,22 @@ abstract class EnqueueAbstract implements EnqueueInterface {
 	 * (or if no condition is set), the script is then processed. If a `$hook` is
 	 * specified, the script's processing is deferred by adding it to an internal
 	 * queue for that hook via `enqueue_deferred_scripts()`. Otherwise, the script
-	 * is processed immediately by `process_single_script()`.
+	 * is processed immediately by `_process_single_script()`.
 	 *
-	 * The `process_single_script()` method handles the actual WordPress registration
+	 * The `_process_single_script()` method handles the actual WordPress registration
 	 * (`wp_register_script()`), enqueuing (`wp_enqueue_script()`), attribute additions,
 	 * and `wp_script_add_data()` calls.
 	 *
+	 * @param array $scripts
 	 * @return self Returns the instance of this class for method chaining.
 	 * @see    self::add_scripts()
-	 * @see    self::process_single_script()
-	 * @see    self::enqueue_deferred_scripts()
-	 * @see    wp_register_script()
-	 * @see    wp_enqueue_script()
-	 * @see    wp_script_add_data()
+	 * @see    self::_process_single_script()
 	 */
-	public function enqueue_scripts( array $scripts = array() ): self {
-		// If scripts are directly passed, add them to the internal array and log a notice
-		if ( ! empty( $scripts ) ) {
-			$this->get_logger()->debug( 'EnqueueAbstract::enqueue_scripts - Scripts directly passed. Consider using add_scripts() first for better maintainability.' );
-			$this->add_scripts( $scripts );
+	public function enqueue_scripts( array $scripts ): self {
+		$logger = $this->get_logger();
+		if ( $logger->is_active() ) {
+			$logger->debug( 'EnqueueAbstract::enqueue_scripts - Entered. Processing ' . count( $scripts ) . ' script definition(s).' );
 		}
-
-		// Always use the internal scripts array for consistency
-		$scripts = $this->scripts;
-
-		$this->get_logger()->debug( 'EnqueueAbstract::enqueue_scripts - Entered. Processing ' . count( $scripts ) . ' script definition(s).' );
 		// Track which hooks have new scripts added.
 		$hooks_with_new_scripts = array();
 
@@ -252,8 +247,8 @@ abstract class EnqueueAbstract implements EnqueueInterface {
 
 			// If a hook is specified, store the script for later enqueuing.
 			if ( ! empty( $hook ) ) {
-				if ( $this->get_logger()->is_active() ) {
-					$this->get_logger()->debug( "EnqueueAbstract::enqueue_scripts - Script '" . ( $script['handle'] ?? 'N/A' ) . "' identified as deferred to hook: " . $hook );
+				if ( $logger->is_active() ) {
+					$logger->debug( "EnqueueAbstract::enqueue_scripts - Script '" . ( $script['handle'] ?? 'N/A' ) . "' identified as deferred to hook: " . $hook );
 				}
 
 				if ( ! isset( $this->deferred_scripts[ $hook ] ) ) {
@@ -265,30 +260,36 @@ abstract class EnqueueAbstract implements EnqueueInterface {
 			}
 
 			// Process the script (register and set up attributes).
-			if ( $this->get_logger()->is_active() ) {
-				$this->get_logger()->debug( 'EnqueueAbstract::enqueue_scripts - Processing non-deferred script: ' . ( $script['handle'] ?? 'N/A' ) );
+			if ( $logger->is_active() ) {
+				$logger->debug( 'EnqueueAbstract::enqueue_scripts - Processing non-deferred script: ' . ( $script['handle'] ?? 'N/A' ) );
 			}
 
 
-			$handle = $this->process_single_script( $script );
+			$handle = $this->_process_single_script( $script );
 
 			// Skip empty handles (condition not met).
 			if ( empty( $handle ) ) {
-				$this->get_logger()->debug( 'EnqueueAbstract::enqueue_scripts - Skipping script as handle is empty (condition likely not met for: ' . ($script['handle'] ?? 'N/A') . ').' );
+				if ( $logger->is_active() ) {
+					$logger->debug( 'EnqueueAbstract::enqueue_scripts - Skipping script as handle is empty (condition likely not met for: ' . ($script['handle'] ?? 'N/A') . ').' );
+				}
 				continue;
 			}
 
-			$this->get_logger()->debug( 'EnqueueAbstract::enqueue_scripts - Enqueuing script (handle from process_single_script): ' . $handle );
+			if ( $logger->is_active() ) {
+				$logger->debug( 'EnqueueAbstract::enqueue_scripts - Enqueuing script (handle from _process_single_script): ' . $handle );
+			}
 
 			// Enqueue the script.
-			if ( $this->get_logger()->is_active() ) {
-				$this->get_logger()->debug( 'EnqueueAbstract::enqueue_scripts - Calling wp_enqueue_script for non-deferred: ' . $handle );
+			if ( $logger->is_active() ) {
+				$logger->debug( 'EnqueueAbstract::enqueue_scripts - Calling wp_enqueue_script for non-deferred: ' . $handle );
 			}
 			wp_enqueue_script( $handle );
 		}
 
 		// Register hooks for any deferred scripts that were added.
-		$this->get_logger()->debug( 'EnqueueAbstract::enqueue_scripts - hooks_with_new_scripts: ' . wp_json_encode( $hooks_with_new_scripts ) );
+		if ( $logger->is_active() ) {
+			$logger->debug( 'EnqueueAbstract::enqueue_scripts - hooks_with_new_scripts: ' . wp_json_encode( $hooks_with_new_scripts ) );
+		}
 		if ( ! empty( $hooks_with_new_scripts ) ) {
 			foreach ( array_keys( $hooks_with_new_scripts ) as $hook ) {
 				// Check if the hook has already fired.
@@ -309,7 +310,9 @@ abstract class EnqueueAbstract implements EnqueueInterface {
 			}
 		}
 
-		$this->get_logger()->debug( 'EnqueueAbstract::enqueue_scripts - Exited.' );
+		if ( $logger->is_active() ) {
+			$logger->debug( 'EnqueueAbstract::enqueue_scripts - Exited.' );
+		}
 		return $this;
 	}
 
@@ -324,17 +327,18 @@ abstract class EnqueueAbstract implements EnqueueInterface {
 	 *     @type string|null $parent_hook (optional) The WordPress hook name that the parent script is deferred to.
 	 */
 	public function add_inline_scripts( array $inline_scripts_to_add ): self {
-		if ( $this->get_logger()->is_active() ) {
-			$this->get_logger()->debug( 'EnqueueAbstract::add_inline_scripts - Entered. Current inline script count: ' . count( $this->inline_scripts ) . '. Adding ' . count( $inline_scripts_to_add ) . ' new inline script(s).' );
+		$logger = $this->get_logger();
+		if ( $logger->is_active() ) {
+			$logger->debug( 'EnqueueAbstract::add_inline_scripts - Entered. Current inline script count: ' . count( $this->inline_scripts ) . '. Adding ' . count( $inline_scripts_to_add ) . ' new inline script(s).' );
 		}
 
 		$processed_inline_scripts = array();
 		foreach ( $inline_scripts_to_add as $inline_script_data ) {
-			if ( $this->get_logger()->is_active() ) {
+			if ( $logger->is_active() ) {
 				$log_handle         = $inline_script_data['handle']   ?? 'N/A';
 				$log_position       = $inline_script_data['position'] ?? 'after';
 				$log_content_length = strlen($inline_script_data['content'] ?? '');
-				$this->get_logger()->debug( "EnqueueAbstract::add_inline_scripts - Processing inline script for handle '{$log_handle}', position '{$log_position}', content length {$log_content_length}." );
+				$logger->debug( "EnqueueAbstract::add_inline_scripts - Processing inline script for handle '{$log_handle}', position '{$log_position}', content length {$log_content_length}." );
 			}
 			$parent_handle = $inline_script_data['handle'] ?? null;
 			// Ensure parent_hook is initialized, it might be overridden if the parent script is deferred.
@@ -351,8 +355,8 @@ abstract class EnqueueAbstract implements EnqueueInterface {
 						if ( null === $inline_script_data['parent_hook'] ) {
 							$inline_script_data['parent_hook'] = $original_script_definition['hook'];
 						}
-						if ( $this->get_logger()->is_active() ) {
-							$this->get_logger()->debug( "EnqueueAbstract::add_inline_scripts - Inline script for '{$parent_handle}' associated with parent hook: '{$inline_script_data['parent_hook']}'. Original parent script hook: '" . ( $original_script_definition['hook'] ?? 'N/A' ) . "'." );
+						if ( $logger->is_active() ) {
+							$logger->debug( "EnqueueAbstract::add_inline_scripts - Inline script for '{$parent_handle}' associated with parent hook: '{$inline_script_data['parent_hook']}'. Original parent script hook: '" . ( $original_script_definition['hook'] ?? 'N/A' ) . "'." );
 						}
 						break; // Found the parent script, no need to check further.
 					}
@@ -363,8 +367,8 @@ abstract class EnqueueAbstract implements EnqueueInterface {
 		// Merge new inline scripts with existing ones.
 		$this->inline_scripts = array_merge( $this->inline_scripts, $processed_inline_scripts );
 
-		if ( $this->get_logger()->is_active() ) {
-			$this->get_logger()->debug( 'EnqueueAbstract::add_inline_scripts - Exiting. New total inline script count: ' . count( $this->inline_scripts ) );
+		if ( $logger->is_active() ) {
+			$logger->debug( 'EnqueueAbstract::add_inline_scripts - Exiting. New total inline script count: ' . count( $this->inline_scripts ) );
 		}
 		return $this;
 	}
@@ -373,8 +377,9 @@ abstract class EnqueueAbstract implements EnqueueInterface {
 	 * Process and add all registered inline scripts.
 	 */
 	public function enqueue_inline_scripts(): self {
-		if ( $this->get_logger()->is_active() ) {
-			$this->get_logger()->debug( 'EnqueueAbstract::enqueue_inline_scripts - Entered method.' );
+		$logger = $this->get_logger();
+		if ( $logger->is_active() ) {
+			$logger->debug( 'EnqueueAbstract::enqueue_inline_scripts - Entered method.' );
 		}
 		foreach ( $this->inline_scripts as $inline_script ) {
 			$handle      = $inline_script['handle']      ?? '';
@@ -383,49 +388,52 @@ abstract class EnqueueAbstract implements EnqueueInterface {
 			$condition   = $inline_script['condition']   ?? null;
 			$parent_hook = $inline_script['parent_hook'] ?? null;
 
-			if ( $this->get_logger()->is_active() ) {
-				$this->get_logger()->debug( "EnqueueAbstract::enqueue_inline_scripts - Processing inline script for handle: '" . esc_html( $handle ) . "'. Parent hook: '" . esc_html( $parent_hook ?: 'None' ) . "'." );
+			if ( $logger->is_active() ) {
+				$logger->debug( "EnqueueAbstract::enqueue_inline_scripts - Processing inline script for handle: '" . esc_html( $handle ) . "'. Parent hook: '" . esc_html( $parent_hook ?: 'None' ) . "'." );
 			}
 
 			// If this inline script is tied to a parent script on a specific hook, skip it here.
 			// It will be handled by enqueue_deferred_scripts.
 			if ( ! empty( $parent_hook ) ) {
-				if ( $this->get_logger()->is_active() ) {
-					$this->get_logger()->debug( "EnqueueAbstract::enqueue_inline_scripts - Deferring inline script for '{$handle}' because its parent is on hook '{$parent_hook}'." );
+				if ( $logger->is_active() ) {
+					$logger->debug( "EnqueueAbstract::enqueue_inline_scripts - Deferring inline script for '{$handle}' because its parent is on hook '{$parent_hook}'." );
 				}
 				continue;
 			}
 
 			// Skip if required parameters are missing.
 			if ( empty( $handle ) || empty( $content ) ) {
-				if ( $this->get_logger()->is_active() ) {
-					$this->get_logger()->error( 'EnqueueAbstract::enqueue_inline_scripts - Skipping (non-deferred) inline script due to missing handle or content. Handle: ' . esc_html( $handle ) );
+				if ( $logger->is_active() ) {
+					$logger->error( 'EnqueueAbstract::enqueue_inline_scripts - Skipping (non-deferred) inline script due to missing handle or content. Handle: ' . esc_html( $handle ) );
 				}
 				continue;
 			}
 
 			// Check if the condition is met.
 			if ( is_callable( $condition ) && ! $condition() ) {
+				if ( $logger->is_active() ) {
+					$logger->debug( "EnqueueAbstract::enqueue_inline_scripts - Condition not met for inline script '{$handle}'. Skipping." );
+				}
 				continue;
 			}
 
 			// Check if the parent script is registered or enqueued.
 			$is_registered = wp_script_is( $handle, 'registered' );
 			$is_enqueued   = wp_script_is( $handle, 'enqueued' );
-			if ( $this->get_logger()->is_active() ) {
-				$this->get_logger()->debug( "EnqueueAbstract::enqueue_inline_scripts - (Non-deferred) Script '" . esc_html( $handle ) . "' is_registered: " . ( $is_registered ? 'TRUE' : 'FALSE' ) );
-				$this->get_logger()->debug( "EnqueueAbstract::enqueue_inline_scripts - (Non-deferred) Script '" . esc_html( $handle ) . "' is_enqueued: " . ( $is_enqueued ? 'TRUE' : 'FALSE' ) );
+			if ( $logger->is_active() ) {
+				$logger->debug( "EnqueueAbstract::enqueue_inline_scripts - (Non-deferred) Script '" . esc_html( $handle ) . "' is_registered: " . ( $is_registered ? 'TRUE' : 'FALSE' ) );
+				$logger->debug( "EnqueueAbstract::enqueue_inline_scripts - (Non-deferred) Script '" . esc_html( $handle ) . "' is_enqueued: " . ( $is_enqueued ? 'TRUE' : 'FALSE' ) );
 			}
 			if ( ! $is_registered && ! $is_enqueued ) {
-				if ( $this->get_logger()->is_active() ) {
-					$this->get_logger()->error( "EnqueueAbstract::enqueue_inline_scripts - (Non-deferred) Cannot add inline script. Parent script '" . esc_html( $handle ) . "' is not registered or enqueued." );
+				if ( $logger->is_active() ) {
+					$logger->error( "EnqueueAbstract::enqueue_inline_scripts - (Non-deferred) Cannot add inline script. Parent script '" . esc_html( $handle ) . "' is not registered or enqueued." );
 				}
 				continue;
 			}
 
 			// Add the inline script using WordPress functions.
-			if ( $this->get_logger()->is_active() ) {
-				$this->get_logger()->debug( "EnqueueAbstract::enqueue_inline_scripts - (Non-deferred) Attempting to add inline script for '" . esc_html( $handle ) . "' with position '" . esc_html( $position ) . "'." );
+			if ( $logger->is_active() ) {
+				$logger->debug( "EnqueueAbstract::enqueue_inline_scripts - (Non-deferred) Attempting to add inline script for '" . esc_html( $handle ) . "' with position '" . esc_html( $position ) . "'." );
 			}
 			if ( 'before' === $position ) {
 				wp_add_inline_script( $handle, $content, 'before' );
@@ -445,12 +453,13 @@ abstract class EnqueueAbstract implements EnqueueInterface {
 	 *              rather than being part of a fluent setup chain.
 	 */
 	public function enqueue_deferred_scripts( string $hook ): void {
-		if ( $this->get_logger()->is_active() ) {
-			$this->get_logger()->debug( "EnqueueAbstract::enqueue_deferred_scripts - Entered for hook: \"{$hook}\"" );
+		$logger = $this->get_logger();
+		if ( $logger->is_active() ) {
+			$logger->debug( "EnqueueAbstract::enqueue_deferred_scripts - Entered for hook: \"{$hook}\"" );
 		}
 		if ( ! isset( $this->deferred_scripts[ $hook ] ) ) {
-			if ( $this->get_logger()->is_active() ) {
-				$this->get_logger()->debug( "EnqueueAbstract::enqueue_deferred_scripts - Hook \"{$hook}\" not found in deferred scripts. Nothing to process." );
+			if ( $logger->is_active() ) {
+				$logger->debug( "EnqueueAbstract::enqueue_deferred_scripts - Hook \"{$hook}\" not found in deferred scripts. Nothing to process." );
 			}
 			return; // Hook was never set, nothing to do or unset.
 		}
@@ -460,8 +469,8 @@ abstract class EnqueueAbstract implements EnqueueInterface {
 		unset( $this->deferred_scripts[ $hook ] ); // Moved unset action here
 
 		if ( empty( $scripts_on_this_hook ) ) {
-			if ( $this->get_logger()->is_active() ) {
-				$this->get_logger()->debug( "EnqueueAbstract::enqueue_deferred_scripts - Hook \"{$hook}\" was set but had no scripts. It has now been cleared." );
+			if ( $logger->is_active() ) {
+				$logger->debug( "EnqueueAbstract::enqueue_deferred_scripts - Hook \"{$hook}\" was set but had no scripts. It has now been cleared." );
 			}
 			return; // No actual scripts to process for this hook.
 		}
@@ -470,58 +479,49 @@ abstract class EnqueueAbstract implements EnqueueInterface {
 			$original_handle = $script_definition['handle'] ?? null;
 
 			if ( empty( $original_handle ) ) {
-				if ( $this->get_logger()->is_active() ) {
-					$this->get_logger()->error( "EnqueueAbstract::enqueue_deferred_scripts - Script definition missing 'handle' for hook '{$hook}'. Skipping this script definition." );
+				if ( $logger->is_active() ) {
+					$logger->error( "EnqueueAbstract::enqueue_deferred_scripts - Script definition missing 'handle' for hook '{$hook}'. Skipping this script definition." );
 				}
 				continue; // Skip this script definition if handle is missing
 			}
 
-			// Perform wp_script_is checks and log them.
-			$is_registered = false;
-			$is_enqueued   = false;
-			if ( $this->get_logger()->is_active() ) {
-				$this->get_logger()->debug( "EnqueueAbstract::enqueue_deferred_scripts - [DIAG_LOG] Checking status for handle: '{$original_handle}' on hook '{$hook}'." );
-				$is_registered = wp_script_is( $original_handle, 'registered' );
-				$is_enqueued   = wp_script_is( $original_handle, 'enqueued' );
-				$this->get_logger()->debug( "EnqueueAbstract::enqueue_deferred_scripts - [DIAG_LOG] For '{$original_handle}': wp_script_is('registered') returned: " . ( $is_registered ? 'true' : 'false' ) );
-				$this->get_logger()->debug( "EnqueueAbstract::enqueue_deferred_scripts - [DIAG_LOG] For '{$original_handle}': wp_script_is('enqueued') returned: " . ( $is_enqueued ? 'true' : 'false' ) );
-			} else {
-				// If logger is not active, still perform the checks for logic execution.
-				$is_registered = wp_script_is( $original_handle, 'registered' );
-				$is_enqueued   = wp_script_is( $original_handle, 'enqueued' );
+			$is_registered = wp_script_is( $original_handle, 'registered' );
+			$is_enqueued   = wp_script_is( $original_handle, 'enqueued' );
+			if ( $logger->is_active() ) {
+				$logger->debug( "EnqueueAbstract::enqueue_deferred_scripts - (Deferred) Script '" . esc_html( $original_handle ) . "' is_registered: " . ( $is_registered ? 'TRUE' : 'FALSE' ) );
+				$logger->debug( "EnqueueAbstract::enqueue_deferred_scripts - (Deferred) Script '" . esc_html( $original_handle ) . "' is_enqueued: " . ( $is_enqueued ? 'TRUE' : 'FALSE' ) );
 			}
 
 			$skip_main_registration_and_enqueue = $is_enqueued;
 
 			if ( $skip_main_registration_and_enqueue ) {
-				if ( $this->get_logger()->is_active() ) {
-					$this->get_logger()->debug( "EnqueueAbstract::enqueue_deferred_scripts - Script '{$original_handle}' is already enqueued. Skipping its registration and main enqueue call on hook '{$hook}'. Inline scripts will still be processed." );
+				if ( $logger->is_active() ) {
+					$logger->debug( "EnqueueAbstract::enqueue_deferred_scripts - Script '{$original_handle}' is already enqueued. Skipping its registration and main enqueue call on hook '{$hook}'. Inline scripts will still be processed." );
 				}
 			} else {
-				// Not enqueued, so process and enqueue main script.
-				if ( $this->get_logger()->is_active() ) {
-					$this->get_logger()->debug( "EnqueueAbstract::enqueue_deferred_scripts - Processing deferred script: \"{$original_handle}\" for hook: \"{$hook}\"" );
+				if ( $logger->is_active() ) {
+					$logger->debug( "EnqueueAbstract::enqueue_deferred_scripts - Processing deferred script: \"{$original_handle}\" for hook: \"{$hook}\"" );
 				}
-				// process_single_script returns the original handle, so $original_handle is the one to use.
-				$processed_handle_confirmation = $this->process_single_script( $script_definition );
+				// _process_single_script returns the original handle, so $original_handle is the one to use.
+				$processed_handle_confirmation = $this->_process_single_script( $script_definition );
 
 				if ( empty( $processed_handle_confirmation ) || $processed_handle_confirmation !== $original_handle ) {
-					if ( $this->get_logger()->is_active() ) {
-						$this->get_logger()->warning( "EnqueueAbstract::enqueue_deferred_scripts - process_single_script returned an unexpected handle ('{$processed_handle_confirmation}') or empty for original handle '{$original_handle}' on hook \"{$hook}\". Skipping main script enqueue and its inline scripts." );
+					if ( $logger->is_active() ) {
+						$logger->warning( "EnqueueAbstract::enqueue_deferred_scripts - _process_single_script returned an unexpected handle ('{$processed_handle_confirmation}') or empty for original handle '{$original_handle}' on hook \"{$hook}\". Skipping main script enqueue and its inline scripts." );
 					}
 					continue; // Critical issue, skip this script and its inlines.
 				}
 
-				if ( $this->get_logger()->is_active() ) {
-					$this->get_logger()->debug( "EnqueueAbstract::enqueue_deferred_scripts - Calling wp_enqueue_script for deferred: \"{$original_handle}\" on hook: \"{$hook}\"" );
+				if ( $logger->is_active() ) {
+					$logger->debug( "EnqueueAbstract::enqueue_deferred_scripts - Calling wp_enqueue_script for deferred: \"{$original_handle}\" on hook: \"{$hook}\"" );
 				}
 				wp_enqueue_script( $original_handle ); // Enqueue the main deferred script using its original handle.
 			}
 
 			// NOW, process any inline scripts associated with this $original_handle AND this $hook.
 			// This block is now reached even if $skip_main_registration_and_enqueue was true.
-			if ( $this->get_logger()->is_active() ) {
-				$this->get_logger()->debug( "EnqueueAbstract::enqueue_deferred_scripts - Checking for inline scripts for handle '{$original_handle}' on hook '{$hook}'." );
+			if ( $logger->is_active() ) {
+				$logger->debug( "EnqueueAbstract::enqueue_deferred_scripts - Checking for inline scripts for handle '{$original_handle}' on hook '{$hook}'." );
 			}
 			foreach ( $this->inline_scripts as $inline_script_key => $inline_script_data ) {
 				// Ensure keys exist before accessing.
@@ -535,32 +535,36 @@ abstract class EnqueueAbstract implements EnqueueInterface {
 					$condition = $inline_script_data['condition'] ?? null;
 
 					if ( empty( $content ) ) {
-						if ( $this->get_logger()->is_active() ) {
-							$this->get_logger()->error( "EnqueueAbstract::enqueue_deferred_scripts - Skipping inline script for deferred '{$original_handle}' due to missing content." );
+						if ( $logger->is_active() ) {
+							$logger->error( "EnqueueAbstract::enqueue_deferred_scripts - Skipping inline script for deferred '{$original_handle}' due to missing content." );
 						}
 						continue;
 					}
 
 					if ( is_callable( $condition ) && ! $condition() ) {
-						if ( $this->get_logger()->is_active() ) {
-							$this->get_logger()->debug( "EnqueueAbstract::enqueue_deferred_scripts - Condition false for inline script for deferred '{$original_handle}'." );
+						if ( $logger->is_active() ) {
+							$logger->debug( "EnqueueAbstract::enqueue_deferred_scripts - Condition false for inline script for deferred '{$original_handle}'." );
 						}
 						continue;
 					}
 
-					if ( $this->get_logger()->is_active() ) {
-						$this->get_logger()->debug( "EnqueueAbstract::enqueue_deferred_scripts - Adding inline script for deferred '{$original_handle}' (position: {$position}) on hook '{$hook}'." );
+					if ( $logger->is_active() ) {
+						$logger->debug( "EnqueueAbstract::enqueue_deferred_scripts - Adding inline script for deferred '{$original_handle}' (position: {$position}) on hook '{$hook}'." );
 					}
 					// Always use $original_handle for wp_add_inline_script as it's the handle WordPress knows or will know.
-					wp_add_inline_script( $original_handle, $content, $position );
-
+					$parent_is_registered = wp_script_is($original_handle, 'registered');
+					if ($parent_is_registered) {
+						wp_add_inline_script( $original_handle, $content, $position );
+					}
 					// Remove the inline script from $this->inline_scripts once processed.
 					unset($this->inline_scripts[$inline_script_key]);
 				}
 			}
 		}
 		// The hook is unset earlier in the method after its scripts are retrieved.
-		$this->get_logger()->debug( "EnqueueAbstract::enqueue_deferred_scripts - Exited for hook: \"{$hook}\"" );
+		if ($logger->is_active()) {
+			$logger->debug( "EnqueueAbstract::enqueue_deferred_scripts - Exited for hook: \"{$hook}\"" );
+		}
 	}
 
 	/**
