@@ -1274,166 +1274,188 @@ abstract class EnqueueAbstract implements EnqueueInterface {
 	// MEDIA HANDLING
 
 	/**
-	 * Array of media elements to enqueue.
+	 * Array of configurations for loading the WordPress media tools (uploader, library interface, etc.).
+	 * Each configuration details how and when `wp_enqueue_media()` should be called.
 	 *
 	 * @var array<int, array<string, mixed>>
 	 */
-	public array $media = array();
+	protected array $media_tool_configs = array();
 
 	/**
-	 * Array of media items to be enqueued at specific hooks.
+	 * Array of media tool configurations to be loaded at specific WordPress action hooks.
 	 *
 	 * @var array<string, array<int, array<string, mixed>>>
 	 */
-	private array $deferred_media = array();
+	protected array $deferred_media_tool_configs = array();
 
 	/**
-	 * Get the array of registered media.
+	 * Gets the array of registered configurations for loading WordPress media tools.
 	 *
-	 * @return array<string, array<int, mixed>> The registered media.
+	 * @return array<string, array<int, mixed>> The registered media tool configurations.
 	 */
-	public function get_media() {
-		$media = array(
-			'general'  => $this->media,
-			'deferred' => $this->deferred_media,
+	public function get_media_tool_configs() {
+		$configs = array(
+			'general'  => $this->media_tool_configs,
+			'deferred' => $this->deferred_media_tool_configs,
 		);
-		return $media;
+		return $configs;
 	}
 
 	/**
-	 * Adds a collection of media enqueue definitions to an internal queue for later processing.
+	 * Adds a collection of configurations for loading WordPress media tools (uploader, library interface, etc.)
+	 * to an internal queue for later processing. This method is chain-able.
 	 *
-	 * This method is chain-able. It stores the provided media definitions, **overwriting**
-	 * any media items previously added via this method. The actual enqueuing
-	 * occurs when the `enqueue()` or `enqueue_media()` method is subsequently called.
+	 * It stores the provided configurations, **overwriting** any previously added via this method.
+	 * The actual loading of media tools occurs when `enqueue()` or `enqueue_media()` is subsequently called.
 	 *
-	 * `wp_enqueue_media()` is typically used to load the JavaScript and CSS required for
-	 * the WordPress media uploader and media library interface.
+	 * `wp_enqueue_media()` is the WordPress core function used to load the JavaScript and CSS
+	 * required for the WordPress media uploader and media library interface.
 	 *
-	 * @param  array<int, array<string, mixed>> $media The array of media items to enqueue. Each item should be an array with the following keys:
-	 *     @type array       $args       (Optional) An array of arguments to pass to `wp_enqueue_media()`. For example, `['post' => 123]` to associate the media uploader with a specific post. Defaults to an empty array.
-	 *     @type callable|null $condition  (Optional) A callback returning a boolean. If `false`, `wp_enqueue_media()` is not called for this item. Defaults to `null` (no condition).
-	 *     @type string|null $hook       (Optional) WordPress hook (e.g., 'admin_enqueue_scripts') to defer enqueuing until. Defaults to `null` (no deferral).
+	 * @param  array<int, array<string, mixed>> $tool_configs The array of configurations. Each configuration specifies
+	 *                                   how and when to load the WordPress media tools via `wp_enqueue_media()`.
+	 *                                   Each item is an associative array that can contain the following keys:
+	 *     @type array{post?: int|WP_Post} $args (Optional) Arguments for `wp_enqueue_media()`, e.g., `['post' => 123]`.
+	 *                                   Defaults to an empty array.
+	 *     @type callable|null $condition  (Optional) Callback returning boolean. If `false`, `wp_enqueue_media()` is not called.
+	 *                                   Defaults to `null`.
+	 *     @type string|null $hook       (Optional) WordPress hook to defer loading to, e.g., 'admin_enqueue_scripts'.
+	 *                                   Defaults to `null` (meaning it will be processed by `enqueue_media` logic for default hook).
 	 * @return self Returns the instance of this class for method chaining.
 	 * @see    self::enqueue_media()
 	 * @see    self::enqueue()
 	 * @see    wp_enqueue_media()
 	 */
-	public function add_media( array $media ): self {
-		$this->get_logger()->debug( 'EnqueueAbstract: Adding ' . count( $media ) . ' media items to the queue.' );
-		$this->media = $media;
+	public function add_media( array $tool_configs ): self {
+		if ($this->get_logger()->is_active()) {
+			$this->get_logger()->debug( 'EnqueueAbstract: Adding ' . count( $tool_configs ) . ' media tool configurations to the queue.' );
+		}
+		$this->media_tool_configs = $tool_configs;
 
 		return $this;
 	}
 
+
 	/**
-	 * Processes and enqueues a given array of media definitions.
+	 * Processes an array of media tool configurations, deferring all to WordPress action hooks
+	 * for loading the actual WordPress media tools (uploader, library interface, etc.) via `wp_enqueue_media()`.
 	 *
-	 * This method iterates through an array of media definitions. For each item,
-	 * it checks for a 'hook' parameter.
-	 * - If a 'hook' is specified, the media item is deferred: it's stored internally
-	 *   and an action is registered (if not already) for the specified hook.
-	 *   When the hook fires, `enqueue_deferred_media()` will process the item.
-	 * - If no 'hook' is specified, the item is processed immediately: its 'condition'
-	 *   callback (if any) is checked, and if it passes, `wp_enqueue_media()` is called.
+	 * For each configuration in the provided array:
+	 * - It's added to an internal list of deferred configurations, keyed by a WordPress action hook.
+	 * - If a 'hook' is specified in the configuration, that hook is used.
+	 * - If no 'hook' is specified, it defaults to the 'admin_enqueue_scripts' hook.
+	 * - An action is registered (if not already present) for the determined hook, which will call
+	 *   `enqueue_deferred_media_tools()` when the hook fires. This method then handles the actual
+	 *   call to `wp_enqueue_media()`, after checking any 'condition' callback.
 	 *
-	 * @param  array<int, array<string, mixed>> $media The array of media definitions to process.
-	 *                                                Each item should follow the structure documented in `add_media()`.
-	 *     @type array       $args       (Optional) An array of arguments to pass to `wp_enqueue_media()`. Defaults to an empty array.
-	 *     @type callable|null $condition  (Optional) A callback returning a boolean. If `false`, `wp_enqueue_media()` is not called for this item (applies to both immediate and deferred items). Defaults to `null`.
-	 *     @type string|null $hook       (Optional) A WordPress action hook name to defer the enqueuing to. If provided, the item is not enqueued immediately. Defaults to `null`.
+	 * @param  array<int, array<string, mixed>> $tool_configs The array of media tool configurations to process.
+	 *                                   Each configuration is an associative array that can contain the following keys:
+	 *     @type array{post?: int|WP_Post} $args (Optional) An array of arguments to pass to `wp_enqueue_media()`.
+	 *                                   The primary argument is `['post' => \$post_id_or_object]` to associate
+	 *                                   the media interface with a specific post. Defaults to an empty array.
+	 *     @type callable|null $condition  (Optional) A callback function that returns a boolean.
+	 *                                   If provided, this callback is executed by `enqueue_deferred_media_tools()`
+	 *                                   when the associated hook fires. If the callback returns `false`,
+	 *                                   `wp_enqueue_media()` is not called for this configuration. Defaults to `null`.
+	 *     @type string|null $hook       (Optional) A WordPress action hook name to defer loading the media tools to.
+	 *                                   If not provided or `null`, defaults to 'admin_enqueue_scripts'.
+	 *                                   The configuration is always deferred.
 	 * @return self Returns the instance of this class for method chaining.
 	 * @see    self::add_media()
-	 * @see    self::enqueue_deferred_media()
+	 * @see    self::enqueue_deferred_media_tools()
 	 * @see    wp_enqueue_media()
 	 */
-	public function enqueue_media( array $media ): self {
-		$this->get_logger()->debug( 'EnqueueAbstract::enqueue_media - Entered. Processing ' . count( $media ) . ' media item definition(s).' );
-
-		foreach ( $media as $index => $item_definition ) {
-			$this->get_logger()->debug( "EnqueueAbstract::enqueue_media - Processing media item at original index: {$index}." );
+	public function enqueue_media( array $tool_configs ): self {
+		$logger = $this->get_logger();
+		if ( $logger->is_active() ) {
+			$logger->debug( 'EnqueueAbstract::enqueue_media - Entered. Processing ' . count( $tool_configs ) . ' media tool configuration(s).' );
+		}
+		foreach ( $tool_configs as $index => $item_definition ) {
+			if ( $logger->is_active() ) {
+				$logger->debug( "EnqueueAbstract::enqueue_media - Processing media tool configuration at original index: {$index}." );
+			}
 
 			$hook = $item_definition['hook'] ?? null;
 
-			if ( ! empty( $hook ) ) {
-				// Defer this media item.
-				$this->get_logger()->debug( "EnqueueAbstract::enqueue_media - Deferring media item at original index {$index} to hook: \"{$hook}\"." );
-				$this->deferred_media[ $hook ][ $index ] = $item_definition; // Preserve original index for logging in deferred method.
-
-				// Ensure the action for this hook is added only once.
-				// Note: `has_action` checks if a specific function is hooked, not just any function.
-				// We need a more robust way if multiple EnqueueAbstract instances could exist and use the same hook.
-				// For now, assuming one primary instance or that multiple calls to add_action for the same method are okay.
-				if ( ! has_action( $hook, array( $this, 'enqueue_deferred_media' ) ) ) {
-					add_action( $hook, array( $this, 'enqueue_deferred_media' ), 10, 1 ); // Pass hook name to method.
-					$this->get_logger()->debug( "EnqueueAbstract::enqueue_media - Added action for 'enqueue_deferred_media' on hook: \"{$hook}\"." );
+			if ( empty( $hook ) ) {
+				if ( $logger->is_active() ) {
+					$logger->debug( "EnqueueAbstract::enqueue_media - No hook specified for media tool configuration at original index {$index}. Defaulting to 'admin_enqueue_scripts'." );
 				}
-			} else {
-				// Process immediately.
-				$this->get_logger()->debug( "EnqueueAbstract::enqueue_media - Processing media item at original index {$index} immediately." );
-				$args      = $item_definition['args']      ?? array();
-				$condition = $item_definition['condition'] ?? null;
+				$hook = 'admin_enqueue_scripts';
+			}
 
-				// Check if the condition is met.
-				if ( is_callable( $condition ) && ! $condition() ) {
-					$this->get_logger()->debug( "EnqueueAbstract::enqueue_media - Condition not met for immediate media item at original index {$index}. Skipping." );
-					continue;
+			if ( $logger->is_active() ) {
+				$logger->debug( "EnqueueAbstract::enqueue_media - Deferring media tool configuration at original index {$index} to hook: \"{$hook}\"." );
+			}
+			$this->deferred_media_tool_configs[ $hook ][ $index ] = $item_definition;
+
+			if ( ! has_action( $hook, array( $this, 'enqueue_deferred_media_tools' ) ) ) {
+				add_action( $hook, array( $this, 'enqueue_deferred_media_tools' ), 10, 1 );
+				if ( $logger->is_active() ) {
+					$logger->debug( "EnqueueAbstract::enqueue_media - Added action for 'enqueue_deferred_media_tools' on hook: \"{$hook}\"." );
 				}
-
-				$this->get_logger()->debug( "EnqueueAbstract::enqueue_media - Calling wp_enqueue_media() for immediate item at original index {$index}. Args: " . wp_json_encode( $args ) );
-				wp_enqueue_media( $args );
 			}
 		}
-		$this->get_logger()->debug( 'EnqueueAbstract::enqueue_media - Exited.' );
+		if ( $logger->is_active() ) {
+			$logger->debug( 'EnqueueAbstract::enqueue_media - Exited.' );
+		}
 		return $this;
 	}
 
 	/**
-	 * Enqueues media items that were deferred to a specific WordPress hook.
+	 * Enqueues the WordPress media tools (uploader, library interface, etc.) that were deferred to a specific WordPress hook.
 	 *
-	 * This method is typically called by an action hook that was registered
-	 * when a media item with a 'hook' parameter was processed by `enqueue_media()`.
-	 * It iterates through the media items stored in `$this->deferred_media` for the
-	 * given hook, checks their conditions, and calls `wp_enqueue_media()` if the
-	 * condition passes.
+	 * This method is typically called by an action hook that was registered when a media tool configuration
+	 * (with a 'hook' parameter) was processed by `enqueue_media()`.
+	 * It iterates through the configurations stored in `$this->deferred_media_tool_configs` for the
+	 * given hook, checks their conditions, and calls `wp_enqueue_media()` if the condition passes.
 	 *
 	 * @param string $hook_name The WordPress hook name that triggered this method.
-	 * @return void This method returns `void` because it's primarily designed as a callback for WordPress action hooks.
-	 *              When executed within a hook, its main role is to perform enqueueing operations (side effects),
-	 *              rather than being part of a fluent setup chain.
+	 * @return void This method returns `void` as it's primarily a callback for WordPress action hooks,
+	 *              performing side effects (enqueueing operations) rather than returning a value for chaining.
 	 * @see self::enqueue_media()
 	 * @see wp_enqueue_media()
 	 */
-	public function enqueue_deferred_media( string $hook_name ): void {
-		$this->get_logger()->debug( "EnqueueAbstract::enqueue_deferred_media - Entered for hook: \"{$hook_name}\"." );
+	public function enqueue_deferred_media_tools( string $hook_name ): void {
+		$logger = $this->get_logger();
+		if ( $logger->is_active() ) {
+			$logger->debug( "EnqueueAbstract::enqueue_deferred_media_tools - Entered for hook: \"{$hook_name}\"." );
+		}
 
-		if ( ! isset( $this->deferred_media[ $hook_name ] ) || empty( $this->deferred_media[ $hook_name ] ) ) {
-			$this->get_logger()->debug( "EnqueueAbstract::enqueue_deferred_media - No deferred media found or already processed for hook: \"{$hook_name}\"." );
+		if ( ! isset( $this->deferred_media_tool_configs[ $hook_name ] ) || empty( $this->deferred_media_tool_configs[ $hook_name ] ) ) {
+			if ( $logger->is_active() ) {
+				$logger->debug( "EnqueueAbstract::enqueue_deferred_media_tools - No deferred media tool configurations found or already processed for hook: \"{$hook_name}\"." );
+			}
 			return;
 		}
 
-		$media_on_this_hook = $this->deferred_media[ $hook_name ];
+		$media_configs_on_this_hook = $this->deferred_media_tool_configs[ $hook_name ];
 
-		foreach ( $media_on_this_hook as $index => $item_definition ) {
-			$this->get_logger()->debug( "EnqueueAbstract::enqueue_deferred_media - Processing deferred media item at original index {$index} for hook: \"{$hook_name}\"." );
+		foreach ( $media_configs_on_this_hook as $index => $item_definition ) {
+			if ( $logger->is_active() ) {
+				$logger->debug( "EnqueueAbstract::enqueue_deferred_media_tools - Processing deferred media tool configuration at original index {$index} for hook: \"{$hook_name}\"." );
+			}
 
 			$args      = $item_definition['args']      ?? array();
 			$condition = $item_definition['condition'] ?? null;
 
-			// Check if the condition is met.
 			if ( is_callable( $condition ) && ! $condition() ) {
-				$this->get_logger()->debug( "EnqueueAbstract::enqueue_deferred_media - Condition not met for deferred media item at original index {$index} on hook \"{$hook_name}\". Skipping." );
+				if ( $logger->is_active() ) {
+					$logger->debug( "EnqueueAbstract::enqueue_deferred_media_tools - Condition not met for deferred media tool configuration at original index {$index} on hook \"{$hook_name}\". Skipping." );
+				}
 				continue;
 			}
 
-			$this->get_logger()->debug( "EnqueueAbstract::enqueue_deferred_media - Calling wp_enqueue_media() for deferred item at original index {$index} on hook \"{$hook_name}\". Args: " . wp_json_encode( $args ) );
+			if ( $logger->is_active() ) {
+				$logger->debug( "EnqueueAbstract::enqueue_deferred_media_tools - Calling wp_enqueue_media() for deferred configuration at original index {$index} on hook \"{$hook_name}\". Args: " . wp_json_encode( $args ) );
+			}
 			wp_enqueue_media( $args );
 		}
 
-		// Clear the processed deferred media for this hook to prevent re-processing.
-		unset( $this->deferred_media[ $hook_name ] );
+		unset( $this->deferred_media_tool_configs[ $hook_name ] );
 
-		$this->get_logger()->debug( "EnqueueAbstract::enqueue_deferred_media - Exited for hook: \"{$hook_name}\"." );
+		if ( $logger->is_active() ) {
+			$logger->debug( "EnqueueAbstract::enqueue_deferred_media_tools - Exited for hook: \"{$hook_name}\"." );
+		}
 	}
 
 	/**
