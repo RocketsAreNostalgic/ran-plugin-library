@@ -56,7 +56,7 @@ abstract class EnqueueAbstract implements EnqueueInterface {
 	 *
 	 * @var \Ran\PluginLib\Config\ConfigInterface $config // phpcs:ignore SlevomatCodingStandard.TypeHints.PropertyTypeHint.UselessAnnotation
 	 */
-	private \Ran\PluginLib\Config\ConfigInterface $config;
+	protected \Ran\PluginLib\Config\ConfigInterface $config;
 
 	/**
 	 * Constructor.
