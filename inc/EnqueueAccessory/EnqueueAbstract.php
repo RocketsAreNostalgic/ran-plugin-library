@@ -1510,44 +1510,50 @@ abstract class EnqueueAbstract implements EnqueueInterface {
 	public function enqueue(): void {
 		$script_count = count( $this->scripts );
 		$style_count  = count( $this->styles );
-		$media_count  = count( $this->media );
+		$media_count  = count( $this->media_tool_configs );
+		$logger       = $this->get_logger();
 		// enqueue_inline_scripts() processes $this->inline_scripts internally.
 		// We can count it here for the initial log.
 		$inline_script_count = count( $this->inline_scripts );
-
-		$this->get_logger()->debug(
-			sprintf(
-				'EnqueueAbstract::enqueue - Main enqueue process started. Scripts: %d, Styles: %d, Media: %d, Inline Scripts: %d.',
-				$script_count,
-				$style_count,
-				$media_count,
-				$inline_script_count
-			)
-		);
+		if ( $logger->is_active() ) {
+			$logger->debug(
+				sprintf(
+					'EnqueueAbstract::enqueue - Main enqueue process started. Scripts: %d, Styles: %d, Media: %d, Inline Scripts: %d.',
+					$script_count,
+					$style_count,
+					$media_count,
+					$inline_script_count
+				)
+			);
+		}
 
 		if ( $script_count > 0 ) {
 			$this->enqueue_scripts( $this->scripts );
 		} else {
-			$this->get_logger()->debug( 'EnqueueAbstract::enqueue - No scripts to process.' );
+			if ( $logger->is_active() ) {
+				$logger->debug( 'EnqueueAbstract::enqueue - No scripts to process.' );
+			}
 		}
 
 		if ( $style_count > 0 ) {
 			$this->enqueue_styles( $this->styles );
 		} else {
-			$this->get_logger()->debug( 'EnqueueAbstract::enqueue - No styles to process.' );
+			$logger->debug( 'EnqueueAbstract::enqueue - No styles to process.' );
 		}
 
 		if ( $media_count > 0 ) {
-			$this->enqueue_media( $this->media );
+			$this->enqueue_media( $this->media_tool_configs );
 		} else {
-			$this->get_logger()->debug( 'EnqueueAbstract::enqueue - No media to process.' );
+			if ( $logger->is_active() ) {
+				$logger->debug( 'EnqueueAbstract::enqueue - No media to process.' );
+			}
 		}
 
 		// enqueue_inline_scripts() has its own internal logging, including for empty cases.
 		// It also directly uses $this->inline_scripts.
 		$this->enqueue_inline_scripts();
 
-		$this->get_logger()->debug( 'EnqueueAbstract::enqueue - Main enqueue process finished.' );
+		$logger->debug( 'EnqueueAbstract::enqueue - Main enqueue process finished.' );
 	}
 
 	// HEADER & FOOTER HANDLING
@@ -1572,6 +1578,14 @@ abstract class EnqueueAbstract implements EnqueueInterface {
 	 * @since 1.0.0
 	 */
 	public function render_head(): void {
+		$logger = $this->get_logger();
+		if (empty($this->head_callbacks)) {
+			if ( $logger->is_active() ) {
+				$logger->debug('EnqueueAbstract::render_head - No head callbacks to execute.');
+			}
+			return;
+		}
+
 		foreach ( $this->head_callbacks as $index => $callback_data ) {
 			// Extract callback and condition if provided in array format.
 			$callback  = $callback_data;
@@ -1584,11 +1598,17 @@ abstract class EnqueueAbstract implements EnqueueInterface {
 
 			// Check if condition is met (if provided).
 			if ( is_callable( $condition ) && ! $condition() ) {
+				if ( $logger->is_active() ) {
+					$logger->debug(sprintf('EnqueueAbstract::render_head - Skipping head callback %d due to false condition.', $index));
+				}
 				continue;
 			}
 
 			// Execute the callback.
 			if ( is_callable( $callback ) ) {
+				if ( $logger->is_active() ) {
+					$logger->debug(sprintf('EnqueueAbstract::render_head - Executing head callback %d.', $index));
+				}
 				call_user_func( $callback );
 			}
 		}
@@ -1614,6 +1634,14 @@ abstract class EnqueueAbstract implements EnqueueInterface {
 	 * @since 1.0.0
 	 */
 	public function render_footer(): void {
+		$logger = $this->get_logger();
+		if (empty($this->footer_callbacks)) {
+			if ( $logger->is_active() ) {
+				$logger->debug('EnqueueAbstract::render_footer - No footer callbacks to execute.');
+			}
+			return;
+		}
+
 		foreach ( $this->footer_callbacks as $index => $callback_data ) {
 			// Extract callback and condition if provided in array format.
 			$callback  = $callback_data;
@@ -1626,11 +1654,17 @@ abstract class EnqueueAbstract implements EnqueueInterface {
 
 			// Check if condition is met (if provided).
 			if ( is_callable( $condition ) && ! $condition() ) {
+				if ( $logger->is_active() ) {
+					$logger->debug(sprintf('EnqueueAbstract::render_footer - Skipping footer callback %d due to false condition.', $index));
+				}
 				continue;
 			}
 
 			// Execute the callback.
 			if ( is_callable( $callback ) ) {
+				if ( $logger->is_active() ) {
+					$logger->debug(sprintf('EnqueueAbstract::render_footer - Executing footer callback %d.', $index));
+				}
 				call_user_func( $callback );
 			}
 		}
