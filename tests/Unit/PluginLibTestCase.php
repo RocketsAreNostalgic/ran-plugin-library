@@ -95,17 +95,16 @@ if (!\class_exists(\Ran\PluginLib\Tests\Unit\ConcreteConfigForTesting::class)) {
 
 abstract class PluginLibTestCase extends RanTestCase {
 	/**
+	 * Mocked instance of the concrete configuration class.
+	 * @var \Ran\PluginLib\Tests\Unit\ConcreteConfigForTesting
+	 */
+	protected ConcreteConfigForTesting $config_mock;
+	/**
 	 * Path to the mock plugin file created during setup.
 	 * Example: `/path/to/tests/Unit/mock-plugin-file.php`
 	 * @var string
 	 */
 	protected string $mock_plugin_file_path;
-	/**
-	 * Mock plugin header data used for testing.
-	 * This array is returned by the mocked `get_plugin_data()` WordPress function.
-	 * @var array<string, string|array<string,string>>
-	 */
-	protected array $mock_plugin_data = array();
 	/**
 	 * Path to the directory containing the mock plugin file.
 	 * Example: `/path/to/tests/Unit/mock-plugin-dir/`
@@ -113,7 +112,7 @@ abstract class PluginLibTestCase extends RanTestCase {
 	 */
 	protected string $mock_plugin_dir_path;
 	/**
-	 * URL for the mock plugin directory.
+	 * URL of the directory containing the mock plugin file.
 	 * Example: `http://example.com/wp-content/plugins/mock-plugin-dir/`
 	 * @var string
 	 */
@@ -124,6 +123,12 @@ abstract class PluginLibTestCase extends RanTestCase {
 	 * @var string
 	 */
 	protected string $mock_plugin_basename;
+
+	/**
+	 * Mock plugin header data used by `get_plugin_data()`.
+	 * @var array<string, string|array<string, string>>
+	 */
+	protected array $mock_plugin_data;
 
 	/**
 	 * Stores names of constants defined during a test.
@@ -164,6 +169,9 @@ abstract class PluginLibTestCase extends RanTestCase {
 		if (!file_exists($this->mock_plugin_file_path)) {
 			touch($this->mock_plugin_file_path);
 		}
+
+		// Initialize and register the concrete config instance.
+		$this->config_mock = $this->get_and_register_concrete_config_instance();
 	}
 
 	/**
@@ -175,15 +183,24 @@ abstract class PluginLibTestCase extends RanTestCase {
 	 * @return void
 	 */
 	public function tearDown(): void {
-		// Clean up the singleton instance for ConcreteConfigForTesting
-		$this->removeSingletonInstance(ConcreteConfigForTesting::class);
-		// Also clean up the alias we might have created for ConfigAbstract
-		$this->removeSingletonInstance(ConfigAbstract::class);
+		parent::tearDown();
+
+		// Clean up defined constants
+		foreach ($this->defined_constants as $constant_name) {
+			// This is tricky as PHP doesn't have a native 'undefine'
+			// For testing, this usually means ensuring tests are isolated
+			// or using a library like uopz if absolutely necessary (not recommended here).
+			// For now, we just clear our tracking array.
+		}
+		$this->defined_constants = array();
 
 		if (file_exists($this->mock_plugin_file_path)) {
 			unlink($this->mock_plugin_file_path);
 		}
-		parent::tearDown();
+
+		// Clean up singleton instances
+		$this->removeSingletonInstance(ConcreteConfigForTesting::class);
+		$this->removeSingletonInstance(ConfigAbstract::class);
 	}
 
 	/**
@@ -196,8 +213,24 @@ abstract class PluginLibTestCase extends RanTestCase {
 	protected function define_constant(string $name, $value): void {
 		if (!defined($name)) {
 			define($name, $value);
+			$this->defined_constants[] = $name;
 		}
-		$this->defined_constants[] = $name;
+	}
+
+	/**
+	 * Sets the value of a protected or private property on an object.
+	 *
+	 * @param object $object The object on which to set the property.
+	 * @param string $property_name The name of the property to set.
+	 * @param mixed $value The value to set the property to.
+	 * @return void
+	 * @throws \ReflectionException If the property does not exist.
+	 */
+	protected function set_protected_property_value(object &$object, string $property_name, $value): void {
+		$reflection = new \ReflectionObject($object);
+		$property   = $reflection->getProperty($property_name);
+		$property->setAccessible(true);
+		$property->setValue($object, $value);
 	}
 
 	/**
@@ -212,8 +245,8 @@ abstract class PluginLibTestCase extends RanTestCase {
 	 */
 	protected function removeSingletonInstance(string $className): void {
 		try {
-			$reflectionClass   = new \ReflectionClass(SingletonAbstract::class);
-			$instancesProperty = $reflectionClass->getProperty('instances');
+			$reflectionSingleton = new \ReflectionClass(SingletonAbstract::class);
+			$instancesProperty   = $reflectionSingleton->getProperty('instances');
 			$instancesProperty->setAccessible(true);
 			$current_instances = $instancesProperty->getValue(null);
 			if (isset($current_instances[$className])) {
@@ -235,7 +268,8 @@ abstract class PluginLibTestCase extends RanTestCase {
 	 * 4. Manually invokes the `ConfigAbstract` constructor on this mock instance.
 	 * 5. Registers the fully constructed and configured `ConcreteConfigForTesting` instance in `SingletonAbstract::$instances` under two keys:
 	 *    - `ConcreteConfigForTesting::class`: For direct access if needed.
-	 *    - `ConfigAbstract::class`: Crucially, this allows classes under test that call `ConfigAbstract::get_instance()` (e.g., indirectly via `RegisterOptions::get_logger()`) to receive this test-specific, fully configured instance.
+	 *    - `ConfigAbstract::class`: Crucially, this allows classes under test which
+	 *      call `ConfigAbstract::get_instance()` (e.g., indirectly via `RegisterOptions::get_logger()`) to receive this test-specific, fully configured instance.
 	 *
 	 * Child test classes should call this method in their `setUp()` (after `parent::setUp()`) to ensure the
 	 * configuration system is ready before instantiating the class under test.
