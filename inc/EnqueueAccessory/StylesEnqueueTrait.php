@@ -72,11 +72,10 @@ trait StylesEnqueueTrait {
 	/**
 	 * Adds one or more stylesheet definitions to the internal queue for processing.
 	 *
-	 * This method supports adding a single style definition or an array of definitions.
-	 * Each definition is an associative array specifying the style's properties.
-	 *
-	 * @see    self::enqueue_styles()
-	 * @see    self::enqueue()
+	 * This method supports adding a single style definition (associative array) or an
+	 * array of style definitions. Definitions are merged with any existing styles
+	 * in the queue. Actual registration and enqueuing occur when `enqueue()` or
+	 * `enqueue_styles()` is called. This method is chainable.
 	 *
 	 * @param array<string, mixed>|array<int, array<string, mixed>> $styles_to_add A single style definition array or an array of style definition arrays.
 	 *     Each style definition array should include:
@@ -88,20 +87,42 @@ trait StylesEnqueueTrait {
 	 *     - 'condition' (callable|null, optional): Callback returning boolean. If false, style is not enqueued. Defaults to null.
 	 *     - 'hook' (string|null, optional): WordPress hook (e.g., 'admin_enqueue_scripts') to defer enqueuing. Defaults to null (immediate processing).
 	 * @return self Returns the instance of this class for method chaining.
+	 *
+	 * @see self::enqueue_styles()
+	 * @see self::enqueue()
 	 */
 	public function add_styles( array $styles_to_add ): self {
 		$logger = $this->get_logger();
+
+		if ( $logger->is_active() ) {
+			$logger->debug( 'StylesEnqueueTrait::add_styles - Entered. Current style count: ' . count( $this->styles ) . '. Adding ' . count( $styles_to_add ) . ' new style(s).' );
+			foreach ( $styles_to_add as $style_key => $style_data ) {
+				$handle = $style_data['handle'] ?? 'N/A';
+				$src    = $style_data['src']    ?? 'N/A';
+				$logger->debug( "StylesEnqueueTrait::add_styles - Adding style. Key: {$style_key}, Handle: {$handle}, Src: {$src}" );
+			}
+		}
+		// Merge single styles in to the array
 		if ( ! is_array( current( $styles_to_add ) ) ) {
 			$styles_to_add = array( $styles_to_add );
 		}
 		if ($logger->is_active()) {
 			$logger->debug( 'StylesEnqueueTrait::add_styles - Adding ' . count( $styles_to_add ) . ' style definition(s). Current total: ' . count( $this->styles ) );
 		}
+
+		// Merge new styles with existing ones.
+		// array_values ensures that if $styles_to_add has string keys, they are discarded and styles are appended.
+		// If $this->styles was empty, it would just become $styles_to_add.
 		foreach ( $styles_to_add as $style_definition ) {
-			$this->styles[] = $style_definition;
+			$this->styles[] = $style_definition; // Simple append.
 		}
 		if ($logger->is_active()) {
 			$logger->debug( 'StylesEnqueueTrait::add_styles - Finished adding styles. New total: ' . count( $this->styles ) );
+			$current_handles = array();
+			foreach ( $this->styles as $s ) {
+				$current_handles[] = $s['handle'] ?? 'N/A';
+			}
+			$logger->debug( 'StylesEnqueueTrait::add_styles - All current style handles after add: ' . implode( ', ', $current_handles ) );
 		}
 		return $this;
 	}
