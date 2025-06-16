@@ -59,6 +59,7 @@ class ConcreteEnqueueForStylesTesting {
  * Class StylesEnqueueTraitStylesTest
  *
  * @covers \Ran\PluginLib\EnqueueAccessory\StylesEnqueueTrait
+ * @property ConcreteEnqueueForStylesTesting&MockInterface $instance
  */
 class StylesEnqueueTraitStylesTest extends PluginLibTestCase {
 	private static int $hasActionCallCount = 0;
@@ -307,12 +308,12 @@ class StylesEnqueueTraitStylesTest extends PluginLibTestCase {
 
 		// Logger Expectations for add_styles()
 		$this->logger_mock->shouldReceive('debug')->with("StylesEnqueueTrait::add_styles - Entered. Current style count: 0. Adding {$expected_style_count} new style(s).")->once()->ordered();
-		$this->logger_mock->shouldReceive('debug')->with("StylesEnqueueTrait::add_styles - Adding style. Key: 0, Handle: N/A, Src: path/to/style1.css")->once()->ordered();
-		$this->logger_mock->shouldReceive('debug')->with("StylesEnqueueTrait::add_styles - Adding style. Key: 1, Handle: missing-src-style, Src: N/A")->once()->ordered();
-		$this->logger_mock->shouldReceive('debug')->with("StylesEnqueueTrait::add_styles - Adding style. Key: 2, Handle: valid-style, Src: path/to/valid-style.css")->once()->ordered();
+		$this->logger_mock->shouldReceive('debug')->with('StylesEnqueueTrait::add_styles - Adding style. Key: 0, Handle: N/A, Src: path/to/style1.css')->once()->ordered();
+		$this->logger_mock->shouldReceive('debug')->with('StylesEnqueueTrait::add_styles - Adding style. Key: 1, Handle: missing-src-style, Src: N/A')->once()->ordered();
+		$this->logger_mock->shouldReceive('debug')->with('StylesEnqueueTrait::add_styles - Adding style. Key: 2, Handle: valid-style, Src: path/to/valid-style.css')->once()->ordered();
 		$this->logger_mock->shouldReceive('debug')->with("StylesEnqueueTrait::add_styles - Adding {$expected_style_count} style definition(s). Current total: 0")->once()->ordered();
 		$this->logger_mock->shouldReceive('debug')->with("StylesEnqueueTrait::add_styles - Finished adding styles. New total: {$expected_style_count}")->once()->ordered();
-		$this->logger_mock->shouldReceive('debug')->with("StylesEnqueueTrait::add_styles - All current style handles after add: N/A, missing-src-style, valid-style")->once()->ordered();
+		$this->logger_mock->shouldReceive('debug')->with('StylesEnqueueTrait::add_styles - All current style handles after add: N/A, missing-src-style, valid-style')->once()->ordered();
 
 		// Act: Add the styles
 		$this->instance->add_styles($styles_to_add);
@@ -2431,6 +2432,7 @@ class StylesEnqueueTraitStylesTest extends PluginLibTestCase {
 	 */
 	public function test_enqueue_inline_styles_no_immediate_styles(): void {
 		// Create a partial mock for the concrete class to test trait methods
+		/** @var \Ran\PluginLib\Tests\Unit\EnqueueAccessory\ConcreteEnqueueForStylesTesting&\Mockery\MockInterface $sut */
 		$sut = $this->getMockBuilder(ConcreteEnqueueForStylesTesting::class)
 			->setConstructorArgs(array($this->config_instance_mock, $this->logger_mock))
 			->onlyMethods(array('_process_inline_styles', 'get_logger'))
@@ -2470,6 +2472,7 @@ class StylesEnqueueTraitStylesTest extends PluginLibTestCase {
 	 * @covers \Ran\PluginLib\EnqueueAccessory\StylesEnqueueTrait::get_logger
 	 */
 	public function test_enqueue_inline_styles_with_one_immediate_style_unique_handle(): void {
+		/** @var \Ran\PluginLib\Tests\Unit\EnqueueAccessory\ConcreteEnqueueForStylesTesting&\Mockery\MockInterface $sut */
 		$sut = $this->getMockBuilder(ConcreteEnqueueForStylesTesting::class)
 			->setConstructorArgs(array($this->config_instance_mock, $this->logger_mock))
 			->onlyMethods(array('_process_inline_styles', 'get_logger'))
@@ -2525,6 +2528,7 @@ class StylesEnqueueTraitStylesTest extends PluginLibTestCase {
 	 * @covers \Ran\PluginLib\EnqueueAccessory\StylesEnqueueTrait::get_logger
 	 */
 	public function test_enqueue_inline_styles_multiple_immediate_styles_various_handles(): void {
+		/** @var \Ran\PluginLib\Tests\Unit\EnqueueAccessory\ConcreteEnqueueForStylesTesting&\Mockery\MockInterface $sut */
 		$sut = $this->getMockBuilder(ConcreteEnqueueForStylesTesting::class)
 			->setConstructorArgs(array($this->config_instance_mock, $this->logger_mock))
 			->onlyMethods(array('_process_inline_styles', 'get_logger'))
@@ -3221,6 +3225,7 @@ class StylesEnqueueTraitStylesTest extends PluginLibTestCase {
 	 */
 	public function test_enqueue_inline_styles_skips_non_array_item_and_logs_warning(): void {
 		// Create a partial mock of the concrete class to test trait methods
+		/** @var \Ran\PluginLib\Tests\Unit\EnqueueAccessory\ConcreteEnqueueForStylesTesting&\Mockery\MockInterface $sut */
 		$sut = $this->getMockBuilder(ConcreteEnqueueForStylesTesting::class)
 			->setConstructorArgs(array($this->config_mock, $this->logger_mock)) // Corrected order: config, then logger
 			->onlyMethods(array('_process_inline_styles', 'get_logger'))
@@ -3339,7 +3344,11 @@ class StylesEnqueueTraitStylesTest extends PluginLibTestCase {
 			->with("StylesEnqueueTrait::_process_single_style - Finished processing style '{$handle}' on hook '{$hook_name}'.")
 			->once()->ordered();
 
-		$result = $this->instance->_process_single_style($style_data, $processing_context, $hook_name, $do_register, $do_enqueue);
+		// Use reflection to test the protected method
+		$reflection = new \ReflectionClass(get_class($this->instance));
+		$method     = $reflection->getMethod('_process_single_style');
+		$method->setAccessible(true);
+		$result = $method->invoke($this->instance, $style_data, $processing_context, $hook_name, $do_register, $do_enqueue);
 		$this->assertTrue($result, '_process_single_style should return true when successfully processing a style, even if registration is skipped.');
 	}
 
@@ -3398,8 +3407,19 @@ class StylesEnqueueTraitStylesTest extends PluginLibTestCase {
 			->with("StylesEnqueueTrait::_process_single_style - Finished processing style '{$handle}' on hook '{$hook_name}'.")
 			->once()->ordered();
 
-		$result = $this->instance->_process_single_style($style_data, $processing_context, $hook_name, $do_register, $do_enqueue);
+		$result = $this->invoke_process_single_style($style_data, $processing_context, $hook_name, $do_register, $do_enqueue);
 		$this->assertTrue($result, '_process_single_style should return true when successfully processing a style, even if enqueueing is skipped.');
+	}
+
+	/**
+	 * Helper to test the protected _process_single_style method using reflection.
+	 */
+	private function invoke_process_single_style(array $style_data, string $processing_context, ?string $hook_name, bool $do_register, bool $do_enqueue): bool {
+		$reflection = new \ReflectionClass(get_class($this->instance));
+		$method     = $reflection->getMethod('_process_single_style');
+		$method->setAccessible(true);
+
+		return $method->invoke($this->instance, $style_data, $processing_context, $hook_name, $do_register, $do_enqueue);
 	}
 }
 

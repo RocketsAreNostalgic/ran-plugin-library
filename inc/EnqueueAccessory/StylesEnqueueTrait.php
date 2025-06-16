@@ -51,6 +51,15 @@ trait StylesEnqueueTrait {
 	protected array $deferred_styles = array();
 
 	/**
+	 * Abstract method to get the logger instance.
+	 *
+	 * This ensures that any class using this trait provides a logger.
+	 *
+	 * @return Logger The logger instance.
+	 */
+	abstract public function get_logger(): Logger;
+
+	/**
 	 * Retrieves the currently registered array of stylesheet definitions.
 	 *
 	 * @return array<int, array<string, mixed>> An array of stylesheet definitions.
@@ -566,13 +575,4 @@ trait StylesEnqueueTrait {
 
 		return true;
 	}
-
-	/**
-	 * Abstract method to get the logger instance.
-	 *
-	 * This method must be implemented by the class using this trait.
-	 *
-	 * @return Logger The logger instance.
-	 */
-	abstract protected function get_logger(): Logger;
 }

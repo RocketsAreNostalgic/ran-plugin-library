@@ -58,7 +58,7 @@ abstract class RanTestCase extends TestCase {
 			$this->markTestSkipped('File skipped due to skip. prefix');
 		}
 
-		 $currentTestMethodName = $this->getName(); // Gets the name of the current test method
+		$currentTestMethodName = $this->getName(); // Gets the name of the current test method
 
 		if (strpos($currentTestMethodName, 'skip_') === 0) {
 			$this->markTestSkipped('Method skipped due to skip_ prefix: ' . $currentTestMethodName);
