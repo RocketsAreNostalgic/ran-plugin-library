@@ -6,6 +6,7 @@ namespace Ran\PluginLib\Tests\Unit\EnqueueAccessory;
 
 use Ran\PluginLib\Config\ConfigInterface;
 use Ran\PluginLib\Tests\Unit\PluginLibTestCase;
+use Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseAbstract;
 use Ran\PluginLib\EnqueueAccessory\StylesEnqueueTrait;
 use Ran\PluginLib\Util\Logger;
 use WP_Mock;
@@ -15,43 +16,26 @@ use Mockery\MockInterface;
 /**
  * Concrete implementation of StylesEnqueueTrait for testing style-related methods.
  */
-class ConcreteEnqueueForStylesTesting {
+class ConcreteEnqueueForStylesTesting extends AssetEnqueueBaseAbstract {
 	use StylesEnqueueTrait;
 
-	protected ConfigInterface $config;
-	protected Logger $logger;
-	protected ?string $current_hook_name = null; // Used by StylesEnqueueTrait
+	// Config is inherited from AssetEnqueueBaseAbstract and set in constructor.
 
-	public function __construct(ConfigInterface $config, Logger $logger) {
-		$this->config = $config;
-		$this->logger = $logger;
+	public function __construct(ConfigInterface $config) {
+		parent::__construct($config);
 	}
 
-	// This method satisfies the abstract requirement
+	/**
+	 * Explicitly define get_logger to aid in diagnosing trait method resolution.
+	 *
+	 * @return Logger The logger instance.
+	 */
 	public function get_logger(): Logger {
-		return $this->logger;
+		return parent::get_logger();
 	}
 
 	public function load(): void {
 		// Minimal implementation for testing purposes.
-	}
-
-	// Helper to set the current hook name for tests that need it
-	public function setCurrentHookNameForTesting(?string $hook_name): void {
-		$this->current_hook_name = $hook_name;
-	}
-
-	/**
-	 * Wrapper for add_action to allow mocking in tests.
-	 *
-	 * @param string   $hook          The name of the action to which the $callback is hooked.
-	 * @param callable $callback      The name of the function you wish to be called.
-	 * @param int      $priority      Optional. Used to specify the order in which the functions
-	 *                                associated with a particular action are executed. Default 10.
-	 * @param int      $accepted_args Optional. The number of arguments the function accepts. Default 1.
-	 */
-	public function _do_add_action( string $hook, callable $callback, int $priority = 10, int $accepted_args = 1 ): void {
-		add_action( $hook, $callback, $priority, $accepted_args );
 	}
 }
 
@@ -63,9 +47,6 @@ class ConcreteEnqueueForStylesTesting {
  */
 class StylesEnqueueTraitStylesTest extends PluginLibTestCase {
 	private static int $hasActionCallCount = 0;
-	/** @var ConfigInterface&MockInterface */
-	protected MockInterface $config_instance_mock;
-
 	/** @var Logger&MockInterface */
 	protected MockInterface $logger_mock;
 
@@ -79,15 +60,19 @@ class StylesEnqueueTraitStylesTest extends PluginLibTestCase {
 		parent::setUp();
 		self::$hasActionCallCount = 0;
 
-		$this->config_instance_mock = Mockery::mock(ConfigInterface::class);
-		$this->logger_mock          = Mockery::mock(Logger::class);
-		$this->config_instance_mock->shouldReceive('get')->with('logger')->byDefault()->andReturn($this->logger_mock);
-
-		// Default behavior for logger
+		$this->logger_mock = Mockery::mock(Logger::class);
 		$this->logger_mock->shouldReceive('is_active')->byDefault()->andReturn(true);
 		$this->logger_mock->shouldReceive('is_verbose')->byDefault()->andReturn(true);
-		$this->logger_mock->shouldReceive('error')->withAnyArgs()->byDefault()->andReturnNull();
-		$this->logger_mock->shouldReceive('info')->withAnyArgs()->byDefault()->andReturnNull();
+		$this->logger_mock->shouldReceive('debug')->withAnyArgs()->andReturnNull()->byDefault();
+		$this->logger_mock->shouldReceive('info')->withAnyArgs()->andReturnNull()->byDefault(); // Retaining info for now
+		$this->logger_mock->shouldReceive('error')->withAnyArgs()->andReturnNull()->byDefault();
+		$this->logger_mock->shouldReceive('warning')->withAnyArgs()->andReturnNull()->byDefault();
+
+		// Ensure that the config_mock (from PluginLibTestCase, which is a PHPUnit mock object)
+		// returns our Mockery logger_mock when its get_logger() method is called.
+		if (method_exists($this->config_mock, 'method')) { // Check if it's a PHPUnit mock
+			$this->config_mock->method('get_logger')->willReturn($this->logger_mock);
+		}
 
 		// Default WP_Mock function mocks for style functions
 		WP_Mock::userFunction('wp_register_style')->withAnyArgs()->andReturn(true)->byDefault();
@@ -100,14 +85,12 @@ class StylesEnqueueTraitStylesTest extends PluginLibTestCase {
 		WP_Mock::userFunction('_doing_it_wrong')->withAnyArgs()->andReturnNull()->byDefault();
 
 		// Create a partial mock of ConcreteEnqueueForStylesTesting
+		// ConcreteEnqueueForStylesTesting now extends AssetEnqueueBaseAbstract and its constructor only needs ConfigInterface.
 		$this->instance = Mockery::mock(
 			ConcreteEnqueueForStylesTesting::class,
-			array($this->config_instance_mock, $this->logger_mock) // Constructor arguments
+			array($this->config_mock) // Pass only the config_mock from parent
 		)->makePartial();
 		$this->instance->shouldAllowMockingProtectedMethods();
-
-		// Mock get_logger() to return our logger mock
-		$this->instance->shouldReceive('get_logger')->byDefault()->andReturn($this->logger_mock);
 
 		// Reset internal state before each test to prevent leakage
 		$properties_to_reset = array('styles', 'inline_styles', 'deferred_styles');
@@ -2434,7 +2417,7 @@ class StylesEnqueueTraitStylesTest extends PluginLibTestCase {
 		// Create a partial mock for the concrete class to test trait methods
 		/** @var \Ran\PluginLib\Tests\Unit\EnqueueAccessory\ConcreteEnqueueForStylesTesting&\Mockery\MockInterface $sut */
 		$sut = $this->getMockBuilder(ConcreteEnqueueForStylesTesting::class)
-			->setConstructorArgs(array($this->config_instance_mock, $this->logger_mock))
+			->setConstructorArgs(array($this->config_mock))
 			->onlyMethods(array('_process_inline_styles', 'get_logger'))
 			->getMock();
 
@@ -2474,7 +2457,7 @@ class StylesEnqueueTraitStylesTest extends PluginLibTestCase {
 	public function test_enqueue_inline_styles_with_one_immediate_style_unique_handle(): void {
 		/** @var \Ran\PluginLib\Tests\Unit\EnqueueAccessory\ConcreteEnqueueForStylesTesting&\Mockery\MockInterface $sut */
 		$sut = $this->getMockBuilder(ConcreteEnqueueForStylesTesting::class)
-			->setConstructorArgs(array($this->config_instance_mock, $this->logger_mock))
+			->setConstructorArgs(array($this->config_mock))
 			->onlyMethods(array('_process_inline_styles', 'get_logger'))
 			->getMock();
 
@@ -2530,7 +2513,7 @@ class StylesEnqueueTraitStylesTest extends PluginLibTestCase {
 	public function test_enqueue_inline_styles_multiple_immediate_styles_various_handles(): void {
 		/** @var \Ran\PluginLib\Tests\Unit\EnqueueAccessory\ConcreteEnqueueForStylesTesting&\Mockery\MockInterface $sut */
 		$sut = $this->getMockBuilder(ConcreteEnqueueForStylesTesting::class)
-			->setConstructorArgs(array($this->config_instance_mock, $this->logger_mock))
+			->setConstructorArgs(array($this->config_mock))
 			->onlyMethods(array('_process_inline_styles', 'get_logger'))
 			->getMock();
 
