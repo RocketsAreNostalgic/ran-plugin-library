@@ -37,8 +37,6 @@ class ConcreteEnqueueForScriptTesting extends AssetEnqueueBaseAbstract {
 	public function load(): void {
 		// Concrete implementation for testing purposes.
 	}
-
-
 }
 
 /**
@@ -66,37 +64,49 @@ class ScriptsEnqueueTraitScriptsTest extends PluginLibTestCase {
 	public function setUp(): void {
 		parent::setUp(); // Calls PluginLibTestCase::setUp()
 
-		$this->logger_mock = Mockery::mock(\Ran\PluginLib\Util\Logger::class);
+		$this->logger_mock = Mockery::mock(Logger::class);
 		$this->logger_mock->shouldReceive('is_active')->byDefault()->andReturn(true);
 		$this->logger_mock->shouldReceive('is_verbose')->byDefault()->andReturn(true);
 		$this->logger_mock->shouldReceive('debug')->withAnyArgs()->andReturnNull()->byDefault();
 		$this->logger_mock->shouldReceive('error')->withAnyArgs()->andReturnNull()->byDefault();
+		$this->logger_mock->shouldReceive('info')->withAnyArgs()->andReturnNull()->byDefault();
 		$this->logger_mock->shouldReceive('warning')->withAnyArgs()->andReturnNull()->byDefault();
 
 		// Ensure that the config_mock (from PluginLibTestCase, which is a PHPUnit mock object)
 		// returns our Mockery logger_mock when its get_logger() method is called.
-		// This is crucial because AssetEnqueueBaseAbstract (parent of ConcreteEnqueueForScriptTesting)
-		// calls $this->config->get_logger() to get the logger.
-		// This was made possible by adding 'get_logger' to onlyMethods in PluginLibTestCase.
 		if (method_exists($this->config_mock, 'method')) { // Check if it's a PHPUnit mock
 			$this->config_mock->method('get_logger')->willReturn($this->logger_mock);
 		}
 
-		// $this->instance is used by existing tests. It will use $this->config_mock from PluginLibTestCase.
-		// @phpstan-ignore-next-line P1006
-		// ConcreteEnqueueForScriptTesting now extends AssetEnqueueBaseAbstract and its constructor only needs ConfigInterface.
-		// get_logger() will be inherited and use the config to get the logger.
-		// We rely on $this->config_mock being set up in PluginLibTestCase::setUp() to return $this->logger_mock when get_logger() is called on it.
+		// Default WP_Mock function mocks for script functions
+		WP_Mock::userFunction('wp_register_script')->withAnyArgs()->andReturn(true)->byDefault();
+		WP_Mock::userFunction('wp_enqueue_script')->withAnyArgs()->andReturnNull()->byDefault();
+		WP_Mock::userFunction('wp_add_inline_script')->withAnyArgs()->andReturn(true)->byDefault();
+		WP_Mock::userFunction('did_action')->withAnyArgs()->andReturn(0)->byDefault(); // 0 means false
+		WP_Mock::userFunction('current_action')->withAnyArgs()->andReturn(null)->byDefault();
+		WP_Mock::userFunction('is_admin')->andReturn(false)->byDefault(); // Default to not admin context
+		WP_Mock::userFunction('wp_doing_ajax')->andReturn(false)->byDefault();
+		WP_Mock::userFunction('_doing_it_wrong')->withAnyArgs()->andReturnNull()->byDefault();
+
+		// Create a partial mock of ConcreteEnqueueForStylesTesting
+		// ConcreteEnqueueForStylesTesting now extends AssetEnqueueBaseAbstract and its constructor only needs ConfigInterface.
 		$this->instance = Mockery::mock(
 			ConcreteEnqueueForScriptTesting::class,
-			array($this->config_mock) // Pass only config mock
+			array($this->config_mock) // Pass only the config_mock from parent
 		)->makePartial();
 		$this->instance->shouldAllowMockingProtectedMethods();
 
-		// The get_logger() method is now inherited from AssetEnqueueBaseAbstract.
-		// AssetEnqueueBaseAbstract::get_logger() calls $this->config->get_logger().
-		// In PluginLibTestCase::setUp(), $this->config_mock should be configured to return $this->logger_mock for its get_logger() call.
-		// So, no explicit mock for $this->instance->get_logger() is needed here anymore.
+		// Reset internal state before each test to prevent leakage
+		$properties_to_reset = array('scripts', 'inline_scripts', 'deferred_scripts');
+		foreach ($properties_to_reset as $prop_name) {
+			try {
+				$property = new \ReflectionProperty(ConcreteEnqueueForScriptTesting::class, $prop_name);
+				$property->setAccessible(true);
+				$property->setValue($this->instance, array());
+			} catch (\ReflectionException $e) {
+				// Property might not exist in all versions/contexts, ignore.
+			}
+		}
 	}
 
 	/**
@@ -782,8 +792,8 @@ class ScriptsEnqueueTraitScriptsTest extends PluginLibTestCase {
 		// Add scripts to the instance property first
 		$scripts_to_add = array(
 			array(
-				'handle' => 'from-property-script',
-				'src'    => 'path/to/from-property-script.js',
+				'handle'    => 'from-property-script',
+				'src'       => 'path/to/from-property-script.js',
 				'deps'      => array('jquery'),
 				'version'   => '1.0.0',
 				'in_footer' => true,
@@ -929,9 +939,9 @@ class ScriptsEnqueueTraitScriptsTest extends PluginLibTestCase {
 		// Test data - basic inline script
 		$inline_scripts = array(
 			array(
-				'handle'   => 'test-script',
-				'content'  => 'console.log("Hello World");',
-				'position' => 'after',
+				'handle'    => 'test-script',
+				'content'   => 'console.log("Hello World");',
+				'position'  => 'after',
 				'condition' => static fn() => true,
 			),
 			array(
