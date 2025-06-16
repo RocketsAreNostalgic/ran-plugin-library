@@ -37,6 +37,8 @@ abstract class RanTestCase extends TestCase {
 	/**
 	 * Scaffold WP_Mock setUp method.
 	 *
+	 * @group skip
+	 *
 	 * @throws \Exception If setUp fails.
 	 */
 	public function setUp(): void {
@@ -54,6 +56,12 @@ abstract class RanTestCase extends TestCase {
 				self::$skippedFilesReported[] = $baseFilename;
 			}
 			$this->markTestSkipped('File skipped due to skip. prefix');
+		}
+
+		 $currentTestMethodName = $this->getName(); // Gets the name of the current test method
+
+		if (strpos($currentTestMethodName, 'skip_') === 0) {
+			$this->markTestSkipped('Method skipped due to skip_ prefix: ' . $currentTestMethodName);
 		}
 	}
 
