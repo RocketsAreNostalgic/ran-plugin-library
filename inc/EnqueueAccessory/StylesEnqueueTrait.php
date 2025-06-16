@@ -103,6 +103,11 @@ trait StylesEnqueueTrait {
 	public function add_styles( array $styles_to_add ): self {
 		$logger = $this->get_logger();
 
+		// Merge single styles in to the array
+		if ( ! is_array( current( $styles_to_add ) ) ) {
+			$styles_to_add = array( $styles_to_add );
+		}
+
 		if ( $logger->is_active() ) {
 			$logger->debug( 'StylesEnqueueTrait::add_styles - Entered. Current style count: ' . count( $this->styles ) . '. Adding ' . count( $styles_to_add ) . ' new style(s).' );
 			foreach ( $styles_to_add as $style_key => $style_data ) {
@@ -111,10 +116,7 @@ trait StylesEnqueueTrait {
 				$logger->debug( "StylesEnqueueTrait::add_styles - Adding style. Key: {$style_key}, Handle: {$handle}, Src: {$src}" );
 			}
 		}
-		// Merge single styles in to the array
-		if ( ! is_array( current( $styles_to_add ) ) ) {
-			$styles_to_add = array( $styles_to_add );
-		}
+
 		if ($logger->is_active()) {
 			$logger->debug( 'StylesEnqueueTrait::add_styles - Adding ' . count( $styles_to_add ) . ' style definition(s). Current total: ' . count( $this->styles ) );
 		}

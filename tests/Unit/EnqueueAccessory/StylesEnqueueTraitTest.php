@@ -1794,9 +1794,8 @@ class StylesEnqueueTraitStylesTest extends PluginLibTestCase {
 		$this->logger_mock->shouldReceive('is_active')->andReturn(true);
 
 		// Logs from add_styles()
-		$this->logger_mock->shouldReceive('debug')->with('StylesEnqueueTrait::add_styles - Entered. Current style count: 0. Adding 2 new style(s).')->once()->ordered();
-		$this->logger_mock->shouldReceive('debug')->with('StylesEnqueueTrait::add_styles - Adding style. Key: src, Handle: N/A, Src: N/A')->once()->ordered();
-		$this->logger_mock->shouldReceive('debug')->with('StylesEnqueueTrait::add_styles - Adding style. Key: hook, Handle: N/A, Src: N/A')->once()->ordered();
+		$this->logger_mock->shouldReceive('debug')->with('StylesEnqueueTrait::add_styles - Entered. Current style count: 0. Adding 1 new style(s).')->once()->ordered();
+		$this->logger_mock->shouldReceive('debug')->with('StylesEnqueueTrait::add_styles - Adding style. Key: 0, Handle: N/A, Src: path/to/style.css')->once()->ordered();
 		$this->logger_mock->shouldReceive('debug')->with('StylesEnqueueTrait::add_styles - Adding 1 style definition(s). Current total: 0')->once()->ordered();
 		$this->logger_mock->shouldReceive('debug')->with('StylesEnqueueTrait::add_styles - Finished adding styles. New total: 1')->once()->ordered();
 		$this->logger_mock->shouldReceive('debug')->with('StylesEnqueueTrait::add_styles - All current style handles after add: N/A')->once()->ordered();
@@ -2294,9 +2293,8 @@ class StylesEnqueueTraitStylesTest extends PluginLibTestCase {
 		);
 
 		$this->logger_mock->shouldReceive('is_active')->andReturn(true);
-		$this->logger_mock->shouldReceive('debug')->with('StylesEnqueueTrait::add_styles - Entered. Current style count: 0. Adding 2 new style(s).')->once()->ordered();
-		$this->logger_mock->shouldReceive('debug')->with('StylesEnqueueTrait::add_styles - Adding style. Key: handle, Handle: N/A, Src: N/A')->once()->ordered();
-		$this->logger_mock->shouldReceive('debug')->with('StylesEnqueueTrait::add_styles - Adding style. Key: src, Handle: N/A, Src: N/A')->once()->ordered();
+		$this->logger_mock->shouldReceive('debug')->with('StylesEnqueueTrait::add_styles - Entered. Current style count: 0. Adding 1 new style(s).')->once()->ordered();
+		$this->logger_mock->shouldReceive('debug')->with("StylesEnqueueTrait::add_styles - Adding style. Key: 0, Handle: single-style, Src: /path/to/single-style.css")->once()->ordered();
 		$this->logger_mock->shouldReceive('debug')->with('StylesEnqueueTrait::add_styles - Adding 1 style definition(s). Current total: 0')->once()->ordered();
 		$this->logger_mock->shouldReceive('debug')->with('StylesEnqueueTrait::add_styles - Finished adding styles. New total: 1')->once()->ordered();
 		$this->logger_mock->shouldReceive('debug')->with('StylesEnqueueTrait::add_styles - All current style handles after add: single-style')->once()->ordered();
