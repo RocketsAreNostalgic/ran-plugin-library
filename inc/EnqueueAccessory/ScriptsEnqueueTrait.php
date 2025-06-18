@@ -1,7 +1,18 @@
 <?php
 declare(strict_types=1);
+/**
+ * Trait ScriptsEnqueueTrait
+ *
+ * @package Ran\PluginLib\EnqueueAccessory
+ * @author  Ran Plugin Lib
+ * @license GPL-2.0+ <http://www.gnu.org/licenses/gpl-2.0.txt>
+ * @link    https://github.com/RocketsAreNostalgic
+ * @since   0.1.0
+ */
 
 namespace Ran\PluginLib\EnqueueAccessory;
+
+use Ran\PluginLib\Util\Logger;
 
 /**
  * Trait ScriptsEnqueueTrait
@@ -9,26 +20,30 @@ namespace Ran\PluginLib\EnqueueAccessory;
  * Manages the registration, enqueuing, and processing of JavaScript assets.
  * This includes handling general scripts, inline scripts, deferred scripts,
  * script attributes, and script data.
+ *
+ * @package Ran\PluginLib\EnqueueAccessory
  */
-use Ran\PluginLib\Util\Logger;
 
 trait ScriptsEnqueueTrait {
 	/**
-	 * Array of scripts to enqueue.
+	 * Array of script definitions to be processed.
 	 *
 	 * @var array<int, array<int, mixed>>
 	 */
 	protected array $scripts = array();
 
 	/**
-	 * Array of inline scripts to be added.
+	 * Array of inline script definitions to be added.
 	 *
 	 * @var array<int, array<string, mixed>>
 	 */
 	protected array $inline_scripts = array();
 
 	/**
-	 * Array of scripts to be enqueued at specific hooks.
+	 * Array of scripts to be loaded at specific WordPress action hooks.
+	 *
+	 * The outer array keys are hook names (e.g., 'admin_enqueue_scripts'),
+	 * and the inner arrays contain script definitions indexed by their original addition order.
 	 *
 	 * @var array<string, array<int, array<string, mixed>>>
 	 */
@@ -46,7 +61,7 @@ trait ScriptsEnqueueTrait {
 	/**
 	 * Get the array of registered scripts.
 	 *
-	 * @return array<string, array<int, mixed>> The registered scripts.
+	 * @return array<string, array> An associative array of script definitions, keyed by 'general', 'deferred', and 'inline'.
 	 */
 	public function get_scripts() {
 		return array(
@@ -81,8 +96,14 @@ trait ScriptsEnqueueTrait {
 	 * @see self::enqueue()
 	 */
 	public function add_scripts( array $scripts_to_add ): self {
-		// Diagnostic: Attempt to get logger directly from config
-		$logger = $this->config->get_logger();
+		$logger = $this->get_logger();
+
+		if ( empty( $scripts_to_add ) ) {
+			if ( $logger->is_active() ) {
+				$logger->debug( 'ScriptsEnqueueTrait::add_scripts - Entered with empty array. No scripts to add.' );
+			}
+			return $this;
+		}
 
 		// Merge single scripts in to the array
 		if ( ! is_array( current( $scripts_to_add ) ) ) {
@@ -108,7 +129,6 @@ trait ScriptsEnqueueTrait {
 		foreach ( $scripts_to_add as $script_definition ) {
 			$this->scripts[] = $script_definition; // Simple append.
 		}
-
 		if ( $logger->is_active() ) {
 			$new_total = count( $this->scripts );
 			$logger->debug( "ScriptsEnqueueTrait::add_scripts - Exiting. New total script count: {$new_total}" );
@@ -120,146 +140,147 @@ trait ScriptsEnqueueTrait {
 				$logger->debug( 'ScriptsEnqueueTrait::add_scripts - All current script handles: ' . implode( ', ', $current_handles ) );
 			}
 		}
-
 		return $this;
 	}
 
-	/** ✅ ⚠️
-	 * Registers scripts with WordPress without enqueueing them.
+	/**
+	 * Registers scripts with WordPress without enqueueing them, handling deferred registration.
 	 *
-	 * @todo PARITY WORK WITH REGISTER_STYLE
+	 * This method iterates through the script definitions previously added via `add_scripts()`.
+	 * For each script:
+	 * - If a `hook` is specified in the definition, its registration is deferred. The script
+	 *   is moved to the `$deferred_scripts` queue, and an action is set up (if not already present)
+	 *   to call `enqueue_deferred_scripts()` when the specified hook fires.
+	 * - Scripts without a `hook` are registered immediately. The registration process
+	 *   (handled by `_process_single_script()`) includes checking any associated
+	 *   `$condition` callback and calling `wp_register_script()`.
 	 *
-	 * @return self Returns the instance for method chaining.
-	 */
-	public function register_scripts( array $scripts = array() ): self {
-		$logger = $this->get_logger();
-		// If scripts are directly passed, add them to the internal array and log a notice
-		if ( ! empty( $scripts ) ) {
-			if ( $logger->is_active() ) {
-				$logger->debug( 'ScriptsEnqueueTrait::register_scripts - Scripts directly passed. Consider using add_scripts() first for better maintainability.' );
-			}
-			$this->add_scripts( $scripts );
-		}
-
-		// Always use the internal scripts array for consistency
-		$scripts_to_process = $this->scripts;
-
-		if ( $logger->is_active() ) {
-			$logger->debug( 'ScriptsEnqueueTrait::register_scripts - Registering ' . count( $scripts_to_process ) . ' script(s).' );
-		}
-
-		foreach ( $scripts_to_process as $script ) {
-			// Skip scripts with hooks (they'll be registered when the hook fires)
-			if ( !empty( $script['hook'] ) ) {
-				continue;
-			}
-
-			// _process_single_script handles all registration logic including conditions,
-			// wp_data, and attributes
-			$this->_process_single_script( $script );
-		}
-
-		return $this;
-	}
-
-	/** ✅ ⚠️
-	 * @todo Parity work with enqueue styles
+	 * Note: This method only *registers* the scripts. Enqueuing is handled by
+	 * `enqueue_scripts()` or `enqueue_deferred_scripts()`.
 	 *
-	 * Processes and enqueues a given array of script definitions.
-	 *
-	 * This method iterates through an array of script definitions. For each script,
-	 * it first checks any associated `$condition` callback. If the condition passes
-	 * (or if no condition is set), the script is then processed. If a `$hook` is
-	 * specified, the script's processing is deferred by adding it to an internal
-	 * queue for that hook via `enqueue_deferred_scripts()`. Otherwise, the script
-	 * is processed immediately by `_process_single_script()`.
-	 *
-	 * The `_process_single_script()` method handles the actual WordPress registration
-	 * (`wp_register_script()`), enqueuing (`wp_enqueue_script()`), attribute additions,
-	 * and `wp_script_add_data()` calls.
-	 *
-	 * @param array $scripts
 	 * @return self Returns the instance of this class for method chaining.
 	 * @see    self::add_scripts()
 	 * @see    self::_process_single_script()
+	 * @see    self::enqueue_scripts()
+	 * @see    self::enqueue_deferred_scripts()
+	 * @see    wp_register_script()
 	 */
-	public function enqueue_scripts( array $scripts ): self {
+	public function register_scripts(): self {
 		$logger = $this->get_logger();
-		if ( $logger->is_active() ) {
-			$logger->debug( 'ScriptsEnqueueTrait::enqueue_scripts - Entered. Processing ' . count( $scripts ) . ' script definition(s).' );
+		if ($logger->is_active()) {
+			$logger->debug( 'ScriptsEnqueueTrait::register_scripts - Entered. Processing ' . count( $this->scripts ) . ' script definition(s) for registration.' );
 		}
-		// Track which hooks have new scripts added.
-		$hooks_with_new_scripts = array();
 
-		foreach ( $scripts as $script ) {
-			$hook = $script['hook'] ?? null;
+		$scripts_to_process = $this->scripts;
+		$this->scripts      = array(); // Clear original to re-populate with non-deferred scripts.
 
-			// If a hook is specified, store the script for later enqueuing.
+		foreach ( $scripts_to_process as $index => $script_definition ) {
+			$handle_for_log = $script_definition['handle'] ?? 'N/A';
+			$hook           = $script_definition['hook']   ?? null;
+
+			if ($logger->is_active()) {
+				$logger->debug( "ScriptsEnqueueTrait::register_scripts - Processing script: \"{$handle_for_log}\", original index: {$index}." );
+			}
+
 			if ( ! empty( $hook ) ) {
-				if ( $logger->is_active() ) {
-					$logger->debug( "ScriptsEnqueueTrait::enqueue_scripts - Script '" . ( $script['handle'] ?? 'N/A' ) . "' identified as deferred to hook: " . $hook );
+				if ($logger->is_active()) {
+					$logger->debug( "ScriptsEnqueueTrait::register_scripts - Deferring registration of script '{$handle_for_log}' (original index {$index}) to hook: {$hook}." );
 				}
+				$this->deferred_scripts[ $hook ][ $index ] = $script_definition;
 
-				if ( ! isset( $this->deferred_scripts[ $hook ] ) ) {
-					$this->deferred_scripts[ $hook ] = array();
-				}
-				$this->deferred_scripts[ $hook ][] = $script;
-				$hooks_with_new_scripts[ $hook ]   = true;
-				continue;
-			}
-
-			// Process the script (register and set up attributes).
-			if ( $logger->is_active() ) {
-				$logger->debug( 'ScriptsEnqueueTrait::enqueue_scripts - Processing non-deferred script: ' . ( $script['handle'] ?? 'N/A' ) );
-			}
-
-			$handle = $this->_process_single_script( $script );
-
-			// Skip empty handles (condition not met).
-			if ( empty( $handle ) ) {
-				if ( $logger->is_active() ) {
-					$logger->debug( 'ScriptsEnqueueTrait::enqueue_scripts - Skipping script as handle is empty (condition likely not met for: ' . ($script['handle'] ?? 'N/A') . ').' );
-				}
-				continue;
-			}
-
-			if ( $logger->is_active() ) {
-				$logger->debug( 'ScriptsEnqueueTrait::enqueue_scripts - Enqueuing script (handle from _process_single_script): ' . $handle );
-			}
-
-			// Enqueue the script.
-			if ( $logger->is_active() ) {
-				$logger->debug( 'ScriptsEnqueueTrait::enqueue_scripts - Calling wp_enqueue_script for non-deferred: ' . $handle );
-			}
-			wp_enqueue_script( $handle );
-		}
-
-		// Register hooks for any deferred scripts that were added.
-		if ( $logger->is_active() ) {
-			$logger->debug( 'ScriptsEnqueueTrait::enqueue_scripts - hooks_with_new_scripts: ' . wp_json_encode( $hooks_with_new_scripts ) );
-		}
-		if ( ! empty( $hooks_with_new_scripts ) ) {
-			foreach ( array_keys( $hooks_with_new_scripts ) as $hook ) {
-				// Check if the hook has already fired.
-				if ( is_admin() && did_action( $hook ) ) {
-					// Hook has already fired, enqueue directly.
-					$this->enqueue_deferred_scripts( $hook );
+				// Ensure the action for deferred scripts is added only once per hook.
+				$action_exists = has_action( $hook, array( $this, 'enqueue_deferred_scripts' ) );
+				if ( ! $action_exists ) {
+					add_action( $hook, array( $this, 'enqueue_deferred_scripts' ), 10, 1 );
+					if ($logger->is_active()) {
+						$logger->debug( "ScriptsEnqueueTrait::register_scripts - Added action for 'enqueue_deferred_scripts' on hook: {$hook}." );
+					}
 				} else {
-					// Create a proper callback with the hook name captured in the closure.
-					// This ensures the correct hook name is used when the callback is executed.
-					$callback = function () use ( $hook ): void {
-						$this->enqueue_deferred_scripts( $hook );
-					};
-
-					// Register for future execution with a higher priority (10).
-					// This helps ensure it runs before other scripts that might depend on it.
-					add_action( $hook, $callback, 10 );
+					if ($logger->is_active()) {
+						$logger->debug( "ScriptsEnqueueTrait::register_scripts - Action for 'enqueue_deferred_scripts' on hook '{$hook}' already exists." );
+					}
+				}
+			} else {
+				// Process immediately for registration
+				$processed_handle = $this->_process_single_script(
+					$script_definition,
+					'register_scripts', // processing_context
+					null,             // hook_name (null for immediate registration)
+					true,             // do_register
+					false,            // do_enqueue (registration only)
+				);
+				// Re-add to $this->scripts if it was meant for immediate registration and not deferred,
+				// AND if it was successfully processed (i.e., _process_single_script returned a handle).
+				// This ensures it's available for enqueue_scripts().
+				if ($processed_handle) {
+					$this->scripts[$index] = $script_definition;
 				}
 			}
 		}
+		if ($logger->is_active()) {
+			$deferred_count = empty($this->deferred_scripts) ? 0 : count($this->deferred_scripts, COUNT_RECURSIVE) - count($this->deferred_scripts);
+			$logger->debug( 'ScriptsEnqueueTrait::register_scripts - Exited. Remaining immediate scripts: ' . count($this->scripts) . '. Deferred scripts: ' . $deferred_count . '.' );
+		}
+		return $this;
+	}
 
-		if ( $logger->is_active() ) {
-			$logger->debug( 'ScriptsEnqueueTrait::enqueue_scripts - Exited.' );
+	/**
+	 * Processes and enqueues all immediate scripts that have been registered.
+	 *
+	 * This method iterates through the `$this->scripts` array, which at this stage should only
+	 * contain immediate (non-deferred) scripts, as deferred scripts are moved to their own
+	 * queue by `register_scripts()`.
+	 *
+	 * For each immediate script, it calls `_process_single_script()` to handle enqueuing and
+	 * the processing of any associated inline scripts or attributes.
+	 *
+	 * After processing, this method clears the `$this->scripts` array. Deferred scripts stored
+	 * in `$this->deferred_scripts` are not affected.
+	 *
+	 * @return self Returns the instance of this class for method chaining.
+	 * @throws \LogicException If a deferred script is found in the queue, indicating `register_scripts()` was not called.
+	 * @see    self::add_scripts()
+	 * @see    self::register_scripts()
+	 * @see    self::_process_single_script()
+	 * @see    self::enqueue_deferred_scripts()
+	 */
+	public function enqueue_scripts(): self {
+		$logger = $this->get_logger();
+		if ($logger->is_active()) {
+			$logger->debug( 'ScriptsEnqueueTrait::enqueue_scripts - Entered. Processing ' . count( $this->scripts ) . ' script definition(s) from internal queue.' );
+		}
+
+		$scripts_to_process = $this->scripts;
+		$this->scripts      = array(); // Clear the main queue, as we are processing all of them now.
+
+		foreach ( $scripts_to_process as $index => $script_definition ) {
+			$handle_for_log = $script_definition['handle'] ?? 'N/A';
+
+			// Check for mis-queued deferred assets. This is a critical logic error.
+			if ( ! empty( $script_definition['hook'] ) ) {
+				throw new \LogicException(
+					"ScriptsEnqueueTrait::enqueue_scripts - Found a deferred script ('{$handle_for_log}') in the immediate queue. " .
+					'The `register_scripts()` method must be called before `enqueue_scripts()` to correctly process deferred scripts.'
+				);
+			}
+
+			if ($logger->is_active()) {
+				$logger->debug( "ScriptsEnqueueTrait::enqueue_scripts - Processing script: \"{$handle_for_log}\", original index: {$index}." );
+			}
+
+			// Defensively register and enqueue. The underlying `_process_single_script`
+			// will check if the script is already registered/enqueued and skip redundant calls.
+			$this->_process_single_script(
+				$script_definition,
+				'enqueue_scripts', // processing_context
+				null,              // hook_name (null for immediate processing)
+				true,              // do_register
+				true,              // do_enqueue
+			);
+		}
+		if ($logger->is_active()) {
+			$deferred_count = empty($this->deferred_scripts) ? 0 : count($this->deferred_scripts, COUNT_RECURSIVE) - count($this->deferred_scripts);
+			$logger->debug( 'ScriptsEnqueueTrait::enqueue_scripts - Exited. Deferred scripts count: ' . $deferred_count . '.' );
 		}
 		return $this;
 	}
@@ -267,24 +288,22 @@ trait ScriptsEnqueueTrait {
 	/**
 	 * Enqueue scripts that were deferred to a specific hook.
 	 *
-	 * @param string $hook The WordPress hook name.
-	 * @return void This method returns `void` because it's primarily designed as a callback for WordPress action hooks.
-	 *              When executed within a hook, its main role is to perform enqueueing operations (side effects),
-	 *              rather than being part of a fluent setup chain.
+	 * @param string $hook_name The WordPress hook name that triggered this method.
+	 * @return void
 	 */
 	public function enqueue_deferred_scripts( string $hook_name ): void {
 		$logger = $this->get_logger();
 		if ( $logger->is_active() ) {
-			$logger->debug( "ScriptsEnqueueTrait::enqueue_deferred_scripts - Entered for hook: \"{$hook_name}\"" );
+			$logger->debug( "ScriptsEnqueueTrait::enqueue_deferred_scripts - Entered hook: \"{$hook_name}\"." );
 		}
+
 		if ( ! isset( $this->deferred_scripts[ $hook_name ] ) ) {
 			if ( $logger->is_active() ) {
 				$logger->debug( "ScriptsEnqueueTrait::enqueue_deferred_scripts - Hook \"{$hook_name}\" not found in deferred scripts. Nothing to process." );
 			}
-			return; // Hook was never set, nothing to do or unset.
+			return;
 		}
 
-		// Retrieve scripts for the hook and then immediately unset it to mark as processed.
 		$scripts_on_this_hook = $this->deferred_scripts[ $hook_name ];
 		unset( $this->deferred_scripts[ $hook_name ] ); // Moved unset action here
 
@@ -295,167 +314,68 @@ trait ScriptsEnqueueTrait {
 			return; // No actual scripts to process for this hook.
 		}
 
-		foreach ( $scripts_on_this_hook as $script_definition ) {
-			$original_handle = $script_definition['handle'] ?? null;
-
-			if ( empty( $original_handle ) ) {
-				if ( $logger->is_active() ) {
-					$logger->error( "ScriptsEnqueueTrait::enqueue_deferred_scripts - Script definition missing 'handle' for hook '{$hook_name}'. Skipping this script definition." );
-				}
-				continue; // Skip this script definition if handle is missing
-			}
-
-			$is_registered = wp_script_is( $original_handle, 'registered' );
-			$is_enqueued   = wp_script_is( $original_handle, 'enqueued' );
+		foreach ( $scripts_on_this_hook as $original_index => $script_definition ) {
+			$handle_for_log = $script_definition['handle'] ?? 'N/A_at_original_index_' . $original_index;
 			if ( $logger->is_active() ) {
-				$logger->debug( "ScriptsEnqueueTrait::enqueue_deferred_scripts - (Deferred) Script '" . esc_html( $original_handle ) . "' is_registered: " . ( $is_registered ? 'TRUE' : 'FALSE' ) );
-				$logger->debug( "ScriptsEnqueueTrait::enqueue_deferred_scripts - (Deferred) Script '" . esc_html( $original_handle ) . "' is_enqueued: " . ( $is_enqueued ? 'TRUE' : 'FALSE' ) );
+				$logger->debug( "ScriptsEnqueueTrait::enqueue_deferred_scripts - Processing deferred script: \"{$handle_for_log}\" (original index {$original_index}) for hook: \"{$hook_name}\"." );
 			}
+			// _process_single_script handles registration and enqueuing.
+			$processed_handle = $this->_process_single_script(
+				$script_definition,
+				'enqueue_deferred', // processing_context
+				$hook_name,         // hook_name
+				true,               // do_register
+				true                // do_enqueue
+			);
 
-			$skip_main_registration_and_enqueue = $is_enqueued;
-
-			if ( $skip_main_registration_and_enqueue ) {
-				if ( $logger->is_active() ) {
-					$logger->debug( "ScriptsEnqueueTrait::enqueue_deferred_scripts - Script '{$original_handle}' is already enqueued. Skipping its registration and main enqueue call on hook '{$hook_name}'. Inline scripts will still be processed." );
-				}
-			} else {
-				if ( $logger->is_active() ) {
-					$logger->debug( "ScriptsEnqueueTrait::enqueue_deferred_scripts - Processing deferred script: \"{$original_handle}\" for hook: \"{$hook_name}\"" );
-				}
-				// _process_single_script returns the original handle, so $original_handle is the one to use.
-				$processed_handle_confirmation = $this->_process_single_script( $script_definition );
-
-				if ( empty( $processed_handle_confirmation ) || $processed_handle_confirmation !== $original_handle ) {
-					if ( $logger->is_active() ) {
-						$logger->warning( "ScriptsEnqueueTrait::enqueue_deferred_scripts - _process_single_script returned an unexpected handle ('{$processed_handle_confirmation}') or empty for original handle '{$original_handle}' on hook \"{$hook_name}\". Skipping main script enqueue and its inline scripts." );
-					}
-					continue; // Critical issue, skip this script and its inlines.
-				}
-
-				if ( $logger->is_active() ) {
-					$logger->debug( "ScriptsEnqueueTrait::enqueue_deferred_scripts - Calling wp_enqueue_script for deferred: \"{$original_handle}\" on hook: \"{$hook_name}\"" );
-				}
-				wp_enqueue_script( $original_handle );
+			if ( $processed_handle ) {
+				$this->_process_inline_scripts($processed_handle, $hook_name, 'deferred from enqueue_deferred_scripts');
 			}
-
-			// Process any inline scripts associated with this deferred script's handle and hook.
-			if ( $logger->is_active() ) {
-				$logger->debug( "ScriptsEnqueueTrait::enqueue_deferred_scripts - Checking for inline scripts for handle '{$original_handle}' on hook '{$hook_name}'." );
-			}
-			$inline_scripts_to_remove_keys = array(); // To store keys of inline scripts that are processed.
-			foreach ( $this->inline_scripts as $key => $inline_script ) {
-				$inline_handle      = $inline_script['handle']      ?? '';
-				$inline_content     = $inline_script['content']     ?? '';
-				$inline_position    = $inline_script['position']    ?? 'after';
-				$inline_condition   = $inline_script['condition']   ?? null;
-				$inline_parent_hook = $inline_script['parent_hook'] ?? null;
-
-				// Check if this inline script is for the current deferred script handle AND hook.
-				if ( $inline_handle === $original_handle && $inline_parent_hook === $hook_name ) {
-					if ( $logger->is_active() ) {
-						$logger->debug( "ScriptsEnqueueTrait::enqueue_deferred_scripts - Found inline script for '{$original_handle}' on hook '{$hook_name}'. Processing it now." );
-					}
-
-					if ( empty( $inline_content ) ) {
-						if ( $logger->is_active() ) {
-							$logger->error( "ScriptsEnqueueTrait::enqueue_deferred_scripts - Skipping inline script for '{$original_handle}' on hook '{$hook_name}' due to missing content." );
-						}
-						$inline_scripts_to_remove_keys[] = $key; // Mark for removal even if skipped.
-						continue;
-					}
-
-					if ( is_callable( $inline_condition ) && ! $inline_condition() ) {
-						if ( $logger->is_active() ) {
-							$logger->debug( "ScriptsEnqueueTrait::enqueue_deferred_scripts - Condition not met for inline script '{$original_handle}' on hook '{$hook_name}'. Skipping." );
-						}
-						$inline_scripts_to_remove_keys[] = $key; // Mark for removal.
-						continue;
-					}
-
-					// Parent script should now be registered (and enqueued if not skipped).
-					// We re-check registration here as a safeguard, though _process_single_script should have handled it.
-					if ( ! wp_script_is( $original_handle, 'registered' ) ) {
-						if ( $logger->is_active() ) {
-							$logger->error( "ScriptsEnqueueTrait::enqueue_deferred_scripts - Cannot add inline script for '{$original_handle}' on hook '{$hook_name}'. Parent script is not registered." );
-						}
-						$inline_scripts_to_remove_keys[] = $key; // Mark for removal.
-						continue;
-					}
-
-					if ( $logger->is_active() ) {
-						$logger->debug( "ScriptsEnqueueTrait::enqueue_deferred_scripts - Adding inline script for '{$original_handle}' (hook '{$hook_name}'), position '{$inline_position}'." );
-					}
-					if ( 'before' === $inline_position ) {
-						wp_add_inline_script( $original_handle, $inline_content, 'before' );
-					} else {
-						wp_add_inline_script( $original_handle, $inline_content ); // 'after' is default.
-					}
-					$inline_scripts_to_remove_keys[] = $key; // Mark as processed and remove.
-				}
-			}
-			// Remove processed inline scripts for this hook and handle.
-			foreach ( $inline_scripts_to_remove_keys as $key_to_remove ) {
-				unset( $this->inline_scripts[ $key_to_remove ] );
-			}
-			// re-index to remove any gaps in the array sequence
-			$this->inline_scripts = array_values($this->inline_scripts);
 		}
 
 		if ( $logger->is_active() ) {
-			$logger->debug( "ScriptsEnqueueTrait::enqueue_deferred_scripts - Exited for hook: \"{$hook_name}\"" );
+			$logger->debug( "ScriptsEnqueueTrait::enqueue_deferred_scripts - Exited for hook: \"{$hook_name}\"." );
 		}
 	}
 
 	/**
 	 * Chain-able call to add inline scripts.
 	 *
-	 * @param array<int, array<string, mixed>> $inline_scripts_to_add The array of inline scripts to add. Each script should be an array with the following keys.
-	 *     @type string      $handle     (required) Handle of the script to attach the inline script to. Must be already registered.
-	 *     @type string      $content    (required) The inline script content.
-	 *     @type string      $position   (optional) Whether to add the inline script before or after the registered script. Default 'after'.
-	 *     @type callable    $condition  (optional) Callback function that determines if the inline script should be added.
-	 *     @type string|null $parent_hook (optional) The WordPress hook name that the parent script is deferred to.
+	 * @param string      $handle     (required) Handle of the script to attach the inline script to.
+	 * @param string      $content    (required) The inline script content.
+	 * @param string      $position   (optional) Whether to add the inline script before or after. Default 'after'.
+	 * @param callable|null $condition  (optional) Callback that determines if the inline script should be added.
+	 * @param string|null $parent_hook (optional) The WordPress hook name that the parent script is deferred to.
+	 * @return self
 	 */
-	public function add_inline_scripts( array $inline_scripts_to_add ): self {
+	public function add_inline_scripts( string $handle, string $content, string $position = 'after', ?callable $condition = null, ?string $parent_hook = null ): self {
 		$logger = $this->get_logger();
 		if ( $logger->is_active() ) {
-			$logger->debug( 'ScriptsEnqueueTrait::add_inline_scripts - Entered. Current inline script count: ' . count( $this->inline_scripts ) . '. Adding ' . count( $inline_scripts_to_add ) . ' new inline script(s).' );
+			$logger->debug( 'ScriptsEnqueueTrait::add_inline_scripts - Entered. Current inline script count: ' . count( $this->inline_scripts ) . '. Adding new inline script for handle: ' . \esc_html( $handle ) );
 		}
 
-		$processed_inline_scripts = array();
-		foreach ( $inline_scripts_to_add as $inline_script_data ) {
-			if ( $logger->is_active() ) {
-				$log_handle         = $inline_script_data['handle']   ?? 'N/A';
-				$log_position       = $inline_script_data['position'] ?? 'after';
-				$log_content_length = strlen($inline_script_data['content'] ?? '');
-				$logger->debug( "ScriptsEnqueueTrait::add_inline_scripts - Processing inline script for handle '{$log_handle}', position '{$log_position}', content length {$log_content_length}." );
-			}
-			$parent_handle = $inline_script_data['handle'] ?? null;
-			// Ensure parent_hook is initialized, it might be overridden if the parent script is deferred.
-			// If $inline_script_data['parent_hook'] is already set by the caller, respect that.
-			if ( ! isset( $inline_script_data['parent_hook'] ) ) {
-				$inline_script_data['parent_hook'] = null;
-			}
+		$inline_script_item = array(
+			'handle'      => $handle,
+			'content'     => $content,
+			'position'    => $position,
+			'condition'   => $condition,
+			'parent_hook' => $parent_hook,
+		);
 
-			if ( $parent_handle ) {
-				// Check if this parent_handle corresponds to a deferred script to inherit its hook.
-				foreach ( $this->scripts as $original_script_definition ) {
-					if ( ( $original_script_definition['handle'] ?? null ) === $parent_handle && ! empty( $original_script_definition['hook'] ) ) {
-						// Only override parent_hook if it wasn't explicitly set for the inline script.
-						if ( null === $inline_script_data['parent_hook'] ) {
-							$inline_script_data['parent_hook'] = $original_script_definition['hook'];
-						}
-						if ( $logger->is_active() ) {
-							$logger->debug( "ScriptsEnqueueTrait::add_inline_scripts - Inline script for '{$parent_handle}' associated with parent hook: '{$inline_script_data['parent_hook']}'. Original parent script hook: '" . ( $original_script_definition['hook'] ?? 'N/A' ) . "'." );
-						}
-						break; // Found the parent script, no need to check further.
-					}
+		// Associate inline script with its parent's hook if the parent is deferred.
+		foreach ( $this->scripts as $original_script_definition ) {
+			if ( ( $original_script_definition['handle'] ?? null ) === $handle && ! empty( $original_script_definition['hook'] ) ) {
+				if ( null === $inline_script_item['parent_hook'] ) {
+					$inline_script_item['parent_hook'] = $original_script_definition['hook'];
 				}
+				if ( $logger->is_active() ) {
+					$logger->debug( "ScriptsEnqueueTrait::add_inline_scripts - Inline script for '{$handle}' associated with parent hook: '{$inline_script_item['parent_hook']}'. Original parent script hook: '" . ( $original_script_definition['hook'] ?? 'N/A' ) . "'." );
+				}
+				break;
 			}
-			$processed_inline_scripts[] = $inline_script_data;
 		}
-		// Merge new inline scripts with existing ones.
-		$this->inline_scripts = array_merge( $this->inline_scripts, $processed_inline_scripts );
+
+		$this->inline_scripts[] = $inline_script_item;
 
 		if ( $logger->is_active() ) {
 			$logger->debug( 'ScriptsEnqueueTrait::add_inline_scripts - Exiting. New total inline script count: ' . count( $this->inline_scripts ) );
@@ -464,167 +384,273 @@ trait ScriptsEnqueueTrait {
 	}
 
 	/**
-	 *
 	 * Process and add all registered inline scripts.
+	 *
+	 * @return self
 	 */
 	public function enqueue_inline_scripts(): self {
 		$logger = $this->get_logger();
-		if ( $logger->is_active() ) {
+		if ($logger->is_active()) {
 			$logger->debug( 'ScriptsEnqueueTrait::enqueue_inline_scripts - Entered method.' );
 		}
-		foreach ( $this->inline_scripts as $inline_script ) {
-			$handle      = $inline_script['handle']      ?? '';
-			$content     = $inline_script['content']     ?? '';
-			$position    = $inline_script['position']    ?? 'after';
-			$condition   = $inline_script['condition']   ?? null;
-			$parent_hook = $inline_script['parent_hook'] ?? null;
 
-			if ( $logger->is_active() ) {
-				$logger->debug( "ScriptsEnqueueTrait::enqueue_inline_scripts - Processing inline script for handle: '" . esc_html( $handle ) . "'. Parent hook: '" . esc_html( $parent_hook ?: 'None' ) . "'." );
-			}
-
-			// If this inline script is tied to a parent script on a specific hook, skip it here.
-			// It will be handled by enqueue_deferred_scripts.
-			if ( ! empty( $parent_hook ) ) {
-				if ( $logger->is_active() ) {
-					$logger->debug( "ScriptsEnqueueTrait::enqueue_inline_scripts - Deferring inline script for '{$handle}' because its parent is on hook '{$parent_hook}'." );
+		$immediate_parent_handles = array();
+		foreach ( $this->inline_scripts as $key => $inline_script_data ) {
+			if (!is_array($inline_script_data)) {
+				if ($logger->is_active()) {
+					$logger->warning("ScriptsEnqueueTrait::enqueue_inline_scripts - Invalid inline script data at key '{$key}'. Skipping.");
 				}
 				continue;
 			}
+			$parent_hook = $inline_script_data['parent_hook'] ?? null;
+			$handle      = $inline_script_data['handle']      ?? null;
 
-			// Skip if required parameters are missing.
-			if ( empty( $handle ) || empty( $content ) ) {
-				if ( $logger->is_active() ) {
-					$logger->error( 'ScriptsEnqueueTrait::enqueue_inline_scripts - Skipping (non-deferred) inline script due to missing handle or content. Handle: ' . esc_html( $handle ) );
+			if ( empty( $parent_hook ) && !empty($handle) ) {
+				if ( !in_array($handle, $immediate_parent_handles, true) ) {
+					$immediate_parent_handles[] = $handle;
 				}
-				continue;
 			}
+		}
 
-			// Check if the condition is met.
-			if ( is_callable( $condition ) && ! $condition() ) {
-				if ( $logger->is_active() ) {
-					$logger->debug( "ScriptsEnqueueTrait::enqueue_inline_scripts - Condition not met for inline script '{$handle}'. Skipping." );
-				}
-				continue;
+		if (empty($immediate_parent_handles)) {
+			if ($logger->is_active()) {
+				$logger->debug( 'ScriptsEnqueueTrait::enqueue_inline_scripts - No immediate inline scripts found needing processing.' );
 			}
+			return $this;
+		}
 
-			// Check if the parent script is registered or enqueued.
-			$is_registered = wp_script_is( $handle, 'registered' );
-			$is_enqueued   = wp_script_is( $handle, 'enqueued' );
-			if ( $logger->is_active() ) {
-				$logger->debug( "ScriptsEnqueueTrait::enqueue_inline_scripts - (Non-deferred) Script '" . esc_html( $handle ) . "' is_registered: " . ( $is_registered ? 'TRUE' : 'FALSE' ) );
-				$logger->debug( "ScriptsEnqueueTrait::enqueue_inline_scripts - (Non-deferred) Script '" . esc_html( $handle ) . "' is_enqueued: " . ( $is_enqueued ? 'TRUE' : 'FALSE' ) );
-			}
-			if ( ! $is_registered && ! $is_enqueued ) {
-				if ( $logger->is_active() ) {
-					$logger->error( "ScriptsEnqueueTrait::enqueue_inline_scripts - (Non-deferred) Cannot add inline script. Parent script '" . esc_html( $handle ) . "' is not registered or enqueued." );
-				}
-				continue;
-			}
+		if ($logger->is_active()) {
+			$logger->debug( 'ScriptsEnqueueTrait::enqueue_inline_scripts - Found ' . count($immediate_parent_handles) . ' unique parent handle(s) with immediate inline scripts to process: ' . implode(', ', array_map('esc_html', $immediate_parent_handles) ) );
+		}
 
-			// Add the inline script using WordPress functions.
-			if ( $logger->is_active() ) {
-				$logger->debug( "ScriptsEnqueueTrait::enqueue_inline_scripts - (Non-deferred) Attempting to add inline script for '" . esc_html( $handle ) . "' with position '" . esc_html( $position ) . "'." );
-			}
-			if ( 'before' === $position ) {
-				wp_add_inline_script( $handle, $content, 'before' );
-			} else {
-				wp_add_inline_script( $handle, $content ); // 'after' is the default.
-			}
+		foreach ( $immediate_parent_handles as $parent_handle_to_process ) {
+			$this->_process_inline_scripts(
+				$parent_handle_to_process,
+				null, // hook_name (null for immediate)
+				'enqueue_inline_scripts' // processing_context
+			);
+		}
+
+		// Clear the processed immediate inline assets from the main queue.
+		$this->inline_scripts = array_filter($this->inline_scripts, function($asset) {
+			return !empty($asset['parent_hook']);
+		});
+
+		if ( $logger->is_active() ) {
+			$remaining_count = count($this->inline_scripts);
+			$logger->debug('ScriptsEnqueueTrait::enqueue_inline_scripts - Exited. Processed ' . count($immediate_parent_handles) . " parent handle(s). Remaining deferred inline scripts: {$remaining_count}.");
 		}
 		return $this;
 	}
 
 	/**
+	 * Processes inline scripts associated with a specific parent script handle and hook context.
 	 *
-	 * Processes a single script definition: registers it, adds attributes, and script data.
-	 *
-	 * @todo PARITY WORK WTH _process_single_style
-	 * @todo re-enable additional logging after inital tests pass
-	 *
-	 * This method is responsible for the core logic of handling a script. It checks conditions,
-	 * registers the script with WordPress using `wp_register_script`, adds any specified
-	 * HTML attributes via the `script_loader_tag` filter (using `_modify_script_tag_for_attributes`),
-	 * and adds any script data using `wp_script_add_data`.
-	 *
-	 * @param array $script The script definition array.
-	 *     @type string      $handle     (Required) Name of the script. Must be unique.
-	 *     @type string      $src        (Required) URL to the script resource.
-	 *     @type array       $deps       (Optional) An array of registered script handles this script depends on. Defaults to an empty array.
-	 *     @type string|false|null $version    (Optional) Script version. `false` (default) uses plugin's version, `null` adds no version, a string sets a specific version.
-	 *     @type bool        $in_footer  (Optional) Whether to enqueue the script before `</body>` (`true`) or in the `<head>` (`false`). Defaults to `false`.
-	 *     @type callable|null $condition  (Optional) A callback returning a boolean. If `false`, the script is not enqueued. Defaults to `null` (no condition).
-	 *     @type array<string, string|bool> $attributes (Optional) Key-value pairs of HTML attributes to add to the `<script>` tag (e.g., `['async' => true, 'type' => 'module']`). Defaults to an empty array.
-	 *     @type array<string, mixed> $wp_data    (Optional) Key-value pairs to pass to `wp_script_add_data()`. Useful for localization or other script data. Defaults to an empty array.
-	 * @return string|null The script handle if processed successfully, null otherwise (e.g., condition failed, registration failed).
+	 * @param string      $parent_handle      The handle of the parent script.
+	 * @param string|null $hook_name          (Optional) The hook name if processing for a deferred context.
+	 * @param string      $processing_context A string indicating the context for logging purposes.
+	 * @return void
 	 */
-	protected function _process_single_script( array $script ): ?string {
-		$handle     = $script['handle']     ?? '';
-		$src        = $script['src']        ?? '';
-		$deps       = $script['deps']       ?? array();
-		$ver        = $script['version']    ?? false;
-		$in_footer  = $script['in_footer']  ?? false;
-		$condition  = $script['condition']  ?? null;
-		$attributes = $script['attributes'] ?? array();
-		$wp_data    = $script['wp_data']    ?? array();
-		$logger     = $this->get_logger();
+	protected function _process_inline_scripts(string $parent_handle, ?string $hook_name = null, string $processing_context = 'immediate'): void {
+		$logger          = $this->get_logger();
+		$log_prefix_base = "ScriptsEnqueueTrait::_process_inline_scripts (context: {$processing_context}) - ";
 
-		if (empty($handle)) {
-			if ($logger->is_active()) {
-				$logger->warning('ScriptsEnqueueTrait::_process_single_script - Script definition missing handle. Skipping.');
-			}
-			return null;
+		$logger->debug( "{$log_prefix_base}Checking for inline scripts for parent handle '{$parent_handle}'" . ($hook_name ? " on hook '{$hook_name}'." : '.') );
+
+		// Check if the parent script is registered or enqueued before processing its inline scripts.
+		// This is a crucial check to prevent adding inline scripts to a non-existent parent.
+		if ( ! wp_script_is( $parent_handle, 'registered' ) && ! wp_script_is( $parent_handle, 'enqueued' ) ) {
+			$logger->error( "{$log_prefix_base}Cannot add inline scripts. Parent script '{$parent_handle}' is not registered or enqueued." );
+			return;
 		}
 
-		if (is_callable($condition)) {
-			if (!$condition()) { // Direct call to callable
-				if ($logger->is_active()) {
-					$logger->debug("ScriptsEnqueueTrait::_process_single_script - Condition not met for script '{$handle}'. Skipping.");
+		$keys_to_unset = array();
+
+		foreach ( $this->inline_scripts as $key => $inline_script_data ) {
+			if (!is_array($inline_script_data)) {
+				$logger->warning("{$log_prefix_base} Invalid inline script data at key '{$key}'. Skipping.");
+				continue;
+			}
+
+			$inline_target_handle = $inline_script_data['handle']      ?? null;
+			$inline_parent_hook   = $inline_script_data['parent_hook'] ?? null;
+			$is_match             = false;
+
+			if ( $inline_target_handle === $parent_handle ) {
+				if ( $hook_name ) { // Deferred context
+					if ( $inline_parent_hook === $hook_name ) {
+						$is_match = true;
+					}
+				} else { // Immediate context
+					if ( empty( $inline_parent_hook ) ) {
+						$is_match = true;
+					}
 				}
-				return null;
+			}
+
+			if ( $is_match ) {
+				$content          = $inline_script_data['content']   ?? '';
+				$position         = $inline_script_data['position']  ?? 'after';
+				$condition_inline = $inline_script_data['condition'] ?? null;
+
+				if ( is_callable( $condition_inline ) && ! $condition_inline() ) {
+					$logger->debug( "{$log_prefix_base}Condition false for inline script targeting '{$parent_handle}' (key: {$key})" . ($hook_name ? " on hook '{$hook_name}'." : '.') );
+					$keys_to_unset[] = $key;
+					continue;
+				}
+
+				if ( empty( $content ) ) {
+					$logger->warning( "{$log_prefix_base}Empty content for inline script targeting '{$parent_handle}' (key: {$key})" . ($hook_name ? " on hook '{$hook_name}'." : '.') . ' Skipping addition.' );
+					$keys_to_unset[] = $key;
+					continue;
+				}
+
+				$logger->debug( "{$log_prefix_base}Adding inline script for '{$parent_handle}' (key: {$key}, position: {$position})" . ($hook_name ? " on hook '{$hook_name}'." : '.') );
+				wp_add_inline_script( $parent_handle, $content, $position );
+				$keys_to_unset[] = $key;
 			}
 		}
 
-		if ($logger->is_active()) {
-			$logger->debug("ScriptsEnqueueTrait::_process_single_script - Registering script '{$handle}' with src '{$src}'.");
+		if ( ! empty( $keys_to_unset ) ) {
+			foreach ( $keys_to_unset as $key_to_unset ) {
+				if (isset($this->inline_scripts[$key_to_unset])) {
+					$removed_handle_for_log = $this->inline_scripts[$key_to_unset]['handle'] ?? 'N/A';
+					unset( $this->inline_scripts[ $key_to_unset ] );
+					$logger->debug( "{$log_prefix_base}Removed processed inline script with key '{$key_to_unset}' for handle '{$removed_handle_for_log}'" . ($hook_name ? " on hook '{$hook_name}'." : '.') );
+				}
+			}
+			$this->inline_scripts = array_values( $this->inline_scripts );
+		} else {
+			$logger->debug( "{$log_prefix_base}No inline scripts found or processed for '{$parent_handle}'" . ($hook_name ? " on hook '{$hook_name}'." : '.') );
 		}
-		$registered = wp_register_script( $handle, $src, $deps, $ver, $in_footer );
+	}
 
-		if (!$registered) {
-			if ($logger->is_active()) {
-				$logger->error("ScriptsEnqueueTrait::_process_single_script - Failed to register script '{$handle}'.");
-			}
-			return null;
+
+	/**
+	 * Processes a single script definition, handling registration, enqueuing, and data/attribute additions.
+	 *
+	 * This is a versatile helper method that underpins the public-facing script methods. It separates
+	 * the logic for handling individual scripts, making the main `register_scripts` and `enqueue_scripts`
+	 * methods cleaner. For non-deferred scripts (where `$hook_name` is null), it also handles
+	 * processing of attributes, `wp_script_add_data`, and inline scripts. For deferred scripts, this is handled
+	 * by the calling `enqueue_deferred_scripts` method.
+	 *
+	 * @param array      $script_definition   The script definition array.
+	 * @param string     $processing_context  The context in which the script is being processed (e.g., 'register_scripts', 'enqueue_scripts'). Used for logging.
+	 * @param string|null $hook_name          The name of the hook if the script is being processed in a deferred context.
+	 * @param bool       $do_register         If true, the script will be registered with `wp_register_script()`.
+	 * @param bool       $do_enqueue          If true, the script will be enqueued with `wp_enqueue_script()`.
+	 *
+	 * @return string|false The handle of the script on success, false on failure or if a condition is not met.
+	 */
+	protected function _process_single_script(
+		array $script_definition,
+		string $processing_context,
+		?string $hook_name = null,
+		bool $do_register = true,
+		bool $do_enqueue = false
+	): string|false {
+		$logger = $this->get_logger();
+
+		$handle     = $script_definition['handle']     ?? null;
+		$src        = $script_definition['src']        ?? null;
+		$deps       = $script_definition['deps']       ?? array();
+		$version    = $script_definition['version']    ?? false;
+		$in_footer  = $script_definition['in_footer']  ?? false;
+		$condition  = $script_definition['condition']  ?? null;
+		$attributes = $script_definition['attributes'] ?? array();
+		$wp_data    = $script_definition['wp_data']    ?? array();
+
+		$log_handle_context = $handle ?? 'N/A';
+		$log_hook_context   = $hook_name ? " on hook '{$hook_name}'" : '';
+
+		if ( $logger->is_active() ) {
+			$logger->debug( "ScriptsEnqueueTrait::_process_single_script - Processing script '{$log_handle_context}'{$log_hook_context} in context '{$processing_context}'." );
 		}
 
-		// Apply WordPress script data.
-		if ( ! empty( $wp_data ) && is_array( $wp_data ) ) {
-			if ($logger->is_active()) {
-				$logger->debug("ScriptsEnqueueTrait::_process_single_script - Adding script data for '{$handle}'. Data: " . wp_json_encode($wp_data));
+		if ( empty( $handle ) || ( $do_register && empty( $src ) ) ) {
+			if ( $logger->is_active() ) {
+				$logger->warning( "ScriptsEnqueueTrait::_process_single_script - Invalid script definition. Missing handle or src. Skipping. Handle: '{$log_handle_context}'{$log_hook_context}." );
 			}
-			foreach ( $wp_data as $key => $value ) {
-				wp_script_add_data( $handle, $key, $value );
+			return false;
+		}
+
+		if ( is_callable( $condition ) && ! $condition() ) {
+			if ( $logger->is_active() ) {
+				$logger->debug( "ScriptsEnqueueTrait::_process_single_script - Condition not met for script '{$handle}'{$log_hook_context}. Skipping." );
+			}
+			return false;
+		}
+
+		if ( $do_register ) {
+			if ( wp_script_is( $handle, 'registered' ) ) {
+				if ( $logger->is_active() ) {
+					$logger->debug( "ScriptsEnqueueTrait::_process_single_script - Script '{$handle}'{$log_hook_context} already registered. Skipping wp_register_script." );
+				}
+			} else {
+				if ( $logger->is_active() ) {
+					$logger->debug( "ScriptsEnqueueTrait::_process_single_script - Registering script '{$handle}'{$log_hook_context}." );
+				}
+				$registration_success = wp_register_script( $handle, $src, $deps, $version, $in_footer );
+				if ( ! $registration_success ) {
+					if ( $logger->is_active() ) {
+						$logger->warning( "ScriptsEnqueueTrait::_process_single_script - wp_register_script() failed for handle '{$handle}'{$log_hook_context}. Skipping further processing for this script." );
+					}
+					return false;
+				}
 			}
 		}
 
-		// Apply HTML attributes.
-		if ( ! empty( $attributes ) && is_array( $attributes ) ) {
-			if ($logger->is_active()) {
-				$logger->debug("ScriptsEnqueueTrait::_process_single_script - Adding attributes for script '{$handle}'. Attributes: " . wp_json_encode($attributes));
+		if ( $do_enqueue ) {
+			if ( wp_script_is( $handle, 'enqueued' ) ) {
+				if ( $logger->is_active() ) {
+					$logger->debug( "ScriptsEnqueueTrait::_process_single_script - Script '{$handle}'{$log_hook_context} already enqueued. Skipping wp_enqueue_script." );
+				}
+			} else {
+				if ( $logger->is_active() ) {
+					$logger->debug( "ScriptsEnqueueTrait::_process_single_script - Enqueuing script '{$handle}'{$log_hook_context}." );
+				}
+				wp_enqueue_script( $handle );
 			}
-			add_filter(
-				'script_loader_tag',
-				function ( $tag, $tag_handle, $tag_src ) use ( $handle, $attributes, $logger ) { // Added logger to use() for internal logging
-					return $this->_modify_script_tag_for_attributes(
-						$tag,
-						$tag_handle,
-						$handle,     // Pass the specific handle for *this* script
-						$attributes,  // Pass the specific attributes for *this* script
-					);
-				},
-				10,
-				3
-			);
+		}
+
+		// Process extras (like inline scripts, attributes, data) only in a non-deferred context.
+		// For deferred scripts, the calling method (`enqueue_deferred_scripts`) is responsible for inlines.
+		if ( null === $hook_name && $handle ) {
+			// Apply WordPress script data.
+			if ( ! empty( $wp_data ) && is_array( $wp_data ) ) {
+				if ($logger->is_active()) {
+					$logger->debug("ScriptsEnqueueTrait::_process_single_script - Adding script data for '{$handle}'. Data: " . wp_json_encode($wp_data));
+				}
+				foreach ( $wp_data as $key => $value ) {
+					wp_script_add_data( $handle, $key, $value );
+				}
+			}
+
+			// Apply attributes.
+			if ( ! empty( $attributes ) && is_array( $attributes ) ) {
+				if ($logger->is_active()) {
+					$logger->debug("ScriptsEnqueueTrait::_process_single_script - Adding attributes for script '{$handle}'. Attributes: " . wp_json_encode($attributes));
+				}
+				add_filter(
+					'script_loader_tag',
+					function ( $tag, $tag_handle, $_src ) use ( $handle, $attributes ) {
+						return $this->_modify_script_tag_for_attributes( $tag, $tag_handle, $handle, $attributes );
+					},
+					10,
+					3
+				);
+			}
+
+			// Process any immediate inline scripts associated with this handle.
+			if ( $logger->is_active() ) {
+				$logger->debug( "ScriptsEnqueueTrait::_process_single_script - Checking for immediate inline scripts for '{$handle}'." );
+			}
+			$this->_process_inline_scripts( $handle, null, 'immediate from _process_single_script' );
+		}
+
+		if ( $logger->is_active() ) {
+			$logger->debug( "ScriptsEnqueueTrait::_process_single_script - Finished processing script '{$handle}'{$log_hook_context}." );
 		}
 
 		return $handle;

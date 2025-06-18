@@ -1,9 +1,10 @@
 <?php
+declare(strict_types=1);
 /**
- * StylesEnqueueTrait.php
+ * Trait StylesEnqueueTrait
  *
  * @package Ran\PluginLib\EnqueueAccessory
- * @author  Ran Plugin Lib <support@ran.org>
+ * @author  Ran Plugin Lib
  * @license GPL-2.0+ <http://www.gnu.org/licenses/gpl-2.0.txt>
  * @link    https://github.com/RocketsAreNostalgic
  * @since   0.1.0
@@ -25,16 +26,12 @@ trait StylesEnqueueTrait {
 	/**
 	 * Array of stylesheet definitions to be processed.
 	 *
-	 * Each inner array should conform to the structure expected by `add_styles()`.
-	 *
 	 * @var array<int, array<string, mixed>>
 	 */
 	protected array $styles = array();
 
 	/**
 	 * Array of inline style definitions to be added.
-	 *
-	 * Each inner array should conform to the structure expected by `add_inline_styles()`.
 	 *
 	 * @var array<int, array<string, mixed>>
 	 */
@@ -62,15 +59,9 @@ trait StylesEnqueueTrait {
 	/**
 	 * Retrieves the currently registered array of stylesheet definitions.
 	 *
-	 * @return array<int, array<string, mixed>> An array of stylesheet definitions.
-	 *                                          Each definition is an associative array with keys like 'handle', 'src', 'deps', etc.
+	 * @return array<string, array> An associative array of stylesheet definitions, keyed by 'general', 'deferred', and 'inline'.
 	 */
 	public function get_styles(): array {
-		$logger = $this->get_logger();
-		if ( $logger->is_active() ) {
-			$count = count( $this->styles );
-			$logger->debug( "StylesEnqueueTrait::get_styles - Retrieving {$count} style definition(s)." );
-		}
 		return array(
 			'general'  => $this->styles,
 			'deferred' => $this->deferred_styles,
@@ -103,6 +94,13 @@ trait StylesEnqueueTrait {
 	public function add_styles( array $styles_to_add ): self {
 		$logger = $this->get_logger();
 
+		if ( empty( $styles_to_add ) ) {
+			if ( $logger->is_active() ) {
+				$logger->debug( 'StylesEnqueueTrait::add_styles - Entered with empty array. No styles to add.' );
+			}
+			return $this;
+		}
+
 		// Merge single styles in to the array
 		if ( ! is_array( current( $styles_to_add ) ) ) {
 			$styles_to_add = array( $styles_to_add );
@@ -128,32 +126,34 @@ trait StylesEnqueueTrait {
 			$this->styles[] = $style_definition; // Simple append.
 		}
 		if ($logger->is_active()) {
-			$logger->debug( 'StylesEnqueueTrait::add_styles - Finished adding styles. New total: ' . count( $this->styles ) );
-			$current_handles = array();
-			foreach ( $this->styles as $s ) {
-				$current_handles[] = $s['handle'] ?? 'N/A';
+			$new_total = count( $this->styles );
+			$logger->debug( 'StylesEnqueueTrait::add_styles - Finished adding styles. New total: ' . $new_total );
+			if ( $new_total > 0 ) {
+				$current_handles = array_map( static fn( $a ) => $a['handle'] ?? 'N/A', $this->styles );
+				$logger->debug( 'StylesEnqueueTrait::add_styles - All current style handles after add: ' . implode( ', ', $current_handles ) );
 			}
-			$logger->debug( 'StylesEnqueueTrait::add_styles - All current style handles after add: ' . implode( ', ', $current_handles ) );
 		}
 		return $this;
 	}
 
 	/**
-	 * Registers all stylesheets that have been added via `add_styles()` but not yet processed.
+	 * Registers stylesheets with WordPress without enqueueing them, handling deferred registration.
 	 *
-	 * This method iterates through the stored style definitions. For each style:
-	 * - It checks any associated `$condition` callback. If the condition passes (or none is set),
-	 *   the style is registered using `wp_register_style()`.
-	 * - If a `$hook` is specified in the style definition, its registration (and subsequent enqueuing)
-	 *   is deferred. The style definition is moved to `$this->deferred_styles` and an action
-	 *   is set up (if not already) for `enqueue_deferred_styles()` to handle it when the hook fires.
-	 * - Styles without a `$hook` are registered immediately.
+	 * This method iterates through the style definitions previously added via `add_styles()`.
+	 * For each style:
+	 * - If a `hook` is specified in the definition, its registration is deferred. The style
+	 *   is moved to the `$deferred_styles` queue, and an action is set up (if not already present)
+	 *   to call `enqueue_deferred_styles()` when the specified hook fires.
+	 * - Styles without a `hook` are registered immediately. The registration process
+	 *   (handled by `_process_single_style()`) includes checking any associated
+	 *   `$condition` callback and calling `wp_register_style()`.
 	 *
-	 * Note: This method only *registers* the styles. Enqueuing is handled by `enqueue_styles()`
-	 * or `enqueue_deferred_styles()`.
+	 * Note: This method only *registers* the stylesheets. Enqueuing is handled by
+	 * `enqueue_styles()` or `enqueue_deferred_styles()`.
 	 *
 	 * @return self Returns the instance of this class for method chaining.
 	 * @see    self::add_styles()
+	 * @see    self::_process_single_style()
 	 * @see    self::enqueue_styles()
 	 * @see    self::enqueue_deferred_styles()
 	 * @see    wp_register_style()
@@ -164,7 +164,6 @@ trait StylesEnqueueTrait {
 			$logger->debug( 'StylesEnqueueTrait::register_styles - Entered. Processing ' . count( $this->styles ) . ' style definition(s) for registration.' );
 		}
 
-		// Use a temporary array to iterate over, allowing modification of $this->styles (e.g., for deferral)
 		$styles_to_process = $this->styles;
 		$this->styles      = array(); // Clear original to re-populate with non-deferred or keep for other ops
 
@@ -172,53 +171,71 @@ trait StylesEnqueueTrait {
 			$handle_for_log = $style_definition['handle'] ?? 'N/A';
 			$hook           = $style_definition['hook']   ?? null;
 
+			if ($logger->is_active()) {
+				$logger->debug( "StylesEnqueueTrait::register_styles - Processing style: \"{$handle_for_log}\", original index: {$index}." );
+			}
+
 			if ( ! empty( $hook ) ) {
 				if ($logger->is_active()) {
 					$logger->debug( "StylesEnqueueTrait::register_styles - Deferring registration of style '{$handle_for_log}' (original index {$index}) to hook: {$hook}." );
 				}
 				$this->deferred_styles[ $hook ][ $index ] = $style_definition;
+
 				// Ensure the action for deferred styles is added only once per hook.
-				if ( ! has_action( $hook, array( $this, 'enqueue_deferred_styles' ) ) ) {
+				$action_exists = has_action( $hook, array( $this, 'enqueue_deferred_styles' ) );
+				if ( ! $action_exists ) {
 					add_action( $hook, array( $this, 'enqueue_deferred_styles' ), 10, 1 );
 					if ($logger->is_active()) {
 						$logger->debug( "StylesEnqueueTrait::register_styles - Added action for 'enqueue_deferred_styles' on hook: {$hook}." );
 					}
+				} else {
+					if ($logger->is_active()) {
+						$logger->debug( "StylesEnqueueTrait::register_styles - Action for 'enqueue_deferred_styles' on hook '{$hook}' already exists." );
+					}
 				}
 			} else {
-				// Process immediately for registration (do_register=true, do_enqueue=false)
-				$this->_process_single_style(
+				// Process immediately for registration
+				$processed_handle = $this->_process_single_style(
 					$style_definition,
 					'register_styles', // processing_context
 					null,             // hook_name (null for immediate registration)
 					true,             // do_register
-					false,            // do_enqueue (registration only)
-					false             // do_process_inline (inline styles handled during enqueue phase)
+					false            // do_enqueue (registration only)
 				);
-				// Re-add to $this->styles if it was meant for immediate registration and not deferred.
+				// Re-add to $this->styles if it was meant for immediate registration and not deferred,
+				// AND if it was successfully processed (i.e., _process_single_style returned a handle).
 				// This ensures it's available for enqueue_styles().
-				$this->styles[] = $style_definition;
+				if ($processed_handle) {
+					$this->styles[$index] = $style_definition;
+				}
 			}
 		}
 		if ($logger->is_active()) {
-			$logger->debug( 'StylesEnqueueTrait::register_styles - Exited. Remaining immediate styles: ' . count($this->styles) . '. Deferred styles: ' . count($this->deferred_styles, COUNT_RECURSIVE) - count($this->deferred_styles) . '.' );
+			$deferred_count = empty($this->deferred_styles) ? 0 : count($this->deferred_styles, COUNT_RECURSIVE) - count($this->deferred_styles);
+			$logger->debug( 'StylesEnqueueTrait::register_styles - Exited. Remaining immediate styles: ' . count($this->styles) . '. Deferred styles: ' . $deferred_count . '.' );
 		}
 		return $this;
 	}
 
 	/**
-	 * Processes and enqueues all stylesheets that have been added via `add_styles()`.
+	 * Processes and enqueues all immediate styles that have been registered.
 	 *
-	 * This method iterates through the internally stored stylesheet definitions. For each style,
-	 * it first checks any associated `$condition` callback. If the condition passes
-	 * (or if no condition is set), the style is then processed.
-	 * - If a `$hook` is specified, the style's enqueuing is deferred: it's stored
-	 *   in a separate deferred queue, and an action is registered (if not already) for the specified hook.
-	 *   When the hook fires, `enqueue_deferred_styles()` will process the style.
-	 * - Otherwise (no `$hook`), the style is registered and enqueued immediately.
+	 * This method iterates through the `$this->styles` array, which at this stage should only
+	 * contain immediate (non-deferred) styles, as deferred styles are moved to their own
+	 * queue by `register_styles()`.
 	 *
-	 * After this method runs, the internal style queue (`$this->styles`) will be empty.
+	 * For each immediate style, it calls `_process_single_style()` to handle enqueuing and
+	 * the processing of any associated inline styles.
+	 *
+	 * After processing, this method clears the `$this->styles` array. Deferred styles stored
+	 * in `$this->deferred_styles` are not affected.
 	 *
 	 * @return self Returns the instance of this class for method chaining.
+	 * @throws \LogicException If a deferred style is found in the queue, indicating `register_styles()` was not called.
+	 * @see    self::add_styles()
+	 * @see    self::register_styles()
+	 * @see    self::_process_single_style()
+	 * @see    self::enqueue_deferred_styles()
 	 */
 	public function enqueue_styles(): self {
 		$logger = $this->get_logger();
@@ -231,39 +248,28 @@ trait StylesEnqueueTrait {
 
 		foreach ( $styles_to_process as $index => $style_definition ) {
 			$handle_for_log = $style_definition['handle'] ?? 'N/A';
+
+			// Check for mis-queued deferred assets. This is a critical logic error.
+			if ( ! empty( $style_definition['hook'] ) ) {
+				throw new \LogicException(
+					"StylesEnqueueTrait::enqueue_styles - Found a deferred style ('{$handle_for_log}') in the immediate queue. " .
+					'The `register_styles()` method must be called before `enqueue_styles()` to correctly process deferred styles.'
+				);
+			}
+
 			if ($logger->is_active()) {
 				$logger->debug( "StylesEnqueueTrait::enqueue_styles - Processing style: \"{$handle_for_log}\", original index: {$index}." );
 			}
-			$hook = $style_definition['hook'] ?? null;
 
-			if ( ! empty( $hook ) ) {
-				// Defer this style.
-				if ($logger->is_active()) {
-					$logger->debug( "StylesEnqueueTrait::enqueue_styles - Deferring style \"{$handle_for_log}\" (original index {$index}) to hook: \"{$hook}\"." );
-				}
-				$this->deferred_styles[ $hook ][ $index ] = $style_definition;
-
-				if ( ! has_action( $hook, array( $this, 'enqueue_deferred_styles' ) ) ) {
-					add_action( $hook, array( $this, 'enqueue_deferred_styles' ), 10, 1 );
-					if ($logger->is_active()) {
-						$logger->debug( "StylesEnqueueTrait::enqueue_styles - Added action for 'enqueue_deferred_styles' on hook: \"{$hook}\"." );
-					}
-				} else {
-					if ($logger->is_active()) {
-						$logger->debug( "StylesEnqueueTrait::enqueue_styles - Action for 'enqueue_deferred_styles' on hook '{$hook}' already exists." );
-					}
-				}
-			} else {
-				// Process immediately: register, enqueue, and handle inline styles.
-				$this->_process_single_style(
-					$style_definition,
-					'enqueue_styles', // processing_context
-					null,             // hook_name
-					true,             // do_register
-					true,             // do_enqueue
-					true              // do_process_inline
-				);
-			}
+			// Defensively register and enqueue. The underlying `_process_single_style`
+			// will check if the style is already registered/enqueued and skip redundant calls.
+			$this->_process_single_style(
+				$style_definition,
+				'enqueue_styles', // processing_context
+				null,             // hook_name (null for immediate registration)
+				true,             // do_register
+				true              // do_enqueue
+			);
 		}
 		if ($logger->is_active()) {
 			$deferred_count = empty($this->deferred_styles) ? 0 : count($this->deferred_styles, COUNT_RECURSIVE) - count($this->deferred_styles);
@@ -273,7 +279,7 @@ trait StylesEnqueueTrait {
 	}
 
 	/**
-	 * Enqueues styles that were deferred to a specific WordPress hook.
+	 * Enqueues styles that were deferred to a specific hook.
 	 *
 	 * @param string $hook_name The WordPress hook name that triggered this method.
 	 * @return void
@@ -281,36 +287,45 @@ trait StylesEnqueueTrait {
 	public function enqueue_deferred_styles( string $hook_name ): void {
 		$logger = $this->get_logger();
 		if ($logger->is_active()) {
-			$logger->debug( "StylesEnqueueTrait::enqueue_deferred_styles - Entered for hook: \"{$hook_name}\"." );
+			$logger->debug( "StylesEnqueueTrait::enqueue_deferred_styles - Entered hook: \"{$hook_name}\"." );
 		}
 
-		if ( ! isset( $this->deferred_styles[ $hook_name ] ) || empty( $this->deferred_styles[ $hook_name ] ) ) {
+		if ( ! isset( $this->deferred_styles[ $hook_name ] ) ) {
 			if ($logger->is_active()) {
-				$logger->debug( "StylesEnqueueTrait::enqueue_deferred_styles - No styles found deferred for hook: \"{$hook_name}\". Exiting." );
+				$logger->debug( "StylesEnqueueTrait::enqueue_deferred_styles - Hook \"{$hook_name}\" not found in deferred styles. Nothing to process." );
 			}
-			unset( $this->deferred_styles[ $hook_name ] );
 			return;
 		}
 
-		$styles_for_hook = $this->deferred_styles[ $hook_name ];
+		$styles_on_this_hook = $this->deferred_styles[ $hook_name ];
+		unset( $this->deferred_styles[ $hook_name ] ); // Moved unset action here
 
-		foreach ( $styles_for_hook as $original_index => $style_definition ) {
+		if ( empty( $styles_on_this_hook ) ) {
+			if ( $logger->is_active() ) {
+				$logger->debug( "StylesEnqueueTrait::enqueue_deferred_styles - Hook \"{$hook_name}\" was set but had no styles. It has now been cleared." );
+			}
+			return; // No actual styles to process for this hook.
+		}
+
+		foreach ( $styles_on_this_hook as $original_index => $style_definition ) {
 			$handle_for_log = $style_definition['handle'] ?? 'N/A_at_original_index_' . $original_index;
 			if ($logger->is_active()) {
 				$logger->debug( "StylesEnqueueTrait::enqueue_deferred_styles - Processing deferred style: \"{$handle_for_log}\" (original index {$original_index}) for hook: \"{$hook_name}\"." );
 			}
-
-			$this->_process_single_style(
+			// _process_single_style handles all logic including registration, enqueuing, and conditions.
+			$processed_handle = $this->_process_single_style(
 				$style_definition,
 				'enqueue_deferred', // processing_context
 				$hook_name,         // hook_name
 				true,               // do_register
-				true,               // do_enqueue
-				true                // do_process_inline
+				true               // do_enqueue
 			);
+
+			if ( $processed_handle ) {
+				$this->_process_inline_styles($processed_handle, $hook_name, 'deferred from enqueue_deferred_styles');
+			}
 		}
 
-		unset( $this->deferred_styles[ $hook_name ] );
 		if ($logger->is_active()) {
 			$logger->debug( "StylesEnqueueTrait::enqueue_deferred_styles - Exited for hook: \"{$hook_name}\"." );
 		}
@@ -340,6 +355,7 @@ trait StylesEnqueueTrait {
 			'parent_hook' => $parent_hook,
 		);
 
+		// Associate inline style with its parent's hook if the parent is deferred.
 		foreach ( $this->styles as $original_style_definition ) {
 			if ( ( $original_style_definition['handle'] ?? null ) === $handle && ! empty( $original_style_definition['hook'] ) ) {
 				if ( null === $inline_style_item['parent_hook'] ) {
@@ -368,7 +384,7 @@ trait StylesEnqueueTrait {
 	public function enqueue_inline_styles(): self {
 		$logger = $this->get_logger();
 		if ($logger->is_active()) {
-			$logger->debug( 'StylesEnqueueTrait::enqueue_inline_styles - Entered method. Attempting to process any remaining immediate inline styles.' );
+			$logger->debug( 'StylesEnqueueTrait::enqueue_inline_styles - Entered method.' );
 		}
 
 		$immediate_parent_handles = array();
@@ -408,8 +424,14 @@ trait StylesEnqueueTrait {
 			);
 		}
 
-		if ($logger->is_active()) {
-			$logger->debug( 'StylesEnqueueTrait::enqueue_inline_styles - Exited method.' );
+		//Clear the processed immediate inline assets from the main queue.
+		$this->inline_styles = array_filter($this->inline_styles, function($asset) {
+			return !empty($asset['parent_hook']);
+		});
+
+		if ( $logger->is_active() ) {
+			$remaining_count = count($this->inline_styles);
+			$logger->debug('StylesEnqueueTrait::enqueue_inline_styles - Exited. Processed ' . count($immediate_parent_handles) . " parent handle(s). Remaining deferred inline styles: {$remaining_count}.");
 		}
 		return $this;
 	}
@@ -427,6 +449,13 @@ trait StylesEnqueueTrait {
 		$log_prefix_base = "StylesEnqueueTrait::_process_inline_styles (context: {$processing_context}) - ";
 
 		$logger->debug( "{$log_prefix_base}Checking for inline styles for parent handle '{$parent_handle}'" . ($hook_name ? " on hook '{$hook_name}'." : '.') );
+
+		// Check if the parent style is registered or enqueued before processing its inline styles.
+		// This is a crucial check to prevent adding inline styles to a non-existent parent.
+		if ( ! wp_style_is( $parent_handle, 'registered' ) && ! wp_style_is( $parent_handle, 'enqueued' ) ) {
+			$logger->error( "{$log_prefix_base}Cannot add inline styles. Parent style '{$parent_handle}' is not registered or enqueued." );
+			return;
+		}
 
 		$keys_to_unset = array();
 
@@ -492,22 +521,25 @@ trait StylesEnqueueTrait {
 	/**
 	 * Processes a single style definition, handling registration, enqueuing, and inline styles.
 	 *
+	 * This is a versatile helper method that underpins the public-facing style methods. It separates
+	 * the logic for handling individual styles, making the main `register_styles` and `enqueue_styles`
+	 * methods cleaner. For non-deferred styles (where `$hook_name` is null), it also handles inline styles.
+	 * For deferred styles, this is handled by the calling `enqueue_deferred_styles` method.
+	 *
 	 * @param array<string, mixed> $style_definition    The style definition array.
 	 * @param string               $processing_context  Context of the call.
 	 * @param string|null          $hook_name           The hook name if processing in a deferred context, null otherwise.
 	 * @param bool                 $do_register         Whether to register the style.
 	 * @param bool                 $do_enqueue          Whether to enqueue the style.
-	 * @param bool                 $do_process_inline   Whether to process associated inline styles.
-	 * @return bool True if the style was processed successfully, false otherwise.
+	 * @return string|false The handle of the style on success, false on failure or if a condition is not met.
 	 */
 	protected function _process_single_style(
 		array $style_definition,
 		string $processing_context,
 		?string $hook_name = null,
 		bool $do_register = true,
-		bool $do_enqueue = false,
-		bool $do_process_inline = false
-	): bool {
+		bool $do_enqueue = false
+	): string|false {
 		$logger = $this->get_logger();
 
 		$handle    = $style_definition['handle']    ?? null;
@@ -539,7 +571,7 @@ trait StylesEnqueueTrait {
 		}
 
 		if ( $do_register ) {
-			if ( 'enqueue_deferred' === $processing_context && wp_style_is( $handle, 'registered' ) ) {
+			if ( wp_style_is( $handle, 'registered' ) ) {
 				if ( $logger->is_active() ) {
 					$logger->debug( "StylesEnqueueTrait::_process_single_style - Style '{$handle}'{$log_hook_context} already registered. Skipping wp_register_style.");
 				}
@@ -547,12 +579,18 @@ trait StylesEnqueueTrait {
 				if ( $logger->is_active() ) {
 					$logger->debug( "StylesEnqueueTrait::_process_single_style - Registering style '{$handle}'{$log_hook_context}." );
 				}
-				wp_register_style( $handle, $src, $deps, $version, $media );
+				$registration_success = wp_register_style( $handle, $src, $deps, $version, $media );
+				if ( ! $registration_success ) {
+					if ( $logger->is_active() ) {
+						$logger->warning( "StylesEnqueueTrait::_process_single_style - wp_register_style() failed for handle '{$handle}'{$log_hook_context}. Skipping further processing for this style." );
+					}
+					return false;
+				}
 			}
 		}
 
 		if ( $do_enqueue ) {
-			if ( 'enqueue_deferred' === $processing_context && wp_style_is( $handle, 'enqueued' ) ) {
+			if ( wp_style_is( $handle, 'enqueued' ) ) {
 				if ( $logger->is_active() ) {
 					$logger->debug( "StylesEnqueueTrait::_process_single_style - Style '{$handle}'{$log_hook_context} already enqueued. Skipping wp_enqueue_style.");
 				}
@@ -564,7 +602,9 @@ trait StylesEnqueueTrait {
 			}
 		}
 
-		if ( $do_process_inline ) {
+		// Process any immediate inline styles associated with this handle
+		// if we are not in a deferred hook context.
+		if ( null === $hook_name && $handle ) {
 			if ( $logger->is_active() ) {
 				$logger->debug( "StylesEnqueueTrait::_process_single_style - Checking for inline styles for '{$handle}'{$log_hook_context}." );
 			}
@@ -575,6 +615,6 @@ trait StylesEnqueueTrait {
 			$logger->debug( "StylesEnqueueTrait::_process_single_style - Finished processing style '{$handle}'{$log_hook_context}." );
 		}
 
-		return true;
+		return $handle;
 	}
 }
