@@ -7,13 +7,12 @@ use Mockery\MockInterface;
 use Ran\PluginLib\Config\ConfigInterface;
 use Ran\PluginLib\EnqueueAccessory\EnqueuePublic;
 use Ran\PluginLib\Util\Logger;
-use WP_Mock\Tools\TestCase;
 use WP_Mock;
 
 /**
  * @covers \Ran\PluginLib\EnqueueAccessory\EnqueuePublic
  */
-class EnqueuePublicTest extends TestCase {
+class EnqueuePublicTest extends \RanTestCase {
 	/**
 	 * @var ConfigInterface|MockInterface
 	 */
@@ -64,7 +63,7 @@ class EnqueuePublicTest extends TestCase {
 			$class = $class->getParentClass();
 		}
 		if ( ! $class ) {
-			throw new \ReflectionException( "Property {$name} does not exist in class " . $this->reflection->getName() . " or its parents." );
+			throw new \ReflectionException( "Property {$name} does not exist in class " . $this->reflection->getName() . ' or its parents.' );
 		}
 		$property = $class->getProperty( $name );
 		$property->setAccessible( true );
@@ -166,9 +165,9 @@ class EnqueuePublicTest extends TestCase {
 	public function load_with_logging_hooks_all_actions(): void {
 		// Setup
 		WP_Mock::userFunction( 'is_admin' )->andReturn( false );
-		$this->set_protected_property( 'head_callbacks', [ 'head_callback' ] );
-		$this->set_protected_property( 'footer_callbacks', [ 'footer_callback' ] );
-		$this->set_protected_property( 'deferred_scripts', [ 'deferred_hook' => [ 'script' ] ] );
+		$this->set_protected_property( 'head_callbacks', array( 'head_callback' ) );
+		$this->set_protected_property( 'footer_callbacks', array( 'footer_callback' ) );
+		$this->set_protected_property( 'deferred_scripts', array( 'deferred_hook' => array( 'script' ) ) );
 
 		// Logger Expectations (ordered)
 		$this->logger_mock->shouldReceive( 'is_active' )->andReturn( true );
@@ -184,9 +183,9 @@ class EnqueuePublicTest extends TestCase {
 		$this->logger_mock->shouldReceive( 'debug' )->with( 'EnqueuePublic::load() - Method exited.' )->once()->ordered();
 
 		// Action Expectations
-		WP_Mock::expectActionAdded( 'wp_enqueue_scripts', [ $this->sut, 'enqueue' ] );
-		WP_Mock::expectActionAdded( 'wp_head', [ $this->sut, 'render_head' ] );
-		WP_Mock::expectActionAdded( 'wp_footer', [ $this->sut, 'render_footer' ] );
+		WP_Mock::expectActionAdded( 'wp_enqueue_scripts', array( $this->sut, 'enqueue' ) );
+		WP_Mock::expectActionAdded( 'wp_head', array( $this->sut, 'render_head' ) );
+		WP_Mock::expectActionAdded( 'wp_footer', array( $this->sut, 'render_footer' ) );
 		WP_Mock::expectActionAdded( 'deferred_hook', Mockery::type( 'callable' ) );
 
 		// Execute

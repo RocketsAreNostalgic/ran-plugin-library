@@ -4,18 +4,22 @@ declare(strict_types=1);
 namespace Ran\PluginLib\Tests\Unit\EnqueueAccessory;
 
 use Ran\PluginLib\Config\ConfigInterface;
-use Ran\PluginLib\EnqueueAccessory\EnqueueAbstract;
+use Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseAbstract;
 use Ran\PluginLib\Tests\Unit\PluginLibTestCase;
 use Ran\PluginLib\Util\Logger;
 use Mockery;
 use ReflectionProperty;
 use WP_Mock;
+use Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait;
+use Ran\PluginLib\EnqueueAccessory\StylesEnqueueTrait;
+use Ran\PluginLib\EnqueueAccessory\MediaEnqueueTrait;
 
 if (!class_exists('Ran\PluginLib\Tests\Unit\EnqueueAccessory\ConcreteEnqueueForCoreTesting')) {
 	/**
 	 * Concrete implementation of EnqueueAbstract for testing core methods.
 	 */
-	class ConcreteEnqueueForCoreTesting extends EnqueueAbstract {
+	class ConcreteEnqueueForCoreTesting extends AssetEnqueueBaseAbstract {
+		use ScriptsEnqueueTrait, StylesEnqueueTrait, MediaEnqueueTrait;
 		public function load(): void {
 			// Mock implementation, does nothing for these tests.
 		}
@@ -45,9 +49,9 @@ if (!class_exists('Ran\PluginLib\Tests\Unit\EnqueueAccessory\ConcreteEnqueueForC
 /**
  * Class EnqueueAbstractCoreTest
  *
- * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAbstract::enqueue
- * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAbstract::render_head
- * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAbstract::render_footer
+ * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseAbstract::enqueue
+ * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseAbstract::render_head
+ * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseAbstract::render_footer
  */
 class EnqueueAbstractCoreTest extends PluginLibTestCase {
 	// Properties $config_mock (ConcreteConfigForTesting) and $logger_mock (Mockery\MockInterface)
@@ -58,6 +62,7 @@ class EnqueueAbstractCoreTest extends PluginLibTestCase {
 
 	public function setUp(): void {
 		parent::setUp(); // Handles WP_Mock setup via RanTestCase
+		WP_Mock::userFunction( '_doing_it_wrong' )->andReturnNull();
 
 		// Get the concrete config instance set up by PluginLibTestCase's helpers
 		// This assigns to the inherited $this->config_mock of type ConcreteConfigForTesting
@@ -92,7 +97,7 @@ class EnqueueAbstractCoreTest extends PluginLibTestCase {
 
 	/**
 	 * @test
-	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAbstract::enqueue
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseAbstract::enqueue
 	 */
 	public function test_enqueue_processes_all_asset_types_when_present(): void {
 		// Create a dedicated ConfigInterface mock for this test.
@@ -146,7 +151,7 @@ class EnqueueAbstractCoreTest extends PluginLibTestCase {
 
 	/**
 	 * @test
-	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAbstract::enqueue
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseAbstract::enqueue
 	 */
 	public function test_enqueue_skips_processing_for_absent_asset_types(): void {
 		$sut_partial_mock = Mockery::mock(ConcreteEnqueueForCoreTesting::class, array($this->config_mock))->makePartial();
@@ -158,25 +163,23 @@ class EnqueueAbstractCoreTest extends PluginLibTestCase {
 		$sut_partial_mock->set_media_tool_configs_for_testing(array());
 		$sut_partial_mock->set_inline_scripts_for_testing(array()); // enqueue_inline_scripts is always called
 
-		$this->logger_mock->shouldReceive('debug')->with(Mockery::pattern('/^EnqueueAbstract::enqueue - Main enqueue process started\. Scripts: 0, Styles: 0, Media: 0, Inline Scripts: 0\.$/'))->once()->ordered();
-		$this->logger_mock->shouldReceive('debug')->with('EnqueueAbstract::enqueue - No scripts to process.')->once()->ordered();
-		$this->logger_mock->shouldReceive('debug')->with('EnqueueAbstract::enqueue - No styles to process.')->once()->ordered();
-		$this->logger_mock->shouldReceive('debug')->with('EnqueueAbstract::enqueue - No media to process.')->once()->ordered();
-
-		$sut_partial_mock->shouldNotReceive('enqueue_scripts');
-		$sut_partial_mock->shouldNotReceive('enqueue_styles');
-		$sut_partial_mock->shouldNotReceive('enqueue_media');
+		$this->logger_mock->shouldReceive('debug')->with(Mockery::pattern('/^AssetEnqueueBaseAbstract::enqueue - Main enqueue process started\. Scripts: 0, Styles: 0, Media: 0, Inline Scripts: 0\.$/'))->once()->ordered();
+		// Logging for empty assets is now handled within the respective trait methods.
+		// The enqueue method in the base class now always calls these handlers.
+		$sut_partial_mock->shouldReceive('enqueue_scripts')->once()->ordered()->andReturnSelf();
+		$sut_partial_mock->shouldReceive('enqueue_styles')->once()->ordered()->andReturnSelf();
+		$sut_partial_mock->shouldReceive('enqueue_media')->once()->ordered()->andReturnSelf();
 		// enqueue_inline_scripts is always called, it handles its own empty state logging.
 		$sut_partial_mock->shouldReceive('enqueue_inline_scripts')->once()->ordered()->andReturnSelf();
 
-		$this->logger_mock->shouldReceive('debug')->with('EnqueueAbstract::enqueue - Main enqueue process finished.')->once()->ordered();
+		$this->logger_mock->shouldReceive('debug')->with('AssetEnqueueBaseAbstract::enqueue - Main enqueue process finished.')->once()->ordered();
 
 		$sut_partial_mock->enqueue();
 	}
 
 	/**
 	 * @test
-	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAbstract::render_head
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseAbstract::render_head
 	 */
 	public function test_render_head_executes_simple_callbacks(): void {
 		$callbacks = array(
@@ -189,8 +192,8 @@ class EnqueueAbstractCoreTest extends PluginLibTestCase {
 		);
 		$this->sut->set_head_callbacks_for_testing($callbacks);
 
-		$this->logger_mock->shouldReceive('debug')->with('EnqueueAbstract::render_head - Executing head callback 0.')->once()->ordered();
-		$this->logger_mock->shouldReceive('debug')->with('EnqueueAbstract::render_head - Executing head callback 1.')->once()->ordered();
+		$this->logger_mock->shouldReceive('debug')->with('AssetEnqueueBaseAbstract::render_head - Executing head callback 0.')->once()->ordered();
+		$this->logger_mock->shouldReceive('debug')->with('AssetEnqueueBaseAbstract::render_head - Executing head callback 1.')->once()->ordered();
 
 		ob_start();
 		$this->sut->render_head();
@@ -201,7 +204,7 @@ class EnqueueAbstractCoreTest extends PluginLibTestCase {
 
 	/**
 	 * @test
-	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAbstract::render_head
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseAbstract::render_head
 	 */
 	public function test_render_head_executes_conditional_callbacks_when_condition_true(): void {
 		$callbacks = array(
@@ -212,7 +215,7 @@ class EnqueueAbstractCoreTest extends PluginLibTestCase {
 		    })
 		);
 		$this->sut->set_head_callbacks_for_testing($callbacks);
-		$this->logger_mock->shouldReceive('debug')->with('EnqueueAbstract::render_head - Executing head callback 0.')->once();
+		$this->logger_mock->shouldReceive('debug')->with('AssetEnqueueBaseAbstract::render_head - Executing head callback 0.')->once();
 
 		ob_start();
 		$this->sut->render_head();
@@ -222,7 +225,7 @@ class EnqueueAbstractCoreTest extends PluginLibTestCase {
 
 	/**
 	 * @test
-	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAbstract::render_head
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseAbstract::render_head
 	 */
 	public function test_render_head_skips_conditional_callbacks_when_condition_false(): void {
 		$callbacks = array(
@@ -233,7 +236,7 @@ class EnqueueAbstractCoreTest extends PluginLibTestCase {
 		    })
 		);
 		$this->sut->set_head_callbacks_for_testing($callbacks);
-		$this->logger_mock->shouldReceive('debug')->with('EnqueueAbstract::render_head - Skipping head callback 0 due to false condition.')->once();
+		$this->logger_mock->shouldReceive('debug')->with('AssetEnqueueBaseAbstract::render_head - Skipping head callback 0 due to false condition.')->once();
 
 		ob_start();
 		$this->sut->render_head();
@@ -243,11 +246,11 @@ class EnqueueAbstractCoreTest extends PluginLibTestCase {
 
 	/**
 	 * @test
-	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAbstract::render_head
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseAbstract::render_head
 	 */
 	public function test_render_head_handles_no_callbacks_gracefully(): void {
 		$this->sut->set_head_callbacks_for_testing(array());
-		$this->logger_mock->shouldReceive('debug')->with('EnqueueAbstract::render_head - No head callbacks to execute.')->once();
+		$this->logger_mock->shouldReceive('debug')->with('AssetEnqueueBaseAbstract::render_head - No head callbacks to execute.')->once();
 
 		ob_start();
 		$this->sut->render_head();
@@ -257,7 +260,7 @@ class EnqueueAbstractCoreTest extends PluginLibTestCase {
 
 	/**
 	 * @test
-	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAbstract::render_footer
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseAbstract::render_footer
 	 */
 	public function test_render_footer_executes_simple_callbacks(): void {
 		$callbacks = array(
@@ -270,8 +273,8 @@ class EnqueueAbstractCoreTest extends PluginLibTestCase {
 		);
 		$this->sut->set_footer_callbacks_for_testing($callbacks);
 
-		$this->logger_mock->shouldReceive('debug')->with('EnqueueAbstract::render_footer - Executing footer callback 0.')->once()->ordered();
-		$this->logger_mock->shouldReceive('debug')->with('EnqueueAbstract::render_footer - Executing footer callback 1.')->once()->ordered();
+		$this->logger_mock->shouldReceive('debug')->with('AssetEnqueueBaseAbstract::render_footer - Executing footer callback 0.')->once()->ordered();
+		$this->logger_mock->shouldReceive('debug')->with('AssetEnqueueBaseAbstract::render_footer - Executing footer callback 1.')->once()->ordered();
 
 		ob_start();
 		$this->sut->render_footer();
@@ -282,7 +285,7 @@ class EnqueueAbstractCoreTest extends PluginLibTestCase {
 
 	/**
 	 * @test
-	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAbstract::render_footer
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseAbstract::render_footer
 	 */
 	public function test_render_footer_executes_conditional_callbacks_when_condition_true(): void {
 		$callbacks = array(
@@ -293,7 +296,7 @@ class EnqueueAbstractCoreTest extends PluginLibTestCase {
 		    })
 		);
 		$this->sut->set_footer_callbacks_for_testing($callbacks);
-		$this->logger_mock->shouldReceive('debug')->with('EnqueueAbstract::render_footer - Executing footer callback 0.')->once();
+		$this->logger_mock->shouldReceive('debug')->with('AssetEnqueueBaseAbstract::render_footer - Executing footer callback 0.')->once();
 
 		ob_start();
 		$this->sut->render_footer();
@@ -303,7 +306,7 @@ class EnqueueAbstractCoreTest extends PluginLibTestCase {
 
 	/**
 	 * @test
-	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAbstract::render_footer
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseAbstract::render_footer
 	 */
 	public function test_render_footer_skips_conditional_callbacks_when_condition_false(): void {
 		$callbacks = array(
@@ -314,7 +317,7 @@ class EnqueueAbstractCoreTest extends PluginLibTestCase {
 		    })
 		);
 		$this->sut->set_footer_callbacks_for_testing($callbacks);
-		$this->logger_mock->shouldReceive('debug')->with('EnqueueAbstract::render_footer - Skipping footer callback 0 due to false condition.')->once();
+		$this->logger_mock->shouldReceive('debug')->with('AssetEnqueueBaseAbstract::render_footer - Skipping footer callback 0 due to false condition.')->once();
 
 		ob_start();
 		$this->sut->render_footer();
@@ -324,11 +327,11 @@ class EnqueueAbstractCoreTest extends PluginLibTestCase {
 
 	/**
 	 * @test
-	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAbstract::render_footer
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseAbstract::render_footer
 	 */
 	public function test_render_footer_handles_no_callbacks_gracefully(): void {
 		$this->sut->set_footer_callbacks_for_testing(array());
-		$this->logger_mock->shouldReceive('debug')->with('EnqueueAbstract::render_footer - No footer callbacks to execute.')->once();
+		$this->logger_mock->shouldReceive('debug')->with('AssetEnqueueBaseAbstract::render_footer - No footer callbacks to execute.')->once();
 
 		ob_start();
 		$this->sut->render_footer();

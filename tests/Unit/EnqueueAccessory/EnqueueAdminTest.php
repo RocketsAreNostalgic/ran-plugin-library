@@ -8,12 +8,12 @@ use Ran\PluginLib\Config\ConfigInterface;
 use Ran\PluginLib\EnqueueAccessory\EnqueueAdmin;
 use Ran\PluginLib\Util\Logger;
 use WP_Mock;
-use WP_Mock\Tools\TestCase;
+
 
 /**
  * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAdmin
  */
-class EnqueueAdminTest extends TestCase {
+class EnqueueAdminTest extends \RanTestCase {
 	/**
 	 * @var ConfigInterface|MockInterface
 	 */
@@ -254,7 +254,7 @@ class EnqueueAdminTest extends TestCase {
 
 		// Local helper to robustly set protected properties on any object.
 		$setProperty = function($object, $property, $value) {
-			$reflection = new \ReflectionClass($object);
+			$reflection       = new \ReflectionClass($object);
 			$class_to_reflect = $reflection;
 			while ($class_to_reflect && !$class_to_reflect->hasProperty($property)) {
 				$class_to_reflect = $class_to_reflect->getParentClass();
@@ -269,18 +269,18 @@ class EnqueueAdminTest extends TestCase {
 
 		// --- CONFIGURE THE SUT'S STATE VIA THE CONSTRUCTOR ---
 		// The SUT's logger is injected via the config mock in the constructor.
-		$this->config_mock->shouldReceive('get')->with('enqueue.admin.scripts', Mockery::any())->andReturn([]);
-		$this->config_mock->shouldReceive('get')->with('enqueue.admin.styles', Mockery::any())->andReturn([]);
+		$this->config_mock->shouldReceive('get')->with('enqueue.admin.scripts', Mockery::any())->andReturn(array());
+		$this->config_mock->shouldReceive('get')->with('enqueue.admin.styles', Mockery::any())->andReturn(array());
 
 		// Re-instantiate the SUT with the configured mock.
 		$sut = $this->getMockBuilder(EnqueueAdmin::class)
-			->setConstructorArgs([$this->config_mock])
-			->onlyMethods(['render_head', 'render_footer'])
+			->setConstructorArgs(array($this->config_mock))
+			->onlyMethods(array('render_head', 'render_footer'))
 			->getMock();
 
 		// Force the script and style arrays to be empty to ensure a clean state.
-		$setProperty($sut, 'scripts', []);
-		$setProperty($sut, 'styles', []);
+		$setProperty($sut, 'scripts', array());
+		$setProperty($sut, 'styles', array());
 
 		// --- Logger Expectations ---
 		// 1. Load method entered
@@ -292,40 +292,39 @@ class EnqueueAdminTest extends TestCase {
 		// 3. Main enqueue process started
 		$this->logger_mock->shouldReceive('debug')->with('AssetEnqueueBaseAbstract::enqueue - Main enqueue process started. Scripts: 0, Styles: 0, Media: 0, Inline Scripts: 0.')->once()->ordered();
 
-		// 4. Asset processing (from traits, called by enqueue())
-		// Scripts
-		$this->logger_mock->shouldReceive('debug')->with('ScriptsEnqueueTrait::enqueue_scripts - Entered. Processing 0 script definition(s).')->once()->ordered();
-		$this->logger_mock->shouldReceive('debug')->with('ScriptsEnqueueTrait::enqueue_scripts - hooks_with_new_scripts: []')->once()->ordered();
-		$this->logger_mock->shouldReceive('debug')->with('ScriptsEnqueueTrait::enqueue_scripts - Exited.')->once()->ordered();
+		// 4. Scripts
+		$this->logger_mock->shouldReceive('debug')->with('ScriptsEnqueueTrait::enqueue_scripts - Entered. Processing 0 script definition(s) from internal queue.')->once()->ordered();
+		$this->logger_mock->shouldReceive('debug')->with(\Mockery::pattern('/^ScriptsEnqueueTrait::enqueue_scripts - Exited\. Deferred scripts count: \d+\.$/'))->once()->ordered();
 
-		// Styles
+		// 5. Styles
 		$this->logger_mock->shouldReceive('debug')->with('StylesEnqueueTrait::enqueue_styles - Entered. Processing 0 style definition(s) from internal queue.')->once()->ordered();
 		$this->logger_mock->shouldReceive('debug')->with('StylesEnqueueTrait::enqueue_styles - Exited. Deferred styles count: 0.')->once()->ordered();
 
-		// Media
+		// 6. Media
 		$this->logger_mock->shouldReceive('debug')->with('MediaEnqueueTrait::enqueue_media - Entered. Processing 0 media tool configuration(s).')->once()->ordered();
 		$this->logger_mock->shouldReceive('debug')->with('MediaEnqueueTrait::enqueue_media - Exited.')->once()->ordered();
 
-		// Inline Scripts
+		// 7. Inline Scripts
 		$this->logger_mock->shouldReceive('debug')->with('ScriptsEnqueueTrait::enqueue_inline_scripts - Entered method.')->once()->ordered();
+		$this->logger_mock->shouldReceive('debug')->with('ScriptsEnqueueTrait::enqueue_inline_scripts - No immediate inline scripts found needing processing.')->once()->ordered();
 
-		// 5. Main enqueue process finished
+		// 8. Main enqueue process finished
 		$this->logger_mock->shouldReceive('debug')->with('AssetEnqueueBaseAbstract::enqueue - Main enqueue process finished.')->once()->ordered();
 
-		// 6. Head callbacks
+		// 9. Head callbacks
 		$this->logger_mock->shouldReceive('debug')->with('EnqueueAdmin::load() - Checking for head callbacks. Count: 1')->once()->ordered();
 		$this->logger_mock->shouldReceive('debug')->with('EnqueueAdmin::load() - admin_head already fired. Calling render_head() directly.')->once()->ordered();
 
-		// 7. Footer callbacks
+		// 10. Footer callbacks
 		$this->logger_mock->shouldReceive('debug')->with('EnqueueAdmin::load() - Checking for footer callbacks. Count: 1')->once()->ordered();
 		$this->logger_mock->shouldReceive('debug')->with('EnqueueAdmin::load() - admin_footer already fired. Calling render_footer() directly.')->once()->ordered();
 
-		// 8. Load method exited
+		// 11. Load method exited
 		$this->logger_mock->shouldReceive('debug')->with('EnqueueAdmin::load() - Method exited.')->once()->ordered();
 
 		// Set protected properties on the NEW SUT
-		$setProperty($sut, 'head_callbacks', ['test']);
-		$setProperty($sut, 'footer_callbacks', ['test']);
+		$setProperty($sut, 'head_callbacks', array('test'));
+		$setProperty($sut, 'footer_callbacks', array('test'));
 
 		// Mock WordPress hook status
 		\WP_Mock::userFunction( 'is_admin' )->andReturn( true );

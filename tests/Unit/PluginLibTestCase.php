@@ -308,7 +308,7 @@ abstract class PluginLibTestCase extends RanTestCase {
 		$mock_file_header_content .= ' */';
 
 		$concreteInstance = $this->getMockBuilder(ConcreteConfigForTesting::class)
-		    ->onlyMethods(array('_read_plugin_file_header_content', 'get_logger'))
+		    ->onlyMethods(array('_read_plugin_file_header_content'))
 		    ->disableOriginalConstructor()
 		    ->getMock();
 

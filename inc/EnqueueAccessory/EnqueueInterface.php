@@ -56,19 +56,17 @@ interface EnqueueInterface {
 	 * Enqueue an array of scripts.
 	 *
 	 * @since 1.0.0
-	 * @param array<string, mixed> $scripts Array of scripts to be enqueued.
 	 * @return self Returns the current instance for method chaining.
 	 */
-	public function enqueue_scripts( array $scripts ): self;
+	public function enqueue_scripts(): self;
 
 	/**
-	 * Enqueue an array of styles.
+	 * Enqueue all registered styles.
 	 *
 	 * @since 1.0.0
-	 * @param array<string, mixed> $styles Array of styles to be enqueued.
 	 * @return self Returns the current instance for method chaining.
 	 */
-	public function enqueue_styles( array $styles ): self;
+	public function enqueue_styles(): self;
 
 	/**
 	 * Enqueue an array of media.

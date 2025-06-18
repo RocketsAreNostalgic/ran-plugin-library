@@ -243,23 +243,6 @@ abstract class ConfigAbstract extends Singleton implements ConfigInterface {
 		// 4. Validate and set the final plugin_array property.
 		$this->validate_plugin_array( $local_plugin_array );
 		$this->plugin_array = $local_plugin_array;
-
-		// 5. Instantiate the main class logger ($this->logger) with the now validated configuration.
-		$logger_text_domain      = $this->plugin_array['TextDomain'];
-		$logger_default_constant = strtoupper(str_replace('-', '_', sanitize_title($logger_text_domain))) . '_DEBUG_MODE';
-		$logger_constant_name    = $this->plugin_array['RANLogConstantName'] ?? $logger_default_constant;
-		$logger_request_param    = $this->plugin_array['RANLogRequestParam'] ?? $logger_constant_name;
-		$logger_config           = array(
-		    'custom_debug_constant_name' => $logger_constant_name,
-		    'debug_request_param'        => $logger_request_param,
-		);
-		$this->logger = new Logger($logger_config);
-
-		// @codeCoverageIgnoreStart
-		if ($this->logger->is_active()) {
-			$this->logger->debug('ConfigAbstract: Final plugin_array: ' . print_r($this->plugin_array, true));
-		}
-		// @codeCoverageIgnoreEnd
 	}
 
 	/**
@@ -325,7 +308,6 @@ abstract class ConfigAbstract extends Singleton implements ConfigInterface {
 		return $option;
 	}
 
-	// @codeCoverageIgnoreStart
 	/**
 	 * Returns an instance of the Logger.
 	 * Lazily instantiates the logger if it hasn't been already.
@@ -333,10 +315,25 @@ abstract class ConfigAbstract extends Singleton implements ConfigInterface {
 	 * @return Logger The logger instance.
 	 */
 	public function get_logger(): Logger {
-		// The logger instance is initialized in the constructor.
+		if ( null === $this->logger ) {
+			$logger_text_domain      = $this->plugin_array['TextDomain'];
+			$logger_default_constant = strtoupper( str_replace( '-', '_', sanitize_title( $logger_text_domain ) ) ) . '_DEBUG_MODE';
+			$logger_constant_name    = $this->plugin_array['RANLogConstantName'] ?? $logger_default_constant;
+			$logger_request_param    = $this->plugin_array['RANLogRequestParam'] ?? $logger_constant_name;
+			$logger_config           = array(
+				'custom_debug_constant_name' => $logger_constant_name,
+				'debug_request_param'        => $logger_request_param,
+			);
+			$this->logger = new Logger( $logger_config );
+
+			// @codeCoverageIgnoreStart
+			if ($this->logger->is_active()) {
+				$this->logger->debug('ConfigAbstract: Final plugin_array: ' . print_r($this->plugin_array, true));
+			}
+			// @codeCoverageIgnoreEnd
+		}
 		return $this->logger;
 	}
-	// @codeCoverageIgnoreEnd
 
 	/**
 	 * Validate that the root plugin array has the required fields set.

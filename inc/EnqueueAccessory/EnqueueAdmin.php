@@ -19,7 +19,9 @@ namespace Ran\PluginLib\EnqueueAccessory;
  * @since 1.0.0
  * @package Ran\PluginLib\EnqueueAccessory
  */
-class EnqueueAdmin extends EnqueueAbstract implements EnqueueInterface {
+class EnqueueAdmin extends AssetEnqueueBaseAbstract implements EnqueueInterface {
+	use ScriptsEnqueueTrait, StylesEnqueueTrait, MediaEnqueueTrait;
+
 	/**
 	 * A class registration function to add the admin_enqueue_scripts hook to WP.
 	 * The hook callback function is $this->enqueue().
