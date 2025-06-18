@@ -76,9 +76,13 @@ class StylesEnqueueTraitStylesTest extends PluginLibTestCase {
 		$this->logger_mock->shouldReceive('warning')->withAnyArgs()->andReturnNull()->byDefault();
 
 		// Ensure that the config_mock (from PluginLibTestCase) returns our Mockery logger_mock.
-		if (method_exists($this->config_mock, 'method')) {
-			$this->config_mock->method('get_logger')->willReturn($this->logger_mock);
-		}
+		$reflection = new \ReflectionObject($this->config_mock);
+		// The mock extends ConcreteConfigForTesting, which extends ConfigAbstract.
+		// We need to get the property from ConfigAbstract, which is the parent's parent.
+		$config_abstract_reflection = $reflection->getParentClass()->getParentClass();
+		$property                   = $config_abstract_reflection->getProperty('logger');
+		$property->setAccessible(true);
+		$property->setValue($this->config_mock, $this->logger_mock);
 
 		// Default WP_Mock function mocks for style functions
 		WP_Mock::userFunction('wp_register_style')->withAnyArgs()->andReturn(true)->byDefault();
