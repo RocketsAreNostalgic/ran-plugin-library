@@ -17,8 +17,8 @@ use Ran\PluginLib\Util\Logger;
 /**
  * Trait StylesEnqueueTrait
  *
- * Manages the registration, enqueuing, and processing of CSS stylesheets,
- * including inline styles and deferred loading.
+ * Manages the registration, enqueuing, and processing of CSS assets.
+ * This includes handling general styles, inline styles and deferred styles.
  *
  * @package Ran\PluginLib\EnqueueAccessory
  */
@@ -113,9 +113,6 @@ trait StylesEnqueueTrait {
 				$src    = $style_data['src']    ?? 'N/A';
 				$logger->debug( "StylesEnqueueTrait::add_styles - Adding style. Key: {$style_key}, Handle: {$handle}, Src: {$src}" );
 			}
-		}
-
-		if ($logger->is_active()) {
 			$logger->debug( 'StylesEnqueueTrait::add_styles - Adding ' . count( $styles_to_add ) . ' style definition(s). Current total: ' . count( $this->styles ) );
 		}
 
@@ -127,10 +124,10 @@ trait StylesEnqueueTrait {
 		}
 		if ($logger->is_active()) {
 			$new_total = count( $this->styles );
-			$logger->debug( 'StylesEnqueueTrait::add_styles - Finished adding styles. New total: ' . $new_total );
+			$logger->debug( 'StylesEnqueueTrait::add_styles - Exiting. New total style count: ' . $new_total );
 			if ( $new_total > 0 ) {
 				$current_handles = array_map( static fn( $a ) => $a['handle'] ?? 'N/A', $this->styles );
-				$logger->debug( 'StylesEnqueueTrait::add_styles - All current style handles after add: ' . implode( ', ', $current_handles ) );
+				$logger->debug( 'StylesEnqueueTrait::add_styles - All current style handles: ' . implode( ', ', $current_handles ) );
 			}
 		}
 		return $this;

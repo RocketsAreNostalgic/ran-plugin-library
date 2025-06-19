@@ -1,22 +1,21 @@
 <?php
-
 declare(strict_types=1);
 
 namespace Ran\PluginLib\Tests\Unit\EnqueueAccessory;
 
 use Ran\PluginLib\Config\ConfigInterface;
 use Ran\PluginLib\Tests\Unit\PluginLibTestCase;
+use Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseAbstract;
 use Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait;
 use Ran\PluginLib\Util\Logger;
-use Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseAbstract;
 use WP_Mock;
 use Mockery;
 use Mockery\MockInterface;
 
 /**
- * Concrete implementation of ScriptsEnqueueTrait for testing scripts-related methods.
+ * Concrete implementation of ScriptsEnqueueTrait for testing script-related methods.
  */
-class ConcreteEnqueueForScriptTesting extends AssetEnqueueBaseAbstract {
+class ConcreteEnqueueForScriptsTesting extends AssetEnqueueBaseAbstract {
 	use ScriptsEnqueueTrait;
 
 	// Config is inherited from AssetEnqueueBaseAbstract and set in constructor.
@@ -35,48 +34,55 @@ class ConcreteEnqueueForScriptTesting extends AssetEnqueueBaseAbstract {
 	}
 
 	public function load(): void {
-		// Concrete implementation for testing purposes.
+		// Minimal implementation for testing purposes.
+	}
+
+	// Expose protected property for testing
+	public function get_internal_inline_scripts_array(): array {
+		return $this->inline_scripts;
 	}
 }
 
 /**
- * Class ScriptsEnqueueTraitTest
+ * Class ScriptsEnqueueTraitScriptsTest
  *
  * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait
+ * @property ConcreteEnqueueForScriptsTesting&MockInterface $instance
  */
-class ScriptsEnqueueTraitTest extends PluginLibTestCase {
-	/**
-	 * @var \Ran\PluginLib\Util\Logger&\Mockery\LegacyMockInterface
-	 * @method \Mockery\Expectation shouldReceive(string $methodName) // Simplified
-	 */
+class ScriptsEnqueueTraitScriptsTest extends PluginLibTestCase {
+	private static int $hasActionCallCount = 0;
+	/** @var Logger&MockInterface */
 	protected MockInterface $logger_mock;
-	/**
-	 * @var ConcreteEnqueueForScriptTesting&\Mockery\LegacyMockInterface
-	 * @method \Mockery\Expectation shouldReceive(string $methodName) // Simplified
-	 */
-	protected $instance; // Native type hint removed
 
-	protected $capturedCallback; // For storing callback in tests
+	/** @var ConcreteEnqueueForScriptsTesting&MockInterface */
+	protected $instance; // Mockery will handle the type
 
 	/**
 	 * Set up test environment.
 	 */
 	public function setUp(): void {
-		parent::setUp(); // Calls PluginLibTestCase::setUp()
+		parent::setUp();
+		self::$hasActionCallCount = 0;
 
 		$this->logger_mock = Mockery::mock(Logger::class);
 		$this->logger_mock->shouldReceive('is_active')->byDefault()->andReturn(true);
 		$this->logger_mock->shouldReceive('is_verbose')->byDefault()->andReturn(true);
+
+		// Set up default, permissive expectations for all log levels.
+		// Individual tests can override these with more specific expectations.
 		$this->logger_mock->shouldReceive('debug')->withAnyArgs()->andReturnNull()->byDefault();
-		$this->logger_mock->shouldReceive('error')->withAnyArgs()->andReturnNull()->byDefault();
 		$this->logger_mock->shouldReceive('info')->withAnyArgs()->andReturnNull()->byDefault();
+		$this->logger_mock->shouldReceive('error')->withAnyArgs()->andReturnNull()->byDefault();
 		$this->logger_mock->shouldReceive('warning')->withAnyArgs()->andReturnNull()->byDefault();
 
-		// Ensure that the config_mock (from PluginLibTestCase, which is a PHPUnit mock object)
-		// returns our Mockery logger_mock when its get_logger() method is called.
-		if (method_exists($this->config_mock, 'method')) { // Check if it's a PHPUnit mock
-			$this->config_mock->method('get_logger')->will($this->returnValue($this->logger_mock));
-		}
+		// Ensure that the config_mock (from PluginLibTestCase) returns our Mockery logger_mock.
+		$reflection = new \ReflectionObject($this->config_mock);
+		// The mock extends ConcreteConfigForTesting, which extends ConfigAbstract.
+		// We need to get the property from ConfigAbstract, which is the parent's parent.
+		$config_abstract_reflection = $reflection->getParentClass()->getParentClass();
+		$property                   = $config_abstract_reflection->getProperty('logger');
+		$property->setAccessible(true);
+		$property->setValue($this->config_mock, $this->logger_mock);
 
 		// Default WP_Mock function mocks for script functions
 		WP_Mock::userFunction('wp_register_script')->withAnyArgs()->andReturn(true)->byDefault();
@@ -88,19 +94,29 @@ class ScriptsEnqueueTraitTest extends PluginLibTestCase {
 		WP_Mock::userFunction('wp_doing_ajax')->andReturn(false)->byDefault();
 		WP_Mock::userFunction('_doing_it_wrong')->withAnyArgs()->andReturnNull()->byDefault();
 
-		// Instantiate a real object of ConcreteEnqueueForScriptTesting, passing the PHPUnit config_mock.
-		// ConcreteEnqueueForScriptTesting uses ScriptsEnqueueTrait.
-		$this->instance = new ConcreteEnqueueForScriptTesting($this->config_mock);
+		// Create a partial mock of ConcreteEnqueueForScriptsTesting
+		// ConcreteEnqueueForScriptsTesting now extends AssetEnqueueBaseAbstract and its constructor only needs ConfigInterface.
+		$this->instance = Mockery::mock(
+			ConcreteEnqueueForScriptsTesting::class,
+			array($this->config_mock) // Pass only the config_mock from parent
+		)->makePartial();
+		$this->instance->shouldAllowMockingProtectedMethods();
+		$this->instance->shouldReceive('get_logger')->andReturn($this->logger_mock)->byDefault();
 
 		// Reset internal state before each test to prevent leakage
-		$properties_to_reset = array('scripts', 'inline_scripts', 'deferred_scripts');
-		foreach ($properties_to_reset as $prop_name) {
+		$properties_to_reset = array(
+			'assets'          => EnqueueAssetTraitBase::class,
+			'inline_scripts'   => ConcreteEnqueueForScriptsTesting::class, // Stays in ScriptsEnqueueTrait
+			'deferred_assets' => EnqueueAssetTraitBase::class,
+		);
+		foreach ($properties_to_reset as $prop_name => $class_name) {
 			try {
-				$property = new \ReflectionProperty(ConcreteEnqueueForScriptTesting::class, $prop_name);
+				$property = new \ReflectionProperty($class_name, $prop_name);
 				$property->setAccessible(true);
 				$property->setValue($this->instance, array());
 			} catch (\ReflectionException $e) {
 				// Property might not exist in all versions/contexts, ignore.
+				$this->logger_mock->debug("ScriptsEnqueueTraitScriptsTest::setUp - Could not reset property {$class_name}::{$prop_name}: " . $e->getMessage());
 			}
 		}
 	}
@@ -113,2234 +129,1602 @@ class ScriptsEnqueueTraitTest extends PluginLibTestCase {
 		parent::tearDown();
 	}
 
-	/**
-	 * Test adding scripts.
-	 */
-	public function test_add_scripts():void {
-		// Setup logger expectations
-		$this->logger_mock->shouldReceive('debug')
-        ->withAnyArgs()
-        ->zeroOrMoreTimes();
-
-		$scripts_to_add = array(
-			array(
-				'handle'    => 'my-direct-script',
-				'src'       => 'path/to/my-direct-script.js',
-				'deps'      => array('jquery'),
-				'version'   => '1.2.3',
-				'in_footer' => true,
-				'condition' => static fn() => true,
-			),
-		);
-
-		$this->instance->add_scripts($scripts_to_add);
-
-		// Check that scripts are stored correctly
-		$scripts = $this->instance->get_scripts();
-		$this->assertCount(1, $scripts['general']);
-		$this->assertEquals('my-direct-script', $scripts['general'][0]['handle']);
-		$this->assertEquals('path/to/my-direct-script.js', $scripts['general'][0]['src']);
-		$this->assertEquals(array('jquery'), $scripts['general'][0]['deps']);
-		$this->assertEquals('1.2.3', $scripts['general'][0]['version']);
-		$this->assertTrue($scripts['general'][0]['in_footer']);
-		$this->assertTrue($scripts['general'][0]['condition']());
-	}
+	// ------------------------------------------------------------------------
+	// Test Methods for Script Functionalities
+	// ------------------------------------------------------------------------
 
 	/**
-	 * Test enqueuing scripts.
-	 *
+	 * @test
 	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::add_scripts
 	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::get_scripts
 	 */
-	public function test_enqueue_scripts(): void {
-		// Setup logger expectations
-		$this->logger_mock->shouldReceive('debug')
-        ->withAnyArgs()
-        ->zeroOrMoreTimes();
-
-		WP_Mock::userFunction('wp_enqueue_script')
-	    ->once()
-	    ->with('my-enqueued-script');
-
-		WP_Mock::userFunction('wp_register_script')
-	    ->once()
-	    ->with('my-enqueued-script', 'path/to/my-enqueued-script.js', array('jquery'), '1.2.3', true)->andReturn(true);
-
-		WP_Mock::userFunction('wp_json_encode')
-	    ->with(Mockery::type('array'))
-	    ->andReturn('{}');
-
-		$scripts_to_enqueue = array(
-			array(
-				'handle'    => 'my-enqueued-script',
-				'src'       => 'path/to/my-enqueued-script.js',
-				'deps'      => array('jquery'),
-				'version'   => '1.2.3',
-				'in_footer' => true,
-				'condition' => static fn() => true,
-			),
-		);
-
-		// First add the scripts to the instance
-		$this->instance->add_scripts($scripts_to_enqueue);
-		// Then call enqueue_scripts
-		$this->instance->enqueue_scripts($scripts_to_enqueue);
-
-		// Scripts should still be in the internal array after enqueueing
-		$scripts = $this->instance->get_scripts();
-		$this->assertCount(1, $scripts['general']);
-		$this->assertEquals('my-enqueued-script', $scripts['general'][0]['handle']);
-	}
-
-	/**
-	 * Test enqueuing scripts with a condition that fails, ensuring they are skipped.
-	 *
-	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::enqueue_scripts
-	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::_process_single_script
-	 */
-	public function test_enqueue_scripts_with_failing_condition(): void {
-		// Setup logger expectations
-		$this->logger_mock->shouldReceive('debug')
-			->withAnyArgs()
-			->zeroOrMoreTimes();
-
-		// This function should not be called because condition will fail
-		WP_Mock::userFunction('wp_register_script')
-			->never();
-
-		WP_Mock::userFunction('wp_enqueue_script')
-			->never();
-
-		WP_Mock::userFunction('wp_json_encode')
-			->with(Mockery::type('array'))
-			->andReturn('{}');
-
-		$scripts_to_enqueue = array(
-			array(
-				'handle'    => 'conditional-script',
-				'src'       => 'path/to/conditional-script.js',
-				'deps'      => array('jquery'),
-				'version'   => '1.2.3',
-				'in_footer' => true,
-				'condition' => static fn() => false, // This condition will fail
-			),
-		);
-
-		// First add the scripts to the instance
-		$this->instance->add_scripts($scripts_to_enqueue);
-
-		// Then call enqueue_scripts with the scripts that were just added
-		$this->instance->enqueue_scripts($scripts_to_enqueue);
-
-		// With failing condition, the script should be skipped for enqueueing but still stored
-		$scripts = $this->instance->get_scripts();
-		$this->assertCount(1, $scripts['general']);
-		$this->assertEquals('conditional-script', $scripts['general'][0]['handle']);
-	}
-
-	/**
-	 * Test deferring scripts to a specific WordPress hook.
-	 *
-	 * @test
-	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::enqueue_scripts
-	 */
-	public function test_defer_scripts_to_hook(): void {
-		// Setup logger expectations
-		$this->logger_mock->shouldReceive('debug')
-			->withAnyArgs()
-			->zeroOrMoreTimes();
-
-		// Mock add_action to capture the callback - using zeroOrMoreTimes to avoid conflicts
-		WP_Mock::userFunction('add_action')
-			->zeroOrMoreTimes()
-			->andReturnUsing(function($hook, $callback, $priority = 10) {
-				if ($hook === 'admin_enqueue_scripts' && $priority === 10) {
-					// Store the callback for later verification
-					// @intelephense-ignore-next-line P1014
-					$this->capturedCallback = $callback;
-				}
-				return true;
-			});
-
-		WP_Mock::userFunction('wp_json_encode')
-			->with(Mockery::type('array'))
-			->andReturn('{}');
-
-		WP_Mock::userFunction('is_admin')
-			->andReturn(false); // Not in admin, so did_action check will be skipped
-
-		$scripts_to_enqueue = array(
-			array(
-				'handle'    => 'deferred-script',
-				'src'       => 'path/to/deferred-script.js',
-				'deps'      => array('jquery'),
-				'version'   => '1.0.0',
-				'in_footer' => true,
-				'hook'      => 'admin_enqueue_scripts', // Defer to this hook
-			),
-		);
-
-		$this->instance->enqueue_scripts($scripts_to_enqueue);
-
-		// Check that the script was added to the deferred scripts array
-		$scripts = $this->instance->get_scripts();
-		$this->assertArrayHasKey('general', $scripts);
-		$this->assertArrayHasKey('deferred', $scripts);
-		$this->assertArrayHasKey('admin_enqueue_scripts', $scripts['deferred']);
-		$this->assertCount(1, $scripts['deferred']['admin_enqueue_scripts']);
-		$this->assertEquals('deferred-script', $scripts['deferred']['admin_enqueue_scripts'][0]['handle']);
-	}
-
-	/**
-	 * Test handling of scripts when the hook has already fired in admin context.
-	 *
-	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::enqueue_scripts
-	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::enqueue_deferred_scripts
-	 */
-	public function test_enqueue_scripts_with_fired_hook(): void {
-		// Setup logger expectations
-		$this->logger_mock->shouldReceive('debug')
-			->withAnyArgs()
-			->zeroOrMoreTimes();
-
-		// Mock add_action - should not be called because the hook already fired
-		WP_Mock::userFunction('add_action')
-			->never();
-
-		WP_Mock::userFunction('wp_json_encode')
-			->with(Mockery::type('array'))
-			->andReturn('{}');
-
-		WP_Mock::userFunction('is_admin')
-			->andReturn(true); // In admin context
-
-		WP_Mock::userFunction('did_action')
-			->with('admin_enqueue_scripts')
-			->andReturn(true); // Hook has already fired
-
-		// We need to mock the enqueue_deferred_scripts method to verify it's called directly
-		/** @var ConcreteEnqueueForScriptTesting&\PHPUnit\Framework\MockObject\MockObject $instance */
-		$instance = $this->getMockBuilder(ConcreteEnqueueForScriptTesting::class)
-			->setConstructorArgs(array($this->config_mock, $this->logger_mock))
-			->onlyMethods(array('get_logger', 'enqueue_deferred_scripts'))
-			->getMock();
-
-		$instance->expects($this->any())
-			->method('get_logger')
-			->willReturn($this->logger_mock);
-
-		// Expect enqueue_deferred_scripts to be called directly with the hook name
-		$instance->expects($this->once())
-			->method('enqueue_deferred_scripts')
-			->with('admin_enqueue_scripts');
-
-		$scripts_to_enqueue = array(
-			array(
-				'handle'    => 'hook-already-fired-script',
-				'src'       => 'path/to/hook-already-fired-script.js',
-				'deps'      => array('jquery'),
-				'version'   => '1.0.0',
-				'in_footer' => true,
-				'hook'      => 'admin_enqueue_scripts', // Hook that has already fired
-			),
-		);
-		// @intelephense-ignore-next-line P1013
-		$instance->enqueue_scripts($scripts_to_enqueue);
-	}
-
-	/**
-	 * Test registering scripts with wp_data and attributes.
-	 *
-	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::_process_single_script
-	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::enqueue_scripts
-	 */
-	public function test_enqueue_scripts_with_wp_data_and_attributes(): void {
-		// Setup logger expectations
-		$this->logger_mock->shouldReceive('debug')
-			->withAnyArgs()
-			->zeroOrMoreTimes();
-
-		WP_Mock::userFunction('wp_register_script')
-			->once()
-			->with('script-with-data', 'path/to/script-with-data.js', array('jquery'), '1.0.0', true)->andReturn(true);
-
-		WP_Mock::userFunction('wp_enqueue_script')
-			->once()
-			->with('script-with-data');
-
-		WP_Mock::userFunction('wp_script_add_data')
-			->once()
-			->with('script-with-data', 'strategy', 'defer');
-
-		// Mock add_filter for the script_loader_tag filter with zeroOrMoreTimes to avoid conflicts
-		WP_Mock::userFunction('add_filter')
-			->zeroOrMoreTimes()
-			->andReturn(true);
-
-		WP_Mock::userFunction('wp_json_encode')
-			->with(Mockery::type('array'))
-			->andReturn('{}');
-
-		$scripts_to_enqueue = array(
-			array(
-				'handle'    => 'script-with-data',
-				'src'       => 'path/to/script-with-data.js',
-				'deps'      => array('jquery'),
-				'version'   => '1.0.0',
-				'in_footer' => true,
-				'wp_data'   => array(
-					'strategy' => 'defer',
-				),
-				'attributes' => array(
-					'data-test' => 'value',
-					'async'     => true,
-				),
-			),
-		);
-
-		// First, add the scripts to the instance's internal array.
-		$this->instance->add_scripts($scripts_to_enqueue);
-
-		// Then, call enqueue_scripts without arguments to process the scripts from the internal array.
-		$this->instance->enqueue_scripts();
-
-		// Verify the script is still stored in the internal array after being processed.
-		$scripts = $this->instance->get_scripts();
-		$this->assertCount(1, $scripts['general']);
-		$this->assertEquals('script-with-data', $scripts['general'][0]['handle']);
-	}
-
-	/**
-	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::_process_single_script
-	 */
-	public function test_process_single_script_attribute_filter_skips_src_attribute(): void {
-		$this->logger_mock->shouldReceive('debug')->withAnyArgs()->zeroOrMoreTimes();
-
-		$script_handle     = 'test-script-src-attr';
-		$script_actual_src = 'path/to/actual-script.js';
-		$script_attributes = array(
-			'src' => 'path/to/ignored-src.js', // This should be ignored by the filter
-			'id'  => 'minimal-script-id',      // Simplified for this test
-		);
-
-		$script_definition = array(
-			'handle'     => $script_handle,
-			'src'        => $script_actual_src,
-			'attributes' => $script_attributes,
-		);
-
-		WP_Mock::userFunction('wp_register_script')
-			->once()
-			->with($script_handle, $script_actual_src, array(), false, false)
-			->andReturn(true);
-
-		// Expect add_filter with specific signature, using Mockery::type('callable') for the callback.
-		WP_Mock::expectFilterAdded('script_loader_tag', Mockery::type('callable'), 10, 3);
-		// $filter_callback = null; // Not attempting to capture for direct execution.
-
-		// Create a fresh SUT instance for this specific test after setting expectations
-		$sut = $this->getMockBuilder(ConcreteEnqueueForScriptTesting::class)
-		            ->setConstructorArgs(array($this->config_mock, $this->logger_mock))
-		            ->onlyMethods(array('get_logger'))
-		            ->getMock();
-		$sut->method('get_logger')->willReturn($this->logger_mock);
-
-		// Call _process_single_script directly using reflection on the new SUT instance
-		$method = new \ReflectionMethod(ConcreteEnqueueForScriptTesting::class, '_process_single_script');
-		$method->setAccessible(true);
-		$result = $method->invoke($sut, $script_definition, 'test_context', null, true, false, true);
-		$this->assertTrue($result);
-	}
-
-	/**
-	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::_process_single_script
-	 * Tests that the script_loader_tag filter callback correctly handles malformed script tags
-	 * by returning them unchanged (indirectly, by ensuring add_filter is called).
-	 */
-	public function test_process_single_script_filter_handles_malformed_tag(): void {
-		$this->logger_mock->shouldReceive('debug')->withAnyArgs()->zeroOrMoreTimes();
-
-		$script_handle     = 'test-script-malformed-tag';
-		$script_actual_src = 'path/to/actual-script-malformed.js';
-		// Attributes are needed to trigger the add_filter call within _process_single_script
-		$script_attributes = array('id' => 'some-id-for-malformed-test');
-
-		$script_definition = array(
-			'handle'     => $script_handle,
-			'src'        => $script_actual_src,
-			'attributes' => $script_attributes,
-		);
-
-		WP_Mock::userFunction('wp_register_script')
-			->once()
-			->with($script_handle, $script_actual_src, array(), false, false)
-			->andReturn(true);
-
-		// Expect add_filter with specific signature, using Mockery::type('callable') for the callback.
-		WP_Mock::expectFilterAdded('script_loader_tag', Mockery::type('callable'), 10, 3);
-		// $filter_callback = null; // Not attempting to capture for direct execution.
-
-		// Create a fresh SUT instance for this specific test after setting expectations
-		$sut = $this->getMockBuilder(ConcreteEnqueueForScriptTesting::class)
-		            ->setConstructorArgs(array($this->config_mock, $this->logger_mock))
-		            ->onlyMethods(array('get_logger'))
-		            ->getMock();
-		$sut->method('get_logger')->willReturn($this->logger_mock);
-
-		// Call _process_single_script directly using reflection on the new SUT instance
-		$method = new \ReflectionMethod(ConcreteEnqueueForScriptTesting::class, '_process_single_script');
-		$method->setAccessible(true);
-		$result = $method->invoke($sut, $script_definition, 'test_context', null, true, false, true);
-		$this->assertTrue($result);
-	}
-
-
-	/**
-	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::_process_single_script
-	 * Tests that _process_single_script skips wp_script_add_data if wp_data is not an array.
-	 */
-	public function test_process_single_script_wp_data_not_array_skips_add_data(): void {
-		$this->logger_mock->shouldReceive('debug')->withAnyArgs()->zeroOrMoreTimes();
-
-		$script_handle     = 'test-script-wp-data-not-array';
-		$script_actual_src = 'path/to/script.js';
-
-		$script_definition = array(
-			'handle'     => $script_handle,
-			'src'        => $script_actual_src,
-			'wp_data'    => 'this is not an array', // Key: wp_data is a string
-			'attributes' => array(), // Ensure attributes don't trigger add_filter
-		);
-
-		WP_Mock::userFunction('wp_register_script')
-			->once()
-			->with($script_handle, $script_actual_src, array(), false, false)
-			->andReturn(true);
-
-		// Expect wp_script_add_data NOT to be called
-		WP_Mock::userFunction('wp_script_add_data')->never();
-
-		// Expect add_filter NOT to be called (since attributes are empty)
-		// No explicit expectation needed for 'never' with expectFilterAdded,
-		// but we ensure attributes are empty.
-
-		$sut = $this->getMockBuilder(ConcreteEnqueueForScriptTesting::class)
-		            ->setConstructorArgs(array($this->config_mock, $this->logger_mock))
-		            ->onlyMethods(array('get_logger'))
-		            ->getMock();
-		$sut->method('get_logger')->willReturn($this->logger_mock);
-
-		$method = new \ReflectionMethod(ConcreteEnqueueForScriptTesting::class, '_process_single_script');
-		$method->setAccessible(true);
-		$result = $method->invoke($sut, $script_definition, 'test_context', null, true, false, true);
-
-		$this->assertTrue($result);
-	}
-
-
-	/**
-	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::_process_single_script
-	 * Tests that _process_single_script skips add_filter if attributes is not an array.
-	 */
-	public function test_process_single_script_attributes_not_array_skips_add_filter(): void {
-		$this->logger_mock->shouldReceive('debug')->withAnyArgs()->zeroOrMoreTimes();
-
-		$script_handle     = 'test-script-attributes-not-array';
-		$script_actual_src = 'path/to/script2.js';
-
-		$script_definition = array(
-			'handle'     => $script_handle,
-			'src'        => $script_actual_src,
-			'wp_data'    => array(), // Ensure wp_data doesn't trigger wp_script_add_data
-			'attributes' => 'this is not an array', // Key: attributes is a string
-		);
-
-		WP_Mock::userFunction('wp_register_script')
-			->once()
-			->with($script_handle, $script_actual_src, array(), false, false)
-			->andReturn(true);
-
-		// Expect wp_script_add_data NOT to be called (since wp_data is empty)
-		WP_Mock::userFunction('wp_script_add_data')->never();
-
-		// Expect add_filter NOT to be called
-		// We don't use expectFilterAdded(...)->never() as it's not standard for WP_Mock.
-		// Instead, the absence of expectFilterAdded means it's not expected.
-		// If it were called, the test would fail due to an unexpected call if Mockery's global
-		// configuration is strict about unexpected calls, or simply not be asserted.
-		// The key is that our SUT logic should prevent it.
-
-		$sut = $this->getMockBuilder(ConcreteEnqueueForScriptTesting::class)
-		            ->setConstructorArgs(array($this->config_mock, $this->logger_mock))
-		            ->onlyMethods(array('get_logger'))
-		            ->getMock();
-		$sut->method('get_logger')->willReturn($this->logger_mock);
-
-		$method = new \ReflectionMethod(ConcreteEnqueueForScriptTesting::class, '_process_single_script');
-		$method->setAccessible(true);
-		$result = $method->invoke($sut, $script_definition, 'test_context', null, true, false, true);
-
-		$this->assertTrue($result);
-	}
-
-
-	/**
-	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::_process_single_script
-	 * Tests that _process_single_script returns null if the handle is empty.
-	 */
-	public function test_process_single_script_empty_handle_returns_false(): void {
-		$this->logger_mock->shouldReceive('debug')->withAnyArgs()->zeroOrMoreTimes();
-
-		$script_definition_empty_handle = array(
-			'handle' => '', // Key: handle is empty
-			'src'    => 'path/to/script.js',
-		);
-		$script_definition_no_handle = array( // Also test if handle key is missing
-			'src' => 'path/to/another-script.js',
-		);
-
-		WP_Mock::userFunction('wp_register_script')->never();
-		WP_Mock::userFunction('wp_script_add_data')->never();
-		// add_filter is implicitly not expected as WP_Mock::expectFilterAdded is not called.
-
-		$sut = $this->getMockBuilder(ConcreteEnqueueForScriptTesting::class)
-		            ->setConstructorArgs(array($this->config_mock, $this->logger_mock))
-		            ->onlyMethods(array('get_logger'))
-		            ->getMock();
-		$sut->method('get_logger')->willReturn($this->logger_mock);
-
-		$method = new \ReflectionMethod(ConcreteEnqueueForScriptTesting::class, '_process_single_script');
-		$method->setAccessible(true);
-
-		// Test with empty handle string
-		$result_empty_handle = $method->invoke($sut, $script_definition_empty_handle, 'test_context_empty_handle', null, true, false, true);
-		$this->assertFalse($result_empty_handle, 'Should return false if handle is an empty string.');
-
-		// Test with handle key not present
-		$result_no_handle = $method->invoke($sut, $script_definition_no_handle, 'test_context_no_handle', null, true, false, true);
-		$this->assertFalse($result_no_handle, 'Should return false if handle key is not present.');
-	}
-
-	/**
-	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::_process_single_script
-	 * Tests that _process_single_script returns null if wp_register_script fails.
-	 */
-	public function test_process_single_script_registration_fails_returns_false(): void {
-		$this->logger_mock->shouldReceive('debug')->withAnyArgs()->zeroOrMoreTimes();
-
-		$script_handle     = 'test-script-registration-fails';
-		$script_actual_src = 'path/to/script.js';
-
-		$script_definition = array(
-			'handle' => $script_handle,
-			'src'    => $script_actual_src,
-		);
-
-		WP_Mock::userFunction('wp_register_script')
-			->once()
-			->with($script_handle, $script_actual_src, array(), false, false)
-			->andReturn(false); // Key: wp_register_script returns false
-
-		WP_Mock::userFunction('wp_script_add_data')->never();
-		// add_filter is implicitly not expected.
-
-		$sut = $this->getMockBuilder(ConcreteEnqueueForScriptTesting::class)
-		            ->setConstructorArgs(array($this->config_mock, $this->logger_mock))
-		            ->onlyMethods(array('get_logger'))
-		            ->getMock();
-		$sut->method('get_logger')->willReturn($this->logger_mock);
-
-		$method = new \ReflectionMethod(ConcreteEnqueueForScriptTesting::class, '_process_single_script');
-		$method->setAccessible(true);
-		$result = $method->invoke($sut, $script_definition, 'test_context', null, true, false, true);
-
-		$this->assertFalse($result, 'Should return false if wp_register_script fails.');
-	}
-
-	/**
-	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::_modify_script_tag_for_attributes
-	 */
-	public function test_modify_script_tag_for_attributes_handles_mismatch(): void {
-		$sut = $this->getMockBuilder(ConcreteEnqueueForScriptTesting::class)
-		            ->setConstructorArgs(array($this->config_mock, $this->logger_mock))
-		            ->onlyMethods(array('get_logger')) // Mock get_logger if it's called internally, though not expected here
-		            ->getMock();
-		$sut->method('get_logger')->willReturn($this->logger_mock);
-
-		$method = new \ReflectionMethod(ConcreteEnqueueForScriptTesting::class, '_modify_script_tag_for_attributes');
-		$method->setAccessible(true);
-
-		$original_tag = "<script src='test.js'></script>";
-		$attributes   = array('id' => 'test-id');
-
-		$returned_tag = $method->invokeArgs($sut, array(
-			$original_tag,          // $tag
-			'another-handle',       // $filter_tag_handle (different from script_handle_to_match)
-			'my-script-handle',     // $script_handle_to_match
-			$attributes             // $attributes_to_apply
-		));
-		$this->assertSame($original_tag, $returned_tag, "Tag should not be modified if handles don't match.");
-	}
-
-	/**
-	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::_modify_script_tag_for_attributes
-	 */
-	public function test_modify_script_tag_for_attributes_handles_malformed_tag(): void {
-		$sut = $this->getMockBuilder(ConcreteEnqueueForScriptTesting::class)
-		            ->setConstructorArgs(array($this->config_mock, $this->logger_mock))
-		            ->getMock();
-		$sut->method('get_logger')->willReturn($this->logger_mock);
-		$method = new \ReflectionMethod(ConcreteEnqueueForScriptTesting::class, '_modify_script_tag_for_attributes');
-		$method->setAccessible(true);
-
-		$tag_input        = "<script src='module.js'></script>";
-		$attributes_input = array('type' => 'module', 'id' => 'module-id');
-		$script_handle    = 'my-module-script';
-
-		$returned_tag = $method->invokeArgs($sut, array(
-			$tag_input,
-			$script_handle,
-			$script_handle,
-			$attributes_input
-		));
-
-		$this->assertStringContainsString("<script type=\"module\" src='module.js'", $returned_tag, "Tag should include type='module' correctly.");
-		$this->assertStringContainsString('id="module-id"', $returned_tag);
-		$this->assertStringNotContainsString('type="module" type="module"', $returned_tag, 'Type module should not be duplicated.');
-	}
-
-
-	/**
-	 * Test register_scripts method with valid scripts.
-	 *
-	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::register_scripts
-	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::_process_single_script
-	 */
-	public function test_register_scripts(): void {
-		// Setup logger expectations
-		$this->logger_mock->shouldReceive('debug')
-			->withAnyArgs()
-			->zeroOrMoreTimes();
-
-		$this->logger_mock->shouldReceive('is_active')
-			->andReturn(true);
-
-		WP_Mock::userFunction('wp_register_script')
-			->zeroOrMoreTimes()
-			->andReturn(true);
-
-		WP_Mock::userFunction('wp_script_add_data')
-			->once()
-			->with('script-with-data', 'strategy', 'defer');
-
-		WP_Mock::userFunction('add_filter')
-			->zeroOrMoreTimes()
-			->andReturn(true);
-
-		$scripts_to_register = array(
-			array(
-				'handle'    => 'basic-script',
-				'src'       => 'path/to/basic-script.js',
-				'deps'      => array('jquery'),
-				'version'   => '1.0.0',
-				'in_footer' => true,
-			),
-			array(
-				'handle'    => 'script-with-data',
-				'src'       => 'path/to/script-with-data.js',
-				'deps'      => array(),
-				'version'   => '2.0.0',
-				'in_footer' => false,
-				'wp_data'   => array(
-					'strategy' => 'defer',
-				),
-				'attributes' => array(
-					'data-test' => 'value',
-				),
-			),
-		);
-
-		// First add the scripts to the instance
-		$this->instance->add_scripts($scripts_to_register);
-
-		// Then call register_scripts without parameters to use the instance's scripts
-		$result = $this->instance->register_scripts();
-
-		// Verify method chaining works
-		$this->assertSame($this->instance, $result);
-	}
-
-	/**
-	 * Test register_scripts with empty array and with scripts from instance property.
-	 *
-	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::register_scripts
-	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::_process_single_script
-	 */
-	public function test_register_scripts_from_instance_property(): void {
-		// Setup logger expectations
-		$this->logger_mock->shouldReceive('debug')
-			->withAnyArgs()
-			->zeroOrMoreTimes();
-
-		$this->logger_mock->shouldReceive('is_active')
-			->andReturn(true);
-
-		// Add scripts to the instance property first
+	public function test_add_scripts_should_store_scripts_correctly(): void {
 		$scripts_to_add = array(
 			array(
-				'handle'    => 'from-property-script',
-				'src'       => 'path/to/from-property-script.js',
-				'deps'      => array('jquery'),
+				'handle'    => 'my-script-1',
+				'src'       => 'path/to/my-script-1.js',
+				'deps'      => array('jquery-ui-script'),
 				'version'   => '1.0.0',
-				'in_footer' => true,
+				'media'     => 'screen',
+				'condition' => static fn() => true,
 			),
-		);
-		$this->instance->add_scripts($scripts_to_add);
-
-		WP_Mock::userFunction('wp_register_script')
-			->zeroOrMoreTimes()
-			->andReturn(true);
-
-		// Call register_scripts with empty array, which should use the instance property
-		$result = $this->instance->register_scripts();
-
-		// Verify method chaining works
-		$this->assertSame($this->instance, $result);
-	}
-
-	/**
-	 * Test register_scripts with a script with failing condition.
-	 *
-	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::register_scripts
-	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::_process_single_script
-	 */
-	public function test_register_scripts_with_failing_condition(): void {
-		// Setup logger expectations
-		$this->logger_mock->shouldReceive('debug')
-			->withAnyArgs()
-			->zeroOrMoreTimes();
-
-		$this->logger_mock->shouldReceive('is_active')
-			->andReturn(true);
-
-		// Mock wp_register_script even for failing condition for consistency
-		WP_Mock::userFunction('wp_register_script')
-			->zeroOrMoreTimes()
-			->andReturn(true);
-
-		$scripts_to_register = array(
 			array(
-				'handle'    => 'conditional-script',
-				'src'       => 'path/to/conditional-script.js',
-				'deps'      => array(),
-				'version'   => '1.0.0',
-				'in_footer' => true,
-				'condition' => static fn() => false, // This condition will fail
+				'handle'  => 'my-script-2',
+				'src'     => 'path/to/my-script-2.js',
+				'deps'    => array(),
+				'version' => false, // Use plugin version
+				'media'   => 'all',
+				// No condition, should default to true
 			),
 		);
 
-		// First add the scripts to the instance
-		$this->instance->add_scripts($scripts_to_register);
-
-		// Then call register_scripts without parameters to use the instance's scripts
-		$result = $this->instance->register_scripts();
-
-		// Verify method chaining works
-		$this->assertSame($this->instance, $result);
-	}
-
-	/**
-	 * @test
-	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::add_scripts
-	 */
-	public function test_add_scripts_populates_scripts_property_correctly(): void {
-		$sut = Mockery::mock(ConcreteEnqueueForScriptTesting::class, array($this->config_mock))->makePartial();
-
-		// --- Logger Call Count Expectations for add_scripts() ---
-		// is_active: entry(1) + adding_log(1) + exit(1) = 3
-		// is_verbose is not called in the current add_scripts implementation.
-		$this->logger_mock->shouldReceive('is_active')->times(3)->andReturn(true);
-		$this->logger_mock->shouldReceive('is_verbose')->never();
-
-		// Scripts to pass directly to the method
-		$script_with_hook_config = array(
-		    'handle'     => 'hooked-script',
-		    'src'        => 'hooked.js',
-		    'hook'       => 'admin_footer',
-		    'deps'       => array(),
-		    'version'    => false,
-		    'in_footer'  => false,
-		    'condition'  => null,
-		    'wp_data'    => array(),
-		    'attributes' => array()
-		);
-		$script_without_hook_config = array(
-		    'handle'     => 'normal-script',
-		    'src'        => 'normal.js',
-		    'hook'       => null, // No hook
-		    'deps'       => array(),
-		    'version'    => false,
-		    'in_footer'  => false,
-		    'condition'  => null,
-		    'wp_data'    => array(),
-		    'attributes' => array()
-		);
-		// Pass them as an associative array matching how add_scripts processes them
-		$scripts_to_pass = array(
-		    'hooked-script' => $script_with_hook_config,
-		    'normal-script' => $script_without_hook_config
-		);
-
-		// --- Ordered Debug Log Expectations for add_scripts() ---
-		$this->logger_mock->shouldReceive('debug')
-		    ->with('ScriptsEnqueueTrait::add_scripts - Entered. Current script count: 0. Adding 2 new script(s).')
-		    ->once()->ordered();
-		$this->logger_mock->shouldReceive('debug')
-		    ->with('ScriptsEnqueueTrait::add_scripts - Adding script. Key: hooked-script, Handle: hooked-script, Src: hooked.js')
-		    ->once()->ordered();
-		$this->logger_mock->shouldReceive('debug')
-		    ->with('ScriptsEnqueueTrait::add_scripts - Adding script. Key: normal-script, Handle: normal-script, Src: normal.js')
-		    ->once()->ordered();
-		$this->logger_mock->shouldReceive('debug')
-		    ->with('ScriptsEnqueueTrait::add_scripts - Exiting. New total script count: 2')
-		    ->once()->ordered();
-		$this->logger_mock->shouldReceive('debug')
-		    ->with('ScriptsEnqueueTrait::add_scripts - All current script handles: hooked-script, normal-script')
-		    ->once()->ordered();
-
-		// Execute the method under test - calling add_scripts directly
-		$result = $sut->add_scripts($scripts_to_pass);
-
-		// Verify method chaining and internal state
-		$this->assertSame($sut, $result);
-		$scripts_prop = $this->get_protected_property_value($sut, 'scripts');
-		$this->assertCount(2, $scripts_prop);
-		// Use assertEquals with array_values to compare content without enforcing key preservation.
-		$this->assertEquals(array_values($scripts_to_pass), $scripts_prop);
-	}
-
-	/**
-	 * @test
-	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::register_scripts
-	 */
-	public function test_register_scripts_with_mixed_scripts(): void {
-		$sut = Mockery::mock(ConcreteEnqueueForScriptTesting::class . '[_process_single_script]', array($this->config_mock))
-		    ->makePartial()
-		    ->shouldAllowMockingProtectedMethods();
-
-		$script_with_hook = array(
-		    'handle' => 'hooked-script', 'src' => 'hooked.js', 'hook' => 'admin_footer',
-		    'deps'   => array(), 'version' => false, 'in_footer' => false, 'condition' => null, 'wp_data' => array(), 'attributes' => array()
-		);
-		$script_without_hook = array(
-		    'handle' => 'direct-script', 'src' => 'direct.js', 'hook' => null,
-		    'deps'   => array(), 'version' => false, 'in_footer' => false, 'condition' => null, 'wp_data' => array(), 'attributes' => array()
-		);
-		$scripts_to_pass = array(
-		    'hooked-script' => $script_with_hook,
-		    'direct-script' => $script_without_hook,
-		);
-
-		// Turn off logging to simplify expectations for this test.
-		$this->logger_mock->shouldReceive('is_active')->andReturn(false);
-
-		// Expect the non-hooked script to be processed directly with the correct arguments.
-		$sut->shouldReceive('_process_single_script')
-		    ->once()
-		    ->with(
-		    	Mockery::on(function ($arg) use ($script_without_hook) {
-		    		return is_array($arg) && $arg['handle'] === $script_without_hook['handle'];
-		    	}), // script_definition
-		    	'register_scripts', // processing_context
-		    	null,               // hook_name
-		    	true,               // do_register
-		    	false,              // do_enqueue
-		    	true                // do_process_extras
-		    )
-		    ->andReturn(true);
-
-		// Mock has_action to ensure add_action is called.
-		WP_Mock::userFunction('has_action')
-			->with('admin_footer', array($sut, 'enqueue_deferred_scripts'))
-			->andReturn(false);
-
-		// Expect the hooked script to be added to a WordPress action
-		WP_Mock::expectActionAdded('admin_footer', array($sut, 'enqueue_deferred_scripts'), 10, 1);
-
-		// Execute the methods under test in the correct order
-		$sut->add_scripts($scripts_to_pass);
-		$sut->register_scripts(); // No arguments
-
-		// Assert that the hooked script is stored for later registration
-		$deferred_scripts = $this->get_protected_property_value($sut, 'deferred_scripts');
-		$this->assertArrayHasKey('admin_footer', $deferred_scripts);
-		$this->assertCount(1, $deferred_scripts['admin_footer']);
-		$this->assertContains($script_with_hook, $deferred_scripts['admin_footer']);
-	}
-
-	/**
-	 * @test
-	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::add_inline_scripts
-	 */
-	public function test_add_inline_scripts_correctly_defers_and_preserves_hooks(): void {
-		// 1. Setup
-		$sut = $this->getMockForTrait(
-			ScriptsEnqueueTrait::class,
-			array(),
-			'',
-			true,
-			true,
-			true,
-			array('get_logger')
-		);
-
-		$sut->method('get_logger')->willReturn($this->logger_mock);
-
-		// Define a main script that is deferred, which an inline script will attach to.
-		$main_scripts = array(
-			'parent-script' => array(
-				'handle' => 'parent-script',
-				'src'    => 'parent.js',
-				'hook'   => 'wp_footer',
-			),
-		);
-
-		// Define inline scripts to test different scenarios.
-		$inline_scripts_to_add = array(
-			array( // Scenario 1: Basic inline script for a non-deferred parent (parent_hook should be null)
-				'handle'  => 'immediate-script',
-				'content' => 'console.log("immediate");',
-			),
-			array( // Scenario 2: Inline script for a deferred parent, should inherit the parent's hook.
-				'handle'  => 'parent-script',
-				'content' => 'console.log("deferred, inherited hook");',
-			),
-			array( // Scenario 3: Inline script for the same deferred parent, but with an explicit hook that should be preserved.
-				'handle'      => 'parent-script',
-				'content'     => 'console.log("deferred, explicit hook");',
-				'parent_hook' => 'admin_footer',
-			),
-		);
-
-		// 2. Configure Mocks
-		$this->logger_mock->shouldReceive('is_active')->andReturn(true);
-		$this->logger_mock->shouldReceive('debug')->with(Mockery::pattern('/Entered. Current inline script count: 0/'))->once();
-		$this->logger_mock->shouldReceive('debug')->with(Mockery::pattern('/Processing inline script for handle \'immediate-script\'/'))->once();
-		$this->logger_mock->shouldReceive('debug')->with(Mockery::pattern('/Processing inline script for handle \'parent-script\'/'))->twice();
-		$this->logger_mock->shouldReceive('debug')->with(Mockery::pattern('/Inline script for \'parent-script\' associated with parent hook: \'wp_footer\'/'))->once();
-		$this->logger_mock->shouldReceive('debug')->with(Mockery::pattern('/Inline script for \'parent-script\' associated with parent hook: \'admin_footer\'/'))->once();
-		$this->logger_mock->shouldReceive('debug')->with(Mockery::pattern('/Exiting. New total inline script count: 3/'))->once();
-
-
-		// 3. Execute
-		$sut->add_scripts($main_scripts); // Add the parent script first
-		$sut->add_inline_scripts($inline_scripts_to_add);
-
-		// 4. Assert
-		$final_inline_scripts = $this->get_protected_property_value($sut, 'inline_scripts');
-		$this->assertCount(3, $final_inline_scripts);
-
-		// Assert Scenario 1: immediate-script has no parent hook
-		$this->assertNull($final_inline_scripts[0]['parent_hook']);
-		$this->assertEquals('immediate-script', $final_inline_scripts[0]['handle']);
-
-		// Assert Scenario 2: parent-script inherited the hook
-		$this->assertEquals('wp_footer', $final_inline_scripts[1]['parent_hook']);
-		$this->assertEquals('parent-script', $final_inline_scripts[1]['handle']);
-
-		// Assert Scenario 3: parent-script with explicit hook was preserved
-		$this->assertEquals('admin_footer', $final_inline_scripts[2]['parent_hook']);
-		$this->assertEquals('parent-script', $final_inline_scripts[2]['handle']);
-	}
-
-	/**
-	 * Test enqueueing inline scripts.
-	 *
-	 * @test
-	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::enqueue_inline_scripts
-	 */
-	public function test_enqueue_inline_scripts(): void {
-		// Create test inline scripts
-		$inline_scripts = array(
-			array(
-				'handle'   => 'registered-script',
-				'content'  => 'console.log("Registered script");',
-				'position' => 'after',
-			),
-			array(
-				'handle'   => 'unregistered-script',
-				'content'  => 'console.log("Should be skipped");',
-				'position' => 'before',
-			),
-			array(
-				'handle'    => 'conditional-script',
-				'content'   => 'console.log("Conditional");',
-				'position'  => 'after',
-				'condition' => static fn() => false, // This condition will fail
-			),
-			array(
-				'handle'      => 'deferred-script',
-				'content'     => 'console.log("Deferred");',
-				'parent_hook' => 'admin_footer',
-			),
-			array(
-				// Missing handle, should be skipped
-				'content' => 'console.log("No handle");',
-			),
-			array(
-				'handle' => 'empty-content',
-				// Missing content, should be skipped
-			),
-			array(
-				'handle'  => 'default-values-script',
-				'content' => 'console.log("Default values test");',
-				// position, condition, and parent_hook are intentionally omitted to test defaults
-			),
-			array(
-				'handle'   => 'before-pos-script',
-				'content'  => 'console.log("Before position test");',
-				'position' => 'before',
-			),
-		);
-
-		// Set up WordPress function mocks
-
-		// wp_script_is - simulate a registered script
-		WP_Mock::userFunction('wp_script_is')
-			->with('registered-script', 'registered')
-			->andReturn(true);
-
-		// wp_script_is - simulate a registered script
-		WP_Mock::userFunction('wp_script_is')
-			->with('registered-script', 'enqueued')
-			->andReturn(false);
-
-		// wp_script_is - simulate unregistered script
-		WP_Mock::userFunction('wp_script_is')
-			->with('unregistered-script', 'registered')
-			->andReturn(false);
-
-		WP_Mock::userFunction('wp_script_is')
-			->with('unregistered-script', 'enqueued')
-			->andReturn(false);
-
-		// wp_script_is - we shouldn't even check conditional script as condition fails
-		WP_Mock::userFunction('wp_script_is')
-			->with('conditional-script', 'registered')
-			->never();
-
-		// wp_script_is - simulate registered for default-values-script
-		WP_Mock::userFunction('wp_script_is')
-			->with('default-values-script', 'registered')
-			->andReturn(true);
-		WP_Mock::userFunction('wp_script_is')
-			->with('default-values-script', 'enqueued')
-			->andReturn(false);
-
-		// wp_script_is - simulate registered for before-pos-script
-		WP_Mock::userFunction('wp_script_is')
-			->with('before-pos-script', 'registered')
-			->andReturn(true);
-		WP_Mock::userFunction('wp_script_is')
-			->with('before-pos-script', 'enqueued')
-			->andReturn(false);
-
-		// wp_script_is - we shouldn't check deferred script in this method
-		WP_Mock::userFunction('wp_script_is')
-			->with('deferred-script', 'registered')
-			->never();
-
-		// wp_add_inline_script - should be called for registered-script only
-		WP_Mock::userFunction('wp_add_inline_script')
-			->with('registered-script', 'console.log("Registered script");') // Expecting 2 arguments for 'after'
-			->once();
-
-		// wp_add_inline_script - should be called for default-values-script (defaults to position 'after')
-		WP_Mock::userFunction('wp_add_inline_script')
-			->with('default-values-script', 'console.log("Default values test");') // Expecting 2 arguments for 'after'
-			->once();
-
-		// wp_add_inline_script - should be called for before-pos-script with 'before' position
-		WP_Mock::userFunction('wp_add_inline_script')
-			->with('before-pos-script', 'console.log("Before position test");', 'before') // Expecting 3 arguments
-			->once();
-
-		// Should never be called for other scripts
-		WP_Mock::userFunction('wp_add_inline_script')
-			->with('unregistered-script', Mockery::any(), Mockery::any())
-			->never();
-
-		WP_Mock::userFunction('wp_add_inline_script')
-			->with('conditional-script', Mockery::any(), Mockery::any())
-			->never();
-
-		WP_Mock::userFunction('wp_add_inline_script')
-			->with('deferred-script', Mockery::any(), Mockery::any())
-			->never();
-
-		WP_Mock::userFunction('esc_html')
-			->zeroOrMoreTimes()
-			->andReturnUsing(function($value) {
-				return $value;
-			});
-
-		// Set up logger mocks
-		$this->logger_mock->shouldReceive('debug')
-			->withAnyArgs()
-			->zeroOrMoreTimes();
-
-		$this->logger_mock->shouldReceive('is_active')
-			->withAnyArgs()
-			->andReturn(true);
-
-		// Expect an error for the inline script with an empty handle
-		$this->logger_mock->shouldReceive('error')
-			->with('ScriptsEnqueueTrait::enqueue_inline_scripts - Skipping (non-deferred) inline script due to missing handle or content. Handle: ')
-			->once();
-
-		// Expect an error for the inline script with empty content (diagnostic: zeroOrMoreTimes)
-		$this->logger_mock->shouldReceive('error')
-			->with('ScriptsEnqueueTrait::enqueue_inline_scripts - Skipping (non-deferred) inline script due to missing handle or content. Handle: no-content-inline')
-			->zeroOrMoreTimes();
-
-		// Expect an error for the inline script with handle 'empty-content' and empty content
-		$this->logger_mock->shouldReceive('error')
-			->with('ScriptsEnqueueTrait::enqueue_inline_scripts - Skipping (non-deferred) inline script due to missing handle or content. Handle: empty-content')
-			->once();
-
-		// Expect an error for the inline script whose parent is not registered
-		$this->logger_mock->shouldReceive('error')
-			->with("ScriptsEnqueueTrait::enqueue_inline_scripts - (Non-deferred) Cannot add inline script. Parent script 'unregistered-script' is not registered or enqueued.")
-			->once();
-
-		// Add scripts to the instance
-		$this->instance->add_inline_scripts($inline_scripts);
-
-		// Call the method
-		$result = $this->instance->enqueue_inline_scripts();
-
-		// Verify method chaining works
-		$this->assertSame($this->instance, $result);
-	}
-
-	/**
-	 * Test adding empty inline scripts array.
-	 *
-	 * @test
-	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::add_inline_scripts
-	 */
-	public function skip_test_add_inline_scripts_empty_array(): void {
-		// Allow any debug logs
-		$this->logger_mock->shouldReceive('debug')
-			->withAnyArgs()
-			->zeroOrMoreTimes();
-
-		$this->logger_mock->shouldReceive('is_active')
-			->andReturn(true);
-
-		// Add an empty array of inline scripts
-		// The inline_scripts property is already an empty array by default.
-		$result = $this->instance->add_inline_scripts(array());
-
-		// Verify method chaining works
-		$this->assertSame($this->instance, $result);
-
-		// Verify no scripts were added using the public getter
-		$all_scripts = $this->instance->get_scripts();
-		$this->assertArrayHasKey('inline', $all_scripts, "The 'inline' key should exist in the array returned by get_scripts().");
-		$this->assertEmpty($all_scripts['inline'], "The 'inline' scripts array should be empty after adding an empty array.");
-	}
-
-	/**
-	 * Test adding inline scripts with invalid data.
-	 *
-	 * @test
-	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::add_inline_scripts
-	 */
-	public function skip_test_add_inline_scripts_invalid_data(): void {
-		// Allow any debug logs
-		$this->logger_mock->shouldReceive('debug')
-			->withAnyArgs()
-			->zeroOrMoreTimes();
-
-		$this->logger_mock->shouldReceive('is_active')
-			->andReturn(true);
-
-		// Test data with missing required fields
-		$invalid_inline_scripts_data = array(
-			array(
-				// Missing handle - should be processed but will be skipped later when enqueueing
-				'content'  => 'console.log("Missing handle");',
-				'position' => 'after',
-			),
-			array(
-				'handle' => 'missing-content',
-				// Missing content - should be processed but will be skipped later
-				'position' => 'before',
-			),
-			array(
-				// Invalid structure, neither handle nor content
-				'invalid' => 'field',
-			),
-		);
-
-		// Get the initial count of inline scripts using the public getter
-		$initial_scripts_array = $this->instance->get_scripts();
-		$this->assertArrayHasKey('inline', $initial_scripts_array, "Pre-condition: 'inline' key should exist.");
-		$initial_count = count($initial_scripts_array['inline']);
-
-		// Add the invalid inline scripts
-		$result = $this->instance->add_inline_scripts($invalid_inline_scripts_data);
-
-		// Verify method chaining works
-		$this->assertSame($this->instance, $result);
-
-		// Verify all scripts were added despite being invalid
-		// (validation happens at enqueue time, not add time)
-		$final_scripts_array = $this->instance->get_scripts();
-		$this->assertArrayHasKey('inline', $final_scripts_array, "Post-condition: 'inline' key should exist.");
-		$this->assertCount(
-			$initial_count + count($invalid_inline_scripts_data),
-			$final_scripts_array['inline'],
-			'The count of inline scripts should increase by the number of items added.'
-		);
-	}
-
-	/**
-	 * Test enqueueing inline scripts when logger is not active.
-	 *
-	 * @test
-	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::enqueue_inline_scripts
-	 */
-	public function skip_test_enqueue_inline_scripts_no_logger(): void {
-		// Create test inline script
-		$inline_scripts = array(
-			array(
-				'handle'   => 'registered-script',
-				'content'  => 'console.log("Registered script");',
-				'position' => 'after',
-			),
-		);
-
-		// Set up WordPress function mocks
-		WP_Mock::userFunction('wp_script_is')
-			->with('registered-script', 'registered')
-			->andReturn(true);
-
-		WP_Mock::userFunction('wp_script_is')
-			->with('registered-script', 'enqueued')
-			->andReturn(false);
-
-		WP_Mock::userFunction('wp_add_inline_script')
-			->with('registered-script', 'console.log("Registered script");')
-			->once();
-
-		// Set logger inactive
-		$this->logger_mock->shouldReceive('is_active')
-			->andReturn(false);
-
-		// Even though logger is inactive, we should allow debug calls
-		// as the ScriptsEnqueueTrait may call debug() without checking is_active()
-		$this->logger_mock->shouldReceive('debug')
-			->withAnyArgs()
-			->zeroOrMoreTimes();
-
-		// Add script to the instance
-		$this->instance->add_inline_scripts($inline_scripts);
-
-		// Call the method
-		$result = $this->instance->enqueue_inline_scripts();
-
-		// Verify method chaining works
-		$this->assertSame($this->instance, $result);
-	}
-
-	/**
-	 * Test enqueueing deferred scripts for a specific hook.
-	 *
-	 * @test
-	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::enqueue_deferred_scripts
-	 */
-	public function skip_test_enqueue_deferred_scripts(): void {
-		// Set up logger mocks
-		$this->logger_mock->shouldReceive('debug')
-			->withAnyArgs()
-			->zeroOrMoreTimes();
-
-		$this->logger_mock->shouldReceive('is_active')
-			->andReturn(true);
-
-		// Test hook
-		$hook = 'admin_footer';
-
-		// Mock WordPress functions needed by enqueue_scripts()
-		WP_Mock::userFunction('is_admin')
-			->zeroOrMoreTimes() // It's called within the loop in enqueue_scripts
-			->andReturn(true);
-
-		WP_Mock::userFunction('did_action')
-			->with($hook) // $hook is 'admin_footer'
-			->zeroOrMoreTimes() // Also called within the loop
-			->andReturn(false); // Ensures deferred scripts are not processed prematurely
-
-		// Mock for wp_json_encode (only one instance now)
-		WP_Mock::userFunction('wp_json_encode')
-			->zeroOrMoreTimes()
-			->andReturnUsing(function($data) {
-				return json_encode($data);
-			});
-
-		// Test deferred scripts
-		$deferred_scripts_data = array(
-			array(
-				'handle'    => 'deferred-script-1',
-				'src'       => 'path/to/deferred-script-1.js',
-				'deps'      => array('jquery'),
-				'version'   => '1.0.0',
-				'in_footer' => true,
-				'hook'      => $hook,
-			),
-			array(
-				'handle'    => 'deferred-script-2',
-				'src'       => 'path/to/deferred-script-2.js',
-				'deps'      => array(),
-				'version'   => '2.0.0',
-				'in_footer' => false,
-				'hook'      => $hook,
-				'condition' => static fn() => false, // This will cause script 2 to be skipped
-			),
-		);
-
-		// Process deferred scripts to populate the internal deferred_scripts array and set up actions
-		$this->instance->enqueue_scripts($deferred_scripts_data);
-
-		// Add an inline script that should be associated with a deferred script
-		$inline_scripts_data = array(
-			array(
-				'handle'      => 'deferred-script-1',
-				'content'     => 'console.log("Deferred inline script");',
-				'position'    => 'after',
-				'parent_hook' => $hook,
-			),
-			array(
-				'handle'      => 'deferred-script-2', // This one should be skipped as parent script is skipped
-				'content'     => 'console.log("Should be skipped");',
-				'position'    => 'before',
-				'parent_hook' => $hook,
-			),
-			array(
-				'handle'      => 'deferred-script-1',
-				'content'     => '',  // Empty content, should be skipped
-				'parent_hook' => $hook,
-			),
-			array(
-				'handle'      => 'deferred-script-1',
-				'content'     => 'console.log("Conditional inline");',
-				'position'    => 'after',
-				'parent_hook' => $hook,
-				'condition'   => static fn() => false, // Should be skipped due to condition
-			),
-		);
-
-		$this->instance->add_inline_scripts($inline_scripts_data);
-
-		// --- Assert state BEFORE processing deferred scripts ---
-		// Get the deferred scripts directly from the property BEFORE they are processed
-		$deferred_scripts_before_processing = $this->get_protected_property_value($this->instance, 'deferred_scripts');
-
-		// 1. Assert that your specific hook ('admin_footer') exists as a key
-		$this->assertArrayHasKey($hook, $deferred_scripts_before_processing, "The hook '{$hook}' should exist as a key in the 'deferred_scripts' property before processing.");
-
-		// 2. Assert that there are scripts for this hook (expect 2 from $deferred_scripts_data, one of which has a false condition but is still in the array)
-		$this->assertCount(
-			count($deferred_scripts_data),
-			$deferred_scripts_before_processing[$hook],
-			'Initially, there should be ' . count($deferred_scripts_data) . " scripts registered for the hook '{$hook}' before deferred processing."
-		);
-
-		// --- Mocks for deferred-script-1 processing (ordered) ---
-		// (All WP_Mock and logger_mock expectations for script processing will follow here, then the call to enqueue_deferred_scripts)
-
-		// Call the method under test AFTER setting up initial state and BEFORE final state assertions
-		// Note: The actual mock expectations for wp_register_script, wp_enqueue_script, etc.,
-		// for 'deferred-script-1' and 'deferred-script-2' (skipped) will need to be placed here or before this call.
-		// For now, this edit focuses on fixing the assertion logic around deferred_scripts state.
-		// The existing mocks from line 1445 onwards should be reviewed to ensure they are correctly placed relative to this call.
-		// 1. Initial check: 'deferred-script-1' is not registered.
-		WP_Mock::userFunction('wp_script_is')
-			->with('deferred-script-1', 'registered')
-			->andReturn(false)
-			->ordered()
-			->once();
-
-		// 2. Initial check: 'deferred-script-1' is not enqueued.
-		WP_Mock::userFunction('wp_script_is')
-			->with('deferred-script-1', 'enqueued')
-			->andReturn(false)
-			->ordered()
-			->once();
-
-		// 3. wp_register_script for deferred-script-1 (will be called by _process_single_script)
-		WP_Mock::userFunction('wp_register_script')
-			->with('deferred-script-1', 'path/to/deferred-script-1.js', array('jquery'), '1.0.0', true) // Match args from $deferred_scripts_data
-			->andReturn(true)
-			->ordered()
-			->once();
-
-		// 4. wp_enqueue_script for deferred-script-1 (will be called after successful registration)
-		WP_Mock::userFunction('wp_enqueue_script')
-			->with('deferred-script-1')
-			->ordered()
-			->once();
-
-		// 5. Check for inline script: 'deferred-script-1' is now registered.
-		// This is called from within the inline script processing loop.
-		WP_Mock::userFunction('wp_script_is')
-			->with('deferred-script-1', 'registered')
-			->andReturn(true)
-			->ordered()
-			->once(); // Expect one successful inline script to be added for deferred-script-1
-
-		// 6. wp_add_inline_script for deferred-script-1's inline script
-		WP_Mock::userFunction('wp_add_inline_script')
-			->with('deferred-script-1', 'console.log("Deferred inline script");')
-			->once()
-			->andReturn(true);
-
-		// --- Mocks for deferred-script-2 processing (ordered) ---
-		// Its condition `static fn() => false` will cause _process_single_script to return null.
-		// It will be checked for registered/enqueued status before its condition is evaluated.
-		// 7. Initial check: 'deferred-script-2' is not registered.
-		WP_Mock::userFunction('wp_script_is')
-			->with('deferred-script-2', 'registered')
-			->andReturn(false)
-			->ordered()
-			->once();
-
-		// 8. Initial check: 'deferred-script-2' is not enqueued.
-		WP_Mock::userFunction('wp_script_is')
-			->with('deferred-script-2', 'enqueued')
-			->andReturn(false)
-			->ordered()
-			->once();
-
-		// These should NOT be called for deferred-script-2 due to its failing condition
-		WP_Mock::userFunction('wp_register_script')
-			->with('deferred-script-2', Mockery::any(), Mockery::any(), Mockery::any(), Mockery::any())
-			->never();
-		WP_Mock::userFunction('wp_enqueue_script') // Already mocked as never earlier in test.
-			->with('deferred-script-2')
-			->never();
-
-
-		// Also ensure other inline scripts for deferred-script-1 that should be skipped are not called
-		WP_Mock::userFunction('wp_add_inline_script')
-			->with('deferred-script-1', '', Mockery::any()) // Empty content
-			->never();
-		WP_Mock::userFunction('wp_add_inline_script')
-			->with('deferred-script-1', 'console.log("Conditional inline");', Mockery::any()) // Failing condition
-			->never();
-
-		// The expectation for the successful inline script addition is now part of the ordered block above.
-
-		// Expect the "missing content" error for one of deferred-script-1's inline scripts (if it occurs)
-		$this->logger_mock->shouldReceive('error')
-			->with("ScriptsEnqueueTrait::enqueue_deferred_scripts - Skipping inline script for deferred 'deferred-script-1' due to missing content.")
-			->zeroOrMoreTimes();
-
-		// Expect a warning for deferred-script-2 not being processed (condition false)
-		$this->logger_mock->shouldReceive('warning')
-			->with('ScriptsEnqueueTrait::enqueue_deferred_scripts - _process_single_script returned an unexpected handle (\'\') or empty for original handle \'deferred-script-2\' on hook "admin_footer". Skipping main script enqueue and its inline scripts.')
-			->once();
-
-		$this->instance->enqueue_deferred_scripts($hook); // This processes and clears deferred_scripts[$hook]
-
-		// --- Assert state AFTER processing deferred scripts ---
-		// Get the deferred scripts directly from the property AFTER they are processed
-		$deferred_scripts_after_processing = $this->get_protected_property_value($this->instance, 'deferred_scripts');
-
-		// 3. Assert that the hook is now CLEARED from the deferred_scripts property
-		$this->assertArrayNotHasKey($hook, $deferred_scripts_after_processing, "The hook '{$hook}' should be cleared from the 'deferred_scripts' property after processing.");
-
-		// Mock expectations moved above the call to enqueue_deferred_scripts.
-
-		// For any other script handle, assume it's not registered or enqueued initially.
-		WP_Mock::userFunction('wp_script_is')
-			->with(Mockery::not(array('deferred-script-1', 'deferred-script-2')), 'registered')
-			->andReturn(false)
-			->zeroOrMoreTimes();
-		WP_Mock::userFunction('wp_script_is')
-			->with(Mockery::not(array('deferred-script-1', 'deferred-script-2')), 'enqueued')
-			->andReturn(false)
-			->zeroOrMoreTimes();
+		// Logger expectations for ScriptsEnqueueTrait::add_scripts()
+		$this->logger_mock->shouldReceive('debug')->with('ScriptsEnqueueTrait::add_scripts - Entered. Current script count: 0. Adding 2 new script(s).')->once()->ordered();
+		$this->logger_mock->shouldReceive('debug')->with('ScriptsEnqueueTrait::add_scripts - Adding script. Key: 0, Handle: my-script-1, Src: path/to/my-script-1.js')->once()->ordered();
+		$this->logger_mock->shouldReceive('debug')->with('ScriptsEnqueueTrait::add_scripts - Adding script. Key: 1, Handle: my-script-2, Src: path/to/my-script-2.js')->once()->ordered();
+		$this->logger_mock->shouldReceive('debug')->with('ScriptsEnqueueTrait::add_scripts - Adding 2 script definition(s). Current total: 0')->once()->ordered();
+		$this->logger_mock->shouldReceive('debug')->with('ScriptsEnqueueTrait::add_scripts - Exiting. New total script count: 2')->once()->ordered();
+		$this->logger_mock->shouldReceive('debug')->with('ScriptsEnqueueTrait::add_scripts - All current script handles: my-script-1, my-script-2')->once()->ordered();
 
 		// Call the method under test
-		$this->instance->enqueue_deferred_scripts($hook);
+		$result = $this->instance->add_scripts($scripts_to_add);
 
-		// Verify deferred_scripts for this hook is now empty
-		// The ScriptsEnqueueTrait class unsets $this->deferred_scripts[$hook] after processing.
-		$final_deferred_scripts = $this->get_protected_property_value($this->instance, 'deferred_scripts');
-		$this->assertArrayNotHasKey(
-			$hook,
-			$final_deferred_scripts, // Check directly in the deferred_scripts property
-			"The hook '{$hook}' should no longer be a key in 'deferred_scripts' after successful processing."
-		);
+		// Assert chainability
+		$this->assertSame($this->instance, $result, 'add_scripts() should be chainable.');
 
-		// Verify the processed inline script for deferred-script-1 was removed
-		// And other inline scripts (skipped parent, empty content, false condition) remain.
-		$remaining_inline_scripts         = $this->get_protected_property_value($this->instance, 'inline_scripts');
-		$found_processed_inline_remaining = false;
-		$found_skipped_parent_inline      = false;
-		$found_empty_content_inline       = false;
-		$found_conditional_false_inline   = false;
+		// Retrieve and check stored scripts
+		$retrieved_scripts_array = $this->instance->get_scripts();
+		$this->assertArrayHasKey('general', $retrieved_scripts_array);
+		// print the retrieved scripts array for debugging
+		// fwrite(STDERR, var_export($retrieved_scripts_array['general'], true) . "\n");
 
-		foreach ($remaining_inline_scripts as $remaining_inline) {
-			$current_handle      = $remaining_inline['handle']      ?? null;
-			$current_content     = $remaining_inline['content']     ?? null;
-			$current_parent_hook = $remaining_inline['parent_hook'] ?? null;
+		$general_scripts = $retrieved_scripts_array['general'];
+		$this->assertCount(count($scripts_to_add), $general_scripts, 'Should have the same number of scripts added.');
 
-			if ($current_handle === 'deferred-script-1' && $current_content === 'console.log("Deferred inline script");' && $current_parent_hook === $hook) {
-				$found_processed_inline_remaining = true;
-			}
-			if ($current_handle === 'deferred-script-2'                 && // For 'deferred-script-2' (skipped parent)
-				$current_content   === 'console.log("Should be skipped");' && $current_parent_hook === $hook) {
-				$found_skipped_parent_inline = true;
-			}
-			if ($current_handle === 'deferred-script-1' && // For 'deferred-script-1' (empty content)
-				$current_content   === ''                  && $current_parent_hook === $hook) {
-				$found_empty_content_inline = true;
-			}
-			if ($current_handle === 'deferred-script-1'                  && // For 'deferred-script-1' (conditional false)
-				$current_content   === 'console.log("Conditional inline");' && $current_parent_hook === $hook) {
-				$found_conditional_false_inline = true;
-			}
+		// Check first script (my-script-1)
+		if (isset($general_scripts[0])) {
+			$this->assertEquals('my-script-1', $general_scripts[0]['handle']);
+			$this->assertEquals('path/to/my-script-1.js', $general_scripts[0]['src']);
+			$this->assertEquals(array('jquery-ui-script'), $general_scripts[0]['deps']);
+			$this->assertEquals('1.0.0', $general_scripts[0]['version']);
+			$this->assertEquals('screen', $general_scripts[0]['media']);
+			$this->assertTrue(is_callable($general_scripts[0]['condition']));
+			$this->assertTrue(($general_scripts[0]['condition'])());
 		}
-		$this->assertFalse($found_processed_inline_remaining, 'The successfully processed inline script for deferred-script-1 should have been removed.');
-		$this->assertTrue($found_skipped_parent_inline, 'The inline script for deferred-script-2 (skipped parent) should remain.');
-		$this->assertFalse($found_empty_content_inline, 'The inline script for deferred-script-1 with empty content should have been removed.');
-		$this->assertFalse($found_conditional_false_inline, 'The inline script for deferred-script-1 with a false condition should have been removed.');
+
+		// Check second script (my-script-2)
+		if (isset($general_scripts[1])) {
+			$this->assertEquals('my-script-2', $general_scripts[1]['handle']);
+			$this->assertEquals('path/to/my-script-2.js', $general_scripts[1]['src']);
+			$this->assertEquals(array(), $general_scripts[1]['deps']);
+			$this->assertEquals(false, $general_scripts[1]['version']); // As per input
+			$this->assertEquals('all', $general_scripts[1]['media']);
+			// Check that 'condition' is not present if not provided and not yet processed to default
+			$this->assertArrayNotHasKey('condition', $scripts_to_add[1]);
+			$this->assertArrayNotHasKey('condition', $general_scripts[1]);
+		}
+
+		//Check script properties
+		$this->assertEquals('path/to/my-script-1.js', $retrieved_scripts_array['general'][0]['src']);
+		$this->assertEquals('path/to/my-script-2.js', $retrieved_scripts_array['general'][1]['src']);
 	}
 
 	/**
-	 * Test register_scripts when scripts are passed directly, and with different logger states.
-	 *
 	 * @test
-     * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::enqueue_deferred_scripts
-     */
-	/**
-	 * Test register_scripts when scripts are passed directly, and with different logger states.
-	 *
-	 * @test
-	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::register_scripts
 	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::add_scripts
-	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::_process_single_script
 	 */
-	/**
-	 * @test
-	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::register_scripts
-	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::add_scripts
-	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::_process_single_script
-	 */
-	public function test_register_scripts_passed_directly_with_logger_active(): void {
-		$script = array(
-			'handle' => 'direct-script-1',
-			'src'    => 'path/to/direct-script-1.js',
+	public function test_add_scripts_handles_single_script_definition_correctly(): void {
+		$script_to_add = array(
+			'handle' => 'single-script',
+			'src'    => 'path/to/single.js',
+			'deps'   => array(),
 		);
 
-		$this->logger_mock->shouldReceive('is_active')->andReturn(true);
-
-		// Expectations for add_scripts()
+		// Logger expectations for ScriptsEnqueueTrait::add_scripts() for a single script
 		$this->logger_mock->shouldReceive('debug')->with('ScriptsEnqueueTrait::add_scripts - Entered. Current script count: 0. Adding 1 new script(s).')->once()->ordered();
-		$this->logger_mock->shouldReceive('debug')->with("ScriptsEnqueueTrait::add_scripts - Adding script. Key: 0, Handle: {$script['handle']}, Src: {$script['src']}")->once()->ordered();
+		$this->logger_mock->shouldReceive('debug')->with('ScriptsEnqueueTrait::add_scripts - Adding script. Key: 0, Handle: single-script, Src: path/to/single.js')->once()->ordered();
+		$this->logger_mock->shouldReceive('debug')->with('ScriptsEnqueueTrait::add_scripts - Adding 1 script definition(s). Current total: 0')->once()->ordered();
 		$this->logger_mock->shouldReceive('debug')->with('ScriptsEnqueueTrait::add_scripts - Exiting. New total script count: 1')->once()->ordered();
-		$this->logger_mock->shouldReceive('debug')->with("ScriptsEnqueueTrait::add_scripts - All current script handles: {$script['handle']}")->once()->ordered();
+		$this->logger_mock->shouldReceive('debug')->with('ScriptsEnqueueTrait::add_scripts - All current script handles: single-script')->once()->ordered();
 
-		// Expectations for register_scripts()
-		$this->logger_mock->shouldReceive('debug')->with('ScriptsEnqueueTrait::register_scripts - Entered. Processing 1 script definition(s) for registration.')->once()->ordered();
+		// Call the method under test
+		$this->instance->add_scripts($script_to_add);
 
-		// Expectations for _process_single_script()
-		$this->logger_mock->shouldReceive('debug')->with("ScriptsEnqueueTrait::_process_single_script - Processing script '{$script['handle']}' in context 'register_scripts'.")->once()->ordered();
-		WP_Mock::userFunction('wp_script_is')->with($script['handle'], 'registered')->andReturn(false);
-		$this->logger_mock->shouldReceive('debug')->with("ScriptsEnqueueTrait::_process_single_script - Registering script '{$script['handle']}'.")->once()->ordered();
-		WP_Mock::userFunction('wp_register_script')->with($script['handle'], $script['src'], array(), false, false)->andReturn(true)->once();
-		$this->logger_mock->shouldReceive('debug')->with("ScriptsEnqueueTrait::_process_single_script - Finished processing script '{$script['handle']}'.")->once()->ordered();
-
-		$this->logger_mock->shouldReceive('debug')->with('ScriptsEnqueueTrait::register_scripts - Exited. Remaining immediate scripts: 1. Deferred scripts: 0.')->once()->ordered();
-
-		$this->instance->add_scripts(array($script));
-		$result = $this->instance->register_scripts();
-
-		$this->assertSame($this->instance, $result, 'Method should be chainable.');
+		// Retrieve and check stored scripts
+		$retrieved_scripts = $this->instance->get_scripts()['general'];
+		$this->assertCount(1, $retrieved_scripts);
+		$this->assertEquals('single-script', $retrieved_scripts[0]['handle']);
+		$this->assertEquals('path/to/single.js', $retrieved_scripts[0]['src']);
 	}
 
 	/**
 	 * @test
-	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::register_scripts
 	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::add_scripts
-	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::_process_single_script
 	 */
-	public function test_register_scripts_passed_directly_with_logger_inactive(): void {
-		$script = array(
-			'handle' => 'direct-script-1',
-			'src'    => 'path/to/direct-script-1.js',
-		);
-
-		$this->logger_mock->shouldReceive('is_active')->andReturn(false);
-		$this->logger_mock->shouldReceive('debug')->never();
-
-		WP_Mock::userFunction('wp_script_is')->with($script['handle'], 'registered')->andReturn(false);
-		WP_Mock::userFunction('wp_register_script')->with($script['handle'], $script['src'], array(), false, false)->andReturn(true)->once();
-
-		$this->instance->add_scripts(array($script));
-		$result = $this->instance->register_scripts();
-
-		$this->assertSame($this->instance, $result, 'Method should be chainable.');
-	}
-
-
-	public function skip_test_enqueue_deferred_scripts_hook_not_set(): void {
-		$hook_name = 'my_test_hook';
-
-		/** @var \Ran\PluginLib\Tests\Unit\EnqueueAccessory\ConcreteEnqueueForScriptTesting&\PHPUnit\Framework\MockObject\MockObject $sut */
-		$sut = $this->getMockBuilder(ConcreteEnqueueForScriptTesting::class)
-			->setConstructorArgs(array($this->config_mock, $this->logger_mock)) // from PluginLibTestCase
-			->onlyMethods(array('get_logger', '_process_single_script'))
-			->getMock();
-		$sut->method('get_logger')->willReturn($this->logger_mock);
-
-		// Set deferred_scripts to an empty array (hook not present)
-		$this->set_protected_property_value($sut, 'deferred_scripts', array());
-
-		$this->logger_mock->shouldReceive('debug')
-			->with("ScriptsEnqueueTrait::enqueue_deferred_scripts - Entered for hook: \"{$hook_name}\"")
-			->once()
-			->ordered();
-
-		$this->logger_mock->shouldReceive('debug')
-			->with("ScriptsEnqueueTrait::enqueue_deferred_scripts - Hook \"{$hook_name}\" not found in deferred scripts. Nothing to process.")
-			->once()
-			->ordered();
-
-		// Ensure no processing methods are called
-		$sut->expects($this->never())->method('_process_single_script');
-		WP_Mock::userFunction('wp_enqueue_script')->never();
-		WP_Mock::userFunction('wp_add_inline_script')->never();
-
-		$result = $sut->enqueue_deferred_scripts($hook_name);
-		// Method returns void, not chainable in this context.
-	}
-
-	/**
-     * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::enqueue_deferred_scripts
-     */
-	public function skip_test_enqueue_deferred_scripts_hook_set_but_empty(): void {
-		$hook_name = 'my_empty_hook';
-
-		/** @var \Ran\PluginLib\Tests\Unit\EnqueueAccessory\ConcreteEnqueueForScriptTesting&\PHPUnit\Framework\MockObject\MockObject $sut */
-		$sut = $this->getMockBuilder(ConcreteEnqueueForScriptTesting::class)
-			->setConstructorArgs(array($this->config_mock, $this->logger_mock))
-			->onlyMethods(array('get_logger', '_process_single_script'))
-			->getMock();
-		$sut->method('get_logger')->willReturn($this->logger_mock);
-
-		// Set deferred_scripts to an array where the hook exists but is empty
-		$this->set_protected_property_value($sut, 'deferred_scripts', array($hook_name => array()));
-
-		$this->logger_mock->shouldReceive('debug')
-			->with("ScriptsEnqueueTrait::enqueue_deferred_scripts - Entered for hook: \"{$hook_name}\"")
-			->once()
-			->ordered();
-
-		$this->logger_mock->shouldReceive('debug')
-			->with("ScriptsEnqueueTrait::enqueue_deferred_scripts - Hook \"{$hook_name}\" was set but had no scripts. It has now been cleared.")
-			->once()
-			->ordered();
-
-		$sut->expects($this->never())->method('_process_single_script');
-		WP_Mock::userFunction('wp_enqueue_script')->never();
-		WP_Mock::userFunction('wp_add_inline_script')->never();
-
-		$result = $sut->enqueue_deferred_scripts($hook_name);
-		// Method returns void, not chainable in this context.
-	}
-
-	/**
-	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::enqueue_deferred_scripts
-	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::get_logger
-	 */
-	public function skip_test_enqueue_deferred_scripts_skips_script_missing_handle(): void {
-		$hook_name             = 'hook_with_invalid_script';
-		$script_without_handle = array(
-			// 'handle' => 'my-script', // Missing handle
-			'src' => 'path/to/script.js',
-		);
-
-		/** @var \Ran\PluginLib\Tests\Unit\EnqueueAccessory\ConcreteEnqueueForScriptTesting&\PHPUnit\Framework\MockObject\MockObject $sut */
-		$sut = $this->getMockBuilder(ConcreteEnqueueForScriptTesting::class)
-			->setConstructorArgs(array($this->config_mock, $this->logger_mock))
-			->onlyMethods(array('get_logger', '_process_single_script'))
-			->getMock();
-		$sut->method('get_logger')->willReturn($this->logger_mock);
-
-		// Set deferred_scripts with the invalid script
-		$this->set_protected_property_value($sut, 'deferred_scripts', array($hook_name => array($script_without_handle)));
-
-		$this->logger_mock->shouldReceive('debug')
-			->with("ScriptsEnqueueTrait::enqueue_deferred_scripts - Entered for hook: \"{$hook_name}\"")
-			->once()
-			->ordered();
-
-		$this->logger_mock->shouldReceive('error')
-			->with("ScriptsEnqueueTrait::enqueue_deferred_scripts - Script definition missing 'handle' for hook '{$hook_name}'. Skipping this script definition.")
-			->once()
-			->ordered();
-
-		$sut->expects($this->never())->method('_process_single_script');
-		WP_Mock::userFunction('wp_script_is')->never(); // Should not be called if handle is missing
-		WP_Mock::userFunction('wp_enqueue_script')->never();
-		WP_Mock::userFunction('wp_add_inline_script')->never();
-
-		$sut->enqueue_deferred_scripts($hook_name);
-
-		// Verify the hook was cleared from deferred_scripts
-		$remaining_deferred = $this->get_protected_property_value($sut, 'deferred_scripts');
-		$this->assertArrayNotHasKey($hook_name, $remaining_deferred, 'Hook should be cleared from deferred_scripts after processing.');
-	}
-
-
-	/**
-	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::enqueue_deferred_scripts
-	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::get_logger
-	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::_process_single_script
-	 */
-	public function skip_test_enqueue_deferred_scripts_process_single_script_fails(): void {
-		$hook_name         = 'hook_process_fail';
-		$script_handle     = 'script-that-fails-processing';
-		$script_definition = array(
-			'handle' => $script_handle,
-			'src'    => 'path/to/script.js',
-		);
-
-		/** @var \Ran\PluginLib\Tests\Unit\EnqueueAccessory\ConcreteEnqueueForScriptTesting&\PHPUnit\Framework\MockObject\MockObject $sut */
-		$sut = $this->getMockBuilder(ConcreteEnqueueForScriptTesting::class)
-			->setConstructorArgs(array($this->config_mock, $this->logger_mock))
-			->onlyMethods(array('get_logger', '_process_single_script'))
-			->getMock();
-		$sut->method('get_logger')->willReturn($this->logger_mock);
-		$this->set_protected_property_value($sut, 'deferred_scripts', array($hook_name => array($script_definition)));
-
-		// Mock _process_single_script to simulate failure
-		$sut->expects($this->once())
-			->method('_process_single_script')
-			->with($script_definition)
-			->willReturn(null); // Simulate failure
-
-		$this->logger_mock->shouldReceive('debug')
-			->with("ScriptsEnqueueTrait::enqueue_deferred_scripts - Entered for hook: \"{$hook_name}\"")
-			->once()
-			->ordered();
-
-		// wp_script_is checks
-		WP_Mock::userFunction('wp_script_is')
-			->with($script_handle, 'registered')
-			->times(1) // Or more depending on logger active status, ensure it's called
-			->andReturn(true); // Assume registered for this test path
-		WP_Mock::userFunction('wp_script_is')
-			->with($script_handle, 'enqueued')
-			->times(1)
-			->andReturn(false); // Not enqueued
-
-		$this->logger_mock->shouldReceive('debug')
-			->with("ScriptsEnqueueTrait::enqueue_deferred_scripts - Processing deferred script: \"{$script_handle}\" for hook: \"{$hook_name}\"")
-			->once()
-			->ordered();
-
-		$this->logger_mock->shouldReceive('warning')
-			->with("ScriptsEnqueueTrait::enqueue_deferred_scripts - _process_single_script returned an unexpected handle ('') or empty for original handle '{$script_handle}' on hook \"{$hook_name}\". Skipping main script enqueue and its inline scripts.")
-			->once()
-			->ordered();
-
-		WP_Mock::userFunction('wp_enqueue_script')->never();
-		WP_Mock::userFunction('wp_add_inline_script')->never();
-
-		$sut->enqueue_deferred_scripts($hook_name);
-
-		$remaining_deferred = $this->get_protected_property_value($sut, 'deferred_scripts');
-		$this->assertArrayNotHasKey($hook_name, $remaining_deferred);
-	}
-
-
-	/**
-	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::enqueue_deferred_scripts
-	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::get_logger
-	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::_process_single_script
-	 */
-	public function skip_test_enqueue_deferred_scripts_success_with_inline_script(): void {
-		$hook_name              = 'hook_success_inline';
-		$main_script_handle     = 'main-deferred-script';
-		$main_script_definition = array(
-			'handle'    => $main_script_handle,
-			'src'       => 'path/to/main-script.js',
-			'deps'      => array(),
-			'version'   => '1.0',
-			'in_footer' => false,
-		);
-		$inline_script_content = 'console.log("Inline for main-deferred-script");';
-		$inline_script_data    = array(
-			'handle'      => $main_script_handle,
-			'content'     => $inline_script_content,
-			'position'    => 'after',
-			'parent_hook' => $hook_name,
-			'condition'   => null,
-		);
-
-		/** @var \Ran\PluginLib\Tests\Unit\EnqueueAccessory\ConcreteEnqueueForScriptTesting&\PHPUnit\Framework\MockObject\MockObject $sut */
-		$sut = $this->getMockBuilder(ConcreteEnqueueForScriptTesting::class)
-			->setConstructorArgs(array($this->config_mock, $this->logger_mock))
-			->onlyMethods(array('get_logger', '_process_single_script'))
-			->getMock();
-		$sut->method('get_logger')->willReturn($this->logger_mock);
-		$this->set_protected_property_value($sut, 'deferred_scripts', array($hook_name => array($main_script_definition)));
-		$this->set_protected_property_value($sut, 'inline_scripts', array($inline_script_data)); // Add the inline script
-
-		// Mock _process_single_script to simulate success
-		$sut->expects($this->once())
-			->method('_process_single_script')
-			->with($main_script_definition, 'enqueue_deferred_scripts', $hook_name, true, false, false)
-			->willReturn($main_script_handle); // Simulate success
-
-		// Logger expectations in order
-		$this->logger_mock->shouldReceive('debug')
-			->with("ScriptsEnqueueTrait::enqueue_deferred_scripts - Entered for hook: \"{$hook_name}\"")
-			->once()->ordered();
-
-		WP_Mock::userFunction('wp_script_is')->with($main_script_handle, 'registered')->andReturn(true);
-		WP_Mock::userFunction('wp_script_is')->with($main_script_handle, 'enqueued')->andReturn(false);
-
-		$this->logger_mock->shouldReceive('debug')
-			->with("ScriptsEnqueueTrait::enqueue_deferred_scripts - Processing deferred script: \"{$main_script_handle}\" for hook: \"{$hook_name}\"")
-			->once()->ordered();
-
-		$this->logger_mock->shouldReceive('debug')
-			->with("ScriptsEnqueueTrait::enqueue_deferred_scripts - Calling wp_enqueue_script for deferred: \"{$main_script_handle}\" on hook: \"{$hook_name}\"")
-			->once()->ordered();
-
-		WP_Mock::userFunction('wp_enqueue_script')
-			->with($main_script_handle)
-			->once();
-
-		$this->logger_mock->shouldReceive('debug')
-			->with("ScriptsEnqueueTrait::enqueue_deferred_scripts - Checking for inline scripts for handle '{$main_script_handle}' on hook '{$hook_name}'.")
-			->once()->ordered();
-
-		WP_Mock::userFunction('wp_add_inline_script')
-			->with($main_script_handle, $inline_script_content)
-			->once();
-
-		$sut->enqueue_deferred_scripts($hook_name);
-
-		$remaining_deferred = $this->get_protected_property_value($sut, 'deferred_scripts');
-		$this->assertArrayNotHasKey($hook_name, $remaining_deferred);
-
-		// Assert inline script is removed by this method after processing
-		$remaining_inline = $this->get_protected_property_value($sut, 'inline_scripts');
-		$this->assertCount(0, $remaining_inline, 'Inline script should be removed after processing.');
-		$this->assertEmpty($remaining_inline, 'Inline scripts array should be empty.');
-	}
-
-	/**
-	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::enqueue_deferred_scripts
-	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::get_logger
-	 */
-	// public function skip_test_enqueue_deferred_scripts_already_enqueued_processes_inline(): void {
-	// 	$hook_name              = 'hook_already_enqueued';
-	// 	$main_script_handle     = 'already-enqueued-script';
-	// 	$main_script_definition = array(
-	// 		'handle' => $main_script_handle,
-	// 		'src'    => 'path/to/already-enqueued.js',
-	// 	);
-	// 	$inline_script_content = 'console.log("Inline for already-enqueued-script");';
-	// 	$inline_script_data    = array(
-	// 		'handle'      => $main_script_handle,
-	// 		'content'     => $inline_script_content,
-	// 		'position'    => 'after',
-	// 		'parent_hook' => $hook_name,
-	// 		'condition'   => null,
-	// 	);
-
-	// 	/** @var \Ran\PluginLib\Tests\Unit\EnqueueAccessory\ConcreteEnqueueForScriptTesting&\PHPUnit\Framework\MockObject\MockObject $sut */
-	// 	$sut = $this->getMockBuilder(ConcreteEnqueueForScriptTesting::class)
-	// 		->setConstructorArgs(array($this->config_mock, $this->logger_mock))
-	// 		->onlyMethods(array('get_logger', '_process_single_script'))
-	// 		->getMock();
-	// 	$sut->method('get_logger')->willReturn($this->logger_mock);
-	// 	$this->set_protected_property_value($sut, 'deferred_scripts', array($hook_name => array($main_script_definition)));
-	// 	$this->set_protected_property_value($sut, 'inline_scripts', array($inline_script_data));
-
-	// 	// Logger expectations
-	// 	$this->logger_mock->shouldReceive('debug')
-	// 		->with("ScriptsEnqueueTrait::enqueue_deferred_scripts - Entered for hook: \"{$hook_name}\"")
-	// 		->once()->ordered();
-
-	// 	// Script is already enqueued
-	// 	WP_Mock::userFunction('wp_script_is')->with($main_script_handle, 'registered')->andReturn(true);
-	// 	WP_Mock::userFunction('wp_script_is')->with($main_script_handle, 'enqueued')->andReturn(true);
-
-	// 	$this->logger_mock->shouldReceive('debug')
-	// 		->with("ScriptsEnqueueTrait::enqueue_deferred_scripts - Script '{$main_script_handle}' is already enqueued. Skipping its registration and main enqueue call on hook '{$hook_name}'. Inline scripts will still be processed.")
-	// 		->once()->ordered();
-
-	// 	// Main script processing and enqueue should be skipped
-	// 	$sut->expects($this->never())->method('_process_single_script');
-	// 	WP_Mock::userFunction('wp_enqueue_script')->with($main_script_handle)->never();
-
-	// 	// Inline script processing should still occur
-	// 	$this->logger_mock->shouldReceive('debug')
-	// 		->with("ScriptsEnqueueTrait::enqueue_deferred_scripts - Checking for inline scripts for handle '{$main_script_handle}' on hook '{$hook_name}'.")
-	// 		->once()->ordered();
-	// 	$this->logger_mock->shouldReceive('debug')
-	// 		->with("ScriptsEnqueueTrait::enqueue_deferred_scripts - Adding inline script for '{$main_script_handle}' (hook '{$hook_name}'), position 'after'.")
-	// 		->once()->ordered();
-
-	// 	WP_Mock::userFunction('wp_add_inline_script')
-	// 		->with($main_script_handle, $inline_script_content)
-	// 		->once();
-
-	// 	$sut->enqueue_deferred_scripts($hook_name);
-
-	// 	$remaining_deferred = $this->get_protected_property_value($sut, 'deferred_scripts');
-	// 	$this->assertArrayNotHasKey($hook_name, $remaining_deferred, 'Hook should be cleared.');
-
-	// 	$remaining_inline = $this->get_protected_property_value($sut, 'inline_scripts');
-	// 	$this->assertEmpty($remaining_inline, 'Inline script should be processed and removed.');
-	// }
-
-	/**
-	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::enqueue_deferred_scripts
-	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::get_logger
-	 */
-	// public function skip_test_enqueue_deferred_scripts_with_inactive_logger(): void {
-	// 	// Test was previously skipped, now re-enabling.
-
-	// 	$hook_name              = 'hook_inactive_logger';
-	// 	$main_script_handle     = 'inactive-logger-script';
-	// 	$main_script_definition = array(
-	// 		'handle'    => $main_script_handle,
-	// 		'src'       => 'path/to/inactive-logger.js',
-	// 		'deps'      => array(),
-	// 		'version'   => false,
-	// 		'in_footer' => false,
-	// 		'condition' => null,
-	// 	);
-
-	// 	$sut_logger_mock = Mockery::mock(\Ran\PluginLib\Util\Logger::class);
-	// 	$sut_logger_mock->shouldReceive('is_active')->andReturn(false); // Logger is inactive
-	// 	// Expect the final unconditional debug log
-	// 	$sut_logger_mock->shouldReceive('debug')
-	// 		->with("ScriptsEnqueueTrait::enqueue_deferred_scripts - Exited for hook: \"{$hook_name}\"")
-	// 		->never();
-	// 	// Other debug/error/warning calls should not occur if they are properly guarded by is_active()
-
-	// 	/** @var \Ran\PluginLib\Tests\Unit\EnqueueAccessory\ConcreteEnqueueForScriptTesting&\PHPUnit\Framework\MockObject\MockObject $sut */
-	// 	$sut = $this->getMockBuilder(ConcreteEnqueueForScriptTesting::class)
-	// 		->setConstructorArgs(array($this->config_mock, $this->logger_mock))
-	// 		->onlyMethods(array('get_logger', '_process_single_script'))
-	// 		->getMock();
-	// 	$sut->method('get_logger')->willReturn($sut_logger_mock);
-	// 	$sut->method('_process_single_script')
-	// 		->with($main_script_definition)
-	// 		->willReturn($main_script_handle);
-
-	// 	$this->set_protected_property_value($sut, 'deferred_scripts', array($hook_name => array($main_script_definition)));
-	// 	$this->set_protected_property_value($sut, 'inline_scripts', array()); // No inline scripts for this test
-
-	// 	// Expect wp_script_is to be called even with inactive logger
-	// 	WP_Mock::userFunction('wp_script_is')
-	// 		->with($main_script_handle, 'registered')
-	// 		->once()
-	// 		->andReturn(false); // Script not registered
-
-	// 	WP_Mock::userFunction('wp_script_is')
-	// 		->with($main_script_handle, 'enqueued')
-	// 		->once()
-	// 		->andReturn(false); // Script not enqueued
-
-
-	// 	// Expect main script to be enqueued
-	// 	WP_Mock::userFunction('wp_enqueue_script')
-	// 		->with($main_script_handle)
-	// 		->once();
-
-	// 	$sut->enqueue_deferred_scripts($hook_name);
-
-	// 	$remaining_deferred = $this->get_protected_property_value($sut, 'deferred_scripts');
-	// 	$this->assertArrayNotHasKey($hook_name, $remaining_deferred, 'Hook should be cleared from deferred_scripts.');
-	// }
-
-	/**
-	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::enqueue_deferred_scripts
-	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::get_logger
-	 */
-	public function skip_test_enqueue_deferred_scripts_already_enqueued_processes_inline(): void {
-		$hook_name              = 'hook_already_enqueued';
-		$main_script_handle     = 'already-enqueued-script';
-		$main_script_definition = array(
-			'handle' => $main_script_handle,
-			'src'    => 'path/to/already-enqueued.js',
-		);
-		$inline_script_content = 'console.log("Inline for already-enqueued-script");';
-		$inline_script_data    = array(
-			'handle'      => $main_script_handle,
-			'content'     => $inline_script_content,
-			'position'    => 'after',
-			'parent_hook' => $hook_name,
-			'condition'   => null,
-		);
-
-		/** @var \Ran\PluginLib\Tests\Unit\EnqueueAccessory\ConcreteEnqueueForScriptTesting&\PHPUnit\Framework\MockObject\MockObject $sut */
-		$sut = $this->getMockBuilder(ConcreteEnqueueForScriptTesting::class)
-			->setConstructorArgs(array($this->config_mock, $this->logger_mock))
-			->onlyMethods(array('get_logger', '_process_single_script'))
-			->getMock();
-		$sut->method('get_logger')->willReturn($this->logger_mock);
-		$this->set_protected_property_value($sut, 'deferred_scripts', array($hook_name => array($main_script_definition)));
-		$this->set_protected_property_value($sut, 'inline_scripts', array($inline_script_data));
-
-		// Logger expectations
-		$this->logger_mock->shouldReceive('debug')
-			->with("ScriptsEnqueueTrait::enqueue_deferred_scripts - Entered for hook: \"{$hook_name}\"")
-			->once()->ordered();
-
-		// Script is already enqueued
-		WP_Mock::userFunction('wp_script_is')->with($main_script_handle, 'registered')->andReturn(true);
-		WP_Mock::userFunction('wp_script_is')->with($main_script_handle, 'enqueued')->andReturn(true);
-
-		$this->logger_mock->shouldReceive('debug')
-			->with("ScriptsEnqueueTrait::enqueue_deferred_scripts - Script '{$main_script_handle}' is already enqueued. Skipping its registration and main enqueue call on hook '{$hook_name}'. Inline scripts will still be processed.")
-			->once()->ordered();
-
-		// Main script processing and enqueue should be skipped
-		$sut->expects($this->never())->method('_process_single_script');
-		WP_Mock::userFunction('wp_enqueue_script')->with($main_script_handle)->never();
-
-		// Inline script processing should still occur
-		$this->logger_mock->shouldReceive('debug')
-			->with("ScriptsEnqueueTrait::enqueue_deferred_scripts - Checking for inline scripts for handle '{$main_script_handle}' on hook '{$hook_name}'.")
-			->once()->ordered();
-		$this->logger_mock->shouldReceive('debug')
-			->with("ScriptsEnqueueTrait::enqueue_deferred_scripts - Adding inline script for '{$main_script_handle}' (hook '{$hook_name}'), position 'after'.")
-			->once()->ordered();
-
-		WP_Mock::userFunction('wp_add_inline_script')
-			->with($main_script_handle, $inline_script_content)
-			->once();
-
-		$sut->enqueue_deferred_scripts($hook_name);
-
-		$remaining_deferred = $this->get_protected_property_value($sut, 'deferred_scripts');
-		$this->assertArrayNotHasKey($hook_name, $remaining_deferred, 'Hook should be cleared.');
-
-		$remaining_inline = $this->get_protected_property_value($sut, 'inline_scripts');
-		$this->assertEmpty($remaining_inline, 'Inline script should be processed and removed.');
-	}
-
-	/**
-	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::enqueue_deferred_scripts
-	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::get_logger
-	 */
-	public function skip_test_enqueue_deferred_scripts_with_inactive_logger(): void {
-		// Test was previously skipped, now re-enabling.
-
-		$hook_name              = 'hook_inactive_logger';
-		$main_script_handle     = 'inactive-logger-script';
-		$main_script_definition = array(
-			'handle'    => $main_script_handle,
-			'src'       => 'path/to/inactive-logger.js',
-			'deps'      => array(),
-			'version'   => false,
-			'in_footer' => false,
-			'condition' => null,
-		);
-
-		$sut_logger_mock = Mockery::mock(\Ran\PluginLib\Util\Logger::class);
-		$sut_logger_mock->shouldReceive('is_active')->andReturn(false); // Logger is inactive
-		// Expect the final unconditional debug log
-		$sut_logger_mock->shouldReceive('debug')
-			->with("ScriptsEnqueueTrait::enqueue_deferred_scripts - Exited for hook: \"{$hook_name}\"")
-			->never();
-		// Other debug/error/warning calls should not occur if they are properly guarded by is_active()
-
-		/** @var \Ran\PluginLib\Tests\Unit\EnqueueAccessory\ConcreteEnqueueForScriptTesting&\PHPUnit\Framework\MockObject\MockObject $sut */
-		$sut = $this->getMockBuilder(ConcreteEnqueueForScriptTesting::class)
-			->setConstructorArgs(array($this->config_mock, $this->logger_mock))
-			->onlyMethods(array('get_logger', '_process_single_script'))
-			->getMock();
-		$sut->method('get_logger')->willReturn($sut_logger_mock);
-		$sut->method('_process_single_script')
-			->with($main_script_definition, 'enqueue_deferred_scripts', $hook_name, true, false, false)
-			->willReturn($main_script_handle);
-
-		$this->set_protected_property_value($sut, 'deferred_scripts', array($hook_name => array($main_script_definition)));
-		$this->set_protected_property_value($sut, 'inline_scripts', array()); // No inline scripts for this test
-
-		// Expect wp_script_is to be called even with inactive logger
-		WP_Mock::userFunction('wp_script_is')
-			->with($main_script_handle, 'registered')
-			->once()
-			->andReturn(false); // Script not registered
-
-		WP_Mock::userFunction('wp_script_is')
-			->with($main_script_handle, 'enqueued')
-			->once()
-			->andReturn(false); // Script not enqueued
-
-
-		// Expect main script to be enqueued
-		WP_Mock::userFunction('wp_enqueue_script')
-			->with($main_script_handle)
-			->once();
-
-		$sut->enqueue_deferred_scripts($hook_name);
-
-		$remaining_deferred = $this->get_protected_property_value($sut, 'deferred_scripts');
-		$this->assertArrayNotHasKey($hook_name, $remaining_deferred, 'Hook should be cleared from deferred_scripts.');
+	public function test_add_scripts_handles_empty_input_gracefully(): void {
+		// Logger expectations for ScriptsEnqueueTrait::add_scripts() with an empty array.
+		$this->logger_mock->shouldReceive('debug')->with('ScriptsEnqueueTrait::add_scripts - Entered with empty array. No scripts to add.')->once();
+
+		// Call the method under test
+		$this->instance->add_scripts(array());
+
+		// Retrieve and check stored scripts
+		$retrieved_scripts = $this->instance->get_scripts()['general'];
+		$this->assertCount(0, $retrieved_scripts, 'The scripts queue should be empty.');
 	}
 
 	/**
 	 * @test
 	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::register_scripts
-	 */
-	public function skip_test_register_scripts_defers_script_with_hook_and_adds_action(): void {
-		$hook_name                      = 'my_custom_registration_hook';
-		$script_handle                  = 'test-deferred-reg-script';
-		$script_src                     = 'path/to/deferred-reg.js';
-		$script_key_in_definition_array = 'script_def_reg';
-
-		$script_definition_data = array(
-			'handle' => $script_handle,
-			'src'    => $script_src,
-			'hook'   => $hook_name, // This will cause deferral
-		);
-
-		$scripts_to_add_initially = array(
-			$script_key_in_definition_array => $script_definition_data,
-		);
-
-		// --- Expectations for add_scripts() ---
-		$this->logger_mock->shouldReceive('debug')->with('ScriptsEnqueueTrait::add_scripts - Entry point.')->once()->ordered();
-		$this->logger_mock->shouldReceive('debug')->with("ScriptsEnqueueTrait::add_scripts - Adding script with key: {$script_key_in_definition_array}")->once()->ordered();
-		$this->logger_mock->shouldReceive('debug')->with('ScriptsEnqueueTrait::add_scripts - Exit point. New total scripts count: 1. All current script handles: ' . $script_handle)->once()->ordered();
-
-		// --- Expectations for register_scripts() ---
-		$this->logger_mock->shouldReceive('debug')
-			->with('ScriptsEnqueueTrait::register_scripts - Entry point. Processing 1 scripts.')
-			->once()
-			->ordered();
-
-		$this->logger_mock->shouldReceive('debug')
-			->with("ScriptsEnqueueTrait::register_scripts - Deferring script '{$script_handle}' to hook: {$hook_name}.")
-			->once()
-			->ordered();
-
-		WP_Mock::userFunction('has_action')
-			->with($hook_name, array($this->instance, 'enqueue_deferred_scripts'))
-			->once()
-			->andReturn(false);
-
-		WP_Mock::expectActionAdded($hook_name, array($this->instance, 'enqueue_deferred_scripts'), 10, 1);
-
-		$this->logger_mock->shouldReceive('debug')
-			->with("ScriptsEnqueueTrait::register_scripts - Added action 'enqueue_deferred_scripts' for hook '{$hook_name}'.")
-			->once()
-			->ordered();
-
-		$this->logger_mock->shouldReceive('debug')
-			->with('ScriptsEnqueueTrait::register_scripts - Exit point.')
-			->once()
-			->ordered();
-
-		// --- Act ---
-		$this->instance->add_scripts($scripts_to_add_initially);
-		$result = $this->instance->register_scripts();
-
-		// --- Assert ---
-		$this->assertSame($this->instance, $result, 'Method should be chainable.');
-		$deferred_scripts = $this->get_protected_property_value($this->instance, 'deferred_scripts');
-		$this->assertCount(1, $deferred_scripts, 'Should be one hook in deferred scripts.');
-		$this->assertArrayHasKey($hook_name, $deferred_scripts, 'The custom hook should be a key in deferred scripts.');
-		$this->assertCount(1, $deferred_scripts[$hook_name], 'Should be one script for the custom hook.');
-		$this->assertEquals($script_definition_data, $deferred_scripts[$hook_name][$script_handle], 'The script data should be correctly stored in deferred_scripts.');
-	}
-
-	/**
-	 * @test
-	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::register_scripts
-	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::add_scripts
 	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::_process_single_script
 	 */
 	public function test_register_scripts_registers_non_hooked_script_correctly(): void {
-		$script = array(
-			'handle'    => 'test-script',
-			'src'       => 'path/to/script.js',
-			'deps'      => array('dependency-1'),
-			'version'   => '1.1.0',
-			'in_footer' => true,
+		$script_to_add = array(
+			'handle'  => 'my-script',
+			'src'     => 'path/to/my-script.js',
+			'deps'    => array(),
+			'version' => '1.0',
+			'media'   => 'all',
 		);
 
-		// Set up expectations for add_scripts
+		// --- Logger Mocks for ScriptsEnqueueTrait::add_scripts() ---
+		$this->logger_mock->shouldReceive('debug')->with('ScriptsEnqueueTrait::add_scripts - Entered. Current script count: 0. Adding 1 new script(s).')->once()->ordered('add');
+		$this->logger_mock->shouldReceive('debug')->with('ScriptsEnqueueTrait::add_scripts - Adding script. Key: 0, Handle: my-script, Src: path/to/my-script.js')->once()->ordered('add');
+		$this->logger_mock->shouldReceive('debug')->with('ScriptsEnqueueTrait::add_scripts - Adding 1 script definition(s). Current total: 0')->once()->ordered('add');
+		$this->logger_mock->shouldReceive('debug')->with('ScriptsEnqueueTrait::add_scripts - Exiting. New total script count: 1')->once()->ordered('add');
+		$this->logger_mock->shouldReceive('debug')->with('ScriptsEnqueueTrait::add_scripts - All current script handles: my-script')->once()->ordered('add');
+
+		$this->instance->add_scripts(array($script_to_add));
+
+		// --- WP_Mock and Logger Mocks for register_scripts() ---
+		$is_registered = false;
+
+		$this->logger_mock->shouldReceive('debug')->with('ScriptsEnqueueTrait::register_scripts - Entered. Processing 1 script definition(s) for registration.')->once()->ordered('register');
+		$this->logger_mock->shouldReceive('debug')->with('ScriptsEnqueueTrait::register_scripts - Processing script: "my-script", original index: 0.')->once()->ordered('register');
+		$this->logger_mock->shouldReceive('debug')->with("ScriptsEnqueueTrait::_process_single_script - Processing script 'my-script' in context 'register_scripts'.")->once()->ordered('register');
+
+		// Mock wp_script_is to reflect the state change
+		WP_Mock::userFunction('wp_script_is', array(
+			'args'   => array('my-script', 'registered'),
+			'return' => function () use ( &$is_registered ) {
+				return $is_registered;
+			},
+		))->atLeast()->once();
+
+		$this->logger_mock->shouldReceive('debug')->with("ScriptsEnqueueTrait::_process_single_script - Registering script 'my-script'.")->once()->ordered('register');
+
+		// Mock wp_register_script to simulate the state change
+		WP_Mock::userFunction('wp_register_script', array(
+			'args'   => array('my-script', 'path/to/my-script.js', array(), '1.0', false),
+			'times'  => 1,
+			'return' => function () use ( &$is_registered ) {
+				$is_registered = true;
+				return true;
+			},
+		));
+
+		// Mocks for inline script processing
+		$this->logger_mock->shouldReceive('debug')->once()->with("ScriptsEnqueueTrait::_process_single_script - Checking for immediate inline scripts for 'my-script'.")->ordered('register');
+		$this->logger_mock->shouldReceive('debug')->once()->with("ScriptsEnqueueTrait::_process_inline_scripts (context: immediate from _process_single_script) - Checking for inline scripts for parent handle 'my-script'.")->ordered('register');
+		$this->logger_mock->shouldReceive('debug')->once()->with("ScriptsEnqueueTrait::_process_inline_scripts (context: immediate from _process_single_script) - No inline scripts found or processed for 'my-script'.")->ordered('register');
+
+		$this->logger_mock->shouldReceive('debug')->once()->with("ScriptsEnqueueTrait::_process_single_script - Finished processing script 'my-script'.")->ordered('register');
+		$this->logger_mock->shouldReceive('debug')->once()->with('ScriptsEnqueueTrait::register_scripts - Exited. Remaining immediate scripts: 1. Deferred scripts: 0.')->ordered('register');
+
+		// Call the method under test
+		$this->instance->register_scripts();
+
+		// Assert that the script is still in the queue for enqueuing later
+		$retrieved_scripts = $this->instance->get_scripts();
+		$this->assertCount(1, $retrieved_scripts['general']);
+		$this->assertEquals('my-script', $retrieved_scripts['general'][0]['handle']);
+	}
+
+	/**
+	 * @test
+	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::register_scripts
+	 */
+	public function test_register_scripts_defers_hooked_script_correctly(): void {
+		$script_to_add = array(
+			'handle' => 'my-deferred-script',
+			'src'    => 'path/to/deferred.js',
+			'hook'   => 'admin_enqueue_scripts',
+		);
+
+		// --- Logger Mocks for add_scripts() ---
+		$this->logger_mock->shouldReceive('debug')->once()->with('ScriptsEnqueueTrait::add_scripts - Entered. Current script count: 0. Adding 1 new script(s).');
+		$this->logger_mock->shouldReceive('debug')->once()->with('ScriptsEnqueueTrait::add_scripts - Adding script. Key: 0, Handle: my-deferred-script, Src: path/to/deferred.js');
+		$this->logger_mock->shouldReceive('debug')->once()->with('ScriptsEnqueueTrait::add_scripts - Adding 1 script definition(s). Current total: 0');
+		$this->logger_mock->shouldReceive('debug')->once()->with('ScriptsEnqueueTrait::add_scripts - Exiting. New total script count: 1');
+		$this->logger_mock->shouldReceive('debug')->once()->with('ScriptsEnqueueTrait::add_scripts - All current script handles: my-deferred-script');
+
+		$this->instance->add_scripts(array($script_to_add));
+
+		// --- WP_Mock and Logger Mocks for register_scripts() ---
+		WP_Mock::userFunction('has_action')
+			->with('admin_enqueue_scripts', array($this->instance, 'enqueue_deferred_scripts'))
+			->andReturn(false); // Mock that the action hasn't been added yet
+
+		WP_Mock::expectActionAdded('admin_enqueue_scripts', array($this->instance, 'enqueue_deferred_scripts'), 10, 1);
+
+		$this->logger_mock->shouldReceive('debug')->once()->with('ScriptsEnqueueTrait::register_scripts - Entered. Processing 1 script definition(s) for registration.');
+		$this->logger_mock->shouldReceive('debug')->once()->with('ScriptsEnqueueTrait::register_scripts - Processing script: "my-deferred-script", original index: 0.');
+		$this->logger_mock->shouldReceive('debug')->once()->with("ScriptsEnqueueTrait::register_scripts - Deferring registration of script 'my-deferred-script' (original index 0) to hook: admin_enqueue_scripts.");
+		$this->logger_mock->shouldReceive('debug')->once()->with("ScriptsEnqueueTrait::register_scripts - Added action for 'enqueue_deferred_scripts' on hook: admin_enqueue_scripts.");
+		$this->logger_mock->shouldReceive('debug')->once()->with('ScriptsEnqueueTrait::register_scripts - Exited. Remaining immediate scripts: 0. Deferred scripts: 4.');
+
+		// Call the method under test
+		$this->instance->register_scripts();
+
+		// Assert that the script is in the deferred queue
+		// Access protected property $deferred_scripts for assertion
+		$reflection           = new \ReflectionClass($this->instance);
+		$deferred_scripts_prop = $reflection->getProperty('deferred_scripts');
+		$deferred_scripts_prop->setAccessible(true);
+		$deferred_scripts = $deferred_scripts_prop->getValue($this->instance);
+
+		$this->assertArrayHasKey('admin_enqueue_scripts', $deferred_scripts);
+		$this->assertCount(1, $deferred_scripts['admin_enqueue_scripts']);
+		// The key for the script definition within the hook's array is its original index.
+		// In this test, we add a single script, so its original index is 0.
+		$this->assertArrayHasKey(0, $deferred_scripts['admin_enqueue_scripts']);
+		$this->assertEquals('my-deferred-script', $deferred_scripts['admin_enqueue_scripts'][0]['handle']);
+
+		// Assert that the main scripts queue is empty as the script was deferred
+		// Access protected property $scripts for assertion
+		$scripts_prop = $reflection->getProperty('scripts');
+		$scripts_prop->setAccessible(true);
+		$scripts_array = $scripts_prop->getValue($this->instance);
+		$this->assertEmpty($scripts_array);
+	}
+
+	/**
+	 * @test
+	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::register_scripts
+	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::_process_single_script
+	 */
+	public function test_register_scripts_skips_script_if_condition_is_false(): void {
+		$script_to_add = array(
+			'handle'    => 'my-conditional-script',
+			'src'       => 'path/to/conditional.js',
+			'condition' => function () {
+				return false;
+			},
+		);
+
+		// --- Logger Mocks for add_scripts() ---
+		$this->logger_mock->shouldReceive('debug')->once()->with('ScriptsEnqueueTrait::add_scripts - Entered. Current script count: 0. Adding 1 new script(s).');
+		$this->logger_mock->shouldReceive('debug')->once()->with('ScriptsEnqueueTrait::add_scripts - Adding script. Key: 0, Handle: my-conditional-script, Src: path/to/conditional.js');
+		$this->logger_mock->shouldReceive('debug')->once()->with('ScriptsEnqueueTrait::add_scripts - Adding 1 script definition(s). Current total: 0');
+		$this->logger_mock->shouldReceive('debug')->once()->with('ScriptsEnqueueTrait::add_scripts - Exiting. New total script count: 1');
+		$this->logger_mock->shouldReceive('debug')->once()->with('ScriptsEnqueueTrait::add_scripts - All current script handles: my-conditional-script');
+
+		$this->instance->add_scripts(array($script_to_add));
+
+		// --- WP_Mock and Logger Mocks for register_scripts() ---
+		$this->logger_mock->shouldReceive('debug')->once()->with('ScriptsEnqueueTrait::register_scripts - Entered. Processing 1 script definition(s) for registration.');
+		$this->logger_mock->shouldReceive('debug')->once()->with('ScriptsEnqueueTrait::register_scripts - Processing script: "my-conditional-script", original index: 0.');
+		$this->logger_mock->shouldReceive('debug')->once()->with("ScriptsEnqueueTrait::_process_single_script - Processing script 'my-conditional-script' in context 'register_scripts'.");
+		$this->logger_mock->shouldReceive('debug')->once()->with("ScriptsEnqueueTrait::_process_single_script - Condition not met for script 'my-conditional-script'. Skipping.");
+
+		// Assert that wp_register_script is never called
+		WP_Mock::userFunction('wp_register_script')->never();
+		$this->logger_mock->shouldReceive('debug')->once()->with('ScriptsEnqueueTrait::register_scripts - Exited. Remaining immediate scripts: 0. Deferred scripts: 0.');
+
+		// Call the method under test
+		$this->instance->register_scripts();
+
+		// Assert that the script was processed and removed from the immediate queue
+		$this->assertEmpty($this->instance->get_scripts()['general']);
+	}
+
+	/**
+	 * @test
+	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::enqueue_scripts
+	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::_process_single_script
+	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::_process_inline_scripts
+	 */
+	public function test_enqueue_scripts_enqueues_registered_script(): void {
+		$script_to_add = array(
+			'handle'  => 'my-basic-script',
+			'src'     => 'path/to/basic.js',
+			'deps'    => array(),
+			'version' => '1.0',
+			'media'   => 'all',
+		);
+
+		// --- Mocks for add_scripts() ---
+		$this->logger_mock->shouldReceive('debug')->once()->with('ScriptsEnqueueTrait::add_scripts - Entered. Current script count: 0. Adding 1 new script(s).');
+		$this->logger_mock->shouldReceive('debug')->once()->with('ScriptsEnqueueTrait::add_scripts - Adding script. Key: 0, Handle: my-basic-script, Src: path/to/basic.js');
+		$this->logger_mock->shouldReceive('debug')->once()->with('ScriptsEnqueueTrait::add_scripts - Adding 1 script definition(s). Current total: 0');
+		$this->logger_mock->shouldReceive('debug')->once()->with('ScriptsEnqueueTrait::add_scripts - Exiting. New total script count: 1');
+		$this->logger_mock->shouldReceive('debug')->once()->with('ScriptsEnqueueTrait::add_scripts - All current script handles: my-basic-script');
+		$this->instance->add_scripts(array($script_to_add));
+
+		// --- Consolidated WP_Mock::userFunction('wp_script_is', ...) calls for 'my-basic-script' ---
+		// For 'registered' status - 4 calls expected:
+		// 1. In register_scripts->_process_single_script (trait L551): before wp_register_script -> returns false
+		// 2. In register_scripts->_process_single_script->_process_inline_scripts (trait L440): after wp_register_script -> returns true
+		// 3. In enqueue_scripts->_process_single_script (trait L551): script already registered -> returns true
+		// 4. In enqueue_scripts->_process_single_script->_process_inline_scripts (trait L440): script still registered -> returns true (for short-circuiting)
+		WP_Mock::userFunction('wp_script_is')
+		    ->with('my-basic-script', 'registered')
+		    ->times(4)
+		    ->andReturnValues(array(false, true, true, true));
+
+		// For 'enqueued' status - 1 call expected:
+		// 1. In enqueue_scripts->_process_single_script (trait L570): returns false (before wp_enqueue_script call).
+		// The call at _process_inline_scripts (trait L440) for 'enqueued' status is NOT expected if short-circuiting works correctly.
+		WP_Mock::userFunction('wp_script_is')
+		    ->with('my-basic-script', 'enqueued')
+		    ->times(1)
+		    ->andReturnValues(array(false));
+
+		// --- Mocks for register_scripts() ---
+		$this->logger_mock->shouldReceive('debug')->once()->with('ScriptsEnqueueTrait::register_scripts - Entered. Processing 1 script definition(s) for registration.');
+		$this->logger_mock->shouldReceive('debug')->once()->with('ScriptsEnqueueTrait::register_scripts - Processing script: "my-basic-script", original index: 0.');
+		// _process_single_script (called by register_scripts)
+		// Call to wp_script_is('my-basic-script', 'registered') handled by consolidated mock (1st call, returns false)
+		$this->logger_mock->shouldReceive('debug')->once()->with("ScriptsEnqueueTrait::_process_single_script - Processing script 'my-basic-script' in context 'register_scripts'.");
+		$this->logger_mock->shouldReceive('debug')->once()->with("ScriptsEnqueueTrait::_process_single_script - Registering script 'my-basic-script'.");
+		WP_Mock::userFunction('wp_register_script', array('args' => array('my-basic-script', 'path/to/basic.js', array(), '1.0', false), 'times' => 1, 'return' => true));
+		$this->logger_mock->shouldReceive('debug')->once()->with("ScriptsEnqueueTrait::_process_single_script - Finished processing script 'my-basic-script'.");
+		$this->logger_mock->shouldReceive('debug')->once()->with('ScriptsEnqueueTrait::register_scripts - Exited. Remaining immediate scripts: 1. Deferred scripts: 0.');
+		$this->instance->register_scripts();
+
+		// --- Mocks for enqueue_scripts() ---
+		$this->logger_mock->shouldReceive('debug')->once()->with('ScriptsEnqueueTrait::enqueue_scripts - Entered. Processing 1 script definition(s) from internal queue.');
+		$this->logger_mock->shouldReceive('debug')->once()->with('ScriptsEnqueueTrait::enqueue_scripts - Processing script: "my-basic-script", original index: 0.');
+
+		// _process_single_script (called by enqueue_scripts)
+		// The call to wp_script_is('my-basic-script', 'registered') at trait line 551 is handled by the
+		// second call to the consolidated mock (defined earlier), which returns true.
+		$this->logger_mock->shouldReceive('debug')->once()->with("ScriptsEnqueueTrait::_process_single_script - Processing script 'my-basic-script' in context 'enqueue_scripts'.");
+		$this->logger_mock->shouldReceive('debug')->once()->with("ScriptsEnqueueTrait::_process_single_script - Script 'my-basic-script' already registered. Skipping wp_register_script."); // Log from line 553
+		// Enqueue check within _process_single_script (do_enqueue=true)
+		// The call to wp_script_is('my-basic-script', 'enqueued') at trait line 570 is handled by the
+		// consolidated mock for 'enqueued' status (defined earlier), which returns false.
+		$this->logger_mock->shouldReceive('debug')->once()->with("ScriptsEnqueueTrait::_process_single_script - Enqueuing script 'my-basic-script'.");
+		WP_Mock::userFunction('wp_enqueue_script', array('args' => array('my-basic-script'), 'times' => 1));
+		// Inline script check within _process_single_script
+		        $this->logger_mock->shouldReceive('debug')->once()->with("ScriptsEnqueueTrait::_process_single_script - Checking for immediate inline scripts for 'my-basic-script'.");
+		// _process_inline_scripts (called by _process_single_script from enqueue_scripts)
+		$this->logger_mock->shouldReceive('debug')->once()->with("ScriptsEnqueueTrait::_process_inline_scripts (context: immediate from _process_single_script) - Checking for inline scripts for parent handle 'my-basic-script'.");
+		// Parent script 'my-basic-script' will have been enqueued by wp_enqueue_script just before _process_inline_scripts is called.
+		// Parent check in _process_inline_scripts (trait line 440): `if ( ! wp_script_is( $parent_handle, 'registered' ) && ! wp_script_is( $parent_handle, 'enqueued' ) )`
+		// The call to wp_script_is('my-basic-script', 'registered') at trait line 440 is handled by the
+		// third call to the consolidated mock for 'registered' status (defined earlier), which returns true.
+		// Because `!wp_script_is(..., 'registered')` evaluates to `!true` (which is `false`),
+		// the `&&` condition short-circuits.
+		// Therefore, the `wp_script_is('my-basic-script', 'enqueued')` part of the condition at trait line 440 is NOT executed.
+		// This prevents the "No matching handler found" error for that specific call.
+		$this->logger_mock->shouldReceive('debug')->once()->with("ScriptsEnqueueTrait::_process_inline_scripts (context: immediate from _process_single_script) - No inline scripts found or processed for 'my-basic-script'.");
+		$this->logger_mock->shouldReceive('debug')->once()->with("ScriptsEnqueueTrait::_process_single_script - Finished processing script 'my-basic-script'.");
+
+		$this->logger_mock->shouldReceive('debug')->once()->with('ScriptsEnqueueTrait::enqueue_scripts - Exited. Deferred scripts count: 0.');
+
+		$this->instance->enqueue_scripts();
+
+		$this->assertEmpty($this->instance->get_scripts()['general']);
+	}
+
+	/**
+	 * @test
+	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::enqueue_deferred_scripts
+	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::_process_single_script
+	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::_process_inline_scripts
+	 */
+	public function test_enqueue_deferred_scripts_processes_and_enqueues_script_on_hook(): void {
+		// Arrange
+		$this->logger_mock->shouldReceive('is_active')->andReturn(true);
+
+		$script_handle = 'my-deferred-script';
+		$hook_name    = 'wp_footer';
+
+		$deferred_script = array(
+			'handle'  => $script_handle,
+			'src'     => 'path/to/deferred.js',
+			'deps'    => array(),
+			'version' => '1.0',
+			'media'   => 'all',
+			'hook'    => $hook_name,
+		);
+
+		// --- Act 1: Add the script ---
+		$add_scripts_prefix = 'ScriptsEnqueueTrait::add_scripts';
+		$this->logger_mock->shouldReceive('debug')->once()->with("{$add_scripts_prefix} - Entered. Current script count: 0. Adding 1 new script(s).");
+		$this->logger_mock->shouldReceive('debug')->once()->with("{$add_scripts_prefix} - Adding script. Key: 0, Handle: {$script_handle}, Src: path/to/deferred.js");
+		$this->logger_mock->shouldReceive('debug')->once()->with("{$add_scripts_prefix} - Adding 1 script definition(s). Current total: 0");
+		$this->logger_mock->shouldReceive('debug')->once()->with("{$add_scripts_prefix} - Exiting. New total script count: 1");
+		$this->logger_mock->shouldReceive('debug')->once()->with("{$add_scripts_prefix} - All current script handles: {$script_handle}");
+		$this->instance->add_scripts(array($deferred_script));
+
+		// --- Act 2: Register the script (which defers it) ---
+		$register_scripts_prefix = 'ScriptsEnqueueTrait::register_scripts - ';
+		$this->logger_mock->shouldReceive('debug')->once()->with($register_scripts_prefix . 'Entered. Processing 1 script definition(s) for registration.');
+		$this->logger_mock->shouldReceive('debug')->once()->with($register_scripts_prefix . "Processing script: \"{$script_handle}\", original index: 0.");
+		$this->logger_mock->shouldReceive('debug')->once()->with($register_scripts_prefix . "Deferring registration of script '{$script_handle}' (original index 0) to hook: {$hook_name}.");
+		WP_Mock::userFunction('has_action', array(
+			'args'   => array($hook_name, array($this->instance, 'enqueue_deferred_scripts')),
+			'times'  => 1,
+			'return' => false
+		));
+		WP_Mock::expectActionAdded($hook_name, array($this->instance, 'enqueue_deferred_scripts'), 10, 1);
+		$this->logger_mock->shouldReceive('debug')->once()->with($register_scripts_prefix . "Added action for 'enqueue_deferred_scripts' on hook: {$hook_name}.");
+		$this->logger_mock->shouldReceive('debug')
+			->once()
+			->withArgs(function ($message) {
+				return str_starts_with($message, 'ScriptsEnqueueTrait::register_scripts - Exited. Remaining immediate scripts: 0') && str_contains($message, '. Deferred scripts:');
+			});
+		$this->instance->register_scripts();
+
+		// --- Assert state after registration ---
+		$deferred_scripts_prop = new \ReflectionProperty($this->instance, 'deferred_scripts');
+		$deferred_scripts_prop->setAccessible(true);
+		$current_deferred = $deferred_scripts_prop->getValue($this->instance);
+		$this->assertArrayHasKey($hook_name, $current_deferred);
+		$this->assertEquals($script_handle, $current_deferred[$hook_name][0]['handle']);
+
+		// --- Act 3: Trigger the deferred enqueue ---
+		$enqueue_deferred_prefix = 'ScriptsEnqueueTrait::enqueue_deferred_scripts - ';
+		$process_single_prefix   = 'ScriptsEnqueueTrait::_process_single_script - ';
+
+		// This is the key fix: "Entered hook" not "Entered for hook"
+		$this->logger_mock->shouldReceive('debug')->once()->with($enqueue_deferred_prefix . "Entered hook: \"{$hook_name}\".");
+		$this->logger_mock->shouldReceive('debug')->once()->with($enqueue_deferred_prefix . "Processing deferred script: \"{$script_handle}\" (original index 0) for hook: \"{$hook_name}\".");
+
+		// _process_single_script mocks
+		$this->logger_mock->shouldReceive('debug')->once()->with($process_single_prefix . "Processing script '{$script_handle}' on hook '{$hook_name}' in context 'enqueue_deferred'.");
+		WP_Mock::userFunction('wp_script_is')->with($script_handle, 'registered')->times(2)->andReturnValues(array(false, true));
+		$this->logger_mock->shouldReceive('debug')->once()->with($process_single_prefix . "Registering script '{$script_handle}' on hook '{$hook_name}'.");
+		WP_Mock::userFunction('wp_register_script', array('args' => array($script_handle, 'path/to/deferred.js', array(), '1.0', false), 'times' => 1, 'return' => true));
+		WP_Mock::userFunction('wp_script_is')->with($script_handle, 'enqueued')->once()->andReturn(false);
+		$this->logger_mock->shouldReceive('debug')->once()->with($process_single_prefix . "Enqueuing script '{$script_handle}' on hook '{$hook_name}'.");
+		WP_Mock::userFunction('wp_enqueue_script', array('args' => array($script_handle), 'times' => 1));
+		$this->logger_mock->shouldReceive('debug')->once()->with($process_single_prefix . "Finished processing script '{$script_handle}' on hook '{$hook_name}'.");
+
+		// Final log in enqueue_deferred_scripts
+		$this->logger_mock->shouldReceive('debug')->once()->with($enqueue_deferred_prefix . "Exited for hook: \"{$hook_name}\".");
+
+		// Execute
+		$this->instance->enqueue_deferred_scripts($hook_name);
+
+		// --- Assert final state ---
+		$current_deferred_after = $deferred_scripts_prop->getValue($this->instance);
+		$this->assertArrayNotHasKey($hook_name, $current_deferred_after, 'Deferred scripts for the hook should be cleared after processing.');
+	} // End of test_enqueue_deferred_scripts_processes_and_enqueues_script_on_hook
+
+	/**
+	 * @test
+	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::enqueue_deferred_scripts
+	 */
+	public function test_enqueue_deferred_scripts_skips_if_hook_not_set(): void {
+		// Arrange
+		$hook_name  = 'non_existent_hook';
+		$log_prefix = 'ScriptsEnqueueTrait::enqueue_deferred_scripts - ';
+		$this->logger_mock->shouldReceive('is_active')->andReturn(true);
+
+		// Logger expectations
+		$this->logger_mock->shouldReceive('debug')
+			->once()
+			->with($log_prefix . 'Entered hook: "' . $hook_name . '".');
+
+		$this->logger_mock->shouldReceive('debug')
+			->once()
+			->with($log_prefix . 'Hook "' . $hook_name . '" not found in deferred scripts. Nothing to process.');
+
+		// Act
+		$this->instance->enqueue_deferred_scripts($hook_name);
+
+		// Assert
+		// Mockery handles the primary assertions. This is a final state check for robustness.
+		$deferred_scripts_prop = new \ReflectionProperty($this->instance, 'deferred_scripts');
+		$deferred_scripts_prop->setAccessible(true);
+		$current_deferred = $deferred_scripts_prop->getValue($this->instance);
+		$this->assertArrayNotHasKey($hook_name, $current_deferred, 'Hook should not have been added to deferred_scripts.');
+	}
+
+	/**
+	 * @test
+	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::enqueue_deferred_scripts
+	 */
+	public function test_enqueue_deferred_scripts_skips_if_hook_set_but_empty(): void {
+		// Arrange
+		$hook_name  = 'empty_hook_for_scripts';
+		$log_prefix = 'ScriptsEnqueueTrait::enqueue_deferred_scripts - ';
+
+		// Set the deferred_scripts property to have the hook, but with an empty array of scripts.
+		$deferred_scripts_prop = new \ReflectionProperty($this->instance, 'deferred_scripts');
+		$deferred_scripts_prop->setAccessible(true);
+		$deferred_scripts_prop->setValue($this->instance, array($hook_name => array()));
+
+		// Ensure the logger is considered active for the conditional log statements.
+		$this->logger_mock->shouldReceive('is_active')->andReturn(true);
+
+		// Logger expectations
+		$this->logger_mock->shouldReceive('debug')
+			->once()
+			->with($log_prefix . 'Entered hook: "' . $hook_name . '".');
+
+		$this->logger_mock->shouldReceive('debug')
+			->once()
+			->with($log_prefix . 'Hook "' . $hook_name . '" was set but had no scripts. It has now been cleared.');
+
+		// Act
+		$this->instance->enqueue_deferred_scripts($hook_name);
+
+		// Assert
+		$current_deferred = $deferred_scripts_prop->getValue($this->instance);
+		$this->assertArrayNotHasKey($hook_name, $current_deferred, 'The hook should be cleared from deferred scripts.');
+	}
+
+	/**
+	 * Tests basic addition of an inline script when the logger is inactive.
+	 */
+	public function test_add_inline_scripts_basic_no_logger() {
+		// Arrange: Configure logger to be inactive for this test
+		$this->logger_mock->shouldReceive('is_active')->andReturn(false);
+
+		$handle            = 'test-script-handle';
+		$content           = '.test-class { color: blue; }';
+		$expected_position = 'after'; // Default
+
+		// Act: Call the method under test
+		$this->instance->add_inline_scripts( $handle, $content );
+
+		// Assert: Check the internal $inline_scripts property
+		$inline_scripts = $this->get_protected_property_value( $this->instance, 'inline_scripts' );
+
+		$this->assertCount( 1, $inline_scripts, 'Expected one inline script to be added.' );
+		$added_script = $inline_scripts[0];
+
+		$this->assertEquals( $handle, $added_script['handle'], 'Handle does not match.' );
+		$this->assertEquals( $content, $added_script['content'], 'Content does not match.' );
+		$this->assertEquals( $expected_position, $added_script['position'], 'Position does not match default.' );
+		$this->assertNull( $added_script['condition'], 'Condition should be null by default.' );
+		$this->assertNull( $added_script['parent_hook'], 'Parent hook should be null by default.' );
+	} // End of test_add_inline_scripts_basic_no_logger
+
+	/**
+	 * Tests addition of an inline script with an active logger and ensures correct log messages.
+	 */
+	public function test_add_inline_scripts_with_active_logger() {
+		// Arrange: Configure logger to be active
+		$this->logger_mock->shouldReceive('is_active')->andReturn(true);
+
+		$handle  = 'test-log-handle';
+		$content = '.log-class { font-weight: bold; }';
+		// inline_scripts is reset to [] in setUp, so initial count is 0.
+		$initial_inline_scripts_count = 0;
+
+		// Logger expectations
+		$this->logger_mock->shouldReceive('debug')
+			->once()
+			->with("ScriptsEnqueueTrait::add_inline_scripts - Entered. Current inline script count: {$initial_inline_scripts_count}. Adding new inline script for handle: " . \esc_html($handle));
+
+		// No parent hook finding log expected in this basic case as $this->scripts is empty.
+
+		$this->logger_mock->shouldReceive('debug')
+			->once()
+			->with('ScriptsEnqueueTrait::add_inline_scripts - Exiting. New total inline script count: ' . ($initial_inline_scripts_count + 1));
+
+		// Act: Call the method under test
+		$this->instance->add_inline_scripts($handle, $content);
+
+		// Assert: Check the internal $inline_scripts property (basic check, primary assertion is logger)
+		$inline_scripts = $this->get_protected_property_value( $this->instance, 'inline_scripts' );
+		$this->assertCount($initial_inline_scripts_count + 1, $inline_scripts, 'Expected one inline script to be added.');
+		// Get the last added script (which will be the first if initial_inline_scripts_count is 0)
+		$added_script = $inline_scripts[$initial_inline_scripts_count];
+
+		$this->assertEquals($handle, $added_script['handle']);
+		$this->assertEquals($content, $added_script['content']);
+	} // End of test_add_inline_scripts_with_active_logger
+
+	/**
+	 * Tests that add_inline_scripts correctly associates a parent_hook
+	 * from an existing registered script if not explicitly provided.
+	 */
+	public function test_add_inline_scripts_associates_parent_hook_from_registered_scripts() {
+		// Arrange: Configure logger to be active
+		$this->logger_mock->shouldReceive('is_active')->andReturn(true);
+
+		$parent_handle               = 'parent-for-inline';
+		$parent_hook_name            = 'my_custom_parent_hook';
+		$inline_content              = 'console.log("Inline script for parent: " + ' . \esc_html($parent_handle) . ');';
+		$initial_inline_scripts_count = 0; // As it's reset in setUp
+
+		// Pre-populate the $scripts property with a parent script
+		$parent_script_definition = array(
+			'handle'    => $parent_handle,
+			'src'       => 'path/to/parent.js',
+			'deps'      => array(),
+			'ver'       => '1.0',
+			'media'     => 'all',
+			'hook'      => $parent_hook_name, // This is key
+			'condition' => null,
+			'extra'     => array(),
+		);
+		$scripts_property = new \ReflectionProperty(ConcreteEnqueueForScriptsTesting::class, 'scripts');
+		$scripts_property->setAccessible(true);
+		$scripts_property->setValue($this->instance, array($parent_script_definition));
+
+		// Logger expectations
+		$this->logger_mock->shouldReceive('debug')
+			->once()
+			->with("ScriptsEnqueueTrait::add_inline_scripts - Entered. Current inline script count: {$initial_inline_scripts_count}. Adding new inline script for handle: " . \esc_html($parent_handle));
+
+		$this->logger_mock->shouldReceive('debug')
+			->once()
+			->with("ScriptsEnqueueTrait::add_inline_scripts - Inline script for '{$parent_handle}' associated with parent hook: '{$parent_hook_name}'. Original parent script hook: '{$parent_hook_name}'.");
+
+		$this->logger_mock->shouldReceive('debug')
+			->once()
+			->with('ScriptsEnqueueTrait::add_inline_scripts - Exiting. New total inline script count: ' . ($initial_inline_scripts_count + 1));
+
+		// Act: Call the method under test, $parent_hook is null by default
+		$this->instance->add_inline_scripts($parent_handle, $inline_content);
+
+		// Assert: Check the internal $inline_scripts property
+		$inline_scripts_array = $this->get_protected_property_value($this->instance, 'inline_scripts');
+		$this->assertCount($initial_inline_scripts_count + 1, $inline_scripts_array, 'Expected one inline script to be added.');
+
+		$added_inline_script = $inline_scripts_array[$initial_inline_scripts_count];
+		$this->assertEquals($parent_handle, $added_inline_script['handle']);
+		$this->assertEquals($inline_content, $added_inline_script['content']);
+		$this->assertEquals($parent_hook_name, $added_inline_script['parent_hook'], 'Parent hook was not correctly associated from the registered script.');
+	} // End of test_add_inline_scripts_associates_parent_hook_from_registered_scripts
+
+	/**
+	 * @test
+	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::_process_single_script
+	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::_process_inline_scripts
+	 */
+	public function test_process_inline_scripts_logs_and_exits_if_inline_scripts_globally_empty() {
+		// Arrange
+		$script_handle       = 'test-parent-script';
+		$processing_context = 'direct_call'; // Context for this direct test
+		$script_definition   = array(
+		    'handle'  => $script_handle,
+		    'src'     => 'path/to/script.js',
+		    'deps'    => array(),
+		    'version' => false,
+		    'media'   => 'all',
+		);
+
+		// Ensure $this->inline_scripts is globally empty
+		$inline_scripts_property = new \ReflectionProperty(ConcreteEnqueueForScriptsTesting::class, 'inline_scripts');
+		$inline_scripts_property->setAccessible(true);
+		$inline_scripts_property->setValue($this->instance, array());
+
+		// Logger active for debug messages
+		$this->logger_mock->shouldReceive('is_active')->andReturn(true);
+
+		// Ensure wp_script_is returns false so registration/enqueueing is attempted
+		\WP_Mock::userFunction('wp_script_is')
+		    ->with($script_handle, 'registered')
+		    ->andReturn(false);
+		\WP_Mock::userFunction('wp_script_is')
+		    ->with($script_handle, 'enqueued')
+		    ->andReturn(false);
+
+		// --- Ordered Logger and WP_Mock expectations ---
+
+		// 1. Log from _process_single_script entry
+		$this->logger_mock->shouldReceive('debug')->ordered()
+		    ->with("ScriptsEnqueueTrait::_process_single_script - Processing script '{$script_handle}' in context '{$processing_context}'.");
+
+		// 2. Log before wp_register_script
+		$this->logger_mock->shouldReceive('debug')->ordered()
+		    ->with("ScriptsEnqueueTrait::_process_single_script - Registering script '{$script_handle}'.");
+
+		// 3. Mock wp_register_script call, ensuring it returns true
+		\WP_Mock::userFunction('wp_register_script')->once()
+		    ->with($script_handle, $script_definition['src'], $script_definition['deps'], $script_definition['version'], false)
+		    ->andReturn(true);
+
+		// 4. Log before wp_enqueue_script
+		$this->logger_mock->shouldReceive('debug')->ordered()
+		    ->with("ScriptsEnqueueTrait::_process_single_script - Enqueuing script '{$script_handle}'.");
+
+		// 5. Mock wp_enqueue_script call
+		\WP_Mock::userFunction('wp_enqueue_script')->once()->with($script_handle);
+
+		// 6. Log before _process_inline_scripts
+		$this->logger_mock->shouldReceive('debug')->ordered()
+		    ->with("ScriptsEnqueueTrait::_process_single_script - Checking for inline scripts for '{$script_handle}'.");
+
+		// 7. Target Log from _process_inline_scripts (Gap 1)
+		$this->logger_mock->shouldReceive('debug')->ordered()
+		    ->with("ScriptsEnqueueTrait::_process_inline_scripts (context: _{$processing_context}) - No inline scripts defined globally. Nothing to process for handle '{$script_handle}'.");
+
+		// 8. Log from _process_single_script completion
+		$this->logger_mock->shouldReceive('debug')->ordered()
+		    ->with("ScriptsEnqueueTrait::_process_single_script - Finished processing script '{$script_handle}'.");
+
+		// Act: Call _process_single_script directly using reflection
+		$method = new \ReflectionMethod(ConcreteEnqueueForScriptsTesting::class, '_process_single_script');
+		$method->setAccessible(true);
+		$method->invoke($this->instance, $script_definition, $processing_context, null, true, true); // do_register=true, do_enqueue=true
+
+		// Assert: Mockery will assert its expectations automatically.
+		$this->assertTrue(true);
+	}
+
+	/**
+	 * @test
+	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::_process_single_script
+	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::_process_inline_scripts
+	 */
+	public function test_process_inline_scripts_skips_if_condition_is_false() {
+		// Arrange
+		$parent_handle      = 'test-parent-script';
+		$processing_context = 'direct_call';
+		$script_definition   = array(
+			'handle'  => $parent_handle,
+			'src'     => 'path/to/parent.js',
+			'deps'    => array(),
+			'version' => false,
+			'media'   => 'all',
+		);
+
+		// Define an inline script with a condition that returns false
+		$inline_script_with_condition = array(
+			'parent_handle' => $parent_handle,
+			'content'       => '.conditional-script { display: none; }',
+			'condition'     => function () {
+				return false;
+			},
+		);
+		$inline_scripts_property = new \ReflectionProperty(ConcreteEnqueueForScriptsTesting::class, 'inline_scripts');
+		$inline_scripts_property->setAccessible(true);
+		$inline_scripts_property->setValue($this->instance, array($inline_script_with_condition));
+
+		// Logger active for debug messages
+		$this->logger_mock->shouldReceive('is_active')->andReturn(true);
+
+		// Mocks for parent script processing
+		\WP_Mock::userFunction('wp_script_is')->with($parent_handle, 'registered')->andReturn(false);
+		\WP_Mock::userFunction('wp_script_is')->with($parent_handle, 'enqueued')->andReturn(false);
+		\WP_Mock::userFunction('wp_register_script')->once()->andReturn(true);
+		\WP_Mock::userFunction('wp_enqueue_script')->once();
+
+		// Crucially, wp_add_inline_script should NOT be called
+		\WP_Mock::userFunction('wp_add_inline_script')->never();
+
+		// --- Ordered Logger expectations ---
+		$this->logger_mock->shouldReceive('debug')->ordered()->with("ScriptsEnqueueTrait::_process_single_script - Processing script '{$parent_handle}' in context '{$processing_context}'.");
+		$this->logger_mock->shouldReceive('debug')->ordered()->with("ScriptsEnqueueTrait::_process_single_script - Registering script '{$parent_handle}'.");
+		$this->logger_mock->shouldReceive('debug')->ordered()->with("ScriptsEnqueueTrait::_process_single_script - Enqueuing script '{$parent_handle}'.");
+		$this->logger_mock->shouldReceive('debug')->ordered()->with("ScriptsEnqueueTrait::_process_single_script - Checking for inline scripts for '{$parent_handle}'.");
+		$this->logger_mock->shouldReceive('debug')->ordered()->with("ScriptsEnqueueTrait::_process_inline_scripts (context: _{$processing_context}) - Processing inline scripts for parent handle '{$parent_handle}'.");
+
+		// Target Log for this test
+		$this->logger_mock->shouldReceive('debug')->ordered()->with("ScriptsEnqueueTrait::_process_inline_scripts (context: _{$processing_context}) - Condition not met for inline script with parent '{$parent_handle}'. Skipping.");
+
+		$this->logger_mock->shouldReceive('debug')->ordered()->with("ScriptsEnqueueTrait::_process_inline_scripts (context: _{$processing_context}) - Finished processing inline scripts for '{$parent_handle}'.");
+		$this->logger_mock->shouldReceive('debug')->ordered()->with("ScriptsEnqueueTrait::_process_single_script - Finished processing script '{$parent_handle}'.");
+
+		// Act
+		$method = new \ReflectionMethod(ConcreteEnqueueForScriptsTesting::class, '_process_single_script');
+		$method->setAccessible(true);
+		$method->invoke($this->instance, $script_definition, $processing_context, null, true, true);
+
+		// Assert
+		$this->assertTrue(true);
+	}
+
+	/**
+	 * @test
+	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::_process_single_script
+	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::_process_inline_scripts
+	 */
+	public function test_process_inline_scripts_skips_if_content_is_empty() {
+		// Arrange
+		$parent_handle      = 'test-parent-script';
+		$processing_context = 'direct_call';
+		$script_definition   = array(
+			'handle'  => $parent_handle,
+			'src'     => 'path/to/parent.js',
+			'deps'    => array(),
+			'version' => false,
+			'media'   => 'all',
+		);
+
+		// Define an inline script with empty content
+		$inline_script_empty_content = array(
+			'parent_handle' => $parent_handle,
+			'content'       => '', // Empty content
+		);
+		$inline_scripts_property = new \ReflectionProperty(ConcreteEnqueueForScriptsTesting::class, 'inline_scripts');
+		$inline_scripts_property->setAccessible(true);
+		$inline_scripts_property->setValue($this->instance, array($inline_script_empty_content));
+
+		// Logger active for debug/warning messages
+		$this->logger_mock->shouldReceive('is_active')->andReturn(true);
+
+		// Mocks for parent script processing
+		\WP_Mock::userFunction('wp_script_is')->with($parent_handle, 'registered')->andReturn(false);
+		\WP_Mock::userFunction('wp_script_is')->with($parent_handle, 'enqueued')->andReturn(false);
+		\WP_Mock::userFunction('wp_register_script')->once()->andReturn(true);
+		\WP_Mock::userFunction('wp_enqueue_script')->once();
+
+		// Crucially, wp_add_inline_script should NOT be called
+		\WP_Mock::userFunction('wp_add_inline_script')->never();
+
+		// --- Ordered Logger expectations ---
+		$this->logger_mock->shouldReceive('debug')->ordered()->with("ScriptsEnqueueTrait::_process_single_script - Processing script '{$parent_handle}' in context '{$processing_context}'.");
+		$this->logger_mock->shouldReceive('debug')->ordered()->with("ScriptsEnqueueTrait::_process_single_script - Registering script '{$parent_handle}'.");
+		$this->logger_mock->shouldReceive('debug')->ordered()->with("ScriptsEnqueueTrait::_process_single_script - Enqueuing script '{$parent_handle}'.");
+		$this->logger_mock->shouldReceive('debug')->ordered()->with("ScriptsEnqueueTrait::_process_single_script - Checking for inline scripts for '{$parent_handle}'.");
+		$this->logger_mock->shouldReceive('debug')->ordered()->with("ScriptsEnqueueTrait::_process_inline_scripts (context: _{$processing_context}) - Processing inline scripts for parent handle '{$parent_handle}'.");
+
+		// Target Log for this test
+		$this->logger_mock->shouldReceive('warning')->ordered()->with("ScriptsEnqueueTrait::_process_inline_scripts (context: _{$processing_context}) - Invalid inline script definition for parent '{$parent_handle}'. Missing content. Skipping.");
+
+		$this->logger_mock->shouldReceive('debug')->ordered()->with("ScriptsEnqueueTrait::_process_inline_scripts (context: _{$processing_context}) - Finished processing inline scripts for '{$parent_handle}'.");
+		$this->logger_mock->shouldReceive('debug')->ordered()->with("ScriptsEnqueueTrait::_process_single_script - Finished processing script '{$parent_handle}'.");
+
+		// Act
+		$method = new \ReflectionMethod(ConcreteEnqueueForScriptsTesting::class, '_process_single_script');
+		$method->setAccessible(true);
+		$method->invoke($this->instance, $script_definition, $processing_context, null, true, true);
+
+		// Assert
+		$this->assertTrue(true);
+	}
+
+	/**
+	 * @test
+	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::_process_single_script
+	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::_process_inline_scripts
+	 */
+	public function test_process_inline_scripts_adds_script_successfully() {
+		// Arrange
+		$parent_handle      = 'test-parent-script';
+		$processing_context = 'direct_call';
+		$script_definition   = array(
+			'handle'  => $parent_handle,
+			'src'     => 'path/to/parent.js',
+			'deps'    => array(),
+			'version' => false,
+			'media'   => 'all',
+		);
+
+		$inline_content  = 'console.log("Inline script for parent: " + ' . \esc_html($parent_handle) . ');';
+		$inline_position = 'after';
+
+		// Define a valid inline script
+		$valid_inline_script = array(
+			'handle'   => $parent_handle,
+			'content'  => $inline_content,
+			'position' => $inline_position,
+		);
+		$inline_scripts_property = new \ReflectionProperty(ConcreteEnqueueForScriptsTesting::class, 'inline_scripts');
+		$inline_scripts_property->setAccessible(true);
+		$inline_scripts_property->setValue($this->instance, array($valid_inline_script));
+
+		// Logger active for debug messages
+		$this->logger_mock->shouldReceive('is_active')->andReturn(true);
+
+		// Mocks for parent script processing. We assume the script is already registered and enqueued.
+		\WP_Mock::userFunction('wp_script_is')->with($parent_handle, 'registered')->andReturn(true);
+		\WP_Mock::userFunction('wp_script_is')->with($parent_handle, 'enqueued')->andReturn(true);
+
+		// Because the script is already registered/enqueued, these should not be called.
+		\WP_Mock::userFunction('wp_register_script')->never();
+		\WP_Mock::userFunction('wp_enqueue_script')->never();
+
+		// Crucially, wp_add_inline_script SHOULD be called and return true
+		\WP_Mock::userFunction('wp_add_inline_script')->once()
+			->with($parent_handle, $inline_content, $inline_position)
+			->andReturn(true);
+
+
+		// --- Ordered Logger expectations ---
+		// For public enqueue_inline_scripts()
+		$this->logger_mock->shouldReceive('debug')->ordered()->with('ScriptsEnqueueTrait::enqueue_inline_scripts - Entered method.');
+		$this->logger_mock->shouldReceive('debug')->ordered()->with("ScriptsEnqueueTrait::enqueue_inline_scripts - Found 1 unique parent handle(s) with immediate inline scripts to process: {$parent_handle}");
+
+		// For protected _process_inline_scripts()
+		$this->logger_mock->shouldReceive('debug')->ordered()->with("ScriptsEnqueueTrait::_process_inline_scripts (context: enqueue_inline_scripts) - Checking for inline scripts for parent handle '{$parent_handle}'.");
+		$this->logger_mock->shouldReceive('debug')->ordered()->with("ScriptsEnqueueTrait::_process_inline_scripts (context: enqueue_inline_scripts) - Adding inline script for '{$parent_handle}' (key: 0, position: {$inline_position}).");
+		$this->logger_mock->shouldReceive('debug')->ordered()->with("ScriptsEnqueueTrait::_process_inline_scripts (context: enqueue_inline_scripts) - Removed processed inline script with key '0' for handle '{$parent_handle}'.");
+
+		// For public enqueue_inline_scripts() - exit
+		$this->logger_mock->shouldReceive('debug')->ordered()->with('ScriptsEnqueueTrait::enqueue_inline_scripts - Exited method.');
+
+		// Act
+		$this->instance->enqueue_inline_scripts();
+
+		// Assert: WP_Mock and Mockery will verify expectations.
+		$this->assertTrue(true); // Placeholder if other assertions are covered by mocks
+	}
+
+	// Expose protected method for testing
+	public function call_enqueue_deferred_scripts(string $hook_name): void {
+		$this->_enqueue_deferred_scripts($hook_name);
+	}
+
+	// Expose protected method for testing
+	public function call_enqueue_inline_scripts(?string $hook_name = null): void {
+		$this->_enqueue_inline_scripts($hook_name);
+	}
+
+	// Expose protected property for testing
+	public function get_internal_scripts_array(): array {
+		return $this->scripts;
+	}
+
+
+
+
+	/**
+	 * Tests enqueue_inline_scripts when only deferred inline scripts are present.
+	 * (i.e., all inline scripts have a parent_hook set)
+	 */
+	public function test_enqueue_inline_scripts_only_deferred_scripts_present() {
+		// Arrange: Logger is active
+		$this->logger_mock->shouldReceive('is_active')->andReturn(true);
+
+		// Pre-populate $this->inline_scripts with a deferred script
+		$deferred_inline_script = array(
+			'handle'      => 'deferred-handle',
+			'content'     => '.deferred { color: red; }',
+			'position'    => 'after',
+			'condition'   => null,
+			'parent_hook' => 'some_action_hook', // Key: this makes it deferred
+		);
+		$inline_scripts_property = new \ReflectionProperty(ConcreteEnqueueForScriptsTesting::class, 'inline_scripts');
+		$inline_scripts_property->setAccessible(true);
+		$inline_scripts_property->setValue($this->instance, array($deferred_inline_script));
+
+		// Logger expectations
+		$this->logger_mock->shouldReceive('debug')
+			->once()
+			->with('ScriptsEnqueueTrait::enqueue_inline_scripts - Entered method.');
+
+		// This is the crucial log for this case
+		$this->logger_mock->shouldReceive('debug')
+			->once()
+			->with('ScriptsEnqueueTrait::enqueue_inline_scripts - No immediate inline scripts found needing processing.');
+
+
+
+		// Act: Call the method under test
+		$result = $this->instance->enqueue_inline_scripts();
+
+		// Assert: Method returns $this for chaining
+		$this->assertSame($this->instance, $result, 'Method should return $this for chaining.');
+		// Mockery will assert that all expected log calls were made.
+	} // End of test_enqueue_inline_scripts_only_deferred_scripts_present
+
+	/**
+	 * Tests enqueue_inline_scripts processes a single immediate inline script,
+	 * including logging and call to wp_add_inline_script.
+	 */
+	public function test_enqueue_inline_scripts_processes_one_immediate_script() {
+		// Arrange: Logger is active
+		$this->logger_mock->shouldReceive('is_active')->andReturn(true);
+
+		$handle   = 'test-immediate-handle';
+		$content  = '.immediate { border: 1px solid green; }';
+		$position = 'after'; // This is logged by _process_inline_scripts
+
+		$immediate_script = array(
+			'handle'      => $handle,
+			'content'     => $content,
+			'position'    => $position,
+			'condition'   => null,
+			'parent_hook' => null, // Key: makes it an "immediate" script for enqueue_inline_scripts
+		);
+		$inline_scripts_property = new \ReflectionProperty(ConcreteEnqueueForScriptsTesting::class, 'inline_scripts');
+		$inline_scripts_property->setAccessible(true);
+		$inline_scripts_property->setValue($this->instance, array($immediate_script));
+
+		// --- Ordered Logger expectations ---
+		$this->logger_mock->shouldReceive('debug')
+			->ordered()
+			->with('ScriptsEnqueueTrait::enqueue_inline_scripts - Entered method.');
+		$this->logger_mock->shouldReceive('debug')
+			->ordered()
+			->with('ScriptsEnqueueTrait::enqueue_inline_scripts - Found 1 unique parent handle(s) with immediate inline scripts to process: ' . \esc_html($handle));
+
+		// Logs from the call to _process_inline_scripts($handle, null, 'enqueue_inline_scripts')
+		$this->logger_mock->shouldReceive('debug')
+			->ordered()
+			->with("ScriptsEnqueueTrait::_process_inline_scripts (context: enqueue_inline_scripts) - Checking for inline scripts for parent handle '{$handle}'.");
+
+		// WP_Mock expectation for wp_script_is (called within _process_inline_scripts)
+		// This call happens between the "Processing item" log and "Successfully added" log.
+		\WP_Mock::userFunction('wp_script_is', array(
+			'args'   => array($handle, 'registered'),
+			'times'  => 1,
+			'return' => true,
+		));
+
+		// Note: If wp_script_is($handle, 'registered') was false, it would also check 'enqueued'.
+		// For this test, we assume 'registered' is true, so the second check is skipped.
+
+		$this->logger_mock->shouldReceive('debug')
+			->ordered()
+			->with("ScriptsEnqueueTrait::_process_inline_scripts (context: enqueue_inline_scripts) - Processing inline script item for handle '{$handle}'. Content: {$content}. Position: {$position}.");
+
+		\WP_Mock::userFunction('wp_add_inline_script', array(
+			'args'   => array($handle, $content, 'after'), // Added 'after' for default position
+			'times'  => 1,
+			'return' => true, // Simulate successful addition
+		));
+
+		$this->logger_mock->shouldReceive('debug')
+			->ordered()
+			->with("ScriptsEnqueueTrait::_process_inline_scripts (context: enqueue_inline_scripts) - Successfully added inline script for '{$handle}' with wp_add_inline_script.");
+
+		$this->logger_mock->shouldReceive('debug')
+			->ordered()
+			->with('ScriptsEnqueueTrait::enqueue_inline_scripts - Exited method.');
+
+		// Act: Call the method under test
+		$result = $this->instance->enqueue_inline_scripts();
+
+		// Assert: Method returns $this for chaining
+		$this->assertSame($this->instance, $result, 'Method should return $this for chaining.');
+		// Mockery will assert all logger expectations.
+		// WP_Mock will assert its expectations during tearDown.
+	} // End of test_enqueue_inline_scripts_processes_one_immediate_script
+
+	/**
+	 * Tests that enqueue_inline_scripts skips invalid (non-array) inline script data
+	 * and processes any valid immediate scripts that might also be present.
+	 */
+	public function test_enqueue_inline_scripts_skips_invalid_non_array_inline_script_data() {
+		// Arrange: Logger is active
+		$this->logger_mock->shouldReceive('is_active')->andReturn(true);
+
+		$valid_handle   = 'valid-handle-amidst-invalid';
+		$valid_content  = '.valid-content { background: white; }';
+		$valid_position = 'before';
+
+		$valid_immediate_script = array(
+			'handle'      => $valid_handle,
+			'content'     => $valid_content,
+			'position'    => $valid_position,
+			'condition'   => null,
+			'parent_hook' => null, // Immediate
+		);
+		$invalid_script_item = 'this is definitely not an array'; // The invalid item
+
+		// Set $inline_scripts with the invalid item first, then the valid one.
+		// Keys will be 0 (invalid) and 1 (valid).
+		$inline_scripts_property = new \ReflectionProperty(ConcreteEnqueueForScriptsTesting::class, 'inline_scripts');
+		$inline_scripts_property->setAccessible(true);
+		$inline_scripts_property->setValue($this->instance, array($invalid_script_item, $valid_immediate_script));
+
+		// --- Ordered Logger expectations ---
+		$this->logger_mock->shouldReceive('debug')->ordered()->with('ScriptsEnqueueTrait::enqueue_inline_scripts - Entered method.');
+
+		// Expect warning for the invalid item at key '0' from the outer loop in enqueue_inline_scripts
+		$this->logger_mock->shouldReceive('warning')->ordered()->with("ScriptsEnqueueTrait::enqueue_inline_scripts - Invalid inline script data at key '0'. Skipping.");
+
+		// Then, normal processing for the valid item
+		$this->logger_mock->shouldReceive('debug')->ordered()->with('ScriptsEnqueueTrait::enqueue_inline_scripts - Found 1 unique parent handle(s) with immediate inline scripts to process: ' . \esc_html($valid_handle));
+
+		// Logs from _process_inline_scripts for the valid_handle
+		$this->logger_mock->shouldReceive('debug')->ordered()->with("ScriptsEnqueueTrait::_process_inline_scripts (context: enqueue_inline_scripts) - Checking for inline scripts for parent handle '{$valid_handle}'.");
+
+		// Mocks for wp_script_is check inside _process_inline_scripts
+		// We need the first check to be false to force the evaluation of the second check.
+		\WP_Mock::userFunction('wp_script_is', array(
+			'args'   => array($valid_handle, 'registered'),
+			'times'  => 1,
+			'return' => false, // Mock wp_script_is($valid_handle, 'registered') to return false.
+			// In the typical condition `!wp_script_is(..., 'registered') && !wp_script_is(..., 'enqueued')`,
+			// this `!false` part evaluates to `true`.
+		));
+		// We need the second check to be true so the overall condition is false and the method continues.
+		\WP_Mock::userFunction('wp_script_is', array(
+			'args'   => array($valid_handle, 'enqueued'),
+			'times'  => 1,
+			'return' => true,  // Mock wp_script_is($valid_handle, 'enqueued') to return true.
+			// In the typical condition `!wp_script_is(..., 'registered') && !wp_script_is(..., 'enqueued')`,
+			// this `!true` part evaluates to `false`.
+			// Thus, the overall condition `(true && false)` becomes `false`,
+			// allowing inline script processing to proceed.
+		));
+
+		// This warning is logged by _process_inline_scripts when it encounters the non-array item at key 0
+		$this->logger_mock->shouldReceive('warning')->ordered()->with("ScriptsEnqueueTrait::_process_inline_scripts (context: enqueue_inline_scripts) - Invalid inline script data at key '0'. Skipping.");
+
+		// This is the log for the valid item
+		$this->logger_mock->shouldReceive('debug')->ordered()->with("ScriptsEnqueueTrait::_process_inline_scripts (context: enqueue_inline_scripts) - Processing inline script item for handle '{$valid_handle}'. Content: {$valid_content}. Position: {$valid_position}.");
+
+		// The actual inline script call
+		\WP_Mock::userFunction('wp_add_inline_script', array(
+			'args'   => array($valid_handle, $valid_content, $valid_position),
+			'times'  => 1,
+			'return' => true,
+		));
+
+		// The success log after the call
+		$this->logger_mock->shouldReceive('debug')->ordered()->with("ScriptsEnqueueTrait::_process_inline_scripts (context: enqueue_inline_scripts) - Successfully added inline script for '{$valid_handle}' with wp_add_inline_script.");
+
+		// The final exit log
+		$this->logger_mock->shouldReceive('debug')->ordered()->with('ScriptsEnqueueTrait::enqueue_inline_scripts - Exited method.');
+
+		// Act
+		$result = $this->instance->enqueue_inline_scripts();
+
+		// Assert
+		$this->assertSame($this->instance, $result, 'Method should return $this for chaining.');
+		// Mockery and WP_Mock will assert their expectations.
+	}
+
+	/**
+	 * @test
+	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::register_scripts
+	 * Tests that the correct log message is emitted when attempting to add a deferred script action
+	 * for a hook that already has that action registered.
+	 */
+	public function test_register_scripts_logs_when_deferred_action_already_exists() {
+		// Arrange
+		$this->logger_mock->shouldReceive('is_active')->zeroOrMoreTimes()->andReturn(true);
+		$this->logger_mock->shouldIgnoreMissing();
+
+		$hook_name     = 'my_custom_hook';
+		$script1_handle = 'deferred-script-1';
+		$script2_handle = 'deferred-script-2';
+
+		$scripts_data = array(
+			$script1_handle => array(
+				'handle' => $script1_handle,
+				'src'    => 'path/to/script1.js',
+				'deps'   => array(),
+				'ver'    => false,
+				'media'  => 'all',
+				'hook'   => $hook_name,
+			),
+			$script2_handle => array(
+				'handle' => $script2_handle,
+				'src'    => 'path/to/script2.js',
+				'hook'   => $hook_name, // Same hook
+			),
+		);
+
+		$this->instance->add_scripts($scripts_data);
+
+		$testInstance    = $this->instance; // Capture $this->instance for the closure
+		$callbackMatcher = \Mockery::on(function ($actual_callback_arg) use ($testInstance) {
+			if (!is_array($actual_callback_arg) || count($actual_callback_arg) !== 2) {
+				return false;
+			}
+			// Exact instance check
+			if ($actual_callback_arg[0] !== $testInstance) {
+				return false;
+			}
+			if ($actual_callback_arg[1] !== 'enqueue_deferred_scripts') {
+				return false;
+			}
+			return true;
+		});
+
+		$has_action_call_count = 0;
+		\WP_Mock::userFunction('has_action')
+			->times(2) // Expect has_action to be called twice
+			->with($hook_name, $callbackMatcher)
+			->andReturnUsing(function () use (&$has_action_call_count) {
+				$has_action_call_count++;
+				if ($has_action_call_count === 1) {
+					return false; // First call, action doesn't exist
+				}
+				return true; // Second call, action now exists
+			});
+
+		\WP_Mock::expectActionAdded($hook_name, array( $this->instance, 'enqueue_deferred_scripts' ), 10, 1);
+
+		// Logger expectations (Mockery ordering removed to avoid conflict with WP_Mock ordering)
+		$this->logger_mock->shouldReceive('debug')
+			->with("ScriptsEnqueueTrait::register_scripts - Added action for 'enqueue_deferred_scripts' on hook: {$hook_name}.") // LOG A1
+			->once();
+
+		$this->logger_mock->shouldReceive('debug')
+			->with("ScriptsEnqueueTrait::register_scripts - Action for 'enqueue_deferred_scripts' on hook '{$hook_name}' already exists.") // LOG B
+			->once();
+
+		$this->logger_mock->shouldReceive('debug')
+			->with("ScriptsEnqueueTrait::register_scripts - Deferred action for hook '{$hook_name}' was already added by this instance.") // LOG C
+			->never();
+
+		// Act
+		$this->instance->register_scripts();
+
+		// Assert (WP_Mock and Mockery will verify expectations)
+		$this->assertTrue(true);
+	}
+
+	/**
+	 * @test
+	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::_process_single_script
+	 * Tests that _process_single_script logs and skips registration if a script is already registered.
+	 */
+	public function test_process_single_script_logs_when_script_already_registered_and_skips_reregistration(): void {
+		$script_handle = 'my-already-registered-script';
+		$script_src    = 'path/to/script.js';
+		$scripts_data  = array(
+			$script_handle => array(
+				'handle' => $script_handle,
+				'src'    => $script_src,
+				'hook'   => null, // Process immediately
+			),
+		);
+
+		// Set up logger expectations for add_scripts
 		$this->logger_mock->shouldReceive('debug')
 			->with('ScriptsEnqueueTrait::add_scripts - Entered. Current script count: 0. Adding 1 new script(s).')
-			->once()
 			->ordered();
 		$this->logger_mock->shouldReceive('debug')
-			->with("ScriptsEnqueueTrait::add_scripts - Adding script. Key: 0, Handle: {$script['handle']}, Src: {$script['src']}")
-			->once()
+			->with("ScriptsEnqueueTrait::add_scripts - Adding script. Key: {$script_handle}, Handle: {$script_handle}, Src: {$script_src}")
 			->ordered();
 		$this->logger_mock->shouldReceive('debug')
 			->with('ScriptsEnqueueTrait::add_scripts - Exiting. New total script count: 1')
-			->once()
 			->ordered();
+
+		$this->instance->add_scripts($scripts_data);
+
+		// Assert that inline_scripts array is empty after add_scripts and before register_scripts is called
+		$this->assertEmpty($this->instance->get_internal_inline_scripts_array(), 'Inline scripts array should be empty before register_scripts call.');
+
+		// Mock wp_script_is to indicate the script is already registered
+		// Called once in _process_single_script, once in _process_inline_scripts
+		\WP_Mock::userFunction('wp_script_is')
+			->times(2)
+			->with($script_handle, 'registered')
+			->andReturn(true);
+
+		// Mock wp_script_is for 'enqueued' check within _process_inline_scripts
+		// This should NOT be called if 'registered' is true due to short-circuiting in the IF condition.
+		\WP_Mock::userFunction('wp_script_is')
+			->never()
+			->with($script_handle, 'enqueued');
+
+		// Expect wp_register_script NOT to be called
+		\WP_Mock::userFunction('wp_register_script')
+			->never();
+
+		// Expect the specific debug log messages in order
+		// From _process_single_script
 		$this->logger_mock->shouldReceive('debug')
-			->with("ScriptsEnqueueTrait::add_scripts - All current script handles: {$script['handle']}")
 			->once()
+			->with("ScriptsEnqueueTrait::_process_single_script - Processing script '{$script_handle}' in context 'register_scripts'.")
 			->ordered();
 
-		// Act: Add the script first
-		$this->instance->add_scripts(array($script));
+		$this->logger_mock->shouldReceive('debug')
+			->once()
+			->with("ScriptsEnqueueTrait::_process_single_script - Script '{$script_handle}' already registered. Skipping wp_register_script.")
+			->ordered();
 
-		// Set up expectations for register_scripts
-		$this->logger_mock->shouldReceive('debug')->with('ScriptsEnqueueTrait::register_scripts - Entered. Processing 1 script definition(s) for registration.')->once()->ordered();
+		// From _process_inline_scripts (called by _process_single_script)
+		$this->logger_mock->shouldReceive('debug')
+			->once()
+			->with("ScriptsEnqueueTrait::_process_inline_scripts (context: immediate from _process_single_script) - Checking for inline scripts for parent handle '{$script_handle}'.")
+			->ordered();
 
-		// Expectations for _process_single_script, called by register_scripts
-		WP_Mock::userFunction('wp_script_is')->with('test-script', 'registered')->andReturn(false);
-		$this->logger_mock->shouldReceive('debug')->with("ScriptsEnqueueTrait::_process_single_script - Processing script 'test-script' in context 'register_scripts'.")->once()->ordered();
-		$this->logger_mock->shouldReceive('debug')->with("ScriptsEnqueueTrait::_process_single_script - Registering script 'test-script'.")->once()->ordered();
+		$this->logger_mock->shouldReceive('debug')
+			->once()
+			->with("ScriptsEnqueueTrait::_process_inline_scripts (context: immediate from _process_single_script) - No inline scripts found or processed for '{$script_handle}'.")
+			->ordered();
 
-		WP_Mock::userFunction('wp_register_script', array(
-			'times' => 1,
-			'args'  => array(
-				$script['handle'],
-				$script['src'],
-				$script['deps'],
-				$script['version'],
-				$script['in_footer'],
-			),
-		))->andReturn(true);
+		// From _process_single_script (finish)
+		$this->logger_mock->shouldReceive('debug')
+			->once()
+			->with("ScriptsEnqueueTrait::_process_single_script - Finished processing script '{$script_handle}'.")
+			->ordered();
 
-		$this->logger_mock->shouldReceive('debug')->with("ScriptsEnqueueTrait::_process_single_script - Finished processing script 'test-script'.")->once()->ordered();
+		// Act: register_scripts will call _process_single_script with $do_register = true
+		$this->instance->register_scripts();
 
-		// Final log from register_scripts
-		$this->logger_mock->shouldReceive('debug')->with('ScriptsEnqueueTrait::register_scripts - Exited. Remaining immediate scripts: 1. Deferred scripts: 0.')->once()->ordered();
+		// Assert: Mockery and WP_Mock will verify expectations.
+		$this->assertTrue(true); // Placeholder assertion
+	}
 
-		// Act: Register the scripts
-		$result = $this->instance->register_scripts();
+	/**
+	 * @test
+	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::_process_single_script
+	 * Tests that _process_single_script logs and skips enqueueing if a script is already enqueued.
+	 */
+	public function test_process_single_script_logs_when_script_already_enqueued_and_skips_re_enqueue(): void {
+		// Arrange
+		$sut = new ConcreteEnqueueForScriptsTesting($this->config_mock);
+
+		$script_handle       = 'my-already-enqueued-script';
+		$hook_name          = 'my_custom_hook';
+		$processing_context = 'test_context';
+		$script_definition   = array(
+			'handle' => $script_handle,
+			'src'    => 'path/to/script.js',
+		);
+
+		// Mock WordPress functions
+		\WP_Mock::userFunction('wp_script_is', array(
+			'args'   => array($script_handle, 'registered'),
+			'return' => true,
+		));
+		\WP_Mock::userFunction('wp_script_is', array(
+			'args'   => array($script_handle, 'enqueued'),
+			'return' => true,
+		));
+
+		// Ordered expectations ONLY for is_active calls (when hook_name is NOT null, inline processing in _process_single_script is skipped)
+		$this->logger_mock->shouldReceive('is_active')->ordered()->andReturn(true); // 1. Entry log (_process_single_script)
+		$this->logger_mock->shouldReceive('is_active')->ordered()->andReturn(true); // 2. "already registered" log (_process_single_script)
+		$this->logger_mock->shouldReceive('is_active')->ordered()->andReturn(true); // 3. "already enqueued" log (_process_single_script)
+		// Final log from _process_single_script
+		$this->logger_mock->shouldReceive('is_active')->ordered()->andReturn(true); // 4. Exit log (_process_single_script)
+
+		// Non-ordered expectations for debug calls that WILL occur
+		$this->logger_mock->shouldReceive('debug')->once()->with(
+			"ScriptsEnqueueTrait::_process_single_script - Processing script '{$script_handle}' on hook '{$hook_name}' in context '{$processing_context}'."
+		);
+		$this->logger_mock->shouldReceive('debug')->once()->with(
+			"ScriptsEnqueueTrait::_process_single_script - Script '{$script_handle}' on hook '{$hook_name}' already registered. Skipping wp_register_script."
+		);
+		$this->logger_mock->shouldReceive('debug')->once()->with(
+			"ScriptsEnqueueTrait::_process_single_script - Script '{$script_handle}' on hook '{$hook_name}' already enqueued. Skipping wp_enqueue_script."
+		);
+		// Logs for inline script processing are NOT expected here because $hook_name is not null
+		$this->logger_mock->shouldReceive('debug')->once()->with(
+			"ScriptsEnqueueTrait::_process_single_script - Finished processing script '{$script_handle}' on hook '{$hook_name}'."
+		);
+
+		// Act
+		$reflection = new \ReflectionMethod(ConcreteEnqueueForScriptsTesting::class, '_process_single_script');
+		$reflection->setAccessible(true);
+		$result = $reflection->invoke(
+			$sut,
+			$script_definition,
+			$processing_context,
+			$hook_name,
+			true, // do_register
+			true  // do_enqueue
+		);
 
 		// Assert
-		$this->assertSame($this->instance, $result, 'Method should be chainable.');
-		$internal_scripts = $this->get_protected_property_value($this->instance, 'scripts');
-		$this->assertIsArray($internal_scripts, 'Internal scripts property should be an array.');
-		$this->assertCount(1, $internal_scripts, 'Internal scripts property should still contain 1 script after registration.');
-		$this->assertSame($script, $internal_scripts[0], 'The script in the internal array should be the one originally added.');
+		$this->assertSame($script_handle, $result, 'Method should return the handle on success.');
+	}
+
+	/**
+	 * @test
+	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::_process_single_script
+	 * Tests that _process_single_script returns false for an invalid script definition.
+	 */
+	public function test_process_single_script_returns_false_for_invalid_definition(): void {
+		// Arrange
+		$sut              = new ConcreteEnqueueForScriptsTesting($this->config_mock);
+		$script_definition = array(
+			'handle' => 'my-invalid-script',
+			'src'    => '', // Invalid src makes it invalid when do_register is true
+		);
+		$hook_name          = 'test_hook';
+		$processing_context = 'test_context';
+
+		$this->logger_mock->shouldReceive('debug')
+			->once()
+			->withArgs(function ($message) use ($script_definition, $hook_name, $processing_context) {
+				return str_contains($message, "Processing script '{$script_definition['handle']}'") && str_contains($message, "on hook '{$hook_name}'") && str_contains($message, "in context '{$processing_context}'");
+			})
+			->ordered();
+
+		$this->logger_mock->shouldReceive('warning')
+			->once()
+			->with("ScriptsEnqueueTrait::_process_single_script - Invalid script definition. Missing handle or src. Skipping. Handle: '{$script_definition['handle']}' on hook '{$hook_name}'.")
+			->ordered();
+
+		// Act
+		$reflection = new \ReflectionMethod(ConcreteEnqueueForScriptsTesting::class, '_process_single_script');
+		$reflection->setAccessible(true);
+		$result = $reflection->invoke(
+			$sut,
+			$script_definition,
+			$processing_context,
+			$hook_name,
+			true,  // do_register
+			false  // do_enqueue
+		);
+
+		// Assert
+		$this->assertFalse($result);
+	}
+
+	/**
+	 * @test
+	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::_process_single_script
+	 * Tests that _process_single_script returns false when wp_register_script fails.
+	 */
+	public function test_process_single_script_returns_false_on_registration_failure(): void {
+		// Arrange
+		$sut                = new ConcreteEnqueueForScriptsTesting($this->config_mock);
+		$script_handle       = 'my-failing-script';
+		$hook_name          = 'test_hook';
+		$processing_context = 'test_context';
+		$script_definition   = array(
+			'handle' => $script_handle,
+			'src'    => 'path/to/script.js',
+		);
+
+		\WP_Mock::userFunction('wp_script_is', array(
+			'args'   => array($script_handle, 'registered'),
+			'return' => false,
+			'times'  => 1,
+		));
+
+		\WP_Mock::userFunction('wp_register_script', array(
+			'args' => array(
+				$script_handle,
+				$script_definition['src'],
+				array(),      // deps
+				false,   // version
+				false    // in_footer
+			),
+			'return' => false, // Simulate failure
+			'times'  => 1,
+		));
+
+		$this->logger_mock->shouldReceive('debug')->once()->with(Mockery::pattern("/Processing script '{$script_handle}'/"))->ordered();
+		$this->logger_mock->shouldReceive('debug')->once()->with(Mockery::pattern("/Registering script '{$script_handle}'/"))->ordered();
+		$this->logger_mock->shouldReceive('warning')->once()->with(Mockery::pattern("/wp_register_script\\(\\) failed for handle '{$script_handle}'/"))->ordered();
+
+		// Act
+		$reflection = new \ReflectionMethod(ConcreteEnqueueForScriptsTesting::class, '_process_single_script');
+		$reflection->setAccessible(true);
+		$result = $reflection->invoke(
+			$sut,
+			$script_definition,
+			$processing_context,
+			$hook_name,
+			true,  // do_register
+			false  // do_enqueue
+		);
+
+		// Assert
+		$this->assertFalse($result);
+	}
+
+	/**
+	 * @test
+	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::_process_inline_scripts
+	 */
+	public function testProcessInlineScriptsHandlesDeferredStyleWithMatchingHook(): void {
+		// Arrange
+		$sut = Mockery::mock(ConcreteEnqueueForScriptsTesting::class, array($this->config_mock))->makePartial();
+		$sut->shouldAllowMockingProtectedMethods();
+		$sut->shouldReceive('get_logger')->andReturn($this->logger_mock)->byDefault();
+		$this->logger_mock->shouldReceive('is_active')->andReturn(true);
+		$parent_handle = 'parent-script';
+		$hook_name     = 'a_custom_hook';
+		$inline_script  = array(
+			'handle'      => $parent_handle,
+			'content'     => '.my-class { color: red; }',
+			'parent_hook' => $hook_name,
+			'position'    => 'after',
+		);
+		$reflection = new \ReflectionObject($sut);
+		$property   = $reflection->getProperty('inline_scripts');
+		$property->setAccessible(true);
+		$property->setValue($sut, array($inline_script));
+
+		WP_Mock::userFunction('wp_script_is')->with($parent_handle, 'registered')->andReturn(true);
+
+		$this->logger_mock->shouldReceive('debug')->once()->with("ScriptsEnqueueTrait::_process_inline_scripts (context: deferred) - Checking for inline scripts for parent handle 'parent-script' on hook 'a_custom_hook'.");
+		$this->logger_mock->shouldReceive('debug')->once()->with("ScriptsEnqueueTrait::_process_inline_scripts (context: deferred) - Adding inline script for 'parent-script' (key: 0, position: after) on hook 'a_custom_hook'.");
+		$this->logger_mock->shouldReceive('debug')->once()->with("ScriptsEnqueueTrait::_process_inline_scripts (context: deferred) - Removed processed inline script with key '0' for handle 'parent-script' on hook 'a_custom_hook'.");
+
+		WP_Mock::userFunction('wp_add_inline_script')->with('parent-script', '.my-class { color: red; }', 'after')->once();
+
+		// Act
+		$reflection = new \ReflectionMethod(ConcreteEnqueueForScriptsTesting::class, '_process_inline_scripts');
+		$reflection->setAccessible(true);
+		$reflection->invoke($sut, $parent_handle, $hook_name, 'deferred');
+
+		WP_Mock::assertActionsCalled();
+	}
+
+	/**
+	 * @test
+	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::_process_inline_scripts
+	 */
+	public function testProcessInlineScriptsSkipsStyleWhenConditionIsFalse(): void {
+		// Arrange
+		$sut = Mockery::mock(ConcreteEnqueueForScriptsTesting::class, array($this->config_mock))->makePartial();
+		$sut->shouldAllowMockingProtectedMethods();
+		$sut->shouldReceive('get_logger')->andReturn($this->logger_mock)->byDefault();
+		$this->logger_mock->shouldReceive('is_active')->andReturn(true);
+		$parent_handle = 'parent-script';
+		$inline_script  = array(
+			'handle'    => $parent_handle,
+			'content'   => '.my-class { color: blue; }',
+			'condition' => fn() => false,
+		);
+		$reflection = new \ReflectionObject($sut);
+		$property   = $reflection->getProperty('inline_scripts');
+		$property->setAccessible(true);
+		$property->setValue($sut, array($inline_script));
+
+		WP_Mock::userFunction('wp_script_is')->with($parent_handle, 'registered')->andReturn(true);
+
+		$this->logger_mock->shouldReceive('debug')->once()->with("ScriptsEnqueueTrait::_process_inline_scripts (context: immediate) - Checking for inline scripts for parent handle 'parent-script'.");
+		$this->logger_mock->shouldReceive('debug')->once()->with("ScriptsEnqueueTrait::_process_inline_scripts (context: immediate) - Condition false for inline script targeting 'parent-script' (key: 0).");
+		WP_Mock::userFunction('wp_add_inline_script')->never();
+
+		// Act
+		$reflection = new \ReflectionMethod(ConcreteEnqueueForScriptsTesting::class, '_process_inline_scripts');
+		$reflection->setAccessible(true);
+		$reflection->invoke($sut, $parent_handle, null, 'immediate');
+
+		WP_Mock::assertActionsCalled();
+	}
+
+	/**
+	 * @test
+	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::_process_inline_scripts
+	 */
+	public function testProcessInlineScriptsSkipsStyleWithEmptyContent(): void {
+		// Arrange
+		$sut = Mockery::mock(ConcreteEnqueueForScriptsTesting::class, array($this->config_mock))->makePartial();
+		$sut->shouldAllowMockingProtectedMethods();
+		$sut->shouldReceive('get_logger')->andReturn($this->logger_mock)->byDefault();
+		$parent_handle = 'parent-script';
+		$inline_script  = array(
+			'handle'  => $parent_handle,
+			'content' => '', // Empty content
+		);
+		$reflection = new \ReflectionObject($sut);
+		$property   = $reflection->getProperty('inline_scripts');
+		$property->setAccessible(true);
+		$property->setValue($sut, array($inline_script));
+
+		WP_Mock::userFunction('wp_script_is')->with($parent_handle, 'registered')->andReturn(true);
+
+		$this->logger_mock->shouldReceive('debug')->once()->with("ScriptsEnqueueTrait::_process_inline_scripts (context: immediate) - Checking for inline scripts for parent handle 'parent-script'.");
+		$this->logger_mock->shouldReceive('warning')->once()->with("ScriptsEnqueueTrait::_process_inline_scripts (context: immediate) - Empty content for inline script targeting 'parent-script' (key: 0). Skipping addition.");
+		$this->logger_mock->shouldReceive('debug')->once()->with("ScriptsEnqueueTrait::_process_inline_scripts (context: immediate) - Removed processed inline script with key '0' for handle 'parent-script'.");
+		WP_Mock::userFunction('wp_add_inline_script')->never();
+
+		// Act
+		$reflection = new \ReflectionMethod(ConcreteEnqueueForScriptsTesting::class, '_process_inline_scripts');
+		$reflection->setAccessible(true);
+		$reflection->invoke($sut, $parent_handle, null, 'immediate');
+
+		WP_Mock::assertActionsCalled();
+	}
+
+	/**
+	 * @test
+	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::enqueue_scripts
+	 */
+	public function testEnqueueScriptsThrowsExceptionForDeferredStyleInQueue(): void {
+		// Arrange
+		$sut = Mockery::mock(ConcreteEnqueueForScriptsTesting::class, array($this->config_mock))->makePartial();
+		$sut->shouldAllowMockingProtectedMethods();
+		$sut->shouldReceive('get_logger')->andReturn($this->logger_mock)->byDefault();
+
+		$deferred_script = array(
+			'handle' => 'deferred-script',
+			'src'    => 'path/to/script.js',
+			'hook'   => 'wp_footer',
+		);
+
+		$reflection = new \ReflectionObject($sut);
+		$property   = $reflection->getProperty('scripts');
+		$property->setAccessible(true);
+		$property->setValue($sut, array($deferred_script));
+
+		// Expect
+		$this->expectException(\LogicException::class);
+		$this->expectExceptionMessage(
+			"ScriptsEnqueueTrait::enqueue_scripts - Found a deferred script ('deferred-script') in the immediate queue. " .
+			'The `register_scripts()` method must be called before `enqueue_scripts()` to correctly process deferred scripts.'
+		);
+
+		// Act
+		$sut->enqueue_scripts();
 	}
 }
-

@@ -23,7 +23,6 @@ use Ran\PluginLib\Util\Logger;
  *
  * @package Ran\PluginLib\EnqueueAccessory
  */
-
 trait ScriptsEnqueueTrait {
 	/**
 	 * Array of script definitions to be processed.
@@ -117,9 +116,6 @@ trait ScriptsEnqueueTrait {
 				$src    = $script_data['src']    ?? 'N/A';
 				$logger->debug( "ScriptsEnqueueTrait::add_scripts - Adding script. Key: {$script_key}, Handle: {$handle}, Src: {$src}" );
 			}
-		}
-
-		if ($logger->is_active()) {
 			$logger->debug( 'ScriptsEnqueueTrait::add_scripts - Adding ' . count( $scripts_to_add ) . ' script definition(s). Current total: ' . count( $this->scripts ) );
 		}
 
@@ -129,14 +125,11 @@ trait ScriptsEnqueueTrait {
 		foreach ( $scripts_to_add as $script_definition ) {
 			$this->scripts[] = $script_definition; // Simple append.
 		}
-		if ( $logger->is_active() ) {
+		if ($logger->is_active()) {
 			$new_total = count( $this->scripts );
-			$logger->debug( "ScriptsEnqueueTrait::add_scripts - Exiting. New total script count: {$new_total}" );
+			$logger->debug( 'ScriptsEnqueueTrait::add_scripts - Exiting. New total script count: ' . $new_total );
 			if ( $new_total > 0 ) {
-				$current_handles = array();
-				foreach ( $this->scripts as $s ) {
-					$current_handles[] = $s['handle'] ?? 'N/A';
-				}
+				$current_handles = array_map( static fn( $a ) => $a['handle'] ?? 'N/A', $this->scripts );
 				$logger->debug( 'ScriptsEnqueueTrait::add_scripts - All current script handles: ' . implode( ', ', $current_handles ) );
 			}
 		}
