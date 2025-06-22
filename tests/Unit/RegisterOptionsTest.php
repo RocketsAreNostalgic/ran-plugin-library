@@ -37,8 +37,6 @@ final class RegisterOptionsTest extends PluginLibTestCase {
 		'PluginOption' => 'ran_plugin',
 	);
 
-	private MockObject $logger_mock; // This will now correctly refer to PHPUnit\Framework\MockObject\MockObject
-
 	/**
 	 * Sets up the test environment before each test.
 	 */
