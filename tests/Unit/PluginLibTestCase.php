@@ -6,8 +6,11 @@ namespace Ran\PluginLib\Tests\Unit;
 
 use RanTestCase; // Assumes RanTestCase is available via autoloader or bootstrap
 use PHPUnit\Framework\MockObject\MockObject;
+use Mockery;
+use Mockery\MockInterface;
 use Ran\PluginLib\Config\ConfigAbstract;
 use Ran\PluginLib\Singleton\SingletonAbstract;
+use Ran\PluginLib\Tests\Unit\Doubles\CollectingLogger;
 use WP_Mock;
 
 /**
@@ -18,6 +21,11 @@ use WP_Mock;
  */
 if (!\class_exists(\Ran\PluginLib\Tests\Unit\ConcreteConfigForTesting::class)) {
 	class ConcreteConfigForTesting extends ConfigAbstract {
+		// This method is explicitly defined to resolve a PHPUnit mocking ambiguity
+		// with inherited methods. Its body is irrelevant as it will be mocked.
+		public function get_plugin_data(): array {
+			return [];
+		}
 	}
 }
 
@@ -31,92 +39,45 @@ if (!\class_exists(\Ran\PluginLib\Tests\Unit\ConcreteConfigForTesting::class)) {
  * within the SingletonAbstract manager. This ensures that classes under test which
  * rely on `ConfigAbstract::get_instance()` or `ConfigAbstract::init()` can function
  * correctly in a controlled test environment.
- *
- * ## Usage Example:
- *
- * ```php
- * <?php
- * declare(strict_types=1);
- *
- * namespace Ran\PluginLib\Tests\Unit\MyPluginFeature;
- *
- * use Ran\PluginLib\Tests\Unit\PluginLibTestCase;
- * use Ran\PluginLib\MyFeature\MyClassThatUsesConfig;
- * use Ran\PluginLib\Util\Logger; // If MyClassThatUsesConfig uses the logger
- * use WP_Mock;
- *
- * final class MyClassThatUsesConfigTest extends PluginLibTestCase {
- *     private MyClassThatUsesConfig $my_class_instance;
- *     private MockObject $logger_mock; // Example if MyClassThatUsesConfig needs a logger mock
- *
- *     public function setUp(): void {
-        $this->defined_constants = []; // Reset for each test
-        $this->defined_constants = []; // Reset for each test
- *         parent::setUp(); // Sets up mock plugin file, data, and WP mocks via PluginLibTestCase
- *
- *         // This ensures ConfigAbstract is initialized and a concrete instance is available.
- *         $this->get_and_register_concrete_config_instance();
- *
- *         // Mock the logger if MyClassThatUsesConfig uses it via get_logger()
- *         $this->logger_mock = $this->createMock(Logger::class);
- *         $this->logger_mock->method('is_active')->willReturn(false);
- *
- *         // Now, instantiate your class under test.
- *         // If it extends ConfigAbstract or calls ConfigAbstract::get_instance(),
- *         // it will receive the configured ConcreteConfigForTesting instance.
- *         $this->my_class_instance = $this->getMockBuilder(MyClassThatUsesConfig::class)
- *             ->onlyMethods(['get_logger']) // Example: mock get_logger if it's protected
- *             ->setConstructorArgs([$this->plugin_data['PluginOption']]) // Example constructor args
- *             ->getMock();
- *
- *         $this->my_class_instance->method('get_logger')->willReturn($this->logger_mock);
- *     }
- *
- *     public function tearDown(): void {
- *         parent::tearDown(); // Cleans up singleton instances and mock plugin file
- *     }
- *
- *     public function test_my_feature_method_that_relies_on_config(): void {
- *         // Mock WordPress functions specific to this test, if any
- *         WP_Mock::userFunction('get_option')
- *             ->with('my_plugin_option_key', false)
- *             ->andReturn('some_value');
- *
- *         $result = $this->my_class_instance->doSomethingThatUsesConfig();
- *
- *         $this->assertEquals('expected_result_based_on_config_and_option', $result);
- *         // Add more assertions as needed
- *     }
- * }
- * ?>
- * ```
  */
-
-
 abstract class PluginLibTestCase extends RanTestCase {
 	/**
-	 * Mocked instance of the concrete configuration class.
-	 * @var \Ran\PluginLib\Tests\Unit\ConcreteConfigForTesting
+	 * @var bool Set to true within a test to enable console logging for that test.
 	 */
-	protected ConcreteConfigForTesting $config_mock;
+	protected bool $enable_console_logging = false;
+
+	/**
+	 * Mocked instance of the concrete configuration class.
+	 * @var ConcreteConfigForTesting|MockObject
+	 */
+	protected $config_mock;
+
+	/**
+	 * @var CollectingLogger|MockInterface The logger instance, a partial mock (spy).
+	 */
+	protected $logger_mock;
+
 	/**
 	 * Path to the mock plugin file created during setup.
 	 * Example: `/path/to/tests/Unit/mock-plugin-file.php`
 	 * @var string
 	 */
 	protected string $mock_plugin_file_path;
+
 	/**
 	 * Path to the directory containing the mock plugin file.
 	 * Example: `/path/to/tests/Unit/mock-plugin-dir/`
 	 * @var string
 	 */
 	protected string $mock_plugin_dir_path;
+
 	/**
 	 * URL of the directory containing the mock plugin file.
 	 * Example: `http://example.com/wp-content/plugins/mock-plugin-dir/`
 	 * @var string
 	 */
 	protected string $mock_plugin_dir_url;
+
 	/**
 	 * Basename of the mock plugin file.
 	 * Example: `mock-plugin-dir/mock-plugin-file.php`
@@ -125,16 +86,16 @@ abstract class PluginLibTestCase extends RanTestCase {
 	protected string $mock_plugin_basename;
 
 	/**
-	 * Mock plugin header data used by `get_plugin_data()`.
-	 * @var array<string, string|array<string, string>>
+	 * Mock data for the plugin header.
+	 * @var array<string, mixed>
 	 */
 	protected array $mock_plugin_data;
 
 	/**
-	 * Stores names of constants defined during a test.
+	 * Tracks constants defined during a test to undefine them in tearDown.
 	 * @var string[]
 	 */
-	protected array $defined_constants = array();
+	protected array $defined_constants = [];
 
 	/**
 	 * Sets up the test environment before each test.
@@ -144,9 +105,11 @@ abstract class PluginLibTestCase extends RanTestCase {
 	 * @return void
 	 */
 	public function setUp(): void {
-		$this->defined_constants = array(); // Reset for each test
 		parent::setUp();
+        WP_Mock::setUp();
+        $this->defined_constants = []; // Reset for each test
 
+		$this->enable_console_logging = false;
 		$this->mock_plugin_file_path = __DIR__ . '/mock-plugin-file.php';
 		$this->mock_plugin_dir_path  = __DIR__ . '/mock-plugin-dir/';
 		$this->mock_plugin_dir_url   = 'http://example.com/wp-content/plugins/mock-plugin-dir/';
@@ -165,13 +128,22 @@ abstract class PluginLibTestCase extends RanTestCase {
 		);
 
 		// Ensure the dummy plugin file exists for tests that need it.
-		// Individual test setup methods can remove it if they test file-not-found scenarios.
 		if (!file_exists($this->mock_plugin_file_path)) {
 			touch($this->mock_plugin_file_path);
 		}
 
+		// Define the debug constant to make the real is_active() method return true.
+		$this->define_constant($this->mock_plugin_data['LogConstantName'], true);
+
 		// Initialize and register the concrete config instance.
 		$this->config_mock = $this->get_and_register_concrete_config_instance();
+
+		// Create a partial mock (spy) of CollectingLogger. This allows it to both
+		// collect logs via its real methods and have Mockery expectations set on it.
+		$this->logger_mock = Mockery::mock(CollectingLogger::class, [$this->config_mock])->makePartial();
+
+		// Configure the config mock to always return our specific logger instance.
+		$this->config_mock->method('get_logger')->willReturn($this->logger_mock);
 	}
 
 	/**
@@ -183,24 +155,36 @@ abstract class PluginLibTestCase extends RanTestCase {
 	 * @return void
 	 */
 	public function tearDown(): void {
-		parent::tearDown();
+		// Conditionally print logs if enabled for the test
+		if ($this->enable_console_logging && $this->logger_mock instanceof CollectingLogger) {
+			$logs = $this->logger_mock->collected_logs;
+			if (!empty($logs)) {
+				fwrite(STDERR, "\n--- CONSOLE LOGS FOR TEST: " . $this->getName() . " ---\n");
+				fwrite(STDERR, print_r($logs, true));
+				fwrite(STDERR, "--- END CONSOLE LOGS FOR TEST: " . $this->getName() . " ---\n\n");
+			}
+		}
 
 		// Clean up defined constants
 		foreach ($this->defined_constants as $constant_name) {
 			// This is tricky as PHP doesn't have a native 'undefine'
-			// For testing, this usually means ensuring tests are isolated
-			// or using a library like uopz if absolutely necessary (not recommended here).
+			// so we can't truly clean up. This is a known limitation.
 			// For now, we just clear our tracking array.
 		}
 		$this->defined_constants = array();
 
+		// Remove the mock plugin file.
 		if (file_exists($this->mock_plugin_file_path)) {
 			unlink($this->mock_plugin_file_path);
 		}
 
+        WP_Mock::tearDown();
+
 		// Clean up singleton instances
 		$this->removeSingletonInstance(ConcreteConfigForTesting::class);
 		$this->removeSingletonInstance(ConfigAbstract::class);
+
+		parent::tearDown();
 	}
 
 	/**
@@ -224,13 +208,49 @@ abstract class PluginLibTestCase extends RanTestCase {
 	 * @param string $property_name The name of the property to set.
 	 * @param mixed $value The value to set the property to.
 	 * @return void
-	 * @throws \ReflectionException If the property does not exist.
+	 * @throws \ReflectionException If the property does not exist in the object or any of its parents.
 	 */
 	protected function set_protected_property_value(object &$object, string $property_name, $value): void {
 		$reflection = new \ReflectionObject($object);
+
+		// Walk up the inheritance tree to find the property
+		while ($reflection) {
+			if ($reflection->hasProperty($property_name)) {
+				$property = $reflection->getProperty($property_name);
+				$property->setAccessible(true);
+				$property->setValue($object, $value);
+				return; // Property found and set
+			}
+			$reflection = $reflection->getParentClass();
+		}
+
+		// If we get here, the property was not found in the entire hierarchy.
+		throw new \ReflectionException(
+			sprintf(
+				'Property "%s" does not exist in class "%s" or any of its parents.',
+				$property_name,
+				get_class($object)
+			)
+		);
+	}
+
+	/**
+	 * Gets the value of a protected or private property from an object.
+	 *
+	 * This is a helper method for testing, allowing access to non-public properties
+	 * to verify internal state.
+	 *
+	 * @param object $object The object from which to get the property.
+	 * @param string $property_name The name of the property to get.
+	 * @return mixed The value of the property.
+	 * @throws \ReflectionException If the property does not exist on the object.
+	 */
+	protected function get_protected_property_value(object $object, string $property_name) {
+		$reflection = new \ReflectionObject($object);
 		$property   = $reflection->getProperty($property_name);
 		$property->setAccessible(true);
-		$property->setValue($object, $value);
+
+		return $property->getValue($object);
 	}
 
 	/**
@@ -248,13 +268,14 @@ abstract class PluginLibTestCase extends RanTestCase {
 			$reflectionSingleton = new \ReflectionClass(SingletonAbstract::class);
 			$instancesProperty   = $reflectionSingleton->getProperty('instances');
 			$instancesProperty->setAccessible(true);
-			$current_instances = $instancesProperty->getValue(null);
-			if (isset($current_instances[$className])) {
-				unset($current_instances[$className]);
-				$instancesProperty->setValue(null, $current_instances);
+			$currentInstances = $instancesProperty->getValue();
+
+			if (isset($currentInstances[$className])) {
+				unset($currentInstances[$className]);
+				$instancesProperty->setValue(null, $currentInstances);
 			}
 		} catch (\ReflectionException $e) {
-			// Suppress reflection errors during cleanup
+			// Fail silently if the property doesn't exist, as it means no cleanup is needed.
 		}
 	}
 
@@ -262,8 +283,9 @@ abstract class PluginLibTestCase extends RanTestCase {
 	 * Creates, configures, and registers a `ConcreteConfigForTesting` instance.
 	 *
 	 * This is the core helper method provided by `PluginLibTestCase`. It performs the following steps:
-	 * 1. Mocks essential WordPress functions (`plugin_dir_path`, `plugin_dir_url`, `plugin_basename`, `get_plugin_data`, `sanitize_title`).
-	 * 2. Calls `ConcreteConfigForTesting::init()` with the mock plugin file path. This initializes the static `$plugin_file` property in `ConfigAbstract`.
+	 * 1. Mocks essential WordPress functions (`plugin_dir_path`, `get_plugin_data`, etc.)
+	 *    to provide a controlled environment.
+	 * 2. Initializes the `ConcreteConfigForTesting` class via `::init()`.
 	 * 3. Mocks the `_read_plugin_file_header_content()` method on a `ConcreteConfigForTesting` instance to return controlled header data.
 	 * 4. Manually invokes the `ConfigAbstract` constructor on this mock instance.
 	 * 5. Registers the fully constructed and configured `ConcreteConfigForTesting` instance in `SingletonAbstract::$instances` under two keys:
@@ -274,9 +296,9 @@ abstract class PluginLibTestCase extends RanTestCase {
 	 * Child test classes should call this method in their `setUp()` (after `parent::setUp()`) to ensure the
 	 * configuration system is ready before instantiating the class under test.
 	 *
-	 * @return ConcreteConfigForTesting The fully initialized and registered concrete config instance.
+	 * @return \PHPUnit\Framework\MockObject\MockObject|ConcreteConfigForTesting The fully initialized and registered concrete config instance.
 	 */
-	protected function get_and_register_concrete_config_instance(): ConcreteConfigForTesting {
+	protected function get_and_register_concrete_config_instance() {
 		WP_Mock::userFunction('plugin_dir_path')
 		    ->with($this->mock_plugin_file_path)
 		    ->andReturn($this->mock_plugin_dir_path);
@@ -293,7 +315,6 @@ abstract class PluginLibTestCase extends RanTestCase {
 		    ->with($this->mock_plugin_data['TextDomain'])
 		    ->andReturn($this->mock_plugin_data['TextDomain']); // Simple mock
 
-		// Initialize the concrete config class (which calls ConfigAbstract::init indirectly)
 		ConcreteConfigForTesting::init($this->mock_plugin_file_path);
 
 		// Define mock header content for _read_plugin_file_header_content
@@ -308,14 +329,18 @@ abstract class PluginLibTestCase extends RanTestCase {
 		$mock_file_header_content .= ' */';
 
 		$concreteInstance = $this->getMockBuilder(ConcreteConfigForTesting::class)
-		    ->onlyMethods(array('_read_plugin_file_header_content'))
+		    ->onlyMethods(array('_read_plugin_file_header_content', 'get_logger', 'get_plugin_data'))
 		    ->disableOriginalConstructor()
 		    ->getMock();
 
-		$concreteInstance->expects($this->any()) // Use any() if called multiple times or once() if strictly once
+		$concreteInstance->expects($this->any())
 		    ->method('_read_plugin_file_header_content')
 		    ->with($this->mock_plugin_file_path)
 		    ->willReturn($mock_file_header_content);
+
+		$concreteInstance->expects($this->any())
+			->method('get_plugin_data')
+			->willReturn($this->mock_plugin_data);
 
 		// Manually invoke the ConfigAbstract constructor
 		$reflection  = new \ReflectionObject($concreteInstance);
@@ -336,7 +361,5 @@ abstract class PluginLibTestCase extends RanTestCase {
 		$instancesProperty->setValue(null, $currentInstances);
 
 		return $concreteInstance;
-		// Note: Callers might expect ConfigAbstract::get_instance() to work,
-		// or ConcreteConfigForTesting::get_instance(). The reflection ensures both do.
 	}
 }

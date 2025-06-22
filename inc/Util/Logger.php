@@ -200,7 +200,7 @@ class Logger {
 		$this->config                       = $config;
 		$this->effective_log_level_severity = self::LOG_LEVELS_MAP[ self::LEVEL_WARNING ]; // Default.
 
-		$this->determine_effective_log_level();
+		$this->_determine_effective_log_level();
 	}
 
 	/**
@@ -208,7 +208,7 @@ class Logger {
 	 *
 	 * @since 1.0.0
 	 */
-	private function determine_effective_log_level(): void {
+	private function _determine_effective_log_level(): void {
 		$this->is_active                    = false;
 		$this->effective_log_level_severity = self::LOG_LEVELS_MAP[self::LEVEL_ERROR] + 100; // Default to higher than any level.
 		$this->activation_mode              = '';
@@ -236,7 +236,7 @@ class Logger {
 			}
 
 			$raw_value    = $sources_values[$source_type];
-			$parsed_level = $this->parse_log_level_value($raw_value);
+			$parsed_level = $this->_parse_log_level_value($raw_value);
 
 			if (null !== $parsed_level) {
 				$determined_level_text = $parsed_level;
@@ -257,7 +257,7 @@ class Logger {
 	 * @param mixed $raw_value The raw value to parse.
 	 * @return string|null The textual log level (e.g., 'DEBUG') or null if no valid level is determined.
 	 */
-	private function parse_log_level_value($raw_value): ?string {
+	private function _parse_log_level_value($raw_value): ?string {
 		$numeric_to_text_level = array_flip(self::LOG_LEVELS_MAP); // e.g., [100 => 'DEBUG', ...].
 		$level_value_str_upper = is_string($raw_value) ? strtoupper(trim($raw_value)) : null;
 
@@ -370,7 +370,7 @@ class Logger {
 	 * @param string       $level   The log level (e.g., 'DEBUG').
 	 * @param array<mixed> $context Optional context data.
 	 */
-	private function log( string $message, string $level, array $context = array() ): void {
+	protected function log( string $message, string $level, array $context = array() ): void {
 		if ( ! $this->is_active ) {
 			return;
 		}
