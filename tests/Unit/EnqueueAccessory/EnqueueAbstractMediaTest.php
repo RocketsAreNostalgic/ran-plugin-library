@@ -20,12 +20,12 @@ use ReflectionProperty;
  * Concrete implementation of EnqueueAbstract for testing media methods.
  */
 class ConcreteEnqueueForMediaTesting extends EnqueueAbstract {
-		/**
-		 * {@inheritdoc}
-		 */
-		public function load(): void {
-			// This is a concrete implementation for testing purposes.
-		}
+	/**
+	 * {@inheritdoc}
+	 */
+	public function load(): void {
+		// This is a concrete implementation for testing purposes.
+	}
 
 	/**
 	 * Public wrapper to test the protected enqueue_deferred_media_tools method.
@@ -66,7 +66,7 @@ final class EnqueueAbstractMediaTest extends PluginLibTestCase {
 				return json_encode($data);
 			},
 		));
-		WP_Mock::userFunction('has_action', ['return' => false])->byDefault();
+		WP_Mock::userFunction('has_action', array('return' => false))->byDefault();
 
 		// Create a real instance of the SUT, passing the mocked config. The logger is
 		// injected via the config, so we don't need a partial mock or spy.
@@ -94,7 +94,7 @@ final class EnqueueAbstractMediaTest extends PluginLibTestCase {
 		// Expect debug to be called at least once with any arguments.
 		$this->logger_mock->shouldReceive('debug')->withAnyArgs()->atLeast()->once();
 
-		WP_Mock::userFunction('did_action', ['return' => false]); // Ensure deferral happens
+		WP_Mock::userFunction('did_action', array('return' => false)); // Ensure deferral happens
 
 		$result = $this->instance->add_media($media_data);
 		$this->assertSame($this->instance, $result);
@@ -125,7 +125,7 @@ final class EnqueueAbstractMediaTest extends PluginLibTestCase {
 		$this->logger_mock->shouldReceive('debug')->with(Mockery::pattern('/^MediaEnqueueTrait::enqueue_media - Exited\.$/'))->once()->ordered();
 
 		WP_Mock::userFunction('wp_enqueue_media')->never();
-		WP_Mock::userFunction('did_action', ['return' => false]); // Ensure deferral happens
+		WP_Mock::userFunction('did_action', array('return' => false)); // Ensure deferral happens
 		WP_Mock::expectActionAdded($default_hook, array($this->instance, 'enqueue_deferred_media_tools'), 10, 0);
 
 		$result = $this->instance->enqueue_media($media_configs);
@@ -145,14 +145,14 @@ final class EnqueueAbstractMediaTest extends PluginLibTestCase {
 	 * @covers \Ran\PluginLib\EnqueueAccessory\MediaEnqueueTrait::enqueue_media
 	 */
 	public function test_enqueue_media_skips_when_condition_is_false(): void {
-		$hook_name = 'admin_enqueue_scripts'; // The default hook
+		$hook_name     = 'admin_enqueue_scripts'; // The default hook
 		$media_configs = array(
 			// The hook is null, so it will default to admin_enqueue_scripts
 			array('args' => array('post' => 123), 'condition' => static fn() => false, 'hook' => null),
 		);
 
 		// Mocks for the deferred call
-		WP_Mock::userFunction('current_action', ['return' => $hook_name]);
+		WP_Mock::userFunction('current_action', array('return' => $hook_name));
 		WP_Mock::userFunction('wp_enqueue_media')->never();
 
 		// Expect the correct log message from the deferred call
@@ -177,7 +177,7 @@ final class EnqueueAbstractMediaTest extends PluginLibTestCase {
 		$this->logger_mock->shouldReceive('debug')->withAnyArgs()->zeroOrMoreTimes();
 		$media_configs = array(array('args' => array(), 'hook' => 'admin_enqueue_scripts'));
 
-		WP_Mock::userFunction('did_action', ['return' => false]); // Ensure deferral happens
+		WP_Mock::userFunction('did_action', array('return' => false)); // Ensure deferral happens
 		WP_Mock::expectActionAdded('admin_enqueue_scripts', array($this->instance, 'enqueue_deferred_media_tools'), 10, 0);
 
 		$result = $this->instance->enqueue_media($media_configs);
@@ -189,8 +189,8 @@ final class EnqueueAbstractMediaTest extends PluginLibTestCase {
 	 * @covers \Ran\PluginLib\EnqueueAccessory\MediaEnqueueTrait::enqueue_deferred_media_tools
 	 */
 	public function test_enqueue_deferred_media_tools_processes_stored_media(): void {
-		$hook_name             = 'admin_enqueue_scripts';
-		WP_Mock::userFunction('current_action', ['return' => $hook_name]);
+		$hook_name = 'admin_enqueue_scripts';
+		WP_Mock::userFunction('current_action', array('return' => $hook_name));
 		WP_Mock::userFunction('wp_enqueue_media')->once();
 
 		$this->logger_mock->expects('debug')->with(Mockery::pattern('/^MediaEnqueueTrait::enqueue_deferred_media_tools - Processing deferred media tool configuration at original index 0 for hook: "' . $hook_name . '"\.$/'))->once();
@@ -199,7 +199,7 @@ final class EnqueueAbstractMediaTest extends PluginLibTestCase {
 		$reflection = new \ReflectionClass(EnqueueAbstract::class);
 		$property   = $reflection->getProperty('deferred_media_tool_configs');
 		$property->setAccessible(true);
-		$property->setValue($this->instance, [$hook_name => [[],],]);
+		$property->setValue($this->instance, array($hook_name => array(array(), ), ));
 
 		// Act
 		$this->instance->enqueue_deferred_media_tools_public();
@@ -216,7 +216,7 @@ final class EnqueueAbstractMediaTest extends PluginLibTestCase {
 	 */
 	public function test_enqueue_deferred_media_tools_skips_when_condition_is_false(): void {
 		$hook_name = 'admin_enqueue_scripts';
-		WP_Mock::userFunction('current_action', ['return' => $hook_name]);
+		WP_Mock::userFunction('current_action', array('return' => $hook_name));
 		WP_Mock::userFunction('wp_enqueue_media')->never();
 
 		$this->logger_mock->expects('debug')->with(Mockery::pattern('/^MediaEnqueueTrait::enqueue_deferred_media_tools - Condition not met for deferred media tool configuration at original index 0 on hook "' . $hook_name . '"\. Skipping\.$/'))->once();
@@ -225,7 +225,7 @@ final class EnqueueAbstractMediaTest extends PluginLibTestCase {
 		$reflection = new \ReflectionClass(EnqueueAbstract::class);
 		$property   = $reflection->getProperty('deferred_media_tool_configs');
 		$property->setAccessible(true);
-		$property->setValue($this->instance, [$hook_name => [['condition' => fn() => false]]]);
+		$property->setValue($this->instance, array($hook_name => array(array('condition' => fn() => false))));
 
 		// Act
 		$this->instance->enqueue_deferred_media_tools_public();
@@ -242,7 +242,7 @@ final class EnqueueAbstractMediaTest extends PluginLibTestCase {
 	 */
 	public function test_enqueue_deferred_media_tools_with_empty_hook_data(): void {
 		$hook_name = 'empty_hook';
-		WP_Mock::userFunction('current_action', ['return' => $hook_name]);
+		WP_Mock::userFunction('current_action', array('return' => $hook_name));
 
 		// Set deferred_media_tool_configs to an empty array for this hook or not set at all
 		$reflector = new ReflectionClass(EnqueueAbstract::class);

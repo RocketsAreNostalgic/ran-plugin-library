@@ -250,7 +250,7 @@ class StylesEnqueueTraitTest extends PluginLibTestCase {
 		$this->assertCount(0, $retrieved_styles, 'The styles queue should be empty.');
 	}
 
-		/**
+	/**
 	 * @test
 	 * @covers \Ran\PluginLib\EnqueueAccessory\StylesEnqueueTrait::register_styles
 	 * @covers \Ran\PluginLib\EnqueueAccessory\StylesEnqueueTrait::_process_single_style

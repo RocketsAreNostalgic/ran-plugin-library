@@ -24,7 +24,7 @@ if (!\class_exists(\Ran\PluginLib\Tests\Unit\ConcreteConfigForTesting::class)) {
 		// This method is explicitly defined to resolve a PHPUnit mocking ambiguity
 		// with inherited methods. Its body is irrelevant as it will be mocked.
 		public function get_plugin_data(): array {
-			return [];
+			return array();
 		}
 	}
 }
@@ -95,7 +95,7 @@ abstract class PluginLibTestCase extends RanTestCase {
 	 * Tracks constants defined during a test to undefine them in tearDown.
 	 * @var string[]
 	 */
-	protected array $defined_constants = [];
+	protected array $defined_constants = array();
 
 	/**
 	 * Sets up the test environment before each test.
@@ -106,14 +106,14 @@ abstract class PluginLibTestCase extends RanTestCase {
 	 */
 	public function setUp(): void {
 		parent::setUp();
-        WP_Mock::setUp();
-        $this->defined_constants = []; // Reset for each test
+		WP_Mock::setUp();
+		$this->defined_constants = array(); // Reset for each test
 
 		$this->enable_console_logging = false;
-		$this->mock_plugin_file_path = __DIR__ . '/mock-plugin-file.php';
-		$this->mock_plugin_dir_path  = __DIR__ . '/mock-plugin-dir/';
-		$this->mock_plugin_dir_url   = 'http://example.com/wp-content/plugins/mock-plugin-dir/';
-		$this->mock_plugin_basename  = 'mock-plugin-dir/mock-plugin-file.php';
+		$this->mock_plugin_file_path  = __DIR__ . '/mock-plugin-file.php';
+		$this->mock_plugin_dir_path   = __DIR__ . '/mock-plugin-dir/';
+		$this->mock_plugin_dir_url    = 'http://example.com/wp-content/plugins/mock-plugin-dir/';
+		$this->mock_plugin_basename   = 'mock-plugin-dir/mock-plugin-file.php';
 
 		$this->mock_plugin_data = array(
 		    'Name'            => 'Mock Plugin for Testing',
@@ -140,7 +140,7 @@ abstract class PluginLibTestCase extends RanTestCase {
 
 		// Create a partial mock (spy) of CollectingLogger. This allows it to both
 		// collect logs via its real methods and have Mockery expectations set on it.
-		$this->logger_mock = Mockery::mock(CollectingLogger::class, [$this->config_mock])->makePartial();
+		$this->logger_mock = Mockery::mock(CollectingLogger::class, array($this->config_mock))->makePartial();
 
 		// Configure the config mock to always return our specific logger instance.
 		$this->config_mock->method('get_logger')->willReturn($this->logger_mock);
@@ -161,7 +161,7 @@ abstract class PluginLibTestCase extends RanTestCase {
 			if (!empty($logs)) {
 				fwrite(STDERR, "\n--- CONSOLE LOGS FOR TEST: " . $this->getName() . " ---\n");
 				fwrite(STDERR, print_r($logs, true));
-				fwrite(STDERR, "--- END CONSOLE LOGS FOR TEST: " . $this->getName() . " ---\n\n");
+				fwrite(STDERR, '--- END CONSOLE LOGS FOR TEST: ' . $this->getName() . " ---\n\n");
 			}
 		}
 
@@ -178,7 +178,7 @@ abstract class PluginLibTestCase extends RanTestCase {
 			unlink($this->mock_plugin_file_path);
 		}
 
-        WP_Mock::tearDown();
+		WP_Mock::tearDown();
 
 		// Clean up singleton instances
 		$this->removeSingletonInstance(ConcreteConfigForTesting::class);

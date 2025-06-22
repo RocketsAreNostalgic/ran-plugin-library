@@ -72,17 +72,17 @@ class ScriptsEnqueueTraitTest extends PluginLibTestCase {
 		WP_Mock::userFunction('wp_doing_ajax')->andReturn(false)->byDefault();
 		WP_Mock::userFunction('_doing_it_wrong')->withAnyArgs()->andReturnNull()->byDefault();
 		WP_Mock::userFunction('wp_script_is')->withAnyArgs()->andReturn(false)->byDefault();
-		WP_Mock::userFunction('wp_json_encode', [
+		WP_Mock::userFunction('wp_json_encode', array(
 			'return' => static fn($data) => json_encode($data),
-		])->byDefault();
-		WP_Mock::userFunction('esc_attr', [
+		))->byDefault();
+		WP_Mock::userFunction('esc_attr', array(
 			'return' => static fn($text) => htmlspecialchars((string) $text, ENT_QUOTES, 'UTF-8'),
-		])->byDefault();
+		))->byDefault();
 
 		// Create a partial mock of ConcreteEnqueueForScriptsTesting
 		$this->instance = Mockery::mock(
 			ConcreteEnqueueForScriptsTesting::class,
-			[$this->config_mock] // Pass the config_mock from parent
+			array($this->config_mock) // Pass the config_mock from parent
 		)->makePartial();
 		$this->instance->shouldAllowMockingProtectedMethods();
 
@@ -1053,13 +1053,12 @@ class ScriptsEnqueueTraitTest extends PluginLibTestCase {
 	 * @return void
 	 * @throws \ReflectionException
 	 */
-	public function test_process_single_script_handles_edge_cases(array $test_case): void
-	{ 
+	public function test_process_single_script_handles_edge_cases(array $test_case): void {
 		$script_definition = $test_case['script_definition'];
-		$wp_mocks = $test_case['wp_mocks'];
-		$logger_expects = $test_case['logger_expects'];
-		$expected_return = $test_case['expected_return'];
-		$sut_mocks = $test_case['sut_mocks'] ?? null;
+		$wp_mocks          = $test_case['wp_mocks'];
+		$logger_expects    = $test_case['logger_expects'];
+		$expected_return   = $test_case['expected_return'];
+		$sut_mocks         = $test_case['sut_mocks'] ?? null;
 
 		if ( ! empty( $sut_mocks ) ) {
 			$this->setup_sut_mocks( $sut_mocks );
@@ -1082,13 +1081,13 @@ class ScriptsEnqueueTraitTest extends PluginLibTestCase {
 		$result = $this->invoke_protected_method(
 			$this->instance,
 			'_process_single_script',
-			[
+			array(
 				$script_definition,
 				'test_context', // This context is generic for the data provider
-				$test_case['hook_name'] ?? null,
+				$test_case['hook_name']   ?? null,
 				$test_case['do_register'] ?? true,
-				$test_case['do_enqueue'] ?? true,
-			]
+				$test_case['do_enqueue']  ?? true,
+			)
 		);
 
 		$this->assertEquals($expected_return, $result);
@@ -1098,17 +1097,16 @@ class ScriptsEnqueueTraitTest extends PluginLibTestCase {
 	 * @test
 	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::_process_single_script
 	 */
-	public function test_process_single_script_logs_warning_for_id_attribute(): void
-	{
+	public function test_process_single_script_logs_warning_for_id_attribute(): void {
 		// Arrange
-		$script_definition = [
-			'handle' => 'id-script',
-			'src'    => 'path/id.js',
-			'attributes' => ['id' => 'custom-id'],
-		];
+		$script_definition = array(
+			'handle'     => 'id-script',
+			'src'        => 'path/id.js',
+			'attributes' => array('id' => 'custom-id'),
+		);
 
 		WP_Mock::userFunction('wp_script_is')->with('id-script', 'registered')->andReturn(false);
-		WP_Mock::userFunction('wp_register_script')->with('id-script', 'path/id.js', [], false, false)->andReturn(true);
+		WP_Mock::userFunction('wp_register_script')->with('id-script', 'path/id.js', array(), false, false)->andReturn(true);
 		WP_Mock::userFunction('wp_script_is')->with('id-script', 'enqueued')->andReturn(false);
 		WP_Mock::userFunction('wp_enqueue_script')->with('id-script')->andReturnNull();
 
@@ -1124,22 +1122,21 @@ class ScriptsEnqueueTraitTest extends PluginLibTestCase {
 		$result = $this->invoke_protected_method(
 			$this->instance,
 			'_process_single_script',
-			[$script_definition, 'test_context']
+			array($script_definition, 'test_context')
 		);
 
 		// Assert
 		$this->assertEquals('id-script', $result);
 	}
 
-	public function provide_script_edge_cases(): array
-	{
-		return [
-			'registration_fails' => [['script_definition' => ['handle' => 'fail-script', 'src' => 'path/fail.js'],'wp_mocks' => ['wp_script_is' => ['args' => ['fail-script', 'registered'], 'return' => false],'wp_register_script' => ['args' => ['fail-script', 'path/fail.js', [], false, false], 'return' => false],],'logger_expects' => ['warning' => [['pattern' => '/wp_register_script\\(\\) failed for handle/']]],'expected_return' => false,]],
-			'invalid_definition_no_src' => [['script_definition' => ['handle' => 'no-src-script'],'wp_mocks' => [],'logger_expects' => ['warning' => [['pattern' => '/Invalid script definition. Missing handle or src/']]],'expected_return' => false,]],
-			'async_add_data_fails' => [['script_definition' => ['handle' => 'async-fail', 'src' => 'path/async.js', 'attributes' => ['async' => true]],'wp_mocks' => ['wp_script_is' => ['args' => ['async-fail', 'registered'], 'return' => false, 'times' => 2],'wp_register_script' => ['return' => true],'wp_script_add_data' => ['args' => ['async-fail', 'strategy', 'async'], 'return' => false],],'logger_expects' => ['warning' => [['pattern' => "/Failed to add 'async' strategy/"]]],'expected_return' => 'async-fail',]],
-			'defer_add_data_fails' => [['script_definition' => ['handle' => 'defer-fail', 'src' => 'path/defer.js', 'attributes' => ['defer' => true]],'wp_mocks' => ['wp_script_is' => ['args' => ['defer-fail', 'registered'], 'return' => false, 'times' => 2],'wp_register_script' => ['return' => true],'wp_script_add_data' => ['args' => ['defer-fail', 'strategy', 'defer'], 'return' => false],],'logger_expects' => ['warning' => [['pattern' => "/Failed to add 'defer' strategy/"]]],'expected_return' => 'defer-fail',]],
-			'src_attribute_ignored' => [['script_definition' => ['handle' => 'src-script', 'src' => 'path/src.js', 'attributes' => ['src' => 'ignored.js']],'wp_mocks' => ['wp_script_is' => ['args' => ['src-script', 'registered'], 'return' => false, 'times' => 2],'wp_register_script' => ['return' => true],],'logger_expects' => ['debug' => [['pattern' => "/Ignoring 'src' attribute/"]]],'expected_return' => 'src-script',]],
-		];
+	public function provide_script_edge_cases(): array {
+		return array(
+			'registration_fails'        => array(array('script_definition' => array('handle' => 'fail-script', 'src' => 'path/fail.js'), 'wp_mocks' => array('wp_script_is' => array('args' => array('fail-script', 'registered'), 'return' => false), 'wp_register_script' => array('args' => array('fail-script', 'path/fail.js', array(), false, false), 'return' => false), ), 'logger_expects' => array('warning' => array(array('pattern' => '/wp_register_script\\(\\) failed for handle/'))), 'expected_return' => false, )),
+			'invalid_definition_no_src' => array(array('script_definition' => array('handle' => 'no-src-script'), 'wp_mocks' => array(), 'logger_expects' => array('warning' => array(array('pattern' => '/Invalid script definition. Missing handle or src/'))), 'expected_return' => false, )),
+			'async_add_data_fails'      => array(array('script_definition' => array('handle' => 'async-fail', 'src' => 'path/async.js', 'attributes' => array('async' => true)), 'wp_mocks' => array('wp_script_is' => array('args' => array('async-fail', 'registered'), 'return' => false, 'times' => 2), 'wp_register_script' => array('return' => true), 'wp_script_add_data' => array('args' => array('async-fail', 'strategy', 'async'), 'return' => false), ), 'logger_expects' => array('warning' => array(array('pattern' => "/Failed to add 'async' strategy/"))), 'expected_return' => 'async-fail', )),
+			'defer_add_data_fails'      => array(array('script_definition' => array('handle' => 'defer-fail', 'src' => 'path/defer.js', 'attributes' => array('defer' => true)), 'wp_mocks' => array('wp_script_is' => array('args' => array('defer-fail', 'registered'), 'return' => false, 'times' => 2), 'wp_register_script' => array('return' => true), 'wp_script_add_data' => array('args' => array('defer-fail', 'strategy', 'defer'), 'return' => false), ), 'logger_expects' => array('warning' => array(array('pattern' => "/Failed to add 'defer' strategy/"))), 'expected_return' => 'defer-fail', )),
+			'src_attribute_ignored'     => array(array('script_definition' => array('handle' => 'src-script', 'src' => 'path/src.js', 'attributes' => array('src' => 'ignored.js')), 'wp_mocks' => array('wp_script_is' => array('args' => array('src-script', 'registered'), 'return' => false, 'times' => 2), 'wp_register_script' => array('return' => true), ), 'logger_expects' => array('debug' => array(array('pattern' => "/Ignoring 'src' attribute/"))), 'expected_return' => 'src-script', )),
+		);
 	}
 
 	protected function setup_sut_mocks(array $sut_mocks): void {
@@ -1173,9 +1170,9 @@ class ScriptsEnqueueTraitTest extends PluginLibTestCase {
 	 * @return mixed The result of the method call.
 	 * @throws \ReflectionException If the method does not exist.
 	 */
-	protected function invoke_protected_method(object $object, string $methodName, array $parameters = []) {
+	protected function invoke_protected_method(object $object, string $methodName, array $parameters = array()) {
 		$reflection = new \ReflectionClass(get_class($object));
-		$method = $reflection->getMethod($methodName);
+		$method     = $reflection->getMethod($methodName);
 		$method->setAccessible(true);
 
 		return $method->invokeArgs($object, $parameters);
@@ -1183,12 +1180,12 @@ class ScriptsEnqueueTraitTest extends PluginLibTestCase {
 
 	// Expose protected method for testing
 	public function call_enqueue_deferred_scripts(string $hook_name): void {
-		$this->invoke_protected_method($this->instance, '_enqueue_deferred_scripts', [$hook_name]);
+		$this->invoke_protected_method($this->instance, '_enqueue_deferred_scripts', array($hook_name));
 	}
 
 	// Expose protected method for testing
 	public function call_enqueue_inline_scripts(?string $hook_name = null): void {
-		$this->invoke_protected_method($this->instance, '_enqueue_inline_scripts', [$hook_name]);
+		$this->invoke_protected_method($this->instance, '_enqueue_inline_scripts', array($hook_name));
 	}
 
 	// Expose protected property for testing
@@ -1932,12 +1929,11 @@ class ScriptsEnqueueTraitTest extends PluginLibTestCase {
 	 * @test
 	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::_modify_script_tag_for_attributes
 	 */
-	public function test_modify_script_tag_for_attributes_returns_unmodified_on_handle_mismatch(): void
-	{
-		$original_tag = '<script src="test.js"></script>';
-		$filter_handle = 'handle-being-filtered';
+	public function test_modify_script_tag_for_attributes_returns_unmodified_on_handle_mismatch(): void {
+		$original_tag           = '<script src="test.js"></script>';
+		$filter_handle          = 'handle-being-filtered';
 		$script_handle_to_match = 'a-different-handle';
-		$attributes = ['async' => true];
+		$attributes             = array('async' => true);
 
 		// The logger should not be called at all in this case, not even is_active.
 		$this->logger_mock->shouldNotReceive('is_active');
@@ -1947,14 +1943,14 @@ class ScriptsEnqueueTraitTest extends PluginLibTestCase {
 		$result = $this->invoke_protected_method(
 			$this->instance,
 			'_modify_script_tag_for_attributes',
-			[$original_tag, $filter_handle, $script_handle_to_match, $attributes]
+			array($original_tag, $filter_handle, $script_handle_to_match, $attributes)
 		);
 
 		$this->assertSame($original_tag, $result);
 	}
 
 	public static function provide_script_tag_modification_cases(): array {
-		$complex_attrs = ['type' => 'module', 'async' => true, 'defer' => false, 'data-version' => '1.2', 'integrity' => 'sha384-xyz', 'crossorigin' => 'anonymous', 'custom-empty' => ''];
+		$complex_attrs        = array('type' => 'module', 'async' => true, 'defer' => false, 'data-version' => '1.2', 'integrity' => 'sha384-xyz', 'crossorigin' => 'anonymous', 'custom-empty' => '');
 		$complex_expected_tag = '<script type="module" id="main-script" src="./app.js?v=1.2" async data-version="1.2" integrity="sha384-xyz" crossorigin="anonymous"></script>';
 
 		return array(
@@ -2070,7 +2066,7 @@ class ScriptsEnqueueTraitTest extends PluginLibTestCase {
 					),
 					'warning' => array(
 						array(
-							"ScriptsEnqueueTrait::_modify_script_tag_for_attributes - Malformed script tag for 'test-handle'. Original tag: " . esc_html('<div></div>') . ". Skipping attribute modification."
+							"ScriptsEnqueueTrait::_modify_script_tag_for_attributes - Malformed script tag for 'test-handle'. Original tag: " . esc_html('<div></div>') . '. Skipping attribute modification.'
 						)
 					)
 				)
@@ -2119,103 +2115,103 @@ class ScriptsEnqueueTraitTest extends PluginLibTestCase {
 					)
 				)
 			),
-			'wp_managed_attribute_id_ignored' => [
+			'wp_managed_attribute_id_ignored' => array(
                 '<script src="test.js"></script>',
                 'test-handle',
-                ['id' => 'new-id', 'async' => true],
+                array('id' => 'new-id', 'async' => true),
                 '<script src="test.js" async></script>',
-                [
-                    'debug' => [
-                        [
-                            "ScriptsEnqueueTrait::_modify_script_tag_for_attributes - Modifying tag for handle 'test-handle'. Attributes: " . json_encode(['id' => 'new-id', 'async' => true])
-                        ],
-                        [
+                array(
+                    'debug' => array(
+                        array(
+                            "ScriptsEnqueueTrait::_modify_script_tag_for_attributes - Modifying tag for handle 'test-handle'. Attributes: " . json_encode(array('id' => 'new-id', 'async' => true))
+                        ),
+                        array(
                             "ScriptsEnqueueTrait::_modify_script_tag_for_attributes - Successfully modified tag for 'test-handle'. New tag: " . esc_html('<script src="test.js" async></script>')
-                        ]
-                    ],
-                    'warning' => [
-                        [
+                        )
+                    ),
+                    'warning' => array(
+                        array(
                             sprintf(
-                                "%s - Attempt to override WordPress-managed attribute '%s' for script handle '%s'. This attribute will be ignored.",
-                                'Ran\\PluginLib\\EnqueueAccessory\\ScriptsEnqueueTrait::_modify_script_tag_for_attributes',
-                                'id',
-                                'test-handle'
+                            	"%s - Attempt to override WordPress-managed attribute '%s' for script handle '%s'. This attribute will be ignored.",
+                            	'Ran\\PluginLib\\EnqueueAccessory\\ScriptsEnqueueTrait::_modify_script_tag_for_attributes',
+                            	'id',
+                            	'test-handle'
                             ),
-                            [
+                            array(
                                 'handle'    => 'test-handle',
                                 'attribute' => 'id',
-                            ]
-                        ]
-                    ],
-                ]
-            ],
-            'wp_managed_attribute_id_ignored_logger_inactive' => [
+                            )
+                        )
+                    ),
+                )
+            ),
+            'wp_managed_attribute_id_ignored_logger_inactive' => array(
                 '<script src="test.js"></script>',
                 'test-handle',
-                ['id' => 'new-id', 'async' => true],
+                array('id' => 'new-id', 'async' => true),
                 '<script src="test.js" async></script>',
-                []
-            ],
-			'All attributes are ignored' => [
+                array()
+            ),
+			'All attributes are ignored' => array(
 				'<script src="test.js"></script>',
 				'test-handle',
 				array('src' => 'ignored.js', 'id' => 'new-id'),
 				'<script src="test.js"></script>',
-				[
-					'debug' => [
-						[
+				array(
+					'debug' => array(
+						array(
 							"ScriptsEnqueueTrait::_modify_script_tag_for_attributes - Successfully modified tag for 'test-handle'. New tag: " . esc_html('<script src="test.js"></script>')
-						]
-					],
-					'warning' => [
-						[
+						)
+					),
+					'warning' => array(
+						array(
 							sprintf(
 								"%s - Attempt to override WordPress-managed attribute '%s' for script handle '%s'. This attribute will be ignored.",
 								'Ran\\PluginLib\\EnqueueAccessory\\ScriptsEnqueueTrait::_modify_script_tag_for_attributes',
 								'id',
 								'test-handle'
 							),
-							[
+							array(
 								'handle'    => 'test-handle',
 								'attribute' => 'id',
-							]
-						]
-					],
-				]
-			],
-			'complex_case_with_module_and_various_attrs' => [
+							)
+						)
+					),
+				)
+			),
+			'complex_case_with_module_and_various_attrs' => array(
 				'<script id="main-script" src="./app.js?v=1.2"></script>',
 				'app-main',
 				$complex_attrs,
 				$complex_expected_tag,
-				[
-					'debug' => [
-						[
+				array(
+					'debug' => array(
+						array(
 							"ScriptsEnqueueTrait::_modify_script_tag_for_attributes - Modifying tag for handle 'app-main'. Attributes: " . json_encode($complex_attrs)
-						],
-						[
+						),
+						array(
 							"ScriptsEnqueueTrait::_modify_script_tag_for_attributes - Script 'app-main' is a module. Modifying tag accordingly."
-						],
-						[
+						),
+						array(
 							"ScriptsEnqueueTrait::_modify_script_tag_for_attributes - Successfully modified tag for 'app-main'. New tag: " . esc_html($complex_expected_tag)
-						]
-					]
-				]
-			],
-			'type_module_logger_inactive' => [
+						)
+					)
+				)
+			),
+			'type_module_logger_inactive' => array(
 				'<script src="module.js"></script>',
 				'module-handle',
-				['type' => 'module'],
+				array('type' => 'module'),
 				'<script type="module" src="module.js"></script>',
-				[] // Expect no logger calls
-			],
-			'malformed_tag_logger_inactive' => [
+				array() // Expect no logger calls
+			),
+			'malformed_tag_logger_inactive' => array(
 				'<script src="test.js"', // Malformed
 				'test-handle',
-				['async' => true],
+				array('async' => true),
 				'<script src="test.js"', // Expect original tag
-				[] // Expect no logger calls
-			],
+				array() // Expect no logger calls
+			),
 		);
 	}
 
@@ -2539,18 +2535,17 @@ class ScriptsEnqueueTraitTest extends PluginLibTestCase {
 	 * @test
 	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::_process_single_script
 	 */
-	public function test_process_single_script_handles_registration_failure(): void
-	{
-		$script_def = ['handle' => 'fail-handle', 'src' => 'fail.js'];
+	public function test_process_single_script_handles_registration_failure(): void {
+		$script_def = array('handle' => 'fail-handle', 'src' => 'fail.js');
 
 		WP_Mock::userFunction('wp_script_is')->with('fail-handle', 'registered')->andReturn(false);
-		WP_Mock::userFunction('wp_register_script')->with('fail-handle', 'fail.js', [], false, false)->andReturn(false);
+		WP_Mock::userFunction('wp_register_script')->with('fail-handle', 'fail.js', array(), false, false)->andReturn(false);
 
 		$this->logger_mock->shouldReceive('warning')
 			->with("ScriptsEnqueueTrait::_process_single_script - wp_register_script() failed for handle 'fail-handle'. Skipping further processing for this script.")
 			->once();
 
-		$result = $this->invoke_protected_method($this->instance, '_process_single_script', [$script_def, 'test_context', null, true, false]);
+		$result = $this->invoke_protected_method($this->instance, '_process_single_script', array($script_def, 'test_context', null, true, false));
 
 		$this->assertFalse($result);
 	}
@@ -2560,10 +2555,9 @@ class ScriptsEnqueueTraitTest extends PluginLibTestCase {
 	 * @dataProvider provide_add_data_failure_scenarios
 	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::_process_single_script
 	 */
-	public function test_process_single_script_logs_warning_on_add_data_failure(string $strategy): void
-	{
-		$handle = "{$strategy}-fail-handle";
-		$script_def = ['handle' => $handle, 'src' => 'fail.js', 'attributes' => [$strategy => true]];
+	public function test_process_single_script_logs_warning_on_add_data_failure(string $strategy): void {
+		$handle     = "{$strategy}-fail-handle";
+		$script_def = array('handle' => $handle, 'src' => 'fail.js', 'attributes' => array($strategy => true));
 
 		WP_Mock::userFunction('wp_script_is')->with($handle, 'registered')->andReturn(false);
 		WP_Mock::userFunction('wp_register_script')->andReturn(true);
@@ -2573,34 +2567,32 @@ class ScriptsEnqueueTraitTest extends PluginLibTestCase {
 			->with("ScriptsEnqueueTrait::_process_single_script - Failed to add '{$strategy}' strategy for '{$handle}' via wp_script_add_data.")
 			->once();
 
-		$result = $this->invoke_protected_method($this->instance, '_process_single_script', [$script_def, 'test_context', null, true, false]);
+		$result = $this->invoke_protected_method($this->instance, '_process_single_script', array($script_def, 'test_context', null, true, false));
 		$this->assertSame($handle, $result);
 	}
 
-	public function provide_add_data_failure_scenarios(): array
-	{
-		return [
-			'async failure' => ['async'],
-			'defer failure' => ['defer'],
-		];
+	public function provide_add_data_failure_scenarios(): array {
+		return array(
+			'async failure' => array('async'),
+			'defer failure' => array('defer'),
+		);
 	}
 
 	/**
 	 * @test
 	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::_process_single_script
 	 */
-	public function test_process_single_script_ignores_src_attribute(): void
-	{
-		$script_def = ['handle' => 'src-ignore-handle', 'src' => 'original.js', 'attributes' => ['src' => 'ignored.js']];
+	public function test_process_single_script_ignores_src_attribute(): void {
+		$script_def = array('handle' => 'src-ignore-handle', 'src' => 'original.js', 'attributes' => array('src' => 'ignored.js'));
 
 		WP_Mock::userFunction('wp_script_is')->andReturn(false);
-		WP_Mock::userFunction('wp_register_script')->with('src-ignore-handle', 'original.js', [], false, false)->andReturn(true)->once();
+		WP_Mock::userFunction('wp_register_script')->with('src-ignore-handle', 'original.js', array(), false, false)->andReturn(true)->once();
 
 		$this->logger_mock->shouldReceive('debug')
 			->with("ScriptsEnqueueTrait::_process_single_script - Ignoring 'src' attribute for 'src-ignore-handle' as it is managed by WordPress during registration.")
 			->once();
 
-		$result = $this->invoke_protected_method($this->instance, '_process_single_script', [$script_def, 'test_context', null, true, false]);
+		$result = $this->invoke_protected_method($this->instance, '_process_single_script', array($script_def, 'test_context', null, true, false));
 		$this->assertSame('src-ignore-handle', $result);
 	}
 
@@ -2610,22 +2602,20 @@ class ScriptsEnqueueTraitTest extends PluginLibTestCase {
 	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::_process_single_script
 	 */
 	public function test_process_single_script_handles_invalid_definition(array $script_def, string $expected_log_handle):
-	void
-	{
+	void {
 		$this->logger_mock->shouldReceive('warning')
 			->with("ScriptsEnqueueTrait::_process_single_script - Invalid script definition. Missing handle or src. Skipping. Handle: '{$expected_log_handle}'.")
 			->once();
 
-		$result = $this->invoke_protected_method($this->instance, '_process_single_script', [$script_def, 'test_context', null, true, false]);
+		$result = $this->invoke_protected_method($this->instance, '_process_single_script', array($script_def, 'test_context', null, true, false));
 
 		$this->assertFalse($result);
 	}
 
-	public function provide_invalid_script_definitions(): array
-	{
-		return [
-			'missing handle' => [['src' => 'some.js'], 'N/A'],
-			'missing src' => [['handle' => 'no-src-handle'], 'no-src-handle'],
-		];
+	public function provide_invalid_script_definitions(): array {
+		return array(
+			'missing handle' => array(array('src' => 'some.js'), 'N/A'),
+			'missing src'    => array(array('handle' => 'no-src-handle'), 'no-src-handle'),
+		);
 	}
 }
