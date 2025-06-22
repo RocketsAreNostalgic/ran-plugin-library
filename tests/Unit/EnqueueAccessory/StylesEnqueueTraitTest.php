@@ -301,7 +301,6 @@ class StylesEnqueueTraitTest extends PluginLibTestCase {
 		));
 
 		// Mocks for inline style processing
-		$this->logger_mock->shouldReceive('debug')->once()->with("StylesEnqueueTrait::_process_single_style - Checking for inline styles for 'my-style'.")->once()->ordered('register');
 		$this->logger_mock->shouldReceive('debug')->once()->with("StylesEnqueueTrait::_process_inline_styles (context: register_styles) - Checking for inline styles for parent handle 'my-style'.")->once()->ordered('register');
 		$this->logger_mock->shouldReceive('debug')->once()->with("StylesEnqueueTrait::_process_inline_styles (context: register_styles) - No inline styles found or processed for 'my-style'.")->once()->ordered('register');
 
@@ -483,14 +482,11 @@ class StylesEnqueueTraitTest extends PluginLibTestCase {
 		// consolidated mock for 'enqueued' status (defined earlier), which returns false.
 		$this->logger_mock->shouldReceive('debug')->once()->with("StylesEnqueueTrait::_process_single_style - Enqueuing style 'my-basic-style'.");
 		WP_Mock::userFunction('wp_enqueue_style', array('args' => array('my-basic-style'), 'times' => 1));
-		// Inline style check within _process_single_style
-		$this->logger_mock->shouldReceive('debug')->once()->with("StylesEnqueueTrait::_process_single_style - Checking for inline styles for 'my-basic-style'.");
 		// _process_inline_styles (called by _process_single_style from enqueue_styles)
 		$this->logger_mock->shouldReceive('debug')->once()->with("StylesEnqueueTrait::_process_inline_styles (context: enqueue_styles) - Checking for inline styles for parent handle 'my-basic-style'.");
 		// Parent style 'my-basic-style' will have been enqueued by wp_enqueue_style just before _process_inline_styles is called.
 		// Parent check in _process_inline_styles (trait line 440): `if ( ! wp_style_is( $parent_handle, 'registered' ) && ! wp_style_is( $parent_handle, 'enqueued' ) )`
-		// The call to wp_style_is('my-basic-style', 'registered') at trait line 440 is handled by the
-		// third call to the consolidated mock for 'registered' status (defined earlier), which returns true.
+		// The call to wp_style_is('my-basic-style', 'registered') at trait line 440 is handled by the		// third call to the consolidated mock for 'registered' status (defined earlier), which returns true.
 		// Because `!wp_style_is(..., 'registered')` evaluates to `!true` (which is `false`),
 		// the `&&` condition short-circuits.
 		// Therefore, the `wp_style_is('my-basic-style', 'enqueued')` part of the condition at trait line 440 is NOT executed.

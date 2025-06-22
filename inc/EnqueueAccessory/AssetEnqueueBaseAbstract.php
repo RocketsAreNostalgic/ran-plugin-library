@@ -246,6 +246,20 @@ abstract class AssetEnqueueBaseAbstract {
 	}
 
 	/**
+	 * Wrapper for the global add_filter function to allow for easier mocking in tests.
+	 *
+	 * @param string   $hook          The name of the filter to hook the $callback to.
+	 * @param callable $callback      The callback to be run when the filter is applied.
+	 * @param int      $priority      Used to specify the order in which the functions
+	 *                                associated with a particular action are executed.
+	 * @param int      $accepted_args The number of arguments the function accepts.
+	 * @return void
+	 */
+	protected function _do_add_filter(string $hook, callable $callback, int $priority, int $accepted_args): void {
+		add_filter($hook, $callback, $priority, $accepted_args);
+	}
+
+	/**
 	 * Wraps the global add_action function to allow for easier mocking in tests.
 	 *
 	 * @param string   $hook          The name of the action to which the $function_to_add is hooked.
