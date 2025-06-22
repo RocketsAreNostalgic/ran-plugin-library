@@ -614,4 +614,94 @@ trait StylesEnqueueTrait {
 
 		return $handle;
 	}
+
+	/**
+	 * Modifies the HTML tag for a specific style handle by adding custom attributes.
+	 *
+	 * This function is used to dynamically add attributes to style tags, such as
+	 * adding `media` attributes or other custom attributes. It's typically used
+	 * in the `style_loader_tag` filter to modify the output of style tags.
+	 *
+	 * @param string $tag The original HTML tag for the style.
+	 * @param string $filter_tag_handle The handle of the style being filtered.
+	 * @param string $style_handle_to_match The handle of the style to modify.
+	 * @param array $attributes_to_apply An array of attributes to add to the style tag.
+	 *
+	 * @return string The modified HTML tag with added attributes.
+	 */
+	protected function _modify_style_tag_for_attributes(
+		string $tag,
+		string $filter_tag_handle,
+		string $style_handle_to_match,
+		array $attributes_to_apply
+	): string {
+		$logger = $this->get_logger();
+
+		// If the filter is not for the style we're interested in, return the original tag.
+		if ( $filter_tag_handle !== $style_handle_to_match ) {
+			return $tag;
+		}
+
+		if ($logger->is_active()) {
+			$logger->debug("StylesEnqueueTrait::_modify_style_tag_for_attributes - Modifying tag for handle '{$filter_tag_handle}'. Attributes: " . \wp_json_encode($attributes_to_apply));
+		}
+
+		// Check for malformed tag (no opening '<link')
+		$link_open_pos = stripos( $tag, '<link' );
+
+		if ( false === $link_open_pos ) {
+			if ($logger->is_active()) {
+				$logger->warning("StylesEnqueueTrait::_modify_style_tag_for_attributes - Malformed style tag (missing '<link'). Original tag: " . esc_html($tag) . '. Skipping attribute modification.');
+			}
+			return $tag;
+		}
+
+		$attr_str = '';
+		foreach ( $attributes_to_apply as $attr => $value ) {
+			// Skip attributes typically managed by WordPress for styles or fundamental to the tag structure.
+			if ( in_array( strtolower( $attr ), array( 'href', 'rel', 'id', 'type', 'media' ), true ) ) {
+				if ($logger->is_active()) {
+					$lc_attr = strtolower( $attr );
+					if ( 'media' === $lc_attr ) {
+						$logger->warning("StylesEnqueueTrait::_modify_style_tag_for_attributes - Attempted to set 'media' attribute via 'attributes' array for handle '{$filter_tag_handle}'. The 'media' attribute should be set using the dedicated 'media' key in the style definition array.");
+					} else {
+						$logger->warning("StylesEnqueueTrait::_modify_style_tag_for_attributes - Attempted to set '{$lc_attr}' attribute via 'attributes' array for handle '{$filter_tag_handle}'. This attribute is managed by WordPress or is fundamental to the tag and should not be overridden here.");
+					}
+				}
+				continue;
+			}
+
+			// Boolean attributes (value is true).
+			if ( true === $value ) {
+				$attr_str .= ' ' . esc_attr( $attr );
+			} elseif ( false !== $value && null !== $value && '' !== $value ) { // Regular attributes with non-empty, non-false, non-null values.
+				$attr_str .= ' ' . esc_attr( $attr ) . '="' . esc_attr( (string) $value ) . '"';
+			}
+		}
+
+		// Insert attributes before the closing bracket of the <link> tag.
+		// Find the first '>' which should be the end of the opening <link ...> tag.
+		// If the tag is self-closing (e.g. <link ... />), find ' />'.
+		$closing_bracket_pos = strpos( $tag, '>' );
+		$self_closing_pos    = strpos( $tag, '/>' );
+
+		if ( false !== $self_closing_pos ) {
+			// Insert before ' />'
+			$insertion_pos = $self_closing_pos;
+		} elseif ( false !== $closing_bracket_pos ) {
+			// Insert before '>'
+			$insertion_pos = $closing_bracket_pos;
+		} else {
+			if ($logger->is_active()) {
+				$logger->warning("StylesEnqueueTrait::_modify_style_tag_for_attributes - Could not find closing '>' or '/>' in style tag for '{$filter_tag_handle}'. Original tag: " . esc_html($tag) . '. Attributes not added.');
+			}
+			return $tag; // Malformed or unexpected tag structure.
+		}
+
+		$modified_tag = substr_replace( $tag, $attr_str, $insertion_pos, 0 );
+		if ($logger->is_active()) {
+			$logger->debug("StylesEnqueueTrait::_modify_style_tag_for_attributes - Successfully modified tag for '{$filter_tag_handle}'. New tag: " . esc_html($modified_tag));
+		}
+		return $modified_tag;
+	}
 }

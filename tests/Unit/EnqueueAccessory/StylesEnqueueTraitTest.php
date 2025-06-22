@@ -44,15 +44,13 @@ class ConcreteEnqueueForStylesTesting extends AssetEnqueueBaseAbstract {
 }
 
 /**
- * Class StylesEnqueueTraitStylesTest
+ * Class StylesEnqueueTraitTest
  *
  * @covers \Ran\PluginLib\EnqueueAccessory\StylesEnqueueTrait
  * @property ConcreteEnqueueForStylesTesting&MockInterface $instance
  */
-class StylesEnqueueTraitStylesTest extends PluginLibTestCase {
+class StylesEnqueueTraitTest extends PluginLibTestCase {
 	private static int $hasActionCallCount = 0;
-	/** @var Logger&MockInterface */
-	protected MockInterface $logger_mock;
 
 	/** @var ConcreteEnqueueForStylesTesting&MockInterface */
 	protected $instance; // Mockery will handle the type
@@ -61,28 +59,19 @@ class StylesEnqueueTraitStylesTest extends PluginLibTestCase {
 	 * Set up test environment.
 	 */
 	public function setUp(): void {
-		parent::setUp();
-		self::$hasActionCallCount = 0;
+		parent::setUp(); // This sets up config_mock and logger_mock
 
-		$this->logger_mock = Mockery::mock(Logger::class);
-		$this->logger_mock->shouldReceive('is_active')->byDefault()->andReturn(true);
-		$this->logger_mock->shouldReceive('is_verbose')->byDefault()->andReturn(true);
+		// Ensure the logger is considered active for all tests in this class.
+		$this->logger_mock->shouldReceive('is_active')->andReturn(true)->byDefault();
+		$this->logger_mock->shouldReceive('is_verbose')->andReturn(true)->byDefault();
 
 		// Set up default, permissive expectations for all log levels.
 		// Individual tests can override these with more specific expectations.
 		$this->logger_mock->shouldReceive('debug')->withAnyArgs()->andReturnNull()->byDefault();
 		$this->logger_mock->shouldReceive('info')->withAnyArgs()->andReturnNull()->byDefault();
-		$this->logger_mock->shouldReceive('error')->withAnyArgs()->andReturnNull()->byDefault();
 		$this->logger_mock->shouldReceive('warning')->withAnyArgs()->andReturnNull()->byDefault();
+		$this->logger_mock->shouldReceive('error')->withAnyArgs()->andReturnNull()->byDefault();
 
-		// Ensure that the config_mock (from PluginLibTestCase) returns our Mockery logger_mock.
-		$reflection = new \ReflectionObject($this->config_mock);
-		// The mock extends ConcreteConfigForTesting, which extends ConfigAbstract.
-		// We need to get the property from ConfigAbstract, which is the parent's parent.
-		$config_abstract_reflection = $reflection->getParentClass()->getParentClass();
-		$property                   = $config_abstract_reflection->getProperty('logger');
-		$property->setAccessible(true);
-		$property->setValue($this->config_mock, $this->logger_mock);
 
 		// Default WP_Mock function mocks for style functions
 		WP_Mock::userFunction('wp_register_style')->withAnyArgs()->andReturn(true)->byDefault();
@@ -95,28 +84,37 @@ class StylesEnqueueTraitStylesTest extends PluginLibTestCase {
 		WP_Mock::userFunction('_doing_it_wrong')->withAnyArgs()->andReturnNull()->byDefault();
 
 		// Create a partial mock of ConcreteEnqueueForStylesTesting
-		// ConcreteEnqueueForStylesTesting now extends AssetEnqueueBaseAbstract and its constructor only needs ConfigInterface.
 		$this->instance = Mockery::mock(
 			ConcreteEnqueueForStylesTesting::class,
 			array($this->config_mock) // Pass only the config_mock from parent
 		)->makePartial();
 		$this->instance->shouldAllowMockingProtectedMethods();
+
+		// Ensure the instance uses the correct logger mock from the parent setup.
 		$this->instance->shouldReceive('get_logger')->andReturn($this->logger_mock)->byDefault();
+
+		// Mock has_action to control its return value for specific tests
+		WP_Mock::userFunction('has_action')
+			->with(Mockery::any(), Mockery::any())
+			->andReturnUsing(function ($hook, $callback) {
+				// Default behavior: no action exists.
+				// Tests can add more specific expectations.
+				return false;
+			})
+			->byDefault();
 
 		// Reset internal state before each test to prevent leakage
 		$properties_to_reset = array(
-			'assets'          => EnqueueAssetTraitBase::class,
-			'inline_styles'   => ConcreteEnqueueForStylesTesting::class, // Stays in StylesEnqueueTrait
-			'deferred_assets' => EnqueueAssetTraitBase::class,
+			'assets',
+			'inline_styles',
+			'deferred_assets',
 		);
-		foreach ($properties_to_reset as $prop_name => $class_name) {
+		foreach ($properties_to_reset as $prop_name) {
 			try {
-				$property = new \ReflectionProperty($class_name, $prop_name);
-				$property->setAccessible(true);
-				$property->setValue($this->instance, array());
+				$this->set_protected_property_value($this->instance, $prop_name, array());
 			} catch (\ReflectionException $e) {
 				// Property might not exist in all versions/contexts, ignore.
-				$this->logger_mock->debug("StylesEnqueueTraitStylesTest::setUp - Could not reset property {$class_name}::{$prop_name}: " . $e->getMessage());
+				$this->logger_mock->debug("StylesEnqueueTraitStylesTest::setUp - Could not reset property {$prop_name}: " . $e->getMessage());
 			}
 		}
 	}
@@ -125,7 +123,6 @@ class StylesEnqueueTraitStylesTest extends PluginLibTestCase {
 	 * Clean up test environment.
 	 */
 	public function tearDown(): void {
-		Mockery::close();
 		parent::tearDown();
 	}
 
@@ -253,7 +250,7 @@ class StylesEnqueueTraitStylesTest extends PluginLibTestCase {
 		$this->assertCount(0, $retrieved_styles, 'The styles queue should be empty.');
 	}
 
-	/**
+		/**
 	 * @test
 	 * @covers \Ran\PluginLib\EnqueueAccessory\StylesEnqueueTrait::register_styles
 	 * @covers \Ran\PluginLib\EnqueueAccessory\StylesEnqueueTrait::_process_single_style
