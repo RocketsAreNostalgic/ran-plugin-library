@@ -78,14 +78,17 @@ trait StylesEnqueueTrait {
 	 * `enqueue_styles()` is called. This method is chainable.
 	 *
 	 * @param array<string, mixed>|array<int, array<string, mixed>> $styles_to_add A single style definition array or an array of style definition arrays.
-	 *     Each style definition array should include:
-	 *     - 'handle' (string, required): Name of the stylesheet. Must be unique.
-	 *     - 'src' (string, required): URL to the stylesheet resource.
-	 *     - 'deps' (array, optional): An array of registered stylesheet handles this stylesheet depends on. Defaults to an empty array.
-	 *     - 'version' (string|false|null, optional): Stylesheet version. `false` (default) uses plugin version, `null` adds no version, string sets specific version.
-	 *     - 'media' (string, optional): The media for which this stylesheet has been defined (e.g., 'all', 'screen', 'print'). Defaults to 'all'.
-	 *     - 'condition' (callable|null, optional): Callback returning boolean. If false, style is not enqueued. Defaults to null.
-	 *     - 'hook' (string|null, optional): WordPress hook (e.g., 'admin_enqueue_scripts') to defer enqueuing. Defaults to null (immediate processing).
+	 *     Each style definition array can include the following keys:
+	 *     - 'handle'     (string, required): The unique handle for the style.
+	 *     - 'src'        (string, required): The URL of the stylesheet.
+	 *     - 'deps'       (array, optional): An array of handles of other stylesheets this one depends on. Default is empty array.
+	 *     - 'version'    (string|false, optional): The version of the stylesheet. `false` for plugin version, `null` for no version. Default is `false`.
+	 *     - 'media'      (string, optional): The media for which this stylesheet is intended (e.g., 'all', 'screen'). Default is 'all'.
+	 *     - 'condition'  (callable, optional): A callable that returns a boolean. If it returns false, the style will not be processed.
+	 *     - 'attributes' (array, optional): An array of key-value pairs to add as attributes to the `<link>` tag.
+	 *     - 'data'       (array, optional): An array of key-value pairs to add using `wp_style_add_data()`.
+	 *     - 'inline'     (string|callable, optional): Inline CSS to add after the style. Can be a string or a callable returning a string.
+	 *     - 'hook'       (string, optional): The WordPress action hook on which to enqueue this style (e.g., 'wp_enqueue_scripts'). Default is immediate processing.
 	 * @return self Returns the instance of this class for method chaining.
 	 *
 	 * @see self::enqueue_styles()
@@ -528,6 +531,7 @@ trait StylesEnqueueTrait {
 	 * @param string|null          $hook_name           The hook name if processing in a deferred context, null otherwise.
 	 * @param bool                 $do_register         Whether to register the style.
 	 * @param bool                 $do_enqueue          Whether to enqueue the style.
+	 *
 	 * @return string|false The handle of the style on success, false on failure or if a condition is not met.
 	 */
 	protected function _process_single_style(
@@ -539,12 +543,14 @@ trait StylesEnqueueTrait {
 	): string|false {
 		$logger = $this->get_logger();
 
-		$handle    = $style_definition['handle']    ?? null;
-		$src       = $style_definition['src']       ?? null;
-		$deps      = $style_definition['deps']      ?? array();
-		$version   = $style_definition['version']   ?? false;
-		$media     = $style_definition['media']     ?? 'all';
-		$condition = $style_definition['condition'] ?? null;
+		$handle     = $style_definition['handle']     ?? null;
+		$src        = $style_definition['src']        ?? null;
+		$deps       = $style_definition['deps']       ?? array();
+		$version    = $style_definition['version']    ?? false;
+		$media      = $style_definition['media']      ?? 'all';
+		$attributes = $style_definition['attributes'] ?? array();
+		$data       = $style_definition['data']       ?? array();
+		$condition  = $style_definition['condition']  ?? null;
 
 		$log_handle_context = $handle ?? 'N/A';
 		$log_hook_context   = $hook_name ? " on hook '{$hook_name}'" : '';
@@ -570,7 +576,7 @@ trait StylesEnqueueTrait {
 		if ( $do_register ) {
 			if ( wp_style_is( $handle, 'registered' ) ) {
 				if ( $logger->is_active() ) {
-					$logger->debug( "StylesEnqueueTrait::_process_single_style - Style '{$handle}'{$log_hook_context} already registered. Skipping wp_register_style.");
+					$logger->debug( "StylesEnqueueTrait::_process_single_style - Style '{$handle}'{$log_hook_context} already registered. Skipping wp_register_style." );
 				}
 			} else {
 				if ( $logger->is_active() ) {
@@ -589,7 +595,7 @@ trait StylesEnqueueTrait {
 		if ( $do_enqueue ) {
 			if ( wp_style_is( $handle, 'enqueued' ) ) {
 				if ( $logger->is_active() ) {
-					$logger->debug( "StylesEnqueueTrait::_process_single_style - Style '{$handle}'{$log_hook_context} already enqueued. Skipping wp_enqueue_style.");
+					$logger->debug( "StylesEnqueueTrait::_process_single_style - Style '{$handle}'{$log_hook_context} already enqueued. Skipping wp_enqueue_style." );
 				}
 			} else {
 				if ( $logger->is_active() ) {
@@ -599,13 +605,39 @@ trait StylesEnqueueTrait {
 			}
 		}
 
-		// Process any immediate inline styles associated with this handle
-		// if we are not in a deferred hook context.
+		// Process extras (like inline styles, attributes) only in a non-deferred context.
+		// For deferred styles, the calling method (`enqueue_deferred_styles`) is responsible for inlines.
 		if ( null === $hook_name && $handle ) {
-			if ( $logger->is_active() ) {
-				$logger->debug( "StylesEnqueueTrait::_process_single_style - Checking for inline styles for '{$handle}'{$log_hook_context}." );
+			// Process data with wp_style_add_data
+			if ( is_array( $data ) && ! empty( $data ) ) {
+				foreach ( $data as $key => $value ) {
+					if ( $logger->is_active() ) {
+						$logger->debug( "StylesEnqueueTrait::_process_single_style - Adding data to style '{$handle}'. Key: '{$key}', Value: '{$value}'." );
+					}
+					if ( ! wp_style_add_data( $handle, (string) $key, $value ) && $logger->is_active() ) {
+						$logger->warning( "StylesEnqueueTrait::_process_single_style - Failed to add data for key '{$key}' to style '{$handle}'." );
+					}
+				}
 			}
-			$this->_process_inline_styles( $handle, $hook_name, $processing_context );
+
+			// Process attributes only after a style has been successfully registered.
+			// This is because wp_style_add_data() requires a registered handle.
+			if ( is_array( $attributes ) && ! empty( $attributes ) ) {
+				if ($logger->is_active()) {
+					$logger->debug("StylesEnqueueTrait::_process_single_style - Adding attributes for style '{$handle}' via style_loader_tag. Attributes: " . \wp_json_encode($attributes));
+				}
+				$this->_do_add_filter(
+					'style_loader_tag',
+					function ( $tag, $tag_handle ) use ( $handle, $attributes ) {
+						return $this->_modify_style_tag_for_attributes( $tag, $tag_handle, $handle, $attributes );
+					},
+					10,
+					2
+				);
+			}
+
+			// Process inline styles after registration/enqueue.
+			$this->_process_inline_styles( $handle, null, $processing_context );
 		}
 
 		if ( $logger->is_active() ) {
@@ -618,7 +650,7 @@ trait StylesEnqueueTrait {
 	/**
 	 * Modifies the HTML tag for a specific style handle by adding custom attributes.
 	 *
-	 * This function is used to dynamically add attributes to style tags, such as
+	 * This method is used to dynamically add attributes to style tags, such as
 	 * adding `media` attributes or other custom attributes. It's typically used
 	 * in the `style_loader_tag` filter to modify the output of style tags.
 	 *
@@ -631,44 +663,64 @@ trait StylesEnqueueTrait {
 	 */
 	protected function _modify_style_tag_for_attributes(
 		string $tag,
-		string $filter_tag_handle,
-		string $style_handle_to_match,
+		string $tag_handle,
+		string $handle_to_match,
 		array $attributes_to_apply
 	): string {
 		$logger = $this->get_logger();
 
 		// If the filter is not for the style we're interested in, return the original tag.
-		if ( $filter_tag_handle !== $style_handle_to_match ) {
+		if ( $tag_handle !== $handle_to_match ) {
 			return $tag;
 		}
 
 		if ($logger->is_active()) {
-			$logger->debug("StylesEnqueueTrait::_modify_style_tag_for_attributes - Modifying tag for handle '{$filter_tag_handle}'. Attributes: " . \wp_json_encode($attributes_to_apply));
+			$logger->debug("StylesEnqueueTrait::_modify_style_tag_for_attributes - Modifying tag for handle '{$tag_handle}'. Attributes: " . \wp_json_encode($attributes_to_apply));
 		}
 
-		// Check for malformed tag (no opening '<link')
-		$link_open_pos = stripos( $tag, '<link' );
+		// Find the insertion point for attributes. This also serves as tag validation.
+		$closing_bracket_pos = strpos( $tag, '>' );
+		$self_closing_pos    = strpos( $tag, '/>' );
 
-		if ( false === $link_open_pos ) {
+		if ( false !== $self_closing_pos ) {
+			$insertion_pos = $self_closing_pos;
+		} elseif ( false !== $closing_bracket_pos ) {
+			$insertion_pos = $closing_bracket_pos;
+		} else {
 			if ($logger->is_active()) {
-				$logger->warning("StylesEnqueueTrait::_modify_style_tag_for_attributes - Malformed style tag (missing '<link'). Original tag: " . esc_html($tag) . '. Skipping attribute modification.');
+				$logger->warning("StylesEnqueueTrait::_modify_style_tag_for_attributes - Malformed style tag for '{$tag_handle}'. Could not find closing '>' or '/>'. Original tag: " . esc_html($tag) . '. Attributes not added.');
 			}
 			return $tag;
 		}
 
 		$attr_str = '';
+		// Define WordPress-managed attributes that should not be overridden by users.
+		$wp_managed_attributes = array( 'href', 'rel', 'id', 'type' );
+
 		foreach ( $attributes_to_apply as $attr => $value ) {
-			// Skip attributes typically managed by WordPress for styles or fundamental to the tag structure.
-			if ( in_array( strtolower( $attr ), array( 'href', 'rel', 'id', 'type', 'media' ), true ) ) {
+			$attr_lower = strtolower( $attr );
+
+			// Special handling for 'media' attribute to guide user to the correct definition key.
+			if ( 'media' === $attr_lower ) {
 				if ($logger->is_active()) {
-					$lc_attr = strtolower( $attr );
-					if ( 'media' === $lc_attr ) {
-						$logger->warning("StylesEnqueueTrait::_modify_style_tag_for_attributes - Attempted to set 'media' attribute via 'attributes' array for handle '{$filter_tag_handle}'. The 'media' attribute should be set using the dedicated 'media' key in the style definition array.");
-					} else {
-						$logger->warning("StylesEnqueueTrait::_modify_style_tag_for_attributes - Attempted to set '{$lc_attr}' attribute via 'attributes' array for handle '{$filter_tag_handle}'. This attribute is managed by WordPress or is fundamental to the tag and should not be overridden here.");
-					}
+					$logger->warning("StylesEnqueueTrait::_modify_style_tag_for_attributes - Attempted to set 'media' attribute via 'attributes' array for handle '{$tag_handle}'. The 'media' attribute should be set using the dedicated 'media' key in the style definition array.");
 				}
 				continue;
+			}
+
+			// Check for attempts to override other WordPress-managed attributes.
+			if ( in_array( $attr_lower, $wp_managed_attributes, true ) ) {
+				if ($logger->is_active()) {
+					$logger->warning(
+						sprintf(
+							"%s - Attempt to override WordPress-managed attribute '%s' for style handle '%s'. This attribute will be ignored.",
+							__METHOD__,
+							$attr, // Use original case for warning message
+							$handle_to_match
+						)
+					);
+				}
+				continue; // Skip this attribute
 			}
 
 			// Boolean attributes (value is true).
@@ -677,30 +729,12 @@ trait StylesEnqueueTrait {
 			} elseif ( false !== $value && null !== $value && '' !== $value ) { // Regular attributes with non-empty, non-false, non-null values.
 				$attr_str .= ' ' . esc_attr( $attr ) . '="' . esc_attr( (string) $value ) . '"';
 			}
-		}
-
-		// Insert attributes before the closing bracket of the <link> tag.
-		// Find the first '>' which should be the end of the opening <link ...> tag.
-		// If the tag is self-closing (e.g. <link ... />), find ' />'.
-		$closing_bracket_pos = strpos( $tag, '>' );
-		$self_closing_pos    = strpos( $tag, '/>' );
-
-		if ( false !== $self_closing_pos ) {
-			// Insert before ' />'
-			$insertion_pos = $self_closing_pos;
-		} elseif ( false !== $closing_bracket_pos ) {
-			// Insert before '>'
-			$insertion_pos = $closing_bracket_pos;
-		} else {
-			if ($logger->is_active()) {
-				$logger->warning("StylesEnqueueTrait::_modify_style_tag_for_attributes - Could not find closing '>' or '/>' in style tag for '{$filter_tag_handle}'. Original tag: " . esc_html($tag) . '. Attributes not added.');
-			}
-			return $tag; // Malformed or unexpected tag structure.
+			// Attributes with false, null, or empty string values are skipped.
 		}
 
 		$modified_tag = substr_replace( $tag, $attr_str, $insertion_pos, 0 );
 		if ($logger->is_active()) {
-			$logger->debug("StylesEnqueueTrait::_modify_style_tag_for_attributes - Successfully modified tag for '{$filter_tag_handle}'. New tag: " . esc_html($modified_tag));
+			$logger->debug("StylesEnqueueTrait::_modify_style_tag_for_attributes - Successfully modified tag for '{$tag_handle}'. New tag: " . esc_html($modified_tag));
 		}
 		return $modified_tag;
 	}
