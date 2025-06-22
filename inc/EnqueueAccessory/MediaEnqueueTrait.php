@@ -103,7 +103,7 @@ trait MediaEnqueueTrait {
 			$this->deferred_media_tool_configs[ $hook ][ $index ] = $item_definition;
 
 			if ( ! has_action( $hook, array( $this, 'enqueue_deferred_media_tools' ) ) ) {
-				$this->_do_add_action( $hook, array( $this, 'enqueue_deferred_media_tools' ), 10, 0 ); // WP_Enqueue_Media typically doesn't take the hook name as an arg
+				add_action( $hook, array( $this, 'enqueue_deferred_media_tools' ), 10, 0 ); // WP_Enqueue_Media typically doesn't take the hook name as an arg
 				if ( $logger->is_active() ) {
 					$logger->debug( "MediaEnqueueTrait::enqueue_media - Added action for 'enqueue_deferred_media_tools' on hook: \"{$hook}\"." );
 				}

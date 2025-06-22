@@ -58,41 +58,20 @@ class EnqueueAbstractCoreTest extends PluginLibTestCase {
 	// are now effectively inherited or will be correctly typed and populated.
 	// We will ensure $this->logger_mock is a Mockery mock for setting expectations.
 	protected ConcreteEnqueueForCoreTesting $sut;
-	protected Mockery\MockInterface $logger_mock; // Explicitly define for clarity, will be Mockery mock.
 
 	public function setUp(): void {
-		parent::setUp(); // Handles WP_Mock setup via RanTestCase
+		parent::setUp(); // This sets up WP_Mock, config_mock, and logger_mock (the spy)
 		WP_Mock::userFunction( '_doing_it_wrong' )->andReturnNull();
 
-		// Get the concrete config instance set up by PluginLibTestCase's helpers
-		// This assigns to the inherited $this->config_mock of type ConcreteConfigForTesting
-		$this->config_mock = $this->get_and_register_concrete_config_instance();
+		// Instantiate the System Under Test (SUT) using the config mock from the parent.
+		$this->sut = new ConcreteEnqueueForCoreTesting($this->config_mock);
 
-		// Create a new Mockery mock for the Logger.
-		$this->logger_mock = Mockery::mock(Logger::class);
-
-		// Use reflection to set the private 'logger' property in ConfigAbstract
-		// to our $this->logger_mock instance.
-		$configAbstractReflection = new \ReflectionClass(\Ran\PluginLib\Config\ConfigAbstract::class);
-		$loggerProperty           = $configAbstractReflection->getProperty('logger');
-		$loggerProperty->setAccessible(true);
-		// Set the value on $this->config_mock, which is an instance of a child of ConfigAbstract
-		$loggerProperty->setValue($this->config_mock, $this->logger_mock);
-
-		// Verify that the config mock now returns our injected logger mock.
-		$this->assertSame($this->logger_mock, $this->config_mock->get_logger(), 'Config mock should return the injected logger mock.');
-
-		// Set up default permissive logging expectations on our $this->logger_mock
-		// These should be specific in tests where specific log messages are expected.
+		// Set up default permissive logging expectations on the logger spy.
 		$this->logger_mock->shouldReceive('debug')->withAnyArgs()->zeroOrMoreTimes()->andReturnNull()->byDefault();
 		$this->logger_mock->shouldReceive('info')->withAnyArgs()->zeroOrMoreTimes()->andReturnNull()->byDefault();
 		$this->logger_mock->shouldReceive('warning')->withAnyArgs()->zeroOrMoreTimes()->andReturnNull()->byDefault();
 		$this->logger_mock->shouldReceive('error')->withAnyArgs()->zeroOrMoreTimes()->andReturnNull()->byDefault();
 		$this->logger_mock->shouldReceive('is_active')->withNoArgs()->zeroOrMoreTimes()->andReturn(true)->byDefault();
-
-		// Instantiate the System Under Test (SUT)
-		// It will use $this->config_mock and, through it, our $this->logger_mock.
-		$this->sut = new ConcreteEnqueueForCoreTesting($this->config_mock);
 	}
 
 	/**
@@ -154,6 +133,8 @@ class EnqueueAbstractCoreTest extends PluginLibTestCase {
 	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseAbstract::enqueue
 	 */
 	public function test_enqueue_skips_processing_for_absent_asset_types(): void {
+		$this->enable_console_logging = true;
+
 		$sut_partial_mock = Mockery::mock(ConcreteEnqueueForCoreTesting::class, array($this->config_mock))->makePartial();
 		$sut_partial_mock->shouldAllowMockingProtectedMethods();
 
@@ -162,6 +143,12 @@ class EnqueueAbstractCoreTest extends PluginLibTestCase {
 		$sut_partial_mock->set_styles_for_testing(array());
 		$sut_partial_mock->set_media_tool_configs_for_testing(array());
 		$sut_partial_mock->set_inline_scripts_for_testing(array()); // enqueue_inline_scripts is always called
+
+		// Expect that no WP enqueueing functions are called since all asset arrays are empty.
+		WP_Mock::userFunction('wp_enqueue_script')->never();
+		WP_Mock::userFunction('wp_enqueue_style')->never();
+		WP_Mock::userFunction('wp_add_inline_script')->never();
+		WP_Mock::userFunction('wp_enqueue_media')->never();
 
 		$this->logger_mock->shouldReceive('debug')->with(Mockery::pattern('/^AssetEnqueueBaseAbstract::enqueue - Main enqueue process started\. Scripts: 0, Styles: 0, Media: 0, Inline Scripts: 0\.$/'))->once()->ordered();
 		// Logging for empty assets is now handled within the respective trait methods.
@@ -175,6 +162,10 @@ class EnqueueAbstractCoreTest extends PluginLibTestCase {
 		$this->logger_mock->shouldReceive('debug')->with('AssetEnqueueBaseAbstract::enqueue - Main enqueue process finished.')->once()->ordered();
 
 		$sut_partial_mock->enqueue();
+
+		// Add a dummy assertion to prevent the test from being marked as risky.
+		// The actual assertions are the Mockery and WP_Mock expectations.
+		$this->assertTrue(true, 'Test ran to completion and expectations were met.');
 	}
 
 	/**
