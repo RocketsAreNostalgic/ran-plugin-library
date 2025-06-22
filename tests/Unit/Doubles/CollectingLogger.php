@@ -16,7 +16,7 @@ class CollectingLogger extends Logger {
 	/**
 	 * @var array<int, array{level: string, message: string, context: array<mixed>}>
 	 */
-	public array $collected_logs = [];
+	public array $collected_logs = array();
 
 	public function __construct(ConfigInterface $config) {
 		// Pass the config to the parent to ensure properties like is_active are set correctly.
@@ -27,19 +27,19 @@ class CollectingLogger extends Logger {
 		return true;
 	}
 
-	public function debug(string $message, array $context = []): void {
+	public function debug(string $message, array $context = array()): void {
 		$this->log($message, 'debug', $context);
 	}
 
-	public function info(string $message, array $context = []): void {
+	public function info(string $message, array $context = array()): void {
 		$this->log($message, 'info', $context);
 	}
 
-	public function warning(string $message, array $context = []): void {
+	public function warning(string $message, array $context = array()): void {
 		$this->log($message, 'warning', $context);
 	}
 
-	public function error(string $message, array $context = []): void {
+	public function error(string $message, array $context = array()): void {
 		$this->log($message, 'error', $context);
 	}
 
@@ -47,12 +47,12 @@ class CollectingLogger extends Logger {
 	 * Overrides the parent log method to collect logs instead of writing them.
 	 * The signature must match the parent method.
 	 */
-	protected function log(string $message, string $level, array $context = []): void {
-		$this->collected_logs[] = [
+	protected function log(string $message, string $level, array $context = array()): void {
+		$this->collected_logs[] = array(
 			'level'   => $level,
 			'message' => $message,
 			'context' => $context,
-		];
+		);
 	}
 
 	public function get_logs(): array {

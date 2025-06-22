@@ -129,7 +129,8 @@ final class MediaEnqueueTraitTest extends PluginLibTestCase {
 		$this->logger_mock->shouldReceive('debug')->with("MediaEnqueueTrait::enqueue_media - Added action for 'enqueue_deferred_media_tools' on hook: \"{$default_hook}\".")->once()->ordered();
 		$this->logger_mock->shouldReceive('debug')->with('MediaEnqueueTrait::enqueue_media - Exited.')->once()->ordered();
 
-		WP_Mock::userFunction('wp_enqueue_media')->never();		WP_Mock::expectActionAdded($default_hook, array($sut, 'enqueue_deferred_media_tools'), 10, 0);
+		WP_Mock::userFunction('wp_enqueue_media')->never();
+		WP_Mock::expectActionAdded($default_hook, array($sut, 'enqueue_deferred_media_tools'), 10, 0);
 
 		$result = $sut->enqueue_media($media_configs);
 		$this->assertSame($sut, $result);
