@@ -87,7 +87,6 @@ trait ScriptsEnqueueTrait {
 	 *     - 'in_footer' (bool, optional): Whether to enqueue the script before `</body>` (true) or in the `<head>` (false). Defaults to `false`.
 	 *     - 'condition' (callable|null, optional): Callback returning boolean. If false, script is not enqueued. Defaults to null.
 	 *     - 'attributes' (array, optional): Key-value pairs of HTML attributes for the `<script>` tag (e.g., `['async' => true]`). Defaults to an empty array.
-	 *     - 'wp_data' (array, optional): Key-value pairs for `wp_script_add_data()`. Defaults to an empty array.
 	 *     - 'hook' (string|null, optional): WordPress hook (e.g., 'admin_enqueue_scripts') to defer enqueuing. Defaults to null (immediate processing).
 	 * @return self Returns the instance of this class for method chaining.
 	 *
@@ -552,7 +551,6 @@ trait ScriptsEnqueueTrait {
 		$in_footer  = $script_definition['in_footer']  ?? false;
 		$condition  = $script_definition['condition']  ?? null;
 		$attributes = $script_definition['attributes'] ?? array();
-		$wp_data    = $script_definition['wp_data']    ?? array();
 
 		$log_handle_context = $handle ?? 'N/A';
 		$log_hook_context   = $hook_name ? " on hook '{$hook_name}'" : '';
@@ -610,36 +608,58 @@ trait ScriptsEnqueueTrait {
 		// Process extras (like inline scripts, attributes, data) only in a non-deferred context.
 		// For deferred scripts, the calling method (`enqueue_deferred_scripts`) is responsible for inlines.
 		if ( null === $hook_name && $handle ) {
-			// Apply WordPress script data.
-			if ( ! empty( $wp_data ) && is_array( $wp_data ) ) {
-				if ($logger->is_active()) {
-					$logger->debug("ScriptsEnqueueTrait::_process_single_script - Adding script data for '{$handle}'. Data: " . wp_json_encode($wp_data));
-				}
-				foreach ( $wp_data as $key => $value ) {
-					wp_script_add_data( $handle, $key, $value );
+			// Process attributes only after a script has been successfully registered.
+			// This is because wp_script_add_data() requires a registered handle.
+			$attributes_for_tag_modifier = array();
+			if ( is_array( $attributes ) && ! empty( $attributes ) ) {
+				foreach ( $attributes as $attr_key => $attr_value ) {
+					$attr_key_lower = strtolower( (string) $attr_key );
+					if ( $attr_key_lower === 'async' && true === $attr_value ) {
+						if ( $logger->is_active() ) {
+							$logger->debug( "ScriptsEnqueueTrait::_process_single_script - Routing 'async' attribute for '{$handle}' to wp_script_add_data('strategy', 'async')." );
+						}
+						if ( ! wp_script_add_data( $handle, 'strategy', 'async' ) && $logger->is_active() ) {
+							$logger->warning( "ScriptsEnqueueTrait::_process_single_script - Failed to add 'async' strategy for '{$handle}' via wp_script_add_data." );
+						}
+					} elseif ( $attr_key_lower === 'defer' && true === $attr_value ) {
+						if ( $logger->is_active() ) {
+							$logger->debug( "ScriptsEnqueueTrait::_process_single_script - Routing 'defer' attribute for '{$handle}' to wp_script_add_data('strategy', 'defer')." );
+						}
+						if ( ! wp_script_add_data( $handle, 'strategy', 'defer' ) && $logger->is_active() ) {
+							$logger->warning( "ScriptsEnqueueTrait::_process_single_script - Failed to add 'defer' strategy for '{$handle}' via wp_script_add_data." );
+						}
+					} elseif ( $attr_key_lower === 'src' ) {
+						if ( $logger->is_active() ) {
+							$logger->debug( "ScriptsEnqueueTrait::_process_single_script - Ignoring 'src' attribute for '{$handle}' as it is managed by WordPress during registration." );
+						}
+					} elseif ( $attr_key_lower === 'id' ) {
+						if ( $logger->is_active() ) {
+							$logger->warning( "ScriptsEnqueueTrait::_process_single_script - Attempting to set 'id' attribute for '{$handle}'. WordPress typically manages script IDs. Overriding may lead to unexpected behavior or be ineffective." );
+						}
+						$attributes_for_tag_modifier[ $attr_key ] = $attr_value;
+					} else {
+						$attributes_for_tag_modifier[ $attr_key ] = $attr_value;
+					}
 				}
 			}
 
-			// Apply attributes.
-			if ( ! empty( $attributes ) && is_array( $attributes ) ) {
+			// Apply attributes that were not routed to wp_script_add_data.
+			if ( ! empty( $attributes_for_tag_modifier ) && is_array( $attributes_for_tag_modifier ) ) {
 				if ($logger->is_active()) {
-					$logger->debug("ScriptsEnqueueTrait::_process_single_script - Adding attributes for script '{$handle}'. Attributes: " . wp_json_encode($attributes));
+					$logger->debug("ScriptsEnqueueTrait::_process_single_script - Adding attributes for script '{$handle}' via script_loader_tag. Attributes: " . \wp_json_encode($attributes_for_tag_modifier));
 				}
-				add_filter(
+				$this->_add_filter(
 					'script_loader_tag',
-					function ( $tag, $tag_handle, $_src ) use ( $handle, $attributes ) {
-						return $this->_modify_script_tag_for_attributes( $tag, $tag_handle, $handle, $attributes );
+					function ( $tag, $tag_handle, $_src ) use ( $handle, $attributes_for_tag_modifier ) {
+						return $this->_modify_script_tag_for_attributes( $tag, $tag_handle, $handle, $attributes_for_tag_modifier );
 					},
 					10,
 					3
 				);
 			}
 
-			// Process any immediate inline scripts associated with this handle.
-			if ( $logger->is_active() ) {
-				$logger->debug( "ScriptsEnqueueTrait::_process_single_script - Checking for immediate inline scripts for '{$handle}'." );
-			}
-			$this->_process_inline_scripts( $handle, null, 'immediate from _process_single_script' );
+			// Process inline scripts after registration/enqueue.
+			$this->_process_inline_scripts($handle, null, 'immediate_after_registration');
 		}
 
 		if ( $logger->is_active() ) {
@@ -647,6 +667,20 @@ trait ScriptsEnqueueTrait {
 		}
 
 		return $handle;
+	}
+
+	/**
+	 * Wrapper for add_filter to improve testability.
+	 *
+	 * @param string   $hook          The name of the filter to hook the $callback to.
+	 * @param callable $callback      The callback to be run when the filter is applied.
+	 * @param int      $priority      Used to specify the order in which the functions
+	 *                                associated with a particular action are executed.
+	 * @param int      $accepted_args The number of arguments the function accepts.
+	 * @return void
+	 */
+	protected function _add_filter(string $hook, callable $callback, int $priority, int $accepted_args): void {
+		add_filter($hook, $callback, $priority, $accepted_args);
 	}
 
 	/**
@@ -660,7 +694,6 @@ trait ScriptsEnqueueTrait {
 	 * @param string $filter_tag_handle The handle of the script currently being filtered by WordPress.
 	 * @param string $script_handle_to_match The handle of the script we are targeting for modification.
 	 * @param array  $attributes_to_apply The attributes to apply to the script tag.
-	 * @param \Ran\PluginLib\Util\Logger $logger Logger instance for debugging.
 	 * @return string The modified (or original) HTML script tag.
 	 */
 	protected function _modify_script_tag_for_attributes(
@@ -677,7 +710,7 @@ trait ScriptsEnqueueTrait {
 		}
 
 		if ($logger->is_active()) {
-			$logger->debug("ScriptsEnqueueTrait::_modify_script_tag_for_attributes - Modifying tag for handle '{$filter_tag_handle}'. Attributes: " . wp_json_encode($attributes_to_apply));
+			$logger->debug("ScriptsEnqueueTrait::_modify_script_tag_for_attributes - Modifying tag for handle '{$filter_tag_handle}'. Attributes: " . \wp_json_encode($attributes_to_apply));
 		}
 
 		// Work on a local copy of attributes to handle modifications like unsetting 'type'
@@ -707,10 +740,38 @@ trait ScriptsEnqueueTrait {
 		}
 
 		$attr_str = '';
+		// Define WordPress-managed attributes that should not be overridden by users.
+		// 'type' is intentionally omitted here to allow users to set it (e.g. 'application/ld+json')
+		// 'src' is handled by being skipped below.
+		// 'type="module"' is handled before this loop.
+		$wp_managed_attributes = array( 'id' );
+
 		foreach ( $local_attributes as $attr => $value ) {
-			// Skip src attribute as it's already in the tag.
-			if ( 'src' === $attr ) {
+			$attr_lower = strtolower( $attr );
+
+			// Skip 'src' attribute as it's already in the tag and managed by WordPress.
+			if ( 'src' === $attr_lower ) {
+				// No warning for 'src' as it's a common case and handled by WP.
 				continue;
+			}
+
+			// Check for attempts to override other WordPress-managed attributes.
+			if ( in_array( $attr_lower, $wp_managed_attributes, true ) ) {
+				if ($logger->is_active()) {
+					$logger->warning(
+						sprintf(
+							"%s - Attempt to override WordPress-managed attribute '%s' for script handle '%s'. This attribute will be ignored.",
+							__METHOD__,
+							$attr, // Use original case for warning message
+							$script_handle_to_match
+						),
+						array(
+							'handle'    => $script_handle_to_match,
+							'attribute' => $attr,
+						)
+					);
+				}
+				continue; // Skip this attribute
 			}
 
 			// Boolean attributes (value is true).
@@ -719,22 +780,16 @@ trait ScriptsEnqueueTrait {
 			} elseif ( false !== $value && null !== $value && '' !== $value ) { // Regular attributes with non-empty, non-false, non-null values.
 				$attr_str .= ' ' . esc_attr( $attr ) . '="' . esc_attr( (string) $value ) . '"';
 			}
+			// Attributes with false, null, or empty string values are skipped.
 		}
 
 		// Insert attributes before the closing bracket of the <script> tag.
-		// Find the first '>' which should be the end of the opening <script ...> tag.
+		// The check for a valid tag has already been performed, so the first '>' is guaranteed to be found.
 		$first_gt_pos = strpos( $tag, '>' );
-		if ( false !== $first_gt_pos ) {
-			$modified_tag = substr_replace( $tag, $attr_str, $first_gt_pos, 0 );
-			if ($logger->is_active()) {
-				$logger->debug("ScriptsEnqueueTrait::_modify_script_tag_for_attributes - Successfully modified tag for '{$filter_tag_handle}'. New tag: " . esc_html($modified_tag));
-			}
-			return $modified_tag;
-		} else {
-			if ($logger->is_active()) {
-				$logger->warning("ScriptsEnqueueTrait::_modify_script_tag_for_attributes - Could not find closing '>' in script tag for '{$filter_tag_handle}'. Original tag: " . esc_html($tag) . '. Attributes not added.');
-			}
-			return $tag; // Should not happen if previous checks passed, but as a safeguard.
+		$modified_tag = substr_replace( $tag, $attr_str, $first_gt_pos, 0 );
+		if ($logger->is_active()) {
+			$logger->debug("ScriptsEnqueueTrait::_modify_script_tag_for_attributes - Successfully modified tag for '{$filter_tag_handle}'. New tag: " . esc_html($modified_tag));
 		}
+		return $modified_tag;
 	}
 }
