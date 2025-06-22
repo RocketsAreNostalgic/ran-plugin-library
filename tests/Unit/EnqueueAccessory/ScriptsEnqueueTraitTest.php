@@ -1110,7 +1110,7 @@ class ScriptsEnqueueTraitTest extends PluginLibTestCase {
 		WP_Mock::userFunction('wp_script_is')->with('id-script', 'enqueued')->andReturn(false);
 		WP_Mock::userFunction('wp_enqueue_script')->with('id-script')->andReturnNull();
 
-		$this->instance->shouldReceive('_add_filter')
+		$this->instance->shouldReceive('_do_add_filter')
 			->with('script_loader_tag', Mockery::type('callable'), 10, 3)
 			->once();
 

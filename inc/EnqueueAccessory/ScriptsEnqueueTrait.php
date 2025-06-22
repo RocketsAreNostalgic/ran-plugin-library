@@ -517,7 +517,6 @@ trait ScriptsEnqueueTrait {
 		}
 	}
 
-
 	/**
 	 * Processes a single script definition, handling registration, enqueuing, and data/attribute additions.
 	 *
@@ -549,8 +548,8 @@ trait ScriptsEnqueueTrait {
 		$deps       = $script_definition['deps']       ?? array();
 		$version    = $script_definition['version']    ?? false;
 		$in_footer  = $script_definition['in_footer']  ?? false;
-		$condition  = $script_definition['condition']  ?? null;
 		$attributes = $script_definition['attributes'] ?? array();
+		$condition  = $script_definition['condition']  ?? null;
 
 		$log_handle_context = $handle ?? 'N/A';
 		$log_hook_context   = $hook_name ? " on hook '{$hook_name}'" : '';
@@ -648,7 +647,7 @@ trait ScriptsEnqueueTrait {
 				if ($logger->is_active()) {
 					$logger->debug("ScriptsEnqueueTrait::_process_single_script - Adding attributes for script '{$handle}' via script_loader_tag. Attributes: " . \wp_json_encode($attributes_for_tag_modifier));
 				}
-				$this->_add_filter(
+				$this->_do_add_filter(
 					'script_loader_tag',
 					function ( $tag, $tag_handle, $_src ) use ( $handle, $attributes_for_tag_modifier ) {
 						return $this->_modify_script_tag_for_attributes( $tag, $tag_handle, $handle, $attributes_for_tag_modifier );
@@ -670,20 +669,6 @@ trait ScriptsEnqueueTrait {
 	}
 
 	/**
-	 * Wrapper for add_filter to improve testability.
-	 *
-	 * @param string   $hook          The name of the filter to hook the $callback to.
-	 * @param callable $callback      The callback to be run when the filter is applied.
-	 * @param int      $priority      Used to specify the order in which the functions
-	 *                                associated with a particular action are executed.
-	 * @param int      $accepted_args The number of arguments the function accepts.
-	 * @return void
-	 */
-	protected function _add_filter(string $hook, callable $callback, int $priority, int $accepted_args): void {
-		add_filter($hook, $callback, $priority, $accepted_args);
-	}
-
-	/**
 	 * Modifies a script tag by adding attributes, intended for use with the 'script_loader_tag' filter.
 	 *
 	 * This method adjusts the script tag by adding attributes as specified in the $attributes_to_apply array.
@@ -694,23 +679,24 @@ trait ScriptsEnqueueTrait {
 	 * @param string $filter_tag_handle The handle of the script currently being filtered by WordPress.
 	 * @param string $script_handle_to_match The handle of the script we are targeting for modification.
 	 * @param array  $attributes_to_apply The attributes to apply to the script tag.
+	 *
 	 * @return string The modified (or original) HTML script tag.
 	 */
 	protected function _modify_script_tag_for_attributes(
 		string $tag,
-		string $filter_tag_handle,
-		string $script_handle_to_match,
-		array $attributes_to_apply,
+		string $tag_handle,
+		string $handle_to_match,
+		array $attributes_to_apply
 	): string {
 		$logger = $this->get_logger();
 
 		// If the filter is not for the script we're interested in, return the original tag.
-		if ( $filter_tag_handle !== $script_handle_to_match ) {
+		if ( $tag_handle !== $handle_to_match ) {
 			return $tag;
 		}
 
 		if ($logger->is_active()) {
-			$logger->debug("ScriptsEnqueueTrait::_modify_script_tag_for_attributes - Modifying tag for handle '{$filter_tag_handle}'. Attributes: " . \wp_json_encode($attributes_to_apply));
+			$logger->debug("ScriptsEnqueueTrait::_modify_script_tag_for_attributes - Modifying tag for handle '{$tag_handle}'. Attributes: " . \wp_json_encode($attributes_to_apply));
 		}
 
 		// Work on a local copy of attributes to handle modifications like unsetting 'type'
@@ -719,7 +705,7 @@ trait ScriptsEnqueueTrait {
 		// Special handling for module scripts.
 		if ( isset( $local_attributes['type'] ) && 'module' === $local_attributes['type'] ) {
 			if ($logger->is_active()) {
-				$logger->debug("ScriptsEnqueueTrait::_modify_script_tag_for_attributes - Script '{$filter_tag_handle}' is a module. Modifying tag accordingly.");
+				$logger->debug("ScriptsEnqueueTrait::_modify_script_tag_for_attributes - Script '{$tag_handle}' is a module. Modifying tag accordingly.");
 			}
 			// Position type="module" right after <script.
 			$tag = preg_replace( '/<script\s/', '<script type="module" ', $tag );
@@ -734,7 +720,7 @@ trait ScriptsEnqueueTrait {
 
 		if ( false === $pos || false === $script_open_pos ) {
 			if ($logger->is_active()) {
-				$logger->warning("ScriptsEnqueueTrait::_modify_script_tag_for_attributes - Malformed script tag for '{$filter_tag_handle}'. Original tag: " . esc_html($tag) . '. Skipping attribute modification.');
+				$logger->warning("ScriptsEnqueueTrait::_modify_script_tag_for_attributes - Malformed script tag for '{$tag_handle}'. Original tag: " . esc_html($tag) . '. Skipping attribute modification.');
 			}
 			return $tag;
 		}
@@ -763,10 +749,10 @@ trait ScriptsEnqueueTrait {
 							"%s - Attempt to override WordPress-managed attribute '%s' for script handle '%s'. This attribute will be ignored.",
 							__METHOD__,
 							$attr, // Use original case for warning message
-							$script_handle_to_match
+							$handle_to_match
 						),
 						array(
-							'handle'    => $script_handle_to_match,
+							'handle'    => $handle_to_match,
 							'attribute' => $attr,
 						)
 					);
@@ -788,7 +774,7 @@ trait ScriptsEnqueueTrait {
 		$first_gt_pos = strpos( $tag, '>' );
 		$modified_tag = substr_replace( $tag, $attr_str, $first_gt_pos, 0 );
 		if ($logger->is_active()) {
-			$logger->debug("ScriptsEnqueueTrait::_modify_script_tag_for_attributes - Successfully modified tag for '{$filter_tag_handle}'. New tag: " . esc_html($modified_tag));
+			$logger->debug("ScriptsEnqueueTrait::_modify_script_tag_for_attributes - Successfully modified tag for '{$tag_handle}'. New tag: " . esc_html($modified_tag));
 		}
 		return $modified_tag;
 	}
