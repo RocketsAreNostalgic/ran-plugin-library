@@ -6,6 +6,7 @@ namespace Ran\PluginLib\Tests\Unit\Util;
 use Ran\PluginLib\Util\Logger;
 use Ran\PluginLib\Tests\Unit\PluginLibTestCase;
 use WP_Mock;
+use Psr\Log\LogLevel;
 
 /**
  * Class LoggerTest
@@ -142,7 +143,7 @@ class LoggerTest extends PluginLibTestCase {
 		$logger = new Logger($config);
 
 		$this->assertTrue($logger->is_active(), 'Logger should be active with empty string URL param.');
-		$this->assertSame(Logger::LOG_LEVELS_MAP[Logger::LEVEL_DEBUG], $logger->get_log_level(), 'Log level should be DEBUG for empty string URL param.');
+		$this->assertSame(Logger::LOG_LEVELS_MAP[LogLevel::DEBUG], $logger->get_log_level(), 'Log level should be DEBUG for empty string URL param.');
 	}
 
 	/**
@@ -157,7 +158,7 @@ class LoggerTest extends PluginLibTestCase {
 		$logger = new Logger($config);
 
 		$this->assertTrue($logger->is_active(), 'Logger should be active with URL param set to a valid level name.');
-		$this->assertSame(Logger::LOG_LEVELS_MAP[Logger::LEVEL_ERROR], $logger->get_log_level(), 'Log level should be ERROR for URL param "error".');
+		$this->assertSame(Logger::LOG_LEVELS_MAP[LogLevel::ERROR], $logger->get_log_level(), 'Log level should be ERROR for URL param "error".');
 	}
 
 	/**
@@ -173,7 +174,7 @@ class LoggerTest extends PluginLibTestCase {
 		$logger = new Logger($config);
 
 		$this->assertTrue($logger->is_active(), 'Logger should be active when constant is defined with an empty string.');
-		$this->assertSame(Logger::LOG_LEVELS_MAP[Logger::LEVEL_DEBUG], $logger->get_log_level(), 'Log level should be DEBUG for empty string constant.');
+		$this->assertSame(Logger::LOG_LEVELS_MAP[LogLevel::DEBUG], $logger->get_log_level(), 'Log level should be DEBUG for empty string constant.');
 	}
 
 	/**
@@ -189,7 +190,7 @@ class LoggerTest extends PluginLibTestCase {
 		$logger = new Logger($config);
 
 		$this->assertTrue($logger->is_active(), 'Logger should be active with a valid level string constant.');
-		$this->assertSame(Logger::LOG_LEVELS_MAP[Logger::LEVEL_WARNING], $logger->get_log_level(), 'Log level should be WARNING for "WARNING" string constant.');
+		$this->assertSame(Logger::LOG_LEVELS_MAP[LogLevel::WARNING], $logger->get_log_level(), 'Log level should be WARNING for "WARNING" string constant.');
 		$this->assertSame('constant', $this->get_protected_property_value($logger, 'activation_mode'), 'Activation mode should be "constant".');
 	}
 
@@ -198,7 +199,7 @@ class LoggerTest extends PluginLibTestCase {
 	 */
 	public function test_url_parameter_valid_level_name_activates_correct_level(): void {
 		$param_name = self::DEFAULT_CONFIG['debug_request_param'];
-		$level_name = Logger::LEVEL_INFO;
+		$level_name = LogLevel::INFO;
 
 		// Temporarily set the GET parameter
 		$_GET[$param_name] = $level_name;
@@ -244,7 +245,7 @@ class LoggerTest extends PluginLibTestCase {
 	 */
 	public function test_debug_method_logs_when_active_and_level_allows(): void {
 		$constant_name = 'TEST_DEBUG_LOG_METHOD';
-		$this->define_test_constant($constant_name, Logger::LEVEL_DEBUG);
+		$this->define_test_constant($constant_name, LogLevel::DEBUG);
 
 		$config = array(
 		    'custom_debug_constant_name' => $constant_name,
@@ -266,7 +267,7 @@ class LoggerTest extends PluginLibTestCase {
 	 */
 	public function test_info_method_logs_when_active_and_level_allows(): void {
 		$constant_name = 'TEST_INFO_LOG_METHOD';
-		$this->define_test_constant($constant_name, Logger::LEVEL_INFO);
+		$this->define_test_constant($constant_name, LogLevel::INFO);
 
 		$config = array(
 		    'custom_debug_constant_name' => $constant_name,
@@ -288,7 +289,7 @@ class LoggerTest extends PluginLibTestCase {
 	 */
 	public function test_warning_method_logs_when_active_and_level_allows(): void {
 		$constant_name = 'TEST_WARNING_LOG_METHOD';
-		$this->define_test_constant($constant_name, Logger::LEVEL_WARNING);
+		$this->define_test_constant($constant_name, LogLevel::WARNING);
 
 		$config = array(
 		    'custom_debug_constant_name' => $constant_name,
@@ -310,7 +311,7 @@ class LoggerTest extends PluginLibTestCase {
 	 */
 	public function test_error_method_logs_when_active_and_level_allows(): void {
 		$constant_name = 'TEST_ERROR_LOG_METHOD';
-		$this->define_test_constant($constant_name, Logger::LEVEL_ERROR);
+		$this->define_test_constant($constant_name, LogLevel::ERROR);
 
 		$config = array(
 		    'custom_debug_constant_name' => $constant_name,
@@ -333,7 +334,7 @@ class LoggerTest extends PluginLibTestCase {
 	public function test_log_method_does_not_log_when_level_below_effective_level(): void {
 		$constant_name = 'TEST_LOG_LEVEL_SUPPRESSION';
 		// Activate logger at WARNING level
-		$this->define_test_constant($constant_name, Logger::LEVEL_WARNING);
+		$this->define_test_constant($constant_name, LogLevel::WARNING);
 
 		$config = array(
 		    'custom_debug_constant_name' => $constant_name,
@@ -356,7 +357,7 @@ class LoggerTest extends PluginLibTestCase {
 		$config = array(
 		    'custom_debug_constant_name' => 'TEST_INACTIVE_LOGGER',
 		    // No 'debug_request_param' or constant defined for TEST_INACTIVE_LOGGER
-		    'error_log_handler' => array($this, 'mock_error_log_handler'),
+		    'error_log_handler' => array($this, 'mock_error_log_handler'), // To prevent actual error_log
 		);
 		$logger = new Logger($config);
 
@@ -375,7 +376,7 @@ class LoggerTest extends PluginLibTestCase {
 	 */
 	public function test_log_method_appends_context_correctly(): void {
 		$constant_name = 'TEST_LOG_CONTEXT';
-		$this->define_test_constant($constant_name, Logger::LEVEL_DEBUG);
+		$this->define_test_constant($constant_name, LogLevel::DEBUG);
 
 		$config = array(
 		    'custom_debug_constant_name' => $constant_name,
@@ -402,7 +403,7 @@ class LoggerTest extends PluginLibTestCase {
 		$constant_name  = 'TEST_INVALID_URL_VALID_CONST_CONST';
 
 		$_GET[$url_param_name] = 'INVALID_LEVEL'; // Set an invalid URL param value
-		$this->define_test_constant($constant_name, Logger::LEVEL_INFO); // Define a valid constant
+		$this->define_test_constant($constant_name, LogLevel::INFO); // Define a valid constant
 
 		$config = array(
 		    'debug_request_param'        => $url_param_name,
@@ -412,7 +413,7 @@ class LoggerTest extends PluginLibTestCase {
 		$logger = new Logger($config);
 
 		$this->assertTrue($logger->is_active(), 'Logger should be active via constant.');
-		$this->assertSame(Logger::LOG_LEVELS_MAP[Logger::LEVEL_INFO], $logger->get_log_level(), 'Logger effective log level should be INFO.');
+		$this->assertSame(Logger::LOG_LEVELS_MAP[LogLevel::INFO], $logger->get_log_level(), 'Logger effective log level should be INFO.');
 		$activation_mode = $this->get_protected_property_value($logger, 'activation_mode');
 		$this->assertSame('constant', $activation_mode, 'Activation mode should be constant.');
 

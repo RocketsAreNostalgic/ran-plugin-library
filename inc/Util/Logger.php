@@ -9,6 +9,9 @@ declare(strict_types = 1);
 
 namespace Ran\PluginLib\Util;
 
+use Psr\Log\LoggerInterface;
+use Psr\Log\LogLevel;
+
 /**
  * A lightweight, configurable logger for WordPress plugins.
  *
@@ -101,17 +104,16 @@ namespace Ran\PluginLib\Util;
  * /// Logging methods accept a message string and an optional context array.
  * /// The context array is serialized and appended to the log message.
  */
-class Logger {
-	public const LEVEL_DEBUG   = 'DEBUG';   // 100
-	public const LEVEL_INFO    = 'INFO';    // 200
-	public const LEVEL_WARNING = 'WARNING'; // 300
-	public const LEVEL_ERROR   = 'ERROR';   // 400
-
+class Logger implements LoggerInterface {
 	public const LOG_LEVELS_MAP = array(
-		self::LEVEL_DEBUG   => 100,
-		self::LEVEL_INFO    => 200,
-		self::LEVEL_WARNING => 300,
-		self::LEVEL_ERROR   => 400,
+		LogLevel::DEBUG     => 100,
+		LogLevel::INFO      => 200,
+		LogLevel::NOTICE    => 250,
+		LogLevel::WARNING   => 300,
+		LogLevel::ERROR     => 400,
+		LogLevel::CRITICAL  => 500,
+		LogLevel::ALERT     => 550,
+		LogLevel::EMERGENCY => 600,
 	);
 
 	/**
@@ -198,7 +200,7 @@ class Logger {
 		}
 
 		$this->config                       = $config;
-		$this->effective_log_level_severity = self::LOG_LEVELS_MAP[ self::LEVEL_WARNING ]; // Default.
+		$this->effective_log_level_severity = self::LOG_LEVELS_MAP[ LogLevel::WARNING ]; // Default.
 
 		$this->_determine_effective_log_level();
 	}
@@ -210,7 +212,7 @@ class Logger {
 	 */
 	private function _determine_effective_log_level(): void {
 		$this->is_active                    = false;
-		$this->effective_log_level_severity = self::LOG_LEVELS_MAP[self::LEVEL_ERROR] + 100; // Default to higher than any level.
+		$this->effective_log_level_severity = self::LOG_LEVELS_MAP[LogLevel::EMERGENCY] + 100; // Default to higher than any level.
 		$this->activation_mode              = '';
 
 		$sources_values = array();
@@ -258,12 +260,12 @@ class Logger {
 	 * @return string|null The textual log level (e.g., 'DEBUG') or null if no valid level is determined.
 	 */
 	private function _parse_log_level_value($raw_value): ?string {
-		$numeric_to_text_level = array_flip(self::LOG_LEVELS_MAP); // e.g., [100 => 'DEBUG', ...].
-		$level_value_str_upper = is_string($raw_value) ? strtoupper(trim($raw_value)) : null;
+		$numeric_to_text_level = array_flip(self::LOG_LEVELS_MAP); // e.g., [100 => 'debug', ...].
+		$level_value_str       = is_string($raw_value) ? strtolower(trim($raw_value)) : null;
 
-		// 1. Check for direct textual level match (DEBUG, INFO, etc.)
-		if (null !== $level_value_str_upper && isset(self::LOG_LEVELS_MAP[$level_value_str_upper])) {
-			return $level_value_str_upper;
+		// 1. Check for direct textual level match (debug, info, etc.)
+		if (null !== $level_value_str && isset(self::LOG_LEVELS_MAP[$level_value_str])) {
+			return $level_value_str;
 		}
 
 		// 2. Check for numeric level match (100, 200, etc.)
@@ -274,14 +276,14 @@ class Logger {
 		// 3. Unified defaulting logic for both URL parameters and Constants:
 		// Activates DEBUG if the value is an empty string (naked URL param or empty constant)
 		if ('' === $raw_value) {
-			return self::LEVEL_DEBUG;
+			return LogLevel::DEBUG;
 		}
 
 		// Check for explicit true values (e.g., "true", "1", "yes", "on").
 		// For constants, this also handles actual boolean `true`.
 		$filter_val_bool = filter_var($raw_value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
 		if (true === $filter_val_bool) {
-			return self::LEVEL_DEBUG;
+			return LogLevel::DEBUG;
 		}
 
 		// If none of the above conditions were met, this value does not activate logging.
@@ -295,7 +297,7 @@ class Logger {
 	 * @return int The integer severity.
 	 */
 	private function _get_level_severity( string $level_string ): int {
-		return self::LOG_LEVELS_MAP[ strtoupper( $level_string ) ] ?? self::LOG_LEVELS_MAP[ self::LEVEL_DEBUG ];
+		return self::LOG_LEVELS_MAP[ $level_string ] ?? self::LOG_LEVELS_MAP[ LogLevel::DEBUG ];
 	}
 
 	/**
@@ -324,66 +326,126 @@ class Logger {
 	}
 
 	/**
-	 * Logs a message with the DEBUG level.
+	 * System is unusable.
 	 *
-	 * @param string       $message The message to log.
-	 * @param array<mixed> $context Optional context data.
+	 * @param string|\Stringable $message
+	 * @param array<mixed>       $context
+	 * @return void
 	 */
-	public function debug( string $message, array $context = array() ): void {
-		$this->log( $message, self::LEVEL_DEBUG, $context );
+	public function emergency(string|\Stringable $message, array $context = array()): void {
+		$this->log(LogLevel::EMERGENCY, $message, $context);
 	}
 
 	/**
-	 * Logs a message with the INFO level.
+	 * Action must be taken immediately.
 	 *
-	 * @param string       $message The message to log.
-	 * @param array<mixed> $context Optional context data.
+	 * Example: Entire website down, database unavailable, etc. This should
+	 * trigger the SMS alerts and wake you up.
+	 *
+	 * @param string|\Stringable $message
+	 * @param array<mixed>       $context
+	 * @return void
 	 */
-	public function info( string $message, array $context = array() ): void {
-		$this->log( $message, self::LEVEL_INFO, $context );
+	public function alert(string|\Stringable $message, array $context = array()): void {
+		$this->log(LogLevel::ALERT, $message, $context);
 	}
 
 	/**
-	 * Logs a message with the WARNING level.
+	 * Critical conditions.
 	 *
-	 * @param string       $message The message to log.
-	 * @param array<mixed> $context Optional context data.
+	 * Example: Application component unavailable, unexpected exception.
+	 *
+	 * @param string|\Stringable $message
+	 * @param array<mixed>       $context
+	 * @return void
 	 */
-	public function warning( string $message, array $context = array() ): void {
-		$this->log( $message, self::LEVEL_WARNING, $context );
+	public function critical(string|\Stringable $message, array $context = array()): void {
+		$this->log(LogLevel::CRITICAL, $message, $context);
 	}
 
 	/**
-	 * Logs a message with the ERROR level.
+	 * Runtime errors that do not require immediate action but should typically
+	 * be logged and monitored.
 	 *
-	 * @param string       $message The message to log.
-	 * @param array<mixed> $context Optional context data.
+	 * @param string|\Stringable $message
+	 * @param array<mixed>       $context
+	 * @return void
 	 */
-	public function error( string $message, array $context = array() ): void {
-		$this->log( $message, self::LEVEL_ERROR, $context );
+	public function error(string|\Stringable $message, array $context = array()): void {
+		$this->log(LogLevel::ERROR, $message, $context);
 	}
 
 	/**
-	 * The core logging method.
+	 * Exceptional occurrences that are not errors.
 	 *
-	 * @param string       $message The message to log.
-	 * @param string       $level   The log level (e.g., 'DEBUG').
-	 * @param array<mixed> $context Optional context data.
+	 * Example: Use of deprecated APIs, poor use of an API, undesirable things
+	 * that are not necessarily wrong.
+	 *
+	 * @param string|\Stringable $message
+	 * @param array<mixed>       $context
+	 * @return void
 	 */
-	protected function log( string $message, string $level, array $context = array() ): void {
+	public function warning(string|\Stringable $message, array $context = array()): void {
+		$this->log(LogLevel::WARNING, $message, $context);
+	}
+
+	/**
+	 * Normal but significant events.
+	 *
+	 * @param string|\Stringable $message
+	 * @param array<mixed>       $context
+	 * @return void
+	 */
+	public function notice(string|\Stringable $message, array $context = array()): void {
+		$this->log(LogLevel::NOTICE, $message, $context);
+	}
+
+	/**
+	 * Interesting events.
+	 *
+	 * Example: User logs in, SQL logs.
+	 *
+	 * @param string|\Stringable $message
+	 * @param array<mixed>       $context
+	 * @return void
+	 */
+	public function info(string|\Stringable $message, array $context = array()): void {
+		$this->log(LogLevel::INFO, $message, $context);
+	}
+
+	/**
+	 * Detailed debug information.
+	 *
+	 * @param string|\Stringable $message
+	 * @param array<mixed>       $context
+	 * @return void
+	 */
+	public function debug(string|\Stringable $message, array $context = array()): void {
+		$this->log(LogLevel::DEBUG, $message, $context);
+	}
+
+	/**
+	 * Logs with an arbitrary level.
+	 *
+	 * @param mixed              $level
+	 * @param string|\Stringable $message
+	 * @param array<mixed>       $context
+	 * @return void
+	 */
+	public function log($level, string|\Stringable $message, array $context = array()): void {
 		if ( ! $this->is_active ) {
 			return;
 		}
 
-		$current_level_severity = $this->_get_level_severity( $level );
+		$current_level_severity = $this->_get_level_severity( (string) $level );
 		if ( $current_level_severity < $this->effective_log_level_severity ) {
 			return;
 		}
 
 		$formatted_message = sprintf(
-			'[%s] %s', // Timestamp removed, context will append if present.
-			strtoupper( $level ),
-			$message
+			'[%s] %s',
+			strtoupper( (string) $level ),
+			(string) $message
 		);
 
 		if ( ! empty( $context ) ) {

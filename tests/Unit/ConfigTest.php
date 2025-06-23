@@ -16,6 +16,7 @@ use Ran\PluginLib\Config\Config;
 use Ran\PluginLib\Config\ConfigAbstract;
 use Ran\PluginLib\Config\ConfigInterface;
 use Ran\PluginLib\Util\Logger;
+use Psr\Log\LogLevel;
 use WP_Mock;
 
 /**
@@ -470,7 +471,7 @@ final class ConfigTest extends RanTestCase {
 		$mock_file_content_no_plugin_option = "<?php\n"
 		. "/**\n"
 		. " * Plugin Name: {$this->plugin_data['Name']}\n"
-		. " * Text Domain: options-test-td\n" // Use a non-empty Text Domain
+		. " * Text Domain: options-test-td\n" // Use a non-empty TextDomain
 		. " * Version: {$this->plugin_data['Version']}\n"
 		. " * @RAN: Log Constant Name: SOME_LOG_CONST_FOR_THIS_TEST\n" // Add a RAN header to ensure parser runs
 		. ' */';
@@ -561,7 +562,7 @@ final class ConfigTest extends RanTestCase {
 			// This should not happen if uniqid() works as expected, but as a safeguard.
 			$this->markTestSkipped("Constant {$unique_log_constant_name} already defined.");
 		}
-		define($unique_log_constant_name, 'INFO');
+		define($unique_log_constant_name, LogLevel::INFO);
 
 		// Manually invoke the constructor AFTER defining the constant.
 		$abstractConstructor = $configReflection->getConstructor();
@@ -572,7 +573,7 @@ final class ConfigTest extends RanTestCase {
 			// 5. Get the logger and assert debug mode.
 			/** @var Logger $logger */
 			$logger = $config_mock->get_logger();
-			$this->assertTrue($logger->is_active() && $logger->get_log_level() === \Ran\PluginLib\Util\Logger::LOG_LEVELS_MAP[\Ran\PluginLib\Util\Logger::LEVEL_INFO], 'Logger should be active and in INFO mode (level ' . \Ran\PluginLib\Util\Logger::LOG_LEVELS_MAP[\Ran\PluginLib\Util\Logger::LEVEL_INFO] . ') when custom constant is \'INFO\'.');
+			$this->assertTrue($logger->is_active() && $logger->get_log_level() === Logger::LOG_LEVELS_MAP[LogLevel::INFO], 'Logger should be active and in INFO mode (level ' . Logger::LOG_LEVELS_MAP[LogLevel::INFO] . ') when custom constant is \'INFO\'.');
 		} finally {
 			// Cleanup: It's tricky to undefine a constant. PHPUnit runs tests in separate processes by default,
 			// so this define should not affect other tests. If not, this could be an issue.
@@ -745,7 +746,7 @@ final class ConfigTest extends RanTestCase {
 		$config_active_true      = $this->get_config(array('Log Request Param' => $fixed_param_name));
 		$logger_active_true      = $config_active_true->get_logger();
 		$this->assertTrue($logger_active_true->is_active(), "Logger should be ACTIVE when param '{$fixed_param_name}' is 'true'.");
-		$this->assertSame(Logger::LOG_LEVELS_MAP[Logger::LEVEL_INFO], $logger_active_true->get_log_level(), "Logger level should be INFO when param '{$fixed_param_name}' is 'INFO'.");
+		$this->assertSame(Logger::LOG_LEVELS_MAP[LogLevel::INFO], $logger_active_true->get_log_level(), "Logger level should be INFO when param '{$fixed_param_name}' is 'INFO'.");
 
 		// Scenario 3: Parameter SET to 'INFO' (string level)
 		$_GET                    = array();
@@ -753,7 +754,7 @@ final class ConfigTest extends RanTestCase {
 		$config_active_info      = $this->get_config(array('Log Request Param' => $fixed_param_name));
 		$logger_active_info      = $config_active_info->get_logger();
 		$this->assertTrue($logger_active_info->is_active(), "Logger should be ACTIVE when param '{$fixed_param_name}' is 'INFO'.");
-		$this->assertSame(Logger::LOG_LEVELS_MAP[Logger::LEVEL_INFO], $logger_active_info->get_log_level(), "Logger level should be INFO when param '{$fixed_param_name}' is 'INFO'.");
+		$this->assertSame(Logger::LOG_LEVELS_MAP[LogLevel::INFO], $logger_active_info->get_log_level(), "Logger level should be INFO when param '{$fixed_param_name}' is 'INFO'.");
 
 		// Scenario 4: Parameter SET to an unknown string (should not activate)
 		$_GET                    = array();
