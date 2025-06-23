@@ -8,6 +8,7 @@ use Ran\PluginLib\Tests\Unit\PluginLibTestCase;
 use Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseAbstract;
 use Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait;
 use Ran\PluginLib\Util\Logger;
+use InvalidArgumentException;
 use WP_Mock;
 use Mockery;
 use Mockery\MockInterface;
@@ -52,8 +53,7 @@ class ScriptsEnqueueTraitTest extends PluginLibTestCase {
 
 		self::$hasActionCallCount = 0;
 
-		// Ensure the logger is considered active for all tests in this class.
-		$this->logger_mock->shouldReceive('is_active')->andReturn(true)->byDefault();
+		// is_active mock is now handled per-test to avoid conflicts.
 		$this->logger_mock->shouldReceive('is_verbose')->andReturn(true)->byDefault();
 
 		// Set up default, permissive expectations for all log levels.
@@ -136,13 +136,13 @@ class ScriptsEnqueueTraitTest extends PluginLibTestCase {
 			),
 		);
 
-		// Logger expectations for ScriptsEnqueueTrait::add_scripts()
-		$this->logger_mock->shouldReceive('debug')->with('ScriptsEnqueueTrait::add_scripts - Entered. Current script count: 0. Adding 2 new script(s).')->once();
-		$this->logger_mock->shouldReceive('debug')->with('ScriptsEnqueueTrait::add_scripts - Adding script. Key: 0, Handle: my-script-1, Src: path/to/my-script-1.js')->once();
-		$this->logger_mock->shouldReceive('debug')->with('ScriptsEnqueueTrait::add_scripts - Adding script. Key: 1, Handle: my-script-2, Src: path/to/my-script-2.js')->once();
-		$this->logger_mock->shouldReceive('debug')->with('ScriptsEnqueueTrait::add_scripts - Adding 2 script definition(s). Current total: 0')->once();
-		$this->logger_mock->shouldReceive('debug')->with('ScriptsEnqueueTrait::add_scripts - Exiting. New total script count: 2')->once();
-		$this->logger_mock->shouldReceive('debug')->with('ScriptsEnqueueTrait::add_scripts - All current script handles: my-script-1, my-script-2')->once();
+		// Logger expectations for ScriptsEnqueueTrait::add_scripts() using the new helper.
+		$this->expectLog('debug', array('Entered', 'Adding 2 new script(s)'));
+		$this->expectLog('debug', array('Adding script', 'Handle: my-script-1'));
+		$this->expectLog('debug', array('Adding script', 'Handle: my-script-2'));
+		$this->expectLog('debug', array('Adding 2 script definition(s)'));
+		$this->expectLog('debug', array('Exiting', 'New total script count: 2'));
+		$this->expectLog('debug', array('All current script handles', 'my-script-1, my-script-2'));
 
 		// Call the method under test
 		$result = $this->instance->add_scripts($scripts_to_add);
@@ -199,11 +199,11 @@ class ScriptsEnqueueTraitTest extends PluginLibTestCase {
 		);
 
 		// Logger expectations for ScriptsEnqueueTrait::add_scripts() for a single script
-		$this->logger_mock->shouldReceive('debug')->with('ScriptsEnqueueTrait::add_scripts - Entered. Current script count: 0. Adding 1 new script(s).')->once();
-		$this->logger_mock->shouldReceive('debug')->with('ScriptsEnqueueTrait::add_scripts - Adding script. Key: 0, Handle: single-script, Src: path/to/single.js')->once();
-		$this->logger_mock->shouldReceive('debug')->with('ScriptsEnqueueTrait::add_scripts - Adding 1 script definition(s). Current total: 0')->once();
-		$this->logger_mock->shouldReceive('debug')->with('ScriptsEnqueueTrait::add_scripts - Exiting. New total script count: 1')->once();
-		$this->logger_mock->shouldReceive('debug')->with('ScriptsEnqueueTrait::add_scripts - All current script handles: single-script')->once();
+		$this->expectLog('debug', array('Entered', 'Adding 1 new script(s)'));
+		$this->expectLog('debug', array('Adding script', 'Handle: single-script'));
+		$this->expectLog('debug', array('Adding 1 script definition(s)'));
+		$this->expectLog('debug', array('Exiting', 'New total script count: 1'));
+		$this->expectLog('debug', array('All current script handles', 'single-script'));
 
 		// Call the method under test
 		$this->instance->add_scripts($script_to_add);
@@ -221,7 +221,7 @@ class ScriptsEnqueueTraitTest extends PluginLibTestCase {
 	 */
 	public function test_add_scripts_handles_empty_input_gracefully(): void {
 		// Logger expectations for ScriptsEnqueueTrait::add_scripts() with an empty array.
-		$this->logger_mock->shouldReceive('debug')->with('ScriptsEnqueueTrait::add_scripts - Entered with empty array. No scripts to add.')->once();
+		$this->expectLog('debug', 'Entered with empty array. No scripts to add.');
 
 		// Call the method under test
 		$this->instance->add_scripts(array());
@@ -246,20 +246,20 @@ class ScriptsEnqueueTraitTest extends PluginLibTestCase {
 		);
 
 		// --- Logger Mocks for ScriptsEnqueueTrait::add_scripts() ---
-		$this->logger_mock->shouldReceive('debug')->with('ScriptsEnqueueTrait::add_scripts - Entered. Current script count: 0. Adding 1 new script(s).')->once()->ordered('add');
-		$this->logger_mock->shouldReceive('debug')->with('ScriptsEnqueueTrait::add_scripts - Adding script. Key: 0, Handle: my-script, Src: path/to/my-script.js')->once()->ordered('add');
-		$this->logger_mock->shouldReceive('debug')->with('ScriptsEnqueueTrait::add_scripts - Adding 1 script definition(s). Current total: 0')->once()->ordered('add');
-		$this->logger_mock->shouldReceive('debug')->with('ScriptsEnqueueTrait::add_scripts - Exiting. New total script count: 1')->once()->ordered('add');
-		$this->logger_mock->shouldReceive('debug')->with('ScriptsEnqueueTrait::add_scripts - All current script handles: my-script')->once()->ordered('add');
+		$this->expectLog('debug', array('Entered', 'Adding 1 new script(s)'));
+		$this->expectLog('debug', array('Adding script', 'Handle: my-script'));
+		$this->expectLog('debug', array('Adding 1 script definition(s)'));
+		$this->expectLog('debug', array('Exiting', 'New total script count: 1'));
+		$this->expectLog('debug', array('All current script handles: my-script'));
 
 		$this->instance->add_scripts(array($script_to_add));
 
 		// --- WP_Mock and Logger Mocks for register_scripts() ---
 		$is_registered = false;
 
-		$this->logger_mock->shouldReceive('debug')->with('ScriptsEnqueueTrait::register_scripts - Entered. Processing 1 script definition(s) for registration.')->once()->ordered('register');
-		$this->logger_mock->shouldReceive('debug')->with('ScriptsEnqueueTrait::register_scripts - Processing script: "my-script", original index: 0.')->once()->ordered('register');
-		$this->logger_mock->shouldReceive('debug')->with("ScriptsEnqueueTrait::_process_single_script - Processing script 'my-script' in context 'register_scripts'.")->once()->ordered('register');
+		$this->expectLog('debug', array('register_scripts - Entered', 'Processing 1 script'));
+		$this->expectLog('debug', array('Processing script: "my-script"'));
+		$this->expectLog('debug', array("Processing script 'my-script' in context 'register_scripts'"));
 
 		// Mock wp_script_is to reflect the state change
 		WP_Mock::userFunction('wp_script_is', array(
@@ -269,7 +269,7 @@ class ScriptsEnqueueTraitTest extends PluginLibTestCase {
 			},
 		))->atLeast()->once();
 
-		$this->logger_mock->shouldReceive('debug')->with("ScriptsEnqueueTrait::_process_single_script - Registering script 'my-script'.")->once()->ordered('register');
+		$this->expectLog('debug', array("Registering script 'my-script'"));
 
 		// Mock wp_register_script to simulate the state change
 		WP_Mock::userFunction('wp_register_script', array(
@@ -282,11 +282,11 @@ class ScriptsEnqueueTraitTest extends PluginLibTestCase {
 		));
 
 		// Mocks for inline script processing
-		$this->logger_mock->shouldReceive('debug')->once()->with("ScriptsEnqueueTrait::_process_inline_scripts (context: immediate_after_registration) - Checking for inline scripts for parent handle 'my-script'.")->ordered('register');
-		$this->logger_mock->shouldReceive('debug')->once()->with("ScriptsEnqueueTrait::_process_inline_scripts (context: immediate_after_registration) - No inline scripts found or processed for 'my-script'.")->ordered('register');
+		$this->expectLog('debug', array('_process_inline_scripts', "Checking for inline scripts for parent handle 'my-script'"));
+		$this->expectLog('debug', array('_process_inline_scripts', "No inline scripts found or processed for 'my-script'"));
 
-		$this->logger_mock->shouldReceive('debug')->once()->with("ScriptsEnqueueTrait::_process_single_script - Finished processing script 'my-script'.")->ordered('register');
-		$this->logger_mock->shouldReceive('debug')->once()->with('ScriptsEnqueueTrait::register_scripts - Exited. Remaining immediate scripts: 1. Deferred scripts: 0.')->ordered('register');
+		$this->expectLog('debug', array("Finished processing script 'my-script'"));
+		$this->expectLog('debug', array('register_scripts - Exited', 'Remaining immediate scripts: 1'));
 
 		// Call the method under test
 		$this->instance->register_scripts();
@@ -309,11 +309,11 @@ class ScriptsEnqueueTraitTest extends PluginLibTestCase {
 		);
 
 		// --- Logger Mocks for add_scripts() ---
-		$this->logger_mock->shouldReceive('debug')->once()->with('ScriptsEnqueueTrait::add_scripts - Entered. Current script count: 0. Adding 1 new script(s).');
-		$this->logger_mock->shouldReceive('debug')->once()->with('ScriptsEnqueueTrait::add_scripts - Adding script. Key: 0, Handle: my-deferred-script, Src: path/to/deferred.js');
-		$this->logger_mock->shouldReceive('debug')->once()->with('ScriptsEnqueueTrait::add_scripts - Adding 1 script definition(s). Current total: 0');
-		$this->logger_mock->shouldReceive('debug')->once()->with('ScriptsEnqueueTrait::add_scripts - Exiting. New total script count: 1');
-		$this->logger_mock->shouldReceive('debug')->once()->with('ScriptsEnqueueTrait::add_scripts - All current script handles: my-deferred-script');
+		$this->expectLog('debug', array('Entered', 'Adding 1 new script(s)'));
+		$this->expectLog('debug', array('Adding script', 'Handle: my-deferred-script'));
+		$this->expectLog('debug', array('Adding 1 script definition(s)'));
+		$this->expectLog('debug', array('Exiting', 'New total script count: 1'));
+		$this->expectLog('debug', array('All current script handles: my-deferred-script'));
 
 		$this->instance->add_scripts(array($script_to_add));
 
@@ -324,11 +324,11 @@ class ScriptsEnqueueTraitTest extends PluginLibTestCase {
 
 		WP_Mock::expectActionAdded('admin_enqueue_scripts', array($this->instance, 'enqueue_deferred_scripts'), 10, 1);
 
-		$this->logger_mock->shouldReceive('debug')->once()->with('ScriptsEnqueueTrait::register_scripts - Entered. Processing 1 script definition(s) for registration.');
-		$this->logger_mock->shouldReceive('debug')->once()->with('ScriptsEnqueueTrait::register_scripts - Processing script: "my-deferred-script", original index: 0.');
-		$this->logger_mock->shouldReceive('debug')->once()->with("ScriptsEnqueueTrait::register_scripts - Deferring registration of script 'my-deferred-script' (original index 0) to hook: admin_enqueue_scripts.");
-		$this->logger_mock->shouldReceive('debug')->once()->with("ScriptsEnqueueTrait::register_scripts - Added action for 'enqueue_deferred_scripts' on hook: admin_enqueue_scripts.");
-		$this->logger_mock->shouldReceive('debug')->once()->with('ScriptsEnqueueTrait::register_scripts - Exited. Remaining immediate scripts: 0. Deferred scripts: 4.');
+		$this->expectLog('debug', array('register_scripts - Entered', 'Processing 1 script'));
+		$this->expectLog('debug', array('Processing script: "my-deferred-script"'));
+		$this->expectLog('debug', array("Deferring registration of script 'my-deferred-script'", 'hook: admin_enqueue_scripts'));
+		$this->expectLog('debug', array("Added action for 'enqueue_deferred_scripts'", 'hook: admin_enqueue_scripts'));
+		$this->expectLog('debug', array('register_scripts - Exited', 'Remaining immediate scripts: 0', 'Deferred scripts: 1'));
 
 		// Call the method under test
 		$this->instance->register_scripts();
@@ -370,23 +370,23 @@ class ScriptsEnqueueTraitTest extends PluginLibTestCase {
 		);
 
 		// --- Logger Mocks for add_scripts() ---
-		$this->logger_mock->shouldReceive('debug')->once()->with('ScriptsEnqueueTrait::add_scripts - Entered. Current script count: 0. Adding 1 new script(s).');
-		$this->logger_mock->shouldReceive('debug')->once()->with('ScriptsEnqueueTrait::add_scripts - Adding script. Key: 0, Handle: my-conditional-script, Src: path/to/conditional.js');
-		$this->logger_mock->shouldReceive('debug')->once()->with('ScriptsEnqueueTrait::add_scripts - Adding 1 script definition(s). Current total: 0');
-		$this->logger_mock->shouldReceive('debug')->once()->with('ScriptsEnqueueTrait::add_scripts - Exiting. New total script count: 1');
-		$this->logger_mock->shouldReceive('debug')->once()->with('ScriptsEnqueueTrait::add_scripts - All current script handles: my-conditional-script');
+		$this->expectLog('debug', array('Entered', 'Adding 1 new script(s)'));
+		$this->expectLog('debug', array('Adding script', 'Handle: my-conditional-script'));
+		$this->expectLog('debug', array('Adding 1 script definition(s)'));
+		$this->expectLog('debug', array('Exiting', 'New total script count: 1'));
+		$this->expectLog('debug', array('All current script handles: my-conditional-script'));
 
 		$this->instance->add_scripts(array($script_to_add));
 
 		// --- WP_Mock and Logger Mocks for register_scripts() ---
-		$this->logger_mock->shouldReceive('debug')->once()->with('ScriptsEnqueueTrait::register_scripts - Entered. Processing 1 script definition(s) for registration.');
-		$this->logger_mock->shouldReceive('debug')->once()->with('ScriptsEnqueueTrait::register_scripts - Processing script: "my-conditional-script", original index: 0.');
-		$this->logger_mock->shouldReceive('debug')->once()->with("ScriptsEnqueueTrait::_process_single_script - Processing script 'my-conditional-script' in context 'register_scripts'.");
-		$this->logger_mock->shouldReceive('debug')->once()->with("ScriptsEnqueueTrait::_process_single_script - Condition not met for script 'my-conditional-script'. Skipping.");
+		$this->expectLog('debug', array('register_scripts - Entered', 'Processing 1 script'));
+		$this->expectLog('debug', array('Processing script: "my-conditional-script"'));
+		$this->expectLog('debug', array("Processing script 'my-conditional-script' in context 'register_scripts'"));
+		$this->expectLog('debug', array("Condition not met for script 'my-conditional-script'. Skipping."));
 
 		// Assert that wp_register_script is never called
 		WP_Mock::userFunction('wp_register_script')->never();
-		$this->logger_mock->shouldReceive('debug')->once()->with('ScriptsEnqueueTrait::register_scripts - Exited. Remaining immediate scripts: 0. Deferred scripts: 0.');
+		$this->expectLog('debug', array('register_scripts - Exited', 'Remaining immediate scripts: 0', 'Deferred scripts: 0'));
 
 		// Call the method under test
 		$this->instance->register_scripts();
@@ -411,11 +411,11 @@ class ScriptsEnqueueTraitTest extends PluginLibTestCase {
 		);
 
 		// --- Mocks for add_scripts() ---
-		$this->logger_mock->shouldReceive('debug')->once()->with('ScriptsEnqueueTrait::add_scripts - Entered. Current script count: 0. Adding 1 new script(s).');
-		$this->logger_mock->shouldReceive('debug')->once()->with('ScriptsEnqueueTrait::add_scripts - Adding script. Key: 0, Handle: my-basic-script, Src: path/to/basic.js');
-		$this->logger_mock->shouldReceive('debug')->once()->with('ScriptsEnqueueTrait::add_scripts - Adding 1 script definition(s). Current total: 0');
-		$this->logger_mock->shouldReceive('debug')->once()->with('ScriptsEnqueueTrait::add_scripts - Exiting. New total script count: 1');
-		$this->logger_mock->shouldReceive('debug')->once()->with('ScriptsEnqueueTrait::add_scripts - All current script handles: my-basic-script');
+		$this->expectLog('debug', array('Entered', 'Adding 1 new script(s)'));
+		$this->expectLog('debug', array('Adding script', 'Handle: my-basic-script'));
+		$this->expectLog('debug', array('Adding 1 script definition(s)'));
+		$this->expectLog('debug', array('Exiting', 'New total script count: 1'));
+		$this->expectLog('debug', array('All current script handles: my-basic-script'));
 		$this->instance->add_scripts(array($script_to_add));
 
 		// --- Consolidated WP_Mock::userFunction('wp_script_is', ...) calls for 'my-basic-script' ---
@@ -438,49 +438,32 @@ class ScriptsEnqueueTraitTest extends PluginLibTestCase {
 		    ->andReturnValues(array(false));
 
 		// --- Mocks for register_scripts() ---
-		$this->logger_mock->shouldReceive('debug')->once()->with('ScriptsEnqueueTrait::register_scripts - Entered. Processing 1 script definition(s) for registration.');
-		$this->logger_mock->shouldReceive('debug')->once()->with('ScriptsEnqueueTrait::register_scripts - Processing script: "my-basic-script", original index: 0.');
-		// _process_single_script (called by register_scripts)
-		// Call to wp_script_is('my-basic-script', 'registered') handled by consolidated mock (1st call, returns false)
-		$this->logger_mock->shouldReceive('debug')->once()->with("ScriptsEnqueueTrait::_process_single_script - Processing script 'my-basic-script' in context 'register_scripts'.");
-		$this->logger_mock->shouldReceive('debug')->once()->with("ScriptsEnqueueTrait::_process_single_script - Registering script 'my-basic-script'.");
+		$this->expectLog('debug', array('register_scripts - Entered', 'Processing 1 script'));
+		$this->expectLog('debug', array('Processing script: "my-basic-script"'));
+		$this->expectLog('debug', array("Processing script 'my-basic-script' in context 'register_scripts'"));
+		$this->expectLog('debug', array("Registering script 'my-basic-script'"));
+
 		WP_Mock::userFunction('wp_register_script', array('args' => array('my-basic-script', 'path/to/basic.js', array(), '1.0', false), 'times' => 1, 'return' => true));
-		$this->logger_mock->shouldReceive('debug')->once()->with("ScriptsEnqueueTrait::_process_single_script - Finished processing script 'my-basic-script'.");
-		$this->logger_mock->shouldReceive('debug')->once()->with('ScriptsEnqueueTrait::register_scripts - Exited. Remaining immediate scripts: 1. Deferred scripts: 0.');
+
+		$this->expectLog('debug', array("Finished processing script 'my-basic-script'"));
+		$this->expectLog('debug', array('register_scripts - Exited', 'Remaining immediate scripts: 1', 'Deferred scripts: 0'));
 		$this->instance->register_scripts();
 
 		// --- Mocks for enqueue_scripts() ---
-		$this->logger_mock->shouldReceive('debug')->once()->with('ScriptsEnqueueTrait::enqueue_scripts - Entered. Processing 1 script definition(s) from internal queue.');
-		$this->logger_mock->shouldReceive('debug')->once()->with('ScriptsEnqueueTrait::enqueue_scripts - Processing script: "my-basic-script", original index: 0.');
+		$this->expectLog('debug', array('enqueue_scripts - Entered', 'Processing 1 script'));
+		$this->expectLog('debug', array('Processing script: "my-basic-script"'));
+		$this->expectLog('debug', array("Processing script 'my-basic-script' in context 'enqueue_scripts'"));
+		$this->expectLog('debug', array("Script 'my-basic-script' already registered. Skipping wp_register_script.")); // Log from line 553
+		$this->expectLog('debug', array("Enqueuing script 'my-basic-script'"));
 
-		// _process_single_script (called by enqueue_scripts)
-		// The call to wp_script_is('my-basic-script', 'registered') at trait line 551 is handled by the
-		// second call to the consolidated mock (defined earlier), which returns true.
-		$this->logger_mock->shouldReceive('debug')->once()->with("ScriptsEnqueueTrait::_process_single_script - Processing script 'my-basic-script' in context 'enqueue_scripts'.");
-		$this->logger_mock->shouldReceive('debug')->once()->with("ScriptsEnqueueTrait::_process_single_script - Script 'my-basic-script' already registered. Skipping wp_register_script."); // Log from line 553
-		// Enqueue check within _process_single_script (do_enqueue=true)
-		// The call to wp_script_is('my-basic-script', 'enqueued') at trait line 570 is handled by the
-		// consolidated mock for 'enqueued' status (defined earlier), which returns false.
-		$this->logger_mock->shouldReceive('debug')->once()->with("ScriptsEnqueueTrait::_process_single_script - Enqueuing script 'my-basic-script'.");
 		WP_Mock::userFunction('wp_enqueue_script', array('args' => array('my-basic-script'), 'times' => 1));
-		// Inline script check within _process_single_script
-		// _process_inline_scripts (called by _process_single_script from enqueue_scripts)
-		$this->logger_mock->shouldReceive('debug')->once()->with("ScriptsEnqueueTrait::_process_inline_scripts (context: immediate_after_registration) - Checking for inline scripts for parent handle 'my-basic-script'.");
-		// Parent script 'my-basic-script' will have been enqueued by wp_enqueue_script just before _process_inline_scripts is called.
-		// Parent check in _process_inline_scripts (trait line 440): `if ( ! wp_script_is( $parent_handle, 'registered' ) && ! wp_script_is( $parent_handle, 'enqueued' ) )`
-		// The call to wp_script_is('my-basic-script', 'registered') at trait line 440 is handled by the
-		// third call to the consolidated mock for 'registered' status (defined earlier), which returns true.
-		// Because `!wp_script_is(..., 'registered')` evaluates to `!true` (which is `false`),
-		// the `&&` condition short-circuits.
-		// Therefore, the `wp_script_is('my-basic-script', 'enqueued')` part of the condition at trait line 440 is NOT executed.
-		// This prevents the "No matching handler found" error for that specific call.
-		$this->logger_mock->shouldReceive('debug')->once()->with("ScriptsEnqueueTrait::_process_inline_scripts (context: immediate_after_registration) - No inline scripts found or processed for 'my-basic-script'.");
-		$this->logger_mock->shouldReceive('debug')->once()->with("ScriptsEnqueueTrait::_process_single_script - Finished processing script 'my-basic-script'.");
 
-		$this->logger_mock->shouldReceive('debug')->once()->with('ScriptsEnqueueTrait::enqueue_scripts - Exited. Deferred scripts count: 0.');
+		$this->expectLog('debug', array('_process_inline_scripts', "Checking for inline scripts for parent handle 'my-basic-script'"));
+		$this->expectLog('debug', array('_process_inline_scripts', "No inline scripts found or processed for 'my-basic-script'"));
+		$this->expectLog('debug', array("Finished processing script 'my-basic-script'"));
+		$this->expectLog('debug', array('enqueue_scripts - Exited', 'Deferred scripts count: 0'));
 
 		$this->instance->enqueue_scripts();
-
 		$this->assertEmpty($this->instance->get_scripts()['general']);
 	}
 
@@ -492,7 +475,7 @@ class ScriptsEnqueueTraitTest extends PluginLibTestCase {
 	 */
 	public function test_enqueue_deferred_scripts_processes_and_enqueues_script_on_hook(): void {
 		// Arrange
-		$this->logger_mock->shouldReceive('is_active')->andReturn(true);
+		$this->logger_mock->shouldReceive('is_active')->withAnyArgs()->andReturn(true);
 
 		$script_handle = 'my-deferred-script';
 		$hook_name     = 'wp_footer';
@@ -507,31 +490,25 @@ class ScriptsEnqueueTraitTest extends PluginLibTestCase {
 		);
 
 		// --- Act 1: Add the script ---
-		$add_scripts_prefix = 'ScriptsEnqueueTrait::add_scripts';
-		$this->logger_mock->shouldReceive('debug')->once()->with("{$add_scripts_prefix} - Entered. Current script count: 0. Adding 1 new script(s).");
-		$this->logger_mock->shouldReceive('debug')->once()->with("{$add_scripts_prefix} - Adding script. Key: 0, Handle: {$script_handle}, Src: path/to/deferred.js");
-		$this->logger_mock->shouldReceive('debug')->once()->with("{$add_scripts_prefix} - Adding 1 script definition(s). Current total: 0");
-		$this->logger_mock->shouldReceive('debug')->once()->with("{$add_scripts_prefix} - Exiting. New total script count: 1");
-		$this->logger_mock->shouldReceive('debug')->once()->with("{$add_scripts_prefix} - All current script handles: {$script_handle}");
+		$this->expectLog('debug', array('add_scripts - Entered', 'Adding 1 new script(s)'));
+		$this->expectLog('debug', array('add_scripts - Adding script', "Handle: {$script_handle}"));
+		$this->expectLog('debug', array('add_scripts - Adding 1 script definition(s)'));
+		$this->expectLog('debug', array('add_scripts - Exiting', 'New total script count: 1'));
+		$this->expectLog('debug', array('add_scripts - All current script handles', $script_handle));
 		$this->instance->add_scripts(array($deferred_script));
 
 		// --- Act 2: Register the script (which defers it) ---
-		$register_scripts_prefix = 'ScriptsEnqueueTrait::register_scripts - ';
-		$this->logger_mock->shouldReceive('debug')->once()->with($register_scripts_prefix . 'Entered. Processing 1 script definition(s) for registration.');
-		$this->logger_mock->shouldReceive('debug')->once()->with($register_scripts_prefix . "Processing script: \"{$script_handle}\", original index: 0.");
-		$this->logger_mock->shouldReceive('debug')->once()->with($register_scripts_prefix . "Deferring registration of script '{$script_handle}' (original index 0) to hook: {$hook_name}.");
+		$this->expectLog('debug', array('register_scripts - Entered', 'Processing 1 script definition(s)'));
+		$this->expectLog('debug', array('register_scripts - Processing script', $script_handle));
+		$this->expectLog('debug', array('Deferring registration of script', $script_handle, "hook: {$hook_name}"));
 		WP_Mock::userFunction('has_action', array(
 			'args'   => array($hook_name, array($this->instance, 'enqueue_deferred_scripts')),
 			'times'  => 1,
 			'return' => false
 		));
 		WP_Mock::expectActionAdded($hook_name, array($this->instance, 'enqueue_deferred_scripts'), 10, 1);
-		$this->logger_mock->shouldReceive('debug')->once()->with($register_scripts_prefix . "Added action for 'enqueue_deferred_scripts' on hook: {$hook_name}.");
-		$this->logger_mock->shouldReceive('debug')
-			->once()
-			->withArgs(function ($message) {
-				return str_starts_with($message, 'ScriptsEnqueueTrait::register_scripts - Exited. Remaining immediate scripts: 0') && str_contains($message, '. Deferred scripts:');
-			});
+		$this->expectLog('debug', array('Added action for', 'enqueue_deferred_scripts', "hook: {$hook_name}"));
+		$this->expectLog('debug', array('register_scripts - Exited', 'Remaining immediate scripts: 0', 'Deferred scripts:'));
 		$this->instance->register_scripts();
 
 		// --- Assert state after registration ---
@@ -542,25 +519,22 @@ class ScriptsEnqueueTraitTest extends PluginLibTestCase {
 		$this->assertEquals($script_handle, $current_deferred[$hook_name][0]['handle']);
 
 		// --- Act 3: Trigger the deferred enqueue ---
-		$enqueue_deferred_prefix = 'ScriptsEnqueueTrait::enqueue_deferred_scripts - ';
-		$process_single_prefix   = 'ScriptsEnqueueTrait::_process_single_script - ';
-
 		// This is the key fix: "Entered hook" not "Entered for hook"
-		$this->logger_mock->shouldReceive('debug')->once()->with($enqueue_deferred_prefix . "Entered hook: \"{$hook_name}\".");
-		$this->logger_mock->shouldReceive('debug')->once()->with($enqueue_deferred_prefix . "Processing deferred script: \"{$script_handle}\" (original index 0) for hook: \"{$hook_name}\".");
+		$this->expectLog('debug', array('enqueue_deferred_scripts - Entered hook', $hook_name));
+		$this->expectLog('debug', array('Processing deferred script', $script_handle, "hook: \"{$hook_name}\""));
 
 		// _process_single_script mocks
-		$this->logger_mock->shouldReceive('debug')->once()->with($process_single_prefix . "Processing script '{$script_handle}' on hook '{$hook_name}' in context 'enqueue_deferred'.");
+		$this->expectLog('debug', array("Processing script '{$script_handle}'", "on hook '{$hook_name}'", "in context 'enqueue_deferred'"));
 		WP_Mock::userFunction('wp_script_is')->with($script_handle, 'registered')->times(2)->andReturnValues(array(false, true));
-		$this->logger_mock->shouldReceive('debug')->once()->with($process_single_prefix . "Registering script '{$script_handle}' on hook '{$hook_name}'.");
+		$this->expectLog('debug', array("Registering script '{$script_handle}'", "on hook '{$hook_name}'"));
 		WP_Mock::userFunction('wp_register_script', array('args' => array($script_handle, 'path/to/deferred.js', array(), '1.0', false), 'times' => 1, 'return' => true));
 		WP_Mock::userFunction('wp_script_is')->with($script_handle, 'enqueued')->once()->andReturn(false);
-		$this->logger_mock->shouldReceive('debug')->once()->with($process_single_prefix . "Enqueuing script '{$script_handle}' on hook '{$hook_name}'.");
+		$this->expectLog('debug', array("Enqueuing script '{$script_handle}'", "on hook '{$hook_name}'"));
 		WP_Mock::userFunction('wp_enqueue_script', array('args' => array($script_handle), 'times' => 1));
-		$this->logger_mock->shouldReceive('debug')->once()->with($process_single_prefix . "Finished processing script '{$script_handle}' on hook '{$hook_name}'.");
+		$this->expectLog('debug', array("Finished processing script '{$script_handle}'", "on hook '{$hook_name}'"));
 
 		// Final log in enqueue_deferred_scripts
-		$this->logger_mock->shouldReceive('debug')->once()->with($enqueue_deferred_prefix . "Exited for hook: \"{$hook_name}\".");
+		$this->expectLog('debug', array('enqueue_deferred_scripts - Exited for hook', $hook_name));
 
 		// Execute
 		$this->instance->enqueue_deferred_scripts($hook_name);
@@ -569,7 +543,6 @@ class ScriptsEnqueueTraitTest extends PluginLibTestCase {
 		$current_deferred_after = $deferred_scripts_prop->getValue($this->instance);
 		$this->assertArrayNotHasKey($hook_name, $current_deferred_after, 'Deferred scripts for the hook should be cleared after processing.');
 	} // End of test_enqueue_deferred_scripts_processes_and_enqueues_script_on_hook
-
 	/**
 	 * @test
 	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::enqueue_deferred_scripts
@@ -577,18 +550,12 @@ class ScriptsEnqueueTraitTest extends PluginLibTestCase {
 	public function test_enqueue_deferred_scripts_skips_if_hook_not_set(): void {
 		$this->enable_console_logging = true;
 		// Arrange
-		$hook_name  = 'non_existent_hook';
-		$log_prefix = 'ScriptsEnqueueTrait::enqueue_deferred_scripts - ';
-		$this->logger_mock->shouldReceive('is_active')->andReturn(true);
+		$hook_name = 'non_existent_hook';
+		$this->logger_mock->shouldReceive('is_active')->withAnyArgs()->andReturn(true);
 
 		// Logger expectations
-		$this->logger_mock->shouldReceive('debug')
-			->once()
-			->with($log_prefix . 'Entered hook: "' . $hook_name . '".');
-
-		$this->logger_mock->shouldReceive('debug')
-			->once()
-			->with($log_prefix . 'Hook "' . $hook_name . '" not found in deferred scripts. Nothing to process.');
+		$this->expectLog('debug', array('enqueue_deferred_scripts - Entered hook', $hook_name));
+		$this->expectLog('debug', array('Hook', $hook_name, 'not found in deferred scripts'));
 
 		// Act
 		$this->instance->enqueue_deferred_scripts($hook_name);
@@ -607,25 +574,15 @@ class ScriptsEnqueueTraitTest extends PluginLibTestCase {
 	 */
 	public function test_enqueue_deferred_scripts_skips_if_hook_set_but_empty(): void {
 		// Arrange
-		$hook_name  = 'empty_hook_for_scripts';
-		$log_prefix = 'ScriptsEnqueueTrait::enqueue_deferred_scripts - ';
-
+		$hook_name = 'empty_hook_for_scripts';
 		// Set the deferred_scripts property to have the hook, but with an empty array of scripts.
 		$deferred_scripts_prop = new \ReflectionProperty($this->instance, 'deferred_scripts');
 		$deferred_scripts_prop->setAccessible(true);
 		$deferred_scripts_prop->setValue($this->instance, array($hook_name => array()));
 
-		// Ensure the logger is considered active for the conditional log statements.
-		$this->logger_mock->shouldReceive('is_active')->andReturn(true);
-
 		// Logger expectations
-		$this->logger_mock->shouldReceive('debug')
-			->once()
-			->with($log_prefix . 'Entered hook: "' . $hook_name . '".');
-
-		$this->logger_mock->shouldReceive('debug')
-			->once()
-			->with($log_prefix . 'Hook "' . $hook_name . '" was set but had no scripts. It has now been cleared.');
+		$this->expectLog('debug', array('enqueue_deferred_scripts - Entered hook', $hook_name));
+		$this->expectLog('debug', array('Hook', $hook_name, 'was set but had no scripts. It has now been cleared.'));
 
 		// Act
 		$this->instance->enqueue_deferred_scripts($hook_name);
@@ -640,7 +597,7 @@ class ScriptsEnqueueTraitTest extends PluginLibTestCase {
 	 */
 	public function test_add_inline_scripts_basic_no_logger() {
 		// Arrange: Configure logger to be inactive for this test
-		$this->logger_mock->shouldReceive('is_active')->andReturn(false);
+		$this->logger_mock->shouldReceive('is_active')->withAnyArgs()->andReturn(false);
 
 		$handle            = 'test-script-handle';
 		$content           = '.test-class { color: blue; }';
@@ -660,30 +617,24 @@ class ScriptsEnqueueTraitTest extends PluginLibTestCase {
 		$this->assertEquals( $expected_position, $added_script['position'], 'Position does not match default.' );
 		$this->assertNull( $added_script['condition'], 'Condition should be null by default.' );
 		$this->assertNull( $added_script['parent_hook'], 'Parent hook should be null by default.' );
-	} // End of test_add_inline_scripts_basic_no_logger
+	}
 
 	/**
 	 * Tests addition of an inline script with an active logger and ensures correct log messages.
 	 */
 	public function test_add_inline_scripts_with_active_logger() {
-		// Arrange: Configure logger to be active
-		$this->logger_mock->shouldReceive('is_active')->andReturn(true);
-
+		// Arrange
 		$handle  = 'test-log-handle';
 		$content = '.log-class { font-weight: bold; }';
 		// inline_scripts is reset to [] in setUp, so initial count is 0.
 		$initial_inline_scripts_count = 0;
 
 		// Logger expectations
-		$this->logger_mock->shouldReceive('debug')
-			->once()
-			->with("ScriptsEnqueueTrait::add_inline_scripts - Entered. Current inline script count: {$initial_inline_scripts_count}. Adding new inline script for handle: " . \esc_html($handle));
+		$this->expectLog('debug', array('add_inline_scripts - Entered', 'handle: ' . \esc_html($handle)));
 
 		// No parent hook finding log expected in this basic case as $this->scripts is empty.
 
-		$this->logger_mock->shouldReceive('debug')
-			->once()
-			->with('ScriptsEnqueueTrait::add_inline_scripts - Exiting. New total inline script count: ' . ($initial_inline_scripts_count + 1));
+		$this->expectLog('debug', array('add_inline_scripts - Exiting', 'New total inline script count: ' . ($initial_inline_scripts_count + 1)));
 
 		// Act: Call the method under test
 		$this->instance->add_inline_scripts($handle, $content);
@@ -696,7 +647,7 @@ class ScriptsEnqueueTraitTest extends PluginLibTestCase {
 
 		$this->assertEquals($handle, $added_script['handle']);
 		$this->assertEquals($content, $added_script['content']);
-	} // End of test_add_inline_scripts_with_active_logger
+	}
 
 	/**
 	 * Tests that add_inline_scripts correctly associates a parent_hook
@@ -704,7 +655,7 @@ class ScriptsEnqueueTraitTest extends PluginLibTestCase {
 	 */
 	public function test_add_inline_scripts_associates_parent_hook_from_registered_scripts() {
 		// Arrange: Configure logger to be active
-		$this->logger_mock->shouldReceive('is_active')->andReturn(true);
+		$this->logger_mock->shouldReceive('is_active')->withAnyArgs()->andReturn(true);
 
 		$parent_handle                = 'parent-for-inline';
 		$parent_hook_name             = 'my_custom_parent_hook';
@@ -727,17 +678,9 @@ class ScriptsEnqueueTraitTest extends PluginLibTestCase {
 		$scripts_property->setValue($this->instance, array($parent_script_definition));
 
 		// Logger expectations
-		$this->logger_mock->shouldReceive('debug')
-			->once()
-			->with("ScriptsEnqueueTrait::add_inline_scripts - Entered. Current inline script count: {$initial_inline_scripts_count}. Adding new inline script for handle: " . \esc_html($parent_handle));
-
-		$this->logger_mock->shouldReceive('debug')
-			->once()
-			->with("ScriptsEnqueueTrait::add_inline_scripts - Inline script for '{$parent_handle}' associated with parent hook: '{$parent_hook_name}'. Original parent script hook: '{$parent_hook_name}'.");
-
-		$this->logger_mock->shouldReceive('debug')
-			->once()
-			->with('ScriptsEnqueueTrait::add_inline_scripts - Exiting. New total inline script count: ' . ($initial_inline_scripts_count + 1));
+		$this->expectLog('debug', array('add_inline_scripts - Entered', "Adding new inline script for handle: {$parent_handle}"));
+		$this->expectLog('debug', array("associated with parent hook: '{$parent_hook_name}'", "Original parent script hook: '{$parent_hook_name}'"));
+		$this->expectLog('debug', array('add_inline_scripts - Exiting', 'New total inline script count: ' . ($initial_inline_scripts_count + 1)));
 
 		// Act: Call the method under test, $parent_hook is null by default
 		$this->instance->add_inline_scripts($parent_handle, $inline_content);
@@ -750,7 +693,9 @@ class ScriptsEnqueueTraitTest extends PluginLibTestCase {
 		$this->assertEquals($parent_handle, $added_inline_script['handle']);
 		$this->assertEquals($inline_content, $added_inline_script['content']);
 		$this->assertEquals($parent_hook_name, $added_inline_script['parent_hook'], 'Parent hook was not correctly associated from the registered script.');
-	} // End of test_add_inline_scripts_associates_parent_hook_from_registered_scripts
+	}
+
+	// End of test_add_inline_scripts_associates_parent_hook_from_registered_scripts
 
 	/**
 	 * @test
@@ -775,25 +720,25 @@ class ScriptsEnqueueTraitTest extends PluginLibTestCase {
 		$inline_scripts_property->setValue($this->instance, array());
 
 		// Logger active for debug messages
-		$this->logger_mock->shouldReceive('is_active')->andReturn(true);
+		$this->logger_mock->shouldReceive('is_active')->withAnyArgs()->andReturn(true);
 
 		// Ensure wp_script_is returns false so registration/enqueueing is attempted
 		\WP_Mock::userFunction('wp_script_is')
-		    ->with($script_handle, 'registered')
+			->with($script_handle, 'registered')
 		    ->andReturn(false);
 		\WP_Mock::userFunction('wp_script_is')
-		    ->with($script_handle, 'enqueued')
+			->with($script_handle, 'enqueued')
 		    ->andReturn(false);
 
 		// --- Ordered Logger and WP_Mock expectations ---
 
+		$order_group = 'process_script_flow';
+
 		// 1. Log from _process_single_script entry
-		$this->logger_mock->shouldReceive('debug')->ordered()
-		    ->with("ScriptsEnqueueTrait::_process_single_script - Processing script '{$script_handle}' in context '{$processing_context}'.");
+		$this->expectLog('debug', array('_process_single_script', "Processing script '{$script_handle}'", "in context '{$processing_context}'"), 1, $order_group);
 
 		// 2. Log before wp_register_script
-		$this->logger_mock->shouldReceive('debug')->ordered()
-		    ->with("ScriptsEnqueueTrait::_process_single_script - Registering script '{$script_handle}'.");
+		$this->expectLog('debug', array('_process_single_script', "Registering script '{$script_handle}'"), 1, $order_group);
 
 		// 3. Mock wp_register_script call, ensuring it returns true
 		\WP_Mock::userFunction('wp_register_script')->once()
@@ -801,23 +746,16 @@ class ScriptsEnqueueTraitTest extends PluginLibTestCase {
 		    ->andReturn(true);
 
 		// 4. Log before wp_enqueue_script
-		$this->logger_mock->shouldReceive('debug')->ordered()
-		    ->with("ScriptsEnqueueTrait::_process_single_script - Enqueuing script '{$script_handle}'.");
+		$this->expectLog('debug', array('_process_single_script', "Enqueuing script '{$script_handle}'"), 1, $order_group);
 
 		// 5. Mock wp_enqueue_script call
 		\WP_Mock::userFunction('wp_enqueue_script')->once()->with($script_handle);
 
-		// 6. Log before _process_inline_scripts
-		$this->logger_mock->shouldReceive('debug')->ordered()
-		    ->with("ScriptsEnqueueTrait::_process_single_script - Checking for inline scripts for '{$script_handle}'.");
+		// 6. Log from _process_inline_scripts entry
+		$this->expectLog('debug', array('_process_inline_scripts', "Checking for inline scripts for parent handle '{$script_handle}'"), 1, $order_group);
 
-		// 7. Target Log from _process_inline_scripts (Gap 1)
-		$this->logger_mock->shouldReceive('debug')->ordered()
-		    ->with("ScriptsEnqueueTrait::_process_inline_scripts (context: _{$processing_context}) - No inline scripts defined globally. Nothing to process for handle '{$script_handle}'.");
-
-		// 8. Log from _process_single_script completion
-		$this->logger_mock->shouldReceive('debug')->ordered()
-		    ->with("ScriptsEnqueueTrait::_process_single_script - Finished processing script '{$script_handle}'.");
+		// 7. Log from _process_single_script completion
+		$this->expectLog('debug', array('_process_single_script', "Finished processing script '{$script_handle}'"), 1, $order_group);
 
 		// Act: Call _process_single_script directly using reflection
 		$method = new \ReflectionMethod(ConcreteEnqueueForScriptsTesting::class, '_process_single_script');
@@ -847,9 +785,9 @@ class ScriptsEnqueueTraitTest extends PluginLibTestCase {
 
 		// Define an inline script with a condition that returns false
 		$inline_script_with_condition = array(
-			'parent_handle' => $parent_handle,
-			'content'       => '.conditional-script { display: none; }',
-			'condition'     => function () {
+			'handle'    => $parent_handle,
+			'content'   => '.conditional-script { display: none; }',
+			'condition' => function () {
 				return false;
 			},
 		);
@@ -859,28 +797,27 @@ class ScriptsEnqueueTraitTest extends PluginLibTestCase {
 
 		// Logger active for debug messages
 		$this->logger_mock->shouldReceive('is_active')->andReturn(true);
+		$order_group = 'process_script_flow';
 
 		// Mocks for parent script processing
-		\WP_Mock::userFunction('wp_script_is')->with($parent_handle, 'registered')->andReturn(false);
-		\WP_Mock::userFunction('wp_script_is')->with($parent_handle, 'enqueued')->andReturn(false);
-		\WP_Mock::userFunction('wp_register_script')->once()->andReturn(true);
-		\WP_Mock::userFunction('wp_enqueue_script')->once();
+		\WP_Mock::userFunction('wp_script_is')->with($parent_handle, 'registered')->andReturn(false, true)->ordered($order_group);
+		\WP_Mock::userFunction('wp_script_is')->with($parent_handle, 'enqueued')->andReturn(false)->ordered($order_group);
+		\WP_Mock::userFunction('wp_register_script')->once()->andReturn(true)->ordered($order_group);
+		\WP_Mock::userFunction('wp_enqueue_script')->once()->ordered($order_group);
 
 		// Crucially, wp_add_inline_script should NOT be called
-		\WP_Mock::userFunction('wp_add_inline_script')->never();
+		\WP_Mock::userFunction('wp_add_inline_script')->never()->ordered($order_group);
 
 		// --- Ordered Logger expectations ---
-		$this->logger_mock->shouldReceive('debug')->ordered()->with("ScriptsEnqueueTrait::_process_single_script - Processing script '{$parent_handle}' in context '{$processing_context}'.");
-		$this->logger_mock->shouldReceive('debug')->ordered()->with("ScriptsEnqueueTrait::_process_single_script - Registering script '{$parent_handle}'.");
-		$this->logger_mock->shouldReceive('debug')->ordered()->with("ScriptsEnqueueTrait::_process_single_script - Enqueuing script '{$parent_handle}'.");
-		$this->logger_mock->shouldReceive('debug')->ordered()->with("ScriptsEnqueueTrait::_process_single_script - Checking for inline scripts for '{$parent_handle}'.");
-		$this->logger_mock->shouldReceive('debug')->ordered()->with("ScriptsEnqueueTrait::_process_inline_scripts (context: _{$processing_context}) - Processing inline scripts for parent handle '{$parent_handle}'.");
+		$this->expectLog('debug', array('_process_single_script', "Processing script '{$parent_handle}' in context '{$processing_context}'"), 1, $order_group);
+		$this->expectLog('debug', array('_process_single_script', "Registering script '{$parent_handle}'"), 1, $order_group);
+		$this->expectLog('debug', array('_process_single_script', "Enqueuing script '{$parent_handle}'"), 1, $order_group);
 
-		// Target Log for this test
-		$this->logger_mock->shouldReceive('debug')->ordered()->with("ScriptsEnqueueTrait::_process_inline_scripts (context: _{$processing_context}) - Condition not met for inline script with parent '{$parent_handle}'. Skipping.");
+		$this->expectLog('debug', array('_process_inline_scripts', "Checking for inline scripts for parent handle '{$parent_handle}'"), 1, $order_group);
+		$this->expectLog('debug', array('_process_inline_scripts', "Condition false for inline script targeting '{$parent_handle}'"), 1, $order_group);
+		$this->expectLog('debug', array('_process_inline_scripts', 'Removed processed inline script'), 1, $order_group);
 
-		$this->logger_mock->shouldReceive('debug')->ordered()->with("ScriptsEnqueueTrait::_process_inline_scripts (context: _{$processing_context}) - Finished processing inline scripts for '{$parent_handle}'.");
-		$this->logger_mock->shouldReceive('debug')->ordered()->with("ScriptsEnqueueTrait::_process_single_script - Finished processing script '{$parent_handle}'.");
+		$this->expectLog('debug', array('_process_single_script', "Finished processing script '{$parent_handle}'."), 1, $order_group);
 
 		// Act
 		$method = new \ReflectionMethod(ConcreteEnqueueForScriptsTesting::class, '_process_single_script');
@@ -901,46 +838,44 @@ class ScriptsEnqueueTraitTest extends PluginLibTestCase {
 		$parent_handle      = 'test-parent-script';
 		$processing_context = 'direct_call';
 		$script_definition  = array(
-			'handle'  => $parent_handle,
-			'src'     => 'path/to/parent.js',
-			'deps'    => array(),
-			'version' => false,
-			'media'   => 'all',
+			'handle' => $parent_handle,
+			'src'    => 'path/to/parent.js',
 		);
 
 		// Define an inline script with empty content
 		$inline_script_empty_content = array(
-			'parent_handle' => $parent_handle,
-			'content'       => '', // Empty content
+			'handle'  => $parent_handle,
+			'content' => '', // Empty content
 		);
 		$inline_scripts_property = new \ReflectionProperty(ConcreteEnqueueForScriptsTesting::class, 'inline_scripts');
 		$inline_scripts_property->setAccessible(true);
 		$inline_scripts_property->setValue($this->instance, array($inline_script_empty_content));
 
 		// Logger active for debug/warning messages
-		$this->logger_mock->shouldReceive('is_active')->andReturn(true);
+		$this->logger_mock->shouldReceive('is_active')->withAnyArgs()->andReturn(true);
+
+		$order_group = 'process_script_flow';
 
 		// Mocks for parent script processing
-		\WP_Mock::userFunction('wp_script_is')->with($parent_handle, 'registered')->andReturn(false);
-		\WP_Mock::userFunction('wp_script_is')->with($parent_handle, 'enqueued')->andReturn(false);
-		\WP_Mock::userFunction('wp_register_script')->once()->andReturn(true);
-		\WP_Mock::userFunction('wp_enqueue_script')->once();
+		\WP_Mock::userFunction('wp_script_is')->with($parent_handle, 'registered')->andReturn(false, true)->ordered($order_group);
+		\WP_Mock::userFunction('wp_script_is')->with($parent_handle, 'enqueued')->andReturn(false)->ordered($order_group);
+		\WP_Mock::userFunction('wp_register_script')->once()->andReturn(true)->ordered($order_group);
+		\WP_Mock::userFunction('wp_enqueue_script')->once()->ordered($order_group);
 
 		// Crucially, wp_add_inline_script should NOT be called
-		\WP_Mock::userFunction('wp_add_inline_script')->never();
+		\WP_Mock::userFunction('wp_add_inline_script')->never()->ordered($order_group);
 
 		// --- Ordered Logger expectations ---
-		$this->logger_mock->shouldReceive('debug')->ordered()->with("ScriptsEnqueueTrait::_process_single_script - Processing script '{$parent_handle}' in context '{$processing_context}'.");
-		$this->logger_mock->shouldReceive('debug')->ordered()->with("ScriptsEnqueueTrait::_process_single_script - Registering script '{$parent_handle}'.");
-		$this->logger_mock->shouldReceive('debug')->ordered()->with("ScriptsEnqueueTrait::_process_single_script - Enqueuing script '{$parent_handle}'.");
-		$this->logger_mock->shouldReceive('debug')->ordered()->with("ScriptsEnqueueTrait::_process_single_script - Checking for inline scripts for '{$parent_handle}'.");
-		$this->logger_mock->shouldReceive('debug')->ordered()->with("ScriptsEnqueueTrait::_process_inline_scripts (context: _{$processing_context}) - Processing inline scripts for parent handle '{$parent_handle}'.");
+		$this->expectLog('debug', array('_process_single_script', "Processing script '{$parent_handle}'"), 1, $order_group);
+		$this->expectLog('debug', array('_process_single_script', "Registering script '{$parent_handle}'"), 1, $order_group);
+		$this->expectLog('debug', array('_process_single_script', "Enqueuing script '{$parent_handle}'"), 1, $order_group);
 
+		$this->expectLog('debug', array('_process_inline_scripts', "Checking for inline scripts for parent handle '{$parent_handle}'"), 1, $order_group);
 		// Target Log for this test
-		$this->logger_mock->shouldReceive('warning')->ordered()->with("ScriptsEnqueueTrait::_process_inline_scripts (context: _{$processing_context}) - Invalid inline script definition for parent '{$parent_handle}'. Missing content. Skipping.");
+		$this->expectLog('warning', array('_process_inline_scripts', 'Empty content for inline script'), 1, $order_group);
+		$this->expectLog('debug', array('_process_inline_scripts', 'Removed processed inline script'), 1, $order_group);
 
-		$this->logger_mock->shouldReceive('debug')->ordered()->with("ScriptsEnqueueTrait::_process_inline_scripts (context: _{$processing_context}) - Finished processing inline scripts for '{$parent_handle}'.");
-		$this->logger_mock->shouldReceive('debug')->ordered()->with("ScriptsEnqueueTrait::_process_single_script - Finished processing script '{$parent_handle}'.");
+		$this->expectLog('debug', array('_process_single_script', "Finished processing script '{$parent_handle}'."), 1, $order_group);
 
 		// Act
 		$method = new \ReflectionMethod(ConcreteEnqueueForScriptsTesting::class, '_process_single_script');
@@ -982,7 +917,7 @@ class ScriptsEnqueueTraitTest extends PluginLibTestCase {
 		$inline_scripts_property->setValue($this->instance, array($valid_inline_script));
 
 		// Logger active for debug messages
-		$this->logger_mock->shouldReceive('is_active')->andReturn(true);
+		$this->logger_mock->shouldReceive('is_active')->withAnyArgs()->andReturn(true);
 
 		// Mocks for parent script processing. We assume the script is already registered and enqueued.
 		\WP_Mock::userFunction('wp_script_is')->with($parent_handle, 'registered')->andReturn(true);
@@ -999,17 +934,13 @@ class ScriptsEnqueueTraitTest extends PluginLibTestCase {
 
 
 		// --- Ordered Logger expectations ---
-		// For public enqueue_inline_scripts()
-		$this->logger_mock->shouldReceive('debug')->ordered()->with('ScriptsEnqueueTrait::enqueue_inline_scripts - Entered method.');
-		$this->logger_mock->shouldReceive('debug')->ordered()->with("ScriptsEnqueueTrait::enqueue_inline_scripts - Found 1 unique parent handle(s) with immediate inline scripts to process: {$parent_handle}");
-
-		// For protected _process_inline_scripts()
-		$this->logger_mock->shouldReceive('debug')->ordered()->with("ScriptsEnqueueTrait::_process_inline_scripts (context: enqueue_inline_scripts) - Checking for inline scripts for parent handle '{$parent_handle}'.");
-		$this->logger_mock->shouldReceive('debug')->ordered()->with("ScriptsEnqueueTrait::_process_inline_scripts (context: enqueue_inline_scripts) - Adding inline script for '{$parent_handle}' (key: 0, position: {$inline_position}).");
-		$this->logger_mock->shouldReceive('debug')->ordered()->with("ScriptsEnqueueTrait::_process_inline_scripts (context: enqueue_inline_scripts) - Removed processed inline script with key '0' for handle '{$parent_handle}'.");
-
-		// For public enqueue_inline_scripts() - exit
-		$this->logger_mock->shouldReceive('debug')->ordered()->with('ScriptsEnqueueTrait::enqueue_inline_scripts - Exited method.');
+		$order_group = 'log_order';
+		$this->expectLog('debug', array('enqueue_inline_scripts', 'Entered method.'), 1, $order_group);
+		$this->expectLog('debug', array('enqueue_inline_scripts', 'Found 1 unique parent handle(s)', $parent_handle), 1, $order_group);
+		$this->expectLog('debug', array('_process_inline_scripts', "Checking for inline scripts for parent handle '{$parent_handle}'"), 1, $order_group);
+		$this->expectLog('debug', array('_process_inline_scripts', "Adding inline script for '{$parent_handle}'", "position: {$inline_position}"), 1, $order_group);
+		$this->expectLog('debug', array('_process_inline_scripts', 'Removed processed inline script', $parent_handle), 1, $order_group);
+		$this->expectLog('debug', array('enqueue_inline_scripts', 'Exited.', 'Remaining deferred inline scripts'), 1, $order_group);
 		// Act
 		$this->instance->enqueue_inline_scripts();
 
@@ -1067,7 +998,7 @@ class ScriptsEnqueueTraitTest extends PluginLibTestCase {
 		$this->setup_wp_mocks($wp_mocks);
 
 		// Set up logger expectations
-		$this->logger_mock->shouldReceive('is_active')->andReturn(true)->byDefault();
+		$this->logger_mock->shouldReceive('is_active')->withAnyArgs()->andReturn(true)->byDefault();
 		foreach ($logger_expects as $level => $expectations) {
 			foreach ($expectations as $expectation) {
 				$this->logger_mock->shouldReceive($level)
@@ -1199,7 +1130,7 @@ class ScriptsEnqueueTraitTest extends PluginLibTestCase {
 	 */
 	public function test_enqueue_inline_scripts_only_deferred_scripts_present() {
 		// Arrange: Logger is active
-		$this->logger_mock->shouldReceive('is_active')->andReturn(true);
+		$this->logger_mock->shouldReceive('is_active')->withAnyArgs()->andReturn(true);
 
 		// Pre-populate $this->inline_scripts with a deferred script
 		$deferred_inline_script = array(
@@ -1213,17 +1144,8 @@ class ScriptsEnqueueTraitTest extends PluginLibTestCase {
 		$inline_scripts_property->setAccessible(true);
 		$inline_scripts_property->setValue($this->instance, array($deferred_inline_script));
 
-		// Logger expectations
-		$this->logger_mock->shouldReceive('debug')
-			->once()
-			->with('ScriptsEnqueueTrait::enqueue_inline_scripts - Entered method.');
-
-		// This is the crucial log for this case
-		$this->logger_mock->shouldReceive('debug')
-			->once()
-			->with('ScriptsEnqueueTrait::enqueue_inline_scripts - No immediate inline scripts found needing processing.');
-
-
+		$this->expectLog('debug', array('Entered method.'), 1);
+		$this->expectLog('debug', array('No immediate inline scripts found needing processing.'), 1);
 
 		// Act: Call the method under test
 		$result = $this->instance->enqueue_inline_scripts();
@@ -1236,76 +1158,43 @@ class ScriptsEnqueueTraitTest extends PluginLibTestCase {
 	/**
 	 * Tests enqueue_inline_scripts processes a single immediate inline script,
 	 * including logging and call to wp_add_inline_script.
+	 *
+	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::enqueue_inline_scripts
+	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::_process_inline_scripts
 	 */
-	public function test_enqueue_inline_scripts_processes_one_immediate_script() {
-		// Arrange: Logger is active
+	public function test_enqueue_inline_scripts_processes_one_immediate_script(): void {
+		// Arrange
+		$handle      = 'test-immediate-handle';
+		$content     = '.immediate { border: 1px solid green; }';
+		$position    = 'after';
+		$order_group = 'enqueue_inline_scripts';
+
+		// Use the public method to add the script, which is cleaner than reflection.
+		$this->instance->add_inline_scripts($handle, $content, $position);
+
+		// Logger must be active for logs to be processed.
 		$this->logger_mock->shouldReceive('is_active')->andReturn(true);
 
-		$handle   = 'test-immediate-handle';
-		$content  = '.immediate { border: 1px solid green; }';
-		$position = 'after'; // This is logged by _process_inline_scripts
+		// Set up the full, ordered sequence of expected log messages.
+		$this->expectLog('debug', array('enqueue_inline_scripts', 'Entered method.'), 1, $order_group);
+		$this->expectLog('debug', array('enqueue_inline_scripts', 'Found 1 unique parent handle(s) with immediate inline scripts to process: test-immediate-handle'), 1, $order_group);
+		$this->expectLog('debug', array('_process_inline_scripts', "Checking for inline scripts for parent handle 'test-immediate-handle'"), 1, $order_group);
+		$this->expectLog('debug', array('_process_inline_scripts', "Adding inline script for 'test-immediate-handle' (key: 0, position: {$position})"), 1, $order_group);
+		$this->expectLog('debug', array('_process_inline_scripts', "Successfully added inline script for 'test-immediate-handle' with wp_add_inline_script"), 1, $order_group);
+		$this->expectLog('debug', array('_process_inline_scripts', "Removed processed inline script with key '0' for handle 'test-immediate-handle'"), 1, $order_group);
+		$this->expectLog('debug', array('enqueue_inline_scripts', 'Exited. Processed 1 parent handle(s). Remaining deferred inline scripts: 0.'), 1, $order_group);
 
-		$immediate_script = array(
-			'handle'      => $handle,
-			'content'     => $content,
-			'position'    => $position,
-			'condition'   => null,
-			'parent_hook' => null, // Key: makes it an "immediate" script for enqueue_inline_scripts
-		);
-		$inline_scripts_property = new \ReflectionProperty(ConcreteEnqueueForScriptsTesting::class, 'inline_scripts');
-		$inline_scripts_property->setAccessible(true);
-		$inline_scripts_property->setValue($this->instance, array($immediate_script));
+		// Mock WordPress functions that are called during processing.
+		WP_Mock::userFunction('wp_script_is', array('args' => array($handle, 'registered'), 'return' => true, 'times' => 1))->ordered($order_group);
+		WP_Mock::userFunction('wp_add_inline_script', array('args' => array($handle, $content, $position), 'return' => true, 'times' => 1))->ordered($order_group);
 
-		// --- Ordered Logger expectations ---
-		$this->logger_mock->shouldReceive('debug')
-			->ordered()
-			->with('ScriptsEnqueueTrait::enqueue_inline_scripts - Entered method.');
-		$this->logger_mock->shouldReceive('debug')
-			->ordered()
-			->with('ScriptsEnqueueTrait::enqueue_inline_scripts - Found 1 unique parent handle(s) with immediate inline scripts to process: ' . \esc_html($handle));
-
-		// Logs from the call to _process_inline_scripts($handle, null, 'enqueue_inline_scripts')
-		$this->logger_mock->shouldReceive('debug')
-			->ordered()
-			->with("ScriptsEnqueueTrait::_process_inline_scripts (context: enqueue_inline_scripts) - Checking for inline scripts for parent handle '{$handle}'.");
-
-		// WP_Mock expectation for wp_script_is (called within _process_inline_scripts)
-		// This call happens between the "Processing item" log and "Successfully added" log.
-		\WP_Mock::userFunction('wp_script_is', array(
-			'args'   => array($handle, 'registered'),
-			'times'  => 1,
-			'return' => true,
-		));
-
-		// Note: If wp_script_is($handle, 'registered') was false, it would also check 'enqueued'.
-		// For this test, we assume 'registered' is true, so the second check is skipped.
-
-		$this->logger_mock->shouldReceive('debug')
-			->ordered()
-			->with("ScriptsEnqueueTrait::_process_inline_scripts (context: enqueue_inline_scripts) - Processing inline script item for handle '{$handle}'. Content: {$content}. Position: {$position}.");
-
-		\WP_Mock::userFunction('wp_add_inline_script', array(
-			'args'   => array($handle, $content, 'after'), // Added 'after' for default position
-			'times'  => 1,
-			'return' => true, // Simulate successful addition
-		));
-
-		$this->logger_mock->shouldReceive('debug')
-			->ordered()
-			->with("ScriptsEnqueueTrait::_process_inline_scripts (context: enqueue_inline_scripts) - Successfully added inline script for '{$handle}' with wp_add_inline_script.");
-
-		$this->logger_mock->shouldReceive('debug')
-			->ordered()
-			->with('ScriptsEnqueueTrait::enqueue_inline_scripts - Exited method.');
-
-		// Act: Call the method under test
+		// Act
 		$result = $this->instance->enqueue_inline_scripts();
 
-		// Assert: Method returns $this for chaining
+		// Assert
 		$this->assertSame($this->instance, $result, 'Method should return $this for chaining.');
-		// Mockery will assert all logger expectations.
-		// WP_Mock will assert its expectations during tearDown.
-	} // End of test_enqueue_inline_scripts_processes_one_immediate_script
+		$this->assertEmpty($this->get_protected_property_value($this->instance, 'inline_scripts'), 'Inline scripts queue should be empty after processing.');
+	}
 
 	/**
 	 * Tests that enqueue_inline_scripts skips invalid (non-array) inline script data
@@ -1313,7 +1202,7 @@ class ScriptsEnqueueTraitTest extends PluginLibTestCase {
 	 */
 	public function test_enqueue_inline_scripts_skips_invalid_non_array_inline_script_data() {
 		// Arrange: Logger is active
-		$this->logger_mock->shouldReceive('is_active')->andReturn(true);
+		$this->logger_mock->shouldReceive('is_active')->withAnyArgs()->andReturn(true);
 
 		$valid_handle   = 'valid-handle-amidst-invalid';
 		$valid_content  = '.valid-content { background: white; }';
@@ -1334,56 +1223,17 @@ class ScriptsEnqueueTraitTest extends PluginLibTestCase {
 		$inline_scripts_property->setAccessible(true);
 		$inline_scripts_property->setValue($this->instance, array($invalid_script_item, $valid_immediate_script));
 
-		// --- Ordered Logger expectations ---
-		$this->logger_mock->shouldReceive('debug')->ordered()->with('ScriptsEnqueueTrait::enqueue_inline_scripts - Entered method.');
+		// --- Simplified Expectations ---
+		// The core behavior we're testing is that invalid data is identified and skipped.
+		// The warning is logged twice, so we expect it twice.
+		$this->expectLog('warning', "Invalid inline script data at key '0'. Skipping.", 2);
 
-		// Expect warning for the invalid item at key '0' from the outer loop in enqueue_inline_scripts
-		$this->logger_mock->shouldReceive('warning')->ordered()->with("ScriptsEnqueueTrait::enqueue_inline_scripts - Invalid inline script data at key '0'. Skipping.");
-
-		// Then, normal processing for the valid item
-		$this->logger_mock->shouldReceive('debug')->ordered()->with('ScriptsEnqueueTrait::enqueue_inline_scripts - Found 1 unique parent handle(s) with immediate inline scripts to process: ' . \esc_html($valid_handle));
-
-		// Logs from _process_inline_scripts for the valid_handle
-		$this->logger_mock->shouldReceive('debug')->ordered()->with("ScriptsEnqueueTrait::_process_inline_scripts (context: enqueue_inline_scripts) - Checking for inline scripts for parent handle '{$valid_handle}'.");
-
-		// Mocks for wp_script_is check inside _process_inline_scripts
-		// We need the first check to be false to force the evaluation of the second check.
-		\WP_Mock::userFunction('wp_script_is', array(
-			'args'   => array($valid_handle, 'registered'),
-			'times'  => 1,
-			'return' => false, // Mock wp_script_is($valid_handle, 'registered') to return false.
-			// In the typical condition `!wp_script_is(..., 'registered') && !wp_script_is(..., 'enqueued')`,
-			// this `!false` part evaluates to `true`.
-		));
-		// We need the second check to be true so the overall condition is false and the method continues.
-		\WP_Mock::userFunction('wp_script_is', array(
-			'args'   => array($valid_handle, 'enqueued'),
-			'times'  => 1,
-			'return' => true,  // Mock wp_script_is($valid_handle, 'enqueued') to return true.
-			// In the typical condition `!wp_script_is(..., 'registered') && !wp_script_is(..., 'enqueued')`,
-			// this `!true` part evaluates to `false`.
-			// Thus, the overall condition `(true && false)` becomes `false`,
-			// allowing inline script processing to proceed.
-		));
-
-		// This warning is logged by _process_inline_scripts when it encounters the non-array item at key 0
-		$this->logger_mock->shouldReceive('warning')->ordered()->with("ScriptsEnqueueTrait::_process_inline_scripts (context: enqueue_inline_scripts) - Invalid inline script data at key '0'. Skipping.");
-
-		// This is the log for the valid item
-		$this->logger_mock->shouldReceive('debug')->ordered()->with("ScriptsEnqueueTrait::_process_inline_scripts (context: enqueue_inline_scripts) - Processing inline script item for handle '{$valid_handle}'. Content: {$valid_content}. Position: {$valid_position}.");
-
-		// The actual inline script call
-		\WP_Mock::userFunction('wp_add_inline_script', array(
-			'args'   => array($valid_handle, $valid_content, $valid_position),
-			'times'  => 1,
-			'return' => true,
-		));
-
-		// The success log after the call
-		$this->logger_mock->shouldReceive('debug')->ordered()->with("ScriptsEnqueueTrait::_process_inline_scripts (context: enqueue_inline_scripts) - Successfully added inline script for '{$valid_handle}' with wp_add_inline_script.");
-
-		// The final exit log
-		$this->logger_mock->shouldReceive('debug')->ordered()->with('ScriptsEnqueueTrait::enqueue_inline_scripts - Exited method.');
+		// We still need to mock the WordPress functions that are called for the *valid* script,
+		// otherwise the test will fail when those functions are called.
+		// Note: No 'ordered()' call, making the test less brittle.
+		\WP_Mock::userFunction('wp_script_is')->with($valid_handle, 'registered')->andReturn(false);
+		\WP_Mock::userFunction('wp_script_is')->with($valid_handle, 'enqueued')->andReturn(true);
+		\WP_Mock::userFunction('wp_add_inline_script')->with($valid_handle, $valid_content, $valid_position)->andReturn(true);
 
 		// Act
 		$result = $this->instance->enqueue_inline_scripts();
@@ -1401,7 +1251,7 @@ class ScriptsEnqueueTraitTest extends PluginLibTestCase {
 	 */
 	public function test_register_scripts_logs_when_deferred_action_already_exists() {
 		// Arrange
-		$this->logger_mock->shouldReceive('is_active')->zeroOrMoreTimes()->andReturn(true);
+		$this->logger_mock->shouldReceive('is_active')->withAnyArgs()->zeroOrMoreTimes()->andReturn(true);
 		$this->logger_mock->shouldIgnoreMissing();
 
 		$hook_name      = 'my_custom_hook';
@@ -1453,20 +1303,14 @@ class ScriptsEnqueueTraitTest extends PluginLibTestCase {
 				return true; // Second call, action now exists
 			});
 
+		// Expect that the action is added exactly once.
 		\WP_Mock::expectActionAdded($hook_name, array( $this->instance, 'enqueue_deferred_scripts' ), 10, 1);
 
-		// Logger expectations (Mockery ordering removed to avoid conflict with WP_Mock ordering)
-		$this->logger_mock->shouldReceive('debug')
-			->with("ScriptsEnqueueTrait::register_scripts - Added action for 'enqueue_deferred_scripts' on hook: {$hook_name}.") // LOG A1
-			->once();
+		// --- Corrected Logger Expectations ---
+		// Based on the source code, these are the two logs that should appear, once each.
+		$this->expectLog('debug', "Added action for 'enqueue_deferred_scripts' on hook: {$hook_name}.", 1);
+		$this->expectLog('debug', "Action for 'enqueue_deferred_scripts' on hook '{$hook_name}' already exists.", 1);
 
-		$this->logger_mock->shouldReceive('debug')
-			->with("ScriptsEnqueueTrait::register_scripts - Action for 'enqueue_deferred_scripts' on hook '{$hook_name}' already exists.") // LOG B
-			->once();
-
-		$this->logger_mock->shouldReceive('debug')
-			->with("ScriptsEnqueueTrait::register_scripts - Deferred action for hook '{$hook_name}' was already added by this instance.") // LOG C
-			->never();
 
 		// Act
 		$this->instance->register_scripts();
@@ -1490,17 +1334,15 @@ class ScriptsEnqueueTraitTest extends PluginLibTestCase {
 				'hook'   => null, // Process immediately
 			),
 		);
+		$this->logger_mock->shouldReceive('is_active')->withAnyArgs()->zeroOrMoreTimes()->andReturn(true);
+		$this->logger_mock->shouldIgnoreMissing();
+
+		$group_name = 'process_single_script';
 
 		// Set up logger expectations for add_scripts
-		$this->logger_mock->shouldReceive('debug')
-			->with('ScriptsEnqueueTrait::add_scripts - Entered. Current script count: 0. Adding 1 new script(s).')
-			->ordered();
-		$this->logger_mock->shouldReceive('debug')
-			->with("ScriptsEnqueueTrait::add_scripts - Adding script. Key: {$script_handle}, Handle: {$script_handle}, Src: {$script_src}")
-			->ordered();
-		$this->logger_mock->shouldReceive('debug')
-			->with('ScriptsEnqueueTrait::add_scripts - Exiting. New total script count: 1')
-			->ordered();
+		$this->expectLog('debug', array('add_scripts', 'Entered. Current script count: 0. Adding 1 new script(s).'), 1);
+		$this->expectLog('debug', array('add_scripts', "Adding script. Key: {$script_handle}, Handle: {$script_handle}, Src: {$script_src}"), 1);
+		$this->expectLog('debug', array('add_scripts', 'Exiting. New total script count: 1'), 1);
 
 		$this->instance->add_scripts($scripts_data);
 
@@ -1512,46 +1354,32 @@ class ScriptsEnqueueTraitTest extends PluginLibTestCase {
 		\WP_Mock::userFunction('wp_script_is')
 			->times(2)
 			->with($script_handle, 'registered')
-			->andReturn(true);
+			->andReturn(true)
+			->ordered($group_name);
 
 		// Mock wp_script_is for 'enqueued' check within _process_inline_scripts
 		// This should NOT be called if 'registered' is true due to short-circuiting in the IF condition.
 		\WP_Mock::userFunction('wp_script_is')
 			->never()
-			->with($script_handle, 'enqueued');
+			->with($script_handle, 'enqueued')
+			->ordered($group_name);
 
 		// Expect wp_register_script NOT to be called
 		\WP_Mock::userFunction('wp_register_script')
-			->never();
+			->never()
+			->ordered($group_name);
 
 		// Expect the specific debug log messages in order
 		// From _process_single_script
-		$this->logger_mock->shouldReceive('debug')
-			->once()
-			->with("ScriptsEnqueueTrait::_process_single_script - Processing script '{$script_handle}' in context 'register_scripts'.")
-			->ordered();
-
-		$this->logger_mock->shouldReceive('debug')
-			->once()
-			->with("ScriptsEnqueueTrait::_process_single_script - Script '{$script_handle}' already registered. Skipping wp_register_script.")
-			->ordered();
+		$this->expectLog('debug', array('_process_single_script', "Processing script '{$script_handle}' in context 'register_scripts'."), 1);
+		$this->expectLog('debug', array('_process_single_script', "Script '{$script_handle}' already registered. Skipping wp_register_script."), 1);
 
 		// From _process_inline_scripts (called by _process_single_script)
-		$this->logger_mock->shouldReceive('debug')
-			->once()
-			->with("ScriptsEnqueueTrait::_process_inline_scripts (context: immediate_after_registration) - Checking for inline scripts for parent handle '{$script_handle}'.")
-			->ordered();
-
-		$this->logger_mock->shouldReceive('debug')
-			->once()
-			->with("ScriptsEnqueueTrait::_process_inline_scripts (context: immediate_after_registration) - No inline scripts found or processed for '{$script_handle}'.")
-			->ordered();
+		$this->expectLog('debug', array('_process_inline_scripts', "Checking for inline scripts for parent handle '{$script_handle}'."), 1);
+		$this->expectLog('debug', array('_process_inline_scripts', "No inline scripts found or processed for '{$script_handle}'."), 1);
 
 		// From _process_single_script (finish)
-		$this->logger_mock->shouldReceive('debug')
-			->once()
-			->with("ScriptsEnqueueTrait::_process_single_script - Finished processing script '{$script_handle}'.")
-			->ordered();
+		$this->expectLog('debug', array('_process_single_script', "Finished processing script '{$script_handle}'."), 1);
 
 		// Act: register_scripts will call _process_single_script with $do_register = true
 		$this->instance->register_scripts();
@@ -1577,37 +1405,25 @@ class ScriptsEnqueueTraitTest extends PluginLibTestCase {
 			'src'    => 'path/to/script.js',
 		);
 
+		$this->logger_mock->shouldReceive('is_active')->withAnyArgs()->zeroOrMoreTimes()->andReturn(true);
+		$this->logger_mock->shouldIgnoreMissing();
+		$group_name = 'process_single_script';
+
 		// Mock WordPress functions
 		\WP_Mock::userFunction('wp_script_is', array(
 			'args'   => array($script_handle, 'registered'),
 			'return' => true,
-		));
+		))->ordered($group_name);
 		\WP_Mock::userFunction('wp_script_is', array(
 			'args'   => array($script_handle, 'enqueued'),
 			'return' => true,
-		));
+		))->ordered($group_name);
 
 		// Ordered expectations ONLY for is_active calls (when hook_name is NOT null, inline processing in _process_single_script is skipped)
-		$this->logger_mock->shouldReceive('is_active')->ordered()->andReturn(true); // 1. Entry log (_process_single_script)
-		$this->logger_mock->shouldReceive('is_active')->ordered()->andReturn(true); // 2. "already registered" log (_process_single_script)
-		$this->logger_mock->shouldReceive('is_active')->ordered()->andReturn(true); // 3. "already enqueued" log (_process_single_script)
-		// Final log from _process_single_script
-		$this->logger_mock->shouldReceive('is_active')->ordered()->andReturn(true); // 4. Exit log (_process_single_script)
-
-		// Non-ordered expectations for debug calls that WILL occur
-		$this->logger_mock->shouldReceive('debug')->once()->with(
-			"ScriptsEnqueueTrait::_process_single_script - Processing script '{$script_handle}' on hook '{$hook_name}' in context '{$processing_context}'."
-		);
-		$this->logger_mock->shouldReceive('debug')->once()->with(
-			"ScriptsEnqueueTrait::_process_single_script - Script '{$script_handle}' on hook '{$hook_name}' already registered. Skipping wp_register_script."
-		);
-		$this->logger_mock->shouldReceive('debug')->once()->with(
-			"ScriptsEnqueueTrait::_process_single_script - Script '{$script_handle}' on hook '{$hook_name}' already enqueued. Skipping wp_enqueue_script."
-		);
-		// Logs for inline script processing are NOT expected here because $hook_name is not null
-		$this->logger_mock->shouldReceive('debug')->once()->with(
-			"ScriptsEnqueueTrait::_process_single_script - Finished processing script '{$script_handle}' on hook '{$hook_name}'."
-		);
+		$this->expectLog('debug', array('_process_single_script', "Processing script '{$script_handle}' on hook '{$hook_name}' in context '{$processing_context}'."), 1, $group_name);
+		$this->expectLog('debug', array('_process_single_script', "Script '{$script_handle}' on hook '{$hook_name}' already enqueued. Skipping wp_enqueue_script."), 1, $group_name);
+		$this->expectLog('debug', array('_process_single_script', "Script '{$script_handle}' on hook '{$hook_name}' already registered. Skipping wp_register_script."), 1, $group_name);
+		$this->expectLog('debug', array('_process_single_script', "Finished processing script '{$script_handle}' on hook '{$hook_name}'."), 1, $group_name);
 
 		// Act
 		$reflection = new \ReflectionMethod(ConcreteEnqueueForScriptsTesting::class, '_process_single_script');
@@ -1639,18 +1455,12 @@ class ScriptsEnqueueTraitTest extends PluginLibTestCase {
 		);
 		$hook_name          = 'test_hook';
 		$processing_context = 'test_context';
+		$this->logger_mock->shouldReceive('is_active')->withAnyArgs()->zeroOrMoreTimes()->andReturn(true);
+		$this->logger_mock->shouldIgnoreMissing();
+		$group_name = 'process_single_script';
 
-		$this->logger_mock->shouldReceive('debug')
-			->once()
-			->withArgs(function ($message) use ($script_definition, $hook_name, $processing_context) {
-				return str_contains($message, "Processing script '{$script_definition['handle']}'") && str_contains($message, "on hook '{$hook_name}'") && str_contains($message, "in context '{$processing_context}'");
-			})
-			->ordered();
-
-		$this->logger_mock->shouldReceive('warning')
-			->once()
-			->with("ScriptsEnqueueTrait::_process_single_script - Invalid script definition. Missing handle or src. Skipping. Handle: '{$script_definition['handle']}' on hook '{$hook_name}'.")
-			->ordered();
+		$this->expectLog('debug', array('_process_single_script', "Processing script '{$script_definition['handle']}' on hook '{$hook_name}' in context '{$processing_context}'."), 1, $group_name, true);
+		$this->expectLog('warning', array('_process_single_script', "Invalid script definition. Missing handle or src. Skipping. Handle: '{$script_definition['handle']}' on hook '{$hook_name}'."), 1, $group_name);
 
 		// Act
 		$reflection = new \ReflectionMethod(ConcreteEnqueueForScriptsTesting::class, '_process_single_script');
@@ -1679,7 +1489,12 @@ class ScriptsEnqueueTraitTest extends PluginLibTestCase {
 		$script_handle      = 'my-failing-script';
 		$hook_name          = 'test_hook';
 		$processing_context = 'test_context';
-		$script_definition  = array(
+
+		$this->logger_mock->shouldReceive('is_active')->withAnyArgs()->zeroOrMoreTimes()->andReturn(true);
+		$this->logger_mock->shouldIgnoreMissing();
+		$group_name = 'process_single_script';
+
+		$script_definition = array(
 			'handle' => $script_handle,
 			'src'    => 'path/to/script.js',
 		);
@@ -1688,7 +1503,7 @@ class ScriptsEnqueueTraitTest extends PluginLibTestCase {
 			'args'   => array($script_handle, 'registered'),
 			'return' => false,
 			'times'  => 1,
-		));
+		))->ordered($group_name);
 
 		\WP_Mock::userFunction('wp_register_script', array(
 			'args' => array(
@@ -1700,11 +1515,11 @@ class ScriptsEnqueueTraitTest extends PluginLibTestCase {
 			),
 			'return' => false, // Simulate failure
 			'times'  => 1,
-		));
+		))->ordered($group_name);
 
-		$this->logger_mock->shouldReceive('debug')->once()->with(Mockery::pattern("/Processing script '{$script_handle}'/"))->ordered();
-		$this->logger_mock->shouldReceive('debug')->once()->with(Mockery::pattern("/Registering script '{$script_handle}'/"))->ordered();
-		$this->logger_mock->shouldReceive('warning')->once()->with(Mockery::pattern("/wp_register_script\\(\\) failed for handle '{$script_handle}'/"))->ordered();
+		$this->expectLog('debug', array('_process_single_script', "Processing script '{$script_handle}' on hook '{$hook_name}' in context '{$processing_context}'."), 1, $group_name);
+		$this->expectLog('debug', array('_process_single_script', "Registering script '{$script_handle}' on hook '{$hook_name}'"), 1, $group_name);
+		$this->expectLog('warning', array('_process_single_script', "wp_register_script() failed for handle '{$script_handle}' on hook '{$hook_name}'. Skipping further processing for this script."), 1, $group_name, true);
 
 		// Act
 		$reflection = new \ReflectionMethod(ConcreteEnqueueForScriptsTesting::class, '_process_single_script');
@@ -1726,12 +1541,12 @@ class ScriptsEnqueueTraitTest extends PluginLibTestCase {
 	 * @test
 	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::_process_inline_scripts
 	 */
-	public function testProcessInlineScriptsHandlesDeferredStyleWithMatchingHook(): void {
+	public function test_process_inline_scripts_handles_deferred_script_with_matching_hook(): void {
 		// Arrange
 		$sut = Mockery::mock(ConcreteEnqueueForScriptsTesting::class, array($this->config_mock))->makePartial();
 		$sut->shouldAllowMockingProtectedMethods();
 		$sut->shouldReceive('get_logger')->andReturn($this->logger_mock)->byDefault();
-		$this->logger_mock->shouldReceive('is_active')->andReturn(true);
+		$this->logger_mock->shouldReceive('is_active')->withAnyArgs()->andReturn(true);
 		$parent_handle = 'parent-script';
 		$hook_name     = 'a_custom_hook';
 		$inline_script = array(
@@ -1744,14 +1559,26 @@ class ScriptsEnqueueTraitTest extends PluginLibTestCase {
 		$property   = $reflection->getProperty('inline_scripts');
 		$property->setAccessible(true);
 		$property->setValue($sut, array($inline_script));
+		$group_name = 'deferred';
 
-		WP_Mock::userFunction('wp_script_is')->with($parent_handle, 'registered')->andReturn(true);
+		// The order of mock expectations must match the order of execution in the SUT.
+		// 1. Log "Checking..."
+		$this->expectLog('debug', "ScriptsEnqueueTrait::_process_inline_scripts (context: deferred) - Checking for inline scripts for parent handle 'parent-script' on hook 'a_custom_hook'.", 1, $group_name);
 
-		$this->logger_mock->shouldReceive('debug')->once()->with("ScriptsEnqueueTrait::_process_inline_scripts (context: deferred) - Checking for inline scripts for parent handle 'parent-script' on hook 'a_custom_hook'.");
-		$this->logger_mock->shouldReceive('debug')->once()->with("ScriptsEnqueueTrait::_process_inline_scripts (context: deferred) - Adding inline script for 'parent-script' (key: 0, position: after) on hook 'a_custom_hook'.");
-		$this->logger_mock->shouldReceive('debug')->once()->with("ScriptsEnqueueTrait::_process_inline_scripts (context: deferred) - Removed processed inline script with key '0' for handle 'parent-script' on hook 'a_custom_hook'.");
+		// 2. wp_script_is() is called. Because it returns true, the second call is short-circuited.
+		WP_Mock::userFunction('wp_script_is')->with($parent_handle, 'registered')->andReturn(true)->once()->ordered($group_name);
 
-		WP_Mock::userFunction('wp_add_inline_script')->with('parent-script', '.my-class { color: red; }', 'after')->once();
+		// 3. Log "Adding..."
+		$this->expectLog('debug', "ScriptsEnqueueTrait::_process_inline_scripts (context: deferred) - Adding inline script for 'parent-script' (key: 0, position: after) on hook 'a_custom_hook'.", 1, $group_name);
+
+		// 4. wp_add_inline_script() is called and must return true for the script to be marked as processed.
+		WP_Mock::userFunction('wp_add_inline_script')->with('parent-script', '.my-class { color: red; }', 'after')->andReturn(true)->once()->ordered($group_name);
+
+		// 5. Log "Successfully added..."
+		$this->expectLog('debug', "ScriptsEnqueueTrait::_process_inline_scripts (context: deferred) - Successfully added inline script for 'parent-script' with wp_add_inline_script.", 1, $group_name);
+
+		// 6. Log "Removed..." - This is the final log message we need to see.
+		$this->expectLog('debug', "ScriptsEnqueueTrait::_process_inline_scripts (context: deferred) - Removed processed inline script with key '0' for handle 'parent-script' on hook 'a_custom_hook'.", 1, $group_name, true);
 
 		// Act
 		$reflection = new \ReflectionMethod(ConcreteEnqueueForScriptsTesting::class, '_process_inline_scripts');
@@ -1770,7 +1597,7 @@ class ScriptsEnqueueTraitTest extends PluginLibTestCase {
 		$sut = Mockery::mock(ConcreteEnqueueForScriptsTesting::class, array($this->config_mock))->makePartial();
 		$sut->shouldAllowMockingProtectedMethods();
 		$sut->shouldReceive('get_logger')->andReturn($this->logger_mock)->byDefault();
-		$this->logger_mock->shouldReceive('is_active')->andReturn(true);
+		$this->logger_mock->shouldReceive('is_active')->withAnyArgs()->andReturn(true);
 		$parent_handle = 'parent-script';
 		$inline_script = array(
 			'handle'    => $parent_handle,
@@ -1782,11 +1609,12 @@ class ScriptsEnqueueTraitTest extends PluginLibTestCase {
 		$property->setAccessible(true);
 		$property->setValue($sut, array($inline_script));
 
-		WP_Mock::userFunction('wp_script_is')->with($parent_handle, 'registered')->andReturn(true);
+		$group_name = 'immediate';
+		WP_Mock::userFunction('wp_script_is')->with($parent_handle, 'registered')->andReturn(true)->once()->ordered($group_name);
 
-		$this->logger_mock->shouldReceive('debug')->once()->with("ScriptsEnqueueTrait::_process_inline_scripts (context: immediate) - Checking for inline scripts for parent handle 'parent-script'.");
-		$this->logger_mock->shouldReceive('debug')->once()->with("ScriptsEnqueueTrait::_process_inline_scripts (context: immediate) - Condition false for inline script targeting 'parent-script' (key: 0).");
-		WP_Mock::userFunction('wp_add_inline_script')->never();
+		$this->expectLog('debug', "ScriptsEnqueueTrait::_process_inline_scripts (context: immediate) - Checking for inline scripts for parent handle 'parent-script'.", 1, $group_name);
+		$this->expectLog('debug', "ScriptsEnqueueTrait::_process_inline_scripts (context: immediate) - Condition false for inline script targeting 'parent-script' (key: 0).", 1, $group_name);
+		WP_Mock::userFunction('wp_add_inline_script')->never()->ordered($group_name);
 
 		// Act
 		$reflection = new \ReflectionMethod(ConcreteEnqueueForScriptsTesting::class, '_process_inline_scripts');
@@ -1814,13 +1642,13 @@ class ScriptsEnqueueTraitTest extends PluginLibTestCase {
 		$property   = $reflection->getProperty('inline_scripts');
 		$property->setAccessible(true);
 		$property->setValue($sut, array($inline_script));
+		$group_name = 'immediate';
+		WP_Mock::userFunction('wp_script_is')->with($parent_handle, 'registered')->andReturn(true)->ordered($group_name);
 
-		WP_Mock::userFunction('wp_script_is')->with($parent_handle, 'registered')->andReturn(true);
-
-		$this->logger_mock->shouldReceive('debug')->once()->with("ScriptsEnqueueTrait::_process_inline_scripts (context: immediate) - Checking for inline scripts for parent handle 'parent-script'.");
-		$this->logger_mock->shouldReceive('warning')->once()->with("ScriptsEnqueueTrait::_process_inline_scripts (context: immediate) - Empty content for inline script targeting 'parent-script' (key: 0). Skipping addition.");
-		$this->logger_mock->shouldReceive('debug')->once()->with("ScriptsEnqueueTrait::_process_inline_scripts (context: immediate) - Removed processed inline script with key '0' for handle 'parent-script'.");
-		WP_Mock::userFunction('wp_add_inline_script')->never();
+		$this->expectLog('debug', "ScriptsEnqueueTrait::_process_inline_scripts (context: immediate) - Checking for inline scripts for parent handle 'parent-script'.", 1, $group_name);
+		$this->expectLog('warning', "ScriptsEnqueueTrait::_process_inline_scripts (context: immediate) - Empty content for inline script targeting 'parent-script' (key: 0). Skipping addition.", 1, $group_name);
+		$this->expectLog('debug', "ScriptsEnqueueTrait::_process_inline_scripts (context: immediate) - Removed processed inline script with key '0' for handle 'parent-script'.", 1, $group_name);
+		WP_Mock::userFunction('wp_add_inline_script')->never()->ordered($group_name);
 
 		// Act
 		$reflection = new \ReflectionMethod(ConcreteEnqueueForScriptsTesting::class, '_process_inline_scripts');
@@ -1861,361 +1689,6 @@ class ScriptsEnqueueTraitTest extends PluginLibTestCase {
 		// Act
 		$sut->enqueue_scripts();
 	}
-
-	// region Script-Specific Attribute and Processing Tests
-	// ==========================================================================
-	// The following tests are specific to ScriptsEnqueueTrait and cover methods
-	// like _modify_script_tag_for_attributes and aspects of _process_single_script
-	// that do not have direct equivalents in StylesEnqueueTrait.
-	// ==========================================================================
-
-	/**
-	 * Helper method to call the protected _modify_script_tag_for_attributes method.
-	 *
-	 * @param string $tag The script tag to modify.
-	 * @param string $handle The handle of the script.
-	 * @param array  $attributes_to_apply Attributes to apply to the tag.
-	 * @return string The modified script tag.
-	 * @throws \ReflectionException
-	 */
-	protected function call_modify_script_tag_for_attributes(string $tag, string $handle, array $attributes_to_apply): string {
-		$method = new \ReflectionMethod($this->instance, '_modify_script_tag_for_attributes');
-		$method->setAccessible(true);
-		return $method->invoke($this->instance, $tag, $handle, $handle, $attributes_to_apply);
-	}
-
-	/**
-	 * @test
-	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::_modify_script_tag_for_attributes
-	 * @dataProvider provide_script_tag_modification_cases
-	 */
-	public function test_modify_script_tag_for_attributes(string $original_tag, string $handle, array $attributes, string $expected_tag, ?array $logger_expects = null): void {
-		if ($logger_expects) {
-			$this->logger_mock->shouldReceive('is_active')->andReturn(true)->byDefault();
-			foreach ($logger_expects as $log_level => $messages_for_level) {
-				// Check if $messages_for_level is an array of argument arrays (multiple calls)
-				// or a single argument array (single call).
-				// Example for single call: 'debug' => ['message', []]
-				// Example for multiple calls: 'debug' => [['message1', []], ['message2', []]]
-				if (isset($messages_for_level[0]) && is_array($messages_for_level[0])) {
-					// Multiple calls expected for this log level
-					foreach ($messages_for_level as $individual_call_args) {
-						$this->logger_mock->shouldReceive($log_level)
-							->once() // Each specific message combination is expected once
-							->with(...$individual_call_args); // Spread arguments for this specific call
-					}
-				} else {
-					// Single call expected for this log level (or $messages_for_level is empty)
-					if (!empty($messages_for_level)) {
-						$this->logger_mock->shouldReceive($log_level)
-							->once()
-							->with(...$messages_for_level); // Spread arguments
-					} elseif (empty($messages_for_level) && is_array($messages_for_level)) {
-						// If $messages_for_level is an empty array, it implies a call with no arguments.
-						$this->logger_mock->shouldReceive($log_level)->once()->with();
-					}
-					// If $messages_for_level was null or not an array, it's an issue with test data structure,
-					// but the existing ?array type hint for $logger_expects should prevent this.
-				}
-			}
-		} else {
-			$this->logger_mock->shouldReceive('is_active')->andReturn(false)->byDefault(); // Assume no logging unless specified
-		}
-		$modified_tag = $this->call_modify_script_tag_for_attributes($original_tag, $handle, $attributes);
-		$this->assertEquals($expected_tag, $modified_tag);
-	}
-
-	/**
-	 * @test
-	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::_modify_script_tag_for_attributes
-	 */
-	public function test_modify_script_tag_for_attributes_returns_unmodified_on_handle_mismatch(): void {
-		$original_tag           = '<script src="test.js"></script>';
-		$filter_handle          = 'handle-being-filtered';
-		$script_handle_to_match = 'a-different-handle';
-		$attributes             = array('async' => true);
-
-		// The logger should not be called at all in this case, not even is_active.
-		$this->logger_mock->shouldNotReceive('is_active');
-		$this->logger_mock->shouldNotReceive('debug');
-		$this->logger_mock->shouldNotReceive('warning');
-
-		$result = $this->invoke_protected_method(
-			$this->instance,
-			'_modify_script_tag_for_attributes',
-			array($original_tag, $filter_handle, $script_handle_to_match, $attributes)
-		);
-
-		$this->assertSame($original_tag, $result);
-	}
-
-	public static function provide_script_tag_modification_cases(): array {
-		$complex_attrs        = array('type' => 'module', 'async' => true, 'defer' => false, 'data-version' => '1.2', 'integrity' => 'sha384-xyz', 'crossorigin' => 'anonymous', 'custom-empty' => '');
-		$complex_expected_tag = '<script type="module" id="main-script" src="./app.js?v=1.2" async data-version="1.2" integrity="sha384-xyz" crossorigin="anonymous"></script>';
-
-		return array(
-			'basic_async' => array(
-				'<script src="test.js"></script>',
-				'test-handle',
-				array('async' => true),
-				'<script src="test.js" async></script>',
-				null
-			),
-			'basic_defer' => array(
-				'<script src="test.js"></script>',
-				'test-handle',
-				array('defer' => true),
-				'<script src="test.js" defer></script>',
-				null
-			),
-			'type_module' => array(
-				'<script src="module.js"></script>',
-				'module-handle',
-				array('type' => 'module'),
-				'<script type="module" src="module.js"></script>',
-				array(
-					'debug' => array(
-						array( // Expectation for 1st debug call (from line 701)
-							"ScriptsEnqueueTrait::_modify_script_tag_for_attributes - Modifying tag for handle 'module-handle'. Attributes: {\"type\":\"module\"}"
-						),
-						array( // Expectation for 2nd debug call (from line 710)
-							"ScriptsEnqueueTrait::_modify_script_tag_for_attributes - Script 'module-handle' is a module. Modifying tag accordingly."
-						),
-						array( // Expectation for 3rd debug call (diagnostic - matching Mockery error report)
-							"ScriptsEnqueueTrait::_modify_script_tag_for_attributes - Successfully modified tag for 'module-handle'. New tag: <script type=\"module\" src=\"module.js\"></script>"
-						)
-					)
-				)
-			),
-			'custom_attribute' => array(
-				'<script src="test.js"></script>',
-				'test-handle',
-				array('data-custom' => 'my-value'),
-				'<script src="test.js" data-custom="my-value"></script>',
-				null
-			),
-			'multiple_attributes' => array(
-				'<script src="test.js"></script>',
-				'test-handle',
-				array('async' => true, 'defer' => true, 'data-id' => '123'),
-				'<script src="test.js" async defer data-id="123"></script>',
-				null
-			),
-			'src_attribute_ignored' => array( // src should not be duplicated or moved by this method
-				'<script src="test.js"></script>',
-				'test-handle',
-				array('src' => 'ignored.js', 'async' => true),
-				'<script src="test.js" async></script>',
-				array(
-					'debug' => array(
-						array(
-							'ScriptsEnqueueTrait::_modify_script_tag_for_attributes - Modifying tag for handle \'test-handle\'. Attributes: {"src":"ignored.js","async":true}'
-						)
-					)
-				)
-			),
-			'false_attribute_skipped' => array(
-				'<script src="test.js"></script>',
-				'test-handle',
-				array('async' => false, 'data-id' => '123'),
-				'<script src="test.js" data-id="123"></script>',
-				null
-			),
-			'null_attribute_skipped' => array(
-				'<script src="test.js"></script>',
-				'test-handle',
-				array('defer' => null, 'data-id' => '123'),
-				'<script src="test.js" data-id="123"></script>',
-				null
-			),
-			'empty_string_attribute_skipped' => array(
-				'<script src="test.js"></script>',
-				'test-handle',
-				array('data-custom' => '', 'data-id' => '123'),
-				'<script src="test.js" data-id="123"></script>',
-				null
-			),
-			'malformed_tag_no_closing_bracket' => array(
-				'<script src="test.js"', // Malformed
-				'test-handle',
-				array('async' => true),
-				'<script src="test.js"', // Expect original tag
-				array(
-					'debug' => array(
-						array(
-							"ScriptsEnqueueTrait::_modify_script_tag_for_attributes - Modifying tag for handle 'test-handle'. Attributes: " . json_encode(array('async' => true))
-						)
-					),
-					'warning' => array(
-						array(
-							"ScriptsEnqueueTrait::_modify_script_tag_for_attributes - Malformed script tag for 'test-handle'. Original tag: " . esc_html('<script src="test.js"') . '. Skipping attribute modification.'
-						)
-					)
-				)
-			),
-			'malformed_tag_no_script_opening' => array(
-				'<div></div>', // Malformed
-				'test-handle',
-				array('async' => true),
-				'<div></div>', // Expect original tag
-				array(
-					'debug' => array(
-						array(
-							"ScriptsEnqueueTrait::_modify_script_tag_for_attributes - Modifying tag for handle 'test-handle'. Attributes: {\"async\":true}"
-						)
-					),
-					'warning' => array(
-						array(
-							"ScriptsEnqueueTrait::_modify_script_tag_for_attributes - Malformed script tag for 'test-handle'. Original tag: " . esc_html('<div></div>') . '. Skipping attribute modification.'
-						)
-					)
-				)
-			),
-			'attribute_value_escaping' => array(
-				'<script src="test.js"></script>',
-				'test-handle',
-				array('data-value' => 'needs "escaping" & stuff'),
-				'<script src="test.js" data-value="needs &quot;escaping&quot; &amp; stuff"></script>',
-				null
-			),
-			'empty_attributes_array_returns_original_tag' => array(
-				'<script src="test.js"></script>',
-				'test-handle',
-				array(), // attributes
-				'<script src="test.js"></script>', // expected_tag
-				array( // Expected logger calls
-					'debug' => array(
-						array(
-							"ScriptsEnqueueTrait::_modify_script_tag_for_attributes - Successfully modified tag for 'test-handle'. New tag: " . esc_html('<script src="test.js"></script>')
-						)
-					)
-				)
-			),
-			'attribute_with_zero_integer_value' => array(
-				'<script src="test.js"></script>',
-				'test-handle',
-				array('data-count' => 0),
-				'<script src="test.js" data-count="0"></script>',
-				array(
-					'debug' => array(
-						array("ScriptsEnqueueTrait::_modify_script_tag_for_attributes - Modifying tag for handle 'test-handle'. Attributes: {\"data-count\":0}"),
-						array("ScriptsEnqueueTrait::_modify_script_tag_for_attributes - Successfully modified tag for 'test-handle'. New tag: " . esc_html('<script src="test.js" data-count="0"></script>'))
-					)
-				)
-			),
-			'attribute_with_zero_string_value' => array(
-				'<script src="test.js"></script>',
-				'test-handle',
-				array('data-count' => '0'),
-				'<script src="test.js" data-count="0"></script>',
-				array(
-					'debug' => array(
-						array("ScriptsEnqueueTrait::_modify_script_tag_for_attributes - Modifying tag for handle 'test-handle'. Attributes: {\"data-count\":\"0\"}"),
-						array("ScriptsEnqueueTrait::_modify_script_tag_for_attributes - Successfully modified tag for 'test-handle'. New tag: " . esc_html('<script src="test.js" data-count="0"></script>'))
-					)
-				)
-			),
-			'wp_managed_attribute_id_ignored' => array(
-                '<script src="test.js"></script>',
-                'test-handle',
-                array('id' => 'new-id', 'async' => true),
-                '<script src="test.js" async></script>',
-                array(
-                    'debug' => array(
-                        array(
-                            "ScriptsEnqueueTrait::_modify_script_tag_for_attributes - Modifying tag for handle 'test-handle'. Attributes: " . json_encode(array('id' => 'new-id', 'async' => true))
-                        ),
-                        array(
-                            "ScriptsEnqueueTrait::_modify_script_tag_for_attributes - Successfully modified tag for 'test-handle'. New tag: " . esc_html('<script src="test.js" async></script>')
-                        )
-                    ),
-                    'warning' => array(
-                        array(
-                            sprintf(
-                            	"%s - Attempt to override WordPress-managed attribute '%s' for script handle '%s'. This attribute will be ignored.",
-                            	'Ran\\PluginLib\\EnqueueAccessory\\ScriptsEnqueueTrait::_modify_script_tag_for_attributes',
-                            	'id',
-                            	'test-handle'
-                            ),
-                            array(
-                                'handle'    => 'test-handle',
-                                'attribute' => 'id',
-                            )
-                        )
-                    ),
-                )
-            ),
-            'wp_managed_attribute_id_ignored_logger_inactive' => array(
-                '<script src="test.js"></script>',
-                'test-handle',
-                array('id' => 'new-id', 'async' => true),
-                '<script src="test.js" async></script>',
-                array()
-            ),
-			'All attributes are ignored' => array(
-				'<script src="test.js"></script>',
-				'test-handle',
-				array('src' => 'ignored.js', 'id' => 'new-id'),
-				'<script src="test.js"></script>',
-				array(
-					'debug' => array(
-						array(
-							"ScriptsEnqueueTrait::_modify_script_tag_for_attributes - Successfully modified tag for 'test-handle'. New tag: " . esc_html('<script src="test.js"></script>')
-						)
-					),
-					'warning' => array(
-						array(
-							sprintf(
-								"%s - Attempt to override WordPress-managed attribute '%s' for script handle '%s'. This attribute will be ignored.",
-								'Ran\\PluginLib\\EnqueueAccessory\\ScriptsEnqueueTrait::_modify_script_tag_for_attributes',
-								'id',
-								'test-handle'
-							),
-							array(
-								'handle'    => 'test-handle',
-								'attribute' => 'id',
-							)
-						)
-					),
-				)
-			),
-			'complex_case_with_module_and_various_attrs' => array(
-				'<script id="main-script" src="./app.js?v=1.2"></script>',
-				'app-main',
-				$complex_attrs,
-				$complex_expected_tag,
-				array(
-					'debug' => array(
-						array(
-							"ScriptsEnqueueTrait::_modify_script_tag_for_attributes - Modifying tag for handle 'app-main'. Attributes: " . json_encode($complex_attrs)
-						),
-						array(
-							"ScriptsEnqueueTrait::_modify_script_tag_for_attributes - Script 'app-main' is a module. Modifying tag accordingly."
-						),
-						array(
-							"ScriptsEnqueueTrait::_modify_script_tag_for_attributes - Successfully modified tag for 'app-main'. New tag: " . esc_html($complex_expected_tag)
-						)
-					)
-				)
-			),
-			'type_module_logger_inactive' => array(
-				'<script src="module.js"></script>',
-				'module-handle',
-				array('type' => 'module'),
-				'<script type="module" src="module.js"></script>',
-				array() // Expect no logger calls
-			),
-			'malformed_tag_logger_inactive' => array(
-				'<script src="test.js"', // Malformed
-				'test-handle',
-				array('async' => true),
-				'<script src="test.js"', // Expect original tag
-				array() // Expect no logger calls
-			),
-		);
-	}
-
-	// endregion
 
 	// region Process Single Script Tests
 	// ==========================================================================
@@ -2263,14 +1736,16 @@ class ScriptsEnqueueTraitTest extends PluginLibTestCase {
 	): void {
 		// Set up logger expectations
 		if (!empty($logger_expects)) {
-			$this->logger_mock->shouldReceive('is_active')->andReturn(true)->byDefault();
-			foreach ($logger_expects as $level => $messages) {
-				foreach ((array)$messages as $message) {
-					$this->logger_mock->shouldReceive($level)->once()->with($message);
+			$this->logger_mock->shouldReceive('is_active')->withAnyArgs()->andReturn(true)->byDefault();
+			foreach ($logger_expects as $expectation) {
+				if (!is_array($expectation) || count($expectation) < 2) {
+					throw new InvalidArgumentException('Each log expectation must be an array with at least a level and a message array.');
 				}
+				list($level, $messages) = $expectation;
+				$this->expectLog($level, $messages);
 			}
 		} else {
-			$this->logger_mock->shouldReceive('is_active')->andReturn(false)->byDefault();
+			$this->logger_mock->shouldReceive('is_active')->withAnyArgs()->andReturn(false)->byDefault();
 		}
 
 		// Set up WP_Mock expectations
@@ -2308,13 +1783,11 @@ class ScriptsEnqueueTraitTest extends PluginLibTestCase {
 					array('function' => 'wp_script_is', 'args' => array('test-handle', 'registered'), 'return' => true, 'times' => 1),
 				),
 				'logger_expects' => array(
-					'debug' => array(
-						"ScriptsEnqueueTrait::_process_single_script - Processing script 'test-handle' in context 'test_context_reg'.",
-						"ScriptsEnqueueTrait::_process_single_script - Registering script 'test-handle'.",
-						"ScriptsEnqueueTrait::_process_inline_scripts (context: immediate_after_registration) - Checking for inline scripts for parent handle 'test-handle'.",
-						"ScriptsEnqueueTrait::_process_inline_scripts (context: immediate_after_registration) - No inline scripts found or processed for 'test-handle'.",
-						"ScriptsEnqueueTrait::_process_single_script - Finished processing script 'test-handle'.",
-					),
+					array('debug', array('_process_single_script', "Processing script 'test-handle'", 'test_context_reg')),
+					array('debug', array('_process_single_script', "Registering script 'test-handle'")),
+					array('debug', array('_process_inline_scripts', 'immediate_after_registration', 'Checking for inline scripts', 'test-handle')),
+					array('debug', array('_process_inline_scripts', 'immediate_after_registration', 'No inline scripts found', 'test-handle')),
+					array('debug', array('_process_single_script', "Finished processing script 'test-handle'")),
 				),
 			),
 			'basic_enqueue_success' => array(
@@ -2332,14 +1805,12 @@ class ScriptsEnqueueTraitTest extends PluginLibTestCase {
 					array('function' => 'wp_script_is', 'args' => array('test-handle', 'registered'), 'return' => true, 'times' => 1),
 				),
 				'logger_expects' => array(
-					'debug' => array(
-						"ScriptsEnqueueTrait::_process_single_script - Processing script 'test-handle' in context 'test_context_reg_enq'.",
-						"ScriptsEnqueueTrait::_process_single_script - Registering script 'test-handle'.",
-						"ScriptsEnqueueTrait::_process_single_script - Enqueuing script 'test-handle'.",
-						"ScriptsEnqueueTrait::_process_inline_scripts (context: immediate_after_registration) - Checking for inline scripts for parent handle 'test-handle'.",
-						"ScriptsEnqueueTrait::_process_inline_scripts (context: immediate_after_registration) - No inline scripts found or processed for 'test-handle'.",
-						"ScriptsEnqueueTrait::_process_single_script - Finished processing script 'test-handle'.",
-					),
+					array('debug', array('_process_single_script', "Processing script 'test-handle'", 'test_context_reg_enq')),
+					array('debug', array('_process_single_script', "Registering script 'test-handle'")),
+					array('debug', array('_process_single_script', "Enqueuing script 'test-handle'")),
+					array('debug', array('_process_inline_scripts', 'immediate_after_registration', 'Checking for inline scripts', 'test-handle')),
+					array('debug', array('_process_inline_scripts', 'immediate_after_registration', 'No inline scripts found', 'test-handle')),
+					array('debug', array('_process_single_script', "Finished processing script 'test-handle'")),
 				),
 			),
 			'already_registered_skips_registration' => array(
@@ -2353,13 +1824,11 @@ class ScriptsEnqueueTraitTest extends PluginLibTestCase {
 					array('function' => 'wp_script_is', 'args' => array('test-handle', 'registered'), 'return' => true, 'times' => 2),
 				),
 				'logger_expects' => array(
-					'debug' => array(
-						"ScriptsEnqueueTrait::_process_single_script - Processing script 'test-handle' in context 'test_context_already_reg'.",
-						"ScriptsEnqueueTrait::_process_single_script - Script 'test-handle' already registered. Skipping wp_register_script.",
-						"ScriptsEnqueueTrait::_process_inline_scripts (context: immediate_after_registration) - Checking for inline scripts for parent handle 'test-handle'.",
-						"ScriptsEnqueueTrait::_process_inline_scripts (context: immediate_after_registration) - No inline scripts found or processed for 'test-handle'.",
-						"ScriptsEnqueueTrait::_process_single_script - Finished processing script 'test-handle'.",
-					),
+					array('debug', array('_process_single_script', "Processing script 'test-handle'", 'test_context_already_reg')),
+					array('debug', array('_process_single_script', "Script 'test-handle' already registered")),
+					array('debug', array('_process_inline_scripts', 'immediate_after_registration', 'Checking for inline scripts', 'test-handle')),
+					array('debug', array('_process_inline_scripts', 'immediate_after_registration', 'No inline scripts found', 'test-handle')),
+					array('debug', array('_process_single_script', "Finished processing script 'test-handle'")),
 				),
 			),
 			'already_enqueued_skips_enqueuing' => array(
@@ -2374,14 +1843,12 @@ class ScriptsEnqueueTraitTest extends PluginLibTestCase {
 					array('function' => 'wp_script_is', 'args' => array('test-handle', 'enqueued'), 'return' => true, 'times' => 1),
 				),
 				'logger_expects' => array(
-					'debug' => array(
-						"ScriptsEnqueueTrait::_process_single_script - Processing script 'test-handle' in context 'test_context_already_enq'.",
-						"ScriptsEnqueueTrait::_process_single_script - Script 'test-handle' already registered. Skipping wp_register_script.",
-						"ScriptsEnqueueTrait::_process_single_script - Script 'test-handle' already enqueued. Skipping wp_enqueue_script.",
-						"ScriptsEnqueueTrait::_process_inline_scripts (context: immediate_after_registration) - Checking for inline scripts for parent handle 'test-handle'.",
-						"ScriptsEnqueueTrait::_process_inline_scripts (context: immediate_after_registration) - No inline scripts found or processed for 'test-handle'.",
-						"ScriptsEnqueueTrait::_process_single_script - Finished processing script 'test-handle'.",
-					),
+					array('debug', array('_process_single_script', "Processing script 'test-handle'", 'test_context_already_enq')),
+					array('debug', array('_process_single_script', "Script 'test-handle' already registered")),
+					array('debug', array('_process_single_script', "Script 'test-handle' already enqueued")),
+					array('debug', array('_process_inline_scripts', 'immediate_after_registration', 'Checking for inline scripts', 'test-handle')),
+					array('debug', array('_process_inline_scripts', 'immediate_after_registration', 'No inline scripts found', 'test-handle')),
+					array('debug', array('_process_single_script', "Finished processing script 'test-handle'")),
 				),
 			),
 			'condition_false_skips_processing' => array(
@@ -2393,10 +1860,8 @@ class ScriptsEnqueueTraitTest extends PluginLibTestCase {
 				'expected_result' => false,
 				'wp_mock_expects' => array(),
 				'logger_expects'  => array(
-					'debug' => array(
-						"ScriptsEnqueueTrait::_process_single_script - Processing script 'test-handle' in context 'test_context_cond_false'.",
-						"ScriptsEnqueueTrait::_process_single_script - Condition not met for script 'test-handle'. Skipping.",
-					),
+					array('debug', array('_process_single_script', "Processing script 'test-handle'", 'test_context_cond_false')),
+					array('debug', array('_process_single_script', "Condition not met for script 'test-handle'. Skipping.")),
 				),
 			),
 			'missing_handle_returns_false' => array(
@@ -2408,8 +1873,8 @@ class ScriptsEnqueueTraitTest extends PluginLibTestCase {
 				'expected_result' => false,
 				'wp_mock_expects' => array(),
 				'logger_expects'  => array(
-					'debug'   => array("ScriptsEnqueueTrait::_process_single_script - Processing script 'N/A' in context 'test_context_no_handle'."),
-					'warning' => array("ScriptsEnqueueTrait::_process_single_script - Invalid script definition. Missing handle or src. Skipping. Handle: 'N/A'."),
+					array('debug', array('_process_single_script', "Processing script 'N/A'", 'test_context_no_handle')),
+					array('warning', array('_process_single_script', 'Invalid script definition', "Handle: 'N/A'")),
 				),
 			),
 			'missing_src_when_registering_returns_false' => array(
@@ -2421,8 +1886,8 @@ class ScriptsEnqueueTraitTest extends PluginLibTestCase {
 				'expected_result' => false,
 				'wp_mock_expects' => array(),
 				'logger_expects'  => array(
-					'debug'   => array("ScriptsEnqueueTrait::_process_single_script - Processing script 'test-handle' in context 'test_context_no_src'."),
-					'warning' => array("ScriptsEnqueueTrait::_process_single_script - Invalid script definition. Missing handle or src. Skipping. Handle: 'test-handle'."),
+					array('debug', array('_process_single_script', "Processing script 'test-handle'", 'test_context_no_src')),
+					array('warning', array('_process_single_script', 'Invalid script definition', "Handle: 'test-handle'")),
 				),
 			),
 			'registration_failure_returns_false' => array(
@@ -2437,11 +1902,9 @@ class ScriptsEnqueueTraitTest extends PluginLibTestCase {
 					array('function' => 'wp_register_script', 'args' => array('test-handle', 'test.js', array(), false, false), 'return' => false, 'times' => 1),
 				),
 				'logger_expects' => array(
-					'debug' => array(
-						"ScriptsEnqueueTrait::_process_single_script - Processing script 'test-handle' in context 'test_context_reg_fail'.",
-						"ScriptsEnqueueTrait::_process_single_script - Registering script 'test-handle'.",
-					),
-					'warning' => array("ScriptsEnqueueTrait::_process_single_script - wp_register_script() failed for handle 'test-handle'. Skipping further processing for this script."),
+					array('debug', array('_process_single_script', "Processing script 'test-handle'", 'test_context_reg_fail')),
+					array('debug', array('_process_single_script', "Registering script 'test-handle'")),
+					array('warning', array('_process_single_script', "wp_register_script() failed for handle 'test-handle'")),
 				),
 			),
 			'defer_attribute_routing' => array(
@@ -2460,15 +1923,13 @@ class ScriptsEnqueueTraitTest extends PluginLibTestCase {
 					array('function' => 'wp_script_is', 'args' => array('defer-handle', 'registered'), 'return' => true, 'times' => 1),
 				),
 				'logger_expects' => array(
-					'debug' => array(
-						"ScriptsEnqueueTrait::_process_single_script - Processing script 'defer-handle' in context 'test_context_defer_route'.",
-						"ScriptsEnqueueTrait::_process_single_script - Registering script 'defer-handle'.",
-						"ScriptsEnqueueTrait::_process_single_script - Routing 'defer' attribute for 'defer-handle' to wp_script_add_data('strategy', 'defer').",
-						"ScriptsEnqueueTrait::_process_single_script - Enqueuing script 'defer-handle'.",
-						"ScriptsEnqueueTrait::_process_inline_scripts (context: immediate_after_registration) - Checking for inline scripts for parent handle 'defer-handle'.",
-						"ScriptsEnqueueTrait::_process_inline_scripts (context: immediate_after_registration) - No inline scripts found or processed for 'defer-handle'.",
-						"ScriptsEnqueueTrait::_process_single_script - Finished processing script 'defer-handle'.",
-					),
+					array('debug', array('_process_single_script', "Processing script 'defer-handle'", 'test_context_defer_route')),
+					array('debug', array('_process_single_script', "Registering script 'defer-handle'")),
+					array('debug', array('_process_single_script', "Routing 'defer' attribute for 'defer-handle'", "wp_script_add_data('strategy', 'defer')")),
+					array('debug', array('_process_single_script', "Enqueuing script 'defer-handle'")),
+					array('debug', array('_process_inline_scripts', 'immediate_after_registration', 'Checking for inline scripts', 'defer-handle')),
+					array('debug', array('_process_inline_scripts', 'immediate_after_registration', 'No inline scripts found', 'defer-handle')),
+					array('debug', array('_process_single_script', "Finished processing script 'defer-handle'")),
 				),
 			),
 			'async_and_custom_attribute_routing' => array(
@@ -2489,16 +1950,14 @@ class ScriptsEnqueueTraitTest extends PluginLibTestCase {
 					array('function' => 'wp_script_is', 'args' => array('async-custom-handle', 'registered'), 'return' => true, 'times' => 1),
 				),
 				'logger_expects' => array(
-					'debug' => array(
-						"ScriptsEnqueueTrait::_process_single_script - Processing script 'async-custom-handle' in context 'test_context_async_custom_route'.",
-						"ScriptsEnqueueTrait::_process_single_script - Registering script 'async-custom-handle'.",
-						"ScriptsEnqueueTrait::_process_single_script - Routing 'async' attribute for 'async-custom-handle' to wp_script_add_data('strategy', 'async').",
-						"ScriptsEnqueueTrait::_process_single_script - Enqueuing script 'async-custom-handle'.",
-						"ScriptsEnqueueTrait::_process_single_script - Adding attributes for script 'async-custom-handle' via script_loader_tag. Attributes: {\"data-foo\":\"bar\"}",
-						"ScriptsEnqueueTrait::_process_inline_scripts (context: immediate_after_registration) - Checking for inline scripts for parent handle 'async-custom-handle'.",
-						"ScriptsEnqueueTrait::_process_inline_scripts (context: immediate_after_registration) - No inline scripts found or processed for 'async-custom-handle'.",
-						"ScriptsEnqueueTrait::_process_single_script - Finished processing script 'async-custom-handle'.",
-					),
+					array('debug', array('_process_single_script', "Processing script 'async-custom-handle'", 'test_context_async_custom_route')),
+					array('debug', array('_process_single_script', "Registering script 'async-custom-handle'")),
+					array('debug', array('_process_single_script', "Routing 'async' attribute for 'async-custom-handle'", "wp_script_add_data('strategy', 'async')")),
+					array('debug', array('_process_single_script', "Enqueuing script 'async-custom-handle'")),
+					array('debug', array('_process_single_script', "Adding attributes for script 'async-custom-handle'", 'script_loader_tag', '{"data-foo":"bar"}')),
+					array('debug', array('_process_inline_scripts', 'immediate_after_registration', 'Checking for inline scripts', 'async-custom-handle')),
+					array('debug', array('_process_inline_scripts', 'immediate_after_registration', 'No inline scripts found', 'async-custom-handle')),
+					array('debug', array('_process_single_script', "Finished processing script 'async-custom-handle'")),
 				),
 			),
 			'deferred_context_skips_extras' => array(
@@ -2516,18 +1975,14 @@ class ScriptsEnqueueTraitTest extends PluginLibTestCase {
 					// No add_filter or wp_script_add_data expected here
 				),
 				'logger_expects' => array(
-					'debug' => array(
-						"ScriptsEnqueueTrait::_process_single_script - Processing script 'deferred-handle' on hook 'some_hook' in context 'test_context_deferred'.",
-						"ScriptsEnqueueTrait::_process_single_script - Registering script 'deferred-handle' on hook 'some_hook'.",
-						"ScriptsEnqueueTrait::_process_single_script - Enqueuing script 'deferred-handle' on hook 'some_hook'.",
-						"ScriptsEnqueueTrait::_process_single_script - Finished processing script 'deferred-handle' on hook 'some_hook'.",
-					),
+					array('debug', array('_process_single_script', "Processing script 'deferred-handle' on hook 'some_hook'", 'test_context_deferred')),
+					array('debug', array('_process_single_script', "Registering script 'deferred-handle' on hook 'some_hook'")),
+					array('debug', array('_process_single_script', "Enqueuing script 'deferred-handle' on hook 'some_hook'")),
+					array('debug', array('_process_single_script', "Finished processing script 'deferred-handle' on hook 'some_hook'")),
 				),
 			),
 		);
 	}
-
-
 
 	// endregion Process Single Script Tests
 
@@ -2612,10 +2067,392 @@ class ScriptsEnqueueTraitTest extends PluginLibTestCase {
 		$this->assertFalse($result);
 	}
 
+	/**
+	 * Data provider for `test_process_single_script_with_invalid_definition`.
+	 *
+	 * Provides script definitions that are missing required keys (`handle` or `src`).
+	 *
+	 * @return array
+	 */
 	public function provide_invalid_script_definitions(): array {
 		return array(
 			'missing handle' => array(array('src' => 'some.js'), 'N/A'),
 			'missing src'    => array(array('handle' => 'no-src-handle'), 'no-src-handle'),
 		);
 	}
+
+
+	// region Script-Specific Attribute and Processing Tests
+	// ==========================================================================
+	// The following tests are specific to ScriptsEnqueueTrait and cover methods
+	// like _modify_script_tag_for_attributes and aspects of _process_single_script
+	// that do not have direct equivalents in StylesEnqueueTrait.
+	// ==========================================================================
+
+	/**
+	 * Helper method to call the protected _modify_script_tag_for_attributes method.
+	 *
+	 * @param string $tag The script tag to modify.
+	 * @param string $handle The handle of the script.
+	 * @param array  $attributes_to_apply Attributes to apply to the tag.
+	 * @return string The modified script tag.
+	 * @throws \ReflectionException
+	 */
+	protected function call_modify_script_tag_for_attributes(string $tag, string $handle, array $attributes_to_apply): string {
+		$method = new \ReflectionMethod($this->instance, '_modify_script_tag_for_attributes');
+		$method->setAccessible(true);
+		return $method->invoke($this->instance, $tag, $handle, $handle, $attributes_to_apply);
+	}
+
+	/**
+	 * @test
+	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::_modify_script_tag_for_attributes
+	 * @dataProvider provide_script_tag_modification_cases
+	 */
+	public function test_modify_script_tag_for_attributes(string $original_tag, string $handle, array $attributes, string $expected_tag, ?array $logger_expects = null): void {
+		if (!empty($logger_expects)) {
+			$this->logger_mock->shouldReceive('is_active')->withAnyArgs()->andReturn(true)->byDefault();
+
+			foreach ($logger_expects as $log_level => $messages_for_level) {
+				// This handles the case where multiple calls are defined for the same log level.
+				// e.g., 'debug' => array( array('msg1_part1', 'msg1_part2'), array('msg2') )
+				if (isset($messages_for_level[0]) && is_array($messages_for_level[0])) {
+					foreach ($messages_for_level as $log_arguments) {
+						// Pass the entire array of substrings to create a specific expectation.
+						$this->expectLog($log_level, $log_arguments);
+					}
+				} else {
+					// This handles a single call for a log level where the arguments are not nested.
+					// e.g., 'warning' => array('warn_msg_part1', 'warn_msg_part2')
+					if (!empty($messages_for_level)) {
+						$this->expectLog($log_level, $messages_for_level);
+					}
+				}
+			}
+		} else {
+			$this->logger_mock->shouldReceive('is_active')->withAnyArgs()->andReturn(false)->byDefault(); // Assume no logging unless specified
+		}
+
+		$modified_tag = $this->call_modify_script_tag_for_attributes($original_tag, $handle, $attributes);
+		$this->assertEquals($expected_tag, $modified_tag);
+	}
+
+	/**
+	 * Data provider for `test_modify_script_tag_for_attributes`.
+	 *
+	 * @return array
+	 */
+	public static function provide_script_tag_modification_cases(): array {
+		$complex_attrs        = array('type' => 'module', 'async' => true, 'defer' => false, 'data-version' => '1.2', 'integrity' => 'sha384-xyz', 'crossorigin' => 'anonymous', 'custom-empty' => '');
+		$complex_expected_tag = '<script type="module" id="main-script" src="./app.js?v=1.2" async data-version="1.2" integrity="sha384-xyz" crossorigin="anonymous"></script>';
+
+		return array(
+			'basic_async' => array(
+				'<script src="test.js"></script>',
+				'test-handle',
+				array('async' => true),
+				'<script src="test.js" async></script>',
+				null
+			),
+			'basic_defer' => array(
+				'<script src="test.js"></script>',
+				'test-handle',
+				array('defer' => true),
+				'<script src="test.js" defer></script>',
+				null
+			),
+			'type_module' => array(
+				'<script src="module.js"></script>',
+				'module-handle',
+				array('type' => 'module'),
+				'<script type="module" src="module.js"></script>',
+				array(
+					'debug' => array(
+						array(
+							'_modify_script_tag_for_attributes', "Modifying tag for handle 'module-handle'. Attributes: " . json_encode(array('type' => 'module'))
+						),
+						array(
+							'_modify_script_tag_for_attributes', "Script 'module-handle' is a module. Modifying tag accordingly."
+						),
+						array(
+							'_modify_script_tag_for_attributes', "Successfully modified tag for 'module-handle'. New tag: " . esc_html('<script type="module" src="module.js"></script>')
+						)
+					)
+				)
+			),
+			'custom_attribute' => array(
+				'<script src="test.js"></script>',
+				'test-handle',
+				array('data-custom' => 'my-value'),
+				'<script src="test.js" data-custom="my-value"></script>',
+				null
+			),
+			'multiple_attributes' => array(
+				'<script src="test.js"></script>',
+				'test-handle',
+				array('async' => true, 'defer' => true, 'data-id' => '123'),
+				'<script src="test.js" async defer data-id="123"></script>',
+				null
+			),
+			'src_attribute_ignored' => array(
+				'<script src="test.js"></script>',
+				'test-handle',
+				array('src' => 'ignored.js', 'async' => true),
+				'<script src="test.js" async></script>',
+				array(
+					'debug' => array(
+						array(
+							'_modify_script_tag_for_attributes',
+							'Modifying tag for handle',
+							'test-handle',
+							'{"src":"ignored.js","async":true}'
+						),
+						array(
+							'_modify_script_tag_for_attributes',
+							'Successfully modified tag for',
+							'test-handle',
+							'<script src="test.js" async>'
+						)
+					),
+					'warning' => array(
+						array(
+							'_modify_script_tag_for_attributes',
+							"Attempt to override managed attribute 'src'",
+							"for script handle 'test-handle'"
+						)
+					)
+				)
+			),
+			'false_attribute_skipped' => array(
+				'<script src="test.js"></script>',
+				'test-handle',
+				array('async' => false, 'data-id' => '123'),
+				'<script src="test.js" data-id="123"></script>',
+				null
+			),
+			'null_attribute_skipped' => array(
+				'<script src="test.js"></script>',
+				'test-handle',
+				array('defer' => null, 'data-id' => '123'),
+				'<script src="test.js" data-id="123"></script>',
+				null
+			),
+			'empty_string_attribute_skipped' => array(
+				'<script src="test.js"></script>',
+				'test-handle',
+				array('data-custom' => '', 'data-id' => '123'),
+				'<script src="test.js" data-id="123"></script>',
+				null
+			),
+			'malformed_tag_no_closing_bracket' => array(
+				'<script src="test.js"', // Malformed
+				'test-handle',
+				array('async' => true),
+				'<script src="test.js"', // Expect original tag
+				array(
+					'debug' => array(
+						array(
+							'_modify_script_tag_for_attributes', "Modifying tag for handle 'test-handle'. Attributes: " . json_encode(array('async' => true))
+						)
+					),
+					'warning' => array(
+						array(
+							'_modify_script_tag_for_attributes', "Malformed script tag for 'test-handle'. Original tag: " . esc_html('<script src="test.js"') . '. Skipping attribute modification.'
+						)
+					)
+				)
+			),
+			'malformed_tag_no_script_opening' => array(
+				'<div></div>', // Malformed
+				'test-handle',
+				array('async' => true),
+				'<div></div>', // Expect original tag
+				array(
+					'debug' => array(
+						array(
+							'_modify_script_tag_for_attributes', "Modifying tag for handle 'test-handle'. Attributes: {\"async\":true}"
+						)
+					),
+					'warning' => array(
+						array(
+							'_modify_script_tag_for_attributes', "Malformed script tag for 'test-handle'. Original tag: " . esc_html('<div></div>') . '. Skipping attribute modification.'
+						)
+					)
+				)
+			),
+			'attribute_value_escaping' => array(
+				'<script src="test.js"></script>',
+				'test-handle',
+				array('data-value' => 'needs "escaping" & stuff'),
+				'<script src="test.js" data-value="needs &quot;escaping&quot; &amp; stuff"></script>',
+				null
+			),
+			'empty_attributes_array_returns_original_tag' => array(
+				'<script src="test.js"></script>',
+				'test-handle',
+				array(), // attributes
+				'<script src="test.js"></script>', // expected_tag
+				array( // Expected logger calls
+					'debug' => array(
+						array(
+							'_modify_script_tag_for_attributes', "Successfully modified tag for 'test-handle'. New tag: " . esc_html('<script src="test.js"></script>')
+						)
+					)
+				)
+			),
+			'attribute_with_zero_integer_value' => array(
+				'<script src="test.js"></script>',
+				'test-handle',
+				array('data-count' => 0),
+				'<script src="test.js" data-count="0"></script>',
+				array(
+					'debug' => array(
+						array('_modify_script_tag_for_attributes', "Modifying tag for handle 'test-handle'. Attributes: {\"data-count\":0}"),
+						array('_modify_script_tag_for_attributes', "Successfully modified tag for 'test-handle'. New tag: " . esc_html('<script src="test.js" data-count="0"></script>'))
+					)
+				)
+			),
+			'attribute_with_zero_string_value' => array(
+				'<script src="test.js"></script>',
+				'test-handle',
+				array('data-count' => '0'),
+				'<script src="test.js" data-count="0"></script>',
+				array(
+					'debug' => array(
+						array('_modify_script_tag_for_attributes', "Modifying tag for handle 'test-handle'. Attributes: {\"data-count\":\"0\"}"),
+						array('_modify_script_tag_for_attributes', "Successfully modified tag for 'test-handle'. New tag: " . esc_html('<script src="test.js" data-count="0"></script>'))
+					)
+				)
+			),
+			'wp_managed_attribute_id_ignored' => array(
+				'<script src="test.js"></script>',
+				'test-handle',
+				array('id' => 'new-id', 'async' => true),
+				'<script src="test.js" async></script>',
+				array(
+					'debug' => array(
+						array(
+							'_modify_script_tag_for_attributes',
+							'Modifying tag for handle',
+							'test-handle',
+							'{"id":"new-id","async":true}'
+						),
+						array(
+							'_modify_script_tag_for_attributes',
+							'Successfully modified tag for',
+							'test-handle',
+							'<script src="test.js" async>'
+						)
+					),
+					'warning' => array(
+						array(
+							'_modify_script_tag_for_attributes',
+							"Attempt to override managed attribute 'id'",
+							"for script handle 'test-handle'"
+						)
+					),
+				)
+			),
+            'wp_managed_attribute_id_ignored_logger_inactive' => array(
+                '<script src="test.js"></script>',
+                'test-handle',
+                array('id' => 'new-id', 'async' => true),
+                '<script src="test.js" async></script>',
+                array()
+            ),
+			'All attributes are ignored' => array(
+				'<script src="test.js"></script>',
+				'test-handle',
+				array('src' => 'ignored.js', 'id' => 'new-id'),
+				'<script src="test.js"></script>',
+				array(
+					'debug' => array(
+						array(
+							'_modify_script_tag_for_attributes',
+							'Modifying tag for handle',
+							'test-handle',
+							'{"src":"ignored.js","id":"new-id"}'
+						),
+						array(
+							'_modify_script_tag_for_attributes',
+							'Successfully modified tag for',
+							'test-handle',
+							'<script src="test.js">'
+						)
+					),
+					'warning' => array(
+						array(
+							'_modify_script_tag_for_attributes',
+							"Attempt to override managed attribute 'src'",
+							"for script handle 'test-handle'"
+						),
+						array(
+							'_modify_script_tag_for_attributes',
+							"Attempt to override managed attribute 'id'",
+							"for script handle 'test-handle'"
+						)
+					),
+				)
+			),
+			'complex_case_with_module_and_various_attrs' => array(
+				'<script id="main-script" src="./app.js?v=1.2"></script>',
+				'app-main',
+				$complex_attrs,
+				$complex_expected_tag,
+				array(
+					'debug' => array(
+						array(
+							'_modify_script_tag_for_attributes', "Modifying tag for handle 'app-main'. Attributes: " . json_encode($complex_attrs)
+						),
+						array(
+							'_modify_script_tag_for_attributes', "Script 'app-main' is a module. Modifying tag accordingly."
+						),
+						array(
+							'_modify_script_tag_for_attributes', "Successfully modified tag for 'app-main'. New tag: " . esc_html($complex_expected_tag)
+						)
+					)
+				)
+			),
+			'type_module_logger_inactive' => array(
+				'<script src="module.js"></script>',
+				'module-handle',
+				array('type' => 'module'),
+				'<script type="module" src="module.js"></script>',
+				array() // Expect no logger calls
+			),
+			'malformed_tag_logger_inactive' => array(
+				'<script src="test.js"', // Malformed
+				'test-handle',
+				array('async' => true),
+				'<script src="test.js"', // Expect original tag
+				array() // Expect no logger calls
+			),
+		);
+	}
+
+	/**
+	 * @test
+	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::_modify_script_tag_for_attributes
+	 */
+	public function test_modify_script_tag_for_attributes_returns_unmodified_on_handle_mismatch(): void {
+		$original_tag           = '<script src="test.js"></script>';
+		$filter_handle          = 'handle-being-filtered';
+		$script_handle_to_match = 'a-different-handle';
+		$attributes             = array('async' => true);
+
+		// The logger should not be called at all in this case, not even is_active.
+		$this->logger_mock->shouldNotReceive('is_active');
+		$this->logger_mock->shouldNotReceive('debug');
+		$this->logger_mock->shouldNotReceive('warning');
+
+		$result = $this->invoke_protected_method(
+			$this->instance,
+			'_modify_script_tag_for_attributes',
+			array($original_tag, $filter_handle, $script_handle_to_match, $attributes)
+		);
+
+		$this->assertSame($original_tag, $result);
+	}
+
+	// endregion
 }

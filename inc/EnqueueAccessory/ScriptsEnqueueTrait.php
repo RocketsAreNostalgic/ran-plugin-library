@@ -210,7 +210,7 @@ trait ScriptsEnqueueTrait {
 			}
 		}
 		if ($logger->is_active()) {
-			$deferred_count = empty($this->deferred_scripts) ? 0 : count($this->deferred_scripts, COUNT_RECURSIVE) - count($this->deferred_scripts);
+			$deferred_count = empty($this->deferred_scripts) ? 0 : array_sum(array_map('count', $this->deferred_scripts));
 			$logger->debug( 'ScriptsEnqueueTrait::register_scripts - Exited. Remaining immediate scripts: ' . count($this->scripts) . '. Deferred scripts: ' . $deferred_count . '.' );
 		}
 		return $this;
@@ -271,7 +271,7 @@ trait ScriptsEnqueueTrait {
 			);
 		}
 		if ($logger->is_active()) {
-			$deferred_count = empty($this->deferred_scripts) ? 0 : count($this->deferred_scripts, COUNT_RECURSIVE) - count($this->deferred_scripts);
+			$deferred_count = empty($this->deferred_scripts) ? 0 : array_sum(array_map('count', $this->deferred_scripts));
 			$logger->debug( 'ScriptsEnqueueTrait::enqueue_scripts - Exited. Deferred scripts count: ' . $deferred_count . '.' );
 		}
 		return $this;
@@ -498,8 +498,10 @@ trait ScriptsEnqueueTrait {
 				}
 
 				$logger->debug( "{$log_prefix_base}Adding inline script for '{$parent_handle}' (key: {$key}, position: {$position})" . ($hook_name ? " on hook '{$hook_name}'." : '.') );
-				wp_add_inline_script( $parent_handle, $content, $position );
-				$keys_to_unset[] = $key;
+				if (wp_add_inline_script($parent_handle, $content, $position)) {
+					$logger->debug("{$log_prefix_base}Successfully added inline script for '{$parent_handle}' with wp_add_inline_script.");
+					$keys_to_unset[] = $key;
+				}
 			}
 		}
 
@@ -699,26 +701,22 @@ trait ScriptsEnqueueTrait {
 			$logger->debug("ScriptsEnqueueTrait::_modify_script_tag_for_attributes - Modifying tag for handle '{$tag_handle}'. Attributes: " . \wp_json_encode($attributes_to_apply));
 		}
 
-		// Work on a local copy of attributes to handle modifications like unsetting 'type'
-		$local_attributes = $attributes_to_apply;
-
 		// Special handling for module scripts.
-		if ( isset( $local_attributes['type'] ) && 'module' === $local_attributes['type'] ) {
+		if ( isset( $attributes_to_apply['type'] ) && 'module' === $attributes_to_apply['type'] ) {
 			if ($logger->is_active()) {
 				$logger->debug("ScriptsEnqueueTrait::_modify_script_tag_for_attributes - Script '{$tag_handle}' is a module. Modifying tag accordingly.");
 			}
 			// Position type="module" right after <script.
 			$tag = preg_replace( '/<script\s/', '<script type="module" ', $tag );
 			// Remove type from attributes so it's not added again.
-			unset( $local_attributes['type'] );
+			unset( $attributes_to_apply['type'] );
 		}
 
-		// Check for malformed tag (no closing '>') AFTER potential tag modification
-		$pos = strpos( $tag, '>' );
-		// Check for malformed tag (no opening '<script')
-		$script_open_pos = stripos( $tag, '<script' );
+		// Find the insertion point for attributes. This also serves as tag validation.
+		$closing_bracket_pos = strpos( $tag, '>' );
+		$script_open_pos     = stripos( $tag, '<script' );
 
-		if ( false === $pos || false === $script_open_pos ) {
+		if ( false === $closing_bracket_pos || false === $script_open_pos ) {
 			if ($logger->is_active()) {
 				$logger->warning("ScriptsEnqueueTrait::_modify_script_tag_for_attributes - Malformed script tag for '{$tag_handle}'. Original tag: " . esc_html($tag) . '. Skipping attribute modification.');
 			}
@@ -726,28 +724,19 @@ trait ScriptsEnqueueTrait {
 		}
 
 		$attr_str = '';
-		// Define WordPress-managed attributes that should not be overridden by users.
-		// 'type' is intentionally omitted here to allow users to set it (e.g. 'application/ld+json')
-		// 'src' is handled by being skipped below.
-		// 'type="module"' is handled before this loop.
-		$wp_managed_attributes = array( 'id' );
+		// Define managed attributes that should not be overridden by users.
+		$managed_attributes = array( 'src', 'id', 'type' );
 
-		foreach ( $local_attributes as $attr => $value ) {
-			$attr_lower = strtolower( $attr );
+		foreach ( $attributes_to_apply as $attr => $value ) {
+			$attr_lower = strtolower( (string) $attr );
 
-			// Skip 'src' attribute as it's already in the tag and managed by WordPress.
-			if ( 'src' === $attr_lower ) {
-				// No warning for 'src' as it's a common case and handled by WP.
-				continue;
-			}
-
-			// Check for attempts to override other WordPress-managed attributes.
-			if ( in_array( $attr_lower, $wp_managed_attributes, true ) ) {
+			// Check for attempts to override other managed attributes.
+			if ( in_array( $attr_lower, $managed_attributes, true ) ) {
 				if ($logger->is_active()) {
 					$logger->warning(
 						sprintf(
-							"%s - Attempt to override WordPress-managed attribute '%s' for script handle '%s'. This attribute will be ignored.",
-							__METHOD__,
+							"%s - Attempt to override managed attribute '%s' for script handle '%s'. This attribute will be ignored.",
+							'ScriptsEnqueueTrait::_modify_script_tag_for_attributes',
 							$attr, // Use original case for warning message
 							$handle_to_match
 						),
@@ -769,10 +758,8 @@ trait ScriptsEnqueueTrait {
 			// Attributes with false, null, or empty string values are skipped.
 		}
 
-		// Insert attributes before the closing bracket of the <script> tag.
-		// The check for a valid tag has already been performed, so the first '>' is guaranteed to be found.
-		$first_gt_pos = strpos( $tag, '>' );
-		$modified_tag = substr_replace( $tag, $attr_str, $first_gt_pos, 0 );
+		$modified_tag = substr_replace( $tag, $attr_str, $closing_bracket_pos, 0 );
+
 		if ($logger->is_active()) {
 			$logger->debug("ScriptsEnqueueTrait::_modify_script_tag_for_attributes - Successfully modified tag for '{$tag_handle}'. New tag: " . esc_html($modified_tag));
 		}
