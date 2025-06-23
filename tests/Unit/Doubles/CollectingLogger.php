@@ -5,6 +5,7 @@ namespace Ran\PluginLib\Tests\Unit\Doubles;
 
 use Ran\PluginLib\Config\ConfigInterface;
 use Ran\PluginLib\Util\Logger;
+use Psr\Log\LogLevel;
 
 /**
  * A test double for the Logger that collects all messages.
@@ -27,30 +28,46 @@ class CollectingLogger extends Logger {
 		return true;
 	}
 
-	public function debug(string $message, array $context = array()): void {
-		$this->log($message, 'debug', $context);
+	public function emergency(string|\Stringable $message, array $context = array()): void {
+		$this->log(LogLevel::EMERGENCY, $message, $context);
 	}
 
-	public function info(string $message, array $context = array()): void {
-		$this->log($message, 'info', $context);
+	public function alert(string|\Stringable $message, array $context = array()): void {
+		$this->log(LogLevel::ALERT, $message, $context);
 	}
 
-	public function warning(string $message, array $context = array()): void {
-		$this->log($message, 'warning', $context);
+	public function critical(string|\Stringable $message, array $context = array()): void {
+		$this->log(LogLevel::CRITICAL, $message, $context);
 	}
 
-	public function error(string $message, array $context = array()): void {
-		$this->log($message, 'error', $context);
+	public function error(string|\Stringable $message, array $context = array()): void {
+		$this->log(LogLevel::ERROR, $message, $context);
+	}
+
+	public function warning(string|\Stringable $message, array $context = array()): void {
+		$this->log(LogLevel::WARNING, $message, $context);
+	}
+
+	public function notice(string|\Stringable $message, array $context = array()): void {
+		$this->log(LogLevel::NOTICE, $message, $context);
+	}
+
+	public function info(string|\Stringable $message, array $context = array()): void {
+		$this->log(LogLevel::INFO, $message, $context);
+	}
+
+	public function debug(string|\Stringable $message, array $context = array()): void {
+		$this->log(LogLevel::DEBUG, $message, $context);
 	}
 
 	/**
 	 * Overrides the parent log method to collect logs instead of writing them.
 	 * The signature must match the parent method.
 	 */
-	protected function log(string $message, string $level, array $context = array()): void {
+	public function log($level, string|\Stringable $message, array $context = array()): void {
 		$this->collected_logs[] = array(
-			'level'   => $level,
-			'message' => $message,
+			'level'   => (string) $level,
+			'message' => (string) $message,
 			'context' => $context,
 		);
 	}
