@@ -1764,7 +1764,7 @@ class ScriptsEnqueueTraitTest extends PluginLibTestCase {
 		// Ensure no other WP functions are called unexpectedly
 		// \WP_Mock::passthru(); // Use if some WP functions should pass through
 
-		$result = $this->call_process_single_script($script_def, $context, $hook_name, $do_register, $do_enqueue);
+		$result = $this->invoke_protected_method($this->instance, '_process_single_script', array($script_def, $context, $hook_name, $do_register, $do_enqueue));
 		$this->assertSame($expected_result, $result);
 	}
 
@@ -1945,8 +1945,6 @@ class ScriptsEnqueueTraitTest extends PluginLibTestCase {
 					array('function' => 'wp_script_add_data', 'args' => array('async-custom-handle', 'strategy', 'async'), 'return' => true, 'times' => 1),
 					array('function' => 'wp_script_is', 'args' => array('async-custom-handle', 'enqueued'), 'return' => false, 'times' => 1),
 					array('function' => 'wp_enqueue_script', 'args' => array('async-custom-handle'), 'return' => null, 'times' => 1),
-					// REVISIT THIS
-					// ['function' => 'add_filter', 'args' => ['script_loader_tag', \Mockery::any(), 10, 3], 'return' => true, 'times' => 1],
 					array('function' => 'wp_script_is', 'args' => array('async-custom-handle', 'registered'), 'return' => true, 'times' => 1),
 				),
 				'logger_expects' => array(
@@ -2090,21 +2088,6 @@ class ScriptsEnqueueTraitTest extends PluginLibTestCase {
 	// ==========================================================================
 
 	/**
-	 * Helper method to call the protected _modify_script_tag_for_attributes method.
-	 *
-	 * @param string $tag The script tag to modify.
-	 * @param string $handle The handle of the script.
-	 * @param array  $attributes_to_apply Attributes to apply to the tag.
-	 * @return string The modified script tag.
-	 * @throws \ReflectionException
-	 */
-	protected function call_modify_script_tag_for_attributes(string $tag, string $handle, array $attributes_to_apply): string {
-		$method = new \ReflectionMethod($this->instance, '_modify_script_tag_for_attributes');
-		$method->setAccessible(true);
-		return $method->invoke($this->instance, $tag, $handle, $handle, $attributes_to_apply);
-	}
-
-	/**
 	 * @test
 	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::_modify_script_tag_for_attributes
 	 * @dataProvider provide_script_tag_modification_cases
@@ -2133,7 +2116,7 @@ class ScriptsEnqueueTraitTest extends PluginLibTestCase {
 			$this->logger_mock->shouldReceive('is_active')->withAnyArgs()->andReturn(false)->byDefault(); // Assume no logging unless specified
 		}
 
-		$modified_tag = $this->call_modify_script_tag_for_attributes($original_tag, $handle, $attributes);
+		$modified_tag = $this->invoke_protected_method($this->instance, '_modify_script_tag_for_attributes', array($original_tag, $handle, $handle, $attributes));
 		$this->assertEquals($expected_tag, $modified_tag);
 	}
 
