@@ -347,7 +347,7 @@ class StylesEnqueueTraitTest extends PluginLibTestCase {
 		$this->logger_mock->shouldReceive('debug')->once()->with('StylesEnqueueTrait::register_styles - Processing style: "my-deferred-style", original index: 0.');
 		$this->logger_mock->shouldReceive('debug')->once()->with("StylesEnqueueTrait::register_styles - Deferring registration of style 'my-deferred-style' (original index 0) to hook: admin_enqueue_scripts.");
 		$this->logger_mock->shouldReceive('debug')->once()->with("StylesEnqueueTrait::register_styles - Added action for 'enqueue_deferred_styles' on hook: admin_enqueue_scripts.");
-		$this->logger_mock->shouldReceive('debug')->once()->with('StylesEnqueueTrait::register_styles - Exited. Remaining immediate styles: 0. Deferred styles: 4.');
+		$this->logger_mock->shouldReceive('debug')->once()->with('StylesEnqueueTrait::register_styles - Exited. Remaining immediate styles: 0. Deferred styles: 1.');
 
 		// Call the method under test
 		$this->instance->register_styles();
@@ -1585,7 +1585,7 @@ class StylesEnqueueTraitTest extends PluginLibTestCase {
 	 * @test
 	 * @covers \Ran\PluginLib\EnqueueAccessory\StylesEnqueueTrait::_process_inline_styles
 	 */
-	public function testProcessInlineStylesHandlesDeferredStyleWithMatchingHook(): void {
+	public function test_process_inline_styles_handles_deferred_style_with_matching_hook(): void {
 		// Arrange
 		$sut = Mockery::mock(ConcreteEnqueueForStylesTesting::class, array($this->config_mock))->makePartial();
 		$sut->shouldAllowMockingProtectedMethods();

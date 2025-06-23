@@ -18,7 +18,8 @@ use Ran\PluginLib\Util\Logger;
  * Trait StylesEnqueueTrait
  *
  * Manages the registration, enqueuing, and processing of CSS assets.
- * This includes handling general styles, inline styles and deferred styles.
+ * This includes handling general styles, inline styles and deferred styles,
+ * style attributes, and style data.
  *
  * @package Ran\PluginLib\EnqueueAccessory
  */
@@ -211,7 +212,7 @@ trait StylesEnqueueTrait {
 			}
 		}
 		if ($logger->is_active()) {
-			$deferred_count = empty($this->deferred_styles) ? 0 : count($this->deferred_styles, COUNT_RECURSIVE) - count($this->deferred_styles);
+			$deferred_count = empty($this->deferred_styles) ? 0 : array_sum(array_map('count', $this->deferred_styles));
 			$logger->debug( 'StylesEnqueueTrait::register_styles - Exited. Remaining immediate styles: ' . count($this->styles) . '. Deferred styles: ' . $deferred_count . '.' );
 		}
 		return $this;
@@ -272,7 +273,7 @@ trait StylesEnqueueTrait {
 			);
 		}
 		if ($logger->is_active()) {
-			$deferred_count = empty($this->deferred_styles) ? 0 : count($this->deferred_styles, COUNT_RECURSIVE) - count($this->deferred_styles);
+			$deferred_count = empty($this->deferred_styles) ? 0 : array_sum(array_map('count', $this->deferred_styles));
 			$logger->debug( 'StylesEnqueueTrait::enqueue_styles - Exited. Deferred styles count: ' . $deferred_count . '.' );
 		}
 		return $this;
@@ -681,21 +682,24 @@ trait StylesEnqueueTrait {
 		// Find the insertion point for attributes. This also serves as tag validation.
 		$closing_bracket_pos = strpos( $tag, '>' );
 		$self_closing_pos    = strpos( $tag, '/>' );
+		$script_open_pos     = stripos( $tag, '<link' );
 
 		if ( false !== $self_closing_pos ) {
 			$insertion_pos = $self_closing_pos;
 		} elseif ( false !== $closing_bracket_pos ) {
 			$insertion_pos = $closing_bracket_pos;
+		} elseif ( false !== $script_open_pos ) {
+			$insertion_pos = $script_open_pos;
 		} else {
 			if ($logger->is_active()) {
-				$logger->warning("StylesEnqueueTrait::_modify_style_tag_for_attributes - Malformed style tag for '{$tag_handle}'. Could not find closing '>' or '/>'. Original tag: " . esc_html($tag) . '. Attributes not added.');
+				$logger->warning("StylesEnqueueTrait::_modify_style_tag_for_attributes - Malformed style tag for '{$tag_handle}'. Original tag: " . esc_html($tag) . '.  Skipping attribute modification.');
 			}
 			return $tag;
 		}
 
 		$attr_str = '';
-		// Define WordPress-managed attributes that should not be overridden by users.
-		$wp_managed_attributes = array( 'href', 'rel', 'id', 'type' );
+		// Define managed attributes that should not be overridden by users.
+		$managed_attributes = array( 'href', 'rel', 'id', 'type' );
 
 		foreach ( $attributes_to_apply as $attr => $value ) {
 			$attr_lower = strtolower( $attr );
@@ -708,15 +712,19 @@ trait StylesEnqueueTrait {
 				continue;
 			}
 
-			// Check for attempts to override other WordPress-managed attributes.
-			if ( in_array( $attr_lower, $wp_managed_attributes, true ) ) {
+			// Check for attempts to override other managed attributes.
+			if ( in_array( $attr_lower, $managed_attributes, true ) ) {
 				if ($logger->is_active()) {
 					$logger->warning(
 						sprintf(
-							"%s - Attempt to override WordPress-managed attribute '%s' for style handle '%s'. This attribute will be ignored.",
+							"%s - Attempt to override managed attribute '%s' for style handle '%s'. This attribute will be ignored.",
 							__METHOD__,
 							$attr, // Use original case for warning message
 							$handle_to_match
+						),
+						array(
+							'handle'    => $handle_to_match,
+							'attribute' => $attr,
 						)
 					);
 				}
@@ -733,6 +741,7 @@ trait StylesEnqueueTrait {
 		}
 
 		$modified_tag = substr_replace( $tag, $attr_str, $insertion_pos, 0 );
+
 		if ($logger->is_active()) {
 			$logger->debug("StylesEnqueueTrait::_modify_style_tag_for_attributes - Successfully modified tag for '{$tag_handle}'. New tag: " . esc_html($modified_tag));
 		}
