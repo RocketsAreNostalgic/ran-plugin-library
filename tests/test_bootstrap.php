@@ -75,6 +75,59 @@ abstract class RanTestCase extends TestCase {
 	}
 
 	/**
+	 * Sets a Mockery expectation for a log message, checking for substrings.
+	 *
+	 * This provides a less brittle way to test logging than matching exact strings.
+	 * It requires the test class to have a `logger_mock` property.
+	 *
+	 * @param string       $level            The log level to expect (e.g., 'debug', 'warning').
+	 * @param string|array $message_contains A substring or array of substrings the log message must contain.
+	 * @param int          $times            The number of times the log is expected to be called.
+	 * @param string|null  $order_group      Optional ordering group name for Mockery's `ordered()` method.
+	 * @return void
+	 */
+	protected function expectLog(string $level, string|array $message_contains, int $times = 1, ?string $order_group = null, bool $logs = false): void {
+		if (!is_array($message_contains)) {
+			$message_contains = array($message_contains);
+		}
+
+		// This assumes the test class using this helper has a ->logger_mock property.
+		if (!property_exists($this, 'logger_mock') || !$this->logger_mock instanceof \Mockery\MockInterface) {
+			$this->fail('The expectLog() helper requires a Mockery\MockInterface property named "logger_mock" to be set on the test class.');
+		}
+
+		$expectation = $this->logger_mock->shouldReceive($level)
+			->withArgs(function (...$args) use ($message_contains, $level, $logs) {
+				// $args is an array of all arguments passed to the log method,
+				// e.g., ['message', ['context' => 'value']]
+				if (empty($args) || !is_string($args[0])) {
+					return false;
+				}
+
+				$log_message = $args[0];
+
+				foreach ($message_contains as $substring) {
+					if (strpos($log_message, $substring) === false) {
+						if ($logs) {
+							fprintf(STDERR, "Log expectation failed for level '%s'.\n", $level);
+							fprintf(STDERR, "Expected substring: '%s'\n", $substring);
+							fprintf(STDERR, "Actual log message: '%s'\n", $log_message);
+						}
+						return false; // A required substring was not found.
+					}
+				}
+
+				// All substrings were found, the match succeeds.
+				return true;
+			})
+			->times($times);
+
+		if ($order_group !== null) {
+			$expectation->ordered($order_group);
+		}
+	}
+
+	/**
 	 * Gets the value of a protected/private property from an object.
 	 *
 	 * @param object $object The object to get the property from.
@@ -113,5 +166,21 @@ abstract class RanTestCase extends TestCase {
 			$property_name,
 			get_class($object)
 		));
+	}
+
+	/**
+	 * Invokes a protected/private method on an object.
+	 *
+	 * @param object $object The object to invoke the method on.
+	 * @param string $method_name The name of the method.
+	 * @param array  $args The arguments to pass to the method.
+	 * @return mixed The return value of the method.
+	 * @throws \ReflectionException If the method does not exist.
+	 */
+	protected function invoke_protected_method(object $object, string $method_name, array $args = array()) {
+		$reflector = new \ReflectionClass($object);
+		$method    = $reflector->getMethod($method_name);
+		$method->setAccessible(true);
+		return $method->invokeArgs($object, $args);
 	}
 }
