@@ -9,7 +9,7 @@
  * @deprecated   0.2.0 This class is deprecated and will be removed in a future version.
  *               Use Ran\PluginLib\EnqueueAccessory\EnqueueAdmin,
  *               Ran\PluginLib\EnqueueAccessory\EnqueuePublic, or extend
- *               Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseAbstract and use the relevant traits directly.
+ *               Ran\PluginLib\EnqueueAccessory\EnqueueAssetBaseAbstract and use the relevant traits directly.
  */
 
 declare(strict_types = 1);
@@ -19,9 +19,9 @@ namespace Ran\PluginLib\EnqueueAccessory;
 use Ran\PluginLib\Config\ConfigInterface;
 
 /**
- * @deprecated 0.2.0 This class is deprecated. Extend AssetEnqueueBaseAbstract and use traits instead.
+ * @deprecated 0.2.0 This class is deprecated. Extend EnqueueAssetBaseAbstract and use traits instead.
  */
-abstract class EnqueueAbstract extends AssetEnqueueBaseAbstract implements EnqueueInterface {
+abstract class EnqueueAbstract extends EnqueueAssetBaseAbstract implements EnqueueInterface {
 	use ScriptsEnqueueTrait;
 	use StylesEnqueueTrait;
 	use MediaEnqueueTrait;
@@ -31,14 +31,14 @@ abstract class EnqueueAbstract extends AssetEnqueueBaseAbstract implements Enque
 	 *
 	 * @param ConfigInterface $config The configuration object.
 	 *
-	 * @deprecated 0.2.0 This class is deprecated. Extend AssetEnqueueBaseAbstract and use traits instead.
+	 * @deprecated 0.2.0 This class is deprecated. Extend EnqueueAssetBaseAbstract and use traits instead.
 	 */
 	public function __construct( ConfigInterface $config ) {
 		parent::__construct( $config );
 		// @codingStandardsIgnoreStart
 		$message = sprintf(
 			/* translators: 1: Class name, 2: Replacement class/method */
-			esc_html__( 'Class %1$s is deprecated. Please use EnqueueAdmin, EnqueuePublic, or extend AssetEnqueueBaseAbstract and use the relevant traits directly.', 'ran-plugin-lib' ),
+			esc_html__( 'Class %1$s is deprecated. Please use EnqueueAdmin, EnqueuePublic, or extend EnqueueAssetBaseAbstract and use the relevant traits directly.', 'ran-plugin-lib' ),
 			__CLASS__
 		);
 		\_doing_it_wrong( __METHOD__, esc_html( $message ), '0.2.0' );
@@ -55,10 +55,10 @@ abstract class EnqueueAbstract extends AssetEnqueueBaseAbstract implements Enque
 	 *
 	 * This method is typically called during the plugin's initialization sequence.
 	 *
-	 * @deprecated 0.2.0 This method is part of a deprecated class. Implement in child classes of AssetEnqueueBaseAbstract.
+	 * @deprecated 0.2.0 This method is part of a deprecated class. Implement in child classes of EnqueueAssetBaseAbstract.
 	 */
 	abstract public function load(): void;
 
-	// All other methods and properties are now inherited from AssetEnqueueBaseAbstract or provided by traits.
+	// All other methods and properties are now inherited from EnqueueAssetBaseAbstract or provided by traits.
 	// This class is now a thin compatibility layer.
 }

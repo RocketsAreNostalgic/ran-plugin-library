@@ -5,7 +5,7 @@ namespace Ran\PluginLib\Tests\Unit\EnqueueAccessory;
 
 use Ran\PluginLib\Config\ConfigInterface;
 use Ran\PluginLib\Tests\Unit\PluginLibTestCase;
-use Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseAbstract;
+use Ran\PluginLib\EnqueueAccessory\EnqueueAssetBaseAbstract;
 use Ran\PluginLib\EnqueueAccessory\StylesEnqueueTrait;
 use Ran\PluginLib\Util\Logger;
 use WP_Mock;
@@ -15,10 +15,10 @@ use Mockery\MockInterface;
 /**
  * Concrete implementation of StylesEnqueueTrait for testing style-related methods.
  */
-class ConcreteEnqueueForStylesTesting extends AssetEnqueueBaseAbstract {
+class ConcreteEnqueueForStylesTesting extends EnqueueAssetBaseAbstract {
 	use StylesEnqueueTrait;
 
-	// Config is inherited from AssetEnqueueBaseAbstract and set in constructor.
+	// Config is inherited from EnqueueAssetBaseAbstract and set in constructor.
 
 	public function __construct(ConfigInterface $config) {
 		parent::__construct($config);
@@ -651,8 +651,10 @@ class StylesEnqueueTraitTest extends PluginLibTestCase {
 		$this->assertArrayNotHasKey($hook_name, $current_deferred, 'The hook should be cleared from deferred styles.');
 	}
 
+
 	/**
 	 * Tests basic addition of an inline style when the logger is inactive.
+	 * @test
 	 */
 	public function test_add_inline_styles_basic_no_logger() {
 		// Arrange: Configure logger to be inactive for this test
@@ -663,7 +665,7 @@ class StylesEnqueueTraitTest extends PluginLibTestCase {
 		$expected_position = 'after'; // Default
 
 		// Act: Call the method under test
-		$this->instance->add_inline_styles( $handle, $content );
+		$this->instance->add_inline_styles( [['handle' => $handle, 'content' => $content]] );
 
 		// Assert: Check the internal $inline_styles property
 		$inline_styles = $this->get_protected_property_value( $this->instance, 'inline_styles' );
@@ -676,10 +678,11 @@ class StylesEnqueueTraitTest extends PluginLibTestCase {
 		$this->assertEquals( $expected_position, $added_style['position'], 'Position does not match default.' );
 		$this->assertNull( $added_style['condition'], 'Condition should be null by default.' );
 		$this->assertNull( $added_style['parent_hook'], 'Parent hook should be null by default.' );
-	} // End of test_add_inline_styles_basic_no_logger
+	}
 
 	/**
 	 * Tests addition of an inline style with an active logger and ensures correct log messages.
+	 * @test
 	 */
 	public function test_add_inline_styles_with_active_logger() {
 		// Arrange: Configure logger to be active
@@ -689,20 +692,29 @@ class StylesEnqueueTraitTest extends PluginLibTestCase {
 		$content = '.log-class { font-weight: bold; }';
 		// inline_styles is reset to [] in setUp, so initial count is 0.
 		$initial_inline_styles_count = 0;
+		$caller_plural = 'Ran\\PluginLib\\EnqueueAccessory\\StylesEnqueueTrait::add_inline_styles';
+		$caller_singular = 'Ran\\PluginLib\\EnqueueAccessory\\StylesEnqueueTrait::add_inline_style';
 
-		// Logger expectations
+		// Logger expectations for the plural public method
 		$this->logger_mock->shouldReceive('debug')
 			->once()
-			->with("StylesEnqueueTrait::add_inline_styles - Entered. Current inline style count: {$initial_inline_styles_count}. Adding new inline style for handle: " . \esc_html($handle));
+			->with("{$caller_plural} - Entered. Current inline style count: {$initial_inline_styles_count}. Adding 1 new inline style(s).");
 
-		// No parent hook finding log expected in this basic case as $this->styles is empty.
+		// Logger expectations for the singular private method (called internally)
+		$this->logger_mock->shouldReceive('debug')
+			->once()
+			->with("{$caller_singular} - Entered. Current inline style count: {$initial_inline_styles_count}. Adding new inline style for handle: " . \esc_html($handle));
 
 		$this->logger_mock->shouldReceive('debug')
 			->once()
-			->with('StylesEnqueueTrait::add_inline_styles - Exiting. New total inline style count: ' . ($initial_inline_styles_count + 1));
+			->with("{$caller_singular} - Exiting. New total inline style count: " . ($initial_inline_styles_count + 1));
+
+		$this->logger_mock->shouldReceive('debug')
+			->once()
+			->with("{$caller_plural} - Exiting. New total inline style count: " . ($initial_inline_styles_count + 1));
 
 		// Act: Call the method under test
-		$this->instance->add_inline_styles($handle, $content);
+		$this->instance->add_inline_styles([['handle' => $handle, 'content' => $content]]);
 
 		// Assert: Check the internal $inline_styles property (basic check, primary assertion is logger)
 		$inline_styles = $this->get_protected_property_value( $this->instance, 'inline_styles' );
@@ -712,10 +724,10 @@ class StylesEnqueueTraitTest extends PluginLibTestCase {
 
 		$this->assertEquals($handle, $added_style['handle']);
 		$this->assertEquals($content, $added_style['content']);
-	} // End of test_add_inline_styles_with_active_logger
+	}
 
 	/**
-	 * Tests that add_inline_styles correctly associates a parent_hook
+	 * Tests that add_inline_style correctly associates a parent_hook
 	 * from an existing registered style if not explicitly provided.
 	 */
 	public function test_add_inline_styles_associates_parent_hook_from_registered_styles() {
@@ -726,6 +738,8 @@ class StylesEnqueueTraitTest extends PluginLibTestCase {
 		$parent_hook_name            = 'my_custom_parent_hook';
 		$inline_content              = '.inline-for-parent { display: none; }';
 		$initial_inline_styles_count = 0; // As it's reset in setUp
+		$caller_plural = 'Ran\\PluginLib\\EnqueueAccessory\\StylesEnqueueTrait::add_inline_styles';
+		$caller_singular = 'Ran\\PluginLib\\EnqueueAccessory\\StylesEnqueueTrait::add_inline_style';
 
 		// Pre-populate the $styles property with a parent style
 		$parent_style_definition = array(
@@ -745,18 +759,26 @@ class StylesEnqueueTraitTest extends PluginLibTestCase {
 		// Logger expectations
 		$this->logger_mock->shouldReceive('debug')
 			->once()
-			->with("StylesEnqueueTrait::add_inline_styles - Entered. Current inline style count: {$initial_inline_styles_count}. Adding new inline style for handle: " . \esc_html($parent_handle));
+			->with("{$caller_plural} - Entered. Current inline style count: {$initial_inline_styles_count}. Adding 1 new inline style(s).");
 
 		$this->logger_mock->shouldReceive('debug')
 			->once()
-			->with("StylesEnqueueTrait::add_inline_styles - Inline style for '{$parent_handle}' associated with parent hook: '{$parent_hook_name}'. Original parent style hook: '{$parent_hook_name}'.");
+			->with("{$caller_singular} - Entered. Current inline style count: {$initial_inline_styles_count}. Adding new inline style for handle: " . \esc_html($parent_handle));
 
 		$this->logger_mock->shouldReceive('debug')
 			->once()
-			->with('StylesEnqueueTrait::add_inline_styles - Exiting. New total inline style count: ' . ($initial_inline_styles_count + 1));
+			->with("{$caller_singular} - Inline style for '{$parent_handle}' associated with parent hook: '{$parent_hook_name}'. Original parent style hook: '{$parent_hook_name}'.");
+
+		$this->logger_mock->shouldReceive('debug')
+			->once()
+			->with("{$caller_singular} - Exiting. New total inline style count: " . ($initial_inline_styles_count + 1));
+
+		$this->logger_mock->shouldReceive('debug')
+			->once()
+			->with("{$caller_plural} - Exiting. New total inline style count: " . ($initial_inline_styles_count + 1));
 
 		// Act: Call the method under test, $parent_hook is null by default
-		$this->instance->add_inline_styles($parent_handle, $inline_content);
+		$this->instance->add_inline_styles([['handle' => $parent_handle, 'content' => $inline_content]]);
 
 		// Assert: Check the internal $inline_styles property
 		$inline_styles_array = $this->get_protected_property_value($this->instance, 'inline_styles');

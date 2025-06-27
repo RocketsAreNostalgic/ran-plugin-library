@@ -5,84 +5,188 @@
  * @package  RanPluginLib
  */
 
-declare(strict_types = 1);
+declare(strict_types=1);
 
 namespace Ran\PluginLib\EnqueueAccessory;
+
+use Ran\PluginLib\Config\ConfigInterface;
+use Ran\PluginLib\Util\Logger;
 
 /**
  * This class is meant to be implemented and instantiated via the RegisterServices Class.
  *
  * @package  RanPluginLib
  */
-class EnqueuePublic extends AssetEnqueueBaseAbstract implements EnqueueInterface {
-	use ScriptsEnqueueTrait, StylesEnqueueTrait, MediaEnqueueTrait;
+class EnqueuePublic implements EnqueueInterface {
+	private ScriptsHandler $scripts_handler;
+	private StylesHandler $styles_handler;
+	private MediaHandler $media_handler;
+	private Logger $logger;
 
-	/**
-	 * A class registration function to add the wp_enqueue_scripts hook to WP.
-	 * The hook callback function is $this->enqueue().
-	 * Also registers any deferred script hooks.
-	 */
+	public function __construct(
+		ConfigInterface $config,
+		?ScriptsHandler $scripts_handler = null,
+		?StylesHandler $styles_handler = null,
+		?MediaHandler $media_handler = null
+	) {
+		$this->scripts_handler = $scripts_handler ?? new ScriptsHandler($config);
+		$this->styles_handler  = $styles_handler  ?? new StylesHandler($config);
+		$this->media_handler   = $media_handler   ?? new MediaHandler($config);
+		$this->logger          = $config->get_logger();
+	}
+
 	public function load(): void {
-		$logger = $this->get_logger();
-		if ( $logger->is_active() ) {
-			$logger->debug( 'EnqueuePublic::load() - Method entered.' );
+		if ($this->logger->is_active()) {
+			$this->logger->debug('EnqueuePublic::load() - Method entered.');
 		}
 
-		// This should not run in the admin area.
-		if ( is_admin() ) {
-			if ( $logger->is_active() ) {
-				$logger->debug( 'EnqueuePublic::load() - In admin area. Bailing.' );
+		if (is_admin()) {
+			if ($this->logger->is_active()) {
+				$this->logger->debug('EnqueuePublic::load() - In admin, bailing.');
 			}
 			return;
 		}
 
-		// Register the main enqueue action.
-		if ( $logger->is_active() ) {
-			$logger->debug( 'EnqueuePublic::load() - Hooking enqueue() to wp_enqueue_scripts.' );
-		}
-		add_action( 'wp_enqueue_scripts', array( $this, 'enqueue' ) );
-
-		// Register head callbacks if any exist.
-		if ( $logger->is_active() ) {
-			$logger->debug( 'EnqueuePublic::load() - Checking for head callbacks. Count: ' . count( $this->head_callbacks ) );
-		}
-		if ( ! empty( $this->head_callbacks ) ) {
-			if ( $logger->is_active() ) {
-				$logger->debug( 'EnqueuePublic::load() - Hooking render_head() to wp_head.' );
-			}
-			add_action( 'wp_head', array( $this, 'render_head' ) );
+		if ($this->logger->is_active()) {
+			$this->logger->debug('EnqueuePublic::load() - Not in admin, proceeding.');
+			$this->logger->debug('EnqueuePublic::load() - Hooking enqueue() to wp_enqueue_scripts.');
 		}
 
-		// Register footer callbacks if any exist.
-		if ( $logger->is_active() ) {
-			$logger->debug( 'EnqueuePublic::load() - Checking for footer callbacks. Count: ' . count( $this->footer_callbacks ) );
-		}
-		if ( ! empty( $this->footer_callbacks ) ) {
-			if ( $logger->is_active() ) {
-				$logger->debug( 'EnqueuePublic::load() - Hooking render_footer() to wp_footer.' );
-			}
-			add_action( 'wp_footer', array( $this, 'render_footer' ) );
+		add_action('wp_enqueue_scripts', array($this, 'enqueue'));
+
+		if ($this->logger->is_active()) {
+			$this->logger->debug('EnqueuePublic::load() - Checking for head callbacks.');
 		}
 
-		// Register deferred script hooks.
-		if ( $logger->is_active() ) {
-			$logger->debug( 'EnqueuePublic::load() - Checking for deferred script hooks. Count: ' . count( $this->deferred_scripts ) );
-		}
-		foreach ( array_keys( $this->deferred_scripts ) as $hook ) {
-			// Use a closure to capture the current hook.
-			if ( $logger->is_active() ) {
-				$logger->debug( "EnqueuePublic::load() - Hooking enqueue_deferred_scripts() to action '{$hook}'." );
+		$head_callbacks = array_merge(
+			$this->scripts_handler->get_head_callbacks(),
+			$this->styles_handler->get_head_callbacks(),
+			$this->media_handler->get_head_callbacks()
+		);
+		if (!empty($head_callbacks)) {
+			if ($this->logger->is_active()) {
+				$this->logger->debug('EnqueuePublic::load() - Head callbacks found. Hooking render_head() to wp_head.');
 			}
-			add_action(
-				$hook,
-				function () use ( $hook ): void {
-					$this->enqueue_deferred_scripts( $hook );
+			add_action('wp_head', array($this, 'render_head'));
+		} else {
+			if ($this->logger->is_active()) {
+				$this->logger->debug('EnqueuePublic::load() - No head callbacks found.');
+			}
+		}
+
+		if ($this->logger->is_active()) {
+			$this->logger->debug('EnqueuePublic::load() - Checking for footer callbacks.');
+		}
+
+		$footer_callbacks = array_merge(
+			$this->scripts_handler->get_footer_callbacks(),
+			$this->styles_handler->get_footer_callbacks(),
+			$this->media_handler->get_footer_callbacks()
+		);
+		if (!empty($footer_callbacks)) {
+			if ($this->logger->is_active()) {
+				$this->logger->debug('EnqueuePublic::load() - Footer callbacks found. Hooking render_footer() to wp_footer.');
+			}
+			add_action('wp_footer', array($this, 'render_footer'));
+		} else {
+			if ($this->logger->is_active()) {
+				$this->logger->debug('EnqueuePublic::load() - No footer callbacks found.');
+			}
+		}
+
+		if ($this->logger->is_active()) {
+			$this->logger->debug('EnqueuePublic::load() - Checking for deferred assets.');
+		}
+
+		$deferred_hooks = array_unique(array_merge(
+			$this->scripts_handler->get_deferred_hooks(),
+			$this->styles_handler->get_deferred_hooks(),
+			$this->media_handler->get_deferred_hooks()
+		));
+
+		if (!empty($deferred_hooks)) {
+			if ($this->logger->is_active()) {
+				$this->logger->debug('EnqueuePublic::load() - Deferred assets found. Hooking up actions.');
+			}
+			foreach ($deferred_hooks as $hook) {
+				if ($this->logger->is_active()) {
+					$this->logger->debug("EnqueuePublic::load() - Hooking up deferred asset hook: {$hook}");
 				}
-			);
-		}
+				$scripts_handler = $this->scripts_handler;
+				$styles_handler  = $this->styles_handler;
+				$media_handler   = $this->media_handler;
 
-		if ( $logger->is_active() ) {
-			$logger->debug( 'EnqueuePublic::load() - Method exited.' );
+				add_action(
+					$hook,
+					function () use ($hook, $scripts_handler, $styles_handler, $media_handler) {
+						$scripts_handler->enqueue_deferred_assets($hook);
+						$styles_handler->enqueue_deferred_assets($hook);
+						$media_handler->enqueue_deferred_assets($hook);
+					}
+				);
+			}
+		} else {
+			if ($this->logger->is_active()) {
+				$this->logger->debug('EnqueuePublic::load() - No deferred assets found.');
+			}
 		}
+	}
+
+	public function enqueue(): void {
+		$this->scripts_handler->enqueue();
+		$this->styles_handler->enqueue();
+		$this->media_handler->enqueue();
+	}
+
+	public function render_head(): void {
+		$this->scripts_handler->render_head();
+		$this->styles_handler->render_head();
+		$this->media_handler->render_head();
+	}
+
+	public function render_footer(): void {
+		$this->scripts_handler->render_footer();
+		$this->styles_handler->render_footer();
+		$this->media_handler->render_footer();
+	}
+
+	public function add_scripts(array $scripts): self {
+		$this->scripts_handler->add_scripts($scripts);
+		return $this;
+	}
+
+	public function add_styles(array $styles): self {
+		$this->styles_handler->add_styles($styles);
+		return $this;
+	}
+
+	public function add_media(array $media): self {
+		$this->media_handler->add_media($media);
+		return $this;
+	}
+
+	public function enqueue_scripts(): self {
+		$this->scripts_handler->enqueue_scripts();
+		return $this;
+	}
+
+	public function enqueue_styles(): self {
+		$this->styles_handler->enqueue_styles();
+		return $this;
+	}
+
+	public function enqueue_media(array $media): self {
+		$this->media_handler->enqueue_media($media);
+		return $this;
+	}
+
+	public function add_inline_scripts( array $inline_scripts_to_add ): self {
+		$this->scripts_handler->add_inline_scripts( $inline_scripts_to_add );
+		return $this;
+	}
+
+	public function add_inline_styles( array $inline_styles_to_add ): self {
+		$this->styles_handler->add_inline_styles( $inline_styles_to_add );
+		return $this;
 	}
 }

@@ -33,7 +33,8 @@ if (function_exists('add_action')) {
  * @package Ran/PluginLib
  */
 abstract class RanTestCase extends TestCase {
-	private static array $skippedFilesReported = array();
+	protected ?\Mockery\MockInterface $logger_mock = null;
+	private static array $skippedFilesReported     = array();
 	/**
 	 * Scaffold WP_Mock setUp method.
 	 *
@@ -71,7 +72,8 @@ abstract class RanTestCase extends TestCase {
 	 * @throws \Exception If tearDown fails.
 	 */
 	public function tearDown(): void {
-		\WP_Mock::tearDown();
+		\Mockery::close();
+		parent::tearDown();
 	}
 
 	/**
@@ -86,7 +88,7 @@ abstract class RanTestCase extends TestCase {
 	 * @param string|null  $order_group      Optional ordering group name for Mockery's `ordered()` method.
 	 * @return void
 	 */
-	protected function expectLog(string $level, string|array $message_contains, int $times = 1, ?string $order_group = null, bool $logs = false): void {
+	protected function expectLog(string $level, string|array $message_contains, int $times = 1, ?string $order_group = null, bool $logs = false, bool $debug = false): void {
 		if (!is_array($message_contains)) {
 			$message_contains = array($message_contains);
 		}
@@ -96,22 +98,44 @@ abstract class RanTestCase extends TestCase {
 			$this->fail('The expectLog() helper requires a Mockery\MockInterface property named "logger_mock" to be set on the test class.');
 		}
 
+		if ($logs && $debug) {
+			$expected_substrings = implode("', '", $message_contains);
+			fwrite(STDERR, sprintf(
+				"\n[expectLog - DEBUG] Setting expectation for %s() to be called %d time(s) with message containing: ['%s']\n",
+				$level,
+				$times,
+				$expected_substrings
+			));
+			fflush(STDERR);
+		}
+
 		$expectation = $this->logger_mock->shouldReceive($level)
-			->withArgs(function (...$args) use ($message_contains, $level, $logs) {
+			->withArgs(function (...$args) use ($message_contains, $level, $logs, $debug) {
 				// $args is an array of all arguments passed to the log method,
 				// e.g., ['message', ['context' => 'value']]
 				if (empty($args) || !is_string($args[0])) {
+					if ($logs && $debug) {
+						fprintf(STDERR, "[expectLog - DEBUG] No arguments passed !\n");
+					}
 					return false;
 				}
 
 				$log_message = $args[0];
+				if ($logs && $debug) {
+					fprintf(STDERR, "[expectLog - DEBUG] args: '%s'.\n", implode("', '", $args));
+					fprintf(STDERR, "[expectLog - DEBUG] message_contains: '%s'.\n", implode("', '", $message_contains));
+				}
 
 				foreach ($message_contains as $substring) {
+					if ($logs && $debug) {
+						fprintf(STDERR, "[expectLog - DEBUG] substring: '%s'.\n", $substring);
+					}
 					if (strpos($log_message, $substring) === false) {
 						if ($logs) {
-							fprintf(STDERR, "Log expectation failed for level '%s'.\n", $level);
-							fprintf(STDERR, "Expected substring: '%s'\n", $substring);
-							fprintf(STDERR, "Actual log message: '%s'\n", $log_message);
+							fprintf(STDERR, "Log expectation failed for '%s'.\n", $level);
+							// fprintf(STDERR, "Expected substring: '%s'\n", $substring);
+							fprintf(STDERR, "Expected parts: '%s'\n", implode("', '", $message_contains));
+							fprintf(STDERR, "Recieved: '%s'\n", $log_message);
 						}
 						return false; // A required substring was not found.
 					}
