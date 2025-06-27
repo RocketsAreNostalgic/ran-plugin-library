@@ -62,7 +62,7 @@ final class ConfigTest extends RanTestCase {
 		$this->plugin_data = array(
 			'Name'        => 'Ran Starter Plugin Test',
 			'Version'     => '1.0.0',
-			'TextDomain'  => 'ran-starter-plugin',
+			'TextDomain'  => 'ran-starter-plugin-lib',
 			'DomainPath'  => '/languages',
 			'Description' => 'Test Description',
 			'Author'      => 'Test Author',
@@ -244,22 +244,23 @@ final class ConfigTest extends RanTestCase {
 		$this->assertEquals($this->full_plugin_file_path, $pluginFileProperty->getValue(null), 'Config::$plugin_file should be set by init().');
 
 		/** @var \Ran\PluginLib\Config\Config $config_instance */
+		$plugin_config = $config_instance->get_plugin_config();
+
 		// Assert that RANPluginOption defaulted correctly from TextDomain
-		$this->assertArrayHasKey('RANPluginOption', $config_instance->get_plugin_config(), 'plugin_array should have RANPluginOption key.');
-		$this->assertEquals('ran-starter-plugin', $config_instance->get_plugin_config()['RANPluginOption'], 'RANPluginOption should match the value from the @RAN: Plugin Option: header or default to sanitized TextDomain.');
+		$this->assertArrayHasKey('RANPluginOption', $plugin_config, 'plugin_array should have RANPluginOption key.');
+		$this->assertEquals($this->plugin_data['TextDomain'], $plugin_config['RANPluginOption'], 'RANPluginOption should match the value from the @RAN: Plugin Option: header or default to sanitized TextDomain.');
 
 		// Assert custom headers from ran-starter-plugin.php were parsed correctly
-		$this->assertArrayHasKey('RANLogConstantName', $config_instance->get_plugin_config(), 'plugin_array should have RANLogConstantName key.');
-		$this->assertEquals('RAN_PLUGIN', $config_instance->get_plugin_config()['RANLogConstantName'], 'Incorrect RANLogConstantName value.');
+		$this->assertArrayHasKey('RANLogConstantName', $plugin_config, 'plugin_array should have RANLogConstantName key.');
+		$this->assertEquals('RAN_PLUGIN', $plugin_config['RANLogConstantName'], 'Incorrect RANLogConstantName value.');
 
-		$this->assertArrayHasKey('RANLogRequestParam', $config_instance->get_plugin_config(), 'plugin_array should have RANLogRequestParam key.');
-		$this->assertEquals('RAN_PLUGIN', $config_instance->get_plugin_config()['RANLogRequestParam'], 'Incorrect RANLogRequestParam value.');
+		$this->assertArrayHasKey('RANLogRequestParam', $plugin_config, 'plugin_array should have RANLogRequestParam key.');
+		$this->assertEquals('RAN_PLUGIN', $plugin_config['RANLogRequestParam'], 'Incorrect RANLogRequestParam value.');
 	}
 
 	/**
 	 * Tests the ConfigAbstract::get_plugin_config() method.
-	 *
-	 * @covers \Ran\PluginLib\Config\ConfigAbstract::get_plugin_config
+	 *	 * @covers \Ran\PluginLib\Config\ConfigAbstract::get_plugin_config
 	 * @uses \Ran\PluginLib\Config\ConfigAbstract::__construct
 	 */
 	public function test_get_plugin_config_method(): void {

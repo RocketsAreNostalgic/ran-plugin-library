@@ -17,6 +17,7 @@ use Ran\PluginLib\Util\Logger; // Add use statement for the Logger class
 use Ran\PluginLib\RegisterOptions;
 use PHPUnit\Framework\MockObject\MockObject; // Add use statement for PHPUnit's MockObject
 use WP_Mock;
+use Mockery;
 
 /**
  * Tests for RegisterOptions class.
@@ -49,8 +50,8 @@ final class RegisterOptionsTest extends PluginLibTestCase {
 		$this->get_and_register_concrete_config_instance();
 
 		// Common logger mock for all tests in this class, can be overridden in specific tests
-		$this->logger_mock = $this->createMock(Logger::class);
-		$this->logger_mock->method('is_active')->willReturn(false); // Default to inactive to reduce log noise in tests
+		$this->logger_mock = Mockery::mock(Logger::class);
+		$this->logger_mock->shouldReceive('is_active')->andReturn(false); // Default to inactive to reduce log noise in tests
 	}
 
 	/**

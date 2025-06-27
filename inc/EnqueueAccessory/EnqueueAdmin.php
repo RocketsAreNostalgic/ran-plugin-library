@@ -11,6 +11,9 @@ declare(strict_types = 1);
 
 namespace Ran\PluginLib\EnqueueAccessory;
 
+use Ran\PluginLib\Config\ConfigInterface;
+use Ran\PluginLib\Util\Logger;
+
 /**
  * Class for handling admin script and style enqueuing.
  *
@@ -19,81 +22,86 @@ namespace Ran\PluginLib\EnqueueAccessory;
  * @since 1.0.0
  * @package Ran\PluginLib\EnqueueAccessory
  */
-class EnqueueAdmin extends AssetEnqueueBaseAbstract implements EnqueueInterface {
-	use ScriptsEnqueueTrait, StylesEnqueueTrait, MediaEnqueueTrait;
+class EnqueueAdmin implements EnqueueInterface {
+	private ScriptsHandler $scripts_handler;
+	private StylesHandler $styles_handler;
+	private MediaHandler $media_handler;
+	private Logger $logger;
 
-	/**
-	 * A class registration function to add the admin_enqueue_scripts hook to WP.
-	 * The hook callback function is $this->enqueue().
-	 * Also registers any deferred script hooks.
-	 *
-	 * @since 1.0.0
-	 * @link https://developer.wordpress.org/reference/hooks/admin_enqueue_scripts/
-	 */
+	public function __construct(
+		ConfigInterface $config,
+		?ScriptsHandler $scripts_handler = null,
+		?StylesHandler $styles_handler = null,
+		?MediaHandler $media_handler = null
+	) {
+		$this->scripts_handler = $scripts_handler ?? new ScriptsHandler($config);
+		$this->styles_handler  = $styles_handler  ?? new StylesHandler($config);
+		$this->media_handler   = $media_handler   ?? new MediaHandler($config);
+		$this->logger          = $config->get_logger();
+	}
+
 	public function load(): void {
-		$logger = $this->get_logger();
-		if ( $logger->is_active() ) {
-			$logger->debug( 'EnqueueAdmin::load() - Method entered.' );
+		if ($this->logger->is_active()) {
+			$this->logger->debug('EnqueueAdmin::load() - Method entered.');
 		}
 
-		if ( ! is_admin() ) {
-			if ( $logger->is_active() ) {
-				$logger->debug( 'EnqueueAdmin::load() - Not an admin request. Bailing.' );
+		if (!is_admin()) {
+			if ($this->logger->is_active()) {
+				$this->logger->debug('EnqueueAdmin::load() - Not an admin request. Bailing.');
 			}
 			return;
 		}
 
-		// Handle main asset enqueueing.
-		if ( did_action( 'admin_enqueue_scripts' ) ) {
-			if ( $logger->is_active() ) {
-				$logger->debug( 'EnqueueAdmin::load() - admin_enqueue_scripts already fired. Calling enqueue() directly.' );
-			}
-			$this->enqueue();
-		} else {
-			if ( $logger->is_active() ) {
-				$logger->debug( 'EnqueueAdmin::load() - Hooking enqueue() to admin_enqueue_scripts.' );
-			}
-			add_action( 'admin_enqueue_scripts', array( $this, 'enqueue' ) );
-		}
+		add_action('admin_enqueue_scripts', array($this, 'enqueue'));
+	}
 
-		// Register head callbacks if any exist.
-		if ( ! empty( $this->head_callbacks ) ) {
-			if ( $logger->is_active() ) {
-				$logger->debug( 'EnqueueAdmin::load() - Checking for head callbacks. Count: ' . count( $this->head_callbacks ) );
-			}
-			if ( did_action( 'admin_head' ) ) {
-				if ( $logger->is_active() ) {
-					$logger->debug( 'EnqueueAdmin::load() - admin_head already fired. Calling render_head() directly.' );
-				}
-				$this->render_head();
-			} else {
-				if ( $logger->is_active() ) {
-					$logger->debug( 'EnqueueAdmin::load() - Hooking render_head() to admin_head.' );
-				}
-				add_action( 'admin_head', array( $this, 'render_head' ) );
-			}
+	public function enqueue(): void {
+		if ($this->logger->is_active()) {
+			$this->logger->debug('EnqueueAdmin::enqueue() - Delegating to handlers.');
 		}
+		$this->scripts_handler->enqueue();
+		$this->styles_handler->enqueue();
+		$this->media_handler->enqueue();
+	}
 
-		// Register footer callbacks if any exist.
-		if ( ! empty( $this->footer_callbacks ) ) {
-			if ( $logger->is_active() ) {
-				$logger->debug( 'EnqueueAdmin::load() - Checking for footer callbacks. Count: ' . count( $this->footer_callbacks ) );
-			}
-			if ( did_action( 'admin_footer' ) ) {
-				if ( $logger->is_active() ) {
-					$logger->debug( 'EnqueueAdmin::load() - admin_footer already fired. Calling render_footer() directly.' );
-				}
-				$this->render_footer();
-			} else {
-				if ( $logger->is_active() ) {
-					$logger->debug( 'EnqueueAdmin::load() - Hooking render_footer() to admin_footer.' );
-				}
-				add_action( 'admin_footer', array( $this, 'render_footer' ) );
-			}
-		}
+	public function add_scripts(array $scripts): self {
+		$this->scripts_handler->add_scripts($scripts);
+		return $this;
+	}
 
-		if ( $logger->is_active() ) {
-			$logger->debug( 'EnqueueAdmin::load() - Method exited.' );
-		}
+	public function add_styles(array $styles): self {
+		$this->styles_handler->add_styles($styles);
+		return $this;
+	}
+
+	public function add_media(array $media): self {
+		$this->media_handler->add_media($media);
+		return $this;
+	}
+
+	public function enqueue_scripts(): self {
+		$this->scripts_handler->enqueue_scripts();
+		return $this;
+	}
+
+	public function enqueue_styles(): self {
+		$this->styles_handler->enqueue_styles();
+		return $this;
+	}
+
+	public function enqueue_media(array $media = array()): self {
+		$configs = $this->media_handler->get_media_tool_configs();
+		$this->media_handler->enqueue_media($media ?: $configs['general']);
+		return $this;
+	}
+
+	public function add_inline_scripts( array $inline_scripts_to_add ): self {
+		$this->scripts_handler->add_inline_scripts( $inline_scripts_to_add );
+		return $this;
+	}
+
+	public function add_inline_styles( array $inline_styles_to_add ): self {
+		$this->styles_handler->add_inline_styles( $inline_styles_to_add );
+		return $this;
 	}
 }

@@ -55,7 +55,7 @@ abstract class PluginLibTestCase extends RanTestCase {
 	/**
 	 * @var CollectingLogger|MockInterface The logger instance, a partial mock (spy).
 	 */
-	protected $logger_mock;
+	protected ?\Mockery\MockInterface $logger_mock = null;
 
 	/**
 	 * Path to the mock plugin file created during setup.
@@ -178,6 +178,7 @@ abstract class PluginLibTestCase extends RanTestCase {
 			unlink($this->mock_plugin_file_path);
 		}
 
+		Mockery::close();
 		WP_Mock::tearDown();
 
 		// Clean up singleton instances
@@ -199,6 +200,35 @@ abstract class PluginLibTestCase extends RanTestCase {
 			define($name, $value);
 			$this->defined_constants[] = $name;
 		}
+	}
+
+	/**
+	 * Sets up WP_Mock expectations for a full asset lifecycle.
+	 *
+	 * @param string $asset_type         The type of asset ('script' or 'style').
+	 * @param string $register_function  The name of the WordPress registration function.
+	 * @param string $enqueue_function   The name of the WordPress enqueue function.
+	 * @param string $is_function        The name of the WordPress status check function (e.g., 'wp_script_is').
+	 * @param array  $asset_to_add       The asset definition array.
+	 */
+	protected function _mock_asset_lifecycle_functions(
+		string $asset_type,
+		string $register_function,
+		string $enqueue_function,
+		string $is_function,
+		array $asset_to_add
+	): void {
+		$handle = $asset_to_add['handle'];
+
+		WP_Mock::userFunction($is_function)->with($handle, 'registered')->andReturn(false, true, true);
+		WP_Mock::userFunction($is_function)->with($handle, 'enqueued')->andReturn(false);
+
+		if ($asset_type === 'script') {
+			WP_Mock::userFunction($register_function)->with($handle, $asset_to_add['src'], $asset_to_add['deps'], $asset_to_add['version'], false)->andReturn(true);
+		} else {
+			WP_Mock::userFunction($register_function)->with($handle, $asset_to_add['src'], $asset_to_add['deps'], $asset_to_add['version'], $asset_to_add['media'])->andReturn(true);
+		}
+		WP_Mock::userFunction($enqueue_function)->with($handle);
 	}
 
 	/**
@@ -329,9 +359,10 @@ abstract class PluginLibTestCase extends RanTestCase {
 		$mock_file_header_content .= ' */';
 
 		$concreteInstance = $this->getMockBuilder(ConcreteConfigForTesting::class)
-		    ->onlyMethods(array('_read_plugin_file_header_content', 'get_logger', 'get_plugin_data'))
-		    ->disableOriginalConstructor()
-		    ->getMock();
+			->onlyMethods(array('_read_plugin_file_header_content', 'get_logger', 'get_plugin_data'))
+			->addMethods(array('get_enqueue_public_config'))
+			->disableOriginalConstructor()
+			->getMock();
 
 		$concreteInstance->expects($this->any())
 		    ->method('_read_plugin_file_header_content')

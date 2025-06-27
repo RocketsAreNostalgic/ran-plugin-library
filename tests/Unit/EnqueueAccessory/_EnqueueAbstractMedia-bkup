@@ -27,6 +27,17 @@ class ConcreteEnqueueForMediaTesting extends EnqueueAbstract {
 		// This is a concrete implementation for testing purposes.
 	}
 
+	protected function _process_single_asset(
+		array $asset_definition,
+		string $processing_context,
+		?string $hook_name = null,
+		bool $do_register = true,
+		bool $do_enqueue = false
+	): string|false {
+		// Mock implementation for testing.
+		return $asset_definition['handle'] ?? false;
+	}
+
 	/**
 	 * Public wrapper to test the protected enqueue_deferred_media_tools method.
 	 */

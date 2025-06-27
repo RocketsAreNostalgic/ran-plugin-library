@@ -78,6 +78,24 @@ interface EnqueueInterface {
 	public function enqueue_media( array $media ): self;
 
 	/**
+	 * Chain-able call to add multiple inline scripts.
+	 *
+	 * @since 1.0.0
+	 * @param array<string, mixed>|array<int, array<string, mixed>> $inline_scripts_to_add A single inline script definition array or an array of them.
+	 * @return self
+	 */
+	public function add_inline_scripts( array $inline_scripts_to_add ): self;
+
+	/**
+	 * Chain-able call to add multiple inline styles.
+	 *
+	 * @since 1.0.0
+	 * @param array<string, mixed>|array<int, array<string, mixed>> $inline_styles_to_add A single inline style definition array or an array of them.
+	 * @return self
+	 */
+	public function add_inline_styles( array $inline_styles_to_add ): self;
+
+	/**
 	 * Enqueue all registered assets.
 	 *
 	 * @since 1.0.0
