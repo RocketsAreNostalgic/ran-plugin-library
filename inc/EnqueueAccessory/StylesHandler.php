@@ -11,5 +11,4 @@ namespace Ran\PluginLib\EnqueueAccessory;
  */
 class StylesHandler extends AssetHandlerBase {
 	use StylesEnqueueTrait;
-
 }

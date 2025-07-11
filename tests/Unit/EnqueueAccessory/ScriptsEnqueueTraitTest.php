@@ -354,7 +354,7 @@ class ScriptsEnqueueTraitTest extends PluginLibTestCase {
 	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAssetTraitBase::_process_single_asset
 	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAssetTraitBase::enqueue_immediate_assets
 	 */
-		public function test_stage_scripts_registers_non_hooked_asset_correctly(): void {
+	public function test_stage_scripts_registers_non_hooked_asset_correctly(): void {
 		// --- Test Setup ---
 		$asset_to_add = array(
 			'handle'    => 'my-asset',
@@ -575,7 +575,7 @@ class ScriptsEnqueueTraitTest extends PluginLibTestCase {
 	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAssetTraitBase::stage_assets
 	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAssetTraitBase::_process_single_asset
 	 */
-	    public function test_stage_scripts_skips_asset_if_condition_is_false(): void {
+	public function test_stage_scripts_skips_asset_if_condition_is_false(): void {
 		// Arrange
 		$handle       = 'my-conditional-asset';
 		$asset_to_add = array(
@@ -610,17 +610,17 @@ class ScriptsEnqueueTraitTest extends PluginLibTestCase {
 	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAssetTraitBase::stage_assets
 	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAssetTraitBase::_process_single_asset
 	 */
-	    public function test_stage_scripts_defers_hooked_asset_correctly_with_script_keyword(): void {
+	public function test_stage_scripts_defers_hooked_asset_correctly_with_script_keyword(): void {
 		// Arrange
 		$handle = 'my-deferred-script';
 		$src    = 'path/to/deferred.js';
 		$hook   = 'wp_enqueue_scripts';
 
-		$this->instance->add_scripts( [
+		$this->instance->add_scripts( array(
 			'handle' => $handle,
 			'src'    => $src,
 			'hook'   => $hook,
-		] );
+		) );
 
 		// Assert: check the log for add_assets()
 		$this->expectLog('debug', array('add_', 'Adding 1 new'), 1);
@@ -716,25 +716,25 @@ class ScriptsEnqueueTraitTest extends PluginLibTestCase {
 	 */
 	public function test_stage_scripts_defers_hooked_asset_correctly(): void {
 		// Arrange
-		$hook_name = 'my_custom_hook';
-		$asset_to_add = [
+		$hook_name    = 'my_custom_hook';
+		$asset_to_add = array(
 			'handle' => 'my-deferred-asset',
 			'src'    => 'path/to/deferred.js',
 			'hook'   => $hook_name,
-		];
+		);
 		$this->instance->add_scripts($asset_to_add);
 
 		WP_Mock::userFunction('has_action')
-			->with($hook_name, [$this->instance, 'enqueue_deferred_scripts'])
+			->with($hook_name, array($this->instance, 'enqueue_deferred_scripts'))
 			->andReturn(false); // Mock that the action hasn't been added yet
 
-		WP_Mock::expectActionAdded($hook_name, [$this->instance, 'enqueue_deferred_scripts'], 10, 1);
+		WP_Mock::expectActionAdded($hook_name, array($this->instance, 'enqueue_deferred_scripts'), 10, 1);
 
 		// Act
 		$this->instance->stage_scripts();
 
 		// Assert
-		$this->expectLog('debug', array('stage_', "Deferring registration of", "'my-deferred-asset' (original index 0) to hook: {$hook_name}."), 1);
+		$this->expectLog('debug', array('stage_', 'Deferring registration of', "'my-deferred-asset' (original index 0) to hook: {$hook_name}."), 1);
 		$this->expectLog('debug', array('stage_', "Added action for 'enqueue_deferred_", "on hook: {$hook_name}."), 1);
 
 		// Assert that the asset is in the deferred queue

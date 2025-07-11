@@ -1,6 +1,14 @@
 <?php
 /**
- * Base trait for enqueuing assets
+ * Provides common, asset-agnostic functionality for asset processing.
+ *
+ * This trait contains the shared helper methods used by the asset-specific traits
+ * (ScriptsEnqueueTrait, StylesEnqueueTrait). It forms the foundational layer of
+ * the dispatcher pattern (see ADR-003), providing the concrete logic that is
+ * ultimately called by the dispatcher methods in EnqueueAssetBaseAbstract.
+ *
+ * It is not intended to be used directly by a consumer class, but rather as a
+ * dependency for the main asset processing base class.
  *
  * @todo FEATURE - cachebusting beyond version numbers
  * @todo FEATURE - dev vs prod for loading minififed files
@@ -624,7 +632,7 @@ trait EnqueueAssetTraitBase {
 	 * @return string|false The handle of the processed asset, or false if a critical error occurred.
 	 */
 	abstract protected function _process_single_asset(
-		AssetType $asset_type,scripts'
+		AssetType $asset_type,
 		array $asset_definition,
 		string $processing_context,
 		?string $hook_name = null,
