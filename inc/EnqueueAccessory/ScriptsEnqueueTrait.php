@@ -28,15 +28,6 @@ trait ScriptsEnqueueTrait {
 	use EnqueueAssetTraitBase;
 
 	/**
-	 * Abstract method to get the logger instance.
-	 *
-	 * This ensures that any class using this trait provides a logger.
-	 *
-	 * @return Logger The logger instance.
-	 */
-	abstract public function get_logger(): Logger;
-
-	/**
 	 * Get the array of registered scripts.
 	 *
 	 * @return array<string, array> An associative array of script definitions, keyed by 'general', 'deferred', and 'inline'.
@@ -200,7 +191,7 @@ trait ScriptsEnqueueTrait {
 			return;
 		}
 
-		$keys_to_unset = array();
+		$keys_to_unset          = array();
 		$inline_assets_for_type = $this->inline_assets[$asset_type->value] ?? array();
 
 		foreach ( $inline_assets_for_type as $key => $inline_asset_data ) {
@@ -399,10 +390,10 @@ trait ScriptsEnqueueTrait {
 							$logger->error( "{$context} - Cannot register or enqueue script '{$handle}' because its 'src' is missing." );
 						}
 						return false; // Cannot proceed without scr being a source, or false.
-				}
+					}
 
 					// Warn, then register and enqueue in one step.
-				if ( $logger->is_active() ) {
+					if ( $logger->is_active() ) {
 						$logger->warning(
 							sprintf(
 								"%s - Script '%s' was not registered before enqueuing. Attempting to register and enqueue now.",
@@ -410,7 +401,7 @@ trait ScriptsEnqueueTrait {
 								$handle
 							)
 						);
-				}
+					}
 					wp_enqueue_script( $handle, $src, $deps, $ver, $enqueue_args );
 				}
 

@@ -1,12 +1,18 @@
 <?php
 /**
- * Asset Enqueue Base Abstract Class.
+ * Internal Asset Dispatcher Engine.
  *
- * Provides core, asset-agnostic functionality for enqueueing assets in WordPress.
- * Designed to be extended by concrete enqueue handlers, which will use traits
- * for specific asset-type (scripts, styles, media) management.
+ * This abstract class provides the core engine for processing assets. Its primary
+ * architectural role is to act as a "dispatcher" that allows multiple asset-type-specific
+ * traits (e.g., ScriptsEnqueueTrait, StylesEnqueueTrait) to be used together without
+ * method name collisions.
+ *
+ * It is not intended for direct extension by top-level consumers. Instead, it serves
+ * as the base for AssetHandlerBase, which is then extended by specific handlers
+ * like ScriptsHandler.
  *
  * @package RanPluginLib\EnqueueAccessory
+ * @internal
  */
 
 declare(strict_types=1);
@@ -19,21 +25,18 @@ use Ran\PluginLib\Config\ConfigInterface;
 use Ran\PluginLib\Util\Logger;
 
 /**
- * Abstract base class for managing the enqueuing of assets.
+ * Provides the core dispatcher functionality for asset processing.
  *
- * This class provides core, asset-agnostic functionality. Concrete classes
- * (e.g., EnqueueAdmin, EnqueuePublic) will extend this and use specific traits
- * (ScriptsEnqueueTrait, StylesEnqueueTrait, MediaEnqueueTrait) to handle
- * different asset types.
+ * This class contains the central dispatcher methods (e.g., `_process_single_asset`)
+ * that use an `AssetType` enum to route calls to the correctly-named method
+ * within a specific trait (e.g., `_process_single_script_asset` in `ScriptsEnqueueTrait`).
  *
- * @method array get_assets() Retrieves the registered assets.
- * @method array get_styles() Retrieves the registered styles.
- * @method array get_media_tool_configs() Retrieves the media tool configurations.
- * @method void stage_assets() Enqueues registered assets.
- * @method void stage_styles() Enqueues registered styles.
- * @method void enqueue_media() Enqueues media tools.
- * @method array get_inline_assets() Retrieves the registered inline assets.
- * @method void enqueue_inline_assets() Enqueues inline assets.
+ * This pattern avoids fatal errors from trait method name conflicts and provides
+ * a clean, unified internal API for asset processing logic that is shared across
+ * all asset handlers.
+ *
+ * @method void enqueue_inline_scripts()
+ * @method void enqueue_inline_styles()
  */
 abstract class EnqueueAssetBaseAbstract {
 	use EnqueueAssetTraitBase,
@@ -159,10 +162,10 @@ abstract class EnqueueAssetBaseAbstract {
 		$logger = $this->get_logger();
 
 		// Safely determine counts for logging by using public getters, not direct property access.
-		$assets_count        = method_exists($this, 'get_assets') ? count($this->get_assets()['general'] ?? array()) : 0;
-		$styles_count        = method_exists($this, 'get_styles') ? count($this->get_styles()['general'] ?? array()) : 0;
+		$assets_count        = method_exists($this, 'get_assets') ? count($this->get_assets(AssetType::Script)['general'] ?? array()) : 0;
+		$styles_count        = method_exists($this, 'get_assets') ? count($this->get_assets(AssetType::Style)['general'] ?? array()) : 0;
 		$media_count         = method_exists($this, 'get_media_tool_configs') ? count($this->get_media_tool_configs()) : 0;
-		$inline_assets_count = method_exists($this, 'get_inline_assets') ? count($this->get_inline_assets()) : 0;
+		$inline_assets_count = method_exists($this, 'get_assets') ? count($this->get_assets(AssetType::Script)['general'] ?? array()) : 0;
 
 		$logger->debug(
 			sprintf(
@@ -176,12 +179,12 @@ abstract class EnqueueAssetBaseAbstract {
 
 		// Process assets if the method exists (from ScriptsEnqueueTrait).
 		if ( method_exists( $this, 'stage_assets' ) ) {
-			$this->stage_assets();
+			$this->stage_assets(AssetType::Script);
 		}
 
 		// Process styles if the method exists (from StylesEnqueueTrait).
-		if ( method_exists( $this, 'stage_styles' ) ) {
-			$this->stage_styles();
+		if ( method_exists( $this, 'stage_assets' ) ) {
+			$this->stage_assets(AssetType::Style);
 		}
 
 		// Process media if the method exists (from MediaEnqueueTrait).
@@ -189,9 +192,14 @@ abstract class EnqueueAssetBaseAbstract {
 			$this->enqueue_media( $this->media_tool_configs ?? array() );
 		}
 
-		// Process inline assets if the method exists (from ScriptsEnqueueTrait).
-		if ( method_exists( $this, 'enqueue_inline_assets' ) ) {
-			$this->enqueue_inline_assets();
+		// Process inline scripts if the method exists (from ScriptsEnqueueTrait).
+		if ( method_exists( $this, 'enqueue_inline_scripts' ) ) {
+			$this->enqueue_inline_scripts();
+		}
+
+		// Process inline styles if the method exists (from StylesEnqueueTrait).
+		if ( method_exists( $this, 'enqueue_inline_styles' ) ) {
+			$this->enqueue_inline_styles();
 		}
 
 		$logger->debug( 'EnqueueAssetBaseAbstract::enqueue - Main enqueue process finished.' );

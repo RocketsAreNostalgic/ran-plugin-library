@@ -190,10 +190,10 @@ trait MediaEnqueueTrait {
 	 */
 	public function get_media_deferred_hooks(): array {
 		$configs = $this->get_media_tool_configs();
-		$hooks = [];
+		$hooks   = array();
 
 		if (empty($configs['deferred'])) {
-			return [];
+			return array();
 		}
 
 		foreach ($configs['deferred'] as $hook => $assets) {

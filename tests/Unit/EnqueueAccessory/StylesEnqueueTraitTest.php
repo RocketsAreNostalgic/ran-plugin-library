@@ -65,7 +65,7 @@ class StylesEnqueueTraitTest extends PluginLibTestCase {
 	 */
 	protected function _invoke_protected_method($object, string $method_name, array $parameters = array()) {
 		$reflection = new \ReflectionClass(get_class($object));
-		$method = $reflection->getMethod($method_name);
+		$method     = $reflection->getMethod($method_name);
 		$method->setAccessible(true);
 
 		return $method->invokeArgs($object, $parameters);
@@ -209,7 +209,7 @@ class StylesEnqueueTraitTest extends PluginLibTestCase {
 	 */
 	public function test_stage_styles_passes_media_attribute_correctly(): void {
 		// Arrange
-		$handle = 'my-style-with-media';
+		$handle       = 'my-style-with-media';
 		$asset_to_add = array(
 		    'handle' => $handle,
 		    'src'    => 'path/to/style.css',
@@ -316,34 +316,34 @@ class StylesEnqueueTraitTest extends PluginLibTestCase {
 	 * Data provider for `test_modify_style_tag_attributes_adds_attributes_correctly`.
 	 */
 	public static function provide_style_tag_modification_cases(): array {
-		$handle = 'my-style';
+		$handle       = 'my-style';
 		$original_tag = "<link rel='stylesheet' id='{$handle}-css' href='path/to/style.css' type='text/css' media='all' />";
 
 		return array(
-		    'single data attribute' => [
+		    'single data attribute' => array(
 		        $handle,
-		        ['data-custom' => 'my-value'],
+		        array('data-custom' => 'my-value'),
 		        $original_tag,
 		        "<link rel='stylesheet' id='{$handle}-css' href='path/to/style.css' type='text/css' media='all'  data-custom=\"my-value\"/>",
-		    ],
-		    'boolean attribute (true)' => [
+		    ),
+		    'boolean attribute (true)' => array(
 		        $handle,
-		        ['async' => true],
+		        array('async' => true),
 		        $original_tag,
 		        "<link rel='stylesheet' id='{$handle}-css' href='path/to/style.css' type='text/css' media='all'  async/>",
-		    ],
-		    'boolean attribute (false)' => [
+		    ),
+		    'boolean attribute (false)' => array(
 		        $handle,
-		        ['defer' => false],
+		        array('defer' => false),
 		        $original_tag,
 		        $original_tag, // Expect no change
-		    ],
-		    'multiple attributes' => [
+		    ),
+		    'multiple attributes' => array(
 		        $handle,
-		        ['data-id' => '123', 'async' => true],
+		        array('data-id' => '123', 'async' => true),
 		        $original_tag,
 		        "<link rel='stylesheet' id='{$handle}-css' href='path/to/style.css' type='text/css' media='all'  data-id=\"123\" async/>",
-		    ],
+		    ),
 		);
 	}
 
@@ -362,11 +362,11 @@ class StylesEnqueueTraitTest extends PluginLibTestCase {
 		$hook   = 'wp_enqueue_scripts';
 
 		// Add a deferred style to the instance's queue.
-		$this->instance->add_styles( [
+		$this->instance->add_styles( array(
 			'handle' => $handle,
 			'src'    => $src,
 			'hook'   => $hook,
-		] );
+		) );
 
 		// Mock the WordPress API calls for a deferred asset lifecycle.
 		WP_Mock::userFunction( 'current_action' )->withNoArgs()->andReturn( 'wp_enqueue_scripts' );
@@ -376,7 +376,7 @@ class StylesEnqueueTraitTest extends PluginLibTestCase {
 
 		// Expect the register and enqueue sequence.
 		$expected_url = $this->instance->get_asset_url( $src );
-		WP_Mock::userFunction( 'wp_register_style' )->once()->with( $handle, $expected_url, [], false, 'all' )->andReturn(true);
+		WP_Mock::userFunction( 'wp_register_style' )->once()->with( $handle, $expected_url, array(), false, 'all' )->andReturn(true);
 		WP_Mock::userFunction( 'wp_enqueue_style' )->once()->with( $handle );
 
 		// Act: Simulate the WordPress hook lifecycle for a deferred asset.
@@ -395,7 +395,7 @@ class StylesEnqueueTraitTest extends PluginLibTestCase {
 	 */
 	public function test_stage_styles_enqueues_registered_style(): void {
 		// Arrange
-		$handle = 'my-style-to-enqueue';
+		$handle       = 'my-style-to-enqueue';
 		$asset_to_add = array(
 		    'handle' => $handle,
 		    'src'    => 'path/to/style.css',

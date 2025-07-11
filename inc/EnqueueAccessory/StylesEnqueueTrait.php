@@ -28,15 +28,6 @@ trait StylesEnqueueTrait {
 	use EnqueueAssetTraitBase;
 
 	/**
-	 * Abstract method to get the logger instance.
-	 *
-	 * This ensures that any class using this trait provides a logger.
-	 *
-	 * @return Logger The logger instance.
-	 */
-	abstract public function get_logger(): Logger;
-
-	/**
 	 * Get the array of registered stylesheets.
 	 *
 	 * @return array<string, array> An associative array of stylesheet definitions, keyed by 'general', 'deferred', and 'inline'.
@@ -200,7 +191,7 @@ trait StylesEnqueueTrait {
 			return;
 		}
 
-		$keys_to_unset = array();
+		$keys_to_unset          = array();
 		$inline_assets_for_type = $this->inline_assets[$asset_type->value] ?? array();
 
 		foreach ( $inline_assets_for_type as $key => $inline_asset_data ) {
@@ -226,7 +217,7 @@ trait StylesEnqueueTrait {
 			}
 
 			if ( $is_match ) {
-				$content          = $inline_asset_data['content']   ?? '';
+				$content = $inline_asset_data['content'] ?? '';
 				// No position for styles
 				$condition_inline = $inline_asset_data['condition'] ?? null;
 
@@ -494,7 +485,7 @@ trait StylesEnqueueTrait {
 		foreach ($attributes_to_apply as $attr => $value) {
 			// Handle boolean attributes (indexed array, e.g., ['async'])
 			if (is_int($attr)) {
-				$attr = $value;
+				$attr  = $value;
 				$value = true;
 			}
 
