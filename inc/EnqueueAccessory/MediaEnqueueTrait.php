@@ -125,15 +125,16 @@ trait MediaEnqueueTrait {
 		$logger = $this->get_logger();
 		// If $hook_name is truly needed for logic, it should not be optional or should be derived via current_action()
 		// For now, using $hook_name if provided, but logging will show if it's empty.
+		$context             = __METHOD__;
 		$effective_hook_name = $hook_name ?: (function_exists('current_action') ? current_action() : 'unknown_hook');
 
 		if ( $logger->is_active() ) {
-			$logger->debug( "MediaEnqueueTrait::enqueue_deferred_media_tools - Entered for hook: \"{$effective_hook_name}\"." );
+			$logger->debug( "{$context} - Entered for hook: \"{$effective_hook_name}\"." );
 		}
 
 		if ( ! isset( $this->deferred_media_tool_configs[ $effective_hook_name ] ) || empty( $this->deferred_media_tool_configs[ $effective_hook_name ] ) ) {
 			if ( $logger->is_active() ) {
-				$logger->debug( "MediaEnqueueTrait::enqueue_deferred_media_tools - No deferred media tool configurations found or already processed for hook: \"{$effective_hook_name}\"." );
+				$logger->debug( "{$context} - No deferred media tool configurations found or already processed for hook: \"{$effective_hook_name}\"." );
 			}
 			// Unset even if empty to clean up the key, though it might already be unset or never set.
 			// This also prevents re-processing if the hook fires multiple times for some reason.
@@ -147,7 +148,7 @@ trait MediaEnqueueTrait {
 
 		foreach ( $media_configs_on_this_hook as $index => $item_definition ) {
 			if ( $logger->is_active() ) {
-				$logger->debug( "MediaEnqueueTrait::enqueue_deferred_media_tools - Processing deferred media tool configuration at original index {$index} for hook: \"{$effective_hook_name}\"." );
+				$logger->debug( "{$context} - Processing deferred media tool configuration at original index {$index} for hook: \"{$effective_hook_name}\"." );
 			}
 
 			$args      = $item_definition['args']      ?? array();
@@ -155,13 +156,13 @@ trait MediaEnqueueTrait {
 
 			if ( is_callable( $condition ) && ! $condition() ) {
 				if ( $logger->is_active() ) {
-					$logger->debug( "MediaEnqueueTrait::enqueue_deferred_media_tools - Condition not met for deferred media tool configuration at original index {$index} on hook \"{$effective_hook_name}\". Skipping." );
+					$logger->debug( "{$context} - Condition not met for deferred media tool configuration at original index {$index} on hook \"{$effective_hook_name}\". Skipping." );
 				}
 				continue;
 			}
 
 			if ( $logger->is_active() ) {
-				$logger->debug( "MediaEnqueueTrait::enqueue_deferred_media_tools - Calling wp_enqueue_media() for deferred configuration at original index {$index} on hook \"{$effective_hook_name}\". Args: " . (function_exists('wp_json_encode') ? wp_json_encode( $args ) : json_encode( $args )) );
+				$logger->debug( "{$context} - Calling wp_enqueue_media() for deferred configuration at original index {$index} on hook \"{$effective_hook_name}\". Args: " . (function_exists('wp_json_encode') ? wp_json_encode( $args ) : json_encode( $args )) );
 			}
 			wp_enqueue_media( $args );
 		}
@@ -169,7 +170,7 @@ trait MediaEnqueueTrait {
 		unset( $this->deferred_media_tool_configs[ $effective_hook_name ] );
 
 		if ( $logger->is_active() ) {
-			$logger->debug( "MediaEnqueueTrait::enqueue_deferred_media_tools - Exited for hook: \"{$effective_hook_name}\"." );
+			$logger->debug( "{$context} - Exited for hook: \"{$effective_hook_name}\"." );
 		}
 	}
 
@@ -181,4 +182,26 @@ trait MediaEnqueueTrait {
 	 * @return Logger The logger instance.
 	 */
 	abstract protected function get_logger(): Logger;
+
+	/**
+	 * Retrieves the deferred hooks for media assets.
+	 *
+	 * @return array<int, string> An array of unique hook names.
+	 */
+	public function get_media_deferred_hooks(): array {
+		$configs = $this->get_media_tool_configs();
+		$hooks = [];
+
+		if (empty($configs['deferred'])) {
+			return [];
+		}
+
+		foreach ($configs['deferred'] as $hook => $assets) {
+			if (!empty($assets)) {
+				$hooks[] = $hook;
+			}
+		}
+
+		return array_unique($hooks);
+	}
 }

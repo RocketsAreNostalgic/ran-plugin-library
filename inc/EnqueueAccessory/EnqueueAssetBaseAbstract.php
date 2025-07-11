@@ -13,6 +13,8 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\EnqueueAccessory;
 
+use Ran\PluginLib\EnqueueAccessory\AssetType;
+
 use Ran\PluginLib\Config\ConfigInterface;
 use Ran\PluginLib\Util\Logger;
 
@@ -27,63 +29,17 @@ use Ran\PluginLib\Util\Logger;
  * @method array get_assets() Retrieves the registered assets.
  * @method array get_styles() Retrieves the registered styles.
  * @method array get_media_tool_configs() Retrieves the media tool configurations.
- * @method void enqueue_assets() Enqueues registered assets.
- * @method void enqueue_styles() Enqueues registered styles.
+ * @method void stage_assets() Enqueues registered assets.
+ * @method void stage_styles() Enqueues registered styles.
  * @method void enqueue_media() Enqueues media tools.
  * @method array get_inline_assets() Retrieves the registered inline assets.
  * @method void enqueue_inline_assets() Enqueues inline assets.
  */
 abstract class EnqueueAssetBaseAbstract {
-	use ScriptsEnqueueTrait, StylesEnqueueTrait {
-		// Resolve conflicts for all methods from the base trait.
-		// We'll use ScriptsEnqueueTrait as the default and then alias both versions.
-		ScriptsEnqueueTrait::get_logger insteadof StylesEnqueueTrait;
-		ScriptsEnqueueTrait::get_assets insteadof StylesEnqueueTrait;
-		ScriptsEnqueueTrait::get_inline_assets insteadof StylesEnqueueTrait;
-		ScriptsEnqueueTrait::get_deferred_assets insteadof StylesEnqueueTrait;
-		ScriptsEnqueueTrait::get_deferred_hooks insteadof StylesEnqueueTrait;
-		ScriptsEnqueueTrait::add_assets insteadof StylesEnqueueTrait;
-		ScriptsEnqueueTrait::register_assets insteadof StylesEnqueueTrait;
-		ScriptsEnqueueTrait::enqueue_assets insteadof StylesEnqueueTrait;
-		ScriptsEnqueueTrait::enqueue_deferred_assets insteadof StylesEnqueueTrait;
-		ScriptsEnqueueTrait::add_inline_assets insteadof StylesEnqueueTrait;
-		ScriptsEnqueueTrait::enqueue_inline_assets insteadof StylesEnqueueTrait;
-		ScriptsEnqueueTrait::_process_inline_assets insteadof StylesEnqueueTrait;
-
-		ScriptsEnqueueTrait::_modify_html_tag_attributes insteadof StylesEnqueueTrait;
-
-		// --- Alias all ScriptsEnqueueTrait methods to be protected ---
-		ScriptsEnqueueTrait::get_assets as protected trait_get_assets_scripts;
-		ScriptsEnqueueTrait::get_inline_assets as protected trait_get_inline_assets_scripts;
-		ScriptsEnqueueTrait::get_deferred_assets as protected trait_get_deferred_assets_scripts;
-		ScriptsEnqueueTrait::get_deferred_hooks as protected trait_get_deferred_hooks_scripts;
-		ScriptsEnqueueTrait::add_assets as protected trait_add_assets_scripts;
-		ScriptsEnqueueTrait::register_assets as protected trait_register_assets_scripts;
-		ScriptsEnqueueTrait::enqueue_assets as protected trait_enqueue_assets_scripts;
-		ScriptsEnqueueTrait::enqueue_deferred_assets as protected trait_enqueue_deferred_assets_scripts;
-		ScriptsEnqueueTrait::add_inline_assets as protected trait_add_inline_assets_scripts;
-		ScriptsEnqueueTrait::enqueue_inline_assets as protected trait_enqueue_inline_assets_scripts;
-		ScriptsEnqueueTrait::_process_inline_assets as protected trait_process_inline_scripts;
-		ScriptsEnqueueTrait::_process_single_asset as protected trait_process_single_script;
-		ScriptsEnqueueTrait::_modify_html_tag_attributes as protected trait_modify_script_tag_attributes;
-
-		// --- Alias all StylesEnqueueTrait methods to be protected ---
-		StylesEnqueueTrait::get_assets as protected trait_get_assets_styles;
-		StylesEnqueueTrait::get_inline_assets as protected trait_get_inline_assets_styles;
-		StylesEnqueueTrait::get_deferred_assets as protected trait_get_deferred_assets_styles;
-		StylesEnqueueTrait::get_deferred_hooks as protected trait_get_deferred_hooks_styles;
-		StylesEnqueueTrait::add_assets as protected trait_add_assets_styles;
-		StylesEnqueueTrait::register_assets as protected trait_register_assets_styles;
-		StylesEnqueueTrait::enqueue_assets as protected trait_enqueue_assets_styles;
-		StylesEnqueueTrait::enqueue_deferred_assets as protected trait_enqueue_deferred_assets_styles;
-		StylesEnqueueTrait::add_inline_assets as protected trait_add_inline_assets_styles;
-		StylesEnqueueTrait::enqueue_inline_assets as protected trait_enqueue_inline_assets_styles;
-		StylesEnqueueTrait::_process_inline_assets as protected trait_process_inline_styles;
-		StylesEnqueueTrait::_process_single_asset as protected trait_process_single_style;
-		StylesEnqueueTrait::_modify_html_tag_attributes as protected trait_modify_style_tag_attributes;
-	}
-
-	use MediaEnqueueTrait;
+	use EnqueueAssetTraitBase,
+		ScriptsEnqueueTrait,
+		StylesEnqueueTrait,
+		MediaEnqueueTrait;
 
 	/**
 	 * The ConfigInterface object holding plugin configuration.
@@ -219,13 +175,13 @@ abstract class EnqueueAssetBaseAbstract {
 		);
 
 		// Process assets if the method exists (from ScriptsEnqueueTrait).
-		if ( method_exists( $this, 'enqueue_assets' ) ) {
-			$this->enqueue_assets();
+		if ( method_exists( $this, 'stage_assets' ) ) {
+			$this->stage_assets();
 		}
 
 		// Process styles if the method exists (from StylesEnqueueTrait).
-		if ( method_exists( $this, 'enqueue_styles' ) ) {
-			$this->enqueue_styles();
+		if ( method_exists( $this, 'stage_styles' ) ) {
+			$this->stage_styles();
 		}
 
 		// Process media if the method exists (from MediaEnqueueTrait).
@@ -347,7 +303,6 @@ abstract class EnqueueAssetBaseAbstract {
 		add_action( $hook, $callback, $priority, $accepted_args );
 	}
 
-
 	/**
 	 * Dispatches the processing of a single asset to the appropriate trait.
 	 *
@@ -355,100 +310,105 @@ abstract class EnqueueAssetBaseAbstract {
 	 * based on the provided `$asset_type` and then calling the corresponding aliased
 	 * method from either `ScriptsEnqueueTrait` or `StylesEnqueueTrait`.
 	 *
-	 * @param string               $asset_type The type of asset ('script' or 'style').
+	 * @param AssetType $asset_type The type of asset ('script' or 'style').
 	 * @param array<string, mixed> $asset_definition The definition of the asset to process.
-	 * @param string               $processing_context The context in which the asset is being processed.
-	 * @param string|null          $hook_name The name of the hook if the asset is deferred.
-	 * @param bool                 $do_register Whether to register the asset.
-	 * @param bool                 $do_enqueue Whether to enqueue the asset.
+	 * @param string $processing_context The context in which the asset is being processed.
+	 * @param string|null $hook_name The name of the hook if the asset is deferred.
+	 * @param bool $do_register Whether to register the asset.
+	 * @param bool $do_enqueue Whether to enqueue the asset.
 	 * @return string|false The handle of the processed asset, or false on failure.
 	 */
 	protected function _process_single_asset(
-		string $asset_type,
+		AssetType $asset_type,
 		array $asset_definition,
 		string $processing_context,
 		?string $hook_name = null,
 		bool $do_register = true,
 		bool $do_enqueue = false
 	): string|false {
-		if ( 'script' === $asset_type ) {
-			return $this->trait_process_single_script( $asset_type, $asset_definition, $processing_context, $hook_name, $do_register, $do_enqueue );
-		}
-
-		if ( 'style' === $asset_type ) {
-			return $this->trait_process_single_style( $asset_type, $asset_definition, $processing_context, $hook_name, $do_register, $do_enqueue );
-		}
-
-		$logger = $this->get_logger();
-		if ( $logger->is_active() ) {
-			$handle_for_log = $asset_definition['handle'] ?? 'N/A';
-			$logger->error( "EnqueueAssetBaseAbstract::_process_single_asset - Unknown asset type '{$asset_type}' for handle '{$handle_for_log}'. Cannot process." );
-		}
-
-		return false;
+		return match ($asset_type) {
+			AssetType::Script => $this->_process_single_script_asset(
+				$asset_type,
+				$asset_definition,
+				$processing_context,
+				$hook_name,
+				$do_register,
+				$do_enqueue
+			),
+			AssetType::Style => $this->_process_single_style_asset(
+				$asset_type,
+				$asset_definition,
+				$processing_context,
+				$hook_name,
+				$do_register,
+				$do_enqueue
+			),
+		};
 	}
 
 	/**
 	 * Dispatches the processing of inline assets to the appropriate trait.
 	 *
-	 * @param string      $_asset_type        The type of asset ('script' or 'style').
-	 * @param string      $parent_handle      The handle of the parent asset.
-	 * @param string|null $hook_name          The hook context, if any.
-	 * @param string      $processing_context A string indicating the calling context for logging.
+	 * @param AssetType $asset_type The type of asset ('script' or 'style').
+	 * @param string $parent_handle The handle of the parent asset.
+	 * @param string|null $hook_name The hook context, if any.
+	 * @param string $processing_context A string indicating the calling context for logging.
 	 * @return void
 	 */
 	protected function _process_inline_assets(
-		string $_asset_type,
+		AssetType $asset_type,
 		string $parent_handle,
 		?string $hook_name,
 		string $processing_context
 	): void {
-		if ( 'script' === $_asset_type ) {
-			$this->trait_process_inline_scripts( $_asset_type, $parent_handle, $hook_name, $processing_context );
-			return;
-		}
-
-		if ( 'style' === $_asset_type ) {
-			$this->trait_process_inline_styles( $_asset_type, $parent_handle, $hook_name, $processing_context );
-			return;
-		}
-
-		$logger = $this->get_logger();
-		if ( $logger->is_active() ) {
-			$logger->error( "EnqueueAssetBaseAbstract::_process_inline_assets - Unknown asset type '{$_asset_type}' for parent handle '{$parent_handle}'. Cannot process." );
-		}
+		match ($asset_type) {
+			AssetType::Script => $this->_process_inline_script_assets(
+				$asset_type,
+				$parent_handle,
+				$hook_name,
+				$processing_context
+			),
+			AssetType::Style => $this->_process_inline_style_assets(
+				$asset_type,
+				$parent_handle,
+				$hook_name,
+				$processing_context
+			),
+		};
 	}
 
 	/**
 	 * Dispatches the modification of an HTML asset tag to the appropriate trait.
 	 *
-	 * @param string $_asset_type                 The type of asset ('script' or 'style').
-	 * @param string $tag                         The original HTML tag.
-	 * @param string $tag_handle                  The handle of the tag being processed.
-	 * @param string $handle_to_match             The handle to match against.
-	 * @param array<string, string|true> $attributes_for_tag_modifier An array of attributes to add/modify.
+	 * @param AssetType $asset_type The type of asset ('script' or 'style').
+	 * @param string $tag The original HTML tag.
+	 * @param string $tag_handle The handle of the tag being processed.
+	 * @param string $handle_to_match The handle to match against.
+	 * @param array<string, string|true> $attributes_to_apply An array of attributes to add/modify.
 	 * @return string The modified (or original) HTML asset tag.
 	 */
 	protected function _modify_html_tag_attributes(
-		string $_asset_type,
+		AssetType $asset_type,
 		string $tag,
 		string $tag_handle,
 		string $handle_to_match,
-		array $attributes_for_tag_modifier
+		array $attributes_to_apply
 	): string {
-		if ( 'script' === $_asset_type ) {
-			return $this->trait_modify_script_tag_attributes( $_asset_type, $tag, $tag_handle, $handle_to_match, $attributes_for_tag_modifier );
-		}
-
-		if ( 'style' === $_asset_type ) {
-			return $this->trait_modify_style_tag_attributes( $_asset_type, $tag, $tag_handle, $handle_to_match, $attributes_for_tag_modifier );
-		}
-
-		$logger = $this->get_logger();
-		if ( $logger->is_active() ) {
-			$logger->error( "EnqueueAssetBaseAbstract::_modify_html_tag_attributes - Unknown asset type '{$_asset_type}' for handle '{$tag_handle}'. Cannot modify tag." );
-		}
-
-		return $tag;
+		return match ($asset_type) {
+			AssetType::Script => $this->_modify_script_tag_attributes(
+				$asset_type,
+				$tag,
+				$tag_handle,
+				$handle_to_match,
+				$attributes_to_apply
+			),
+			AssetType::Style => $this->_modify_style_tag_attributes(
+				$asset_type,
+				$tag,
+				$tag_handle,
+				$handle_to_match,
+				$attributes_to_apply
+			),
+		};
 	}
 }

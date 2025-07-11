@@ -4,7 +4,7 @@
  *
  * @todo FEATURE - cachebusting beyond version numbers
  * @todo FEATURE - dev vs prod for loading minififed files
- * @todo Clearify - How is load order handeled in current context?
+ * @todo CLEARIFY - How is load order handeled in current context?
  * @todo EXPLORE MULTI-SITE compatibility
  * @todo EXPLORE WP_NETWORK
  * @todo EXPLORE Script localization (wp_localize_script)
@@ -21,6 +21,7 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\EnqueueAccessory;
 
+use Ran\PluginLib\EnqueueAccessory\AssetType;
 use Ran\PluginLib\Util\Logger;
 
 /**
@@ -35,23 +36,42 @@ trait EnqueueAssetTraitBase {
 	/**
 	 * Holds all asset definitions.
 	 *
-	 * @var array<int, array<string, mixed>>
+	 * @var array<string, array<int, array<string, mixed>>>
 	 */
-	protected array $assets = array();
-
-	/**
-	 * Array of inline asset definitions to be added.
-	 *
-	 * @var array<int, array<string, mixed>>
-	 */
-	protected array $inline_assets = array();
+	protected array $assets = array(
+		'script' => array(),
+		'style'  => array(),
+	);
 
 	/**
 	 * Array of assets to be loaded at specific WordPress action hooks.
 	 *
-	 * @var array<string, array<int, array<string, mixed>>>
+	 * @var array<string, array<string, array<int, array<string, mixed>>>>
 	 */
-	protected array $deferred_assets = array();
+	protected array $deferred_assets = array(
+		'script' => array(),
+		'style'  => array(),
+	);
+
+	/**
+	 * Array of inline assets for external handles, keyed by hook.
+	 *
+	 * @var array<string, array<string, array<int, array<string, mixed>>>>
+	 */
+	protected array $external_inline_assets = array(
+		'script' => array(),
+		'style'  => array(),
+	);
+
+	/**
+	 * Tracks which hooks have had an action registered for external inline assets.
+	 *
+	 * @var array<string, array<string, bool>>
+	 */
+	protected array $registered_external_hooks = array(
+		'script' => array(),
+		'style'  => array(),
+	);
 
 	/**
 	 * Abstract method to get the logger instance.
@@ -65,56 +85,44 @@ trait EnqueueAssetTraitBase {
 	/**
 	 * Retrieves the currently registered array of asset definitions.
 	 *
-	 * @return array<string, array> An associative array of asset definitions, keyed by 'general', 'deferred', and 'inline'.
+	 * @return array<string, array> An associative array of asset definitions, keyed by 'general', 'deferred', and 'external_inline'.
 	 */
-	public function get_assets( string $asset_type ): array {
+	public function get_assets(AssetType $asset_type): array {
 		return array(
-			'general'  => $this->assets[ $asset_type ]          ?? array(),
-			'deferred' => $this->deferred_assets[ $asset_type ] ?? array(),
-			'inline'   => $this->inline_assets[ $asset_type ]   ?? array(),
+			'general'         => $this->assets[$asset_type->value]                 ?? array(),
+			'deferred'        => $this->deferred_assets[$asset_type->value]        ?? array(),
+			'external_inline' => $this->external_inline_assets[$asset_type->value] ?? array(),
 		);
-	}
-
-	/**
-	 * Retrieves the currently registered array of asset definitions.
-	 *
-	 * @return array<string, array<int, array<string, mixed>>>
-	 */
-	public function get_inline_assets( string $asset_type ): array {
-		return $this->inline_assets[ $asset_type ] ?? array();
-	}
-
-	/**
-	 * Retrieves the registered deferred assets.
-	 *
-	 * @return array<string, array<int, array<string, mixed>>>
-	 */
-	public function get_deferred_assets( string $asset_type ): array {
-		return $this->deferred_assets[ $asset_type ] ?? array();
 	}
 
 	/**
 	 * Retrieves the unique hook names for all registered deferred assets.
 	 *
-	 * This method inspects both unprocessed assets and already-registered deferred assets
-	 * to provide a complete list of hooks, which is necessary for the `load()` method
-	 * to correctly register all necessary WordPress actions before assets are processed.
+	 * This method performs a "look-ahead" by inspecting both unprocessed (`$this->assets`)
+	 * and already-processed (`$this->deferred_assets`) asset arrays. This is crucial for
+	 * the public-facing enqueue process (`EnqueuePublic::load()`) to preemptively register
+	 * all necessary WordPress actions for custom hooks.
+	 *
+	 * In the WordPress lifecycle, actions must be registered before the logic that determines
+	 * their necessity has fully run. This method solves that timing issue by providing a
+	 * complete list of hooks upfront. This is not required in the admin context, as the
+	 * `admin_enqueue_scripts` hook provides sufficient context.
 	 *
 	 * @return string[] An array of unique hook names.
 	 * @see ARD/ADR-001.md For the rationale behind this preemptive check.
 	 */
-	public function get_deferred_hooks( string $asset_type ): array {
+	public function get_deferred_hooks(AssetType $asset_type): array {
 		$hooks = array();
 
 		// Check for hooks in the main assets array for the given type.
-		foreach ( ( $this->assets[ $asset_type ]['general'] ?? array() ) as $asset ) {
+		foreach ( ($this->assets[$asset_type->value]['general'] ?? array()) as $asset ) {
 			if ( ! empty( $asset['hook'] ) ) {
 				$hooks[] = $asset['hook'];
 			}
 		}
 
 		// Merge with hooks from already-processed deferred assets for the given type.
-		$deferred_hooks = array_keys( $this->deferred_assets[ $asset_type ] ?? array() );
+		$deferred_hooks = array_keys( $this->deferred_assets[$asset_type->value] ?? array() );
 
 		return array_unique( array_merge( $hooks, $deferred_hooks ) );
 	}
@@ -128,47 +136,61 @@ trait EnqueueAssetTraitBase {
 	 * @param array<string, mixed>|array<int, array<string, mixed>> $assets_to_add A single asset definition array or an array of asset definition arrays.
 	 * @return self Returns the instance of this class for method chaining.
 	 */
-	public function add_assets( array $assets_to_add, string $asset_type ): self {
+	public function add_assets(array $assets_to_add, AssetType $asset_type): self {
 		$logger  = $this->get_logger();
-		$context = __TRAIT__ . '::add_' . $asset_type;
+		$context = __TRAIT__ . '::add_' . $asset_type->value . 's';
 
 		// Ensure the asset type key exists to prevent notices on count().
-		if ( ! isset( $this->assets[ $asset_type ] ) ) {
-			$this->assets[ $asset_type ] = [];
+		if ( ! isset( $this->assets[$asset_type->value] ) ) {
+			$this->assets[$asset_type->value] = array();
 		}
 
 		if ( empty( $assets_to_add ) ) {
 			if ( $logger->is_active() ) {
-				$logger->debug( "{$context} - Entered with empty array. No {$asset_type}s to add." );
+				$logger->debug( "{$context} - Entered with empty array. No {$asset_type->value}s to add." );
 			}
 			return $this;
 		}
 
 		// Normalize single asset definition into an array of definitions.
-		if ( isset( $assets_to_add['handle'] ) ) {
+		if ( isset( $assets_to_add['handle'] ) && is_string( $assets_to_add['handle'] ) ) {
 			$assets_to_add = array( $assets_to_add );
 		}
 
+		// Validate all assets before adding them to the queue.
+		foreach ($assets_to_add as $key => $asset) {
+			$handle = $asset['handle'] ?? null;
+			$src    = $asset['src']    ?? null;
+
+			if (empty($handle)) {
+				throw new \InvalidArgumentException("Invalid {$asset_type->value} definition at index {$key}. Asset must have a 'handle'.");
+			}
+
+			if ($src !== false && empty($src)) {
+				throw new \InvalidArgumentException("Invalid {$asset_type->value} definition for handle '{$handle}'. Asset must have a 'src' or 'src' must be explicitly set to false.");
+			}
+		}
+
 		if ( $logger->is_active() ) {
-			$logger->debug( "{$context} - Entered. Current {$asset_type} count: " . count( $this->assets[ $asset_type ] ) . '. Adding ' . count( $assets_to_add ) . " new {$asset_type}(s)." );
+			$logger->debug( "{$context} - Entered. Current {$asset_type->value} count: " . count( $this->assets[$asset_type->value] ) . '. Adding ' . count( $assets_to_add ) . " new {$asset_type->value}(s)." );
 			foreach ( $assets_to_add as $asset_key => $asset_data ) {
 				$handle = $asset_data['handle'] ?? 'N/A';
 				$src    = $asset_data['src']    ?? 'N/A';
-				$logger->debug( "{$context} - Adding {$asset_type}. Key: {$asset_key}, Handle: {$handle}, src: {$src}" );
+				$logger->debug( "{$context} - Adding {$asset_type->value}. Key: {$asset_key}, Handle: {$handle}, src: {$src}" );
 			}
-			$logger->debug( "{$context} - Adding " . count( $assets_to_add ) . " {$asset_type} definition(s). Current total: " . count( $this->assets[ $asset_type ] ) );
+			$logger->debug( "{$context} - Adding " . count( $assets_to_add ) . " {$asset_type->value} definition(s). Current total: " . count( $this->assets[$asset_type->value] ) );
 		}
 
 		// Append new assets to the existing list.
 		foreach ( $assets_to_add as $asset_definition ) {
-			$this->assets[ $asset_type ][] = $asset_definition;
+			$this->assets[$asset_type->value][] = $asset_definition;
 		}
 		if ( $logger->is_active() ) {
-			$new_total = count( $this->assets[ $asset_type ] );
-			$logger->debug( "{$context} - Exiting. New total {$asset_type} count: {$new_total}" );
+			$new_total = count( $this->assets[$asset_type->value] );
+			$logger->debug( "{$context} - Exiting. New total {$asset_type->value} count: {$new_total}" );
 			if ( $new_total > 0 ) {
-				$current_handles = array_map( static fn( $a ) => $a['handle'] ?? 'N/A', $this->assets[ $asset_type ]);
-				$logger->debug( "{$context} - All current {$asset_type} handles: " . implode( ', ', $current_handles ) );
+				$current_handles = array_map( static fn( $a ) => $a['handle'] ?? 'N/A', $this->assets[$asset_type->value] );
+				$logger->debug( "{$context} - All current {$asset_type->value} handles: " . implode( ', ', $current_handles ) );
 			}
 		}
 		return $this;
@@ -178,68 +200,76 @@ trait EnqueueAssetTraitBase {
 	 * Registers assets, separating deferred assets and preparing immediate assets for enqueuing.
 	 *
 	 * This method processes asset definitions previously added via `add_assets($asset_type)`.
-	 * It begins by taking a copy of all current assets and then clearing the main `$this->assets[ $asset_type ]` array.
+	 * It begins by taking a copy of all current assets and then clearing the main `$this->assets[$asset_type->value]` array.
 	 *
 	 * It then iterates through the copied asset definitions:
 	 * - If an asset specifies a 'hook', it is considered deferred. The asset definition is moved
-	 *   to the `$this->deferred_assets[ $asset_type ]` array, keyed by its hook name. An action is scheduled
-	 *   with WordPress to call `enqueue_deferred_assets()` for that hook. Deferred assets are
-	 *   not re-added to the main `$this->assets[ $asset_type ]` array.
+	 *   to the `$this->deferred_assets[$asset_type->value]` array, keyed by its hook name. An action is scheduled
+	 *   with WordPress to call `_enqueue_deferred_assets()` for that hook. Deferred assets are
+	 *   not re-added to the main `$this->assets[$asset_type->value]` array.
 	 * - If an asset does not specify a 'hook', it is considered immediate. `_process_single_asset()`
 	 *   is called for this asset with `do_register = true` and `do_enqueue = false` to handle
 	 *   its registration with WordPress.
 	 * - If an immediate asset is successfully registered, its definition is added back into the
-	 *   (initially cleared) `$this->assets[ $asset_type ]` array, preserving its original index.
+	 *   (initially cleared) `$this->assets[$asset_type->value]` array, preserving its original index.
 	 *
-	 * After processing all assets, the `$this->assets[ $asset_type ]` array will contain only those immediate
+	 * After processing all assets, the `$this->assets[$asset_type->value]` array will contain only those immediate
 	 * assets that were successfully registered. This array is then re-indexed using `array_values()`.
 	 * The primary role of this method is to manage the initial registration phase and to ensure
-	 * that `$this->assets[ $asset_type ]` is correctly populated with only immediate, registered assets, ready
-	 * for the `enqueue_assets()` method to handle their final enqueuing.
+	 * that `$this->assets[$asset_type->value]` is correctly populated with only immediate, registered assets, ready
+	 * for the `stage_assets()` method to handle their final enqueuing.
 	 *
 	 * @return self Returns the instance for method chaining.
 	 */
-	public function register_assets(string $asset_type): self {
+	public function stage_assets(AssetType $asset_type): self {
 		$logger  = $this->get_logger();
-		$context = __TRAIT__ . '::register_' . $asset_type;
+		$context = __TRAIT__ . '::stage_' . $asset_type->value . 's';
+
+		// Ensure the asset type key exists to prevent notices on count().
+		if ( ! isset( $this->assets[$asset_type->value] ) ) {
+			$this->assets[$asset_type->value] = array();
+		}
+		$asset_type_string = strtolower($asset_type->value);
 
 		if ( $logger->is_active() ) {
-			$logger->debug( __METHOD__ . ' - Entered. Processing ' . count( $this->assets[ $asset_type ] ) . ' ' . $asset_type . ' definition(s) for registration.' );
+			$logger->debug( $context . ' - Entered. Processing ' . count( $this->assets[$asset_type->value] ) . ' ' . $asset_type->value . ' definition(s) for registration.' );
 		}
 
-		$assets_to_process           = $this->assets[ $asset_type ];
-		$this->assets[ $asset_type ] = array(); // Clear original to re-populate with non-deferred assets that are successfully processed.
+		$assets_to_process                = $this->assets[$asset_type->value];
+		$this->assets[$asset_type->value] = array(); // Clear original to re-populate with non-deferred assets that are successfully processed.
 
 		foreach ( $assets_to_process as $index => $asset_definition ) {
-			$handle_for_log = $asset_definition['handle'] ?? 'N/A';
-			$hook           = $asset_definition['hook']   ?? null;
+			$hook = $asset_definition['hook'] ?? null;
 
 			if ( $logger->is_active() ) {
-				$logger->debug( "{$context} - Processing {$asset_type}: \"{$handle_for_log}\", original index: {$index}." );
+				$logger->debug( "{$context} - Processing {$asset_type->value}: \"{$asset_definition['handle']}\", original index: {$index}." );
 			}
 
 			if ( ! empty( $hook ) ) {
 				if ( $logger->is_active() ) {
-					$logger->debug( "{$context} - Deferring registration of {$asset_type} '{$handle_for_log}' (original index {$index}) to hook: {$hook}." );
+					$logger->debug( "{$context} - Deferring registration of {$asset_type->value} '{$asset_definition['handle']}' (original index {$index}) to hook: {$hook}." );
 				}
-				if ( ! isset( $this->deferred_assets[$asset_type][ $hook ] ) ) {
-					$this->deferred_assets[$asset_type][ $hook ] = array();
+				if ( ! isset( $this->deferred_assets[$asset_type->value][$hook] ) ) {
+					$this->deferred_assets[$asset_type->value][$hook] = array();
 				}
-				$this->deferred_assets[$asset_type][ $hook ][ $index ] = $asset_definition;
+				$this->deferred_assets[$asset_type->value][$hook][$index] = $asset_definition;
 
 				// Ensure the action for deferred assets is added only once per hook.
-				// The callback method 'enqueue_deferred_assets' is part of this base trait.
-				$action_exists = has_action( $hook, array( $this, 'enqueue_deferred_assets' ) );
+				// The callback method '_enqueue_deferred_assets' is part of this base trait.
+				$action_exists = has_action( $hook, array( $this, 'enqueue_deferred_' . $asset_type_string . 's' ) );
 				if ( ! $action_exists ) {
-					add_action( $hook, array( $this, 'enqueue_deferred_assets' ), 10, 1 );
+					add_action( $hook, array( $this, 'enqueue_deferred_' . $asset_type_string . 's' ), 10, 1 );
 					if ( $logger->is_active() ) {
-						$logger->debug( "{$context} - Added action for 'enqueue_deferred_assets' on hook: {$hook}." );
+						$logger->debug( "{$context} - Added action for 'enqueue_deferred_{$asset_type_string}s' on hook: {$hook}." );
 					}
 				} else {
 					if ( $logger->is_active() ) {
-						$logger->debug( "{$context} - Action for 'enqueue_deferred_assets' on hook '{$hook}' already exists." );
+						$logger->warning( "{$context} - Action for 'enqueue_deferred_{$asset_type_string}s' on hook '{$hook}' already exists, skipping." );
 					}
 				}
+
+				// Skip immediate processing for this deferred asset.
+				continue;
 			} else {
 				// Process immediately for registration.
 				// The processing_context passed to _process_single_asset is the same as our current log_context_prefix.
@@ -251,22 +281,22 @@ trait EnqueueAssetTraitBase {
 					true,               // do_register
 					false              // do_enqueue (registration only)
 				);
-				// Re-add to $this->assets[$asset_type] if it was meant for immediate registration and was successfully processed.
+				// Re-add to $this->assets[$asset_type->value] if it was meant for immediate registration and was successfully processed.
 				if ( $processed_successfully ) {
-					$this->assets[ $asset_type ][ $index ] = $asset_definition;
+					$this->assets[$asset_type->value][$index] = $asset_definition;
 				}
 			}
 		}
 
-		// Ensure $this->assets[$asset_type] is a list if all items were deferred or none were processed successfully.
-		$this->assets[ $asset_type ] = array_values($this->assets[ $asset_type ]);
+		// Ensure $this->assets[$asset_type->value] is a list if all items were deferred or none were processed successfully.
+		$this->assets[$asset_type->value] = array_values($this->assets[$asset_type->value]);
 
 		if ( $logger->is_active() ) {
 			$deferred_count = 0;
-			foreach ($this->deferred_assets[$asset_type] as $hook_assets) {
+			foreach (($this->deferred_assets[$asset_type->value] ?? array()) as $hook_assets) {
 				$deferred_count += count($hook_assets);
 			}
-			$logger->debug( "{$context} - Exited. Remaining immediate {$asset_type}s: " . count( $this->assets[ $asset_type ] ) . ". Total deferred {$asset_type}s: " . $deferred_count . '.' );
+			$logger->debug( "{$context} - Exited. Remaining immediate {$asset_type->value}s: " . count( $this->assets[$asset_type->value] ) . ". Total deferred {$asset_type->value}s: " . $deferred_count . '.' );
 		}
 		return $this;
 	}
@@ -274,17 +304,17 @@ trait EnqueueAssetTraitBase {
 	/**
 	 * Processes and enqueues all immediate assets, then clears them from the assets array.
 	 *
-	 * This method iterates through the `$this->assets[$asset_type]` array, which at this stage should only
+	 * This method iterates through the `$this->assets[$asset_type->value]` array, which at this stage should only
 	 * contain non-deferred assets. The `register_assets()` method is responsible for separating
 	 * out deferred assets and handling initial registration. This method calls `_process_single_asset`
-	 * for each immediate asset to handle the final enqueuing step, and then clears the `$this->assets[$asset_type]` array.
+	 * for each immediate asset to handle the final enqueuing step, and then clears the `$this->assets[$asset_type->value]` array.
 	 *
 	 * For each immediate asset, it calls `_process_single_asset()` to handle enqueuing and
 	 * the processing of any associated inline scripts or attributes.
 	 *
 	 * Enqueues all immediate assets from the internal queue.
 	 *
-	 * This method processes assets from the `$this->assets[$asset_type]` queue. It is designed to be
+	 * This method processes assets from the `$this->assets[$asset_type->value]` queue. It is designed to be
 	 * robust. If it encounters an asset that has a 'hook' property, it will throw a
 	 * `LogicException`, as this indicates that `register_assets()` was not called first
 	 * to correctly defer the asset.
@@ -294,39 +324,46 @@ trait EnqueueAssetTraitBase {
 	 * set to `true`. This makes the method safe to call even if `register_assets()` was
 	 * skipped for immediate-only assets.
 	 *
-	 * After processing, this method clears the `$this->assets[$asset_type]` array. Deferred assets stored
-	 * in `$this->deferred_assets[$asset_type]` are not affected.
+	 * After processing, this method clears the `$this->assets[$asset_type->value]` array. Deferred assets stored
+	 * in `$this->deferred_assets[$asset_type->value]` are not affected.
 	 *
 	 * @throws \LogicException If a deferred asset is found in the queue, indicating `register_assets()` was not called.
 	 * @return self Returns the instance for method chaining.
 	 */
-	public function enqueue_assets(string $asset_type): self {
+	public function enqueue_immediate_assets(AssetType $asset_type): self {
 		$logger  = $this->get_logger();
-		$context = __TRAIT__ . '::enqueue_' . $asset_type . 's';
+		$context = __TRAIT__ . '::stage_' . $asset_type->value . 's';
 
 		if ( $logger->is_active() ) {
-			$logger->debug( "{$context} - Entered. Processing " . count( $this->assets[ $asset_type ] ) . " {$asset_type} definition(s) from internal queue." );
+			$logger->debug( "{$context} - Entered. Processing " . count( $this->assets[$asset_type->value] ) . " {$asset_type->value} definition(s) from internal queue." );
 		}
 
-		$assets_to_process           = $this->assets[ $asset_type ];
-		$this->assets[ $asset_type ] = array(); // Clear the main queue, as we are processing all of them now.
+		$assets_to_process                = $this->assets[$asset_type->value];
+		$this->assets[$asset_type->value] = array(); // Clear the main queue, as we are processing all of them now.
 
 		foreach ( $assets_to_process as $index => $asset_definition ) {
-			$handle_for_log = $asset_definition['handle'] ?? 'N/A';
+			$handle = $asset_definition['handle'] ?? null;
+
+			if ( empty( $handle ) ) {
+				if ( $logger->is_active() ) {
+					$logger->warning( "{$context} - Skipping asset at index {$index} due to missing handle - this should not be possible when using add_* methods." );
+				}
+				continue;
+			}
 
 			// Check for mis-queued deferred assets. This is a critical logic error.
 			if ( ! empty( $asset_definition['hook'] ) ) {
 				throw new \LogicException(
-					"{$context} - Found a deferred asset ('{$handle_for_log}') in the immediate queue. " .
-					'The `register_assets()` method must be called before `enqueue_assets()` to correctly process deferred assets.'
+					"{$context} - Found a deferred asset ('{$handle}') in the immediate queue. " .
+					'The `stage_assets()` method must be called before `enqueue_immediate_assets()` to correctly process deferred assets.'
 				);
 			}
 
 			if ( $logger->is_active() ) {
-				$logger->debug( "{$context} - Processing {$asset_type}: \"{$handle_for_log}\", original index: {$index}." );
+				$logger->debug( "{$context} - Processing {$asset_type->value}: \"{$handle}\", original index: {$index}." );
 			}
 
-			// Defensively register and enqueue. The underlying `_process_single_asset`
+			// Defensively register and enqueue. The underlying `_process_single_*_asset`
 			// will check if the asset is already registered/enqueued and skip redundant calls.
 			$this->_process_single_asset(
 				$asset_type,
@@ -338,8 +375,8 @@ trait EnqueueAssetTraitBase {
 			);
 		}
 		if ( $logger->is_active() ) {
-			$deferred_count = empty($this->deferred_assets[ $asset_type ]) ? 0 : array_sum(array_map('count', $this->deferred_assets[ $asset_type ]));
-			$logger->debug( "{$context} - Exited. Deferred {$asset_type}s count: {$deferred_count}." );
+			$deferred_count = empty($this->deferred_assets[$asset_type->value]) ? 0 : array_sum(array_map('count', $this->deferred_assets[$asset_type->value]));
+			$logger->debug( "{$context} - Exited. Deferred {$asset_type->value}s count: {$deferred_count}." );
 		}
 		return $this;
 	}
@@ -347,66 +384,33 @@ trait EnqueueAssetTraitBase {
 	/**
 	 * Enqueues assets that were deferred to a specific hook.
 	 *
-	 * This method is typically called by WordPress as an action callback.
-	 *
+	 * @internal This is an internal method called by WordPress as an action callback and should not be called directly.
 	 * @param string $hook_name The WordPress hook name that triggered this method.
 	 * @return void
 	 */
-	public function enqueue_deferred_assets( string $hook_name, string $asset_type ): void {
+	protected function _enqueue_deferred_assets(string $hook_name, AssetType $asset_type): void {
 		$logger  = $this->get_logger();
-		$context = __TRAIT__ . '::enqueue_deferred_' . $asset_type . 's';
+		$context = __TRAIT__ . '::enqueue_deferred_' . $asset_type->value . 's';
 
 		if ( $logger->is_active() ) {
 			$logger->debug( "{$context} - Entered hook: \"{$hook_name}\"." );
 		}
 
-		if ( ! isset( $this->deferred_assets[ $asset_type ][ $hook_name ] ) ) {
+		if ( empty( $this->deferred_assets[$asset_type->value][$hook_name] ) ) {
 			if ( $logger->is_active() ) {
-				$logger->debug( "{$context} - Hook \"{$hook_name}\" not found in deferred {$asset_type}s. Nothing to process." );
+				$logger->debug( "{$context} - Hook \"{$hook_name}\" not found in deferred {$asset_type->value}s. Exiting - nothing to process." );
 			}
+			unset( $this->deferred_assets[$asset_type->value][$hook_name] );
 			return;
 		}
 
-		$assets_on_this_hook = $this->deferred_assets[ $asset_type ][ $hook_name ];
-		unset( $this->deferred_assets[ $asset_type ][ $hook_name ] );
+		$assets_on_this_hook = $this->deferred_assets[$asset_type->value][$hook_name];
+		unset( $this->deferred_assets[$asset_type->value][$hook_name] );
 
-		if ( empty( $assets_on_this_hook ) ) {
-			if ( $logger->is_active() ) {
-				$logger->debug( "{$context} - Hook \"{$hook_name}\" was set but had no {$asset_type}s. It has now been cleared." );
-			}
-			return;
-		}
-
-		foreach ( $assets_on_this_hook as $original_index => $asset_definition ) {
-			$handle_for_log = $asset_definition['handle'] ?? 'N/A_at_original_index_' . $original_index;
-			if ( $logger->is_active() ) {
-				$logger->debug( "{$context} - Processing deferred {$asset_type}: \"{$handle_for_log}\" (original index {$original_index}) for hook: \"{$hook_name}\"." );
-			}
-			// _process_single_asset handles all logic including registration, enqueuing, and conditions.
-			$processed_handle = $this->_process_single_asset(
-				$asset_type,
-				$asset_definition,
-				$context, // processing_context
-				$hook_name,         // hook_name
-				true,               // do_register
-				true                // do_enqueue
-			);
-
-			if ( $processed_handle ) {
-				$this->_process_inline_assets(
-					$asset_type,
-					$processed_handle,
-					$hook_name,
-					'deferred from enqueue_deferred_' . $asset_type . 's'
-				);
-			}
-		}
-
-		if ( $logger->is_active() ) {
-			$logger->debug( "{$context} - Exited for hook: \"{$hook_name}\"" );
+		foreach ($assets_on_this_hook as $asset_definition) {
+			$this->_process_single_asset($asset_type, $asset_definition, $context, $hook_name, true, true);
 		}
 	}
-
 
 	/**
 	 * Adds one or more inline asset definitions to the internal queue.
@@ -416,55 +420,46 @@ trait EnqueueAssetTraitBase {
 	 *
 	 * @param array<string, mixed>|array<int, array<string, mixed>> $inline_assets_to_add A single inline asset definition array or an array of them.
 	 *     Each definition array can include:
-	 *     - 'handle'    (string, required): Handle of the asset to attach the inline asset to.
+	 *     - 'parent_handle'    (string, required): Handle of the asset to attach the inline asset to.
 	 *     - 'content'   (string, required): The inline asset content.
 	 *     - 'position'  (string, optional): 'before' or 'after'. Default 'after'.
 	 *     - 'condition' (callable, optional): A callable that returns a boolean. If false, the asset is not added.
 	 *     - 'parent_hook' (string, optional): Explicitly associate with a parent's hook.
-	 * @param string $asset_type The type of asset to add inline assets for.
+	 * @param AssetType $asset_type The type of asset to add inline assets for.
 	 * @return self Returns the instance of this class for method chaining.
 	 */
 	public function add_inline_assets(
 		array $inline_assets_to_add,
-		string $asset_type
+		AssetType $asset_type
 	): self {
 		$logger  = $this->get_logger();
-		$context = __TRAIT__ . '::add_inline_' . $asset_type . 's';
+		$context = __TRAIT__ . '::add_inline_' . $asset_type->value . 's';
 
-		if ( empty( $inline_assets_to_add ) ) {
-			if ( $logger->is_active() ) {
-				$logger->debug( "{$context} - Entered with empty array. No inline {$asset_type}s to add." );
-			}
-			return $this;
-		}
-
-		// Normalize single asset definition into an array of definitions.
-		if ( ! is_array( current( $inline_assets_to_add ) ) ) {
+		// If a single asset definition is passed (detected by the presence of a 'parent_handle' key),
+		// wrap it in an array to handle it uniformly.
+		if ( isset( $inline_assets_to_add['parent_handle'] ) ) {
 			$inline_assets_to_add = array( $inline_assets_to_add );
 		}
 
+		$count = count( $inline_assets_to_add );
 		if ( $logger->is_active() ) {
-			$logger->debug( "{$context} - Entered. Current inline {$asset_type} count: " . count( $this->inline_assets[$asset_type] ) . '. Adding ' . count( $inline_assets_to_add ) . " new inline {$asset_type}(s)." );
+			$current_total = count( $this->external_inline_assets[$asset_type->value], COUNT_RECURSIVE ) - count( $this->external_inline_assets[$asset_type->value] );
+			$logger->debug( "{$context} - Entered. Current inline {$asset_type->value}s count: {$current_total}. Adding {$count} new definitions." );
 		}
 
-		foreach ( $inline_assets_to_add as $asset_definition ) {
+		foreach ( $inline_assets_to_add as $asset ) {
 			$this->_add_inline_asset(
 				$asset_type,
-				$asset_definition['handle']      ?? '',
-				$asset_definition['content']     ?? '',
-				$asset_definition['position']    ?? 'after',
-				$asset_definition['condition']   ?? null,
-				$asset_definition['parent_hook'] ?? null,
+				$asset['parent_handle'],
+				$asset['content'],
+				$asset['position']    ?? 'after',
+				$asset['condition']   ?? null,
+				$asset['parent_hook'] ?? null
 			);
-		}
-
-		if ( $logger->is_active() ) {
-			$logger->debug( "{$context} - Exiting. New total inline {$asset_type} count: " . count( $this->inline_assets[$asset_type] ) );
 		}
 
 		return $this;
 	}
-
 	/**
 	 * Chain-able call to add an inline asset.
 	 *
@@ -473,119 +468,129 @@ trait EnqueueAssetTraitBase {
 	 * @param string      $position   (optional) Whether to add the inline content before or after. Default 'after'.
 	 * @param callable|null $condition  (optional) Callback that determines if the inline content should be added.
 	 * @param string|null $parent_hook (optional) The WordPress hook name that the parent asset is deferred to.
-	 * @param string $asset_type The type of asset ('script' or 'style').
+	 * @param AssetType $asset_type The type of asset ('script' or 'style').
 	 * @return self
 	 */
-	private function _add_inline_asset(
-		string $asset_type,
-		string $handle,
+	protected function _add_inline_asset(
+		AssetType $asset_type,
+		string $parent_handle,
 		string $content,
 		string $position = 'after',
 		?callable $condition = null,
-		?string $parent_hook = null,
-	): self {
-		$logger  = $this->get_logger();
-		$context = __TRAIT__ . '::add_inline_' . $asset_type . 's';
+		?string $parent_hook = null
+	): void {
+		$logger           = $this->get_logger();
+		$context          = __TRAIT__ . '::add_inline_' . $asset_type->value . 's';
+		$asset_type_value = $asset_type->value;
 
 		if ( $logger->is_active() ) {
-			$logger->debug( "{$context} - Entered. Current inline {$asset_type} count: " . count( $this->inline_assets[$asset_type] ) . ". Adding new inline {$asset_type} for handle: " . \esc_html( $handle ) );
+			$logger->debug( "{$context} - Attempting to add inline {$asset_type_value} to parent '{$parent_handle}'." );
 		}
 
-		$inline_asset_item = array(
-			'handle'      => $handle,
-			'content'     => $content,
-			'position'    => $position,
-			'condition'   => $condition,
-			'parent_hook' => $parent_hook,
+		$inline_asset_definition = array(
+			'content'   => $content,
+			'position'  => $position,
+			'condition' => $condition,
 		);
 
-		// Associate inline asset with its parent's hook if the parent is deferred.
-		foreach ( $this->assets[$asset_type] as $original_asset_definition ) {
-			if ( ( $original_asset_definition['handle'] ?? null ) === $handle && ! empty( $original_asset_definition['hook'] ) ) {
-				if ( null === $inline_asset_item['parent_hook'] ) {
-					$inline_asset_item['parent_hook'] = $original_asset_definition['hook'];
+		// Step 1: Search the immediate queue first.
+		foreach ( $this->assets[$asset_type_value] as &$asset ) {
+			if ( isset( $asset['handle'] ) && $asset['handle'] === $parent_handle ) {
+				$asset['inline'][] = $inline_asset_definition;
+				if ( $parent_hook && $logger->is_active() ) {
+					$logger->warning( "{$context} - A 'parent_hook' was provided for '{$parent_handle}', but it's ignored as the parent was found internally in the immediate queue." );
 				}
-				if ( $logger->is_active() ) {
-					$logger->debug( "{$context} - Inline {$asset_type} for '{$handle}' associated with parent hook: '{$inline_asset_item['parent_hook']}'. Original parent {$asset_type} hook: '" . ( $original_asset_definition['hook'] ?? 'N/A' ) . "'." );
-				}
-				break;
+				return; // Found and attached.
 			}
 		}
 
-		$this->inline_assets[$asset_type][] = $inline_asset_item;
-
-		if ( $logger->is_active() ) {
-			$logger->debug( "{$context} - Exiting. New total inline {$asset_type} count: " . count( $this->inline_assets[$asset_type] ) );
+		// Step 2: Search the deferred assets queue.
+		foreach ( $this->deferred_assets[$asset_type_value] as &$hook_assets ) {
+			foreach ( $hook_assets as &$asset ) {
+				if ( isset( $asset['handle'] ) && $asset['handle'] === $parent_handle ) {
+					$asset['inline'][] = $inline_asset_definition;
+					if ( $parent_hook && $logger->is_active() ) {
+						$logger->warning( "{$context} - A 'parent_hook' was provided for '{$parent_handle}', but it's ignored as the parent was found internally in the deferred queue." );
+					}
+					return; // Found and attached.
+				}
+			}
 		}
-		return $this;
+		unset( $hook_assets, $asset ); // Clean up references.
+
+		// Step 3: Handle all other cases as external, or bail.
+		$is_wp_registered = ( AssetType::Script === $asset_type && \wp_script_is( $parent_handle, 'registered' ) )
+			|| ( AssetType::Style === $asset_type && \wp_style_is( $parent_handle, 'registered' ) );
+
+		// We can only proceed if the asset is already registered OR we have a hook to wait for.
+		if ( ! $is_wp_registered && ! $parent_hook ) {
+			if ( $logger->is_active() ) {
+				$logger->warning( "{$context} - Could not find parent handle '{$parent_handle}' in any internal queue or in WordPress, and no 'parent_hook' was provided. Bailing." );
+			}
+			return; // Bail
+		}
+
+		// Determine the hook. Use the provided one, or fall back to a safe default if the asset is already registered.
+		$hook = $parent_hook ?? ( $asset_type === AssetType::Script ? 'wp_enqueue_scripts' : 'wp_enqueue_scripts' ); // wp_enqueue_scripts is a safe bet for both
+
+		// Add the status flag to the definition for better debugging.
+		$inline_asset_definition['status'] = $is_wp_registered ? 'registered' : 'promised';
+
+		// Add to the single external queue.
+		$this->external_inline_assets[$asset_type_value][$hook][$parent_handle][] = $inline_asset_definition;
+
+		// Register the action to enqueue the external inline assets, but only once per hook.
+		if ( ! isset( $this->registered_external_hooks[$asset_type_value][$hook] ) ) {
+			$enqueue_method = 'enqueue_external_inline_' . $asset_type->value . 's';
+			add_action( $hook, array( $this, $enqueue_method ), 11 );
+			$this->registered_external_hooks[$asset_type_value][$hook] = true;
+		}
 	}
 
 	/**
-	 * Processes all immediate inline assets, then clears them from the queue.
+	 * Enqueues external inline assets for a specific hook.
 	 *
-	 * This method scans the `$this->inline_assets` array for any assets that do not have a
-	 * `parent_hook` defined, meaning they are intended for immediate processing. It then
-	 * calls the abstract `_process_inline_assets` method for each unique parent handle found.
-	 * Finally, it removes the processed immediate assets from the `$this->inline_assets` array.
+	 * This method is registered as a callback on a WordPress hook (e.g., 'wp_enqueue_scripts')
+	 * and is responsible for processing all external inline assets queued for that hook.
 	 *
-	 * @return self Returns the instance for method chaining.
+	 * @param AssetType $asset_type The type of asset ('script' or 'style') to process.
+	 * @internal This is an internal method called by WordPress as an action callback and should not be called directly.
+	 * @return void
 	 */
-	public function enqueue_inline_assets(string $asset_type): self {
-		$logger  = $this->get_logger();
-		$context = __TRAIT__ . '::enqueue_inline_' . $asset_type . 's';
+	protected function _enqueue_external_inline_assets(AssetType $asset_type): void {
+		$logger           = $this->get_logger();
+		$hook_name        = current_action();
+		$asset_type_value = $asset_type->value;
+		$context          = __TRAIT__ . '::enqueue_external_inline_' . $asset_type_value . 's';
 
 		if ( $logger->is_active() ) {
-			$logger->debug( "{$context} - Entered method." );
+			$logger->debug("{$context} - Fired on hook '{$hook_name}'.");
 		}
 
-		$immediate_parent_handles = array();
-		foreach ( $this->inline_assets[$asset_type] as $key => $inline_asset_data ) {
-			if ( ! is_array( $inline_asset_data ) ) {
-				if ( $logger->is_active() ) {
-					$logger->warning( "{$context} - Invalid inline {$asset_type} data at key '{$key}'. Skipping." );
-				}
-				continue;
-			}
-			$parent_hook = $inline_asset_data['parent_hook'] ?? null;
-			$handle      = $inline_asset_data['handle']      ?? null;
+		$assets_for_hook = $this->external_inline_assets[ $asset_type_value ][ $hook_name ] ?? array();
 
-			if ( empty( $parent_hook ) && ! empty( $handle ) ) {
-				if ( ! in_array( $handle, $immediate_parent_handles, true ) ) {
-					$immediate_parent_handles[] = $handle;
-				}
-			}
-		}
-
-		if ( empty( $immediate_parent_handles ) ) {
+		if ( empty( $assets_for_hook ) ) {
 			if ( $logger->is_active() ) {
-				$logger->debug( "{$context} - No immediate inline {$asset_type}s found needing processing." );
+				$logger->debug("{$context} - No external inline {$asset_type_value}s found for hook '{$hook_name}'. Exiting.");
 			}
-			return $this;
+			return;
 		}
 
-		if ( $logger->is_active() ) {
-			$logger->debug( "{$context} - Found " . count( $immediate_parent_handles ) . " unique parent handle(s) with immediate inline {$asset_type}s to process: " . implode( ', ', array_map( 'esc_html', $immediate_parent_handles ) ) );
-		}
-
-		foreach ( $immediate_parent_handles as $parent_handle_to_process ) {
+		foreach ( array_keys( $assets_for_hook ) as $parent_handle ) {
 			$this->_process_inline_assets(
 				$asset_type,
-				$parent_handle_to_process,
-				null, // hook_name (null for immediate)
-				'enqueue_inline_' . $asset_type . 's' // processing_context
+				$parent_handle,
+				$hook_name,
+				$context
 			);
 		}
 
-		// Clear the processed immediate inline assets from the main queue.
-		$this->inline_assets[$asset_type] = array_filter($this->inline_assets[$asset_type], function($asset) {
-			return !empty($asset['parent_hook']);
-		});
+		// Remove the processed assets for this hook from the queue.
+		unset( $this->external_inline_assets[ $asset_type_value ][ $hook_name ] );
 
 		if ( $logger->is_active() ) {
-			$remaining_count = count($this->inline_assets[$asset_type]);
-			$logger->debug("{$context} - Exited. Processed " . count($immediate_parent_handles) . " parent handle(s). Remaining deferred inline {$asset_type}s: {$remaining_count}.");
+			$logger->debug("{$context} - Finished processing for hook '{$hook_name}'.");
 		}
-		return $this;
 	}
 
 	/**
@@ -594,13 +599,13 @@ trait EnqueueAssetTraitBase {
 	 * This method must be implemented by the child trait to handle asset-specific
 	 * inline logic (e.g., calling `wp_add_inline_script` vs `wp_add_inline_style`).
 	 *
-	 * @param string      $_asset_type        The type of asset ('script' or 'style').
+	 * @param AssetType $asset_type The type of asset ('script' or 'style').
 	 * @param string      $parent_handle      The handle of the parent asset.
 	 * @param string|null $hook_name          The hook context, if any.
 	 * @param string      $processing_context A string indicating the calling context for logging.
 	 * @return void
 	 */
-	abstract protected function _process_inline_assets(string $_asset_type, string $parent_handle, ?string $hook_name, string $processing_context): void;
+	abstract protected function _process_inline_assets(AssetType $asset_type, string $parent_handle, ?string $hook_name, string $processing_context): void;
 
 	/**
 	 * Processes a single asset definition, handling registration, enqueuing, and data additions.
@@ -610,6 +615,7 @@ trait EnqueueAssetTraitBase {
 	 * wp_register_style and handling asset-specific parameters like 'in_footer' for scripts
 	 * or 'media' for styles.
 	 *
+	 * @param AssetType $asset_type The type of asset ('script' or 'style').
 	 * @param array<string, mixed> $asset_definition The definition of the asset to process.
 	 * @param string               $processing_context The context (e.g., 'register_assets', 'enqueue_deferred') in which the asset is being processed, used for logging.
 	 * @param string|null          $hook_name The name of the hook if the asset is being processed deferred, otherwise null.
@@ -618,14 +624,13 @@ trait EnqueueAssetTraitBase {
 	 * @return string|false The handle of the processed asset, or false if a critical error occurred.
 	 */
 	abstract protected function _process_single_asset(
-		string $asset_type,
+		AssetType $asset_type,scripts'
 		array $asset_definition,
 		string $processing_context,
 		?string $hook_name = null,
 		bool $do_register = true,
 		bool $do_enqueue = false
 	): string|false;
-
 
 	/**
 	 * Modifies a asset html loading tag by adding attributes, intended for use with the 'asset_loader_tag' filter.
@@ -634,15 +639,16 @@ trait EnqueueAssetTraitBase {
 	 * It's designed to work within the context of the 'asset_loader_tag' filter, allowing for dynamic
 	 * modification of asset tags based on the handle of the asset being filtered.
 	 *
+	 * @param AssetType $asset_type The type of asset ('script' or 'style').
 	 * @param string $tag The original HTML asset tag.
 	 * @param string $filter_tag_handle The handle of the asset currently being filtered by WordPress.
-	 * @param string $asset_handle_to_match The handle of the asset we are targeting for modification.
+	 * @param string $handle_to_match The handle of the asset we are targeting for modification.
 	 * @param array  $attributes_to_apply The attributes to apply to the asset tag.
 	 *
 	 * @return string The modified (or original) HTML asset tag.
 	 */
 	abstract protected function _modify_html_tag_attributes(
-		string $_asset_type,
+		AssetType $asset_type,
 		string $tag,
 		string $tag_handle,
 		string $handle_to_match,

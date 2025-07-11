@@ -18,7 +18,7 @@ namespace Ran\PluginLib\EnqueueAccessory;
  */
 interface EnqueueInterface {
 	/**
-	 * A class registration function to add admin_enqueue_scripts/wp_enqueue_scripts hooks to WP.
+	 * A class registration function to add admin_stage_scripts/wp_enqueue_scripts hooks to WP.
 	 * The hook callback function is $this->enqueue()
 	 *
 	 * @since 1.0.0
@@ -53,20 +53,41 @@ interface EnqueueInterface {
 	public function add_media( array $media ): self;
 
 	/**
-	 * Enqueue an array of scripts.
+	 * Process the scripts queue.
+	 * Any asset with a hook will be moved to the deferred queue and processed automatically.
+	 * Any asset without a hook will be processed once the enqueue_immediate_scripts() method is called.
 	 *
 	 * @since 1.0.0
 	 * @return self Returns the current instance for method chaining.
 	 */
-	public function enqueue_scripts(): self;
+	public function stage_scripts(): self;
 
 	/**
-	 * Enqueue all registered styles.
+	 * Process the styles queue.
+	 * Any asset with a hook will be moved to the deferred queue and processed automatically.
+	 * Any asset without a hook will be processed once the enqueue_immediate_styles() method is called.
 	 *
 	 * @since 1.0.0
 	 * @return self Returns the current instance for method chaining.
 	 */
-	public function enqueue_styles(): self;
+	public function stage_styles(): self;
+
+	/**
+	 * Process and enqueue any non-deferred scripts.
+	 *
+	 * @since 1.0.0
+	 * @return self Returns the current instance for method chaining.
+	 */
+	public function enqueue_immediate_scripts(): self;
+
+	/**
+	 * Process and enqueue any non-deferred styles.
+	 *
+	 * @since 1.0.0
+	 * @return self Returns the current instance for method chaining.
+	 */
+	public function enqueue_immediate_styles(): self;
+
 
 	/**
 	 * Enqueue an array of media.

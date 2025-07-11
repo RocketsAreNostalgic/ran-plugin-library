@@ -79,13 +79,23 @@ class EnqueueAdmin implements EnqueueInterface {
 		return $this;
 	}
 
-	public function enqueue_scripts(): self {
-		$this->scripts_handler->enqueue_scripts();
+	public function stage_scripts(): self {
+		$this->scripts_handler->stage_scripts();
 		return $this;
 	}
 
-	public function enqueue_styles(): self {
-		$this->styles_handler->enqueue_styles();
+	public function stage_styles(): self {
+		$this->styles_handler->stage_styles();
+		return $this;
+	}
+
+	public function enqueue_immediate_scripts(): self {
+		$this->scripts_handler->enqueue_immediate_scripts();
+		return $this;
+	}
+
+	public function enqueue_immediate_styles(): self {
+		$this->styles_handler->enqueue_immediate_styles();
 		return $this;
 	}
 

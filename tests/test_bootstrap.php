@@ -1,16 +1,15 @@
 <?php
 /**
  * Test bootstrap file for Ran Plugin Lib.
-
+ *
  * @package Ran/PluginLib
  */
 
 declare(strict_types = 1);
 
-// First we need to load the composer autoloader, so we can use WP Mock.
-require_once dirname(__DIR__) . '/vendor/autoload.php';
-
 use WP_Mock\Tools\TestCase;
+use \Ran\PluginLib\Util\CollectingLogger;
+use \Ran\PluginLib\Util\ExpectLogTrait;
 
 // Bootstrap WP_Mock to initialize built-in features.
 WP_Mock::bootstrap();
@@ -33,8 +32,9 @@ if (function_exists('add_action')) {
  * @package Ran/PluginLib
  */
 abstract class RanTestCase extends TestCase {
-	protected ?\Mockery\MockInterface $logger_mock = null;
-	private static array $skippedFilesReported     = array();
+	use ExpectLogTrait;
+	protected ?CollectingLogger $logger_mock   = null;
+	private static array $skippedFilesReported = array();
 	/**
 	 * Scaffold WP_Mock setUp method.
 	 *
@@ -74,81 +74,6 @@ abstract class RanTestCase extends TestCase {
 	public function tearDown(): void {
 		\Mockery::close();
 		parent::tearDown();
-	}
-
-	/**
-	 * Sets a Mockery expectation for a log message, checking for substrings.
-	 *
-	 * This provides a less brittle way to test logging than matching exact strings.
-	 * It requires the test class to have a `logger_mock` property.
-	 *
-	 * @param string       $level            The log level to expect (e.g., 'debug', 'warning').
-	 * @param string|array $message_contains A substring or array of substrings the log message must contain.
-	 * @param int          $times            The number of times the log is expected to be called.
-	 * @param string|null  $order_group      Optional ordering group name for Mockery's `ordered()` method.
-	 * @return void
-	 */
-	protected function expectLog(string $level, string|array $message_contains, int $times = 1, ?string $order_group = null, bool $logs = false, bool $debug = false): void {
-		if (!is_array($message_contains)) {
-			$message_contains = array($message_contains);
-		}
-
-		// This assumes the test class using this helper has a ->logger_mock property.
-		if (!property_exists($this, 'logger_mock') || !$this->logger_mock instanceof \Mockery\MockInterface) {
-			$this->fail('The expectLog() helper requires a Mockery\MockInterface property named "logger_mock" to be set on the test class.');
-		}
-
-		if ($logs && $debug) {
-			$expected_substrings = implode("', '", $message_contains);
-			fwrite(STDERR, sprintf(
-				"\n[expectLog - DEBUG] Setting expectation for %s() to be called %d time(s) with message containing: ['%s']\n",
-				$level,
-				$times,
-				$expected_substrings
-			));
-			fflush(STDERR);
-		}
-
-		$expectation = $this->logger_mock->shouldReceive($level)
-			->withArgs(function (...$args) use ($message_contains, $level, $logs, $debug) {
-				// $args is an array of all arguments passed to the log method,
-				// e.g., ['message', ['context' => 'value']]
-				if (empty($args) || !is_string($args[0])) {
-					if ($logs && $debug) {
-						fprintf(STDERR, "[expectLog - DEBUG] No arguments passed !\n");
-					}
-					return false;
-				}
-
-				$log_message = $args[0];
-				if ($logs && $debug) {
-					fprintf(STDERR, "[expectLog - DEBUG] args: '%s'.\n", implode("', '", $args));
-					fprintf(STDERR, "[expectLog - DEBUG] message_contains: '%s'.\n", implode("', '", $message_contains));
-				}
-
-				foreach ($message_contains as $substring) {
-					if ($logs && $debug) {
-						fprintf(STDERR, "[expectLog - DEBUG] substring: '%s'.\n", $substring);
-					}
-					if (strpos($log_message, $substring) === false) {
-						if ($logs) {
-							fprintf(STDERR, "Log expectation failed for '%s'.\n", $level);
-							// fprintf(STDERR, "Expected substring: '%s'\n", $substring);
-							fprintf(STDERR, "Expected parts: '%s'\n", implode("', '", $message_contains));
-							fprintf(STDERR, "Recieved: '%s'\n", $log_message);
-						}
-						return false; // A required substring was not found.
-					}
-				}
-
-				// All substrings were found, the match succeeds.
-				return true;
-			})
-			->times($times);
-
-		if ($order_group !== null) {
-			$expectation->ordered($order_group);
-		}
 	}
 
 	/**
