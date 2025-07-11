@@ -2,7 +2,12 @@
 /**
  * Logger class for WordPress plugins.
  *
+ *
  * @package Ran\PluginLib\Util
+ * @author  Ran Plugin Lib <support@ran.org>
+ * @license GPL-2.0+ <http://www.gnu.org/licenses/gpl-2.0.txt>
+ * @link    https://www.ran.org
+ * @since   0.1.0
  */
 
 declare(strict_types = 1);

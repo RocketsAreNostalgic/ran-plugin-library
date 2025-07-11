@@ -53,55 +53,17 @@ class EnqueuePublic implements EnqueueInterface {
 		}
 
 		add_action('wp_enqueue_scripts', array($this, 'enqueue'));
-
-		if ($this->logger->is_active()) {
-			$this->logger->debug('EnqueuePublic::load() - Checking for head callbacks.');
-		}
-
-		$head_callbacks = array_merge(
-			$this->scripts_handler->get_head_callbacks(),
-			$this->styles_handler->get_head_callbacks(),
-			$this->media_handler->get_head_callbacks()
-		);
-		if (!empty($head_callbacks)) {
-			if ($this->logger->is_active()) {
-				$this->logger->debug('EnqueuePublic::load() - Head callbacks found. Hooking render_head() to wp_head.');
-			}
-			add_action('wp_head', array($this, 'render_head'));
-		} else {
-			if ($this->logger->is_active()) {
-				$this->logger->debug('EnqueuePublic::load() - No head callbacks found.');
-			}
-		}
-
-		if ($this->logger->is_active()) {
-			$this->logger->debug('EnqueuePublic::load() - Checking for footer callbacks.');
-		}
-
-		$footer_callbacks = array_merge(
-			$this->scripts_handler->get_footer_callbacks(),
-			$this->styles_handler->get_footer_callbacks(),
-			$this->media_handler->get_footer_callbacks()
-		);
-		if (!empty($footer_callbacks)) {
-			if ($this->logger->is_active()) {
-				$this->logger->debug('EnqueuePublic::load() - Footer callbacks found. Hooking render_footer() to wp_footer.');
-			}
-			add_action('wp_footer', array($this, 'render_footer'));
-		} else {
-			if ($this->logger->is_active()) {
-				$this->logger->debug('EnqueuePublic::load() - No footer callbacks found.');
-			}
-		}
+		add_action('wp_head', array($this, 'render_head'));
+		add_action('wp_footer', array($this, 'render_footer'));
 
 		if ($this->logger->is_active()) {
 			$this->logger->debug('EnqueuePublic::load() - Checking for deferred assets.');
 		}
 
 		$deferred_hooks = array_unique(array_merge(
-			$this->scripts_handler->get_deferred_hooks(),
-			$this->styles_handler->get_deferred_hooks(),
-			$this->media_handler->get_deferred_hooks()
+			$this->scripts_handler->get_deferred_hooks(AssetType::Script),
+			$this->styles_handler->get_deferred_hooks(AssetType::Style),
+			$this->media_handler->get_media_deferred_hooks()
 		));
 
 		if (!empty($deferred_hooks)) {
@@ -119,9 +81,9 @@ class EnqueuePublic implements EnqueueInterface {
 				add_action(
 					$hook,
 					function () use ($hook, $scripts_handler, $styles_handler, $media_handler) {
-						$scripts_handler->enqueue_deferred_assets($hook);
-						$styles_handler->enqueue_deferred_assets($hook);
-						$media_handler->enqueue_deferred_assets($hook);
+						$scripts_handler->enqueue_deferred_scripts($hook);
+						$styles_handler->enqueue_deferred_styles($hook);
+						$media_handler->enqueue_deferred_media_tools($hook);
 					}
 				);
 			}
@@ -165,13 +127,23 @@ class EnqueuePublic implements EnqueueInterface {
 		return $this;
 	}
 
-	public function enqueue_scripts(): self {
-		$this->scripts_handler->enqueue_scripts();
+	public function stage_scripts(): self {
+		$this->scripts_handler->stage_scripts();
 		return $this;
 	}
 
-	public function enqueue_styles(): self {
-		$this->styles_handler->enqueue_styles();
+	public function enqueue_immediate_scripts(): self {
+		$this->scripts_handler->enqueue_immediate_scripts();
+		return $this;
+	}
+
+	public function stage_styles(): self {
+		$this->styles_handler->stage_styles();
+		return $this;
+	}
+
+	public function enqueue_immediate_styles(): self {
+		$this->styles_handler->enqueue_immediate_styles();
 		return $this;
 	}
 

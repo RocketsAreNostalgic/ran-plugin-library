@@ -48,10 +48,6 @@ final class RegisterOptionsTest extends PluginLibTestCase {
 		// This instance will be used by RegisterOptions when it calls ConfigAbstract::get_instance()
 		// or when its get_logger() method tries to get the config instance.
 		$this->get_and_register_concrete_config_instance();
-
-		// Common logger mock for all tests in this class, can be overridden in specific tests
-		$this->logger_mock = Mockery::mock(Logger::class);
-		$this->logger_mock->shouldReceive('is_active')->andReturn(false); // Default to inactive to reduce log noise in tests
 	}
 
 	/**

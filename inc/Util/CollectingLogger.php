@@ -1,17 +1,22 @@
 <?php
+/**
+ * CollectingLogger class for WordPress plugins.
+ *
+ * @package Ran\PluginLib\Util
+ */
+
 declare(strict_types=1);
 
-namespace Ran\PluginLib\Tests\Unit\Doubles;
+namespace Ran\PluginLib\Util;
 
-use Ran\PluginLib\Config\ConfigInterface;
-use Ran\PluginLib\Util\Logger;
 use Psr\Log\LogLevel;
+use Ran\PluginLib\Util\Logger;
 
 /**
- * A test double for the Logger that collects all messages.
- *
- * This class extends the real Logger but overrides the logging methods
- * to store messages in a public array instead of writing them to a file.
+ * This class extends the Logger but overrides the logging methods
+ * to store messages in a public array instead of writing them to disk.
+ * This can be used to redirect messages to STDERR for debugging purposes,
+ * or to collect messages as a test double for testing purposes.
  */
 class CollectingLogger extends Logger {
 	/**
@@ -19,9 +24,9 @@ class CollectingLogger extends Logger {
 	 */
 	public array $collected_logs = array();
 
-	public function __construct(ConfigInterface $config) {
+	public function __construct(array $config = array()) {
 		// Pass the config to the parent to ensure properties like is_active are set correctly.
-		parent::__construct($config->get_plugin_data());
+		parent::__construct($config);
 	}
 
 	public function is_active(): bool {

@@ -4,14 +4,15 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\Tests\Unit;
 
-use RanTestCase; // Assumes RanTestCase is available via autoloader or bootstrap
-use PHPUnit\Framework\MockObject\MockObject;
+use WP_Mock;
 use Mockery;
 use Mockery\MockInterface;
+use PHPUnit\Framework\MockObject\MockObject;
+use RanTestCase;
 use Ran\PluginLib\Config\ConfigAbstract;
 use Ran\PluginLib\Singleton\SingletonAbstract;
-use Ran\PluginLib\Tests\Unit\Doubles\CollectingLogger;
-use WP_Mock;
+use Ran\PluginLib\EnqueueAccessory\AssetType;
+use Ran\PluginLib\Util\CollectingLogger;
 
 /**
  * Minimal concrete class for testing ConfigAbstract initialization.
@@ -19,13 +20,11 @@ use WP_Mock;
  * This class is used internally by PluginLibTestCase to create a tangible instance
  * of ConfigAbstract for testing purposes, as ConfigAbstract itself is abstract.
  */
-if (!\class_exists(\Ran\PluginLib\Tests\Unit\ConcreteConfigForTesting::class)) {
-	class ConcreteConfigForTesting extends ConfigAbstract {
-		// This method is explicitly defined to resolve a PHPUnit mocking ambiguity
-		// with inherited methods. Its body is irrelevant as it will be mocked.
-		public function get_plugin_data(): array {
-			return array();
-		}
+class ConcreteConfigForTesting extends ConfigAbstract {
+	// This method is explicitly defined to resolve a PHPUnit mocking ambiguity
+	// with inherited methods. Its body is irrelevant as it will be mocked.
+	public function get_plugin_data(): array {
+		return array();
 	}
 }
 
@@ -53,9 +52,9 @@ abstract class PluginLibTestCase extends RanTestCase {
 	protected $config_mock;
 
 	/**
-	 * @var CollectingLogger|MockInterface The logger instance, a partial mock (spy).
+	 * @var CollectingLogger|null The logger instance for collecting log messages.
 	 */
-	protected ?\Mockery\MockInterface $logger_mock = null;
+	protected ?CollectingLogger $logger_mock = null;
 
 	/**
 	 * Path to the mock plugin file created during setup.
@@ -138,9 +137,9 @@ abstract class PluginLibTestCase extends RanTestCase {
 		// Initialize and register the concrete config instance.
 		$this->config_mock = $this->get_and_register_concrete_config_instance();
 
-		// Create a partial mock (spy) of CollectingLogger. This allows it to both
-		// collect logs via its real methods and have Mockery expectations set on it.
-		$this->logger_mock = Mockery::mock(CollectingLogger::class, array($this->config_mock))->makePartial();
+		// Instantiate the real CollectingLogger. This allows tests to inspect all
+		// logs after execution without Mockery interfering.
+		$this->logger_mock = new CollectingLogger($this->config_mock->get_plugin_data());
 
 		// Configure the config mock to always return our specific logger instance.
 		$this->config_mock->method('get_logger')->willReturn($this->logger_mock);
@@ -212,18 +211,21 @@ abstract class PluginLibTestCase extends RanTestCase {
 	 * @param array  $asset_to_add       The asset definition array.
 	 */
 	protected function _mock_asset_lifecycle_functions(
-		string $asset_type,
+		AssetType $asset_type,
 		string $register_function,
 		string $enqueue_function,
 		string $is_function,
-		array $asset_to_add
+		array $asset_to_add,
+		bool $is_registered = false,
+		bool $is_enqueued = false
 	): void {
-		$handle = $asset_to_add['handle'];
+		$asset_type_string = $asset_type->value;
+		$handle            = $asset_to_add['handle'];
 
 		WP_Mock::userFunction($is_function)->with($handle, 'registered')->andReturn(false, true, true);
-		WP_Mock::userFunction($is_function)->with($handle, 'enqueued')->andReturn(false);
+		// WP_Mock::userFunction($is_function)->with($handle, 'enqueued')->andReturn(false);
 
-		if ($asset_type === 'script') {
+		if ($asset_type_string === 'script') {
 			WP_Mock::userFunction($register_function)->with($handle, $asset_to_add['src'], $asset_to_add['deps'], $asset_to_add['version'], false)->andReturn(true);
 		} else {
 			WP_Mock::userFunction($register_function)->with($handle, $asset_to_add['src'], $asset_to_add['deps'], $asset_to_add['version'], $asset_to_add['media'])->andReturn(true);

@@ -184,7 +184,7 @@ class Bootstrap implements BootstrapInterface {
      */
     public function init(): ConfigInterface {
         $this->logger->info( $this->plugin_data['Name'] . ' - Bootstrap init.' );
-        $this->enqueue_assets();
+        $this->stage_assets();
         // $this->initialize_features();
         return $this->config;
     }
@@ -203,7 +203,7 @@ class Bootstrap implements BootstrapInterface {
      *
      * @return void
      */
-    private function enqueue_assets(): void {
+    private function stage_assets(): void {
         // Public-facing assets
         $public_assets = new EnqueuePublic( $this->config );
         $public_assets->add_styles([
@@ -247,7 +247,7 @@ class Bootstrap implements BootstrapInterface {
 The `EnqueueAbstract` class and its children (`EnqueuePublic`, `EnqueueAdmin`) provide a structured way to manage your CSS and JavaScript.
 
 - **`EnqueuePublic`:** Use for assets loaded on the public-facing side of your site. Hooks into `wp_enqueue_scripts`.
-- **`EnqueueAdmin`:** Use for assets loaded in the WordPress admin area. Hooks into `admin_enqueue_scripts`.
+- **`EnqueueAdmin`:** Use for assets loaded in the WordPress admin area. Hooks into `admin_stage_scripts`.
 
 #### Key Methods
 
@@ -265,9 +265,9 @@ Adds one or more inline script definitions to the enqueuer instance's internal l
 
 ##### `load()`
 
-This is a crucial method that finalizes the asset registration process. It iterates through all script, style, and inline script definitions that have been added to the enqueuer instance and registers the appropriate WordPress action hooks (e.g., `wp_enqueue_scripts` for public assets or `admin_enqueue_scripts` for admin assets). These hooks ensure that WordPress enqueues the assets at the correct time during page load.
+This is a crucial method that finalizes the asset registration process. It iterates through all script, style, and inline script definitions that have been added to the enqueuer instance and registers the appropriate WordPress action hooks (e.g., `wp_enqueue_scripts` for public assets or `admin_stage_scripts` for admin assets). These hooks ensure that WordPress enqueues the assets at the correct time during page load.
 
-**Important:** You must call `load()` once for each enqueuer instance (e.g., once for public assets and once for admin assets if you're using separate instances). This call should be made *after* all `add_scripts()`, `add_styles()`, and `add_inline_scripts()` calls for that specific instance have been completed. The `load()` method is what actually instructs WordPress to process your asset list and include them on the page.
+**Important:** You must call `load()` once for each enqueuer instance (e.g., once for public assets and once for admin assets if you're using separate instances). This call should be made _after_ all `add_scripts()`, `add_styles()`, and `add_inline_scripts()` calls for that specific instance have been completed. The `load()` method is what actually instructs WordPress to process your asset list and include them on the page.
 
 **Script/Style Array Structure:**
 
@@ -357,6 +357,7 @@ Basic testing infrastructure is in place, but comprehensive test coverage is an 
   ```
 
   Or, to run tests for a specific suite or file, refer to the PHPUnit documentation.
+
 - **Goal**: We aim to increase test coverage for all core components and utilities. If you're contributing code, please consider adding relevant unit tests.
 
 ### Key Library Components & APIs (Overview - some parts are WIP)
@@ -372,7 +373,7 @@ Further details on these and other components will be added as the library matur
 
 ## Contributing
 
-We welcome contributions to the RAN PluginLib! To ensure consistency and maintain high code quality, please adhere to the following  guidelines:
+We welcome contributions to the RAN PluginLib! To ensure consistency and maintain high code quality, please adhere to the following guidelines:
 
 ### 1. Setting Up a Local Development Environment for PluginLib
 
@@ -407,6 +408,7 @@ After the script completes successfully, your environment will be ready for deve
 Our project follows a modified version of the WordPress Coding Standards, enforced by PHP_CodeSniffer (PHPCS). The primary rulesets include:
 
 - **WordPress Standards:**
+
   - `WordPress`: The main WordPress ruleset, with specific exclusions for compatibility (e.g., `PrefixAllGlobals`, `I18n`) and to avoid deprecated sniffs.
   - `WordPress-Core`: The foundational WordPress coding conventions.
   - `WordPress-Extra`: A superset of `WordPress-Core`, incorporating additional best practices. We customize this to exclude specific rules (e.g., related to file naming for PSR-4 autoloading, enqueued resources, and short ternaries).
