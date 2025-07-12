@@ -5,7 +5,7 @@
  * This trait contains the shared helper methods used by the asset-specific traits
  * (ScriptsEnqueueTrait, StylesEnqueueTrait). It forms the foundational layer of
  * the dispatcher pattern (see ADR-003), providing the concrete logic that is
- * ultimately called by the dispatcher methods in EnqueueAssetBaseAbstract.
+ * ultimately called by the dispatcher methods in AssetEnqueueBaseAbstract.
  *
  * It is not intended to be used directly by a consumer class, but rather as a
  * dependency for the main asset processing base class.
@@ -33,28 +33,30 @@ use Ran\PluginLib\EnqueueAccessory\AssetType;
 use Ran\PluginLib\Util\Logger;
 
 /**
- * Trait EnqueueAssetTraitBase
+ * Trait AssetEnqueueBaseTrait
  *
  * Manages the registration, enqueuing, and processing of assets.
  * This includes handling general assets, inline assets, and deferred assets.
  *
  * @package Ran\PluginLib\EnqueueAccessory
  */
-trait EnqueueAssetTraitBase {
+trait AssetEnqueueBaseTrait {
 	/**
 	 * Holds all asset definitions.
 	 *
 	 * @var array<string, array<int, array<string, mixed>>>
 	 */
+	protected array $registered_hooks = array();
+
 	protected array $assets = array(
 		'script' => array(),
 		'style'  => array(),
 	);
 
 	/**
-	 * Array of assets to be loaded at specific WordPress action hooks.
+	 * Array of assets to be loaded at specific WordPress action hooks, grouped by priority.
 	 *
-	 * @var array<string, array<string, array<int, array<string, mixed>>>>
+	 * @var array<string, array<string, array<int, array<int, array<string, mixed>>>>>
 	 */
 	protected array $deferred_assets = array(
 		'script' => array(),
@@ -237,7 +239,6 @@ trait EnqueueAssetTraitBase {
 		if ( ! isset( $this->assets[$asset_type->value] ) ) {
 			$this->assets[$asset_type->value] = array();
 		}
-		$asset_type_string = strtolower($asset_type->value);
 
 		if ( $logger->is_active() ) {
 			$logger->debug( $context . ' - Entered. Processing ' . count( $this->assets[$asset_type->value] ) . ' ' . $asset_type->value . ' definition(s) for registration.' );
@@ -254,33 +255,22 @@ trait EnqueueAssetTraitBase {
 			}
 
 			if ( ! empty( $hook ) ) {
-				if ( $logger->is_active() ) {
-					$logger->debug( "{$context} - Deferring registration of {$asset_type->value} '{$asset_definition['handle']}' (original index {$index}) to hook: {$hook}." );
+				$priority = $asset_definition['priority'] ?? 10;
+				if ( ! is_int( $priority ) ) {
+					$priority = 10;
 				}
-				if ( ! isset( $this->deferred_assets[$asset_type->value][$hook] ) ) {
-					$this->deferred_assets[$asset_type->value][$hook] = array();
-				}
-				$this->deferred_assets[$asset_type->value][$hook][$index] = $asset_definition;
 
-				// Ensure the action for deferred assets is added only once per hook.
-				// The callback method '_enqueue_deferred_assets' is part of this base trait.
-				$action_exists = has_action( $hook, array( $this, 'enqueue_deferred_' . $asset_type_string . 's' ) );
-				if ( ! $action_exists ) {
-					add_action( $hook, array( $this, 'enqueue_deferred_' . $asset_type_string . 's' ), 10, 1 );
-					if ( $logger->is_active() ) {
-						$logger->debug( "{$context} - Added action for 'enqueue_deferred_{$asset_type_string}s' on hook: {$hook}." );
-					}
-				} else {
-					if ( $logger->is_active() ) {
-						$logger->warning( "{$context} - Action for 'enqueue_deferred_{$asset_type_string}s' on hook '{$hook}' already exists, skipping." );
-					}
+				if ( $logger->is_active() ) {
+					$logger->debug( "{$context} - Deferring registration of {$asset_type->value} '{$asset_definition['handle']}' to hook '{$hook}' with priority {$priority}." );
 				}
+
+				// Group asset by hook and priority.
+				$this->deferred_assets[ $asset_type->value ][ $hook ][ $priority ][ $index ] = $asset_definition;
 
 				// Skip immediate processing for this deferred asset.
 				continue;
 			} else {
 				// Process immediately for registration.
-				// The processing_context passed to _process_single_asset is the same as our current log_context_prefix.
 				$processed_successfully = $this->_process_single_asset(
 					$asset_type,
 					$asset_definition,
@@ -299,14 +289,67 @@ trait EnqueueAssetTraitBase {
 		// Ensure $this->assets[$asset_type->value] is a list if all items were deferred or none were processed successfully.
 		$this->assets[$asset_type->value] = array_values($this->assets[$asset_type->value]);
 
+		// After processing, register the actions for the deferred assets.
+		$this->_register_deferred_asset_actions( $asset_type );
+
 		if ( $logger->is_active() ) {
 			$deferred_count = 0;
-			foreach (($this->deferred_assets[$asset_type->value] ?? array()) as $hook_assets) {
-				$deferred_count += count($hook_assets);
+			foreach ( ( $this->deferred_assets[ $asset_type->value ] ?? array() ) as $hook_assets ) {
+				foreach ( $hook_assets as $priority_assets ) {
+					$deferred_count += count( $priority_assets );
+				}
 			}
 			$logger->debug( "{$context} - Exited. Remaining immediate {$asset_type->value}s: " . count( $this->assets[$asset_type->value] ) . ". Total deferred {$asset_type->value}s: " . $deferred_count . '.' );
 		}
 		return $this;
+	}
+
+	/**
+	 * Registers the necessary WordPress actions for all staged deferred assets.
+	 *
+	 * This method iterates through the deferred assets that have been grouped by hook and priority.
+	 * For each unique hook+priority combination, it registers a WordPress action. A closure is
+	 * used as the callback to ensure that the correct hook name and priority are passed to the
+	 * final enqueueing method.
+	 *
+	 * This approach replaces the previous logic that only allowed one action per hook.
+	 *
+	 * @param AssetType $asset_type The type of asset ('script' or 'style') to register actions for.
+	 * @return void
+	 */
+	protected function _register_deferred_asset_actions( AssetType $asset_type ): void {
+		$logger            = $this->get_logger();
+		$context           = __TRAIT__ . '::' . __FUNCTION__;
+		$asset_type_string = strtolower( $asset_type->value );
+		$callback_method   = 'enqueue_deferred_' . $asset_type_string . 's';
+
+		$deferred_assets_for_type = $this->deferred_assets[ $asset_type->value ] ?? array();
+
+		if ( empty( $deferred_assets_for_type ) ) {
+			if ( $logger->is_active() ) {
+				$logger->debug( "{$context} - No deferred {$asset_type_string}s found for registration." );
+			}
+			return;
+		}
+
+		foreach ( $deferred_assets_for_type as $hook_name => $priorities ) {
+			foreach ( array_keys( $priorities ) as $priority ) {
+				if ( isset( $this->registered_hooks[ $asset_type->value ][ $hook_name . '_' . $priority ] ) ) {
+					continue;
+				}
+				// Use a closure to pass the specific hook and priority to the callback.
+				$callback = function () use ( $hook_name, $priority, $callback_method ) {
+					$this->{$callback_method}( $hook_name, $priority );
+				};
+
+				add_action( $hook_name, $callback, $priority );
+
+				$this->registered_hooks[ $asset_type->value ][ $hook_name . '_' . $priority ] = true;
+				if ( $logger->is_active() ) {
+					$logger->debug( "{$context} - Action registered for hook '{$hook_name}' with priority {$priority}." );
+				}
+			}
+		}
 	}
 
 	/**
@@ -390,33 +433,49 @@ trait EnqueueAssetTraitBase {
 	}
 
 	/**
-	 * Enqueues assets that were deferred to a specific hook.
+	 * Enqueues assets that were deferred to a specific hook and priority.
 	 *
 	 * @internal This is an internal method called by WordPress as an action callback and should not be called directly.
-	 * @param string $hook_name The WordPress hook name that triggered this method.
+	 * @param string    $hook_name The WordPress hook name that triggered this method.
+	 * @param AssetType $asset_type The type of asset being processed.
+	 * @param int       $priority The priority of the action that triggered this callback.
 	 * @return void
 	 */
-	protected function _enqueue_deferred_assets(string $hook_name, AssetType $asset_type): void {
+	protected function _enqueue_deferred_assets( string $hook_name, AssetType $asset_type, int $priority ): void {
 		$logger  = $this->get_logger();
 		$context = __TRAIT__ . '::enqueue_deferred_' . $asset_type->value . 's';
 
 		if ( $logger->is_active() ) {
-			$logger->debug( "{$context} - Entered hook: \"{$hook_name}\"." );
+			$logger->debug( "{$context} - Entered hook: \"{$hook_name}\" with priority: {$priority}." );
 		}
 
-		if ( empty( $this->deferred_assets[$asset_type->value][$hook_name] ) ) {
+		// Check if there are any assets for this specific hook and priority.
+		if ( empty( $this->deferred_assets[ $asset_type->value ][ $hook_name ] ) || empty( $this->deferred_assets[ $asset_type->value ][ $hook_name ][ $priority ] ) ) {
 			if ( $logger->is_active() ) {
-				$logger->debug( "{$context} - Hook \"{$hook_name}\" not found in deferred {$asset_type->value}s. Exiting - nothing to process." );
+				$logger->debug( "{$context} - Hook \"{$hook_name}\" with priority {$priority} not found in deferred {$asset_type->value}s. Exiting - nothing to process." );
 			}
-			unset( $this->deferred_assets[$asset_type->value][$hook_name] );
+			// If the hook itself is now empty (i.e., it had no priorities, or the last one was just processed),
+			// remove it to keep the deferred assets array clean.
+			if ( isset( $this->deferred_assets[ $asset_type->value ][ $hook_name ] ) && empty( $this->deferred_assets[ $asset_type->value ][ $hook_name ] ) ) {
+				unset( $this->deferred_assets[ $asset_type->value ][ $hook_name ] );
+			}
 			return;
 		}
 
-		$assets_on_this_hook = $this->deferred_assets[$asset_type->value][$hook_name];
-		unset( $this->deferred_assets[$asset_type->value][$hook_name] );
+		// Retrieve the assets for this specific hook and priority.
+		$assets_to_process = $this->deferred_assets[ $asset_type->value ][ $hook_name ][ $priority ];
 
-		foreach ($assets_on_this_hook as $asset_definition) {
-			$this->_process_single_asset($asset_type, $asset_definition, $context, $hook_name, true, true);
+		// Process each asset.
+		foreach ( $assets_to_process as $asset_definition ) {
+			$this->_process_single_asset( $asset_type, $asset_definition, $context, $hook_name, true, true );
+		}
+
+		// Once processed, remove this priority's assets to prevent re-processing.
+		unset( $this->deferred_assets[ $asset_type->value ][ $hook_name ][ $priority ] );
+
+		// If this was the last priority for this hook, clean up the hook key as well.
+		if ( empty( $this->deferred_assets[ $asset_type->value ][ $hook_name ] ) ) {
+			unset( $this->deferred_assets[ $asset_type->value ][ $hook_name ] );
 		}
 	}
 
@@ -513,18 +572,19 @@ trait EnqueueAssetTraitBase {
 		}
 
 		// Step 2: Search the deferred assets queue.
-		foreach ( $this->deferred_assets[$asset_type_value] as &$hook_assets ) {
-			foreach ( $hook_assets as &$asset ) {
-				if ( isset( $asset['handle'] ) && $asset['handle'] === $parent_handle ) {
-					$asset['inline'][] = $inline_asset_definition;
-					if ( $parent_hook && $logger->is_active() ) {
-						$logger->warning( "{$context} - A 'parent_hook' was provided for '{$parent_handle}', but it's ignored as the parent was found internally in the deferred queue." );
+		foreach ( $this->deferred_assets[$asset_type_value] as $hook => &$priorities ) {
+			foreach ( $priorities as $priority => &$assets ) {
+				foreach ( $assets as &$asset ) {
+					if ( $asset['handle'] === $parent_handle ) {
+						$asset['inline'][] = $inline_asset_definition;
+						if ( $logger->is_active() ) {
+							$logger->debug( "{$context} - Found deferred parent '{$parent_handle}' and attached the inline asset." );
+						}
+						return;
 					}
-					return; // Found and attached.
 				}
 			}
 		}
-		unset( $hook_assets, $asset ); // Clean up references.
 
 		// Step 3: Handle all other cases as external, or bail.
 		$is_wp_registered = ( AssetType::Script === $asset_type && \wp_script_is( $parent_handle, 'registered' ) )
@@ -662,4 +722,111 @@ trait EnqueueAssetTraitBase {
 		string $handle_to_match,
 		array $attributes_to_apply
 	): string;
+
+
+	/**
+	 * Executes callbacks registered to output content in the HTML <head> section.
+	 *
+	 * This is typically hooked to `wp_head`.
+	 */
+	public function render_head(): void {
+		$logger = $this->get_logger();
+		if (empty($this->head_callbacks)) {
+			if ($logger->is_active()) {
+				$logger->debug('AssetEnqueueBaseAbstract::render_head - No head callbacks to execute.');
+			}
+			return;
+		}
+
+		foreach ($this->head_callbacks as $index => $callback_data) {
+			$callback  = $callback_data;
+			$condition = null;
+
+			if (is_array($callback_data) && isset($callback_data['callback'])) {
+				$callback  = $callback_data['callback'];
+				$condition = $callback_data['condition'] ?? null;
+			}
+
+			if (is_callable($condition) && !$condition()) {
+				if ($logger->is_active()) {
+					$logger->debug(sprintf('AssetEnqueueBaseAbstract::render_head - Skipping head callback %d due to false condition.', $index));
+				}
+				continue;
+			}
+
+			if (is_callable($callback)) {
+				if ($logger->is_active()) {
+					$logger->debug(sprintf('AssetEnqueueBaseAbstract::render_head - Executing head callback %d.', $index));
+				}
+				call_user_func($callback);
+			}
+		}
+	}
+
+	/**
+	 * Executes callbacks registered to output content before the closing </body> tag.
+	 *
+	 * This is typically hooked to `wp_footer`.
+	 */
+	public function render_footer(): void {
+		$logger = $this->get_logger();
+		if (empty($this->footer_callbacks)) {
+			if ($logger->is_active()) {
+				$logger->debug('AssetEnqueueBaseAbstract::render_footer - No footer callbacks to execute.');
+			}
+			return;
+		}
+
+		foreach ($this->footer_callbacks as $index => $callback_data) {
+			$callback  = $callback_data;
+			$condition = null;
+
+			if (is_array($callback_data) && isset($callback_data['callback'])) {
+				$callback  = $callback_data['callback'];
+				$condition = $callback_data['condition'] ?? null;
+			}
+
+			if (is_callable($condition) && !$condition()) {
+				if ($logger->is_active()) {
+					$logger->debug(sprintf('AssetEnqueueBaseAbstract::render_footer - Skipping footer callback %d due to false condition.', $index));
+				}
+				continue;
+			}
+
+			if (is_callable($callback)) {
+				if ($logger->is_active()) {
+					$logger->debug(sprintf('AssetEnqueueBaseAbstract::render_footer - Executing footer callback %d.', $index));
+				}
+				call_user_func($callback);
+			}
+		}
+	}
+
+	/**
+	 * Wrapper for the global add_filter function to allow for easier mocking in tests.
+	 *
+	 * @param string   $hook          The name of the filter to hook the $callback to.
+	 * @param callable $callback      The callback to be run when the filter is applied.
+	 * @param int      $priority      Used to specify the order in which the functions
+	 *                                associated with a particular action are executed.
+	 * @param int      $accepted_args The number of arguments the function accepts.
+	 * @return void
+	 */
+	protected function _do_add_filter(string $hook, callable $callback, int $priority, int $accepted_args): void {
+		add_filter($hook, $callback, $priority, $accepted_args);
+	}
+
+	/**
+	 * Wraps the global add_action function to allow for easier mocking in tests.
+	 *
+	 * @param string   $hook          The name of the action to which the $function_to_add is hooked.
+	 * @param callable $callback      The name of the function you wish to be called.
+	 * @param int      $priority      Optional. Used to specify the order in which the functions
+	 *                                associated with a particular action are executed. Default 10.
+	 * @param int      $accepted_args Optional. The number of arguments the function accepts. Default 1.
+	 * @return void
+	 */
+	protected function _do_add_action( string $hook, callable $callback, int $priority = 10, int $accepted_args = 1 ): void {
+		add_action( $hook, $callback, $priority, $accepted_args );
+	}
 }

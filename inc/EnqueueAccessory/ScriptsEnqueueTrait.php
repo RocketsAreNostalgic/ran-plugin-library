@@ -25,7 +25,7 @@ use Ran\PluginLib\Util\Logger;
  * @package Ran\PluginLib\EnqueueAccessory
  */
 trait ScriptsEnqueueTrait {
-	use EnqueueAssetTraitBase;
+	use AssetEnqueueBaseTrait;
 
 	/**
 	 * Get the array of registered scripts.
@@ -117,14 +117,15 @@ trait ScriptsEnqueueTrait {
 	}
 
 	/**
-	 * Enqueue scripts that were deferred to a specific hook.
+	 * Enqueue scripts that were deferred to a specific hook and priority.
 	 *
 	 * @internal This is an internal method called by WordPress as an action callback and should not be called directly.
 	 * @param string $hook_name The WordPress hook name that triggered this method.
+	 * @param int    $priority  The priority of the action that triggered this callback.
 	 * @return void
 	 */
-	public function enqueue_deferred_scripts( string $hook_name ): void {
-		$this->_enqueue_deferred_assets($hook_name, AssetType::Script);
+	public function enqueue_deferred_scripts( string $hook_name, int $priority ): void {
+		$this->_enqueue_deferred_assets( $hook_name, AssetType::Script, $priority );
 	}
 
 	/**

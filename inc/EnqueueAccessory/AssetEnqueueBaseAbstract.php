@@ -38,12 +38,11 @@ use Ran\PluginLib\Util\Logger;
  * @method void enqueue_inline_scripts()
  * @method void enqueue_inline_styles()
  */
-abstract class EnqueueAssetBaseAbstract {
-	use EnqueueAssetTraitBase,
+abstract class AssetEnqueueBaseAbstract {
+	use AssetEnqueueBaseTrait,
 		ScriptsEnqueueTrait,
 		StylesEnqueueTrait,
 		MediaEnqueueTrait;
-
 	/**
 	 * The ConfigInterface object holding plugin configuration.
 	 *
@@ -169,7 +168,7 @@ abstract class EnqueueAssetBaseAbstract {
 
 		$logger->debug(
 			sprintf(
-				'EnqueueAssetBaseAbstract::enqueue - Main enqueue process started. Assets: %d, Styles: %d, Media: %d, Inline Assets: %d.',
+				'AssetEnqueueBaseAbstract::enqueue - Main enqueue process started. Assets: %d, Styles: %d, Media: %d, Inline Assets: %d.',
 				$assets_count,
 				$styles_count,
 				$media_count,
@@ -202,114 +201,10 @@ abstract class EnqueueAssetBaseAbstract {
 			$this->enqueue_inline_styles();
 		}
 
-		$logger->debug( 'EnqueueAssetBaseAbstract::enqueue - Main enqueue process finished.' );
+		$logger->debug( 'AssetEnqueueBaseAbstract::enqueue - Main enqueue process finished.' );
 	}
 
-	/**
-	 * Executes callbacks registered to output content in the HTML <head> section.
-	 *
-	 * This is typically hooked to `wp_head`.
-	 */
-	public function render_head(): void {
-		$logger = $this->get_logger();
-		if (empty($this->head_callbacks)) {
-			if ($logger->is_active()) {
-				$logger->debug('EnqueueAssetBaseAbstract::render_head - No head callbacks to execute.');
-			}
-			return;
-		}
 
-		foreach ($this->head_callbacks as $index => $callback_data) {
-			$callback  = $callback_data;
-			$condition = null;
-
-			if (is_array($callback_data) && isset($callback_data['callback'])) {
-				$callback  = $callback_data['callback'];
-				$condition = $callback_data['condition'] ?? null;
-			}
-
-			if (is_callable($condition) && !$condition()) {
-				if ($logger->is_active()) {
-					$logger->debug(sprintf('EnqueueAssetBaseAbstract::render_head - Skipping head callback %d due to false condition.', $index));
-				}
-				continue;
-			}
-
-			if (is_callable($callback)) {
-				if ($logger->is_active()) {
-					$logger->debug(sprintf('EnqueueAssetBaseAbstract::render_head - Executing head callback %d.', $index));
-				}
-				call_user_func($callback);
-			}
-		}
-	}
-
-	/**
-	 * Executes callbacks registered to output content before the closing </body> tag.
-	 *
-	 * This is typically hooked to `wp_footer`.
-	 */
-	public function render_footer(): void {
-		$logger = $this->get_logger();
-		if (empty($this->footer_callbacks)) {
-			if ($logger->is_active()) {
-				$logger->debug('EnqueueAssetBaseAbstract::render_footer - No footer callbacks to execute.');
-			}
-			return;
-		}
-
-		foreach ($this->footer_callbacks as $index => $callback_data) {
-			$callback  = $callback_data;
-			$condition = null;
-
-			if (is_array($callback_data) && isset($callback_data['callback'])) {
-				$callback  = $callback_data['callback'];
-				$condition = $callback_data['condition'] ?? null;
-			}
-
-			if (is_callable($condition) && !$condition()) {
-				if ($logger->is_active()) {
-					$logger->debug(sprintf('EnqueueAssetBaseAbstract::render_footer - Skipping footer callback %d due to false condition.', $index));
-				}
-				continue;
-			}
-
-			if (is_callable($callback)) {
-				if ($logger->is_active()) {
-					$logger->debug(sprintf('EnqueueAssetBaseAbstract::render_footer - Executing footer callback %d.', $index));
-				}
-				call_user_func($callback);
-			}
-		}
-	}
-
-	/**
-	 * Wrapper for the global add_filter function to allow for easier mocking in tests.
-	 *
-	 * @param string   $hook          The name of the filter to hook the $callback to.
-	 * @param callable $callback      The callback to be run when the filter is applied.
-	 * @param int      $priority      Used to specify the order in which the functions
-	 *                                associated with a particular action are executed.
-	 * @param int      $accepted_args The number of arguments the function accepts.
-	 * @return void
-	 */
-	protected function _do_add_filter(string $hook, callable $callback, int $priority, int $accepted_args): void {
-		add_filter($hook, $callback, $priority, $accepted_args);
-	}
-
-	/**
-	 * Wraps the global add_action function to allow for easier mocking in tests.
-	 *
-	 * @param string   $hook          The name of the action to which the $function_to_add is hooked.
-	 * @param callable $callback      The name of the function you wish to be called.
-	 * @param int      $priority      Optional. Used to specify the order in which the functions
-	 *                                associated with a particular action are executed. Default 10.
-	 * @param int      $accepted_args Optional. The number of arguments the function accepts. Default 1.
-	 * @return void
-	 */
-	protected function _do_add_action( string $hook, callable $callback, int $priority = 10, int $accepted_args = 1 ): void {
-		add_action( $hook, $callback, $priority, $accepted_args );
-	}
 
 	/**
 	 * Dispatches the processing of a single asset to the appropriate trait.

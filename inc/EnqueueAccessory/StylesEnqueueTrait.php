@@ -25,7 +25,7 @@ use Ran\PluginLib\Util\Logger;
  * @package Ran\PluginLib\EnqueueAccessory
  */
 trait StylesEnqueueTrait {
-	use EnqueueAssetTraitBase;
+	use AssetEnqueueBaseTrait;
 
 	/**
 	 * Get the array of registered stylesheets.
@@ -116,14 +116,15 @@ trait StylesEnqueueTrait {
 	}
 
 	/**
-	 * Enqueues styles that were deferred to a specific hook.
+	 * Enqueues styles that were deferred to a specific hook and priority.
 	 *
 	 * @internal This is an internal method called by WordPress as an action callback and should not be called directly.
 	 * @param string $hook_name The WordPress hook name that triggered this method.
+	 * @param int    $priority  The priority of the action that triggered this callback.
 	 * @return void
 	 */
-	public function enqueue_deferred_styles( string $hook_name ): void {
-		$this->_enqueue_deferred_assets($hook_name, AssetType::Style);
+	public function enqueue_deferred_styles( string $hook_name, int $priority ): void {
+		$this->_enqueue_deferred_assets( $hook_name, AssetType::Style, $priority );
 	}
 
 	/**
@@ -442,7 +443,7 @@ trait StylesEnqueueTrait {
 	 *
 	 * @return string The modified HTML tag with added attributes.
 	 */
-	protected function _modify_style_tag_attributes(
+	protected function _modify_html_tag_attributes(
 		AssetType $asset_type,
 		string $tag,
 		string $tag_handle,
