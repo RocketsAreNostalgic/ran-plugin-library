@@ -56,6 +56,7 @@ trait ScriptsEnqueueTrait {
 	 *     - 'data' (array, optional): Key-value pairs passed to `wp_script_add_data()`. Defaults to an empty array.
 	 *     - 'inline' (array, optional): An array of inline scripts to attach to this handle. See `add_inline_scripts()` for the structure of each inline script definition.
 	 *     - 'hook' (string|null, optional): WordPress hook (e.g., 'admin_enqueue_scripts') to defer enqueuing. Defaults to null for immediate processing.
+	 *     - 'localize' (array, optional): Data to be localized. See `_process_single_script_asset` for structure.
 	 * @return self Returns the instance of this class for method chaining.
 	 *
 	 * @see self::enqueue_scripts()
@@ -277,7 +278,8 @@ trait ScriptsEnqueueTrait {
 	 *   in_footer?: bool,			// Whether to enqueue the script before </body> instead of </head>. Default false.
 	 *   attributes?: array<string, mixed>, // Key-value pairs of HTML attributes for the `<script>` tag (e.g., `['async' => true]`). Defaults to an empty array.
 	 *   data?: array<string, mixed>, // Key-value pairs of data attributes for the `<script>` tag (e.g., `['data-some-attr' => 'value']`). Defaults to an empty array.
-	 *   inline?: array<array{content: string, position?: 'before'|'after', condition?: callable|null}>, // Array of inline scripts. Each with content, optional position ('before'/'after', default 'after'), and optional condition callback.
+	 *   inline?: array<array{content: string, position?: 'before'|'after', condition?: callable|null}>, // Array of inline scripts. Each with content, optional position ('before'|'after', default 'after'), and optional condition callback.
+	 *   localize?: array{object_name: string, data: array<string, mixed>}, // Data to make available to the script. `object_name` is the JS object, `data` is the data array.
 	 * } 					$asset_definition 		The definition of the script to process.
 	 * @param string       	$processing_context 	The context in which the script is being processed (e.g., 'stage_scripts', 'enqueue_immediate_scripts'). Used for logging.
 	 * @param string|null 	$hook_name           	The hook name if processing in a deferred context, null otherwise.
@@ -309,6 +311,7 @@ trait ScriptsEnqueueTrait {
 		$in_footer  = $asset_definition['in_footer']  ?? false;
 		$attributes = $asset_definition['attributes'] ?? array();
 		$data       = $asset_definition['data']       ?? array();
+		$localize   = $asset_definition['localize']   ?? array();
 		$condition  = $asset_definition['condition']  ?? null;
 
 		$log_hook_context = $hook_name ? " on hook '{$hook_name}'" : '';
@@ -414,24 +417,45 @@ trait ScriptsEnqueueTrait {
 
 		// Process extras (Data, Custom Attributes, Inline Scripts).
 		if ( null === $hook_name && $handle ) {
+			$logger_active = $logger->is_active();
+
+			// Localize script (must be done after registration/enqueue).
+			if (
+				!empty($localize) &&
+				!empty($localize['object_name']) &&
+				is_array($localize['data'])
+			) {
+				if ($logger_active) {
+					$logger->debug("{$context} - Localizing script '{$handle}' with JS object '{$localize['object_name']}'.");
+				}
+
+				wp_localize_script(
+					$handle,
+					$localize['object_name'],
+					$localize['data']
+				);
+
 			// Process data with wp_script_add_data
 			if ( is_array( $data ) && ! empty( $data ) ) {
 				foreach ( $data as $key => $value ) {
-					if ( $logger->is_active() ) {
+					if ( $logger_active ) {
 						$logger->debug( "{$context} - Adding data to {$asset_type->value} '{$handle}'. Key: '{$key}', Value: '{$value}'." );
 					}
-					if ( ! wp_script_add_data( $handle, (string) $key, $value ) && $logger->is_active() ) {
+					if ( ! wp_script_add_data( $handle, (string) $key, $value ) && $logger_active ) {
 						$logger->warning( "{$context} - Failed to add data for key '{$key}' to {$asset_type->value} '{$handle}'." );
 					}
 				}
 			}
 
-			// Apply any remaining custom attributes via the 'script_loader_tag' filter.
-			if ( ! empty( $custom_attributes ) ) {
-				if ($logger->is_active()) {
-					$logger->debug("{$context} - Adding custom attributes for {$asset_type->value} '{$handle}' via script_loader_tag. Attributes: " . \wp_json_encode($custom_attributes));
+			// Add custom attributes to the script tag.
+			if ( ! empty( $attributes ) ) {
+				if ( $logger_active ) {
+					$logger->debug( "{$context} - Adding attributes to {$asset_type->value} '{$handle}'." );
 				}
-				$this->_do_add_filter(
+				$this->_add_asset_attributes( $asset_type, $handle, $attributes );
+			}
+
+		$this->_do_add_filter(
 					'script_loader_tag',
 					function ( $tag, $tag_handle ) use ( $handle, $custom_attributes ) {
 						return $this->_modify_script_tag_attributes(AssetType::Script, $tag, $tag_handle, $handle, $custom_attributes);

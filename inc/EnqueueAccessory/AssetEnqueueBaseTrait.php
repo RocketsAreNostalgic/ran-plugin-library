@@ -12,10 +12,8 @@
  *
  * @todo FEATURE - cachebusting beyond version numbers
  * @todo FEATURE - dev vs prod for loading minififed files
- * @todo CLEARIFY - How is load order handeled in current context?
  * @todo EXPLORE MULTI-SITE compatibility
  * @todo EXPLORE WP_NETWORK
- * @todo EXPLORE Script localization (wp_localize_script)
  * @todo EXPLORE handeling of known core assets such as jQuery
  *
  * @package Ran\PluginLib\EnqueueAccessory
