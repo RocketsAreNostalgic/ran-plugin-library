@@ -72,19 +72,19 @@ trait ScriptsEnqueueTrait {
 	 * For each script:
 	 * - If a `hook` is specified in the definition, its registration is deferred. The script
 	 *   is moved to the `$deferred_scripts` queue, and an action is set up (if not already present)
-	 *   to call `enqueue_deferred_scripts()` when the specified hook fires.
+	 *   to call `_enqueue_deferred_scripts()` when the specified hook fires.
 	 * - Scripts without a `hook` are registered immediately. The registration process
 	 *   (handled by `_process_single_asset()`) includes checking any associated
 	 *   `$condition` callback and calling `wp_register_script()`.
 	 *
 	 * Note: This method only *registers* the scripts. Enqueuing is handled by
-	 * `enqueue_scripts()` or `enqueue_deferred_scripts()`.
+	 * `enqueue_scripts()` or `_enqueue_deferred_scripts()`.
 	 *
 	 * @return self Returns the instance of this class for method chaining.
 	 * @see    self::add_scripts()
 	 * @see    self::_process_single_asset()
 	 * @see    self::enqueue_scripts()
-	 * @see    self::enqueue_deferred_scripts()
+	 * @see    self::_enqueue_deferred_scripts()
 	 * @see    wp_register_script()
 	 */
 	public function stage_scripts(): self {
@@ -110,7 +110,7 @@ trait ScriptsEnqueueTrait {
 	 * @see    self::add_scripts()
 	 * @see    self::stage_scripts()
 	 * @see    self::_process_single_asset()
-	 * @see    self::enqueue_deferred_scripts()
+	 * @see    self::_enqueue_deferred_scripts()
 	 */
 	public function enqueue_immediate_scripts(): self {
 		return $this->enqueue_immediate_assets(AssetType::Script);
@@ -124,8 +124,8 @@ trait ScriptsEnqueueTrait {
 	 * @param int    $priority  The priority of the action that triggered this callback.
 	 * @return void
 	 */
-	public function enqueue_deferred_scripts( string $hook_name, int $priority ): void {
-		$this->_enqueue_deferred_assets( $hook_name, AssetType::Script, $priority );
+	public function _enqueue_deferred_scripts( string $hook_name, int $priority ): void {
+		$this->_enqueue_deferred_assets(AssetType::Script, $hook_name, $priority);
 	}
 
 	/**
@@ -154,9 +154,10 @@ trait ScriptsEnqueueTrait {
 	 * such as those belonging to WordPress core or other plugins. It should be called on a hook
 	 * like `wp_enqueue_scripts` with a late priority to ensure the target scripts are available.
 	 *
+	 * @internal This is an internal method called by WordPress as an action callback and should not be called directly.
 	 * @return void
 	 */
-	public function enqueue_external_inline_scripts(): void {
+	public function _enqueue_external_inline_scripts(): void {
 		$this->_enqueue_external_inline_assets(AssetType::Script);
 	}
 
@@ -265,7 +266,7 @@ trait ScriptsEnqueueTrait {
 	 * the logic for handling individual scripts, making the main `stage_scripts` and `enqueue_scripts`
 	 * methods cleaner. For non-deferred scripts (where `$hook_name` is null), it also handles
 	 * processing of attributes, `wp_script_add_data`, and inline scripts. For deferred scripts, this is handled
-	 * by the calling `enqueue_deferred_scripts` method.
+	 * by the calling `_enqueue_deferred_scripts` method.
 	 *
 	 * @param AssetType $asset_type The asset type, expected to be 'script'.
 	 * @param array{

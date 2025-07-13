@@ -286,6 +286,24 @@ abstract class PluginLibTestCase extends RanTestCase {
 	}
 
 	/**
+	 * Invokes a protected method on an object.
+	 *
+	 * @param object $object The object to call the method on.
+	 * @param string $method_name The name of the method to call.
+	 * @param array $parameters An array of parameters to pass to the method.
+	 *
+	 * @return mixed The return value of the method.
+	 * @throws \ReflectionException If the method does not exist.
+	 */
+	protected function _invoke_protected_method(object $object, string $method_name, array $parameters = array()) {
+		$reflection = new \ReflectionClass(get_class($object));
+		$method     = $reflection->getMethod($method_name);
+		$method->setAccessible(true);
+
+		return $method->invokeArgs($object, $parameters);
+	}
+
+	/**
 	 * Removes a specific singleton instance from SingletonAbstract::$instances.
 	 *
 	 * Uses reflection to access and modify the private static $instances property
@@ -310,6 +328,24 @@ abstract class PluginLibTestCase extends RanTestCase {
 			// Fail silently if the property doesn't exist, as it means no cleanup is needed.
 		}
 	}
+
+
+	/**
+	 * Sets up the logger mock for the test.
+	 *
+	 * This method creates a mock of the CollectingLogger and sets it on the test case.
+	 * It also sets an expectation for the `is_active` method to return true, which is
+	 * necessary for the logger to be used in the code under test.
+	 *
+	 * @return MockInterface The mocked logger instance.
+	 */
+	protected function set_logger_mock(): MockInterface {
+		$this->logger_mock = Mockery::mock(CollectingLogger::class)->makePartial();
+		$this->logger_mock->shouldReceive('is_active')->andReturn(true);
+
+		return $this->logger_mock;
+	}
+
 
 	/**
 	 * Creates, configures, and registers a `ConcreteConfigForTesting` instance.
@@ -370,6 +406,10 @@ abstract class PluginLibTestCase extends RanTestCase {
 		    ->method('_read_plugin_file_header_content')
 		    ->with($this->mock_plugin_file_path)
 		    ->willReturn($mock_file_header_content);
+
+		$concreteInstance->expects($this->any())
+		    ->method('get_logger')
+		    ->willReturn($this->set_logger_mock());
 
 		$concreteInstance->expects($this->any())
 			->method('get_plugin_data')

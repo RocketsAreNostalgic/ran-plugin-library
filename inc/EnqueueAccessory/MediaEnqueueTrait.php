@@ -102,10 +102,10 @@ trait MediaEnqueueTrait {
 			}
 			$this->deferred_media_tool_configs[ $hook ][ $index ] = $item_definition;
 
-			if ( ! has_action( $hook, array( $this, 'enqueue_deferred_media_tools' ) ) ) {
-				add_action( $hook, array( $this, 'enqueue_deferred_media_tools' ), 10, 0 ); // WP_Enqueue_Media typically doesn't take the hook name as an arg
+			if ( ! has_action( $hook, array( $this, '_enqueue_deferred_media_tools' ) ) ) {
+				add_action( $hook, array( $this, '_enqueue_deferred_media_tools' ), 10, 0 ); // WP_Enqueue_Media typically doesn't take the hook name as an arg
 				if ( $logger->is_active() ) {
-					$logger->debug( "MediaEnqueueTrait::enqueue_media - Added action for 'enqueue_deferred_media_tools' on hook: \"{$hook}\"." );
+					$logger->debug( "MediaEnqueueTrait::enqueue_media - Added action for '_enqueue_deferred_media_tools' on hook: \"{$hook}\"." );
 				}
 			}
 		}
@@ -121,7 +121,7 @@ trait MediaEnqueueTrait {
 	 * @param string $hook_name The WordPress hook name that triggered this method (optional, but typically not used by wp_enqueue_media callbacks).
 	 * @return void
 	 */
-	public function enqueue_deferred_media_tools( string $hook_name = '' ): void { // Made $hook_name optional as it's context
+	public function _enqueue_deferred_media_tools( string $hook_name = '' ): void { // Made $hook_name optional as it's context
 		$logger = $this->get_logger();
 		// If $hook_name is truly needed for logic, it should not be optional or should be derived via current_action()
 		// For now, using $hook_name if provided, but logging will show if it's empty.

@@ -81,9 +81,9 @@ class EnqueuePublic implements EnqueueInterface {
 				add_action(
 					$hook,
 					function () use ($hook, $scripts_handler, $styles_handler, $media_handler) {
-						$scripts_handler->enqueue_deferred_scripts($hook);
-						$styles_handler->enqueue_deferred_styles($hook);
-						$media_handler->enqueue_deferred_media_tools($hook);
+						$scripts_handler->_enqueue_deferred_scripts($hook, 10);
+						$styles_handler->_enqueue_deferred_styles($hook, 10);
+						$media_handler->_enqueue_deferred_media_tools($hook, 10);
 					}
 				);
 			}
