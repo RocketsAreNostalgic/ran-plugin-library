@@ -118,6 +118,48 @@ class ScriptsEnqueueTraitTest extends PluginLibTestCase {
 		}
 	}
 
+	/**
+	 * @test
+	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::_process_single_script_asset
+	 */
+	public function test_process_single_script_asset_localizes_script_correctly(): void {
+		// Arrange
+		$handle = 'my-localized-script';
+		$object_name = 'myPluginData';
+		$data = array('ajax_url' => 'http://example.com/ajax');
+		$asset_definition = array(
+			'handle'   => $handle,
+			'src'      => 'path/to/script.js',
+			'localize' => array(
+				'object_name' => $object_name,
+				'data'        => $data,
+			),
+		);
+
+		WP_Mock::userFunction('wp_script_is')->with($handle, 'registered')->andReturn(false);
+		WP_Mock::userFunction('wp_register_script')->andReturn(true);
+
+		// This is the key assertion
+		WP_Mock::userFunction('wp_localize_script')
+			->once()
+			->with($handle, $object_name, $data);
+
+		// Act
+		$this->_invoke_protected_method(
+			$this->instance,
+			'_process_single_script_asset',
+			array(
+				AssetType::Script,
+				$asset_definition,
+				'test_context', // processing_context
+				null,           // hook_name
+				true,           // do_register
+				false           // do_enqueue
+			)
+		);
+		$this->expectLog('debug', array("Localizing script '{$handle}' with JS object '{$object_name}'"), 1, true);
+	}
+
 	// ------------------------------------------------------------------------
 	// Test Methods for Script Functionalities
 	// ------------------------------------------------------------------------
