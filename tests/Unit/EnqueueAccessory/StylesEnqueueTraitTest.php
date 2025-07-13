@@ -6,7 +6,7 @@ namespace Ran\PluginLib\Tests\Unit\EnqueueAccessory;
 use Ran\PluginLib\Config\ConfigInterface;
 use Ran\PluginLib\Tests\Unit\PluginLibTestCase;
 use Ran\PluginLib\EnqueueAccessory\AssetType;
-use Ran\PluginLib\EnqueueAccessory\EnqueueAssetBaseAbstract;
+use Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseAbstract;
 use Ran\PluginLib\EnqueueAccessory\StylesEnqueueTrait;
 use Ran\PluginLib\Util\Logger;
 use Ran\PluginLib\Util\CollectingLogger;
@@ -17,8 +17,10 @@ use Mockery;
 /**
  * Concrete implementation of StylesEnqueueTrait for testing asset-related methods.
  */
-class ConcreteEnqueueForStylesTesting extends EnqueueAssetBaseAbstract {
+class ConcreteEnqueueForStylesTesting extends AssetEnqueueBaseAbstract {
 	use StylesEnqueueTrait;
+
+	protected array $registered_hooks = array();
 
 	public function __construct(ConfigInterface $config) {
 		parent::__construct($config);
@@ -36,12 +38,8 @@ class ConcreteEnqueueForStylesTesting extends EnqueueAssetBaseAbstract {
 		return $this->config->get_logger();
 	}
 
-	protected function _process_inline_assets(AssetType $asset_type, string $parent_handle, ?string $hook_name, string $processing_context): void {
-		$this->_process_inline_style_assets($asset_type, $parent_handle, $hook_name, $processing_context);
-	}
-
-	protected function _modify_html_tag_attributes(AssetType $asset_type, string $tag, string $tag_handle, string $handle_to_match, array $attributes_to_apply): string {
-		return $this->_modify_style_tag_attributes($asset_type, $tag, $tag_handle, $handle_to_match, $attributes_to_apply);
+	protected function _add_action(string $hook, callable $callback, int $priority = 10, int $accepted_args = 1): void {
+		add_action($hook, $callback, $priority, $accepted_args);
 	}
 }
 
@@ -53,23 +51,6 @@ class ConcreteEnqueueForStylesTesting extends EnqueueAssetBaseAbstract {
  * @covers \Ran\PluginLib\EnqueueAccessory\StylesEnqueueTrait
  */
 class StylesEnqueueTraitTest extends PluginLibTestCase {
-	/**
-	 * Invokes a protected method on an object.
-	 *
-	 * @param object $object The object to call the method on.
-	 * @param string $method_name The name of the method to call.
-	 * @param array $parameters An array of parameters to pass to the method.
-	 *
-	 * @return mixed The return value of the method.
-	 * @throws \ReflectionException If the method does not exist.
-	 */
-	protected function _invoke_protected_method($object, string $method_name, array $parameters = array()) {
-		$reflection = new \ReflectionClass(get_class($object));
-		$method     = $reflection->getMethod($method_name);
-		$method->setAccessible(true);
-
-		return $method->invokeArgs($object, $parameters);
-	}
 
 	/**
 	 * @var (ConcreteEnqueueForStylesTesting&Mockery\MockInterface)|Mockery\LegacyMockInterface
@@ -84,8 +65,9 @@ class StylesEnqueueTraitTest extends PluginLibTestCase {
 	public function setUp(): void {
 		parent::setUp();
 
-		// Configure the config mock to return the logger instance used by the test suite.
-		$this->config_mock->method('get_logger')->willReturn($this->logger_mock);
+		// Get a fully configured and registered mock instance from the parent test case.
+		// This handles logger setup and all other necessary config dependencies.
+		$this->config_mock = $this->get_and_register_concrete_config_instance();
 
 		// Instantiate the test class with the configured mock.
 		$this->instance = new ConcreteEnqueueForStylesTesting($this->config_mock);
@@ -142,7 +124,7 @@ class StylesEnqueueTraitTest extends PluginLibTestCase {
 	/**
 	 * @test
 	 * @covers \Ran\PluginLib\EnqueueAccessory\StylesEnqueueTrait::add_styles
-	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAssetTraitBase::add_assets
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::add_assets
 	 */
 	public function test_add_styles_handles_empty_input_gracefully(): void {
 		// Act
@@ -156,7 +138,7 @@ class StylesEnqueueTraitTest extends PluginLibTestCase {
 	/**
 	 * @test
 	 * @covers \Ran\PluginLib\EnqueueAccessory\StylesEnqueueTrait::add_styles
-	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAssetTraitBase::add_assets
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::add_assets
 	 */
 	public function test_add_styles_adds_asset_correctly(): void {
 		// Arrange
@@ -177,7 +159,7 @@ class StylesEnqueueTraitTest extends PluginLibTestCase {
 	/**
 	 * @test
 	 * @covers \Ran\PluginLib\EnqueueAccessory\StylesEnqueueTrait::add_inline_styles
-	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAssetTraitBase::_add_inline_asset
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_add_inline_asset
 	 */
 	public function test_add_inline_styles_associates_with_correct_parent_handle(): void {
 		// First, add the parent asset
@@ -205,7 +187,7 @@ class StylesEnqueueTraitTest extends PluginLibTestCase {
 	/**
 	 * @test
 	 * @covers \Ran\PluginLib\EnqueueAccessory\StylesEnqueueTrait::stage_styles
-	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAssetTraitBase::_process_single_asset
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_process_single_asset
 	 */
 	public function test_stage_styles_passes_media_attribute_correctly(): void {
 		// Arrange
@@ -233,7 +215,7 @@ class StylesEnqueueTraitTest extends PluginLibTestCase {
 	/**
 	 * @test
 	 * @covers \Ran\PluginLib\EnqueueAccessory\StylesEnqueueTrait::stage_styles
-	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAssetTraitBase::_process_single_asset
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_process_single_asset
 	 */
 	public function test_stage_styles_handles_source_less_asset_correctly(): void {
 		// Arrange
@@ -261,7 +243,7 @@ class StylesEnqueueTraitTest extends PluginLibTestCase {
 	/**
 	 * @test
 	 * @covers \Ran\PluginLib\EnqueueAccessory\StylesEnqueueTrait::add_styles
-	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAssetTraitBase::add_assets
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::add_assets
 	 */
 	public function test_add_styles_throws_exception_for_missing_src(): void {
 		// Assert
@@ -278,7 +260,7 @@ class StylesEnqueueTraitTest extends PluginLibTestCase {
 	/**
 	 * @test
 	 * @covers \Ran\PluginLib\EnqueueAccessory\StylesEnqueueTrait::add_styles
-	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAssetTraitBase::add_assets
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::add_assets
 	 */
 	public function test_add_styles_throws_exception_for_missing_handle(): void {
 		// Assert
@@ -350,10 +332,8 @@ class StylesEnqueueTraitTest extends PluginLibTestCase {
 	/**
 	 * @test
 	 * @covers \Ran\PluginLib\EnqueueAccessory\StylesEnqueueTrait::stage_styles
-	 * @covers \Ran\PluginLib\EnqueueAccessory\StylesEnqueueTrait::enqueue_deferred_styles
-	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAssetTraitBase::_process_single_asset
-	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAssetTraitBase::_enqueue_deferred_assets
-	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAssetTraitBase::_process_inline_assets
+	 * @covers \Ran\PluginLib\EnqueueAccessory\StylesEnqueueTrait::_enqueue_deferred_styles
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_enqueue_deferred_assets
 	 */
 	public function test_stage_styles_processes_deferred_style_correctly(): void {
 		// Arrange
@@ -381,7 +361,7 @@ class StylesEnqueueTraitTest extends PluginLibTestCase {
 
 		// Act: Simulate the WordPress hook lifecycle for a deferred asset.
 		$this->instance->stage_styles();
-		$this->instance->enqueue_deferred_styles( 'wp_enqueue_scripts' );
+		$this->instance->_enqueue_deferred_styles( 'wp_enqueue_scripts', 10 );
 
 		// Assert: Mockery's tearDown will verify all `once()` expectations.
 		$this->assertTrue( true, 'This assertion ensures the test runs and passes if mocks are met.' );
@@ -391,7 +371,7 @@ class StylesEnqueueTraitTest extends PluginLibTestCase {
 	 * @test
 	 * @covers \Ran\PluginLib\EnqueueAccessory\StylesEnqueueTrait::stage_styles
 	 * @covers \Ran\PluginLib\EnqueueAccessory\StylesEnqueueTrait::enqueue_immediate_styles
-	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAssetTraitBase::_process_single_asset
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_process_single_asset
 	 */
 	public function test_stage_styles_enqueues_registered_style(): void {
 		// Arrange
@@ -413,5 +393,107 @@ class StylesEnqueueTraitTest extends PluginLibTestCase {
 		// Assert
 		$styles = $this->instance->get_styles();
 		$this->assertEmpty($styles['general'], 'The general queue should be empty after enqueuing.');
+	}
+
+	/**
+	 * @test
+	 * @covers \Ran\PluginLib\EnqueueAccessory\StylesEnqueueTrait::stage_styles
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::stage_assets
+	 */
+	public function test_stage_styles_defers_assets_with_multiple_priorities_correctly(): void {
+		// Arrange
+		$hook_name     = 'my_multi_priority_hook';
+		$assets_to_add = array(
+			array(
+				'handle'   => 'asset-prio-10',
+				'src'      => 'path/to/p10.css',
+				'hook'     => $hook_name,
+				'priority' => 10,
+			),
+			array(
+				'handle'   => 'asset-prio-20',
+				'src'      => 'path/to/p20.css',
+				'hook'     => $hook_name,
+				'priority' => 20,
+			),
+		);
+		$this->instance->add_styles($assets_to_add);
+
+		// Assert that add_action is called for each priority with a closure.
+		WP_Mock::expectActionAdded($hook_name, Mockery::type('callable'), 10, 0);
+		WP_Mock::expectActionAdded($hook_name, Mockery::type('callable'), 20, 0);
+
+		// Act
+		$this->instance->stage_styles();
+
+		// Assert: Check logs for correct deferral messages.
+		$this->expectLog('debug', array('AssetEnqueueBaseTrait::stage_styles', 'Deferring registration', 'asset-prio-10', "to hook '{$hook_name}' with priority 10"), 1);
+		$this->expectLog('debug', array('AssetEnqueueBaseTrait::stage_styles', 'Deferring registration', 'asset-prio-20', "to hook '{$hook_name}' with priority 20"), 1);
+
+		// Assert that the assets are in the correct structure in the deferred queue.
+		$styles = $this->instance->get_styles();
+		$this->assertArrayHasKey($hook_name, $styles['deferred'], 'Hook key should exist in deferred assets.');
+		$this->assertArrayHasKey(10, $styles['deferred'][$hook_name], 'Priority 10 key should exist.');
+		$this->assertArrayHasKey(20, $styles['deferred'][$hook_name], 'Priority 20 key should exist.');
+
+		$this->assertCount(1, $styles['deferred'][$hook_name][10]);
+		$this->assertCount(1, $styles['deferred'][$hook_name][20]);
+
+		$this->assertEquals('asset-prio-10', array_values($styles['deferred'][$hook_name][10])[0]['handle']);
+		$this->assertEquals('asset-prio-20', array_values($styles['deferred'][$hook_name][20])[0]['handle']);
+
+		// Assert that the main assets queue is empty as all assets were deferred.
+		$this->assertEmpty($styles['general']);
+	}
+
+	/**
+	 * @test
+	 * @covers \Ran\PluginLib\EnqueueAccessory\StylesEnqueueTrait::_enqueue_deferred_styles
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_enqueue_deferred_assets
+	 */
+	public function test_enqueue_deferred_styles_processes_assets_for_correct_priority(): void {
+		// Arrange
+		$hook_name     = 'my_multi_priority_hook';
+		$assets_to_add = array(
+			array(
+				'handle'   => 'asset-prio-10',
+				'src'      => 'path/to/p10.css',
+				'hook'     => $hook_name,
+				'priority' => 10,
+			),
+			array(
+				'handle'   => 'asset-prio-20',
+				'src'      => 'path/to/p20.css',
+				'hook'     => $hook_name,
+				'priority' => 20,
+			),
+		);
+		$this->instance->add_styles($assets_to_add);
+		$this->instance->stage_styles(); // This populates the deferred assets array
+
+		// Mock wp_style_is calls for proper asset processing
+		WP_Mock::userFunction('wp_style_is')->with('asset-prio-10', 'registered')->andReturn(false);
+		WP_Mock::userFunction('wp_style_is')->with('asset-prio-10', 'enqueued')->andReturn(false);
+		WP_Mock::userFunction('wp_style_is')->with('asset-prio-20', 'registered')->andReturn(false);
+		WP_Mock::userFunction('wp_style_is')->with('asset-prio-20', 'enqueued')->andReturn(false);
+
+		// Assert that only the priority 10 asset is enqueued
+		WP_Mock::userFunction('wp_enqueue_style')->once()->with('asset-prio-10');
+		WP_Mock::userFunction('wp_enqueue_style')->never()->with('asset-prio-20');
+
+		// Act: Simulate the WordPress action firing for priority 10.
+		$this->instance->_enqueue_deferred_styles($hook_name, 10);
+
+		// Assert: Check logs for correct processing messages.
+		$this->expectLog('debug', array('_enqueue_deferred_', 'Entered hook: "' . $hook_name . '" with priority: 10'), 1);
+		$this->expectLog('debug', array('_enqueue_deferred_', "Processing deferred asset 'asset-prio-10'"), 1);
+
+		// Assert that the priority 10 assets are gone, but priority 20 remains.
+		$styles = $this->instance->get_styles();
+		$this->assertArrayHasKey($hook_name, $styles['deferred'], 'Hook key should still exist.');
+		$this->assertArrayNotHasKey(10, $styles['deferred'][$hook_name], 'Priority 10 key should be removed.');
+		$this->assertArrayHasKey(20, $styles['deferred'][$hook_name], 'Priority 20 key should still exist.');
+		$this->assertCount(1, $styles['deferred'][$hook_name][20]);
+		$this->assertEquals('asset-prio-20', array_values($styles['deferred'][$hook_name][20])[0]['handle']);
 	}
 }

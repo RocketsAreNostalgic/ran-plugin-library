@@ -72,19 +72,19 @@ trait StylesEnqueueTrait {
 	 * For each style:
 	 * - If a `hook` is specified in the definition, its registration is deferred. The style
 	 *   is moved to the `$deferred_styles` queue, and an action is set up (if not already present)
-	 *   to call `enqueue_deferred_styles()` when the specified hook fires.
+	 *   to call `_enqueue_deferred_styles()` when the specified hook fires.
 	 * - Styles without a `hook` are registered immediately. The registration process
 	 *   (handled by `_process_single_asset()`) includes checking any associated
 	 *   `$condition` callback and calling `wp_register_style()`.
 	 *
 	 * Note: This method only *registers* the stylesheets. Enqueuing is handled by
-	 * `stage_styles()` or `enqueue_deferred_styles()`.
+	 * `stage_styles()` or `_enqueue_deferred_styles()`.
 	 *
 	 * @return self Returns the instance of this class for method chaining.
 	 * @see    self::add_styles()
 	 * @see    self::_process_single_asset()
 	 * @see    self::stage_styles()
-	 * @see    self::enqueue_deferred_styles()
+	 * @see    self::_enqueue_deferred_styles()
 	 * @see    wp_register_style()
 	 */
 	public function stage_styles(): self {
@@ -109,7 +109,7 @@ trait StylesEnqueueTrait {
 	 * @see    self::add_styles()
 	 * @see    self::register_styles()
 	 * @see    self::_process_single_asset()
-	 * @see    self::enqueue_deferred_styles()
+	 * @see    self::_enqueue_deferred_styles()
 	 */
 	public function enqueue_immediate_styles(): self {
 		return $this->enqueue_immediate_assets(AssetType::Style);
@@ -123,8 +123,8 @@ trait StylesEnqueueTrait {
 	 * @param int    $priority  The priority of the action that triggered this callback.
 	 * @return void
 	 */
-	public function enqueue_deferred_styles( string $hook_name, int $priority ): void {
-		$this->_enqueue_deferred_assets( $hook_name, AssetType::Style, $priority );
+	public function _enqueue_deferred_styles( string $hook_name, int $priority ): void {
+		$this->_enqueue_deferred_assets( AssetType::Style, $hook_name, $priority );
 	}
 
 	/**
@@ -151,12 +151,12 @@ trait StylesEnqueueTrait {
 	 *
 	 * This method is designed to handle inline styles that target already registered/enqueued styles,
 	 * such as those belonging to WordPress core or other plugins. It should be called on a hook
-	 * like `wp_enqueue_scripts` with a late priority to ensure the target styles are available.
+	 * like `wp_enqueue_styles` with a late priority to ensure the target styles are available.
 	 *
 	 * @internal This is an internal method called by WordPress as an action callback and should not be called directly.
 	 * @return void
 	 */
-	public function enqueue_external_inline_styles(): void {
+	public function _enqueue_external_inline_styles(): void {
 		$this->_enqueue_external_inline_assets( AssetType::Style );
 	}
 
@@ -443,7 +443,7 @@ trait StylesEnqueueTrait {
 	 *
 	 * @return string The modified HTML tag with added attributes.
 	 */
-	protected function _modify_html_tag_attributes(
+	protected function _modify_style_tag_attributes(
 		AssetType $asset_type,
 		string $tag,
 		string $tag_handle,
