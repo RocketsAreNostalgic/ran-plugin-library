@@ -10,7 +10,6 @@
  * It is not intended to be used directly by a consumer class, but rather as a
  * dependency for the main asset processing base class.
  *
- * @todo FEATURE - cachebusting beyond version numbers
  * @todo FEATURE - dev vs prod for loading minififed files
  * @todo EXPLORE MULTI-SITE compatibility
  * @todo EXPLORE WP_NETWORK
@@ -268,8 +267,7 @@ trait AssetEnqueueBaseTrait {
 
 				// Register the action for this specific hook and priority if not already done.
 				if ( ! isset( $this->registered_hooks[ $asset_type->value ][ $hook_name . '_' . $priority ] ) ) {
-
-					$callback        = function () use ( $hook_name, $priority, $context ) {
+					$callback = function () use ( $hook_name, $priority, $context ) {
 						if ( method_exists( $this, $context ) ) {
 							$this->{$context}( $hook_name, $priority );
 						}
@@ -690,6 +688,128 @@ trait AssetEnqueueBaseTrait {
 		array $attributes_to_apply
 	): string;
 
+
+	/**
+	 * Generates a version string for an asset, using cache-busting if configured.
+	 *
+	 * If the asset definition has 'cache_bust' set to true, this method will attempt
+	 * to generate a version based on the file's content hash. Otherwise, it returns
+	 * the version specified in the asset definition or false.
+	 *
+	 * @param array<string, mixed> $asset_definition The asset's definition array.
+	 * @return string|false The calculated version string, or false if no version is applicable.
+	 */
+	protected function _generate_asset_version(array $asset_definition): string|false {
+		$logger  = $this->get_logger();
+		$context = __TRAIT__ . '::' . __FUNCTION__;
+
+		$version    = $asset_definition['version']    ?? false;
+		$cache_bust = $asset_definition['cache_bust'] ?? false;
+		$handle     = $asset_definition['handle']     ?? 'N/A';
+
+		if (!$cache_bust) {
+			return $version;
+		}
+
+		$src = $asset_definition['src'] ?? null;
+		if (empty($src)) {
+			return $version; // Cannot cache-bust without a source URL.
+		}
+
+		$file_path = $this->_resolve_url_to_path($src);
+
+		if (false === $file_path) {
+			if ($logger->is_active()) {
+				$logger->debug("{$context} - Could not resolve path for '{$handle}' from src '{$src}'. Cache-busting skipped.");
+			}
+			return $version;
+		}
+
+		if (!$this->_file_exists($file_path)) {
+			if ($logger->is_active()) {
+				$logger->warning("{$context} - Cache-busting for '{$handle}' failed. File not found at resolved path: '{$file_path}'.");
+			}			return $version;
+		}
+
+		$hash = $this->_md5_file($file_path);
+		return $hash ? substr($hash, 0, 10) : $version;
+	}
+
+	/**
+	 * Resolves a URL to a physical file path on the server.
+	 *
+	 * This is a helper for the cache-busting mechanism to locate the file and read its content.
+	 * It needs to handle various URL formats (plugin-relative, theme-relative, absolute).
+	 *
+	 * @param string $url The asset URL to resolve.
+	 * @return string|false The absolute file path, or false if resolution fails.
+	 */
+	protected function _resolve_url_to_path(string $url): string|false {
+		$logger  = $this->get_logger();
+		$context = __TRAIT__ . '::' . __FUNCTION__;
+
+		// Use content_url() and WP_CONTENT_DIR for robust path resolution in
+		// single and multisite environments.
+		$content_url = content_url();
+		$content_dir = WP_CONTENT_DIR;
+
+		// Check if the asset URL is within the content directory.
+		if (strpos($url, $content_url) === 0) {
+			$file_path       = str_replace($content_url, $content_dir, $url);
+			$normalized_path = wp_normalize_path($file_path);
+
+			if ($logger->is_active()) {
+				$logger->debug("{$context} - Resolved URL to path: '{$url}' -> '{$normalized_path}'.");
+			}
+			return $normalized_path;
+		}
+
+		// Fallback for URLs outside of wp-content, e.g., in wp-includes.
+		// This is less common for plugin/theme assets but adds robustness.
+		$site_url = site_url();
+		if (strpos($url, $site_url) === 0) {
+			$relative_path   = substr($url, strlen($site_url));
+			$file_path       = ABSPATH . ltrim($relative_path, '/');
+			$normalized_path = wp_normalize_path($file_path);
+
+			if ($logger->is_active()) {
+				$logger->debug("{$context} - Resolved URL to path (fallback): '{$url}' -> '{$normalized_path}'.");
+			}
+			return $normalized_path;
+		}
+
+		if ($logger->is_active()) {
+			$logger->warning("{$context} - Could not resolve URL to path: '{$url}'. URL does not start with content_url ('{$content_url}') or site_url ('{$site_url}').");
+		}
+
+		return false;
+	}
+
+	// ------------------------------------------------------------------------
+	// region FILESYSTEM WRAPPERS FOR TESTABILITY
+	// ------------------------------------------------------------------------
+
+	/**
+	 * Wraps the native file_exists function to allow for mocking in tests.
+	 *
+	 * @param string $path The file path to check.
+	 *
+	 * @return bool True if the file exists, false otherwise.
+	 */
+	protected function _file_exists(string $path): bool {
+		return file_exists($path);
+	}
+
+	/**
+	 * Wraps the native md5_file function to allow for mocking in tests.
+	 *
+	 * @param string $path The path to the file.
+	 *
+	 * @return string|false The MD5 hash of the file, or false on failure.
+	 */
+	protected function _md5_file(string $path): string|false {
+		return md5_file($path);
+	}
 
 	/**
 	 * Executes callbacks registered to output content in the HTML <head> section.
