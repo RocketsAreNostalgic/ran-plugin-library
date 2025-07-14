@@ -51,7 +51,6 @@ class ConcreteEnqueueForStylesTesting extends AssetEnqueueBaseAbstract {
  * @covers \Ran\PluginLib\EnqueueAccessory\StylesEnqueueTrait
  */
 class StylesEnqueueTraitTest extends PluginLibTestCase {
-
 	/**
 	 * @var (ConcreteEnqueueForStylesTesting&Mockery\MockInterface)|Mockery\LegacyMockInterface
 	 */

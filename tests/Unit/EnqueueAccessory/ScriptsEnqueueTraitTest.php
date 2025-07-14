@@ -64,13 +64,18 @@ class ScriptsEnqueueTraitTest extends PluginLibTestCase {
 	public function setUp(): void {
 		parent::setUp();
 
-		// Get a fully configured and registered mock instance from the parent test case.
-		// This handles logger setup and all other necessary config dependencies.
 		$this->config_mock = $this->get_and_register_concrete_config_instance();
 
-		// Instantiate the test class with the configured mock.
-		$this->instance = new ConcreteEnqueueForScriptsTesting($this->config_mock);
+		$this->logger_mock = new CollectingLogger();
 
+		// Create a partial mock for the class under test.
+		// This allows us to mock protected methods like _file_exists and _md5_file.
+		$this->instance = Mockery::mock(ConcreteEnqueueForScriptsTesting::class, array($this->config_mock))
+		    ->makePartial()
+		    ->shouldAllowMockingProtectedMethods();
+
+		// Ensure the mock instance uses our collecting logger.
+		$this->instance->shouldReceive('get_logger')->andReturn($this->logger_mock)->byDefault();
 
 		// Default WP_Mock function mocks for asset functions
 		WP_Mock::userFunction('wp_register_script')->withAnyArgs()->andReturn(true)->byDefault();
@@ -95,6 +100,10 @@ class ScriptsEnqueueTraitTest extends PluginLibTestCase {
 				return htmlspecialchars((string) $text, ENT_QUOTES, 'UTF-8');
 			},
 		))->byDefault();
+
+		if (!defined('ABSPATH')) {
+			define('ABSPATH', '/var/www/html/');
+		}
 	}
 
 	/**
@@ -103,19 +112,6 @@ class ScriptsEnqueueTraitTest extends PluginLibTestCase {
 	public function tearDown(): void {
 		parent::tearDown();
 		Mockery::close();
-
-		// Reset protected properties to ensure a clean state for each test.
-		$reflection = new \ReflectionObject($this->instance);
-
-		$props_to_reset = array('assets', 'inline_assets', 'deferred_assets');
-
-		foreach ($props_to_reset as $prop_name) {
-			if ($reflection->hasProperty($prop_name)) {
-				$property = $reflection->getProperty($prop_name);
-				$property->setAccessible(true);
-				$property->setValue($this->instance, array());
-			}
-		}
 	}
 
 	/**
@@ -124,9 +120,9 @@ class ScriptsEnqueueTraitTest extends PluginLibTestCase {
 	 */
 	public function test_process_single_script_asset_localizes_script_correctly(): void {
 		// Arrange
-		$handle = 'my-localized-script';
-		$object_name = 'myPluginData';
-		$data = array('ajax_url' => 'http://example.com/ajax');
+		$handle           = 'my-localized-script';
+		$object_name      = 'myPluginData';
+		$data             = array('ajax_url' => 'http://example.com/ajax');
 		$asset_definition = array(
 			'handle'   => $handle,
 			'src'      => 'path/to/script.js',
@@ -158,6 +154,125 @@ class ScriptsEnqueueTraitTest extends PluginLibTestCase {
 			)
 		);
 		$this->expectLog('debug', array("Localizing script '{$handle}' with JS object '{$object_name}'"), 1, true);
+	}
+
+	/**
+	 * @test
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_generate_asset_version
+	 */
+	public function test_cache_busting_generates_hash_version_when_enabled_and_file_exists(): void {
+		// --- Test Setup ---
+		$handle           = 'my-script';
+		$src              = '/wp-content/plugins/my-plugin/js/my-script.js';
+		$file_path        = ABSPATH . 'wp-content/plugins/my-plugin/js/my-script.js';
+		$hash             = md5('file content');
+		$expected_version = substr($hash, 0, 10);
+
+		$asset_definition = array(
+		    'handle'     => $handle,
+		    'src'        => $src,
+		    'version'    => '1.0.0',
+		    'cache_bust' => true,
+		);
+
+		WP_Mock::userFunction('site_url')->andReturn('http://example.com');
+		WP_Mock::userFunction('wp_normalize_path')->andReturnUsing(fn($p) => $p);
+
+		$this->instance->shouldReceive('_file_exists')->once()->with($file_path)->andReturn(true);
+		$this->instance->shouldReceive('_md5_file')->once()->with($file_path)->andReturn($hash);
+
+		// --- Act ---
+		$actual_version = $this->_invoke_protected_method($this->instance, '_generate_asset_version', array($asset_definition));
+
+		// --- Assert ---
+		$this->assertSame($expected_version, $actual_version);
+	}
+
+	/**
+	 * @test
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_generate_asset_version
+	 */
+	public function test_cache_busting_falls_back_to_default_version_when_file_not_found(): void {
+		// --- Test Setup ---
+		$handle          = 'my-script';
+		$src             = '/wp-content/plugins/my-plugin/js/my-script.js';
+		$file_path       = ABSPATH . 'wp-content/plugins/my-plugin/js/my-script.js';
+		$default_version = '1.2.3';
+
+		$asset_definition = array(
+		    'handle'     => $handle,
+		    'src'        => $src,
+		    'version'    => $default_version,
+		    'cache_bust' => true,
+		);
+
+		WP_Mock::userFunction('site_url')->andReturn('http://example.com');
+		WP_Mock::userFunction('wp_normalize_path')->andReturnUsing(fn($p) => $p);
+
+		$this->instance->shouldReceive('_file_exists')->once()->with($file_path)->andReturn(false);
+		$this->instance->shouldReceive('_md5_file')->never();
+
+		// --- Act ---
+		$actual_version = $this->_invoke_protected_method($this->instance, '_generate_asset_version', array($asset_definition));
+
+		// --- Assert ---
+		$this->assertSame($default_version, $actual_version);
+		$this->assertLogContains('warning', "Cache-busting for '{$handle}' failed. File not found at resolved path: '{$file_path}'.");
+	}
+
+	// ------------------------------------------------------------------------
+	// Helper Methods
+	// ------------------------------------------------------------------------
+
+	protected function assertLogContains(string $level, string $message): void {
+		$logs         = $this->logger_mock->get_logs();
+		$found        = false;
+		$log_messages = array();
+
+		foreach ($logs as $log) {
+			if ($log['level'] === $level && strpos($log['message'], $message) !== false) {
+				$found = true;
+				break;
+			}
+			$log_messages[] = "[{$log['level']}] {$log['message']}";
+		}
+
+		$this->assertTrue(
+			$found,
+			sprintf(
+				"Failed to find expected log message.\n- Expected level: '%s'\n- Expected message containing: '%s'\n- Actual logs:\n%s",
+				$level,
+				$message,
+				implode("\n", $log_messages)
+			)
+		);
+	}
+
+	/**
+	 * @test
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_generate_asset_version
+	 */
+	public function test_cache_busting_is_skipped_when_disabled(): void {
+		// --- Test Setup ---
+		$handle          = 'my-script';
+		$src             = '/wp-content/plugins/my-plugin/js/my-script.js';
+		$default_version = '1.2.3';
+
+		$asset_definition = array(
+		    'handle'     => $handle,
+		    'src'        => $src,
+		    'version'    => $default_version,
+		    'cache_bust' => false, // Explicitly disabled
+		);
+
+		$this->instance->shouldReceive('_file_exists')->never();
+		$this->instance->shouldReceive('_md5_file')->never();
+
+		// --- Act ---
+		$actual_version = $this->_invoke_protected_method($this->instance, '_generate_asset_version', array($asset_definition));
+
+		// --- Assert ---
+		$this->assertSame($default_version, $actual_version);
 	}
 
 	// ------------------------------------------------------------------------

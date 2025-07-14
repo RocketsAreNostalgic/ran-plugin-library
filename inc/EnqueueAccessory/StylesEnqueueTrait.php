@@ -301,10 +301,10 @@ trait StylesEnqueueTrait {
 			return false;
 		}
 
-		$handle     = $asset_definition['handle']     ?? null;
-		$src        = $asset_definition['src']        ?? null;
-		$deps       = $asset_definition['deps']       ?? array();
-		$ver        = $asset_definition['version']    ?? false;
+		$handle     = $asset_definition['handle'] ?? null;
+		$src        = $asset_definition['src']    ?? null;
+		$deps       = $asset_definition['deps']   ?? array();
+		$ver        = $this->_generate_asset_version($asset_definition);
 		$media      = $asset_definition['media']      ?? 'all';
 		$attributes = $asset_definition['attributes'] ?? array();
 		$data       = $asset_definition['data']       ?? array();
