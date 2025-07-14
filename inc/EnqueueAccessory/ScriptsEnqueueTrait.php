@@ -304,10 +304,11 @@ trait ScriptsEnqueueTrait {
 			return false;
 		}
 
-		$handle     = $asset_definition['handle']     ?? null;
-		$src        = $asset_definition['src']        ?? null;
-		$deps       = $asset_definition['deps']       ?? array();
-		$ver        = $asset_definition['version']    ?? false;
+		$handle     = $asset_definition['handle'] ?? null;
+		$src        = $asset_definition['src']    ?? null;
+		$deps       = $asset_definition['deps']   ?? array();
+		$ver        = $this->_generate_asset_version($asset_definition);
+		$ver        = (false === $ver) ? null : $ver;
 		$in_footer  = $asset_definition['in_footer']  ?? false;
 		$attributes = $asset_definition['attributes'] ?? array();
 		$data       = $asset_definition['data']       ?? array();
@@ -421,9 +422,7 @@ trait ScriptsEnqueueTrait {
 
 			// Localize script (must be done after registration/enqueue).
 			if (
-				!empty($localize) &&
-				!empty($localize['object_name']) &&
-				is_array($localize['data'])
+				!empty($localize) && !empty($localize['object_name']) && is_array($localize['data'])
 			) {
 				if ($logger_active) {
 					$logger->debug("{$context} - Localizing script '{$handle}' with JS object '{$localize['object_name']}'.");
@@ -435,27 +434,27 @@ trait ScriptsEnqueueTrait {
 					$localize['data']
 				);
 
-			// Process data with wp_script_add_data
-			if ( is_array( $data ) && ! empty( $data ) ) {
-				foreach ( $data as $key => $value ) {
+				// Process data with wp_script_add_data
+				if ( is_array( $data ) && ! empty( $data ) ) {
+					foreach ( $data as $key => $value ) {
+						if ( $logger_active ) {
+							$logger->debug( "{$context} - Adding data to {$asset_type->value} '{$handle}'. Key: '{$key}', Value: '{$value}'." );
+						}
+						if ( ! wp_script_add_data( $handle, (string) $key, $value ) && $logger_active ) {
+							$logger->warning( "{$context} - Failed to add data for key '{$key}' to {$asset_type->value} '{$handle}'." );
+						}
+					}
+				}
+
+				// Add custom attributes to the script tag.
+				if ( ! empty( $attributes ) ) {
 					if ( $logger_active ) {
-						$logger->debug( "{$context} - Adding data to {$asset_type->value} '{$handle}'. Key: '{$key}', Value: '{$value}'." );
+						$logger->debug( "{$context} - Adding attributes to {$asset_type->value} '{$handle}'." );
 					}
-					if ( ! wp_script_add_data( $handle, (string) $key, $value ) && $logger_active ) {
-						$logger->warning( "{$context} - Failed to add data for key '{$key}' to {$asset_type->value} '{$handle}'." );
-					}
+					$this->_add_asset_attributes( $asset_type, $handle, $attributes );
 				}
-			}
 
-			// Add custom attributes to the script tag.
-			if ( ! empty( $attributes ) ) {
-				if ( $logger_active ) {
-					$logger->debug( "{$context} - Adding attributes to {$asset_type->value} '{$handle}'." );
-				}
-				$this->_add_asset_attributes( $asset_type, $handle, $attributes );
-			}
-
-		$this->_do_add_filter(
+				$this->_do_add_filter(
 					'script_loader_tag',
 					function ( $tag, $tag_handle ) use ( $handle, $custom_attributes ) {
 						return $this->_modify_script_tag_attributes(AssetType::Script, $tag, $tag_handle, $handle, $custom_attributes);
