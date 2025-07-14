@@ -163,8 +163,8 @@ class ScriptsEnqueueTraitTest extends PluginLibTestCase {
 	public function test_cache_busting_generates_hash_version_when_enabled_and_file_exists(): void {
 		// --- Test Setup ---
 		$handle           = 'my-script';
-		$src              = '/wp-content/plugins/my-plugin/js/my-script.js';
-		$file_path        = ABSPATH . 'wp-content/plugins/my-plugin/js/my-script.js';
+		$src              = 'http://example.com/wp-content/plugins/my-plugin/js/my-script.js';
+		$file_path        = WP_CONTENT_DIR . '/plugins/my-plugin/js/my-script.js';
 		$hash             = md5('file content');
 		$expected_version = substr($hash, 0, 10);
 
@@ -175,6 +175,11 @@ class ScriptsEnqueueTraitTest extends PluginLibTestCase {
 		    'cache_bust' => true,
 		);
 
+		if (!defined('WP_CONTENT_DIR')) {
+		    define('WP_CONTENT_DIR', ABSPATH . 'wp-content');
+		}
+
+		WP_Mock::userFunction('content_url')->andReturn('http://example.com/wp-content');
 		WP_Mock::userFunction('site_url')->andReturn('http://example.com');
 		WP_Mock::userFunction('wp_normalize_path')->andReturnUsing(fn($p) => $p);
 
@@ -195,8 +200,8 @@ class ScriptsEnqueueTraitTest extends PluginLibTestCase {
 	public function test_cache_busting_falls_back_to_default_version_when_file_not_found(): void {
 		// --- Test Setup ---
 		$handle          = 'my-script';
-		$src             = '/wp-content/plugins/my-plugin/js/my-script.js';
-		$file_path       = ABSPATH . 'wp-content/plugins/my-plugin/js/my-script.js';
+		$src             = 'http://example.com/wp-content/plugins/my-plugin/js/my-script.js';
+		$file_path       = WP_CONTENT_DIR . '/plugins/my-plugin/js/my-script.js';
 		$default_version = '1.2.3';
 
 		$asset_definition = array(
@@ -206,6 +211,11 @@ class ScriptsEnqueueTraitTest extends PluginLibTestCase {
 		    'cache_bust' => true,
 		);
 
+		if (!defined('WP_CONTENT_DIR')) {
+		    define('WP_CONTENT_DIR', ABSPATH . 'wp-content');
+		}
+
+		WP_Mock::userFunction('content_url')->andReturn('http://example.com/wp-content');
 		WP_Mock::userFunction('site_url')->andReturn('http://example.com');
 		WP_Mock::userFunction('wp_normalize_path')->andReturnUsing(fn($p) => $p);
 
@@ -217,7 +227,7 @@ class ScriptsEnqueueTraitTest extends PluginLibTestCase {
 
 		// --- Assert ---
 		$this->assertSame($default_version, $actual_version);
-		$this->assertLogContains('warning', "Cache-busting for '{$handle}' failed. File not found at resolved path: '{$file_path}'.");
+		$this->assertLogContains('warning', "Cache-busting for '{$handle}' failed. File not found at resolved path: '" . $file_path . "'.");
 	}
 
 	// ------------------------------------------------------------------------
