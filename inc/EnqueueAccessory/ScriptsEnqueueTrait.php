@@ -192,22 +192,6 @@ trait ScriptsEnqueueTrait {
 	 *
 	 * @param AssetType $asset_type The asset type, expected to be 'script'.
 	 * @param array{
-	 *   handle: string,			// The unique name of the script.
-	 *   src: string|false,			// Full URL of the script, or path of the script relative to the WordPress root directory. Or false for inline scripts. Default empty.
-	 *   deps?: string[],			// Array of registered script handles this script depends on. Defaults to an empty array.
-	 *   ver?: string|false|null,	// Script version. `false` (default) uses plugin version, `null` adds no version, string sets specific version.
-	 *   in_footer?: bool,			// Whether to enqueue the script before </body> instead of </head>. Default false.
-	 *   attributes?: array<string, mixed>, // Key-value pairs of HTML attributes for the `<script>` tag (e.g., `['async' => true]`). Defaults to an empty array.
-	 *   data?: array<string, mixed>, // Key-value pairs of data attributes for the `<script>` tag (e.g., `['data-some-attr' => 'value']`). Defaults to an empty array.
-	 *   inline?: array<array{content: string, position?: 'before'|'after', condition?: callable|null}>, // Array of inline scripts. Each with content, optional position ('before'|'after', default 'after'), and optional condition callback.
-	 *   localize?: array{object_name: string, data: array<string, mixed>}, // Data to make available to the script. `object_name` is the JS object, `data` is the data array.
-	 * } 					$asset_definition 		The definition of the script to process.
-	 * @param string       	$processing_context 	The context in which the script is being processed (e.g., 'stage_scripts', 'enqueue_immediate_scripts'). Used for logging.
-	 * @param string|null 	$hook_name           	The hook name if processing in a deferred context, null otherwise.
-	 * @param bool        	$do_register         	Whether to register the script.
-	 * @param bool        	$do_enqueue          	Whether to enqueue the script.
-	 *
-	 * @return string|false The handle of the script on success, false on failure or if a condition is not met.
 	 */
 	protected function _process_single_script_asset(
 		AssetType $asset_type,
@@ -220,143 +204,74 @@ trait ScriptsEnqueueTrait {
 		$logger  = $this->get_logger();
 		$context = __TRAIT__ . '::' . __FUNCTION__;
 
-		// Resolve environment-specific source URL (dev vs. prod) if src is provided.
-		if ( ! empty( $asset_definition['src'] ) ) {
-			$asset_definition['src'] = $this->_resolve_environment_src( $asset_definition['src'] );
-		}
-
 		if ($asset_type !== AssetType::Script) {
 			$logger->warning("{$context}Incorrect asset type provided to _process_single_script_asset. Expected 'script', got '{$asset_type->value}'.");
 			return false;
 		}
-
-		$handle = $asset_definition['handle'] ?? null;
-		$src    = $asset_definition['src']    ?? null;
-		$deps   = $asset_definition['deps']   ?? array();
-		$ver    = $this->_generate_asset_version($asset_definition);
-		$ver    = (false === $ver) ? null : $ver;
-		// $media not used in wp_register_script
-		$in_footer  = $asset_definition['in_footer']  ?? false;
-		$attributes = $asset_definition['attributes'] ?? array();
-		$data       = $asset_definition['data']       ?? array();
-		$localize   = $asset_definition['localize']   ?? array();
-		$condition  = $asset_definition['condition']  ?? null;
-
-		$log_hook_context = $hook_name ? " on hook '{$hook_name}'" : '';
-
-		if ( $logger->is_active() ) {
-			$logger->debug( "{$context} - Processing {$asset_type->value} '{$handle}'{$log_hook_context} in context '{$processing_context}'." );
-		}
-
-		if ( is_callable( $condition ) && ! $condition() ) {
-			if ( $logger->is_active() ) {
-				$logger->debug( "{$context} - Condition not met for {$asset_type->value} '{$handle}'{$log_hook_context}. Skipping." );
-			}
-			return false;
-		}
-
-		if ( empty( $handle ) ) {
-			if ( $logger->is_active() ) {
-				$logger->warning( "{$context} - {$asset_type->value} definition is missing a 'handle'. Skipping." );
-			}
-			return false;
-		}
-
-		// Prepare args for wp_register_script and wp_enqueue_script
-		$enqueue_args      = array('in_footer' => $in_footer);
-		$custom_attributes = array();
-
-		// WordPress handles 'async' and 'defer' natively via the 'strategy' argument.
-		// Other attributes are collected and applied separately via the 'script_loader_tag' filter.
-		if (is_array($attributes) && !empty($attributes)) {
+		
+		// Prepare script-specific options
+		$in_footer    = $asset_definition['in_footer']  ?? false;
+		$attributes   = $asset_definition['attributes'] ?? array();
+		$enqueue_args = array('in_footer' => $in_footer);
+		
+		// Handle strategy (async/defer)
+		if (is_array($attributes)) {
 			foreach ($attributes as $key => $value) {
-				$key_lower = strtolower((string) $key);
+				$key_lower = strtolower((string)$key);
 				if ($key_lower === 'async' && $value === true) {
 					$enqueue_args['strategy'] = 'async';
 				} elseif ($key_lower === 'defer' && $value === true) {
 					$enqueue_args['strategy'] = 'defer';
-				} elseif (in_array($key_lower, array('src', 'id', 'type'), true)) {
-					if ($logger->is_active()) {
-						$logger->warning("{$context} - Ignoring '{$key_lower}' attribute for '{$handle}'. WordPress manages this attribute directly. Overriding is not allowed.");
-					}
-				} else {
-					// Collect all other non-managed attributes for the script_loader_tag filter.
-					$custom_attributes[$key] = $value;
 				}
 			}
 		}
-
-		// During staging phase, skip processing of deferred assets completely
-		$deferred_handle = $this->_is_deferred_asset(
-			$asset_definition,
-			$handle,
-			$hook_name,
-			$context,
-			$asset_type
-		);
-
-		if ($deferred_handle !== null) {
-			return $deferred_handle; // Exit early, we'll handle this during the hook
-		}
-
-		$src_url = ($src === false) ? false : $this->get_asset_url( $src, AssetType::Script );
-
-		if ($src_url === null && $src !== false) {
-			if ( $logger->is_active() ) {
-				$logger->error( "{$context} - Could not resolve source for {$asset_type->value} '{$handle}'. Skipping." );
-			}
-			return false;
-		}
-
-		// Standard handling for non-deferred assets
-		$this->do_register(
+		
+		$handle = $this->_concrete_process_single_asset(
 			$asset_type,
+			$asset_definition,
+			$processing_context,
+			$hook_name,
 			$do_register,
-			$handle,
-			$src_url,
-			$deps,
-			$ver,
-			$enqueue_args,
-			$context,
-			$log_hook_context
+			$do_enqueue,
+			$enqueue_args
 		);
-
-		if ($do_enqueue) {
-			$is_deferred = $deferred_handle !== null;
-
-			// Use the shared do_enqueue method
-			$enqueue_result = $this->do_enqueue(
-				$asset_type,
-				true,
-				$handle,
-				$src_url,
-				$deps,
-				$ver,
-				$enqueue_args,
-				$context,
-				$log_hook_context,
-				$is_deferred,
-				$hook_name
-			);
-
-			if (!$enqueue_result) {
-				return false;
+		
+		// If processing was successful
+		if ($handle !== false) {
+			// Process script-specific extras (attributes, localization, etc.)
+			$this->_process_script_extras($asset_definition, $handle, $hook_name);
+			
+			// If we're enqueueing, also process inline scripts
+			if ($do_enqueue) {
+				// Process any inline scripts attached to this asset definition
+				$this->_process_inline_script_assets($asset_type, $handle, $hook_name, 'immediate');
 			}
-
-			// After enqueuing, process any inline scripts attached to this asset definition
-			$this->_process_inline_script_assets($asset_type, $handle, $hook_name, 'immediate');
 		}
-
-		// Process extras (Data, Custom Attributes, Inline Scripts).
-		if ( null === $hook_name && $handle ) {
-			$logger_active = $logger->is_active();
-
+		
+		return $handle;
+	}
+	
+	/**
+	 * Process script-specific extras like localization and data.
+	 *
+	 * @param array       $asset_definition The script asset definition.
+	 * @param string      $handle           The script handle.
+	 * @param string|null $hook_name        Optional. The hook name.
+	 */
+	protected function _process_script_extras(array $asset_definition, string $handle, ?string $hook_name): void {
+		$logger     = $this->get_logger();
+		$context    = __TRAIT__ . '::' . __FUNCTION__;
+		$asset_type = AssetType::Script;
+		
+		if (null === $hook_name && $handle) {
+			$data       = $asset_definition['data']       ?? array();
+			$localize   = $asset_definition['localize']   ?? array();
+			$attributes = $asset_definition['attributes'] ?? array();
+			
 			// Localize script (must be done after registration/enqueue).
-			if (
-				!empty($localize) && !empty($localize['object_name']) && is_array($localize['data'])
-			) {
-				if ($logger_active) {
-					$logger->debug("{$context} - Localizing {$asset_type->value} '{$handle}' with JS object '{$localize['object_name']}'.");
+			if (!empty($localize) && !empty($localize['object_name']) && is_array($localize['data'])) {
+				if ($logger->is_active()) {
+					$logger->debug("Localizing script '{$handle}' with JS object '{$localize['object_name']}'");
 				}
 
 				wp_localize_script(
@@ -364,39 +279,67 @@ trait ScriptsEnqueueTrait {
 					$localize['object_name'],
 					$localize['data']
 				);
+			}
 
-				// Process data with wp_script_add_data
-				if ( is_array( $data ) && ! empty( $data ) ) {
-					foreach ( $data as $key => $value ) {
-						if ( $logger_active ) {
-							$logger->debug( "{$context} - Adding data to {$asset_type->value} '{$handle}'. Key: '{$key}', Value: '{$value}'." );
-						}
-						if ( ! wp_script_add_data( $handle, (string) $key, $value ) && $logger_active ) {
-							$logger->warning( "{$context} - Failed to add data for key '{$key}' to {$asset_type->value} '{$handle}'." );
-						}
+			// Process data with wp_script_add_data
+			if (is_array($data) && !empty($data)) {
+				foreach ($data as $key => $value) {
+					if ($logger->is_active()) {
+						$logger->debug("{$context} - Adding data to script '{$handle}'. Key: '{$key}', Value: '{$value}'.");
 					}
-				}
-
-				// Add custom attributes to the script tag.
-				if ( ! empty( $attributes ) ) {
-					if ( $logger->is_active() ) {
-						$logger->debug( "{$context} - Adding attributes to {$asset_type->value} '{$handle}'." );
+					if (!wp_script_add_data($handle, (string)$key, $value) && $logger->is_active()) {
+						$logger->warning("{$context} - Failed to add data for key '{$key}' to script '{$handle}'.");
 					}
-					$this->_add_asset_attributes( $asset_type, $handle, $attributes );
-
-					$callback = function ( $tag, $tag_handle ) use ( $handle, $custom_attributes ) {
-						return $this->_modify_script_tag_attributes(AssetType::Script, $tag, $tag_handle, $handle, $custom_attributes);
-					};
-					$this->_do_add_filter('script_loader_tag', $callback, 10, 2);
 				}
 			}
-		}
 
-		if ( $logger->is_active() ) {
-			$logger->debug( "{$context} - Finished processing {$asset_type->value} '{$handle}'{$log_hook_context}." );
+			// Add custom attributes to the script tag.
+			$custom_attributes = $this->_extract_custom_script_attributes($handle, $attributes);
+			
+			if (!empty($custom_attributes)) {
+				if ($logger->is_active()) {
+					$logger->debug("{$context} - Adding attributes to script '{$handle}'.");
+				}
+				
+				$callback = function ($tag, $tag_handle) use ($handle, $custom_attributes) {
+					return $this->_modify_script_tag_attributes(AssetType::Script, $tag, $tag_handle, $handle, $custom_attributes);
+				};
+				$this->_do_add_filter('script_loader_tag', $callback, 10, 2);
+			}
 		}
-
-		return $handle;
+	}
+	
+	/**
+	 * Extract custom script attributes that need to be applied via filter.
+	 *
+	 * @param string $handle     The script handle.
+	 * @param array  $attributes The attributes array.
+	 *
+	 * @return array Custom attributes that need to be applied via filter.
+	 */
+	protected function _extract_custom_script_attributes(string $handle, array $attributes): array {
+		$logger            = $this->get_logger();
+		$context           = __TRAIT__ . '::' . __FUNCTION__;
+		$custom_attributes = array();
+		
+		foreach ($attributes as $key => $value) {
+			$key_lower = strtolower((string)$key);
+			
+			if ($key_lower === 'async' || $key_lower === 'defer') {
+				// These are handled via the 'strategy' parameter
+				continue;
+			} elseif (in_array($key_lower, array('src', 'id', 'type'), true)) {
+				if ($logger->is_active()) {
+					$logger->warning("Ignoring '{$key_lower}' attribute for '{$handle}'");
+				}
+				continue;
+			} else {
+				// Collect all other non-managed attributes
+				$custom_attributes[$key] = $value;
+			}
+		}
+		
+		return $custom_attributes;
 	}
 
 	/**

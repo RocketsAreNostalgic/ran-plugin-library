@@ -1045,9 +1045,9 @@ class ScriptsEnqueueTraitTest extends PluginLibTestCase {
 		$this->instance->stage_scripts();
 
 		// Assert
-		$this->expectLog('warning', "Ignoring 'id' attribute for '{$handle}'");
-		$this->expectLog('warning', "Ignoring 'type' attribute for '{$handle}'");
-		$this->expectLog('warning', "Ignoring 'src' attribute for '{$handle}'");
+		$this->expectLog('warning', "Ignoring 'id' attribute for '{$handle}'", 1, true);
+		$this->expectLog('warning', "Ignoring 'type' attribute for '{$handle}'", 1, true);
+		$this->expectLog('warning', "Ignoring 'src' attribute for '{$handle}'", 1, true);
 		foreach ($this->logger_mock->get_logs() as $log) {
 			if (strtolower((string) $log['level']) === 'warning') {
 				$this->assertStringNotContainsString("Ignoring 'data-custom' attribute", $log['message']);
