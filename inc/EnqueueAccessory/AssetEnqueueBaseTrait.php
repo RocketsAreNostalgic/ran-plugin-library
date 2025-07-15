@@ -10,10 +10,7 @@
  * It is not intended to be used directly by a consumer class, but rather as a
  * dependency for the main asset processing base class.
  *
- * @todo FEATURE - dev vs prod for loading minififed files
- * @todo EXPLORE MULTI-SITE compatibility
- * @todo EXPLORE WP_NETWORK
- * @todo EXPLORE handeling of known core assets such as jQuery
+ * @todo - Implement the de-registering of assets.
  *
  * @package Ran\PluginLib\EnqueueAccessory
  * @author  Ran Plugin Lib
@@ -88,6 +85,33 @@ trait AssetEnqueueBaseTrait {
 	 * @return Logger The logger instance.
 	 */
 	abstract public function get_logger(): Logger;
+
+	/**
+	 * Resolves the asset source URL based on the environment.
+	 *
+	 * If `SCRIPT_DEBUG` is true, it prefers the 'dev' URL.
+	 * Otherwise, it prefers the 'prod' URL.
+	 *
+	 * @param string|array $src The source URL(s) for the asset.
+	 *
+	 * @return string The resolved source URL.
+	 */
+	protected function _resolve_environment_src($src): string {
+		if (is_string($src)) {
+			return $src;
+		}
+
+		$is_dev = $this->get_config()->is_dev_environment();
+
+		if ($is_dev && !empty($src['dev'])) {
+			return $src['dev'];
+		} elseif (!empty($src['prod'])) {
+			return $src['prod'];
+		}
+
+		// Fallback to the first available URL in the array.
+		return (string) reset($src);
+	}
 
 	/**
 	 * Retrieves the currently registered array of asset definitions.
@@ -181,9 +205,10 @@ trait AssetEnqueueBaseTrait {
 		if ( $logger->is_active() ) {
 			$logger->debug( "{$context} - Entered. Current {$asset_type->value} count: " . count( $this->assets[$asset_type->value] ) . '. Adding ' . count( $assets_to_add ) . " new {$asset_type->value}(s)." );
 			foreach ( $assets_to_add as $asset_key => $asset_data ) {
-				$handle = $asset_data['handle'] ?? 'N/A';
-				$src    = $asset_data['src']    ?? 'N/A';
-				$logger->debug( "{$context} - Adding {$asset_type->value}. Key: {$asset_key}, Handle: {$handle}, src: {$src}" );
+				$handle  = $asset_data['handle'] ?? 'N/A';
+				$src_val = $asset_data['src']    ?? 'N/A';
+				$src_log = is_array($src_val) ? json_encode($src_val) : $src_val;
+				$logger->debug( "{$context} - Adding {$asset_type->value}. Key: {$asset_key}, Handle: {$handle}, src: {$src_log}" );
 			}
 			$logger->debug( "{$context} - Adding " . count( $assets_to_add ) . " {$asset_type->value} definition(s). Current total: " . count( $this->assets[$asset_type->value] ) );
 		}
@@ -665,6 +690,209 @@ trait AssetEnqueueBaseTrait {
 		bool $do_enqueue = false
 	): string|false;
 
+
+
+	/**
+	 * Handles asset registration for both scripts and styles.
+	 *
+	 * @param AssetType    $asset_type      The type of asset (Script or Style).
+	 * @param bool         $do_register     Whether to perform registration.
+	 * @param string       $handle          The handle of the asset.
+	 * @param string|false $src             The source URL of the asset or false if no source.
+	 * @param array        $deps            Dependencies for the asset.
+	 * @param string|false $ver             Version string.
+	 * @param array|string $extra_args      Extra arguments (media for styles, in_footer for scripts).
+	 * @param string       $context         The logging context.
+	 * @param string       $log_hook_context Additional hook context for logging.
+	 *
+	 * @return bool False if registration fails, true otherwise.
+	 */
+	protected function do_register(
+		AssetType $asset_type,
+		bool $do_register,
+		string $handle,
+		$src,
+		array $deps,
+		$ver,
+		$extra_args,
+		string $context,
+		string $log_hook_context = ''
+	): bool {
+		$logger = $this->get_logger();
+
+		if ($do_register) {
+			$is_registered = $asset_type === AssetType::Script
+				? wp_script_is($handle, 'registered')
+				: wp_style_is($handle, 'registered');
+
+			if ($is_registered) {
+				if ( $logger->is_active() ) {
+					$logger->debug( "{$context} - {$asset_type->value} '{$handle}'{$log_hook_context} already registered. Skipping registration." );
+				}
+			} else {
+				if ($logger->is_active()) {
+					$logger->debug("{$context} - Registering {$asset_type->value}: '{$handle}'{$log_hook_context}: {$src}");
+				}
+
+				$result = false;
+				if ($asset_type === AssetType::Script) {
+					// For scripts, $extra_args would be $in_footer
+					$result = wp_register_script($handle, $src, $deps, $ver, $extra_args);
+				} else {
+					// For styles, $extra_args would be $media
+					$result = wp_register_style($handle, $src, $deps, $ver, $extra_args);
+				}
+
+				if (!$result) {
+					if ($logger->is_active()) {
+						$logger->warning("{$context} - wp_register_{$asset_type->value}() failed for handle '{$handle}'{$log_hook_context}. Skipping further processing for this asset.");
+					}
+					return false;
+				}
+			}
+		}
+
+		return true;
+	}
+
+	/**
+	 * Determines if an asset is deferred and handles early return for staging phase.
+	 *
+	 * @param array     $asset_definition The asset definition to check.
+	 * @param string    $handle          The handle of the asset.
+	 * @param string    $hook_name       The hook name if in hook-firing phase, null otherwise.
+	 * @param string    $context         The logging context.
+	 * @param AssetType $asset_type      The type of asset (Script or Style).
+	 * @return string|null The handle if this is a deferred asset during staging (for early return),
+	 *                     null otherwise.
+	 */
+	protected function _is_deferred_asset(
+    array $asset_definition,
+    string $handle,
+    ?string $hook_name,
+    ?string $context = null,
+    ?AssetType $asset_type = null
+): ?string {
+		$is_deferred_asset = !empty($asset_definition['hook']);
+		$is_hook_firing    = $hook_name !== null;
+
+		// During staging phase, skip processing of deferred assets completely
+		if ($is_deferred_asset && !$is_hook_firing) {
+			// Only log if context and asset_type are provided
+			if ($context !== null && $asset_type !== null) {
+				$logger = $this->get_logger();
+				if ($logger->is_active()) {
+					$logger->debug("{$context} - Skipping processing of deferred {$asset_type->value} '{$handle}' during staging. Will process when hook '{$asset_definition['hook']}' fires.");
+				}
+			}
+			return $handle;
+		}
+
+		return null;
+	}
+
+	/**
+	 * Common enqueue method for both scripts and styles.
+	 *
+	 * @param AssetType $asset_type      The type of asset (Script or Style).
+	 * @param bool      $do_enqueue      Whether to enqueue the asset.
+	 * @param string    $handle          The handle of the asset.
+	 * @param string|false $src         The source URL of the asset.
+	 * @param array     $deps           The dependencies of the asset.
+	 * @param string|false $ver         The version of the asset.
+	 * @param mixed     $extra_args     Extra arguments (in_footer for scripts, media for styles).
+	 * @param string    $context        The logging context.
+	 * @param string    $log_hook_context Additional hook context for logging.
+	 * @param bool      $is_deferred    Whether this is a deferred asset.
+	 * @param string|null $hook_name    The hook name if in hook-firing phase.
+	 *
+	 * @return bool True if enqueued successfully, false otherwise.
+	 */
+	protected function do_enqueue(
+		AssetType $asset_type,
+		bool $do_enqueue,
+		string $handle,
+		$src,
+		array $deps,
+		$ver,
+		$extra_args,
+		string $context,
+		string $log_hook_context = '',
+		bool $is_deferred = false,
+		?string $hook_name = null
+	): bool {
+		if (!$do_enqueue) {
+			return true;
+		}
+
+		$logger      = $this->get_logger();
+		$is_enqueued = $asset_type === AssetType::Script
+			? wp_script_is($handle, 'enqueued')
+			: wp_style_is($handle, 'enqueued');
+
+		if ($is_enqueued) {
+			if ($logger->is_active()) {
+				$logger->debug("{$context} - {$asset_type->value} '{$handle}'{$log_hook_context} already enqueued. Skipping.");
+			}
+			return true;
+		}
+
+		// For deferred assets that are being processed during their hook, we don't want to auto-register if not registered
+		// This prevents double registration since these assets will be explicitly registered above
+		$skip_auto_registration = $is_deferred && $hook_name !== null;
+
+		$is_registered = $asset_type === AssetType::Script
+			? wp_script_is($handle, 'registered')
+			: wp_style_is($handle, 'registered');
+
+		if (!$skip_auto_registration && !$is_registered) {
+			// Asset is not registered yet, register it first
+			if ($src !== false && empty($src)) {
+				if ($logger->is_active()) {
+					$logger->error("{$context} - Cannot register or enqueue {$asset_type->value} '{$handle}' because its 'src' is missing.");
+				}
+				return false; // Cannot proceed without src being a source, or false.
+			}
+
+			// Log that we're registering the asset first
+			if ($logger->is_active()) {
+				$logger->warning(
+					sprintf(
+						"%s - %s '%s' was not registered before enqueuing. Registering now.",
+						$context,
+						$asset_type->value,
+						$handle
+					)
+				);
+			}
+
+			// Register the asset directly using WP functions for test compatibility
+			$register_result = false;
+			if ($asset_type === AssetType::Script) {
+				$register_result = wp_register_script($handle, $src, $deps, $ver, $extra_args);
+			} else {
+				$register_result = wp_register_style($handle, $src, $deps, $ver, $extra_args);
+			}
+
+			if (!$register_result) {
+				return false;
+			}
+		}
+
+		// Asset is now registered, enqueue it
+		if ($logger->is_active()) {
+			$logger->debug("{$context} - Enqueuing {$asset_type->value} '{$handle}'{$log_hook_context}.");
+		}
+
+		if ($asset_type === AssetType::Script) {
+			wp_enqueue_script($handle);
+		} else {
+			wp_enqueue_style($handle);
+		}
+
+		return true;
+	}
+
 	/**
 	 * Modifies a asset html loading tag by adding attributes, intended for use with the 'asset_loader_tag' filter.
 	 *
@@ -706,8 +934,11 @@ trait AssetEnqueueBaseTrait {
 		$version    = $asset_definition['version']    ?? false;
 		$cache_bust = $asset_definition['cache_bust'] ?? false;
 		$handle     = $asset_definition['handle']     ?? 'N/A';
+		$src        = $asset_definition['src']        ?? false;
 
-		if (!$cache_bust) {
+		// If cache busting is not requested, or if there's no source file to bust,
+		// just return the version from the definition.
+		if ( ! $cache_bust || empty( $src ) ) {
 			return $version;
 		}
 

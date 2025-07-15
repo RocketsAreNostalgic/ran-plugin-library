@@ -254,6 +254,7 @@ trait ScriptsEnqueueTrait {
 					$logger->debug( "{$context}Removed processed inline {$asset_type->value} with key '{$key_to_unset}' for handle '{$removed_handle_for_log}'" . ($hook_name ? " on hook '{$hook_name}'." : '.') );
 				}
 			}
+			// Re-index the array to prevent issues with numeric keys after unsetting.
 			$this->inline_assets[$asset_type->value] = array_values( $this->inline_assets[$asset_type->value] );
 		} else {
 			$logger->debug( "{$context}No inline {$asset_type->value} found or processed for '{$parent_handle}'" . ($hook_name ? " on hook '{$hook_name}'." : '.') );
@@ -299,16 +300,22 @@ trait ScriptsEnqueueTrait {
 		$logger  = $this->get_logger();
 		$context = __TRAIT__ . '::' . __FUNCTION__;
 
+		// Resolve environment-specific source URL (dev vs. prod) if src is provided.
+		if ( ! empty( $asset_definition['src'] ) ) {
+			$asset_definition['src'] = $this->_resolve_environment_src( $asset_definition['src'] );
+		}
+
 		if ($asset_type !== AssetType::Script) {
 			$logger->warning("{$context}Incorrect asset type provided to _process_single_script_asset. Expected 'script', got '{$asset_type->value}'.");
 			return false;
 		}
 
-		$handle     = $asset_definition['handle'] ?? null;
-		$src        = $asset_definition['src']    ?? null;
-		$deps       = $asset_definition['deps']   ?? array();
-		$ver        = $this->_generate_asset_version($asset_definition);
-		$ver        = (false === $ver) ? null : $ver;
+		$handle = $asset_definition['handle'] ?? null;
+		$src    = $asset_definition['src']    ?? null;
+		$deps   = $asset_definition['deps']   ?? array();
+		$ver    = $this->_generate_asset_version($asset_definition);
+		$ver    = (false === $ver) ? null : $ver;
+		// $media not used in wp_register_script
 		$in_footer  = $asset_definition['in_footer']  ?? false;
 		$attributes = $asset_definition['attributes'] ?? array();
 		$data       = $asset_definition['data']       ?? array();
@@ -359,61 +366,65 @@ trait ScriptsEnqueueTrait {
 			}
 		}
 
-		if ( $do_register ) {
-			if ( wp_script_is( $handle, 'registered' ) ) {
-				if ( $logger->is_active() ) {
-					$logger->debug( "{$context} - {$asset_type->value} '{$handle}'{$log_hook_context} already registered. Skipping wp_register_script." );
-				}
-			} else {
-				if ( $logger->is_active() ) {
-					$logger->debug( "{$context} - Registering {$asset_type->value}: '{$handle}'{$log_hook_context}." );
-				}
-				$result = wp_register_script( $handle, $src, $deps, $ver, $enqueue_args );
-				if ( ! $result ) {
-					if ( $logger->is_active() ) {
-						$logger->warning( "{$context} - wp_register_{$asset_type->value}() failed for handle '{$handle}'{$log_hook_context}. Skipping further processing for this asset." );
-					}
-					return false;
-				}
-			}
+		// During staging phase, skip processing of deferred assets completely
+		$deferred_handle = $this->_is_deferred_asset(
+			$asset_definition,
+			$handle,
+			$hook_name,
+			$context,
+			$asset_type
+		);
+
+		if ($deferred_handle !== null) {
+			return $deferred_handle; // Exit early, we'll handle this during the hook
 		}
 
-		if ( $do_enqueue ) {
-			if ( wp_script_is( $handle, 'enqueued' ) ) {
-				if ( $logger->is_active() ) {
-					$logger->debug( "{$context} - Script '{$handle}'{$log_hook_context} already enqueued. Skipping." );
-				}
-			} else {
-				if ( wp_script_is( $handle, 'registered' ) ) {
-					// Script is registered but not enqueued, so just enqueue it by handle.
-					if ( $logger->is_active() ) {
-						$logger->debug( "{$context} - Enqueuing already registered script '{$handle}'{$log_hook_context}." );
-					}
-					wp_enqueue_script( $handle );
-				} else {
-					if ( $src !== false && empty( $src ) ) {
-						if ( $logger->is_active() ) {
-							$logger->error( "{$context} - Cannot register or enqueue script '{$handle}' because its 'src' is missing." );
-						}
-						return false; // Cannot proceed without scr being a source, or false.
-					}
+		$src_url = ($src === false) ? false : $this->get_asset_url( $src, AssetType::Script );
 
-					// Warn, then register and enqueue in one step.
-					if ( $logger->is_active() ) {
-						$logger->warning(
-							sprintf(
-								"%s - Script '%s' was not registered before enqueuing. Attempting to register and enqueue now.",
-								$context,
-								$handle
-							)
-						);
-					}
-					wp_enqueue_script( $handle, $src, $deps, $ver, $enqueue_args );
-				}
-
-				// After enqueuing, process any inline scripts attached to this asset definition.
-				$this->_process_inline_script_assets( $asset_type, $handle, $hook_name, 'immediate' );
+		if ($src_url === null && $src !== false) {
+			if ( $logger->is_active() ) {
+				$logger->error( "{$context} - Could not resolve source for {$asset_type->value} '{$handle}'. Skipping." );
 			}
+			return false;
+		}
+
+		// Standard handling for non-deferred assets
+		$this->do_register(
+			$asset_type,
+			$do_register,
+			$handle,
+			$src_url,
+			$deps,
+			$ver,
+			$enqueue_args,
+			$context,
+			$log_hook_context
+		);
+
+		if ($do_enqueue) {
+			$is_deferred = $deferred_handle !== null;
+
+			// Use the shared do_enqueue method
+			$enqueue_result = $this->do_enqueue(
+				$asset_type,
+				true,
+				$handle,
+				$src_url,
+				$deps,
+				$ver,
+				$enqueue_args,
+				$context,
+				$log_hook_context,
+				$is_deferred,
+				$hook_name
+			);
+
+			if (!$enqueue_result) {
+				return false;
+			}
+
+			// After enqueuing, process any inline scripts attached to this asset definition
+			$this->_process_inline_script_assets($asset_type, $handle, $hook_name, 'immediate');
 		}
 
 		// Process extras (Data, Custom Attributes, Inline Scripts).
@@ -425,7 +436,7 @@ trait ScriptsEnqueueTrait {
 				!empty($localize) && !empty($localize['object_name']) && is_array($localize['data'])
 			) {
 				if ($logger_active) {
-					$logger->debug("{$context} - Localizing script '{$handle}' with JS object '{$localize['object_name']}'.");
+					$logger->debug("{$context} - Localizing {$asset_type->value} '{$handle}' with JS object '{$localize['object_name']}'.");
 				}
 
 				wp_localize_script(
@@ -448,20 +459,16 @@ trait ScriptsEnqueueTrait {
 
 				// Add custom attributes to the script tag.
 				if ( ! empty( $attributes ) ) {
-					if ( $logger_active ) {
+					if ( $logger->is_active() ) {
 						$logger->debug( "{$context} - Adding attributes to {$asset_type->value} '{$handle}'." );
 					}
 					$this->_add_asset_attributes( $asset_type, $handle, $attributes );
-				}
 
-				$this->_do_add_filter(
-					'script_loader_tag',
-					function ( $tag, $tag_handle ) use ( $handle, $custom_attributes ) {
+					$callback = function ( $tag, $tag_handle ) use ( $handle, $custom_attributes ) {
 						return $this->_modify_script_tag_attributes(AssetType::Script, $tag, $tag_handle, $handle, $custom_attributes);
-					},
-					10,
-					2
-				);
+					};
+					$this->_do_add_filter('script_loader_tag', $callback, 10, 2);
+				}
 			}
 		}
 
@@ -525,11 +532,11 @@ trait ScriptsEnqueueTrait {
 
 		// Find the insertion point for attributes. This also serves as tag validation.
 		$closing_bracket_pos = strpos( $tag, '>' );
-		$script_open_pos     = stripos( $tag, '<script' );
+		$el_open_pos         = stripos( $tag, '<script' );
 
-		if ( false === $closing_bracket_pos || false === $script_open_pos ) {
+		if ( false === $closing_bracket_pos || false === $el_open_pos ) {
 			if ($logger->is_active()) {
-				$logger->warning("{$context} - Malformed script tag for '{$handle_to_match}'. Original tag: " . esc_html($tag) . '. Skipping attribute modification.');
+				$logger->warning("{$context} - Malformed {$asset_type->value} tag for '{$handle_to_match}'. Original tag: " . esc_html($tag) . '. Skipping attribute modification.');
 			}
 			return $tag;
 		}

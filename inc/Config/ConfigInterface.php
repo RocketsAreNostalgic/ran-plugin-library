@@ -41,4 +41,21 @@ interface ConfigInterface {
 	 * @return Logger The logger instance.
 	 */
 	public function get_logger(): Logger;
+
+	/**
+	 * Returns the developer-defined callback for checking if the environment is 'dev'.
+	 *
+	 * @return callable|null The callback function, or null if not set.
+	 */
+	public function get_is_dev_callback(): ?callable;
+
+	/**
+	 * Checks if the current environment is considered a 'development' environment.
+	 *
+	 * This method should encapsulate the logic for determining the environment status,
+	 * such as checking for a specific callback or a WordPress constant.
+	 *
+	 * @return bool True if it's a development environment, false otherwise.
+	 */
+	public function is_dev_environment(): bool;
 }
