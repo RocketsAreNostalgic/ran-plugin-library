@@ -664,7 +664,7 @@ trait AssetEnqueueBaseTrait {
 	 * @return void
 	 */
 	abstract protected function _process_inline_assets(AssetType $asset_type, string $parent_handle, ?string $hook_name, string $processing_context): void;
-	
+
 	/**
 	 * Concrete implementation for processing inline assets associated with a specific parent asset handle and hook context.
 	 * This method handles both script and style inline assets with appropriate conditional logic.
@@ -723,8 +723,8 @@ trait AssetEnqueueBaseTrait {
 				$condition_inline = $inline_asset_data['condition'] ?? null;
 
 				// Position is only applicable for scripts
-				$position = $asset_type === AssetType::Script 
-					? ($inline_asset_data['position'] ?? 'after') 
+				$position = $asset_type === AssetType::Script
+					? ($inline_asset_data['position'] ?? 'after')
 					: null;
 
 				if ( is_callable( $condition_inline ) && ! $condition_inline() ) {
@@ -739,15 +739,15 @@ trait AssetEnqueueBaseTrait {
 					continue;
 				}
 
-				$logger->debug( "{$context}Adding inline {$asset_type->value} for '{$parent_handle}' (key: {$key}" . 
-					($asset_type === AssetType::Script ? ", position: {$position}" : "") . ")" . 
+				$logger->debug( "{$context}Adding inline {$asset_type->value} for '{$parent_handle}' (key: {$key}" .
+					($asset_type === AssetType::Script ? ", position: {$position}" : '') . ')' .
 					($hook_name ? " on hook '{$hook_name}'." : '.') );
-				
+
 				$add_inline_function = $asset_type === AssetType::Script ? 'wp_add_inline_script' : 'wp_add_inline_style';
-				$result = $asset_type === AssetType::Script 
-					? $add_inline_function($parent_handle, $content, $position) 
+				$result              = $asset_type === AssetType::Script
+					? $add_inline_function($parent_handle, $content, $position)
 					: $add_inline_function($parent_handle, $content);
-					
+
 				if ($result) {
 					$logger->debug("{$context}Successfully added inline {$asset_type->value} for '{$parent_handle}' with {$add_inline_function}.");
 				} else {
@@ -797,7 +797,135 @@ trait AssetEnqueueBaseTrait {
 		bool $do_enqueue = false
 	): string|false;
 
+	/**
+	 * Process a single asset (script or style) with common handling logic.
+	 *
+	 * This method handles the common processing logic for both script and style assets,
+	 * including environment-specific source resolution, condition checking, deferred asset detection,
+	 * and registration/enqueuing.
+	 *
+	 * @param AssetType     $asset_type        The type of asset (script or style).
+	 * @param array         $asset_definition  The asset definition array.
+	 * @param string        $processing_context The context in which this asset is being processed.
+	 * @param string|null   $hook_name         Optional. The hook name for deferred assets.
+	 * @param bool          $do_register       Whether to register the asset.
+	 * @param bool          $do_enqueue        Whether to enqueue the asset.
+	 * @param array         $type_specific     Type-specific options (media for styles, in_footer for scripts).
+	 *
+	 * @return string|false The asset handle if successful, false otherwise.
+	 */
+	protected function _concrete_process_single_asset(
+		AssetType $asset_type,
+		array $asset_definition,
+		string $processing_context,
+		?string $hook_name = null,
+		bool $do_register = true,
+		bool $do_enqueue = false,
+		array $type_specific = array()
+	): string|false {
+		$logger  = $this->get_logger();
+		$context = get_class($this) . '::' . __FUNCTION__;
 
+		// Resolve environment-specific source URL (dev vs. prod) if src is provided.
+		if (!empty($asset_definition['src'])) {
+			$asset_definition['src'] = $this->_resolve_environment_src($asset_definition['src']);
+		}
+
+		$handle    = $asset_definition['handle'] ?? null;
+		$src       = $asset_definition['src']    ?? null;
+		$deps      = $asset_definition['deps']   ?? array();
+		$ver       = $this->_generate_asset_version($asset_definition);
+		$ver       = (false === $ver) ? null : $ver;
+		$condition = $asset_definition['condition'] ?? null;
+
+		$log_hook_context = $hook_name ? " on hook '{$hook_name}'" : '';
+
+		if ($logger->is_active()) {
+			$logger->debug("{$context} - Processing {$asset_type->value} '{$handle}'{$log_hook_context} in context '{$processing_context}'.");
+		}
+
+		if (is_callable($condition) && !$condition()) {
+			if ($logger->is_active()) {
+				$logger->debug("{$context} - Condition not met for {$asset_type->value} '{$handle}'{$log_hook_context}. Skipping.");
+			}
+			return false;
+		}
+
+		if (empty($handle)) {
+			if ($logger->is_active()) {
+				$logger->warning("{$context} - {$asset_type->value} definition is missing a 'handle'. Skipping.");
+			}
+			return false;
+		}
+
+		// During staging phase, skip processing of deferred assets completely
+		$deferred_handle = $this->_is_deferred_asset(
+			$asset_definition,
+			$handle,
+			$hook_name,
+			$context,
+			$asset_type
+		);
+
+		if ($deferred_handle !== null) {
+			// For deferred assets, we don't register during stage_scripts
+			// We'll handle this during the hook
+			if ($processing_context === 'stage_scripts') {
+				return $deferred_handle;
+			}
+		}
+
+		$src_url = ($src === false) ? false : $this->get_asset_url($src, $asset_type);
+
+		if ($src_url === null && $src !== false) {
+			if ($logger->is_active()) {
+				$logger->error("{$context} - Could not resolve source for {$asset_type->value} '{$handle}'. Skipping.");
+			}
+			return false;
+		}
+
+		// Standard handling for non-deferred assets
+		$this->do_register(
+			$asset_type,
+			$do_register,
+			$handle,
+			$src_url,
+			$deps,
+			$ver,
+			$type_specific,
+			$context,
+			$log_hook_context
+		);
+
+		if ($do_enqueue) {
+			$is_deferred = $deferred_handle !== null;
+
+			// Use the shared do_enqueue method
+			$enqueue_result = $this->do_enqueue(
+				$asset_type,
+				true,
+				$handle,
+				$src_url,
+				$deps,
+				$ver,
+				$type_specific,
+				$context,
+				$log_hook_context,
+				$is_deferred,
+				$hook_name
+			);
+
+			if (!$enqueue_result) {
+				return false;
+			}
+		}
+
+		if ($logger->is_active()) {
+			$logger->debug("{$context} - Finished processing {$asset_type->value} '{$handle}'{$log_hook_context}.");
+		}
+
+		return $handle;
+	}
 
 	/**
 	 * Handles asset registration for both scripts and styles.
@@ -844,10 +972,13 @@ trait AssetEnqueueBaseTrait {
 				$result = false;
 				if ($asset_type === AssetType::Script) {
 					// For scripts, $extra_args would be $in_footer
-					$result = wp_register_script($handle, $src, $deps, $ver, $extra_args);
+					$in_footer = $extra_args['in_footer'] ?? false;
+					// Pass in_footer as an array to match test expectations
+					$result = wp_register_script($handle, $src, $deps, $ver, array('in_footer' => $in_footer));
 				} else {
 					// For styles, $extra_args would be $media
-					$result = wp_register_style($handle, $src, $deps, $ver, $extra_args);
+					$media  = $extra_args['media'] ?? 'all';
+					$result = wp_register_style($handle, $src, $deps, $ver, $media);
 				}
 
 				if (!$result) {
