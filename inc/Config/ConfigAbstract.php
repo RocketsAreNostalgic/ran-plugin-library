@@ -370,4 +370,34 @@ abstract class ConfigAbstract extends Singleton implements ConfigInterface {
 		}
 		return $plugin_array;
 	}
+
+	/**
+	 * Returns the developer-defined callback for checking if the environment is 'dev'.
+	 *
+	 * @return callable|null The callback function, or null if not set.
+	 */
+	public function get_is_dev_callback(): ?callable {
+		$callback = $this->plugin_array['is_dev_callback'] ?? null;
+
+		if (is_callable($callback)) {
+			return $callback;
+		}
+
+		return null;
+	}
+
+	/**
+	 * Checks if the current environment is considered a 'development' environment.
+	 *
+	 * @return bool True if it's a development environment, false otherwise.
+	 */
+	public function is_dev_environment(): bool {
+		$callback = $this->get_is_dev_callback();
+
+		if (is_callable($callback)) {
+			return (bool) $callback();
+		}
+
+		return defined('SCRIPT_DEBUG') && SCRIPT_DEBUG;
+	}
 }
