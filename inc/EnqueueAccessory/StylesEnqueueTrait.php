@@ -161,7 +161,7 @@ trait StylesEnqueueTrait {
 	}
 
 	/**
-	 * Processes inline styles associated with a specific parent style handle and hook context.
+	 * Processes inline assets associated with a specific parent asset handle and hook context.
 	 *
 	 * @param AssetType $asset_type The type of asset (eg styles in this context) this is a flag for the child method to know what type of asset it is processing.
 	 * @param string      $parent_handle      The handle of the parent style.
@@ -175,88 +175,8 @@ trait StylesEnqueueTrait {
 		?string $hook_name = null,
 		string $processing_context = 'immediate'
 	): void {
-		$logger  = $this->get_logger();
-		$context = __TRAIT__ . '::' . __FUNCTION__ . " (context: {$processing_context}) - ";
-
-		if ($asset_type !== AssetType::Style) {
-			$logger->error( "{$context}Invalid asset type '{$asset_type->value}'. Expected 'style'." );
-			return;
-		}
-
-		$logger->debug( "{$context} Checking for inline styles for parent style '{$parent_handle}'" . ($hook_name ? " on hook '{$hook_name}'." : '.') );
-
-		// Check if the parent style is registered or enqueued before processing its inline styles.
-		// This is a crucial check to prevent adding inline styles to a non-existent parent.
-		if ( ! wp_style_is( $parent_handle, 'registered' ) && ! wp_style_is( $parent_handle, 'enqueued' ) ) {
-			$logger->error( "{$context} Cannot add inline styles. Parent style '{$parent_handle}' is not registered or enqueued." );
-			return;
-		}
-
-		$keys_to_unset          = array();
-		$inline_assets_for_type = $this->inline_assets[$asset_type->value] ?? array();
-
-		foreach ( $inline_assets_for_type as $key => $inline_asset_data ) {
-			if (!is_array($inline_asset_data)) {
-				$logger->warning("{$context} Invalid inline {$asset_type->value} data at key '{$key}'. Skipping.");
-				continue;
-			}
-
-			$inline_target_handle = $inline_asset_data['handle']      ?? null;
-			$inline_parent_hook   = $inline_asset_data['parent_hook'] ?? null;
-			$is_match             = false;
-
-			if ( $inline_target_handle === $parent_handle ) {
-				if ( $hook_name ) { // Deferred context
-					if ( $inline_parent_hook === $hook_name ) {
-						$is_match = true;
-					}
-				} else { // Immediate context
-					if ( empty( $inline_parent_hook ) ) {
-						$is_match = true;
-					}
-				}
-			}
-
-			if ( $is_match ) {
-				$content = $inline_asset_data['content'] ?? '';
-				// No position for styles
-				$condition_inline = $inline_asset_data['condition'] ?? null;
-
-				if ( is_callable( $condition_inline ) && ! $condition_inline() ) {
-					$logger->debug( "{$context} Condition false for inline {$asset_type->value} targeting '{$parent_handle}' (key: {$key})" . ($hook_name ? " on hook '{$hook_name}'." : '.') );
-					$keys_to_unset[] = $key;
-					continue;
-				}
-
-				if ( empty( $content ) ) {
-					$logger->warning( "{$context} Empty content for inline {$asset_type->value} targeting '{$parent_handle}' (key: {$key})" . ($hook_name ? " on hook '{$hook_name}'." : '.') . ' Skipping addition.' );
-					$keys_to_unset[] = $key;
-					continue;
-				}
-
-				$logger->debug( "{$context} Adding inline {$asset_type->value} for '{$parent_handle}' (key: {$key})" . ($hook_name ? " on hook '{$hook_name}'." : '.') );
-				if (wp_add_inline_style( $parent_handle, $content )) {
-					$logger->debug("{$context}Successfully added inline {$asset_type->value} for '{$parent_handle}' with wp_add_inline_style.");
-				} else {
-					$logger->warning("{$context}Failed to add inline {$asset_type->value} for '{$parent_handle}' with wp_add_inline_style, key {$key} will be removed from queue.");
-				}
-				$keys_to_unset[] = $key;
-			}
-		}
-
-		if ( ! empty( $keys_to_unset ) ) {
-			foreach ( $keys_to_unset as $key_to_unset ) {
-				if ( isset( $this->inline_assets[$asset_type->value][ $key_to_unset ] ) ) {
-					$removed_handle_for_log = $this->inline_assets[$asset_type->value][ $key_to_unset ]['handle'] ?? 'N/A';
-					unset( $this->inline_assets[$asset_type->value][ $key_to_unset ] );
-					$logger->debug( "{$context} Removed processed inline {$asset_type->value} with key '{$key_to_unset}' for handle '{$removed_handle_for_log}'" . ( $hook_name ? " on hook '{$hook_name}'." : '.' ) );
-				}
-			}
-			// Re-index the array to prevent issues with numeric keys after unsetting.
-			$this->inline_assets[$asset_type->value] = array_values( $this->inline_assets[$asset_type->value] );
-		} else {
-			$logger->debug( "{$context} No inline {$asset_type->value} found or processed for '{$parent_handle}'" . ($hook_name ? " on hook '{$hook_name}'." : '.') );
-		}
+		// Use the unified implementation from the base trait
+		$this->_concrete_process_inline_assets($asset_type, $parent_handle, $hook_name, $processing_context);
 	}
 
 	/**
@@ -296,19 +216,27 @@ trait StylesEnqueueTrait {
 		$logger  = $this->get_logger();
 		$context = __TRAIT__ . '::' . __FUNCTION__;
 
+		// Resolve environment-specific source URL (dev vs. prod) if src is provided.
+		if ( ! empty( $asset_definition['src'] ) ) {
+			$asset_definition['src'] = $this->_resolve_environment_src( $asset_definition['src'] );
+		}
+
 		if ($asset_type !== AssetType::Style) {
 			$logger->warning("{$context} - Incorrect asset type provided to _process_single_style_asset. Expected 'style', got '{$asset_type->value}'.");
 			return false;
 		}
 
-		$handle     = $asset_definition['handle'] ?? null;
-		$src        = $asset_definition['src']    ?? null;
-		$deps       = $asset_definition['deps']   ?? array();
-		$ver        = $this->_generate_asset_version($asset_definition);
-		$media      = $asset_definition['media']      ?? 'all';
+		$handle = $asset_definition['handle'] ?? null;
+		$src    = $asset_definition['src']    ?? null;
+		$deps   = $asset_definition['deps']   ?? array();
+		$ver    = $this->_generate_asset_version($asset_definition);
+		$ver    = (false === $ver) ? null : $ver;
+		$media  = $asset_definition['media'] ?? 'all';
+		// $in_footer not used in wp_reister_style
 		$attributes = $asset_definition['attributes'] ?? array();
 		$data       = $asset_definition['data']       ?? array();
-		$condition  = $asset_definition['condition']  ?? null;
+		// $localize not used in wp_reister_style
+		$condition = $asset_definition['condition'] ?? null;
 
 		$log_hook_context = $hook_name ? " on hook '{$hook_name}'" : '';
 
@@ -318,7 +246,7 @@ trait StylesEnqueueTrait {
 
 		if ( is_callable( $condition ) && ! $condition() ) {
 			if ( $logger->is_active() ) {
-				$logger->debug( "{$context} - Condition for {$asset_type->value} '{$handle}' not met. Skipping." );
+				$logger->debug( "{$context} - Condition not met for {$asset_type->value} '{$handle}'{$log_hook_context}. Skipping." );
 			}
 			return false;
 		}
@@ -330,13 +258,18 @@ trait StylesEnqueueTrait {
 			return false;
 		}
 
-		// Unlike scripts, styles have no native 'strategy' argument for attributes.
-		// All attributes must be applied via the 'style_loader_tag' filter.
-		if ( ! empty( $attributes ) ) {
+
+		if (is_array($attributes) && ! empty( $attributes ) ) {
+			if ( $logger->is_active() ) {
+				$logger->debug( "{$context} - Adding attributes to {$asset_type->value} '{$handle}'." );
+			}
+
+			// Unlike scripts, styles have no native 'strategy' argument for attributes.
+			// All attributes must be applied via the 'style_loader_tag' filter.
 			$callback = function( $tag, $tag_handle ) use ( $handle, $attributes ) {
 				return $this->_modify_style_tag_attributes( AssetType::Style, $tag, $tag_handle, $handle, $attributes );
 			};
-			add_filter( 'style_loader_tag', $callback, 10, 2 );
+			$this->_do_add_filter('style_loader_tag', $callback, 10, 2);
 		}
 
 		$src_url = ($src === false) ? false : $this->get_asset_url( $src, AssetType::Style );
@@ -348,44 +281,56 @@ trait StylesEnqueueTrait {
 			return false;
 		}
 
-		if ( $do_register ) {
-			if ( wp_style_is( $handle, 'registered' ) ) {
-				if ( $logger->is_active() ) {
-					$logger->debug( "{$context} - {$asset_type->value} '{$handle}'{$log_hook_context} already registered. Skipping registration." );
-				}
-			} else {
-				if ( $logger->is_active() ) {
-					$logger->debug( "{$context} - Registering {$asset_type->value} '{$handle}'{$log_hook_context}." );
-				}
-				$result = wp_register_style( $handle, $src_url, $deps, $ver, $media );
-				if ( ! $result ) {
-					if ( $logger->is_active() ) {
-						$logger->warning( "{$context} - wp_register_{$asset_type->value}() failed for handle '{$handle}'{$log_hook_context}. Skipping further processing for this asset." );
-					}
-					return false;
-				}
-			}
+		// During staging phase, skip processing of deferred assets completely
+		$deferred_handle = $this->_is_deferred_asset(
+			$asset_definition,
+			$handle,
+			$hook_name,
+			$context,
+			$asset_type
+		);
+
+		if ($deferred_handle !== null) {
+			return $deferred_handle; // Exit early, we'll handle this during the hook
 		}
 
-		if ( $do_enqueue ) {
-			if ( wp_style_is( $handle, 'enqueued' ) ) {
-				if ( $logger->is_active() ) {
-					$logger->debug( "{$context} - Style '{$handle}'{$log_hook_context} already enqueued. Skipping enqueue." );
-				}
-			} else {
-				if ( ! wp_style_is( $handle, 'registered' ) ) {
-					// This case should ideally not be hit if stage_styles is always called before enqueue_immediate_styles.
-					if ( $logger->is_active() ) {
-						$logger->warning( "{$context} - Style '{$handle}' was not registered before enqueuing. Registering now." );
-					}
-					$src_for_enqueue = (false === $src) ? '' : $this->get_asset_url( (string) $src, AssetType::Style );
-					wp_register_style( $handle, $src_for_enqueue, $deps, $ver, $media );
-				}
-				if ( $logger->is_active() ) {
-					$logger->debug( "{$context} - Enqueuing {$asset_type->value} '{$handle}'{$log_hook_context}." );
-				}
-				wp_enqueue_style( $handle );
+		// Standard handling for non-deferred assets
+		$this->do_register(
+			$asset_type,
+			$do_register,
+			$handle,
+			$src_url,
+			$deps,
+			$ver,
+			$media,
+			$context,
+			$log_hook_context
+		);
+
+		if ($do_enqueue) {
+			$is_deferred = $deferred_handle !== null;
+
+			// Use the shared do_enqueue method
+			$enqueue_result = $this->do_enqueue(
+				$asset_type,
+				true,
+				$handle,
+				$src_url,
+				$deps,
+				$ver,
+				$media,
+				$context,
+				$log_hook_context,
+				$is_deferred,
+				$hook_name
+			);
+
+			if (!$enqueue_result) {
+				return false;
 			}
+
+			// After enqueuing, process any inline styles attached to this asset definition
+			$this->_process_inline_style_assets($asset_type, $handle, $hook_name, 'immediate');
 		}
 
 		// Process extras (like data and inline).
@@ -450,8 +395,14 @@ trait StylesEnqueueTrait {
 		string $handle_to_match,
 		array $attributes_to_apply
 	): string {
-		$logger  = $this->get_logger();
 		$context = __TRAIT__ . '::' . __FUNCTION__;
+		$logger  = $this->get_logger();
+
+		if ($asset_type !== AssetType::Style) {
+			$logger->warning("{$context}Incorrect asset type provided to _modify_style_tag_attributes. Expected 'style', got '{$asset_type->value}'.");
+			return $tag; // Not a style, do not modify.
+		}
+
 		// If the filter is not for the style we're interested in, return the original tag.
 		if ( $tag_handle !== $handle_to_match ) {
 			return $tag;
@@ -464,14 +415,14 @@ trait StylesEnqueueTrait {
 		// Find the insertion point for attributes. This also serves as tag validation.
 		$closing_bracket_pos = strpos( $tag, '>' );
 		$self_closing_pos    = strpos( $tag, '/>' );
-		$script_open_pos     = stripos( $tag, '<link' );
+		$el_open_pos         = stripos( $tag, '<link' );
 
 		if ( false !== $self_closing_pos ) {
 			$insertion_pos = $self_closing_pos;
 		} elseif ( false !== $closing_bracket_pos ) {
 			$insertion_pos = $closing_bracket_pos;
-		} elseif ( false !== $script_open_pos ) {
-			$insertion_pos = $script_open_pos;
+		} elseif ( false !== $el_open_pos ) {
+			$insertion_pos = $el_open_pos;
 		} else {
 			if ($logger->is_active()) {
 				$logger->warning("{$context} - Malformed {$asset_type->value} tag for '{$tag_handle}'. Original tag: " . esc_html($tag) . '.  Skipping attribute modification.');
