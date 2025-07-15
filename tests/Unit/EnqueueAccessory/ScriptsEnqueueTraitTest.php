@@ -860,18 +860,70 @@ class ScriptsEnqueueTraitTest extends PluginLibTestCase {
 	 * @dataProvider provide_script_tag_modification_cases
 	 * @covers       \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::_modify_script_tag_attributes
 	 */
-	public function test_modify_script_tag_attributes_adds_attributes_correctly(string $handle, array $attributes, string $original_tag, string $expected_tag): void {
+	public function test_modify_script_tag_attributes_adds_attributes_correctly(string $handle, array $attributes, string $original_tag, string $expected_tag, ?string $mismatch_handle = null): void {
 		// Arrange
 		// The test class uses a method that calls the protected method from the trait.
 		// Act
+		$filter_handle = $mismatch_handle ?? $handle;
 		$modified_tag = $this->_invoke_protected_method(
 			$this->instance,
 			'_modify_script_tag_attributes',
-			array(AssetType::Script, $original_tag, $handle, $handle, $attributes)
+			array(AssetType::Script, $original_tag, $handle, $filter_handle, $attributes)
 		);
 
 		// Assert
 		$this->assertEquals($expected_tag, $modified_tag);
+	}
+
+	
+
+	/**
+	 * @test
+	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::_modify_script_tag_attributes
+	 */
+	public function test_modify_script_tag_attributes_handles_module_type_correctly(): void {
+		// Arrange
+		$handle = 'module-script';
+		$original_tag = "<script src='path/to/module.js' id='{$handle}-js'></script>";
+		
+		// Test case 1: Adding type=module and other attributes
+		$attributes1 = array('type' => 'module', 'async' => true, 'data-test' => 'value');
+		$expected_tag1 = "<script type=\"module\" src='path/to/module.js' id='{$handle}-js' async data-test=\"value\"></script>";
+		
+		// Test case 2: Adding type=module to a tag that already has type attribute
+		// The implementation should replace the existing type attribute with type="module"
+		$original_tag2 = "<script type=\"text/javascript\" src='path/to/module.js' id='{$handle}-js'></script>";
+		$attributes2 = array('type' => 'module');
+		$expected_tag2 = "<script type=\"module\" src='path/to/module.js' id='{$handle}-js'></script>";
+
+		// Test case 3: Adding non-module type attribute
+		$original_tag3 = "<script src='path/to/script.js' id='custom-script-js'></script>";
+		$attributes3 = array('type' => 'text/javascript', 'defer' => true);
+		$expected_tag3 = "<script type=\"text/javascript\" src='path/to/script.js' id='custom-script-js' defer></script>";
+
+		// Act
+		$modified_tag1 = $this->_invoke_protected_method(
+			$this->instance,
+			'_modify_script_tag_attributes',
+			array(AssetType::Script, $original_tag, $handle, $handle, $attributes1)
+		);
+		
+		$modified_tag2 = $this->_invoke_protected_method(
+			$this->instance,
+			'_modify_script_tag_attributes',
+			array(AssetType::Script, $original_tag2, $handle, $handle, $attributes2)
+		);
+
+		$modified_tag3 = $this->_invoke_protected_method(
+			$this->instance,
+			'_modify_script_tag_attributes',
+			array(AssetType::Script, $original_tag3, 'custom-script', 'custom-script', $attributes3)
+		);
+
+		// Assert
+		$this->assertEquals($expected_tag1, $modified_tag1, 'Module type should be added with other attributes');
+		$this->assertEquals($expected_tag2, $modified_tag2, 'Module type should replace existing type attribute');
+		$this->assertEquals($expected_tag3, $modified_tag3, 'Non-module type should also be positioned first');
 	}
 
 	/**
@@ -883,6 +935,13 @@ class ScriptsEnqueueTraitTest extends PluginLibTestCase {
 		$original_tag = "<script src='path/to/script.js' id='{$handle}-js'></script>";
 
 		return array(
+			'handle_mismatch' => array(
+				'my-script',
+				array('async' => true, 'data-test' => 'value'),
+				"<script src='path/to/script.js' id='my-script-js'></script>",
+				"<script src='path/to/script.js' id='my-script-js'></script>", // Should remain unmodified
+				'different-script' // Mismatch handle
+			),
 			'single data attribute' => array(
 				$handle,
 				array('data-custom' => 'my-value'),
@@ -918,6 +977,77 @@ class ScriptsEnqueueTraitTest extends PluginLibTestCase {
 				array('src' => 'new-path.js', 'async' => true),
 				$original_tag,
 				"<script src='path/to/script.js' id='{$handle}-js' async></script>", // 'src' is ignored
+			),
+			// New test cases for malformed HTML tags
+			'malformed_tag_no_closing_bracket' => array(
+				$handle,
+				array('async' => true),
+				'<script src="test.js"', // Malformed - missing closing bracket
+				'<script src="test.js"', // Expect original tag returned unchanged
+			),
+			'malformed_tag_no_script_tag' => array(
+				$handle,
+				array('async' => true),
+				'<div>Not a script tag</div>',
+				'<div>Not a script tag</div>', // Expect original tag returned unchanged
+			),
+			// Special value types
+			'attribute_with_zero_integer_value' => array(
+				$handle,
+				array('data-count' => 0),
+				$original_tag,
+				"<script src='path/to/script.js' id='{$handle}-js' data-count=\"0\"></script>",
+			),
+			'attribute_with_null_value' => array(
+				$handle,
+				array('data-null' => null, 'async' => true),
+				$original_tag,
+				"<script src='path/to/script.js' id='{$handle}-js' async></script>", // null value should be skipped
+			),
+			'attribute_with_empty_string_value' => array(
+				$handle,
+				array('data-empty' => '', 'async' => true),
+				$original_tag,
+				"<script src='path/to/script.js' id='{$handle}-js' async></script>", // empty string should be skipped
+			),
+			// Attribute value escaping
+			'attribute_value_with_special_chars' => array(
+				$handle,
+				array('data-value' => 'needs "escaping" & stuff'),
+				$original_tag,
+				"<script src='path/to/script.js' id='{$handle}-js' data-value=\"needs &quot;escaping&quot; &amp; stuff\"></script>",
+			),
+			// Multiple managed attributes being ignored
+			'multiple_managed_attributes_ignored' => array(
+				$handle,
+				array('src' => 'ignored.js', 'id' => 'new-id', 'async' => true),
+				$original_tag,
+				"<script src='path/to/script.js' id='{$handle}-js' async></script>", // both 'src' and 'id' are ignored
+			),
+			'all_attributes_are_ignored' => array(
+				$handle,
+				array('src' => 'ignored.js', 'id' => 'new-id'),
+				$original_tag,
+				$original_tag, // Expect no change since all attributes are ignored
+			),
+			'empty_attributes_array' => array(
+				$handle,
+				array(), // Empty attributes array
+				$original_tag,
+				$original_tag, // Expect no change with empty attributes
+			),
+			'complex_attribute_combination' => array(
+				'module-script',
+				array(
+					'type' => 'module', 
+					'async' => true, 
+					'defer' => false, 
+					'data-version' => '1.2', 
+					'integrity' => 'sha384-xyz', 
+					'crossorigin' => 'anonymous'
+				),
+				"<script src='path/to/module.js' id='module-script-js'></script>",
+				"<script type=\"module\" src='path/to/module.js' id='module-script-js' async data-version=\"1.2\" integrity=\"sha384-xyz\" crossorigin=\"anonymous\"></script>",
 			),
 		);
 	}
@@ -1045,9 +1175,9 @@ class ScriptsEnqueueTraitTest extends PluginLibTestCase {
 		$this->instance->stage_scripts();
 
 		// Assert
-		$this->expectLog('warning', "Ignoring 'id' attribute for '{$handle}'", 1, true);
-		$this->expectLog('warning', "Ignoring 'type' attribute for '{$handle}'", 1, true);
-		$this->expectLog('warning', "Ignoring 'src' attribute for '{$handle}'", 1, true);
+		$this->expectLog('warning', "Ignoring 'id' attribute for '{$handle}'", 1);
+		$this->expectLog('warning', "Ignoring 'type' attribute for '{$handle}'", 1);
+		$this->expectLog('warning', "Ignoring 'src' attribute for '{$handle}'", 1);
 		foreach ($this->logger_mock->get_logs() as $log) {
 			if (strtolower((string) $log['level']) === 'warning') {
 				$this->assertStringNotContainsString("Ignoring 'data-custom' attribute", $log['message']);
