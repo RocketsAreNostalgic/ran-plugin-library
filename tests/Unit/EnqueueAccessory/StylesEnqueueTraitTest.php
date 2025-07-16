@@ -314,7 +314,6 @@ class StylesEnqueueTraitTest extends PluginLibTestCase {
 		$completely_malformed_tag = 'just some random text without any tag structure';
 		$unclosed_link_tag        = "<link rel='stylesheet' id='{$handle}-css' href='path/to/style.css' type='text/css' media='all'";
 
-
 		return array(
 		    'single data attribute' => array(
 		        $handle,
@@ -993,6 +992,37 @@ class StylesEnqueueTraitTest extends PluginLibTestCase {
 
 		// Verify the result is the handle, indicating success
 		$this->assertEquals($handle, $result, 'Method should return the handle on success');
+	}
+
+	/**
+	 * Test that _modify_style_tag_attributes correctly handles incorrect asset type.
+	 *
+	 * @covers \Ran\PluginLib\EnqueueAccessory\StylesEnqueueTrait::_modify_style_tag_attributes
+	 */
+	public function test_modify_style_tag_attributes_with_incorrect_asset_type(): void {
+		$handle     = 'test-style';
+		$tag        = '<link rel="stylesheet" id="test-style" href="https://example.com/style.css" />';
+		$attributes = array('data-test' => 'value');
+
+		// Create a reflection to access the protected method
+		$reflection = new \ReflectionClass($this->instance);
+		$method     = $reflection->getMethod('_modify_style_tag_attributes');
+		$method->setAccessible(true);
+
+		// Call the method with incorrect asset type (Script instead of Style)
+		$result = $method->invokeArgs($this->instance, array(
+			AssetType::Script, // Incorrect asset type
+			$tag,
+			$handle,
+			$handle,
+			$attributes
+		));
+
+		// Verify the result is the original tag (unchanged)
+		$this->assertEquals($tag, $result, 'Method should return the original tag when incorrect asset type is provided');
+
+		// Verify that a warning was logged
+		$this->expectLog('warning', array('Incorrect asset type provided to _modify_style_tag_attributes', "Expected 'style', got 'script'"), 1);
 	}
 
 	/**
