@@ -220,11 +220,11 @@ trait StylesEnqueueTrait {
 			$logger->warning("{$context} - Incorrect asset type provided to _process_single_style_asset. Expected 'style', got '{$asset_type->value}'.");
 			return false;
 		}
-		
+
 		// Prepare style-specific options
 		$media      = $asset_definition['media']      ?? 'all';
 		$attributes = $asset_definition['attributes'] ?? array();
-		
+
 		// Apply style attributes via filter if needed
 		if (is_array($attributes) && !empty($attributes)) {
 			$handle = $asset_definition['handle'] ?? null;
@@ -232,7 +232,7 @@ trait StylesEnqueueTrait {
 				if ($logger->is_active()) {
 					$logger->debug("{$context} - Adding attributes to {$asset_type->value} '{$handle}'.");
 				}
-				
+
 				// Unlike scripts, styles have no native 'strategy' argument for attributes.
 				// All attributes must be applied via the 'style_loader_tag' filter.
 				$callback = function($tag, $tag_handle) use ($handle, $attributes) {
@@ -241,7 +241,7 @@ trait StylesEnqueueTrait {
 				$this->_do_add_filter('style_loader_tag', $callback, 10, 2);
 			}
 		}
-		
+
 		$handle = $this->_concrete_process_single_asset(
 			$asset_type,
 			$asset_definition,
@@ -251,19 +251,19 @@ trait StylesEnqueueTrait {
 			$do_enqueue,
 			array('media' => $media)
 		);
-		
+
 		// If processing was successful and we're enqueueing
 		if ($handle !== false && $do_enqueue) {
 			// Process any inline styles attached to this asset definition
 			$this->_process_inline_style_assets($asset_type, $handle, $hook_name, 'immediate');
-			
+
 			// Process style-specific extras
 			$this->_process_style_extras($asset_definition, $handle, $hook_name);
 		}
-		
+
 		return $handle;
 	}
-	
+
 	/**
 	 * Process style-specific extras like data and inline styles.
 	 *
@@ -275,9 +275,9 @@ trait StylesEnqueueTrait {
 		$logger           = $this->get_logger();
 		$context          = __TRAIT__ . '::' . __FUNCTION__;
 		$log_hook_context = $hook_name ? " on hook '{$hook_name}'" : '';
-		
+
 		$data = $asset_definition['data'] ?? array();
-		
+
 		// Process extras (like data and inline).
 		if (is_array($data) && !empty($data)) {
 			foreach ($data as $key => $value) {
@@ -360,17 +360,19 @@ trait StylesEnqueueTrait {
 		$self_closing_pos    = strpos( $tag, '/>' );
 		$el_open_pos         = stripos( $tag, '<link' );
 
-		if ( false !== $self_closing_pos ) {
-			$insertion_pos = $self_closing_pos;
-		} elseif ( false !== $closing_bracket_pos ) {
-			$insertion_pos = $closing_bracket_pos;
-		} elseif ( false !== $el_open_pos ) {
-			$insertion_pos = $el_open_pos;
-		} else {
+		// Check for malformed tags - either no opening tag or opening tag without closing bracket
+		if ( false === $el_open_pos || (false === $closing_bracket_pos && false === $self_closing_pos) ) {
 			if ($logger->is_active()) {
 				$logger->warning("{$context} - Malformed {$asset_type->value} tag for '{$tag_handle}'. Original tag: " . esc_html($tag) . '.  Skipping attribute modification.');
 			}
 			return $tag;
+		}
+
+		// Determine insertion position based on tag structure
+		if ( false !== $self_closing_pos ) {
+			$insertion_pos = $self_closing_pos;
+		} else { // At this point we know closing_bracket_pos is not false because of the check above
+			$insertion_pos = $closing_bracket_pos;
 		}
 
 		$attr_str = '';

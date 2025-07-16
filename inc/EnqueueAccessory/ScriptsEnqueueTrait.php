@@ -383,37 +383,38 @@ trait ScriptsEnqueueTrait {
 		}
 
 		// Special handling for type attribute to avoid duplicates
-	if ( isset( $attributes_to_apply['type'] ) ) {
-		$type_value = $attributes_to_apply['type'];
+		if ( isset( $attributes_to_apply['type'] ) ) {
+			$type_value = $attributes_to_apply['type'];
 		
-		if ($logger->is_active()) {
-			$logger->debug("{$context} - Script '{$handle_to_match}' has type '{$type_value}'. Modifying tag accordingly.");
-		}
-		
-		// Check if there's already a type attribute and replace it
-		if (preg_match('/<script[^>]*\stype=["\'][^"\'>]*["\'][^>]*>/', $tag)) {
-			// Replace existing type attribute
-			$tag = preg_replace('/(\stype=["\'])[^"\'>]*(["\'])/', '$1' . $type_value . '$2', $tag);
 			if ($logger->is_active()) {
-				$logger->debug("{$context} - Replaced existing type attribute with type=\"{$type_value}\" for '{$handle_to_match}'.");
+				$logger->debug("{$context} - Script '{$handle_to_match}' has type '{$type_value}'. Modifying tag accordingly.");
 			}
-		} else {
-			// Always position type attribute right after <script for all types
-			$tag = preg_replace('/<script\s/', '<script type="' . $type_value . '" ', $tag);
-			if ($logger->is_active()) {
-				$logger->debug("{$context} - Added type=\"{$type_value}\" at the beginning of the tag for '{$handle_to_match}'.");
-			}
-		}
 		
-		// Remove type from attributes so it's not added again
-		unset( $attributes_to_apply['type'] );
-	}
+			// Check if there's already a type attribute and replace it
+			if (preg_match('/<script[^>]*\stype=["\'][^"\'>]*["\'][^>]*>/', $tag)) {
+				// Replace existing type attribute
+				$tag = preg_replace('/(\stype=["\'])[^"\'>]*(["\'])/', '$1' . $type_value . '$2', $tag);
+				if ($logger->is_active()) {
+					$logger->debug("{$context} - Replaced existing type attribute with type=\"{$type_value}\" for '{$handle_to_match}'.");
+				}
+			} else {
+				// Always position type attribute right after <script for all types
+				$tag = preg_replace('/<script\s/', '<script type="' . $type_value . '" ', $tag);
+				if ($logger->is_active()) {
+					$logger->debug("{$context} - Added type=\"{$type_value}\" at the beginning of the tag for '{$handle_to_match}'.");
+				}
+			}
+		
+			// Remove type from attributes so it's not added again
+			unset( $attributes_to_apply['type'] );
+		}
 
 		// Find the insertion point for attributes. This also serves as tag validation.
 		$closing_bracket_pos = strpos( $tag, '>' );
 		$el_open_pos         = stripos( $tag, '<script' );
 
-		if ( false === $closing_bracket_pos || false === $el_open_pos ) {
+		// Check for malformed tags - either no opening tag or opening tag without closing bracket
+		if ( false === $el_open_pos || false === $closing_bracket_pos ) {
 			if ($logger->is_active()) {
 				$logger->warning("{$context} - Malformed {$asset_type->value} tag for '{$handle_to_match}'. Original tag: " . esc_html($tag) . '. Skipping attribute modification.');
 			}
