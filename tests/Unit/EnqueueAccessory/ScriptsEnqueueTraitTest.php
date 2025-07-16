@@ -865,7 +865,7 @@ class ScriptsEnqueueTraitTest extends PluginLibTestCase {
 		// The test class uses a method that calls the protected method from the trait.
 		// Act
 		$filter_handle = $mismatch_handle ?? $handle;
-		$modified_tag = $this->_invoke_protected_method(
+		$modified_tag  = $this->_invoke_protected_method(
 			$this->instance,
 			'_modify_script_tag_attributes',
 			array(AssetType::Script, $original_tag, $handle, $filter_handle, $attributes)
@@ -875,7 +875,7 @@ class ScriptsEnqueueTraitTest extends PluginLibTestCase {
 		$this->assertEquals($expected_tag, $modified_tag);
 	}
 
-	
+
 
 	/**
 	 * @test
@@ -883,22 +883,22 @@ class ScriptsEnqueueTraitTest extends PluginLibTestCase {
 	 */
 	public function test_modify_script_tag_attributes_handles_module_type_correctly(): void {
 		// Arrange
-		$handle = 'module-script';
+		$handle       = 'module-script';
 		$original_tag = "<script src='path/to/module.js' id='{$handle}-js'></script>";
-		
+
 		// Test case 1: Adding type=module and other attributes
-		$attributes1 = array('type' => 'module', 'async' => true, 'data-test' => 'value');
+		$attributes1   = array('type' => 'module', 'async' => true, 'data-test' => 'value');
 		$expected_tag1 = "<script type=\"module\" src='path/to/module.js' id='{$handle}-js' async data-test=\"value\"></script>";
-		
+
 		// Test case 2: Adding type=module to a tag that already has type attribute
 		// The implementation should replace the existing type attribute with type="module"
 		$original_tag2 = "<script type=\"text/javascript\" src='path/to/module.js' id='{$handle}-js'></script>";
-		$attributes2 = array('type' => 'module');
+		$attributes2   = array('type' => 'module');
 		$expected_tag2 = "<script type=\"module\" src='path/to/module.js' id='{$handle}-js'></script>";
 
 		// Test case 3: Adding non-module type attribute
 		$original_tag3 = "<script src='path/to/script.js' id='custom-script-js'></script>";
-		$attributes3 = array('type' => 'text/javascript', 'defer' => true);
+		$attributes3   = array('type' => 'text/javascript', 'defer' => true);
 		$expected_tag3 = "<script type=\"text/javascript\" src='path/to/script.js' id='custom-script-js' defer></script>";
 
 		// Act
@@ -907,7 +907,7 @@ class ScriptsEnqueueTraitTest extends PluginLibTestCase {
 			'_modify_script_tag_attributes',
 			array(AssetType::Script, $original_tag, $handle, $handle, $attributes1)
 		);
-		
+
 		$modified_tag2 = $this->_invoke_protected_method(
 			$this->instance,
 			'_modify_script_tag_attributes',
@@ -1036,15 +1036,21 @@ class ScriptsEnqueueTraitTest extends PluginLibTestCase {
 				$original_tag,
 				$original_tag, // Expect no change with empty attributes
 			),
+			'integer_indexed_attributes' => array(
+				$handle,
+				array('async', 'crossorigin'), // Integer-indexed array for boolean attributes
+				$original_tag,
+				"<script src='path/to/script.js' id='{$handle}-js' async crossorigin></script>",
+			),
 			'complex_attribute_combination' => array(
 				'module-script',
 				array(
-					'type' => 'module', 
-					'async' => true, 
-					'defer' => false, 
-					'data-version' => '1.2', 
-					'integrity' => 'sha384-xyz', 
-					'crossorigin' => 'anonymous'
+					'type'         => 'module',
+					'async'        => true,
+					'defer'        => false,
+					'data-version' => '1.2',
+					'integrity'    => 'sha384-xyz',
+					'crossorigin'  => 'anonymous'
 				),
 				"<script src='path/to/module.js' id='module-script-js'></script>",
 				"<script type=\"module\" src='path/to/module.js' id='module-script-js' async data-version=\"1.2\" integrity=\"sha384-xyz\" crossorigin=\"anonymous\"></script>",

@@ -208,12 +208,12 @@ trait ScriptsEnqueueTrait {
 			$logger->warning("{$context}Incorrect asset type provided to _process_single_script_asset. Expected 'script', got '{$asset_type->value}'.");
 			return false;
 		}
-		
+
 		// Prepare script-specific options
 		$in_footer    = $asset_definition['in_footer']  ?? false;
 		$attributes   = $asset_definition['attributes'] ?? array();
 		$enqueue_args = array('in_footer' => $in_footer);
-		
+
 		// Handle strategy (async/defer)
 		if (is_array($attributes)) {
 			foreach ($attributes as $key => $value) {
@@ -225,7 +225,7 @@ trait ScriptsEnqueueTrait {
 				}
 			}
 		}
-		
+
 		$handle = $this->_concrete_process_single_asset(
 			$asset_type,
 			$asset_definition,
@@ -235,22 +235,22 @@ trait ScriptsEnqueueTrait {
 			$do_enqueue,
 			$enqueue_args
 		);
-		
+
 		// If processing was successful
 		if ($handle !== false) {
 			// Process script-specific extras (attributes, localization, etc.)
 			$this->_process_script_extras($asset_definition, $handle, $hook_name);
-			
+
 			// If we're enqueueing, also process inline scripts
 			if ($do_enqueue) {
 				// Process any inline scripts attached to this asset definition
 				$this->_process_inline_script_assets($asset_type, $handle, $hook_name, 'immediate');
 			}
 		}
-		
+
 		return $handle;
 	}
-	
+
 	/**
 	 * Process script-specific extras like localization and data.
 	 *
@@ -262,12 +262,12 @@ trait ScriptsEnqueueTrait {
 		$logger     = $this->get_logger();
 		$context    = __TRAIT__ . '::' . __FUNCTION__;
 		$asset_type = AssetType::Script;
-		
+
 		if (null === $hook_name && $handle) {
 			$data       = $asset_definition['data']       ?? array();
 			$localize   = $asset_definition['localize']   ?? array();
 			$attributes = $asset_definition['attributes'] ?? array();
-			
+
 			// Localize script (must be done after registration/enqueue).
 			if (!empty($localize) && !empty($localize['object_name']) && is_array($localize['data'])) {
 				if ($logger->is_active()) {
@@ -295,12 +295,12 @@ trait ScriptsEnqueueTrait {
 
 			// Add custom attributes to the script tag.
 			$custom_attributes = $this->_extract_custom_script_attributes($handle, $attributes);
-			
+
 			if (!empty($custom_attributes)) {
 				if ($logger->is_active()) {
 					$logger->debug("{$context} - Adding attributes to script '{$handle}'.");
 				}
-				
+
 				$callback = function ($tag, $tag_handle) use ($handle, $custom_attributes) {
 					return $this->_modify_script_tag_attributes(AssetType::Script, $tag, $tag_handle, $handle, $custom_attributes);
 				};
@@ -308,7 +308,7 @@ trait ScriptsEnqueueTrait {
 			}
 		}
 	}
-	
+
 	/**
 	 * Extract custom script attributes that need to be applied via filter.
 	 *
@@ -321,16 +321,16 @@ trait ScriptsEnqueueTrait {
 		$logger            = $this->get_logger();
 		$context           = __TRAIT__ . '::' . __FUNCTION__;
 		$custom_attributes = array();
-		
+
 		foreach ($attributes as $key => $value) {
 			$key_lower = strtolower((string)$key);
-			
+
 			if ($key_lower === 'async' || $key_lower === 'defer') {
 				// These are handled via the 'strategy' parameter
 				continue;
 			} elseif (in_array($key_lower, array('src', 'id', 'type'), true)) {
 				if ($logger->is_active()) {
-					$logger->warning("Ignoring '{$key_lower}' attribute for '{$handle}'");
+					$logger->warning("{$context} - Ignoring '{$key_lower}' attribute for '{$handle}'");
 				}
 				continue;
 			} else {
@@ -338,7 +338,7 @@ trait ScriptsEnqueueTrait {
 				$custom_attributes[$key] = $value;
 			}
 		}
-		
+
 		return $custom_attributes;
 	}
 
@@ -368,10 +368,9 @@ trait ScriptsEnqueueTrait {
 		$logger  = $this->get_logger();
 
 		if ($asset_type !== AssetType::Script) {
-			$logger->warning("{$context}Incorrect asset type provided to _modify_script_tag_attributes. Expected 'script', got '{$asset_type->value}'.");
-			return $tag; // Not a script, do not modify.
+			$logger->warning("{$context} - Incorrect asset type provided to _modify_script_tag_attributes. Expected 'script', got '{$asset_type->value}'.");
+			return $tag;
 		}
-
 
 		// If the filter is not for the script we're interested in, return the original tag.
 		if ( $tag_handle !== $handle_to_match ) {
@@ -385,11 +384,11 @@ trait ScriptsEnqueueTrait {
 		// Special handling for type attribute to avoid duplicates
 		if ( isset( $attributes_to_apply['type'] ) ) {
 			$type_value = $attributes_to_apply['type'];
-		
+
 			if ($logger->is_active()) {
 				$logger->debug("{$context} - Script '{$handle_to_match}' has type '{$type_value}'. Modifying tag accordingly.");
 			}
-		
+
 			// Check if there's already a type attribute and replace it
 			if (preg_match('/<script[^>]*\stype=["\'][^"\'>]*["\'][^>]*>/', $tag)) {
 				// Replace existing type attribute
@@ -404,7 +403,7 @@ trait ScriptsEnqueueTrait {
 					$logger->debug("{$context} - Added type=\"{$type_value}\" at the beginning of the tag for '{$handle_to_match}'.");
 				}
 			}
-		
+
 			// Remove type from attributes so it's not added again
 			unset( $attributes_to_apply['type'] );
 		}
@@ -426,6 +425,12 @@ trait ScriptsEnqueueTrait {
 		$managed_attributes = array( 'src', 'id', 'type' );
 
 		foreach ( $attributes_to_apply as $attr => $value ) {
+			// Handle boolean attributes (indexed array, e.g., ['async'])
+			if (is_int($attr)) {
+				$attr  = $value;
+				$value = true;
+			}
+
 			$attr_lower = strtolower( (string) $attr );
 
 			// Check for attempts to override other managed attributes.

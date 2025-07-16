@@ -275,14 +275,14 @@ trait StylesEnqueueTrait {
 		$logger           = $this->get_logger();
 		$context          = __TRAIT__ . '::' . __FUNCTION__;
 		$log_hook_context = $hook_name ? " on hook '{$hook_name}'" : '';
-
-		$data = $asset_definition['data'] ?? array();
+		$data             = $asset_definition['data'] ?? array();
+		$asset_type       = AssetType::Style;
 
 		// Process extras (like data and inline).
 		if (is_array($data) && !empty($data)) {
 			foreach ($data as $key => $value) {
 				if ($logger->is_active()) {
-					$logger->debug("{$context} - Adding data '{$key}' to style '{$handle}'{$log_hook_context}.");
+					$logger->debug("{$context} - Adding data '{$key}' to {$asset_type->value} '{$handle}'{$log_hook_context}.");
 				}
 				wp_style_add_data($handle, $key, $value);
 			}
@@ -303,13 +303,13 @@ trait StylesEnqueueTrait {
 
 				if (is_callable($condition) && !$condition()) {
 					if ($logger->is_active()) {
-						$logger->debug("{$context} - Condition for inline style on '{$handle}' not met. Skipping.");
+						$logger->debug("{$context} - Condition for inline {$asset_type->value} on '{$handle}' not met. Skipping.");
 					}
 					continue;
 				}
 
 				if ($logger->is_active()) {
-					$logger->debug("{$context} - Adding inline style to '{$handle}' (position: {$position}){$log_hook_context}.");
+					$logger->debug("{$context} - Adding inline {$asset_type->value} to '{$handle}' (position: {$position}){$log_hook_context}.");
 				}
 				wp_add_inline_style($handle, $content, array('position' => $position));
 			}
@@ -342,8 +342,8 @@ trait StylesEnqueueTrait {
 		$logger  = $this->get_logger();
 
 		if ($asset_type !== AssetType::Style) {
-			$logger->warning("{$context}Incorrect asset type provided to _modify_style_tag_attributes. Expected 'style', got '{$asset_type->value}'.");
-			return $tag; // Not a style, do not modify.
+			$logger->warning("{$context} - Incorrect asset type provided to _modify_style_tag_attributes. Expected 'style', got '{$asset_type->value}'.");
+			return $tag;
 		}
 
 		// If the filter is not for the style we're interested in, return the original tag.
@@ -352,7 +352,7 @@ trait StylesEnqueueTrait {
 		}
 
 		if ($logger->is_active()) {
-			$logger->debug("{$context} - Modifying {$asset_type->value} tag for handle '{$tag_handle}'. Attributes: " . \wp_json_encode($attributes_to_apply));
+			$logger->debug("{$context} - Modifying {$asset_type->value} tag for handle '{$handle_to_match}'. Attributes: " . \wp_json_encode($attributes_to_apply));
 		}
 
 		// Find the insertion point for attributes. This also serves as tag validation.
@@ -363,7 +363,7 @@ trait StylesEnqueueTrait {
 		// Check for malformed tags - either no opening tag or opening tag without closing bracket
 		if ( false === $el_open_pos || (false === $closing_bracket_pos && false === $self_closing_pos) ) {
 			if ($logger->is_active()) {
-				$logger->warning("{$context} - Malformed {$asset_type->value} tag for '{$tag_handle}'. Original tag: " . esc_html($tag) . '.  Skipping attribute modification.');
+				$logger->warning("{$context} - Malformed {$asset_type->value} tag for '{$handle_to_match}'. Original tag: " . esc_html($tag) . '. Skipping attribute modification.');
 			}
 			return $tag;
 		}
@@ -389,9 +389,10 @@ trait StylesEnqueueTrait {
 			$attr_lower = strtolower((string) $attr);
 
 			// Special handling for 'media' attribute to guide user to the correct definition key.
+			// WordPress handels media, so it should be spcified in the style definition array.
 			if ( 'media' === $attr_lower ) {
 				if ($logger->is_active()) {
-					$logger->warning("{$context} - Attempted to set 'media' attribute via 'attributes' array for handle '{$tag_handle}'. The 'media' attribute should be set using the dedicated 'media' key in the style definition array.");
+					$logger->warning("{$context} - Attempted to set 'media' attribute via 'attributes' array for handle '{$handle_to_match}'. The 'media' attribute should be set using the dedicated 'media' key in the style definition array.");
 				}
 				continue;
 			}
@@ -427,7 +428,7 @@ trait StylesEnqueueTrait {
 		$modified_tag = substr_replace( $tag, $attr_str, $insertion_pos, 0 );
 
 		if ($logger->is_active()) {
-			$logger->debug("{$context} - Successfully modified {$asset_type->value} tag for '{$tag_handle}'. New tag: " . esc_html($modified_tag));
+			$logger->debug("{$context} - Successfully modified {$asset_type->value} tag for '{$handle_to_match}'. New tag: " . esc_html($modified_tag));
 		}
 		return $modified_tag;
 	}
