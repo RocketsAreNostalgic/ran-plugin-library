@@ -375,55 +375,28 @@ trait StylesEnqueueTrait {
 			$insertion_pos = $closing_bracket_pos;
 		}
 
-		$attr_str = '';
 		// Define managed attributes that should not be overridden by users.
 		$managed_attributes = array( 'href', 'rel', 'id', 'type' );
 
-		foreach ($attributes_to_apply as $attr => $value) {
-			// Handle boolean attributes (indexed array, e.g., ['async'])
-			if (is_int($attr)) {
-				$attr  = $value;
-				$value = true;
-			}
-
-			$attr_lower = strtolower((string) $attr);
-
-			// Special handling for 'media' attribute to guide user to the correct definition key.
-			// WordPress handels media, so it should be spcified in the style definition array.
-			if ( 'media' === $attr_lower ) {
+		// Define special attribute handlers
+		$special_attributes = array(
+			'media' => function($attr, $value) use ($logger, $context, $handle_to_match) {
 				if ($logger->is_active()) {
 					$logger->warning("{$context} - Attempted to set 'media' attribute via 'attributes' array for handle '{$handle_to_match}'. The 'media' attribute should be set using the dedicated 'media' key in the style definition array.");
 				}
-				continue;
+				return false; // Skip this attribute
 			}
+		);
 
-			// Check for attempts to override other managed attributes.
-			if ( in_array( $attr_lower, $managed_attributes, true ) ) {
-				if ($logger->is_active()) {
-					$logger->warning(
-						sprintf(
-							"%s - Attempt to override managed attribute '%s' for handle '%s'. This attribute will be ignored.",
-							$context,
-							$attr_lower,
-							$handle_to_match
-						),
-						array(
-							'handle'    => $handle_to_match,
-							'attribute' => $attr_lower,
-						)
-					);
-				}
-				continue; // Skip this attribute
-			}
-
-			// Boolean attributes (value is true).
-			if (true === $value) {
-				$attr_str .= ' ' . esc_attr($attr_lower);
-			} elseif (false !== $value && null !== $value && '' !== $value) { // Regular attributes with non-empty, non-false, non-null values.
-				$attr_str .= ' ' . esc_attr($attr_lower) . '="' . esc_attr((string) $value) . '"';
-			}
-			// Attributes with false, null, or empty string values are skipped.
-		}
+		// Use the base trait's attribute string builder
+		$attr_str = $this->_build_attribute_string(
+			$attributes_to_apply,
+			$managed_attributes,
+			$context,
+			$handle_to_match,
+			$asset_type,
+			$special_attributes
+		);
 
 		$modified_tag = substr_replace( $tag, $attr_str, $insertion_pos, 0 );
 
