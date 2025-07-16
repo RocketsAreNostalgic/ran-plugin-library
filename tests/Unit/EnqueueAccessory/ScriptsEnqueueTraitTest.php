@@ -1266,6 +1266,335 @@ class ScriptsEnqueueTraitTest extends PluginLibTestCase {
 	// ------------------------------------------------------------------------
 
 	/**
+					)
+				)
+			)
+		)
+	));
+
+	// Mock current_action to return our hook name
+	WP_Mock::userFunction('current_action')
+		->andReturn($hook_name);
+
+	// Mock wp_script_is to return true for our external handle
+	WP_Mock::userFunction('wp_script_is')
+		->with($external_handle, 'registered')
+		->andReturn(true);
+		// Mock wp_script_is to return true for our external handle
+		WP_Mock::userFunction('wp_script_is')
+			->with($external_handle, 'registered')
+			->andReturn(true);
+
+		// Expect wp_add_inline_script to be called with our parameters
+		WP_Mock::userFunction('wp_add_inline_script')
+			->once()
+			->with($external_handle, $inline_content, $position)
+			->andReturn(true);
+
+		// Call the method under test
+		$this->_invoke_protected_method($this->instance, '_enqueue_external_inline_assets', [AssetType::Script]);
+
+		// Verify that the appropriate log messages were generated
+		// Check for the hook firing message
+		$this->expectLog('debug', ["::enqueue_external_inline_scripts - Fired on hook '{$hook_name}'"], 1);
+		// Check for the debug message about processing for the hook
+		$this->expectLog('debug', ["::enqueue_external_inline_scripts - Finished processing for hook '{$hook_name}'"], 1);
+	}
+
+	/**
+	 * @test
+	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::_process_single_script_asset
+	 */
+	public function test_process_single_script_asset_with_incorrect_asset_type(): void {
+		// Create a test asset definition
+		$asset_definition = array(
+			'handle' => 'test-script',
+			'src'    => 'path/to/script.js',
+		);
+
+		// Call the method with incorrect asset type (Style instead of Script)
+		$result = $this->_invoke_protected_method(
+			$this->instance,
+			'_process_single_script_asset',
+			array(
+				AssetType::Style, // Incorrect asset type
+				$asset_definition,
+				'test_context',
+				null,
+				true,
+				false
+			)
+		);
+
+		// Verify the result is false, indicating failure
+		$this->assertFalse($result, 'Method should return false when incorrect asset type is provided');
+
+		// Verify that a warning was logged
+		$this->expectLog('warning', array('Incorrect asset type provided to _process_single_script_asset', "Expected 'script', got 'style'"), 1);
+	}
+
+	/**
+	 * @test
+	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::_process_single_script_asset
+	 */
+	public function test_process_single_script_asset_with_async_strategy(): void {
+		// Create a test asset definition with async attribute
+		$handle           = 'test-async-script';
+		$asset_definition = array(
+			'handle'     => $handle,
+			'src'        => 'path/to/script.js',
+			'attributes' => array(
+				'async' => true
+			)
+		);
+
+		// Mock the get_asset_url method
+		$this->instance->shouldReceive('get_asset_url')
+			->with('path/to/script.js', AssetType::Script)
+			->andReturn('path/to/script.js');
+
+		// Mock wp_script_is to return false (not already registered)
+		WP_Mock::userFunction('wp_script_is')
+			->with($handle, 'registered')
+			->andReturn(false);
+
+		// Mock wp_register_script with the correct parameter format based on implementation
+		WP_Mock::userFunction('wp_register_script')
+			->once()
+			->with(
+				$handle,
+				'path/to/script.js',
+				array(), // deps
+				null,   // ver
+				array('in_footer' => false)
+			)
+			->andReturn(true);
+
+		// Call the method under test
+		$result = $this->_invoke_protected_method(
+			$this->instance,
+			'_process_single_script_asset',
+			array(
+				AssetType::Script,
+				$asset_definition,
+				'test_context',
+				null,
+				true,
+				false
+			)
+		);
+
+		// Verify the result is the handle, indicating success
+		$this->assertEquals($handle, $result, 'Method should return the handle on success');
+	}
+
+	/**
+	 * @test
+	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::_process_single_script_asset
+	 */
+	public function test_process_single_script_asset_with_defer_strategy(): void {
+		// Create a test asset definition with defer attribute
+		$handle           = 'test-defer-script';
+		$asset_definition = array(
+			'handle'     => $handle,
+			'src'        => 'path/to/script.js',
+			'attributes' => array(
+				'defer' => true
+			)
+		);
+
+		// Mock the get_asset_url method
+		$this->instance->shouldReceive('get_asset_url')
+			->with('path/to/script.js', AssetType::Script)
+			->andReturn('path/to/script.js');
+
+		// Mock wp_script_is to return false (not already registered)
+		WP_Mock::userFunction('wp_script_is')
+			->with($handle, 'registered')
+			->andReturn(false);
+
+		// Mock wp_register_script with the correct parameter format based on implementation
+		WP_Mock::userFunction('wp_register_script')
+			->once()
+			->with(
+				$handle,
+				'path/to/script.js',
+				array(), // deps
+				null,   // ver
+				array('in_footer' => false)
+			)
+			->andReturn(true);
+
+		// Call the method under test
+		$result = $this->_invoke_protected_method(
+			$this->instance,
+			'_process_single_script_asset',
+			array(
+				AssetType::Script,
+				$asset_definition,
+				'test_context',
+				null,
+				true,
+				false
+			)
+		);
+
+		// Verify the result is the handle, indicating success
+		$this->assertEquals($handle, $result, 'Method should return the handle on success');
+	}
+
+	/**
+	 * @test
+	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::_process_script_extras
+	 */
+	public function test_process_script_extras_with_data_attributes(): void {
+		// Arrange
+		$handle           = 'test-script-data';
+		$asset_definition = array(
+			'handle' => $handle,
+			'data'   => array(
+				'conditional' => 'IE 9',
+				'group'       => 1
+			)
+		);
+
+		// Mock wp_script_add_data to return true
+		WP_Mock::userFunction('wp_script_add_data')
+			->times(2) // Once for each data item
+			->andReturn(true);
+
+		// Act
+		$this->_invoke_protected_method(
+			$this->instance,
+			'_process_script_extras',
+			array($asset_definition, $handle, null)
+		);
+
+		// Assert - check log messages
+		$this->expectLog('debug', array("Adding data to script '{$handle}'. Key: 'conditional', Value: 'IE 9'"), 1);
+		$this->expectLog('debug', array("Adding data to script '{$handle}'. Key: 'group', Value: '1'"), 1);
+	}
+
+	/**
+	 * @test
+	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::_process_script_extras
+	 */
+	public function test_process_script_extras_with_failed_data_addition(): void {
+		// Arrange
+		$handle           = 'test-script-data-fail';
+		$asset_definition = array(
+			'handle' => $handle,
+			'data'   => array(
+				'conditional' => 'IE 9'
+			)
+		);
+
+		// Mock wp_script_add_data to return false (failure)
+		WP_Mock::userFunction('wp_script_add_data')
+			->once()
+			->andReturn(false);
+
+		// Act
+		$this->_invoke_protected_method(
+			$this->instance,
+			'_process_script_extras',
+			array($asset_definition, $handle, null)
+		);
+
+		// Assert - check log messages
+		$this->expectLog('debug', array("Adding data to script '{$handle}'. Key: 'conditional', Value: 'IE 9'"), 1);
+		$this->expectLog('warning', array("Failed to add data for key 'conditional' to script '{$handle}'"), 1);
+	}
+
+	/**
+	 * @test
+	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::_process_script_extras
+	 */
+	public function test_process_script_extras_with_custom_attributes(): void {
+		// Arrange
+		$handle           = 'test-script-attributes';
+		$asset_definition = array(
+			'handle'     => $handle,
+			'attributes' => array(
+				'async'       => true,
+				'defer'       => true,
+				'custom-attr' => 'value'
+			)
+		);
+
+		// Mock _extract_custom_script_attributes to return attributes
+		$this->instance->shouldReceive('_extract_custom_script_attributes')
+			->once()
+			->with($handle, $asset_definition['attributes'])
+			->andReturn($asset_definition['attributes']);
+
+		// Mock _do_add_filter to verify filter is added
+		$this->instance->shouldReceive('_do_add_filter')
+			->once()
+			->with('script_loader_tag', Mockery::type('callable'), 10, 2);
+
+		// Act
+		$this->_invoke_protected_method(
+			$this->instance,
+			'_process_script_extras',
+			array($asset_definition, $handle, null)
+		);
+
+		// Assert - check log messages
+		$this->expectLog('debug', array("Adding attributes to script '{$handle}'"), 1);
+	}
+
+	/**
+	 * @test
+	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::_enqueue_external_inline_scripts
+	 */
+	public function test_enqueue_external_inline_scripts_calls_base_method(): void {
+		// Create a spy for _enqueue_external_inline_assets
+		$this->instance->shouldReceive('_enqueue_external_inline_assets')
+			->once()
+			->with(AssetType::Script)
+			->andReturn(null); // Ensure the method returns as expected
+
+		// Call the method under test
+		$this->instance->_enqueue_external_inline_scripts();
+		
+		// Add an explicit assertion to avoid the risky test warning
+		$this->assertTrue(true, 'Method called without errors');
+		
+		// The real assertion is in the Mockery expectation above, which will
+		// fail if _enqueue_external_inline_assets is not called exactly once with AssetType::Script
+	}
+
+	/**
+	 * @test
+	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::_modify_script_tag_attributes
+	 */
+	public function test_modify_script_tag_attributes_with_incorrect_asset_type(): void {
+		// Arrange
+		$tag             = '<link rel="stylesheet" href="style.css" />';
+		$tag_handle      = 'test-style';
+		$handle_to_match = 'test-style';
+		$attributes      = array('media' => 'print');
+		
+		// Act - call with Style asset type instead of Script
+		$result = $this->_invoke_protected_method(
+			$this->instance,
+			'_modify_script_tag_attributes',
+			array(
+				AssetType::Style, // Incorrect asset type
+				$tag,
+				$tag_handle,
+				$handle_to_match,
+				$attributes
+			)
+		);
+		
+		// Assert
+		$this->assertSame($tag, $result, 'Method should return the original tag when asset type is not Script');
+		$this->expectLog('warning', array('Incorrect asset type provided to _modify_script_tag_attributes. Expected \'script\', got \'style\'.'), 1);
+	}
+
+	/**
 	 * @test
 	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::_process_single_script_asset
 	 */
