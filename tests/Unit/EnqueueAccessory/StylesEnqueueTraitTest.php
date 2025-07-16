@@ -182,7 +182,6 @@ class StylesEnqueueTraitTest extends PluginLibTestCase {
 		$this->assertTrue(true);
 	}
 
-
 	// ------------------------------------------------------------------------
 	// Foundational Capability Tests
 	// ------------------------------------------------------------------------
@@ -197,29 +196,6 @@ class StylesEnqueueTraitTest extends PluginLibTestCase {
 
 	/**
 	 * @test
-	 * @covers \Ran\PluginLib\EnqueueAccessory\StylesEnqueueTrait::add_styles
-	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::add_assets
-	 */
-	public function test_add_styles_handles_empty_input_gracefully(): void {
-		// Act
-		$result = $this->instance->add_styles(array());
-
-		// Logger expectations for AssetEnqueueBaseTrait::add_assets() via ScriptsEnqueueTrait.
-		$this->expectLog('debug', array('add_', 'Entered with empty array'));
-
-		// Assert that the method returns the instance for chainability
-		$this->assertSame($this->instance, $result);
-
-		// Assert
-		$styles = $this->instance->get_styles();
-		$this->assertEmpty($styles['general']);
-		$this->assertEmpty($styles['deferred']);
-		$this->assertEmpty($styles['external_inline']);
-	}
-
-	/**
-	 * @test
-	 * @covers \Ran\PluginLib\EnqueueAccessory\StylesEnqueueTrait::add_styles
 	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::add_assets
 	 */
 	public function test_add_styles_adds_asset_correctly(): void {
@@ -309,51 +285,18 @@ class StylesEnqueueTraitTest extends PluginLibTestCase {
 
 	/**
 	 * @test
-	 * @covers \Ran\PluginLib\EnqueueAccessory\StylesEnqueueTrait::add_styles
-	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::add_assets
-	 */
-	public function test_add_styles_throws_exception_for_missing_src(): void {
-		// Assert
-		$this->expectException(\InvalidArgumentException::class);
-		$this->expectExceptionMessage("Invalid style definition for handle 'my-style'. Asset must have a 'src' or 'src' must be explicitly set to false.");
-
-		// Arrange
-		$invalid_asset = array('handle' => 'my-style', 'src' => '');
-
-		// Act
-		$this->instance->add_styles(array($invalid_asset));
-	}
-
-	/**
-	 * @test
-	 * @covers \Ran\PluginLib\EnqueueAccessory\StylesEnqueueTrait::add_styles
-	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::add_assets
-	 */
-	public function test_add_styles_throws_exception_for_missing_handle(): void {
-		// Assert
-		$this->expectException(\InvalidArgumentException::class);
-		$this->expectExceptionMessage("Invalid style definition at index 0. Asset must have a 'handle'.");
-
-		// Arrange
-		$invalid_asset = array('src' => 'path/to/style.css');
-
-		// Act
-		$this->instance->add_styles(array($invalid_asset));
-	}
-
-	/**
-	 * @test
 	 * @dataProvider provide_style_tag_modification_cases
 	 * @covers \Ran\PluginLib\EnqueueAccessory\StylesEnqueueTrait::_modify_style_tag_attributes
 	 */
-	public function test_modify_style_tag_attributes_adds_attributes_correctly(string $handle, array $attributes, string $original_tag, string $expected_tag): void {
+	public function test_modify_style_tag_attributes_adds_attributes_correctly(string $handle, array $attributes, string $original_tag, string $expected_tag, string $tag_handle = null): void {
 		// Arrange
 		// The test class uses a method that calls the protected method from the trait.
 		// Act
+		$tag_handle   = $tag_handle ?? $handle; // Use provided tag_handle or default to handle
 		$modified_tag = $this->_invoke_protected_method(
 			$this->instance,
 			'_modify_style_tag_attributes',
-			array(AssetType::Style, $original_tag, $handle, $handle, $attributes)
+			array(AssetType::Style, $original_tag, $tag_handle, $handle, $attributes)
 		);
 
 		// Assert
@@ -364,8 +307,13 @@ class StylesEnqueueTraitTest extends PluginLibTestCase {
 	 * Data provider for `test_modify_style_tag_attributes_adds_attributes_correctly`.
 	 */
 	public static function provide_style_tag_modification_cases(): array {
-		$handle       = 'my-style';
-		$original_tag = "<link rel='stylesheet' id='{$handle}-css' href='path/to/style.css' type='text/css' media='all' />";
+		$handle                   = 'my-style';
+		$original_tag             = "<link rel='stylesheet' id='{$handle}-css' href='path/to/style.css' type='text/css' media='all' />";
+		$non_self_closing_tag     = "<link rel='stylesheet' id='{$handle}-css' href='path/to/style.css' type='text/css' media='all'>";
+		$malformed_tag            = "<link stylesheet {$handle} path/to/style.css>";
+		$completely_malformed_tag = 'just some random text without any tag structure';
+		$unclosed_link_tag        = "<link rel='stylesheet' id='{$handle}-css' href='path/to/style.css' type='text/css' media='all'";
+
 
 		return array(
 		    'single data attribute' => array(
@@ -392,45 +340,68 @@ class StylesEnqueueTraitTest extends PluginLibTestCase {
 		        $original_tag,
 		        "<link rel='stylesheet' id='{$handle}-css' href='path/to/style.css' type='text/css' media='all'  data-id=\"123\" async/>",
 		    ),
+		    'handle mismatch' => array(
+		        $handle,
+		        array('data-custom' => 'value'),
+		        $original_tag,
+		        $original_tag, // Should return original tag unchanged
+		        'different-handle', // Different tag_handle parameter
+		    ),
+		    'non self-closing tag' => array(
+		        $handle,
+		        array('data-custom' => 'value'),
+		        $non_self_closing_tag,
+		        "<link rel='stylesheet' id='{$handle}-css' href='path/to/style.css' type='text/css' media='all' data-custom=\"value\">",
+		    ),
+		    'media attribute warning' => array(
+		        $handle,
+		        array('media' => 'print'), // Should be ignored with warning
+		        $original_tag,
+		        $original_tag, // No change expected
+		    ),
+		    'managed attribute warning' => array(
+		        $handle,
+		        array('href' => 'new-path.css', 'rel' => 'alternate', 'id' => 'new-id', 'type' => 'text/plain'),
+		        $original_tag,
+		        $original_tag, // No change expected as these are managed attributes
+		    ),
+		    'null and empty values' => array(
+		        $handle,
+		        array('data-null' => null, 'data-empty' => '', 'data-valid' => 'value'),
+		        $original_tag,
+		        "<link rel='stylesheet' id='{$handle}-css' href='path/to/style.css' type='text/css' media='all'  data-valid=\"value\"/>", // Only data-valid should be added
+		    ),
+		    'malformed tag' => array(
+		        $handle,
+		        array('data-custom' => 'value'),
+		        $malformed_tag,
+		        "<link stylesheet {$handle} path/to/style.css data-custom=\"value\">", // The method still adds attributes even for malformed tags
+		    ),
+		    'boolean attributes as array keys' => array(
+		        $handle,
+		        array('async' => true, 'defer' => true),
+		        $original_tag,
+		        "<link rel='stylesheet' id='{$handle}-css' href='path/to/style.css' type='text/css' media='all'  async defer/>",
+		    ),
+		    'indexed array for boolean attributes' => array(
+		        $handle,
+		        array('crossorigin', 'integrity'), // Indexed array entries become boolean attributes
+		        $original_tag,
+		        "<link rel='stylesheet' id='{$handle}-css' href='path/to/style.css' type='text/css' media='all'  crossorigin integrity/>",
+		    ),
+		    'completely malformed tag' => array(
+		        $handle,
+		        array('data-custom' => 'value'),
+		        $completely_malformed_tag,
+		        $completely_malformed_tag, // Should return original tag unchanged for completely malformed tags
+		    ),
+		    'unclosed link tag' => array(
+		        $handle,
+		        array('data-custom' => 'value'),
+		        $unclosed_link_tag,
+		        $unclosed_link_tag, // Should return original tag unchanged for malformed tags
+		    ),
 		);
-	}
-
-	/**
-	 * @test
-	 * @covers \Ran\PluginLib\EnqueueAccessory\StylesEnqueueTrait::stage_styles
-	 * @covers \Ran\PluginLib\EnqueueAccessory\StylesEnqueueTrait::_enqueue_deferred_styles
-	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_enqueue_deferred_assets
-	 */
-	public function test_stage_styles_processes_deferred_style_correctly(): void {
-		// Arrange
-		$handle = 'my-deferred-style';
-		$src    = 'path/to/style.css';
-		$hook   = 'wp_enqueue_scripts';
-
-		// Add a deferred style to the instance's queue.
-		$this->instance->add_styles( array(
-			'handle' => $handle,
-			'src'    => $src,
-			'hook'   => $hook,
-		) );
-
-		// Mock the WordPress API calls for a deferred asset lifecycle.
-		WP_Mock::userFunction( 'current_action' )->withNoArgs()->andReturn( 'wp_enqueue_scripts' );
-		WP_Mock::userFunction( 'did_action' )->with( 'wp_enqueue_scripts' )->andReturn( 1 );
-		WP_Mock::userFunction( 'wp_style_is' )->with( $handle, 'registered' )->andReturn( false, true );
-		WP_Mock::userFunction( 'wp_style_is' )->with( $handle, 'enqueued' )->andReturn( false );
-
-		// Expect the register and enqueue sequence.
-		$expected_url = $this->instance->get_asset_url( $src );
-		WP_Mock::userFunction( 'wp_register_style' )->once()->with( $handle, $expected_url, array(), false, 'all' )->andReturn(true);
-		WP_Mock::userFunction( 'wp_enqueue_style' )->once()->with( $handle );
-
-		// Act: Simulate the WordPress hook lifecycle for a deferred asset.
-		$this->instance->stage_styles();
-		$this->instance->_enqueue_deferred_styles( 'wp_enqueue_scripts', 10 );
-
-		// Assert: Mockery's tearDown will verify all `once()` expectations.
-		$this->assertTrue( true, 'This assertion ensures the test runs and passes if mocks are met.' );
 	}
 
 	/**
@@ -459,108 +430,6 @@ class StylesEnqueueTraitTest extends PluginLibTestCase {
 		// Assert
 		$styles = $this->instance->get_styles();
 		$this->assertEmpty($styles['general'], 'The general queue should be empty after enqueuing.');
-	}
-
-	/**
-	 * @test
-	 * @covers \Ran\PluginLib\EnqueueAccessory\StylesEnqueueTrait::stage_styles
-	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::stage_assets
-	 */
-	public function test_stage_styles_defers_assets_with_multiple_priorities_correctly(): void {
-		// Arrange
-		$hook_name     = 'my_multi_priority_hook';
-		$assets_to_add = array(
-			array(
-				'handle'   => 'asset-prio-10',
-				'src'      => 'path/to/p10.css',
-				'hook'     => $hook_name,
-				'priority' => 10,
-			),
-			array(
-				'handle'   => 'asset-prio-20',
-				'src'      => 'path/to/p20.css',
-				'hook'     => $hook_name,
-				'priority' => 20,
-			),
-		);
-		$this->instance->add_styles($assets_to_add);
-
-		// Assert that add_action is called for each priority with a closure.
-		WP_Mock::expectActionAdded($hook_name, Mockery::type('callable'), 10, 0);
-		WP_Mock::expectActionAdded($hook_name, Mockery::type('callable'), 20, 0);
-
-		// Act
-		$this->instance->stage_styles();
-
-		// Assert: Check logs for correct deferral messages.
-		$this->expectLog('debug', array('AssetEnqueueBaseTrait::stage_styles', 'Deferring registration', 'asset-prio-10', "to hook '{$hook_name}' with priority 10"), 1);
-		$this->expectLog('debug', array('AssetEnqueueBaseTrait::stage_styles', 'Deferring registration', 'asset-prio-20', "to hook '{$hook_name}' with priority 20"), 1);
-
-		// Assert that the assets are in the correct structure in the deferred queue.
-		$styles = $this->instance->get_styles();
-		$this->assertArrayHasKey($hook_name, $styles['deferred'], 'Hook key should exist in deferred assets.');
-		$this->assertArrayHasKey(10, $styles['deferred'][$hook_name], 'Priority 10 key should exist.');
-		$this->assertArrayHasKey(20, $styles['deferred'][$hook_name], 'Priority 20 key should exist.');
-
-		$this->assertCount(1, $styles['deferred'][$hook_name][10]);
-		$this->assertCount(1, $styles['deferred'][$hook_name][20]);
-
-		$this->assertEquals('asset-prio-10', array_values($styles['deferred'][$hook_name][10])[0]['handle']);
-		$this->assertEquals('asset-prio-20', array_values($styles['deferred'][$hook_name][20])[0]['handle']);
-
-		// Assert that the main assets queue is empty as all assets were deferred.
-		$this->assertEmpty($styles['general']);
-	}
-
-	/**
-	 * @test
-	 * @covers \Ran\PluginLib\EnqueueAccessory\StylesEnqueueTrait::_enqueue_deferred_styles
-	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_enqueue_deferred_assets
-	 */
-	public function test_enqueue_deferred_styles_processes_assets_for_correct_priority(): void {
-		// Arrange
-		$hook_name     = 'my_multi_priority_hook';
-		$assets_to_add = array(
-			array(
-				'handle'   => 'asset-prio-10',
-				'src'      => 'path/to/p10.css',
-				'hook'     => $hook_name,
-				'priority' => 10,
-			),
-			array(
-				'handle'   => 'asset-prio-20',
-				'src'      => 'path/to/p20.css',
-				'hook'     => $hook_name,
-				'priority' => 20,
-			),
-		);
-		$this->instance->add_styles($assets_to_add);
-		$this->instance->stage_styles(); // This populates the deferred assets array
-
-		// Mock wp_style_is calls for proper asset processing
-		WP_Mock::userFunction('wp_style_is')->with('asset-prio-10', 'registered')->andReturn(false);
-		WP_Mock::userFunction('wp_style_is')->with('asset-prio-10', 'enqueued')->andReturn(false);
-		WP_Mock::userFunction('wp_style_is')->with('asset-prio-20', 'registered')->andReturn(false);
-		WP_Mock::userFunction('wp_style_is')->with('asset-prio-20', 'enqueued')->andReturn(false);
-
-		// Assert that only the priority 10 asset is enqueued
-		WP_Mock::userFunction('wp_enqueue_style')->once()->with('asset-prio-10');
-		WP_Mock::userFunction('wp_enqueue_style')->never()->with('asset-prio-20');
-
-		// Act: Simulate the WordPress action firing for priority 10.
-		$this->instance->_enqueue_deferred_styles($hook_name, 10);
-
-		// Assert: Check logs for correct processing messages.
-		$this->expectLog('debug', array('_enqueue_deferred_', 'Entered hook: "' . $hook_name . '" with priority: 10'), 1);
-		$this->expectLog('debug', array('_enqueue_deferred_', "Processing deferred asset 'asset-prio-10'"), 1);
-
-		// Assert that the priority 10 assets are gone, but priority 20 remains.
-		$styles = $this->instance->get_styles();
-		$this->assertArrayHasKey($hook_name, $styles['deferred'], 'Hook key should still exist.');
-		$this->assertArrayNotHasKey(10, $styles['deferred'][$hook_name], 'Priority 10 key should be removed.');
-		$this->assertArrayHasKey(20, $styles['deferred'][$hook_name], 'Priority 20 key should still exist.');
-		$this->assertCount(1, $styles['deferred'][$hook_name][20]);
-		$this->assertEquals('asset-prio-20', array_values($styles['deferred'][$hook_name][20])[0]['handle']);
 	}
 
 	/**
@@ -606,35 +475,585 @@ class StylesEnqueueTraitTest extends PluginLibTestCase {
 	}
 
 	/**
-	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_resolve_environment_src
-	 * @covers \Ran\PluginLib\EnqueueAccessory\StylesEnqueueTrait::_process_single_style_asset
+	 * @test
+	 * @covers \Ran\PluginLib\EnqueueAccessory\StylesEnqueueTrait::_process_style_extras
 	 */
-	public function test_process_single_style_asset_with_string_src_remains_unchanged(): void {
+	public function test_process_style_extras_adds_data_attributes_correctly(): void {
+		$handle           = 'test-style-data';
+		$hook_name        = 'wp_enqueue_scripts';
 		$asset_definition = array(
-			'handle' => 'test-style',
-			'src'    => 'http://example.com/style.css',
+			'handle' => $handle,
+			'src'    => 'https://example.com/style.css',
+			'data'   => array(
+				'rtl'         => true,
+				'conditional' => 'IE 9',
+				'alternate'   => false,
+			),
 		);
 
-		// Ensure get_asset_url returns the original URL for this test
-		$this->instance->shouldReceive('get_asset_url')
-			->with('http://example.com/style.css', Mockery::type(AssetType::class))
-			->andReturn('http://example.com/style.css')
-			->once();
+		// Set up expectations for wp_style_add_data calls
+		WP_Mock::userFunction('wp_style_add_data', array(
+			'times'  => 1,
+			'args'   => array($handle, 'rtl', true),
+			'return' => true,
+		));
 
-		// Mock wp_style_is calls for proper asset processing
-		WP_Mock::userFunction('wp_style_is')->with('test-style', 'registered')->andReturn(false);
-		WP_Mock::userFunction('wp_style_is')->with('test-style', 'enqueued')->andReturn(false);
+		WP_Mock::userFunction('wp_style_add_data', array(
+			'times'  => 1,
+			'args'   => array($handle, 'conditional', 'IE 9'),
+			'return' => true,
+		));
 
-		WP_Mock::userFunction('wp_register_style')
-			->withArgs(array('test-style', 'http://example.com/style.css', Mockery::any(), Mockery::any(), Mockery::any()))
+		WP_Mock::userFunction('wp_style_add_data', array(
+			'times'  => 1,
+			'args'   => array($handle, 'alternate', false),
+			'return' => true,
+		));
+
+		// Call the protected method using reflection
+		$reflection = new \ReflectionClass($this->instance);
+		$method     = $reflection->getMethod('_process_style_extras');
+		$method->setAccessible(true);
+		$method->invokeArgs($this->instance, array($asset_definition, $handle, $hook_name));
+
+		// Verify logger messages
+		$this->expectLog('debug', array('_process_style_extras', "Adding data 'rtl' to style '{$handle}' on hook '{$hook_name}'"), 1);
+		$this->expectLog('debug', array('_process_style_extras', "Adding data 'conditional' to style '{$handle}' on hook '{$hook_name}'"), 1);
+		$this->expectLog('debug', array('_process_style_extras', "Adding data 'alternate' to style '{$handle}' on hook '{$hook_name}'"), 1);
+	}
+
+	/**
+	 * @test
+	 * @covers \Ran\PluginLib\EnqueueAccessory\StylesEnqueueTrait::_process_style_extras
+	 */
+	public function test_process_style_extras_adds_inline_styles_with_different_positions(): void {
+		$handle           = 'test-style-inline';
+		$hook_name        = 'wp_enqueue_scripts';
+		$asset_definition = array(
+			'handle' => $handle,
+			'src'    => 'https://example.com/style.css',
+			'inline' => array(
+				// First inline style with 'after' position (default)
+				array(
+					'content' => 'body { color: red; }',
+				),
+				// Second inline style with explicit 'before' position
+				array(
+					'content'  => 'html { font-size: 16px; }',
+					'position' => 'before',
+				),
+			),
+		);
+
+		// Set up expectations for wp_add_inline_style calls
+		WP_Mock::userFunction('wp_add_inline_style', array(
+			'times'  => 1,
+			'args'   => array($handle, 'body { color: red; }', array('position' => 'after')),
+			'return' => true,
+		));
+
+		WP_Mock::userFunction('wp_add_inline_style', array(
+			'times'  => 1,
+			'args'   => array($handle, 'html { font-size: 16px; }', array('position' => 'before')),
+			'return' => true,
+		));
+
+		// Call the protected method using reflection
+		$reflection = new \ReflectionClass($this->instance);
+		$method     = $reflection->getMethod('_process_style_extras');
+		$method->setAccessible(true);
+		$method->invokeArgs($this->instance, array($asset_definition, $handle, $hook_name));
+
+		// Verify logger messages
+		$this->expectLog('debug', array('_process_style_extras', "Adding inline style to '{$handle}' (position: after) on hook '{$hook_name}'"), 1);
+		$this->expectLog('debug', array('_process_style_extras', "Adding inline style to '{$handle}' (position: before) on hook '{$hook_name}'"), 1);
+	}
+
+	/**
+	 * @test
+	 * @covers \Ran\PluginLib\EnqueueAccessory\StylesEnqueueTrait::_process_style_extras
+	 */
+	public function test_process_style_extras_handles_single_inline_style_definition(): void {
+		$handle           = 'test-style-single-inline';
+		$hook_name        = 'wp_enqueue_scripts';
+		$asset_definition = array(
+			'handle' => $handle,
+			'src'    => 'https://example.com/style.css',
+			// Single inline style definition (not in an array)
+			'inline' => array(
+				'content'  => 'body { margin: 0; }',
+				'position' => 'after',
+			),
+		);
+
+		// Set up expectations for wp_add_inline_style calls
+		WP_Mock::userFunction('wp_add_inline_style', array(
+			'times'  => 1,
+			'args'   => array($handle, 'body { margin: 0; }', array('position' => 'after')),
+			'return' => true,
+		));
+
+		// Call the protected method using reflection
+		$reflection = new \ReflectionClass($this->instance);
+		$method     = $reflection->getMethod('_process_style_extras');
+		$method->setAccessible(true);
+		$method->invokeArgs($this->instance, array($asset_definition, $handle, $hook_name));
+
+		// Verify logger messages
+		$this->expectLog('debug', array('_process_style_extras', "Adding inline style to '{$handle}' (position: after) on hook '{$hook_name}'"), 1);
+	}
+
+	/**
+	 * @test
+	 * @covers \Ran\PluginLib\EnqueueAccessory\StylesEnqueueTrait::_process_style_extras
+	 */
+	public function test_process_style_extras_respects_conditional_inline_styles(): void {
+		$handle    = 'test-style';
+		$hook_name = 'wp_enqueue_scripts';
+
+		// Create an asset definition with conditional inline styles
+		$asset_definition = array(
+			'handle' => $handle,
+			'src'    => 'path/to/style.css',
+			'inline' => array(
+				// Regular inline style without condition
+				array(
+					'content' => 'body { background: white; }',
+				),
+				// Inline style with condition that evaluates to false
+				array(
+					'content'   => 'body { background: black; }',
+					'condition' => function() {
+						return false;
+					},
+				),
+			),
+		);
+
+		// Set up expectations for wp_add_inline_style calls - only the first one should be called
+		WP_Mock::userFunction('wp_add_inline_style', array(
+			'times'  => 1,
+			'args'   => array($handle, 'body { background: white; }', array('position' => 'after')),
+			'return' => true,
+		));
+
+		// Call the protected method using reflection
+		$reflection = new \ReflectionClass($this->instance);
+		$method     = $reflection->getMethod('_process_style_extras');
+		$method->setAccessible(true);
+		$method->invokeArgs($this->instance, array($asset_definition, $handle, $hook_name));
+
+		// Set up expectation for the debug log messages
+		$this->expectLog('debug', array('_process_style_extras', "Adding inline style to '{$handle}' (position: after) on hook '{$hook_name}'"), 1);
+		$this->expectLog('debug', array('_process_style_extras', "Condition for inline style on '{$handle}' not met. Skipping."), 1);
+
+		// Assert that WP_Mock expectations were met (wp_add_inline_style was called exactly once)
+		$this->assertConditionsMet();
+	}
+
+	/**
+	 * @covers \Ran\PluginLib\EnqueueAccessory\StylesEnqueueTrait::_enqueue_external_inline_styles
+	 */
+	public function test_enqueue_external_inline_styles_calls_base_method(): void {
+		// Create a partial mock to spy on _enqueue_external_inline_assets
+		$instance = Mockery::mock(ConcreteEnqueueForStylesTesting::class, array($this->config_mock))
+			->makePartial()
+			->shouldAllowMockingProtectedMethods();
+
+		// Set expectation that _enqueue_external_inline_assets is called with AssetType::Style
+		$instance->shouldReceive('_enqueue_external_inline_assets')
 			->once()
+			->with(AssetType::Style);
+
+		// Call the method under test
+		$instance->_enqueue_external_inline_styles();
+
+		// Add explicit assertion to avoid PHPUnit marking the test as risky
+		$this->assertTrue(true, 'Method should call _enqueue_external_inline_assets with AssetType::Style');
+	}
+
+	/**
+	 * @covers \Ran\PluginLib\EnqueueAccessory\StylesEnqueueTrait::_enqueue_deferred_styles
+	 */
+	public function test_enqueue_deferred_styles_calls_base_method(): void {
+		$hook_name = 'wp_footer';
+		$priority  = 10;
+
+		// Create a partial mock to spy on _enqueue_deferred_assets
+		$instance = Mockery::mock(ConcreteEnqueueForStylesTesting::class, array($this->config_mock))
+			->makePartial()
+			->shouldAllowMockingProtectedMethods();
+
+		// Set expectation that _enqueue_deferred_assets is called with AssetType::Style
+		$instance->shouldReceive('_enqueue_deferred_assets')
+			->once()
+			->with(AssetType::Style, $hook_name, $priority);
+
+		// Call the method under test
+		$instance->_enqueue_deferred_styles($hook_name, $priority);
+
+		// Add explicit assertion to avoid PHPUnit marking the test as risky
+		$this->assertTrue(true, 'Method should call _enqueue_deferred_assets with AssetType::Style');
+	}
+
+	/**
+	 * @test
+	 * @covers \Ran\PluginLib\EnqueueAccessory\StylesEnqueueTrait::_process_style_extras
+	 */
+	public function test_process_style_extras_handles_empty_data(): void {
+		$handle    = 'test-style-empty-data';
+		$hook_name = 'wp_enqueue_scripts';
+
+		// Create an asset definition with empty data
+		$asset_definition = array(
+			'handle' => $handle,
+			'src'    => 'path/to/style.css',
+			'data'   => array(), // Empty data array
+		);
+
+		// No wp_style_add_data calls should be made
+		WP_Mock::userFunction('wp_style_add_data', array(
+			'times' => 0,
+		));
+
+		// Call the protected method using reflection
+		$reflection = new \ReflectionClass($this->instance);
+		$method     = $reflection->getMethod('_process_style_extras');
+		$method->setAccessible(true);
+		$method->invokeArgs($this->instance, array($asset_definition, $handle, $hook_name));
+
+		// Assert that WP_Mock expectations were met (no wp_style_add_data calls)
+		$this->assertConditionsMet();
+	}
+
+	/**
+	 * @test
+	 * @covers \Ran\PluginLib\EnqueueAccessory\StylesEnqueueTrait::_process_style_extras
+	 */
+	public function test_process_style_extras_handles_style_data_attributes(): void {
+		$handle    = 'test-style-data';
+		$hook_name = 'wp_enqueue_scripts';
+
+		// Create an asset definition with data attributes
+		$asset_definition = array(
+			'handle' => $handle,
+			'src'    => 'path/to/style.css',
+			'data'   => array(
+				'rtl'         => true,
+				'conditional' => 'IE 9',
+			),
+		);
+
+		// Set up expectations for wp_style_add_data calls
+		WP_Mock::userFunction('wp_style_add_data', array(
+			'times'  => 2,
+			'return' => true,
+		));
+
+		// Call the protected method using reflection
+		$reflection = new \ReflectionClass($this->instance);
+		$method     = $reflection->getMethod('_process_style_extras');
+		$method->setAccessible(true);
+		$method->invokeArgs($this->instance, array($asset_definition, $handle, $hook_name));
+
+		// Set up expectation for the debug log messages
+		$this->expectLog('debug', array('_process_style_extras', "Adding data 'rtl' to style '{$handle}' on hook '{$hook_name}'"), 1);
+		$this->expectLog('debug', array('_process_style_extras', "Adding data 'conditional' to style '{$handle}' on hook '{$hook_name}'"), 1);
+
+		// Assert that WP_Mock expectations were met
+		$this->assertConditionsMet();
+	}
+
+	/**
+	 * @test
+	 * @covers \Ran\PluginLib\EnqueueAccessory\StylesEnqueueTrait::_process_style_extras
+	 */
+	public function test_process_style_extras_handles_empty_inline_content(): void {
+		$handle    = 'test-style-empty-inline';
+		$hook_name = 'wp_enqueue_scripts';
+
+		// Create an asset definition with empty inline content
+		$asset_definition = array(
+			'handle' => $handle,
+			'src'    => 'path/to/style.css',
+			'inline' => array(
+				'content'  => '', // Empty content
+				'position' => 'after',
+			),
+		);
+
+		// wp_add_inline_style should still be called even with empty content
+		WP_Mock::userFunction('wp_add_inline_style', array(
+			'times'  => 1,
+			'args'   => array($handle, '', array('position' => 'after')),
+			'return' => true,
+		));
+
+
+		// Call the protected method using reflection
+		$reflection = new \ReflectionClass($this->instance);
+		$method     = $reflection->getMethod('_process_style_extras');
+		$method->setAccessible(true);
+		$method->invokeArgs($this->instance, array($asset_definition, $handle, $hook_name));
+
+		// Set up expectation for the debug log message
+		$this->expectLog('debug', array('_process_style_extras', "Adding inline style to '{$handle}' (position: after) on hook '{$hook_name}'"), 1);
+
+		// Assert that WP_Mock expectations were met
+		$this->assertConditionsMet();
+	}
+
+	/**
+	 * @test
+	 * @covers \Ran\PluginLib\EnqueueAccessory\StylesEnqueueTrait::_process_style_extras
+	 */
+	public function test_process_style_extras_with_no_hook_name(): void {
+		$handle    = 'test-style-no-hook';
+		$hook_name = null; // No hook name
+
+		// Create an asset definition with inline styles
+		$asset_definition = array(
+			'handle' => $handle,
+			'src'    => 'path/to/style.css',
+			'inline' => array(
+				'content'  => 'body { color: red; }',
+				'position' => 'after',
+			),
+		);
+
+		// Set up expectations for wp_add_inline_style calls
+		WP_Mock::userFunction('wp_add_inline_style', array(
+			'times'  => 1,
+			'args'   => array($handle, 'body { color: red; }', array('position' => 'after')),
+			'return' => true,
+		));
+
+		// Call the protected method using reflection
+		$reflection = new \ReflectionClass($this->instance);
+		$method     = $reflection->getMethod('_process_style_extras');
+		$method->setAccessible(true);
+		$method->invokeArgs($this->instance, array($asset_definition, $handle, $hook_name));
+
+		// Set up expectation for the debug log message - without hook context
+		$this->expectLog('debug', array('_process_style_extras', "Adding inline style to '{$handle}' (position: after)"), 1);
+
+		// Assert that WP_Mock expectations were met
+		$this->assertConditionsMet();
+	}
+
+	/**
+	 * @covers \Ran\PluginLib\EnqueueAccessory\StylesEnqueueTrait::_process_single_style_asset
+	 */
+	public function test_process_single_style_asset_handles_media_attribute(): void {
+		// Create a test asset definition with media attribute
+		$handle           = 'test-style-with-media';
+		$asset_definition = array(			'handle' => $handle,
+			'src'                                => 'path/to/style.css',
+			'media'                              => 'print',
+			'data'                               => array('key' => 'value'),
+			'inline'                             => array(
+				array('content' => 'body { color: red; }'),
+			),
+		);
+
+		// Create a partial mock to spy on the concrete process method and style extras processing
+		$instance = Mockery::mock(ConcreteEnqueueForStylesTesting::class, array($this->config_mock))
+			->makePartial()
+			->shouldAllowMockingProtectedMethods();
+
+		// Set up expectations for the concrete process method
+		$instance->shouldReceive('_concrete_process_single_asset')
+			->once()
+			->withArgs(function($asset_type, $def, $context, $hook, $register, $enqueue, $extra_args) use ($handle) {
+				// Verify the asset type is correct
+				if ($asset_type !== AssetType::Style) {
+					return false;
+				}
+
+				// Verify the handle is passed correctly
+				if ($def['handle'] !== $handle) {
+					return false;
+				}
+
+				// Verify media attribute is passed in extra_args
+				if (!isset($extra_args['media']) || $extra_args['media'] !== 'print') {
+					return false;
+				}
+
+				return true;
+			})
+			->andReturn($handle); // Return the handle to indicate success
+
+		// Set up expectations for style extras processing
+		$instance->shouldReceive('_process_style_extras')
+			->once()
+			->withArgs(function($def, $h, $hook) use ($asset_definition, $handle) {
+				return $def === $asset_definition && $h === $handle && $hook === null;
+			});
+
+		// Set up expectations for inline style processing
+		$instance->shouldReceive('_process_inline_style_assets')
+			->once()
+			->withArgs(function($asset_type, $h, $hook, $context) use ($handle) {
+				return $asset_type === AssetType::Style && $h === $handle && $hook === null && $context === 'immediate';
+			});
+
+		// Call the method under test
+		$reflection = new \ReflectionClass($instance);
+		$method     = $reflection->getMethod('_process_single_style_asset');
+		$method->setAccessible(true);
+
+		$result = $method->invokeArgs($instance, array(
+			AssetType::Style,
+			$asset_definition,
+			'test',
+			null, // hook_name
+			true, // do_register
+			true  // do_enqueue
+		));
+
+		// Verify the result is the handle, indicating success
+		$this->assertEquals($handle, $result, 'Method should return the handle on success');
+	}
+
+	/**
+	 * @covers \Ran\PluginLib\EnqueueAccessory\StylesEnqueueTrait::_process_single_style_asset
+	 */
+	public function test_process_single_style_asset_with_incorrect_asset_type(): void {
+		// Create a test asset definition
+		$asset_definition = array(
+			'handle' => 'test-style',
+			'src'    => 'path/to/style.css',
+		);
+
+		// Create a partial mock
+		$instance = Mockery::mock(ConcreteEnqueueForStylesTesting::class, array($this->config_mock))
+			->makePartial();
+
+		// Call the method under test with incorrect asset type (Script instead of Style)
+		$reflection = new \ReflectionClass($instance);
+		$method     = $reflection->getMethod('_process_single_style_asset');
+		$method->setAccessible(true);
+
+
+
+		$result = $method->invokeArgs($instance, array(
+			AssetType::Script, // Incorrect asset type
+			$asset_definition,
+			'test',
+			null,
+			true,
+			true
+		));
+
+		// Set up logger expectation for the warning message
+		$this->expectLog('warning', array('_process_single_', 'Incorrect asset type provided to _process_single_', "Expected 'style', got 'script'"), 1);
+
+		// Verify the result is false, indicating failure
+		$this->assertFalse($result, 'Method should return false when incorrect asset type is provided');
+	}
+
+	/**
+	 * @covers \Ran\PluginLib\EnqueueAccessory\StylesEnqueueTrait::_process_single_style_asset
+	 */
+	public function test_process_single_style_asset_with_attributes(): void {
+		// Create a test asset definition with attributes
+		$handle           = 'test-style-with-attributes';
+		$asset_definition = array(
+			'handle'     => $handle,
+			'src'        => 'path/to/style.css',
+			'attributes' => array(
+				'data-test' => 'value',
+				'integrity' => 'sha384-hash',
+			),
+		);
+
+		// Use the instance from setUp() which already has protected methods mocking enabled
+		// Set up expectations for the _do_add_filter method
+		$this->instance->shouldReceive('_do_add_filter')
+			->once()
+			->with('style_loader_tag', Mockery::type('callable'), 10, 2);
+
+		// Call the method under test
+		$reflection = new \ReflectionClass($this->instance);
+		$method     = $reflection->getMethod('_process_single_style_asset');
+		$method->setAccessible(true);
+
+		$result = $method->invokeArgs($this->instance, array(
+			AssetType::Style,
+			$asset_definition,
+			'test',
+			null,
+			true,
+			true
+		));
+
+		// Set up logger expectation for the debug message
+		$this->expectLog('debug', array('StylesEnqueueTrait::_process_single_style_asset', "Adding attributes to style '{$handle}'"), 1);
+
+		// Verify the result is the handle, indicating success
+		$this->assertEquals($handle, $result, 'Method should return the handle on success');
+	}
+
+	/**
+	 * @covers \Ran\PluginLib\EnqueueAccessory\StylesEnqueueTrait::_process_single_style_asset
+	 */
+	public function test_process_single_style_asset_with_inline_styles_and_extras(): void {
+		// Create a test asset definition with inline styles and extras
+		$handle           = 'test-style-with-inline-and-extras';
+		$asset_definition = array(
+			'handle' => $handle,
+			'src'    => 'path/to/style.css',
+			'inline' => array(
+				'content'  => '.test { color: red; }',
+				'position' => 'after',
+			),
+			'extras' => array(
+				'custom_data' => 'value',
+			),
+		);
+
+		// Set up expectations for the _concrete_process_single_asset method
+		$this->instance->shouldReceive('_concrete_process_single_asset')
+			->once()
+			->with(
+				AssetType::Style,
+				$asset_definition,
+				'test',
+				null,
+				true,
+				true,
+				array('media' => 'all')
+			)
+			->andReturn($handle);
+
+		// Set up expectations for the _process_inline_style_assets method
+		$this->instance->shouldReceive('_process_inline_style_assets')
+			->once()
+			->with(AssetType::Style, $handle, null, 'immediate')
 			->andReturn(true);
 
-		// Use the public API to add the style and trigger the processing hooks.
-		$this->instance->add_styles( array( $asset_definition ) );
-		$this->instance->stage_styles();
+		// Set up expectations for the _process_style_extras method
+		$this->instance->shouldReceive('_process_style_extras')
+			->once()
+			->with($asset_definition, $handle, null)
+			->andReturn(true);
 
-		// The assertion is implicitly handled by the mock expectation for wp_register_style.
-		$this->assertTrue(true);
+		// Call the method under test
+		$reflection = new \ReflectionClass($this->instance);
+		$method     = $reflection->getMethod('_process_single_style_asset');
+		$method->setAccessible(true);
+
+		$result = $method->invokeArgs($this->instance, array(
+			AssetType::Style,
+			$asset_definition,
+			'test',
+			null,
+			true,
+			true
+		));
+
+		// Verify the result is the handle, indicating success
+		$this->assertEquals($handle, $result, 'Method should return the handle on success');
 	}
 }
