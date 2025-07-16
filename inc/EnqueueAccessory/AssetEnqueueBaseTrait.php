@@ -1270,6 +1270,77 @@ trait AssetEnqueueBaseTrait {
 	}
 
 	/**
+	 * Process attributes and build attribute string for HTML tags.
+	 *
+	 * @param array     $attributes_to_apply Attributes to process and apply
+	 * @param array     $managed_attributes   List of attribute names that should not be overridden
+	 * @param string    $context             Logging context (typically trait::method)
+	 * @param string    $handle_to_match     Asset handle for logging
+	 * @param AssetType $asset_type          Asset type for logging
+	 * @param array     $special_attributes  Optional map of attributes with special handling, with callbacks
+	 * @return string   Attribute string ready to insert into HTML tag
+	 */
+	protected function _build_attribute_string(
+		array $attributes_to_apply,
+		array $managed_attributes,
+		string $context,
+		string $handle_to_match,
+		AssetType $asset_type,
+		array $special_attributes = array()
+	): string {
+		$logger   = $this->get_logger();
+		$attr_str = '';
+		
+		foreach ($attributes_to_apply as $attr => $value) {
+			// Handle boolean attributes (indexed array, e.g., ['async'])
+			if (is_int($attr)) {
+				$attr  = $value;
+				$value = true;
+			}
+			
+			$attr_lower = strtolower((string) $attr);
+			
+			// Check for special attribute handling
+			if (isset($special_attributes[$attr_lower])) {
+				$result = call_user_func($special_attributes[$attr_lower], $attr_lower, $value);
+				if ($result === false) {
+					continue; // Skip this attribute
+				}
+			}
+			
+			// Check for attempts to override managed attributes
+			if (in_array($attr_lower, $managed_attributes, true)) {
+				if ($logger->is_active()) {
+					$logger->warning(
+						sprintf(
+							"%s - Attempt to override managed attribute '%s' for {$asset_type->value} handle '%s'. This attribute will be ignored.",
+							$context,
+							$attr_lower,
+							$handle_to_match
+						),
+						array(
+							'handle'    => $handle_to_match,
+							'attribute' => $attr_lower,
+						)
+					);
+				}
+				continue; // Skip this attribute
+			}
+			
+			// Boolean attributes (value is true)
+			if (true === $value) {
+				$attr_str .= ' ' . esc_attr($attr_lower);
+			} elseif (false !== $value && null !== $value && '' !== $value) {
+				// Regular attributes with non-empty, non-false, non-null values
+				$attr_str .= ' ' . esc_attr($attr_lower) . '="' . esc_attr((string) $value) . '"';
+			}
+			// Attributes with false, null, or empty string values are skipped
+		}
+		
+		return $attr_str;
+	}
+
+	/**
 	 * Wraps the native md5_file function to allow for mocking in tests.
 	 *
 	 * @param string $path The path to the file.
