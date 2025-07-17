@@ -34,10 +34,10 @@ use Ran\PluginLib\EnqueueAccessory\AssetType;
  * a clean, unified internal API for asset processing logic that is shared across
  * all asset handlers.
  *
- * @method void enqueue_inline_scripts()
- * @method void enqueue_inline_styles()
  */
 abstract class AssetEnqueueBaseAbstract {
+	use AssetEnqueueBaseTrait;
+
 	/**
 	 * The ConfigInterface object holding plugin configuration.
 	 *
@@ -97,58 +97,27 @@ abstract class AssetEnqueueBaseAbstract {
 	}
 
 	/**
-	 * Orchestrates the enqueuing of all assets.
+	 * Processes a single asset definition.
+	 * Wrapper for trait implemntation.
 	 *
-	 * This method checks for the existence of asset-specific processing methods
-	 * (expected to be provided by traits) and calls them if available.
-	 * It handles assets, styles, media, and inline assets.
-	 * Inline styles are typically handled by a separate mechanism or hook.
+	 * @param  AssetType    $asset_type
+	 * @param  array        $asset_definition
+	 * @param  string       $processing_context
+	 * @param  string|null  $hook_name
+	 * @param  bool         $do_register
+	 * @param  bool         $do_enqueue
+	 *
+	 * @return string|false
 	 */
-	public function enqueue(): void {
-		$logger = $this->get_logger();
-
-		// Safely determine counts for logging by using public getters, not direct property access.
-		$assets_count        = method_exists($this, 'get_assets') ? count($this->get_assets(AssetType::Script)['general'] ?? array()) : 0;
-		$styles_count        = method_exists($this, 'get_assets') ? count($this->get_assets(AssetType::Style)['general'] ?? array()) : 0;
-		$media_count         = method_exists($this, 'get_media_tool_configs') ? count($this->get_media_tool_configs()) : 0;
-		$inline_assets_count = method_exists($this, 'get_assets') ? count($this->get_assets(AssetType::Script)['general'] ?? array()) : 0;
-
-		$logger->debug(
-			sprintf(
-				'AssetEnqueueBaseAbstract::enqueue - Main enqueue process started. Assets: %d, Styles: %d, Media: %d, Inline Assets: %d.',
-				$assets_count,
-				$styles_count,
-				$media_count,
-				$inline_assets_count
-			)
-		);
-
-		// Process assets if the method exists (from ScriptsEnqueueTrait).
-		if ( method_exists( $this, 'stage_assets' ) ) {
-			$this->stage_assets(AssetType::Script);
-		}
-
-		// Process styles if the method exists (from StylesEnqueueTrait).
-		if ( method_exists( $this, 'stage_assets' ) ) {
-			$this->stage_assets(AssetType::Style);
-		}
-
-		// Process media if the method exists (from MediaEnqueueTrait).
-		if ( method_exists( $this, 'enqueue_media' ) ) {
-			$this->enqueue_media( $this->media_tool_configs ?? array() );
-		}
-
-		// Process inline scripts if the method exists (from ScriptsEnqueueTrait).
-		if ( method_exists( $this, 'enqueue_inline_scripts' ) ) {
-			$this->enqueue_inline_scripts();
-		}
-
-		// Process inline styles if the method exists (from StylesEnqueueTrait).
-		if ( method_exists( $this, 'enqueue_inline_styles' ) ) {
-			$this->enqueue_inline_styles();
-		}
-
-		$logger->debug( 'AssetEnqueueBaseAbstract::enqueue - Main enqueue process finished.' );
+	protected function _process_single_asset(
+		AssetType $asset_type,
+		array $asset_definition,
+		string $processing_context,
+		?string $hook_name = null,
+		bool $do_register = true,
+		bool $do_enqueue = false
+	): string|false {
+		return $this->_process_single_asset($asset_type, $asset_definition, $processing_context, $hook_name, $do_register, $do_enqueue);
 	}
 
 	/**
@@ -178,7 +147,7 @@ abstract class AssetEnqueueBaseAbstract {
 	 */
 	public function stage_assets(AssetType $asset_type): self {
 		$logger  = $this->get_logger();
-		$context = __TRAIT__ . '::stage_' . strtolower( $asset_type->value ) . 's';
+		$context = __CLASS__ . '::' . __METHOD__ . ' (' . strtolower( $asset_type->value ) . 's)';
 
 		// Ensure the asset type key exists to prevent notices on count().
 		if ( ! isset( $this->assets[$asset_type->value] ) ) {
