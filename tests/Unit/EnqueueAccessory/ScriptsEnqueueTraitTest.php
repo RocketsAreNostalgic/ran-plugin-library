@@ -233,7 +233,7 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 	/**
 	 * @test
 	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::stage_scripts
-	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::stage_assets
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseAbstract::stage_assets
 	 */
 	public function test_stage_scripts_with_no_assets_to_process(): void {
 		// Call the method under test
@@ -248,10 +248,8 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 	 * @test
 	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::add_scripts
 	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::stage_scripts
-	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::_process_single_script_asset
 	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::add_assets
-	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::stage_assets
-	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_process_single_asset
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseAbstract::stage_assets
 	 */
 	public function test_stage_scripts_skips_asset_if_condition_is_false(): void {
 		// Arrange
@@ -283,9 +281,8 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 	 * @test
 	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::add_scripts
 	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::stage_scripts
-	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::_process_single_script_asset
 	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::add_assets
-	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::stage_assets
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseAbstract::stage_assets
 	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_concrete_process_single_asset
 	 */
 	public function test_stage_scripts_handles_source_less_asset_correctly(): void {
@@ -327,10 +324,8 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::add_scripts
 	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::stage_scripts
 	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::enqueue_immediate_scripts
-	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::_process_single_script_asset
 	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::add_assets
-	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::stage_assets
-	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_process_single_asset
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseAbstract::stage_assets
 	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::enqueue_immediate_assets
 	 */
 	public function test_stage_scripts_registers_non_hooked_asset_correctly(): void {
@@ -385,7 +380,7 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 	/**
 	 * @test
 	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::stage_scripts
-	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::stage_assets
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseAbstract::stage_assets
 	 */
 	public function test_stage_scripts_defers_hooked_asset_correctly(): void {
 		// Arrange
@@ -440,7 +435,6 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 	/**
 	 * @test
 	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::add_scripts
-	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_process_single_asset
 	 */
 	public function test_stage_scripts_defers_hooked_asset_correctly_with_script_keyword(): void {
 		// Arrange
@@ -514,7 +508,7 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::stage_scripts
 	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::add_inline_scripts
 	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::add_assets
-	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::stage_assets
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseAbstract::stage_assets
 	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::add_inline_assets
 	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_add_inline_asset
 	 */
@@ -782,16 +776,16 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 	/**
 	 * @test
 	 * @dataProvider provide_script_tag_modification_cases
-	 * @covers       \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::_modify_script_tag_attributes
+	 * @covers       \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::_modify_html_tag_attributes
 	 */
-	public function test_modify_script_tag_attributes_adds_attributes_correctly(string $handle, array $attributes, string $original_tag, string $expected_tag, ?string $mismatch_handle = null): void {
+	public function test_modify_html_tag_attributes_adds_attributes_correctly(string $handle, array $attributes, string $original_tag, string $expected_tag, ?string $mismatch_handle = null): void {
 		// Arrange
 		// The test class uses a method that calls the protected method from the trait.
 		// Act
 		$filter_handle = $mismatch_handle ?? $handle;
 		$modified_tag  = $this->_invoke_protected_method(
 			$this->instance,
-			'_modify_script_tag_attributes',
+			'_modify_html_tag_attributes',
 			array(AssetType::Script, $original_tag, $handle, $filter_handle, $attributes)
 		);
 
@@ -803,9 +797,9 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 
 	/**
 	 * @test
-	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::_modify_script_tag_attributes
+	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::_modify_html_tag_attributes
 	 */
-	public function test_modify_script_tag_attributes_handles_module_type_correctly(): void {
+	public function test_modify_html_tag_attributes_handles_module_type_correctly(): void {
 		// Arrange
 		$handle       = 'module-script';
 		$original_tag = "<script src='path/to/module.js' id='{$handle}-js'></script>";
@@ -828,19 +822,19 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 		// Act
 		$modified_tag1 = $this->_invoke_protected_method(
 			$this->instance,
-			'_modify_script_tag_attributes',
+			'_modify_html_tag_attributes',
 			array(AssetType::Script, $original_tag, $handle, $handle, $attributes1)
 		);
 
 		$modified_tag2 = $this->_invoke_protected_method(
 			$this->instance,
-			'_modify_script_tag_attributes',
+			'_modify_html_tag_attributes',
 			array(AssetType::Script, $original_tag2, $handle, $handle, $attributes2)
 		);
 
 		$modified_tag3 = $this->_invoke_protected_method(
 			$this->instance,
-			'_modify_script_tag_attributes',
+			'_modify_html_tag_attributes',
 			array(AssetType::Script, $original_tag3, 'custom-script', 'custom-script', $attributes3)
 		);
 
@@ -851,7 +845,7 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 	}
 
 	/**
-	 * Data provider for `test_modify_script_tag_attributes_adds_attributes_correctly`.
+	 * Data provider for `test_modify_html_tag_attributes_adds_attributes_correctly`.
 	 * @dataProvider provide_script_tag_modification_cases
 	 */
 	public static function provide_script_tag_modification_cases(): array {
@@ -1081,10 +1075,8 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 	 * @test
 	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::add_scripts
 	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::stage_scripts
-	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::_process_single_script_asset
 	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::add_assets
-	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::stage_assets
-	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_process_single_asset
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseAbstract::stage_assets
 	 */
 	public function test_process_single_script_logs_warning_for_managed_attributes(): void {
 		// Arrange
@@ -1117,10 +1109,9 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 
 	/**
 	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_resolve_environment_src
-	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::_process_single_script_asset
 	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_concrete_process_single_asset
 	 */
-	public function test_process_single_script_asset_with_string_src_remains_unchanged(): void {
+	public function test_process_single_asset_with_string_src_remains_unchanged(): void {
 		$asset_definition = array(
 			'handle' => 'test-script',
 			'src'    => 'http://example.com/script.js',
@@ -1143,10 +1134,9 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 	/**
 	 * @dataProvider provideEnvironmentData
 	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_resolve_environment_src
-	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::_process_single_script_asset
 	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_concrete_process_single_asset
 	 */
-	public function test_process_single_script_asset_resolves_src_based_on_environment(
+	public function test_process_single_asset_resolves_src_based_on_environment(
 		bool $is_dev_environment,
 		string $expected_src
 	): void {
@@ -1177,7 +1167,7 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 	}
 
 	/**
-	 * Data provider for `test_process_single_script_asset_resolves_src_based_on_environment`.
+	 * Data provider for `test_process_single_asset_resolves_src_based_on_environment`.
 	 * @dataProvider provideEnvironmentData
 	 */
 	public function provideEnvironmentData(): array {
@@ -1195,10 +1185,9 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 
 	/**
 	 * @test
-	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::_process_single_script_asset
 	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_concrete_process_single_asset
 	 */
-	public function test_process_single_script_asset_with_incorrect_asset_type(): void {
+	public function test_process_single_asset_with_incorrect_asset_type(): void {
 		// Create a test asset definition
 		$asset_definition = array(
 			'handle' => 'test-script',
@@ -1208,7 +1197,7 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 		// Call the method with incorrect asset type (Style instead of Script)
 		$result = $this->_invoke_protected_method(
 			$this->instance,
-			'_process_single_script_asset',
+			'_process_single_asset',
 			array(
 				AssetType::Style, // Incorrect asset type
 				$asset_definition,
@@ -1223,15 +1212,14 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 		$this->assertFalse($result, 'Method should return false when incorrect asset type is provided');
 
 		// Verify that a warning was logged
-		$this->expectLog('warning', array('Incorrect asset type provided to _process_single_script_asset', "Expected 'script', got 'style'"), 1);
+		$this->expectLog('warning', array('Incorrect asset type provided to _process_single_asset', "Expected 'script', got 'style'"), 1);
 	}
 
 	/**
 	 * @test
-	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::_process_single_script_asset
 	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_concrete_process_single_asset
 	 */
-	public function test_process_single_script_asset_with_async_strategy(): void {
+	public function test_process_single_asset_with_async_strategy(): void {
 		// Create a test asset definition with async attribute
 		$handle           = 'test-async-script';
 		$asset_definition = array(
@@ -1267,7 +1255,7 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 		// Call the method under test
 		$result = $this->_invoke_protected_method(
 			$this->instance,
-			'_process_single_script_asset',
+			'_process_single_asset',
 			array(
 				AssetType::Script,
 				$asset_definition,
@@ -1284,10 +1272,9 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 
 	/**
 	 * @test
-	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::_process_single_script_asset
 	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_concrete_process_single_asset
 	 */
-	public function test_process_single_script_asset_with_defer_strategy(): void {
+	public function test_process_single_asset_with_defer_strategy(): void {
 		// Create a test asset definition with defer attribute
 		$handle           = 'test-defer-script';
 		$asset_definition = array(
@@ -1323,7 +1310,7 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 		// Call the method under test
 		$result = $this->_invoke_protected_method(
 			$this->instance,
-			'_process_single_script_asset',
+			'_process_single_asset',
 			array(
 				AssetType::Script,
 				$asset_definition,
@@ -1524,9 +1511,9 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 
 	/**
 	 * @test
-	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::_modify_script_tag_attributes
+	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::_modify_html_tag_attributes
 	 */
-	public function test_modify_script_tag_attributes_with_incorrect_asset_type(): void {
+	public function test_modify_html_tag_attributes_with_incorrect_asset_type(): void {
 		// Arrange
 		$tag             = '<link rel="stylesheet" href="style.css" />';
 		$tag_handle      = 'test-style';
@@ -1536,7 +1523,7 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 		// Act - call with Style asset type instead of Script
 		$result = $this->_invoke_protected_method(
 			$this->instance,
-			'_modify_script_tag_attributes',
+			'_modify_html_tag_attributes',
 			array(
 				AssetType::Style, // Incorrect asset type
 				$tag,
@@ -1548,15 +1535,15 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 
 		// Assert
 		$this->assertSame($tag, $result, 'Method should return the original tag when asset type is not Script');
-		$this->expectLog('warning', array('Incorrect asset type provided to _modify_script_tag_attributes. Expected \'script\', got \'style\'.'), 1);
+		$this->expectLog('warning', array('Incorrect asset type provided to _modify_html_tag_attributes. Expected \'script\', got \'style\'.'), 1);
 	}
 
 	/**
 	 * @test
-	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::_modify_script_tag_attributes
+	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::_modify_html_tag_attributes
 	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_build_attribute_string
 	 */
-	public function test_modify_script_tag_attributes_uses_build_attribute_string(): void {
+	public function test_modify_html_tag_attributes_uses_build_attribute_string(): void {
 		// Setup script attributes with various types (boolean, string, empty values)
 		$handle     = 'test-script';
 		$attributes = array(
@@ -1578,7 +1565,7 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 		// Execute the method
 		$result = $this->_invoke_protected_method(
 			$this->instance,
-			'_modify_script_tag_attributes',
+			'_modify_html_tag_attributes',
 			array(AssetType::Script, $original_tag, $handle, $handle, $attributes)
 		);
 
@@ -1587,7 +1574,7 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 
 		// Verify warning was logged for managed attribute
 		$this->expectLog('warning', array(
-			'_modify_script_tag_attributes - Attempt to override managed attribute',
+			'_modify_html_tag_attributes - Attempt to override managed attribute',
 			'id',
 			$handle
 		), 1);
@@ -1958,10 +1945,10 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 			}
 		);
 
-		// Call _concrete_process_single_asset directly
+		// Call _process_single_asset directly
 		$result = $this->_invoke_protected_method(
 			$this->instance,
-			'_concrete_process_single_asset',
+			'_process_single_asset',
 			array(
 				AssetType::Script,
 				$asset_definition,
@@ -1976,7 +1963,7 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 
 		// Verify debug log was written
 		$this->expectLog('debug', array(
-			'ConcreteEnqueueForScriptsTesting::_concrete_process_single_asset - Condition not met for script \'test-script\'. Skipping.'
+			'_concrete_process_single_asset - Condition not met for script \'test-script\'. Skipping.'
 		), 1);
 	}
 
@@ -1991,10 +1978,10 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 			'src'    => 'path/to/script.js'
 		);
 
-		// Call _concrete_process_single_asset directly
+		// Call _process_single_asset directly
 		$result = $this->_invoke_protected_method(
 			$this->instance,
-			'_concrete_process_single_asset',
+			'_process_single_asset',
 			array(
 				AssetType::Script,
 				$asset_definition,
@@ -2009,7 +1996,7 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 
 		// Verify warning log was written
 		$this->expectLog('warning', array(
-			'ConcreteEnqueueForScriptsTesting::_concrete_process_single_asset - script definition is missing a \'handle\'. Skipping.'
+			'_concrete_process_single_asset - script definition is missing a \'handle\'. Skipping.'
 		), 1);
 	}
 
@@ -2030,10 +2017,10 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 			->once()
 			->andReturn('deferred-script');
 
-		// Call _concrete_process_single_asset with 'stage_scripts' context
+		// Call _process_single_asset with 'stage_scripts' context
 		$result = $this->_invoke_protected_method(
 			$this->instance,
-			'_concrete_process_single_asset',
+			'_process_single_asset',
 			array(
 				AssetType::Script,
 				$asset_definition,
@@ -2069,10 +2056,10 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 			->once()
 			->andReturn(null);
 
-		// Call _concrete_process_single_asset
+		// Call _process_single_asset
 		$result = $this->_invoke_protected_method(
 			$this->instance,
-			'_concrete_process_single_asset',
+			'_process_single_asset',
 			array(
 				AssetType::Script,
 				$asset_definition,
@@ -2087,7 +2074,7 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 
 		// Verify error log was written
 		$this->expectLog('error', array(
-			'ConcreteEnqueueForScriptsTesting::_concrete_process_single_asset - Could not resolve source for script \'test-script\'. Skipping.'
+			'_concrete_process_single_asset - Could not resolve source for script \'test-script\'. Skipping.'
 		), 1);
 	}
 
@@ -2095,7 +2082,7 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 	 * @test
 	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_concrete_process_single_asset
 	 */
-	public function test_concrete_process_single_asset_handles_enqueue_failure(): void {
+	public function test_process_single_asset_handles_enqueue_failure(): void {
 		// Create asset definition
 		$asset_definition = array(
 			'handle' => 'test-script',
@@ -2113,27 +2100,27 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 			->once()
 			->andReturn(null);
 
-		// Mock do_register to succeed
-		$this->instance->shouldReceive('do_register')
+		// Mock _do_register to succeed
+		$this->instance->shouldReceive('_do_register')
 			->once()
 			->andReturn(true);
 
-		// Mock do_enqueue to fail
-		$this->instance->shouldReceive('do_enqueue')
+		// Mock _do_enqueue to fail
+		$this->instance->shouldReceive('_do_enqueue')
 			->once()
 			->andReturn(false);
 
-		// Call _concrete_process_single_asset with do_enqueue = true
+		// Call _process_single_asset with _do_enqueue = true
 		$result = $this->_invoke_protected_method(
 			$this->instance,
-			'_concrete_process_single_asset',
+			'_process_single_asset',
 			array(
 				AssetType::Script,
 				$asset_definition,
 				'test_context',
 				null,
 				true,
-				true // do_enqueue = true
+				true // _do_enqueue = true
 			)
 		);
 
@@ -2162,27 +2149,27 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 			->once()
 			->andReturn(null);
 
-		// Mock do_register to succeed
-		$this->instance->shouldReceive('do_register')
+		// Mock _do_register to succeed
+		$this->instance->shouldReceive('_do_register')
 			->once()
 			->andReturn(true);
 
-		// Mock do_enqueue to succeed
-		$this->instance->shouldReceive('do_enqueue')
+		// Mock _do_enqueue to succeed
+		$this->instance->shouldReceive('_do_enqueue')
 			->once()
 			->andReturn(true);
 
-		// Call _concrete_process_single_asset with do_enqueue = true for full execution path
+		// Call _process_single_asset with _do_enqueue = true for full execution path
 		$result = $this->_invoke_protected_method(
 			$this->instance,
-			'_concrete_process_single_asset',
+			'_process_single_asset',
 			array(
 				AssetType::Script,
 				$asset_definition,
 				'test_context',
 				'test_hook',
 				true,
-				true // do_enqueue = true to reach the final completion path
+				true // _do_enqueue = true to reach the final completion path
 			)
 		);
 
@@ -2191,7 +2178,7 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 
 		// Verify the final debug log was written (lines 923-925)
 		$this->expectLog('debug', array(
-			'ConcreteEnqueueForScriptsTesting::_concrete_process_single_asset - Finished processing script \'success-script\' on hook \'test_hook\'.'
+			'_concrete_process_single_asset - Finished processing script \'success-script\' on hook \'test_hook\'.'
 		), 1);
 	}
 
@@ -2395,7 +2382,7 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 
 	/**
 	 * @test
-	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::do_register
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_do_register
 	 */
 	public function test_do_register_handles_scripts_and_styles(): void {
 		// Import the AssetType enum for use in the test
@@ -2415,10 +2402,10 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 
 		$result1 = $this->_invoke_protected_method(
 			$this->instance,
-			'do_register',
+			'_do_register',
 			array(
 				$asset_type_script,
-				true, // do_register
+				true, // _do_register
 				'test-script',
 				'https://example.com/script.js',
 				array(),
@@ -2451,10 +2438,10 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 
 		$result2 = $this->_invoke_protected_method(
 			$this->instance,
-			'do_register',
+			'_do_register',
 			array(
 				$asset_type_style,
-				true, // do_register
+				true, // _do_register
 				'test-style',
 				'https://example.com/style.css',
 				array(),
@@ -2481,10 +2468,10 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 
 		$result3 = $this->_invoke_protected_method(
 			$this->instance,
-			'do_register',
+			'_do_register',
 			array(
 				$asset_type_script,
-				true, // do_register
+				true, // _do_register
 				'already-registered-script',
 				'https://example.com/script.js',
 				array(),
@@ -2516,10 +2503,10 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 
 		$result4 = $this->_invoke_protected_method(
 			$this->instance,
-			'do_register',
+			'_do_register',
 			array(
 				$asset_type_script,
-				true, // do_register
+				true, // _do_register
 				'failing-script',
 				'https://example.com/script.js',
 				array(),
@@ -2537,13 +2524,13 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 			'failing-script'
 		), 1);
 
-		// Test case 5: do_register is false (skip registration)
+		// Test case 5: _do_register is false (skip registration)
 		$result5 = $this->_invoke_protected_method(
 			$this->instance,
-			'do_register',
+			'_do_register',
 			array(
 				$asset_type_script,
-				false, // do_register is false
+				false, // _do_register is false
 				'skip-script',
 				'https://example.com/script.js',
 				array(),
@@ -2553,12 +2540,12 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 			)
 		);
 
-		$this->assertTrue($result5, 'Should return true when do_register is false (skipping registration)');
+		$this->assertTrue($result5, 'Should return true when _do_register is false (skipping registration)');
 	}
 
 	/**
 	 * @test
-	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::do_enqueue
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_do_enqueue
 	 */
 	public function test_do_enqueue_handles_scripts_and_styles(): void {
 		// Import the AssetType enum for use in the test
@@ -2582,7 +2569,7 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 
 		$result1 = $this->_invoke_protected_method(
 			$this->instance,
-			'do_enqueue',
+			'_do_enqueue',
 			array(
 				$asset_type_script,
 				true, // do_enqueue
@@ -2624,10 +2611,10 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 
 		$result2 = $this->_invoke_protected_method(
 			$this->instance,
-			'do_enqueue',
+			'_do_enqueue',
 			array(
 				$asset_type_style,
-				true, // do_enqueue
+				true, // _do_enqueue
 				'test-style',
 				'https://example.com/style.css',
 				array(),
@@ -2653,10 +2640,10 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 
 		$result3 = $this->_invoke_protected_method(
 			$this->instance,
-			'do_enqueue',
+			'_do_enqueue',
 			array(
 				$asset_type_script,
-				true, // do_enqueue
+				true, // _do_enqueue
 				'already-enqueued-script',
 				'https://example.com/script.js',
 				array(),
@@ -2697,10 +2684,10 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 
 		$result4 = $this->_invoke_protected_method(
 			$this->instance,
-			'do_enqueue',
+			'_do_enqueue',
 			array(
 				$asset_type_script,
-				true, // do_enqueue
+				true, // _do_enqueue
 				'unregistered-script',
 				'https://example.com/script.js',
 				array(),
@@ -2732,10 +2719,10 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 
 		$result5 = $this->_invoke_protected_method(
 			$this->instance,
-			'do_enqueue',
+			'_do_enqueue',
 			array(
 				$asset_type_script,
-				true, // do_enqueue
+				true, // _do_enqueue
 				'missing-src-script',
 				'', // Empty src
 				array(),
@@ -2771,10 +2758,10 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 
 		$result6 = $this->_invoke_protected_method(
 			$this->instance,
-			'do_enqueue',
+			'_do_enqueue',
 			array(
 				$asset_type_script,
-				true, // do_enqueue
+				true, // _do_enqueue
 				'deferred-script',
 				'https://example.com/script.js',
 				array(),
@@ -2789,13 +2776,13 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 
 		$this->assertTrue($result6, 'Should return true for deferred script during hook firing');
 
-		// Test case 7: do_enqueue is false (skip enqueuing)
+		// Test case 7: _do_enqueue is false (skip enqueuing)
 		$result7 = $this->_invoke_protected_method(
 			$this->instance,
-			'do_enqueue',
+			'_do_enqueue',
 			array(
 				$asset_type_script,
-				false, // do_enqueue is false
+				false, // _do_enqueue is false
 				'skip-script',
 				'https://example.com/script.js',
 				array(),
@@ -2805,7 +2792,7 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 			)
 		);
 
-		$this->assertTrue($result7, 'Should return true when do_enqueue is false (skipping enqueue)');
+		$this->assertTrue($result7, 'Should return true when _do_enqueue is false (skipping enqueue)');
 
 		// Test case 8: Auto-registration fails
 		WP_Mock::userFunction('wp_script_is')
@@ -2825,10 +2812,10 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 
 		$result8 = $this->_invoke_protected_method(
 			$this->instance,
-			'do_enqueue',
+			'_do_enqueue',
 			array(
 				$asset_type_script,
-				true, // do_enqueue
+				true, // _do_enqueue
 				'failed-registration-script',
 				'https://example.com/script.js',
 				array(),
@@ -3033,12 +3020,12 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 
 	/**
 	 * @test
-	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_concrete_process_inline_assets
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_process_inline_assets
 	 */
-	public function test_concrete_process_inline_assets_parent_script_not_registered(): void {
+	public function test_process_inline_assets_parent_script_not_registered(): void {
 		// Create a reflection method to access the protected method
 		$reflection = new \ReflectionClass($this->instance);
-		$method     = $reflection->getMethod('_concrete_process_inline_assets');
+		$method     = $reflection->getMethod('_process_inline_assets');
 		$method->setAccessible(true);
 
 		\WP_Mock::userFunction('wp_script_is')
@@ -3061,12 +3048,12 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 
 	/**
 	 * @test
-	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_concrete_process_inline_assets
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_process_inline_assets
 	 */
-	public function test_concrete_process_inline_assets_successful_script_addition(): void {
+	public function test_process_inline_assets_successful_script_addition(): void {
 		// Create a reflection method to access the protected method
 		$reflection = new \ReflectionClass($this->instance);
-		$method     = $reflection->getMethod('_concrete_process_inline_assets');
+		$method     = $reflection->getMethod('_process_inline_assets');
 		$method->setAccessible(true);
 
 		// Set up the inline_assets property
@@ -3107,12 +3094,12 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 
 	/**
 	 * @test
-	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_concrete_process_inline_assets
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_process_inline_assets
 	 */
-	public function test_concrete_process_inline_assets_inline_script_with_condition_that_fails(): void {
+	public function test_process_inline_assets_inline_script_with_condition_that_fails(): void {
 		// Create a reflection method to access the protected method
 		$reflection = new \ReflectionClass($this->instance);
-		$method     = $reflection->getMethod('_concrete_process_inline_assets');
+		$method     = $reflection->getMethod('_process_inline_assets');
 		$method->setAccessible(true);
 
 		// Set up the inline_assets property
@@ -3149,12 +3136,12 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 
 	/**
 	 * @test
-	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_concrete_process_inline_assets
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_process_inline_assets
 	 */
-	public function test_concrete_process_inline_assets_inline_script_with_empty_content(): void {
+	public function test_process_inline_assets_inline_script_with_empty_content(): void {
 		// Create a reflection method to access the protected method
 		$reflection = new \ReflectionClass($this->instance);
-		$method     = $reflection->getMethod('_concrete_process_inline_assets');
+		$method     = $reflection->getMethod('_process_inline_assets');
 		$method->setAccessible(true);
 
 		// Set up the inline_assets property
@@ -3188,12 +3175,12 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 
 	/**
 	 * @test
-	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_concrete_process_inline_assets
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_process_inline_assets
 	 */
-	public function test_concrete_process_inline_assets_failed_inline_script_addition(): void {
+	public function test_process_inline_assets_failed_inline_script_addition(): void {
 		// Create a reflection method to access the protected method
 		$reflection = new \ReflectionClass($this->instance);
-		$method     = $reflection->getMethod('_concrete_process_inline_assets');
+		$method     = $reflection->getMethod('_process_inline_assets');
 		$method->setAccessible(true);
 
 		// Set up the inline_assets property
@@ -3234,12 +3221,12 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 
 	/**
 	 * @test
-	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_concrete_process_inline_assets
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_process_inline_assets
 	 */
-	public function test_concrete_process_inline_assets_invalid_inline_asset_data(): void {
+	public function test_process_inline_assets_invalid_inline_asset_data(): void {
 		// Create a reflection method to access the protected method
 		$reflection = new \ReflectionClass($this->instance);
-		$method     = $reflection->getMethod('_concrete_process_inline_assets');
+		$method     = $reflection->getMethod('_process_inline_assets');
 		$method->setAccessible(true);
 
 		// Set up the inline_assets property
@@ -3269,10 +3256,9 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 
 	/**
 	 * @test
-	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::_process_single_script_asset
 	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_concrete_process_single_asset
 	 */
-	public function test_process_single_script_asset_localizes_script_correctly(): void {
+	public function test_process_single_asset_localizes_script_correctly(): void {
 		// Arrange
 		$handle           = 'my-localized-script';
 		$data             = array('ajax_url' => 'http://example.com/ajax');
@@ -3297,14 +3283,14 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 		// Act
 		$this->_invoke_protected_method(
 			$this->instance,
-			'_process_single_script_asset',
+			'_process_single_asset',
 			array(
 				AssetType::Script,
 				$asset_definition,
 				'test_context', // processing_context
 				null,           // hook_name
-				true,           // do_register
-				false           // do_enqueue
+				true,           // _do_register
+				false           // _do_enqueue
 			)
 		);
 		$this->expectLog('debug', array("Localizing script '{$handle}' with JS object '{$object_name}'"), 1);
@@ -3312,16 +3298,16 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 
 	/**
 	 * @test
-	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_concrete_process_inline_assets
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_process_inline_assets
 	 */
-	public function test_concrete_process_inline_assets_matches_parent_hook_in_deferred_context(): void {
+	public function test_process_inline_assets_matches_parent_hook_in_deferred_context(): void {
 		// Arrange: Set up inline assets with specific parent_hook
 		$parent_handle  = 'parent-script';
 		$hook_name      = 'wp_footer';
 		$inline_content = 'console.log("deferred inline script");';
 
 		$reflection = new \ReflectionClass($this->instance);
-		$method     = $reflection->getMethod('_concrete_process_inline_assets');
+		$method     = $reflection->getMethod('_process_inline_assets');
 		$method->setAccessible(true);
 
 		// Set up the inline_assets property using reflection
@@ -3387,7 +3373,7 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 		// Assert - Check that warning was logged for empty handle (lines 385-387)
 		$this->expectLog(
 			'warning',
-			'AssetEnqueueBaseTrait::stage_scripts - Skipping asset at index 0 due to missing handle - this should not be possible when using add_* methods.'
+			'AssetEnqueueBaseTrait::stage_scripts - Skipping asset at index 0 due to missing handle - this should not be possible when using add().'
 		);
 	}
 

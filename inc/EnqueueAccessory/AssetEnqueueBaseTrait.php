@@ -229,116 +229,6 @@ trait AssetEnqueueBaseTrait {
 	}
 
 	/**
-	 * Registers assets, separating deferred assets and preparing immediate assets for enqueuing.
-	 *
-	 * This method processes asset definitions previously added via `add_assets($asset_type)`.
-	 * It begins by taking a copy of all current assets and then clearing the main `$this->assets[$asset_type->value]` array.
-	 *
-	 * It then iterates through the copied asset definitions:
-	 * - If an asset specifies a 'hook', it is considered deferred. The asset definition is moved
-	 *   to the `$this->deferred_assets[$asset_type->value]` array, keyed by its hook name. An action is scheduled
-	 *   with WordPress to call `_enqueue_deferred_assets()` for that hook. Deferred assets are
-	 *   not re-added to the main `$this->assets[$asset_type->value]` array.
-	 * - If an asset does not specify a 'hook', it is considered immediate. `_process_single_asset()`
-	 *   is called for this asset with `do_register = true` and `do_enqueue = false` to handle
-	 *   its registration with WordPress.
-	 * - If an immediate asset is successfully registered, its definition is added back into the
-	 *   (initially cleared) `$this->assets[$asset_type->value]` array, preserving its original index.
-	 *
-	 * After processing all assets, the `$this->assets[$asset_type->value]` array will contain only those immediate
-	 * assets that were successfully registered. This array is then re-indexed using `array_values()`.
-	 * The primary role of this method is to manage the initial registration phase and to ensure
-	 * that `$this->assets[$asset_type->value]` is correctly populated with only immediate, registered assets, ready
-	 * for the `stage_assets()` method to handle their final enqueuing.
-	 *
-	 * @return self Returns the instance for method chaining.
-	 */
-	public function stage_assets(AssetType $asset_type): self {
-		$logger  = $this->get_logger();
-		$context = __TRAIT__ . '::stage_' . strtolower( $asset_type->value ) . 's';
-
-		// Ensure the asset type key exists to prevent notices on count().
-		if ( ! isset( $this->assets[$asset_type->value] ) ) {
-			$this->assets[$asset_type->value] = array();
-		}
-
-		if ( $logger->is_active() ) {
-			$logger->debug( $context . ' - Entered. Processing ' . count( $this->assets[$asset_type->value] ) . ' ' . $asset_type->value . ' definition(s) for registration.' );
-		}
-
-		$assets_to_process                = $this->assets[$asset_type->value];
-		$immediate_assets                 = array(); // Initialize for collecting immediate assets.
-		$this->assets[$asset_type->value] = array(); // Clear original to re-populate with non-deferred assets that are successfully processed.
-
-		foreach ( $assets_to_process as $index => $asset_definition ) {
-			$hook_name = $asset_definition['hook'] ?? null;
-
-			if ( $logger->is_active() ) {
-				$logger->debug( "{$context} - Processing {$asset_type->value}: \"{$asset_definition['handle']}\", original index: {$index}." );
-			}
-
-			if ( ! empty( $hook_name ) ) {
-				$priority = $asset_definition['priority'] ?? 10;
-				if ( ! is_int( $priority ) ) {
-					$priority = 10;
-				}
-
-				if ( $logger->is_active() ) {
-					$logger->debug( "{$context} - Deferring registration of {$asset_type->value} '{$asset_definition['handle']}' to hook '{$hook_name}' with priority {$priority}." );
-				}
-
-				// Group asset by hook and priority.
-				$this->deferred_assets[ $asset_type->value ][ $hook_name ][ $priority ][] = $asset_definition;
-
-				// Register the action for this specific hook and priority if not already done.
-				if ( ! isset( $this->registered_hooks[ $asset_type->value ][ $hook_name . '_' . $priority ] ) ) {
-					$callback = function () use ( $hook_name, $priority, $context ) {
-						if ( method_exists( $this, $context ) ) {
-							$this->{$context}( $hook_name, $priority );
-						}
-					};
-
-					$this->_add_action( $hook_name, $callback, $priority, 0 );
-					$this->registered_hooks[ $asset_type->value ][ $hook_name . '_' . $priority ] = true;
-
-					if ( $logger->is_active() ) {
-						$logger->debug( "{$context} - Added action for hook '{$hook_name}' with priority {$priority}." );
-					}
-				}
-
-				continue; // Skip immediate processing for this deferred asset.
-			} else {
-				// Process immediately for registration.
-				$processed_successfully = $this->_process_single_asset(
-					$asset_type,
-					$asset_definition,
-					$context, // processing_context
-					null,               // hook_name (null for immediate registration)
-					true,               // do_register
-					false              // do_enqueue (registration only)
-				);
-				if ( $processed_successfully ) {
-					$immediate_assets[] = $asset_definition;
-				}
-			}
-		}
-
-		// Replace the original assets array with only the successfully processed immediate assets.
-		$this->assets[$asset_type->value] = $immediate_assets;
-
-		if ( $logger->is_active() ) {
-			$deferred_count = 0;
-			foreach ( ( $this->deferred_assets[ $asset_type->value ] ?? array() ) as $hook_assets ) {
-				foreach ( $hook_assets as $priority_assets ) {
-					$deferred_count += count( $priority_assets );
-				}
-			}
-			$logger->debug( "{$context} - Exited. Remaining immediate {$asset_type->value}s: " . count( $this->assets[$asset_type->value] ) . ". Total deferred {$asset_type->value}s: " . $deferred_count . '.' );
-		}
-		return $this;
-	}
-
-	/**
 	 * Processes and enqueues all immediate assets, then clears them from the assets array.
 	 *
 	 * This method iterates through the `$this->assets[$asset_type->value]` array, which at this stage should only
@@ -383,7 +273,7 @@ trait AssetEnqueueBaseTrait {
 
 			if ( empty( $handle ) ) {
 				if ( $logger->is_active() ) {
-					$logger->warning( "{$context} - Skipping asset at index {$index} due to missing handle - this should not be possible when using add_* methods." );
+					$logger->warning( "{$context} - Skipping asset at index {$index} due to missing handle - this should not be possible when using add()." );
 				}
 				continue;
 			}
@@ -652,20 +542,6 @@ trait AssetEnqueueBaseTrait {
 	}
 
 	/**
-	 * Processes inline assets for a given parent handle.
-	 *
-	 * This method must be implemented by the child trait to handle asset-specific
-	 * inline logic (e.g., calling `wp_add_inline_script` vs `wp_add_inline_style`).
-	 *
-	 * @param AssetType $asset_type The type of asset ('script' or 'style').
-	 * @param string      $parent_handle      The handle of the parent asset.
-	 * @param string|null $hook_name          The hook context, if any.
-	 * @param string      $processing_context A string indicating the calling context for logging.
-	 * @return void
-	 */
-	abstract protected function _process_inline_assets(AssetType $asset_type, string $parent_handle, ?string $hook_name, string $processing_context): void;
-
-	/**
 	 * Concrete implementation for processing inline assets associated with a specific parent asset handle and hook context.
 	 * This method handles both script and style inline assets with appropriate conditional logic.
 	 *
@@ -675,7 +551,7 @@ trait AssetEnqueueBaseTrait {
 	 * @param string      $processing_context A string indicating the context for logging purposes.
 	 * @return void
 	 */
-	protected function _concrete_process_inline_assets(
+	protected function _process_inline_assets(
 		AssetType $asset_type,
 		string $parent_handle,
 		?string $hook_name = null,
@@ -773,31 +649,6 @@ trait AssetEnqueueBaseTrait {
 	}
 
 	/**
-	 * Processes a single asset definition, handling registration, enqueuing, and data additions.
-	 *
-	 * This abstract method must be implemented by the consuming trait (e.g., ScriptsEnqueueTrait)
-	 * to handle the specific logic for that asset type, such as calling wp_register_script vs.
-	 * wp_register_style and handling asset-specific parameters like 'in_footer' for scripts
-	 * or 'media' for styles.
-	 *
-	 * @param AssetType $asset_type The type of asset ('script' or 'style').
-	 * @param array<string, mixed> $asset_definition The definition of the asset to process.
-	 * @param string               $processing_context The context (e.g., 'register_assets', 'enqueue_deferred') in which the asset is being processed, used for logging.
-	 * @param string|null          $hook_name The name of the hook if the asset is being processed deferred, otherwise null.
-	 * @param bool                 $do_register Whether to register the asset with WordPress.
-	 * @param bool                 $do_enqueue Whether to enqueue the asset immediately after registration.
-	 * @return string|false The handle of the processed asset, or false if a critical error occurred.
-	 */
-	abstract protected function _process_single_asset(
-		AssetType $asset_type,
-		array $asset_definition,
-		string $processing_context,
-		?string $hook_name = null,
-		bool $do_register = true,
-		bool $do_enqueue = false
-	): string|false;
-
-	/**
 	 * Process a single asset (script or style) with common handling logic.
 	 *
 	 * This method handles the common processing logic for both script and style assets,
@@ -885,7 +736,7 @@ trait AssetEnqueueBaseTrait {
 		}
 
 		// Standard handling for non-deferred assets
-		$this->do_register(
+		$this->_do_register(
 			$asset_type,
 			$do_register,
 			$handle,
@@ -901,7 +752,7 @@ trait AssetEnqueueBaseTrait {
 			$is_deferred = $deferred_handle !== null;
 
 			// Use the shared do_enqueue method
-			$enqueue_result = $this->do_enqueue(
+			$enqueue_result = $this->_do_enqueue(
 				$asset_type,
 				true,
 				$handle,
@@ -942,7 +793,7 @@ trait AssetEnqueueBaseTrait {
 	 *
 	 * @return bool False if registration fails, true otherwise.
 	 */
-	protected function do_register(
+	protected function _do_register(
 		AssetType $asset_type,
 		bool $do_register,
 		string $handle,
@@ -1046,7 +897,7 @@ trait AssetEnqueueBaseTrait {
 	 *
 	 * @return bool True if enqueued successfully, false otherwise.
 	 */
-	protected function do_enqueue(
+	protected function _do_enqueue(
 		AssetType $asset_type,
 		bool $do_enqueue,
 		string $handle,
@@ -1130,30 +981,6 @@ trait AssetEnqueueBaseTrait {
 
 		return true;
 	}
-
-	/**
-	 * Modifies a asset html loading tag by adding attributes, intended for use with the 'asset_loader_tag' filter.
-	 *
-	 * This method adjusts the asset tag by adding attributes as specified in the $attributes_to_apply array.
-	 * It's designed to work within the context of the 'asset_loader_tag' filter, allowing for dynamic
-	 * modification of asset tags based on the handle of the asset being filtered.
-	 *
-	 * @param AssetType $asset_type The type of asset ('script' or 'style').
-	 * @param string $tag The original HTML asset tag.
-	 * @param string $filter_tag_handle The handle of the asset currently being filtered by WordPress.
-	 * @param string $handle_to_match The handle of the asset we are targeting for modification.
-	 * @param array  $attributes_to_apply The attributes to apply to the asset tag.
-	 *
-	 * @return string The modified (or original) HTML asset tag.
-	 */
-	abstract protected function _modify_html_tag_attributes(
-		AssetType $asset_type,
-		string $tag,
-		string $tag_handle,
-		string $handle_to_match,
-		array $attributes_to_apply
-	): string;
-
 
 	/**
 	 * Generates a version string for an asset, using cache-busting if configured.
@@ -1255,7 +1082,7 @@ trait AssetEnqueueBaseTrait {
 	}
 
 	// ------------------------------------------------------------------------
-	// region FILESYSTEM WRAPPERS FOR TESTABILITY
+	// FILESYSTEM WRAPPERS FOR TESTABILITY
 	// ------------------------------------------------------------------------
 
 	/**
@@ -1290,16 +1117,16 @@ trait AssetEnqueueBaseTrait {
 	): string {
 		$logger   = $this->get_logger();
 		$attr_str = '';
-		
+
 		foreach ($attributes_to_apply as $attr => $value) {
 			// Handle boolean attributes (indexed array, e.g., ['async'])
 			if (is_int($attr)) {
 				$attr  = $value;
 				$value = true;
 			}
-			
+
 			$attr_lower = strtolower((string) $attr);
-			
+
 			// Check for special attribute handling
 			if (isset($special_attributes[$attr_lower])) {
 				$result = call_user_func($special_attributes[$attr_lower], $attr_lower, $value);
@@ -1307,7 +1134,7 @@ trait AssetEnqueueBaseTrait {
 					continue; // Skip this attribute
 				}
 			}
-			
+
 			// Check for attempts to override managed attributes
 			if (in_array($attr_lower, $managed_attributes, true)) {
 				if ($logger->is_active()) {
@@ -1326,7 +1153,7 @@ trait AssetEnqueueBaseTrait {
 				}
 				continue; // Skip this attribute
 			}
-			
+
 			// Boolean attributes (value is true)
 			if (true === $value) {
 				$attr_str .= ' ' . esc_attr($attr_lower);
@@ -1336,7 +1163,7 @@ trait AssetEnqueueBaseTrait {
 			}
 			// Attributes with false, null, or empty string values are skipped
 		}
-		
+
 		return $attr_str;
 	}
 

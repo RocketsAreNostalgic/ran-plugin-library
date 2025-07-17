@@ -70,7 +70,7 @@ class StylesEnqueueTraitTest extends EnqueueTraitTestCase {
 	/**
 	 * @test
 	 * @covers \Ran\PluginLib\EnqueueAccessory\StylesEnqueueTrait::stage_styles
-	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_process_single_asset
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_concrete_process_single_asset
 	 */
 	public function test_stage_styles_passes_media_attribute_correctly(): void {
 		// Arrange
@@ -158,7 +158,7 @@ class StylesEnqueueTraitTest extends EnqueueTraitTestCase {
 	/**
 	 * @test
 	 * @covers \Ran\PluginLib\EnqueueAccessory\StylesEnqueueTrait::stage_styles
-	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_process_single_asset
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_concrete_process_single_asset
 	 */
 	public function test_stage_styles_handles_source_less_asset_correctly(): void {
 		// Arrange: Asset with 'src' => false is a valid 'meta-handle' for dependencies or inline styles.
@@ -320,7 +320,7 @@ class StylesEnqueueTraitTest extends EnqueueTraitTestCase {
 	 * @test
 	 * @covers \Ran\PluginLib\EnqueueAccessory\StylesEnqueueTrait::stage_styles
 	 * @covers \Ran\PluginLib\EnqueueAccessory\StylesEnqueueTrait::enqueue_immediate_styles
-	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_process_single_asset
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_concrete_process_single_asset
 	 */
 	public function test_stage_styles_enqueues_registered_style(): void {
 		// Arrange
@@ -347,10 +347,10 @@ class StylesEnqueueTraitTest extends EnqueueTraitTestCase {
 	/**
 	 * @dataProvider provideEnvironmentData
 	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_resolve_environment_src
-	 * @covers \Ran\PluginLib\EnqueueAccessory\StylesEnqueueTrait::_process_single_style_asset
+	 * @covers \Ran\PluginLib\EnqueueAccessory\StylesEnqueueTrait::_process_single_asset
 	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_concrete_process_single_asset
 	 */
-	public function test_process_single_style_asset_resolves_src_based_on_environment(
+	public function test_process_single_asset_resolves_src_based_on_environment(
 		bool $is_dev_environment,
 		string $expected_src
 	): void {
@@ -781,10 +781,10 @@ class StylesEnqueueTraitTest extends EnqueueTraitTestCase {
 	}
 
 	/**
-	 * @covers \Ran\PluginLib\EnqueueAccessory\StylesEnqueueTrait::_process_single_style_asset
+	 * @covers \Ran\PluginLib\EnqueueAccessory\StylesEnqueueTrait::_process_single_asset
 	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_concrete_process_single_asset
 	 */
-	public function test_process_single_style_asset_handles_media_attribute(): void {
+	public function test_process_single_asset_handles_media_attribute(): void {
 		// Create a test asset definition with media attribute
 		$handle           = 'test-style-with-media';
 		$asset_definition = array(			'handle' => $handle,
@@ -832,7 +832,7 @@ class StylesEnqueueTraitTest extends EnqueueTraitTestCase {
 			});
 
 		// Set up expectations for inline style processing
-		$instance->shouldReceive('_process_inline_style_assets')
+		$instance->shouldReceive('_process_inline_assets')
 			->once()
 			->withArgs(function($asset_type, $h, $hook, $context) use ($handle) {
 				return $asset_type === AssetType::Style && $h === $handle && $hook === null && $context === 'immediate';
@@ -840,7 +840,7 @@ class StylesEnqueueTraitTest extends EnqueueTraitTestCase {
 
 		// Call the method under test
 		$reflection = new \ReflectionClass($instance);
-		$method     = $reflection->getMethod('_process_single_style_asset');
+		$method     = $reflection->getMethod('_process_single_asset');
 		$method->setAccessible(true);
 
 		$result = $method->invokeArgs($instance, array(
@@ -857,9 +857,9 @@ class StylesEnqueueTraitTest extends EnqueueTraitTestCase {
 	}
 
 	/**
-	 * @covers \Ran\PluginLib\EnqueueAccessory\StylesEnqueueTrait::_process_single_style_asset
+	 * @covers \Ran\PluginLib\EnqueueAccessory\StylesEnqueueTrait::_process_single_asset
 	 */
-	public function test_process_single_style_asset_with_incorrect_asset_type(): void {
+	public function test_process_single_asset_with_incorrect_asset_type(): void {
 		// Create a test asset definition
 		$asset_definition = array(
 			'handle' => 'test-style',
@@ -872,7 +872,7 @@ class StylesEnqueueTraitTest extends EnqueueTraitTestCase {
 
 		// Call the method under test with incorrect asset type (Script instead of Style)
 		$reflection = new \ReflectionClass($instance);
-		$method     = $reflection->getMethod('_process_single_style_asset');
+		$method     = $reflection->getMethod('_process_single_asset');
 		$method->setAccessible(true);
 
 
@@ -894,9 +894,9 @@ class StylesEnqueueTraitTest extends EnqueueTraitTestCase {
 	}
 
 	/**
-	 * @covers \Ran\PluginLib\EnqueueAccessory\StylesEnqueueTrait::_process_single_style_asset
+	 * @covers \Ran\PluginLib\EnqueueAccessory\StylesEnqueueTrait::_process_single_asset
 	 */
-	public function test_process_single_style_asset_with_attributes(): void {
+	public function test_process_single_asset_with_attributes(): void {
 		// Create a test asset definition with attributes
 		$handle           = 'test-style-with-attributes';
 		$asset_definition = array(
@@ -916,7 +916,7 @@ class StylesEnqueueTraitTest extends EnqueueTraitTestCase {
 
 		// Call the method under test
 		$reflection = new \ReflectionClass($this->instance);
-		$method     = $reflection->getMethod('_process_single_style_asset');
+		$method     = $reflection->getMethod('_process_single_asset');
 		$method->setAccessible(true);
 
 		$result = $method->invokeArgs($this->instance, array(
@@ -929,7 +929,7 @@ class StylesEnqueueTraitTest extends EnqueueTraitTestCase {
 		));
 
 		// Set up logger expectation for the debug message
-		$this->expectLog('debug', array('StylesEnqueueTrait::_process_single_style_asset', "Adding attributes to style '{$handle}'"), 1);
+		$this->expectLog('debug', array('StylesEnqueueTrait::_process_single_asset', "Adding attributes to style '{$handle}'"), 1);
 
 		// Verify the result is the handle, indicating success
 		$this->assertEquals($handle, $result, 'Method should return the handle on success');
@@ -967,9 +967,9 @@ class StylesEnqueueTraitTest extends EnqueueTraitTestCase {
 	}
 
 	/**
-	 * @covers \Ran\PluginLib\EnqueueAccessory\StylesEnqueueTrait::_process_single_style_asset
+	 * @covers \Ran\PluginLib\EnqueueAccessory\StylesEnqueueTrait::_process_single_asset
 	 */
-	public function test_process_single_style_asset_with_inline_styles_and_extras(): void {
+	public function test_process_single_asset_with_inline_styles_and_extras(): void {
 		// Create a test asset definition with inline styles and extras
 		$handle           = 'test-style-with-inline-and-extras';
 		$asset_definition = array(
@@ -998,8 +998,8 @@ class StylesEnqueueTraitTest extends EnqueueTraitTestCase {
 			)
 			->andReturn($handle);
 
-		// Set up expectations for the _process_inline_style_assets method
-		$this->instance->shouldReceive('_process_inline_style_assets')
+		// Set up expectations for the _process_inline_assets method
+		$this->instance->shouldReceive('_process_inline_assets')
 			->once()
 			->with(AssetType::Style, $handle, null, 'immediate')
 			->andReturn(true);
@@ -1012,7 +1012,7 @@ class StylesEnqueueTraitTest extends EnqueueTraitTestCase {
 
 		// Call the method under test
 		$reflection = new \ReflectionClass($this->instance);
-		$method     = $reflection->getMethod('_process_single_style_asset');
+		$method     = $reflection->getMethod('_process_single_asset');
 		$method->setAccessible(true);
 
 		$result = $method->invokeArgs($this->instance, array(
@@ -1030,15 +1030,15 @@ class StylesEnqueueTraitTest extends EnqueueTraitTestCase {
 
 	/**
 	 * @test
-	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_concrete_process_inline_assets
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_process_inline_assets
 	 */
-	public function test_concrete_process_inline_assets_processes_style_assets(): void {
+	public function test_process_inline_assets_processes_style_assets(): void {
 		// Arrange: Set up inline assets for styles (to cover line 728: position = null for styles)
 		$parent_handle  = 'parent-style';
 		$inline_content = '.test { color: blue; }';
 
 		$reflection = new \ReflectionClass($this->instance);
-		$method     = $reflection->getMethod('_concrete_process_inline_assets');
+		$method     = $reflection->getMethod('_process_inline_assets');
 		$method->setAccessible(true);
 
 		// Set up the inline_assets property using reflection
