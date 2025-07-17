@@ -11,18 +11,19 @@ declare(strict_types = 1);
 
 namespace Ran\PluginLib\EnqueueAccessory;
 
-use Ran\PluginLib\Config\ConfigInterface;
 use Ran\PluginLib\Util\Logger;
+use Ran\PluginLib\Config\ConfigInterface;
+use Ran\PluginLib\EnqueueAccessory\EnqueueInterface;
 
 /**
  * Class for handling admin script and style enqueuing.
  *
  * This class is meant to be implemented and instantiated via the RegisterServices Class.
  *
- * @since 1.0.0
+ * @since 0.1.0
  * @package Ran\PluginLib\EnqueueAccessory
  */
-class EnqueueAdmin implements EnqueueInterface {
+class EnqueueAdmin {
 	private ScriptsHandler $scripts_handler;
 	private StylesHandler $styles_handler;
 	private MediaHandler $media_handler;
@@ -34,84 +35,53 @@ class EnqueueAdmin implements EnqueueInterface {
 		?StylesHandler $styles_handler = null,
 		?MediaHandler $media_handler = null
 	) {
-		$this->scripts_handler = $scripts_handler ?? new ScriptsHandler($config);
-		$this->styles_handler  = $styles_handler  ?? new StylesHandler($config);
-		$this->media_handler   = $media_handler   ?? new MediaHandler($config);
-		$this->logger          = $config->get_logger();
-	}
-
-	public function load(): void {
-		if ($this->logger->is_active()) {
-			$this->logger->debug('EnqueueAdmin::load() - Method entered.');
-		}
+		$this->logger = $config->get_logger();
+		$context      = __CLASS__ . '::' . __METHOD__;
 
 		if (!is_admin()) {
 			if ($this->logger->is_active()) {
-				$this->logger->debug('EnqueueAdmin::load() - Not an admin request. Bailing.');
+				$this->logger->debug("{$context} - Not on admin page, bailing.");
 			}
 			return;
+			if ($this->logger->is_active()) {
+				$this->logger->debug("{$context} - On admin page, proceeding to set up asset handlers.");
+			}
 		}
 
-		add_action('admin_enqueue_scripts', array($this, 'enqueue'));
+		$this->scripts_handler = $scripts_handler ?? new ScriptsHandler($config);
+		$this->styles_handler  = $styles_handler  ?? new StylesHandler($config);
+		// $this->media_handler   = $media_handler   ?? new MediaHandler($config);
 	}
 
-	public function enqueue(): void {
+	public function scripts(): ScriptsHandler {
+		return $this->scripts_handler;
+	}
+
+	public function styles(): StylesHandler {
+		return $this->styles_handler;
+	}
+
+	// public function media(): MediaHandler {
+	// 	return $this->media_handler;
+	// }
+
+	public function load(): void {
+		$context = __CLASS__ . '::' . __METHOD__;
+
 		if ($this->logger->is_active()) {
-			$this->logger->debug('EnqueueAdmin::enqueue() - Delegating to handlers.');
+			$this->logger->debug("{$context} - " . __CLASS__ . 'Hooking stage() to admin_enqueue_scripts.');
 		}
-		$this->scripts_handler->enqueue();
-		$this->styles_handler->enqueue();
-		$this->media_handler->enqueue();
+
+		add_action('admin_enqueue_scripts', array($this, 'stage'));
 	}
 
-	public function add_scripts(array $scripts): self {
-		$this->scripts_handler->add_scripts($scripts);
-		return $this;
-	}
-
-	public function add_styles(array $styles): self {
-		$this->styles_handler->add_styles($styles);
-		return $this;
-	}
-
-	public function add_media(array $media): self {
-		$this->media_handler->add_media($media);
-		return $this;
-	}
-
-	public function stage_scripts(): self {
-		$this->scripts_handler->stage_scripts();
-		return $this;
-	}
-
-	public function stage_styles(): self {
-		$this->styles_handler->stage_styles();
-		return $this;
-	}
-
-	public function enqueue_immediate_scripts(): self {
-		$this->scripts_handler->enqueue_immediate_scripts();
-		return $this;
-	}
-
-	public function enqueue_immediate_styles(): self {
-		$this->styles_handler->enqueue_immediate_styles();
-		return $this;
-	}
-
-	public function enqueue_media(array $media = array()): self {
-		$configs = $this->media_handler->get_media_tool_configs();
-		$this->media_handler->enqueue_media($media ?: $configs['general']);
-		return $this;
-	}
-
-	public function add_inline_scripts( array $inline_scripts_to_add ): self {
-		$this->scripts_handler->add_inline_scripts( $inline_scripts_to_add );
-		return $this;
-	}
-
-	public function add_inline_styles( array $inline_styles_to_add ): self {
-		$this->styles_handler->add_inline_styles( $inline_styles_to_add );
-		return $this;
+	public function stage(): void {
+		$context = __CLASS__ . '::' . __METHOD__;
+		if ($this->logger->is_active()) {
+			$this->logger->debug("{$context} - Delegating to handlers.");
+		}
+		$this->scripts_handler->stage();
+		$this->styles_handler->stage();
+		// $this->media_handler->stage_media($this->media_tool_configs);
 	}
 }
