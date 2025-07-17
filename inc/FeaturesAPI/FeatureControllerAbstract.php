@@ -16,7 +16,7 @@ use Ran\PluginLib\Config\ConfigInterface;
 /**
  * Feature controllers must implement a RegistrableFeatureInterface, with a register() method in order to be activated by the RegisterService class.
  *
- * @since 1.0.0
+ * @since 0.1.0
  */
 abstract class FeatureControllerAbstract implements RegistrableFeatureInterface {
 	/**
@@ -53,7 +53,7 @@ abstract class FeatureControllerAbstract implements RegistrableFeatureInterface 
 	 * Base initialization method for FeatureControllers.
 	 * Init methods should return the current instance.
 	 *
-	 * @since 1.0.0
+	 * @since 0.1.0
 	 * @return FeatureControllerAbstract|false Returns the current instance or false on failure.
 	 */
 	abstract public function init(): FeatureControllerAbstract|false;
@@ -64,7 +64,7 @@ abstract class FeatureControllerAbstract implements RegistrableFeatureInterface 
 	 * This assumes that the feature is controllable by a configuration page which sets this option.
 	 * If the feature is always on then this function can be overridden.
 	 *
-	 * @since 1.0.0
+	 * @since 0.1.0
 	 * @param  string $key The name of the key to retrieve.
 	 * @param  string $option_name The name of the option to retrieve.
 	 * @return mixed Returns the value of the key (array|string) or false if not found.

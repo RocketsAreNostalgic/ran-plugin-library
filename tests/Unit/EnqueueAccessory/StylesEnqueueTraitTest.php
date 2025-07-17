@@ -69,7 +69,7 @@ class StylesEnqueueTraitTest extends EnqueueTraitTestCase {
 
 	/**
 	 * @test
-	 * @covers \Ran\PluginLib\EnqueueAccessory\StylesEnqueueTrait::stage_styles
+	 * @covers \Ran\PluginLib\EnqueueAccessory\StylesEnqueueTrait::stage
 	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_concrete_process_single_asset
 	 */
 	public function test_stage_styles_passes_media_attribute_correctly(): void {
@@ -80,7 +80,7 @@ class StylesEnqueueTraitTest extends EnqueueTraitTestCase {
 		    'src'    => 'path/to/style.css',
 		    'media'  => 'print',
 		);
-		$this->instance->add_styles($asset_to_add);
+		$this->instance->add($asset_to_add);
 
 		// Expect wp_register_style to be called with the 'print' media type.
 		$expected_url = $this->instance->get_asset_url('path/to/style.css');
@@ -89,7 +89,7 @@ class StylesEnqueueTraitTest extends EnqueueTraitTestCase {
 		    ->with($handle, $expected_url, array(), false, 'print');
 
 		// Act
-		$this->instance->stage_styles();
+		$this->instance->stage();
 
 		// Assert: The mock expectation handles the validation. This assertion prevents a risky test warning.
 		$this->assertTrue(true);
@@ -119,17 +119,17 @@ class StylesEnqueueTraitTest extends EnqueueTraitTestCase {
 		);
 
 		// Act
-		$this->instance->add_styles($asset_to_add);
+		$this->instance->add($asset_to_add);
 
 		// Assert
-		$styles = $this->instance->get_styles();
+		$styles = $this->instance->get();
 		$this->assertCount(1, $styles['general']);
 		$this->assertEquals('my-asset', $styles['general'][0]['handle']);
 	}
 
 	/**
 	 * @test
-	 * @covers \Ran\PluginLib\EnqueueAccessory\StylesEnqueueTrait::add_inline_styles
+	 * @covers \Ran\PluginLib\EnqueueAccessory\StylesEnqueueTrait::add_inline
 	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_add_inline_asset
 	 */
 	public function test_add_inline_styles_associates_with_correct_parent_handle(): void {
@@ -138,17 +138,17 @@ class StylesEnqueueTraitTest extends EnqueueTraitTestCase {
 		    'handle' => 'parent-style',
 		    'src'    => 'path/to/parent.css',
 		);
-		$this->instance->add_styles($parent_asset);
+		$this->instance->add($parent_asset);
 
 		// Now, add the inline asset
 		$inline_asset = array(
 		    'parent_handle' => 'parent-style',
 		    'content'       => '.my-class { color: red; }',
 		);
-		$this->instance->add_inline_styles($inline_asset);
+		$this->instance->add_inline($inline_asset);
 
 		// Assert that the inline data was added to the parent asset
-		$styles = $this->instance->get_styles();
+		$styles = $this->instance->get();
 		$this->assertCount(1, $styles['general']);
 		$this->assertArrayHasKey('inline', $styles['general'][0]);
 		$this->assertCount(1, $styles['general'][0]['inline']);
@@ -157,7 +157,7 @@ class StylesEnqueueTraitTest extends EnqueueTraitTestCase {
 
 	/**
 	 * @test
-	 * @covers \Ran\PluginLib\EnqueueAccessory\StylesEnqueueTrait::stage_styles
+	 * @covers \Ran\PluginLib\EnqueueAccessory\StylesEnqueueTrait::stage
 	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_concrete_process_single_asset
 	 */
 	public function test_stage_styles_handles_source_less_asset_correctly(): void {
@@ -168,7 +168,7 @@ class StylesEnqueueTraitTest extends EnqueueTraitTestCase {
 		    'src'    => false, // Explicitly no source file
 		    'deps'   => array('some-dependency'),
 		);
-		$this->instance->add_styles($asset_to_add);
+		$this->instance->add($asset_to_add);
 
 		// Expect wp_register_style to be called with false for the src.
 		WP_Mock::userFunction('wp_register_style')
@@ -177,7 +177,7 @@ class StylesEnqueueTraitTest extends EnqueueTraitTestCase {
 		    ->andReturn(true);
 
 		// Act
-		$this->instance->stage_styles();
+		$this->instance->stage();
 
 		// Assert: No warnings about missing src should be logged.
 		foreach ($this->logger_mock->get_logs() as $log) {
@@ -318,8 +318,8 @@ class StylesEnqueueTraitTest extends EnqueueTraitTestCase {
 
 	/**
 	 * @test
-	 * @covers \Ran\PluginLib\EnqueueAccessory\StylesEnqueueTrait::stage_styles
-	 * @covers \Ran\PluginLib\EnqueueAccessory\StylesEnqueueTrait::enqueue_immediate_styles
+	 * @covers \Ran\PluginLib\EnqueueAccessory\StylesEnqueueTrait::stage
+	 * @covers \Ran\PluginLib\EnqueueAccessory\StylesEnqueueTrait::enqueue_immediate
 	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_concrete_process_single_asset
 	 */
 	public function test_stage_styles_enqueues_registered_style(): void {
@@ -329,18 +329,18 @@ class StylesEnqueueTraitTest extends EnqueueTraitTestCase {
 		    'handle' => $handle,
 		    'src'    => 'path/to/style.css',
 		);
-		$this->instance->add_styles($asset_to_add);
-		$this->instance->stage_styles();
+		$this->instance->add($asset_to_add);
+		$this->instance->stage();
 
 		// Expect wp_enqueue_style to be called.
 		WP_Mock::userFunction('wp_enqueue_style')->once()->with($handle);
 
 		// Act
-		$this->instance->stage_styles();
-		$this->instance->enqueue_immediate_styles();
+		$this->instance->stage();
+		$this->instance->enqueue_immediate();
 
 		// Assert
-		$styles = $this->instance->get_styles();
+		$styles = $this->instance->get();
 		$this->assertEmpty($styles['general'], 'The general queue should be empty after enqueuing.');
 	}
 
@@ -373,8 +373,8 @@ class StylesEnqueueTraitTest extends EnqueueTraitTestCase {
 		));
 
 		// Use the public API to add the style and trigger the processing hooks.
-		$this->instance->add_styles( array( $asset_definition ) );
-		$this->instance->stage_styles();
+		$this->instance->add( array( $asset_definition ) );
+		$this->instance->stage();
 
 		// The assertion is implicitly handled by the mock expectation for wp_register_style.
 		$this->expectLog('debug', array('_process_single_', 'Registering', 'test-style', $expected_src), 1);

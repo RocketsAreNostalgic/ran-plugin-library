@@ -30,7 +30,7 @@ trait StylesEnqueueTrait {
 	 *
 	 * @return array<string, array> An associative array of stylesheet definitions, keyed by 'general', 'deferred', and 'inline'.
 	 */
-	public function get_styles(): array {
+	public function get(): array {
 		return $this->get_assets(AssetType::Style);
 	}
 
@@ -40,7 +40,7 @@ trait StylesEnqueueTrait {
 	 * This method supports adding a single style definition (associative array) or an
 	 * array of style definitions. Definitions are merged with any existing styles
 	 * in the queue. Actual registration and enqueuing occur when `enqueue()` or
-	 * `stage_styles()` is called. This method is chainable.
+	 * `stage()` is called. This method is chainable.
 	 *
 	 * @param array<string, mixed>|array<int, array<string, mixed>> $styles_to_add A single style definition array or an array of style definition arrays.
 	 *     Each style definition array can include the following keys:
@@ -56,17 +56,17 @@ trait StylesEnqueueTrait {
 	 *     - 'hook'       (string, optional): The WordPress action hook on which to enqueue this style (e.g., 'wp_enqueue_scripts'). Defaults to null for immediate processing.
 	 * @return self Returns the instance of this class for method chaining.
 	 *
-	 * @see self::stage_styles()
+	 * @see self::stage()
 	 * @see self::enqueue()
 	 */
-	public function add_styles( array $styles_to_add ): self {
+	public function add( array $styles_to_add ): self {
 		return $this->add_assets($styles_to_add, AssetType::Style);
 	}
 
 	/**
 	 * Registers stylesheets with WordPress without enqueueing them, handling deferred registration.
 	 *
-	 * This method iterates through the style definitions previously added via `add_styles()`.
+	 * This method iterates through the style definitions previously added via `add()`.
 	 * For each style:
 	 * - If a `hook` is specified in the definition, its registration is deferred. The style
 	 *   is moved to the `$deferred_styles` queue, and an action is set up (if not already present)
@@ -76,16 +76,16 @@ trait StylesEnqueueTrait {
 	 *   `$condition` callback and calling `wp_register_style()`.
 	 *
 	 * Note: This method only *registers* the stylesheets. Enqueuing is handled by
-	 * `stage_styles()` or `_enqueue_deferred_styles()`.
+	 * `stage()` or `_enqueue_deferred_styles()`.
 	 *
 	 * @return self Returns the instance of this class for method chaining.
-	 * @see    self::add_styles()
+	 * @see    self::add()
 	 * @see    self::_process_single_asset()
-	 * @see    self::stage_styles()
+	 * @see    self::stage()
 	 * @see    self::_enqueue_deferred_styles()
 	 * @see    wp_register_style()
 	 */
-	public function stage_styles(): self {
+	public function stage(): self {
 		return $this->stage_assets(AssetType::Style);
 	}
 
@@ -104,12 +104,12 @@ trait StylesEnqueueTrait {
 	 *
 	 * @return self Returns the instance of this class for method chaining.
 	 * @throws \LogicException If a deferred style is found in the queue, indicating `register_styles()` was not called.
-	 * @see    self::add_styles()
+	 * @see    self::add()
 	 * @see    self::register_styles()
 	 * @see    self::_process_single_asset()
 	 * @see    self::_enqueue_deferred_styles()
 	 */
-	public function enqueue_immediate_styles(): self {
+	public function enqueue_immediate(): self {
 		return $this->enqueue_immediate_assets(AssetType::Style);
 	}
 
@@ -140,7 +140,7 @@ trait StylesEnqueueTrait {
 	 *     - 'parent_hook' (string, optional): Explicitly associate with a parent's hook.
 	 * @return self Returns the instance of this class for method chaining.
 	 */
-	public function add_inline_styles( array $inline_styles_to_add ): self {
+	public function add_inline( array $inline_styles_to_add ): self {
 		return $this->add_inline_assets( $inline_styles_to_add, AssetType::Style );
 	}
 
@@ -162,7 +162,7 @@ trait StylesEnqueueTrait {
 	 * Processes a single style definition, handling registration, enqueuing, and inline styles.
 	 *
 	 * This is a versatile helper method that underpins the public-facing style methods. It separates
-	 * the logic for handling individual styles, making the main `register_styles` and `stage_styles`
+	 * the logic for handling individual styles, making the main `register_styles` and `stage`
 	 * methods cleaner. For non-deferred styles (where `$hook_name` is null), it also handles inline styles.
 	 * For deferred styles, this is handled by the calling `enqueue_deferred_styles` method.
 	 *
@@ -177,7 +177,7 @@ trait StylesEnqueueTrait {
 	 *   data?: array<string, mixed>, // Key-value pairs of data attributes for the `<style>` tag (e.g., `['data-some-attr' => 'value']`). Defaults to an empty array.
 	 *   inline?: array{position: 'before'|'after', content: string, condition?: callable}|array<int, array{position: 'before'|'after', content: string, condition?: callable}>, // Inline style content and position.
 	 * }					$asset_definition    	The definition of the sylesheet to process.
-	 * @param string        $processing_context  	The context in which the style is being processed (e.g., 'register_styles', 'stage_styles'). Used for logging.
+	 * @param string        $processing_context  	The context in which the style is being processed (e.g., 'register_styles', 'stage'). Used for logging.
 	 * @param string|null   $hook_name           	The hook name if processing in a deferred context, null otherwise.
 	 * @param bool          $do_register         	Whether to register the style.
 	 * @param bool          $do_enqueue          	Whether to enqueue the style.
