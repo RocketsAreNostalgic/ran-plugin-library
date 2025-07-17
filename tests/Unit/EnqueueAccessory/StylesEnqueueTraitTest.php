@@ -21,6 +21,10 @@ class ConcreteEnqueueForStylesTesting extends AssetEnqueueBaseAbstract {
 	use StylesEnqueueTrait;
 
 	protected array $registered_hooks = array();
+	protected array $inline_assets    = array(
+		'script' => array(),
+		'style'  => array(),
+	);
 
 	public function __construct(ConfigInterface $config) {
 		parent::__construct($config);
@@ -435,6 +439,7 @@ class StylesEnqueueTraitTest extends PluginLibTestCase {
 	 * @dataProvider provideEnvironmentData
 	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_resolve_environment_src
 	 * @covers \Ran\PluginLib\EnqueueAccessory\StylesEnqueueTrait::_process_single_style_asset
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_concrete_process_single_asset
 	 */
 	public function test_process_single_style_asset_resolves_src_based_on_environment(
 		bool $is_dev_environment,
@@ -652,23 +657,49 @@ class StylesEnqueueTraitTest extends PluginLibTestCase {
 
 	/**
 	 * @covers \Ran\PluginLib\EnqueueAccessory\StylesEnqueueTrait::_enqueue_external_inline_styles
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_enqueue_external_inline_assets
 	 */
-	public function test_enqueue_external_inline_styles_calls_base_method(): void {
-		// Create a partial mock to spy on _enqueue_external_inline_assets
-		$instance = Mockery::mock(ConcreteEnqueueForStylesTesting::class, array($this->config_mock))
-			->makePartial()
-			->shouldAllowMockingProtectedMethods();
+	public function test_enqueue_external_inline_styles_executes_base_method(): void {
+		// Mock current_action to return a specific hook name
+		\WP_Mock::userFunction('current_action')
+			->andReturn('wp_enqueue_scripts');
 
-		// Set expectation that _enqueue_external_inline_assets is called with AssetType::Style
-		$instance->shouldReceive('_enqueue_external_inline_assets')
-			->once()
-			->with(AssetType::Style);
+		// Set up external_inline_assets property with test data
+		$reflection                      = new \ReflectionClass($this->instance);
+		$external_inline_assets_property = $reflection->getProperty('external_inline_assets');
+		$external_inline_assets_property->setAccessible(true);
+		
+		$test_data = array(
+			'style' => array(
+				'wp_enqueue_scripts' => array(
+					'parent-handle-1' => array('some-inline-style-1'),
+					'parent-handle-2' => array('some-inline-style-2')
+				)
+			)
+		);
+		$external_inline_assets_property->setValue($this->instance, $test_data);
+
+		// Mock _process_inline_assets to avoid complex setup
+		$this->instance->shouldReceive('_process_inline_assets')
+			->twice() // Called once for each parent handle
+			->with(
+				\Mockery::type(AssetType::class),
+				\Mockery::type('string'), // parent_handle
+				'wp_enqueue_scripts',
+				\Mockery::type('string') // context
+			)
+			->andReturn(null);
 
 		// Call the method under test
-		$instance->_enqueue_external_inline_styles();
+		$this->instance->_enqueue_external_inline_styles();
 
-		// Add explicit assertion to avoid PHPUnit marking the test as risky
-		$this->assertTrue(true, 'Method should call _enqueue_external_inline_assets with AssetType::Style');
+		// Verify the processed assets were removed from the queue
+		$updated_data = $external_inline_assets_property->getValue($this->instance);
+		$this->assertArrayNotHasKey('wp_enqueue_scripts', $updated_data['style'] ?? array());
+
+		// Verify expected log messages
+		$this->expectLog('debug', 'AssetEnqueueBaseTrait::enqueue_external_inline_styles - Fired on hook \'wp_enqueue_scripts\'.');
+		$this->expectLog('debug', 'AssetEnqueueBaseTrait::enqueue_external_inline_styles - Finished processing for hook \'wp_enqueue_scripts\'.');
 	}
 
 	/**
@@ -842,6 +873,7 @@ class StylesEnqueueTraitTest extends PluginLibTestCase {
 
 	/**
 	 * @covers \Ran\PluginLib\EnqueueAccessory\StylesEnqueueTrait::_process_single_style_asset
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_concrete_process_single_asset
 	 */
 	public function test_process_single_style_asset_handles_media_attribute(): void {
 		// Create a test asset definition with media attribute
@@ -1085,5 +1117,53 @@ class StylesEnqueueTraitTest extends PluginLibTestCase {
 
 		// Verify the result is the handle, indicating success
 		$this->assertEquals($handle, $result, 'Method should return the handle on success');
+	}
+
+	/**
+	 * @test
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_concrete_process_inline_assets
+	 */
+	public function test_concrete_process_inline_assets_processes_style_assets(): void {
+		// Arrange: Set up inline assets for styles (to cover line 728: position = null for styles)
+		$parent_handle  = 'parent-style';
+		$inline_content = '.test { color: blue; }';
+		
+		$reflection = new \ReflectionClass($this->instance);
+		$method     = $reflection->getMethod('_concrete_process_inline_assets');
+		$method->setAccessible(true);
+		
+		// Set up the inline_assets property using reflection
+		$inline_assets_property = $reflection->getProperty('inline_assets');
+		$inline_assets_property->setAccessible(true);
+		$inline_assets = array(
+			'style' => array(
+				array(
+					'handle'  => $parent_handle,
+					'content' => $inline_content,
+					// Note: no 'position' for styles - this tests the line 728 branch
+				),
+			),
+		);
+		$inline_assets_property->setValue($this->instance, $inline_assets);
+		
+		// Mock wp_style_is to return true (parent style is registered)
+		\WP_Mock::userFunction('wp_style_is')
+			->once()
+			->with($parent_handle, 'registered')
+			->andReturn(true);
+		
+		// Mock wp_add_inline_style to succeed (note: no position parameter for styles)
+		\WP_Mock::userFunction('wp_add_inline_style')
+			->once()
+			->with($parent_handle, $inline_content)
+			->andReturn(true);
+		
+		// Act: Call the method with AssetType::Style (this will execute line 728: position = null)
+		$method->invokeArgs($this->instance, array(AssetType::Style, $parent_handle));
+		
+		// Assert: Verify the specific branch was executed for styles
+		$this->expectLog('debug', 'Checking for inline styles for parent style');
+		$this->expectLog('debug', 'Adding inline style for');
+		$this->expectLog('debug', 'Successfully added inline style for');
 	}
 }
