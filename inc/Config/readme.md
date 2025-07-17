@@ -102,3 +102,7 @@ The `validate_plugin_array()` method accepts an array and checks that a minimum 
 ### `get_wp_options()`
 
 The `get_wp_options()` method returns the value of the current plugin's primary WordPress option or `false` if none has been set.
+
+### `get_is_dev_callback()`
+
+The `get_is_dev_callback()` method returns the developer-defined callback for checking if the environment is 'dev'. By default, this method returns `null`. If a callback is provided, it should return a boolean value indicating whether the environment is 'dev'.
