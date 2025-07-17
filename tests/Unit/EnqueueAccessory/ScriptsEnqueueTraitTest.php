@@ -3,52 +3,21 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\Tests\Unit\EnqueueAccessory;
 
-use Ran\PluginLib\Config\ConfigInterface;
-use Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseAbstract;
-use Ran\PluginLib\EnqueueAccessory\AssetType;
-use Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait;
-use Ran\PluginLib\EnqueueAccessory\ScriptsHandler;
-use Ran\PluginLib\Tests\Unit\PluginLibTestCase;
-use Ran\PluginLib\Util\Logger;
-use Ran\PluginLib\Util\CollectingLogger;
-use Ran\PluginLib\Util\ExpectLogTrait;
-use WP_Mock;
 use Mockery;
+use WP_Mock;
+use Ran\PluginLib\Util\ExpectLogTrait;
+use Ran\PluginLib\Util\CollectingLogger;
+use Ran\PluginLib\Config\ConfigInterface;
+use Ran\PluginLib\EnqueueAccessory\AssetType;
+use Ran\PluginLib\Tests\Unit\PluginLibTestCase;
+use Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait;
+use Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseAbstract;
 
 /**
  * Concrete implementation of ScriptsEnqueueTrait for testing asset-related methods.
  */
-class ConcreteEnqueueForScriptsTesting extends AssetEnqueueBaseAbstract {
+class ConcreteEnqueueForScriptsTesting extends ConcreteEnqueueForTesting {
 	use ScriptsEnqueueTrait;
-
-	/**
-	 * Holds inline assets for testing.
-	 *
-	 * @var array<string, array<int, array<string, mixed>>>
-	 */
-	protected array $inline_assets = array(
-		'script' => array(),
-		'style'  => array(),
-	);
-
-	protected array $registered_hooks = array();
-
-	public function __construct(ConfigInterface $config) {
-		parent::__construct($config);
-	}
-
-	public function load(): void {
-		// Minimal implementation for testing purposes.
-	}
-
-	public function get_logger(): Logger {
-		return $this->config->get_logger();
-	}
-
-	// Mocked implementation for trait's dependency.
-	protected function _add_action(string $hook, callable $callback, int $priority = 10, int $accepted_args = 1): void {
-		add_action($hook, $callback, $priority, $accepted_args);
-	}
 }
 
 /**
@@ -58,89 +27,32 @@ class ConcreteEnqueueForScriptsTesting extends AssetEnqueueBaseAbstract {
  *
  * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait
  */
-class ScriptsEnqueueTraitTest extends PluginLibTestCase {
+class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 	use ExpectLogTrait;
 
-	private ConcreteEnqueueForScriptsTesting $instance;
+	/**
+	 * @inheritDoc
+	 */
+	protected function get_concrete_class_name(): string {
+		return ConcreteEnqueueForScriptsTesting::class;
+	}
 
 	/**
-	 * @var CollectingLogger|null
+	 * @inheritDoc
 	 */
-	protected ?CollectingLogger $logger_mock = null;
+	protected function get_asset_type(): string {
+		return 'script';
+	}
 
 	/**
 	 * Set up test environment.
+	 * See also EnqueueTraitTestCase
 	 */
 	public function setUp(): void {
 		parent::setUp();
 
-		$this->config_mock = Mockery::mock(ConfigInterface::class);
-		$this->config_mock->shouldReceive('get_is_dev_callback')->andReturn(null)->byDefault();
-		$this->config_mock->shouldReceive('is_dev_environment')->andReturn(false)->byDefault();
-
-		$this->logger_mock = new CollectingLogger();
-		$this->config_mock->shouldReceive('get_logger')->andReturn($this->logger_mock)->byDefault();
-
-		// Create a partial mock for the class under test.
-		// This allows us to mock protected methods like _file_exists and _md5_file.
-		$this->instance = Mockery::mock(ConcreteEnqueueForScriptsTesting::class, array($this->config_mock))
-		    ->makePartial()
-		    ->shouldAllowMockingProtectedMethods();
-
-		// Mock the get_asset_url method to return the source by default
-		// This handles the null URL check we added in the ScriptsEnqueueTrait
-		$this->instance->shouldReceive('get_asset_url')
-		    ->withAnyArgs()
-		    ->andReturnUsing(function($src, $type) {
-		    	return $src;
-		    })
-		    ->byDefault();
-
-		$this->instance->shouldReceive('stage_scripts')->passthru();
-
-		// Ensure the mock instance uses our collecting logger.
-		$this->instance->shouldReceive('get_logger')->andReturn($this->logger_mock)->byDefault();
-		$this->instance->shouldReceive('get_config')->andReturn($this->config_mock)->byDefault();
-
-		// Default WP_Mock function mocks for asset functions
-		WP_Mock::userFunction('wp_register_script')->withAnyArgs()->andReturn(true)->byDefault();
+		// Add script-specific mocks that were not generic enough for the base class.
 		WP_Mock::userFunction('wp_enqueue_script')->withAnyArgs()->andReturn(true)->byDefault();
-		WP_Mock::userFunction('wp_add_inline_script')->withAnyArgs()->andReturn(true)->byDefault();
-		WP_Mock::userFunction('wp_script_is')->withAnyArgs()->andReturn(false)->byDefault();
-		WP_Mock::userFunction('did_action')->withAnyArgs()->andReturn(0)->byDefault(); // 0 means false
-		WP_Mock::userFunction('current_action')->withAnyArgs()->andReturn(null)->byDefault();
-		WP_Mock::userFunction('is_admin')->andReturn(false)->byDefault(); // Default to not admin context
-		WP_Mock::userFunction('wp_doing_ajax')->andReturn(false)->byDefault();
-		WP_Mock::userFunction('_doing_it_wrong')->withAnyArgs()->andReturnNull()->byDefault();
-
-		// Tests that need `wp_json_encode` should mock it directly.
-		WP_Mock::userFunction('wp_json_encode', array(
-			'return' => static function($data) {
-				return json_encode($data);
-			},
-		))->byDefault();
-
-		// Tests that need `esc_attr` should mock it directly.
-		WP_Mock::userFunction('esc_attr', array(
-			'return' => static function($text) {
-				return htmlspecialchars((string) $text, ENT_QUOTES, 'UTF-8');
-			},
-		))->byDefault();
-
-		// Tests that need `has_action` should mock it directly.
-		WP_Mock::userFunction('has_action')
-		    ->with(Mockery::any(), Mockery::any())
-		    ->andReturnUsing(function ($hook, $callback) {
-		    	return false;
-		    })
-		    ->byDefault();
-
-		// Tests that need `esc_html` should mock it directly.
-		WP_Mock::userFunction('esc_html', array(
-			'return' => static function($text) {
-				return htmlspecialchars((string) $text, ENT_QUOTES, 'UTF-8');
-			},
-		))->byDefault();
 	}
 
 	/**
@@ -1541,7 +1453,7 @@ class ScriptsEnqueueTraitTest extends PluginLibTestCase {
 		$reflection                      = new \ReflectionClass($this->instance);
 		$external_inline_assets_property = $reflection->getProperty('external_inline_assets');
 		$external_inline_assets_property->setAccessible(true);
-		
+
 		$test_data = array(
 			'script' => array(
 				'wp_enqueue_scripts' => array(
@@ -1588,7 +1500,7 @@ class ScriptsEnqueueTraitTest extends PluginLibTestCase {
 		$reflection                      = new \ReflectionClass($this->instance);
 		$external_inline_assets_property = $reflection->getProperty('external_inline_assets');
 		$external_inline_assets_property->setAccessible(true);
-		
+
 		$test_data = array(
 			'script' => array(
 				'other_hook' => array(
@@ -1970,12 +1882,12 @@ class ScriptsEnqueueTraitTest extends PluginLibTestCase {
 			'_md5_file',
 			array(__FILE__)
 		);
-		
+
 		// Verify the result is a valid MD5 hash
 		$this->assertIsString($result, 'Should return a string hash');
 		$this->assertEquals(32, strlen($result), 'MD5 hash should be 32 characters long');
 		$this->assertMatchesRegularExpression('/^[a-f0-9]{32}$/', $result, 'Should be a valid MD5 hash format');
-		
+
 		// Verify it matches PHP's md5_file function
 		$expected_hash = md5_file(__FILE__);
 		$this->assertEquals($expected_hash, $result, 'Should return the same hash as PHP\'s md5_file function');
@@ -2061,7 +1973,7 @@ class ScriptsEnqueueTraitTest extends PluginLibTestCase {
 		);
 
 		$this->assertFalse($result, 'Should return false when condition fails');
-		
+
 		// Verify debug log was written
 		$this->expectLog('debug', array(
 			'ConcreteEnqueueForScriptsTesting::_concrete_process_single_asset - Condition not met for script \'test-script\'. Skipping.'
@@ -2094,7 +2006,7 @@ class ScriptsEnqueueTraitTest extends PluginLibTestCase {
 		);
 
 		$this->assertFalse($result, 'Should return false when handle is empty');
-		
+
 		// Verify warning log was written
 		$this->expectLog('warning', array(
 			'ConcreteEnqueueForScriptsTesting::_concrete_process_single_asset - script definition is missing a \'handle\'. Skipping.'
@@ -2172,7 +2084,7 @@ class ScriptsEnqueueTraitTest extends PluginLibTestCase {
 		);
 
 		$this->assertFalse($result, 'Should return false when source resolution fails');
-		
+
 		// Verify error log was written
 		$this->expectLog('error', array(
 			'ConcreteEnqueueForScriptsTesting::_concrete_process_single_asset - Could not resolve source for script \'test-script\'. Skipping.'
@@ -2276,7 +2188,7 @@ class ScriptsEnqueueTraitTest extends PluginLibTestCase {
 
 		// Verify successful completion - should return the handle
 		$this->assertEquals('success-script', $result, 'Should return handle on successful completion');
-		
+
 		// Verify the final debug log was written (lines 923-925)
 		$this->expectLog('debug', array(
 			'ConcreteEnqueueForScriptsTesting::_concrete_process_single_asset - Finished processing script \'success-script\' on hook \'test_hook\'.'
@@ -3407,11 +3319,11 @@ class ScriptsEnqueueTraitTest extends PluginLibTestCase {
 		$parent_handle  = 'parent-script';
 		$hook_name      = 'wp_footer';
 		$inline_content = 'console.log("deferred inline script");';
-		
+
 		$reflection = new \ReflectionClass($this->instance);
 		$method     = $reflection->getMethod('_concrete_process_inline_assets');
 		$method->setAccessible(true);
-		
+
 		// Set up the inline_assets property using reflection
 		$inline_assets_property = $reflection->getProperty('inline_assets');
 		$inline_assets_property->setAccessible(true);
@@ -3426,22 +3338,22 @@ class ScriptsEnqueueTraitTest extends PluginLibTestCase {
 			),
 		);
 		$inline_assets_property->setValue($this->instance, $inline_assets);
-		
+
 		// Mock wp_script_is to return true (parent script is registered)
 		\WP_Mock::userFunction('wp_script_is')
 			->once()
 			->with($parent_handle, 'registered')
 			->andReturn(true);
-		
+
 		// Mock wp_add_inline_script to succeed
 		\WP_Mock::userFunction('wp_add_inline_script')
 			->once()
 			->with($parent_handle, $inline_content, 'after')
 			->andReturn(true);
-		
+
 		// Act: Call the method with deferred context (hook_name provided)
 		$method->invokeArgs($this->instance, array(AssetType::Script, $parent_handle, $hook_name));
-		
+
 		// Assert: Verify the specific branch was executed (parent_hook matches hook_name)
 		$this->expectLog('debug', 'Checking for inline scripts for parent script');
 		$this->expectLog('debug', 'Adding inline script for');

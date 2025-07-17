@@ -3,53 +3,21 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\Tests\Unit\EnqueueAccessory;
 
-use Ran\PluginLib\Config\ConfigInterface;
-use Ran\PluginLib\Tests\Unit\PluginLibTestCase;
-use Ran\PluginLib\EnqueueAccessory\AssetType;
-use Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseAbstract;
-use Ran\PluginLib\EnqueueAccessory\StylesEnqueueTrait;
-use Ran\PluginLib\Util\Logger;
-use Ran\PluginLib\Util\CollectingLogger;
-use InvalidArgumentException;
-use WP_Mock;
 use Mockery;
+use WP_Mock;
+use Ran\PluginLib\Util\ExpectLogTrait;
+use Ran\PluginLib\Util\CollectingLogger;
+use Ran\PluginLib\Config\ConfigInterface;
+use Ran\PluginLib\EnqueueAccessory\AssetType;
+use Ran\PluginLib\Tests\Unit\PluginLibTestCase;
+use Ran\PluginLib\EnqueueAccessory\StylesEnqueueTrait;
+use Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseAbstract;
 
 /**
  * Concrete implementation of StylesEnqueueTrait for testing asset-related methods.
  */
-class ConcreteEnqueueForStylesTesting extends AssetEnqueueBaseAbstract {
+class ConcreteEnqueueForStylesTesting extends ConcreteEnqueueForTesting {
 	use StylesEnqueueTrait;
-
-	protected array $registered_hooks = array();
-	protected array $inline_assets    = array(
-		'script' => array(),
-		'style'  => array(),
-	);
-
-	public function __construct(ConfigInterface $config) {
-		parent::__construct($config);
-	}
-
-	public function load(): void {
-		// Minimal implementation for testing purposes.
-	}
-
-	public function get_asset_url(string $path, ?AssetType $asset_type = null): ?string {
-		return 'https://example.com/' . $path;
-	}
-
-	public function get_logger(): Logger {
-		return $this->config->get_logger();
-	}
-
-	protected function _add_action(string $hook, callable $callback, int $priority = 10, int $accepted_args = 1): void {
-		add_action($hook, $callback, $priority, $accepted_args);
-	}
-
-	// Helper to trigger the hook for testing purposes.
-	public function trigger_hooks(): void {
-		WP_Mock::onAction('wp_enqueue_scripts')->execute();
-	}
 }
 
 /**
@@ -59,91 +27,32 @@ class ConcreteEnqueueForStylesTesting extends AssetEnqueueBaseAbstract {
  *
  * @covers \Ran\PluginLib\EnqueueAccessory\StylesEnqueueTrait
  */
-class StylesEnqueueTraitTest extends PluginLibTestCase {
-	/**
-	 * @var (ConcreteEnqueueForStylesTesting&Mockery\MockInterface)|Mockery\LegacyMockInterface
-	 */
-	protected $instance;
+class StylesEnqueueTraitTest extends EnqueueTraitTestCase {
+	use ExpectLogTrait;
 
 	/**
-	 * @var CollectingLogger|null
+	 * @inheritDoc
 	 */
-	protected ?CollectingLogger $logger_mock = null;
+	protected function get_concrete_class_name(): string {
+		return ConcreteEnqueueForStylesTesting::class;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	protected function get_asset_type(): string {
+		return 'style';
+	}
 
 	/**
 	 * Set up test environment.
+	 * See also EnqueueTraitTestCase
 	 */
 	public function setUp(): void {
 		parent::setUp();
 
-		// Set up the config mock like in ScriptsEnqueueTraitTest
-		$this->config_mock = Mockery::mock(ConfigInterface::class);
-		$this->config_mock->shouldReceive('get_is_dev_callback')->andReturn(null)->byDefault();
-		$this->config_mock->shouldReceive('is_dev_environment')->andReturn(false)->byDefault();
-
-		$this->logger_mock = new CollectingLogger();
-		$this->config_mock->shouldReceive('get_logger')->andReturn($this->logger_mock)->byDefault();
-
-		// Create a partial mock for the class under test.
-		// This allows us to mock protected methods like _file_exists and _md5_file.
-		$this->instance = Mockery::mock(ConcreteEnqueueForStylesTesting::class, array($this->config_mock))
-			->makePartial()
-			->shouldAllowMockingProtectedMethods();
-
-		// Mock the get_asset_url method to return the source by default
-		// This handles the null URL check we added in the StylesEnqueueTrait
-		$this->instance->shouldReceive('get_asset_url')
-			->withAnyArgs()
-			->andReturnUsing(function($src, $type = null) {
-				return $src;
-			})
-			->byDefault();
-
-		$this->instance->shouldReceive('stage_styles')->passthru();
-
-		// Ensure the mock instance uses our collecting logger.
-		$this->instance->shouldReceive('get_logger')->andReturn($this->logger_mock)->byDefault();
-		$this->instance->shouldReceive('get_config')->andReturn($this->config_mock)->byDefault();
-
-		// Default WP_Mock function mocks for asset functions
-		WP_Mock::userFunction('wp_register_style')->withAnyArgs()->andReturn(true)->byDefault();
+		// Add style-specific mocks that were not generic enough for the base class.
 		WP_Mock::userFunction('wp_enqueue_style')->withAnyArgs()->andReturnNull()->byDefault();
-		WP_Mock::userFunction('wp_add_inline_style')->withAnyArgs()->andReturn(true)->byDefault();
-		WP_Mock::userFunction('wp_style_is')->withAnyArgs()->andReturn(false)->byDefault();
-		WP_Mock::userFunction('did_action')->withAnyArgs()->andReturn(0)->byDefault();
-		WP_Mock::userFunction('current_action')->withAnyArgs()->andReturn(null)->byDefault();
-		WP_Mock::userFunction('is_admin')->andReturn(false)->byDefault();
-		WP_Mock::userFunction('wp_doing_ajax')->andReturn(false)->byDefault();
-		WP_Mock::userFunction('_doing_it_wrong')->withAnyArgs()->andReturnNull()->byDefault();
-
-		// Tests that need `wp_json_encode` should mock it directly.
-		WP_Mock::userFunction('wp_json_encode', array(
-			'return' => static function($data) {
-				return json_encode($data);
-			},
-		))->byDefault();
-
-		// Tests that need `esc_attr` should mock it directly.
-		WP_Mock::userFunction('esc_attr', array(
-			'return' => static function($text) {
-				return htmlspecialchars((string) $text, ENT_QUOTES, 'UTF-8');
-			},
-		))->byDefault();
-
-		// Tests that need `has_action` should mock it directly.
-		WP_Mock::userFunction('has_action')
-		    ->with(Mockery::any(), Mockery::any())
-		    ->andReturnUsing(function ($hook, $callback) {
-		    	return false;
-		    })
-		    ->byDefault();
-
-		// Tests that need `esc_html` should mock it directly.
-		WP_Mock::userFunction('esc_html', array(
-			'return' => static function($text) {
-				return htmlspecialchars((string) $text, ENT_QUOTES, 'UTF-8');
-			},
-		))->byDefault();
 	}
 
 	/**
@@ -668,7 +577,7 @@ class StylesEnqueueTraitTest extends PluginLibTestCase {
 		$reflection                      = new \ReflectionClass($this->instance);
 		$external_inline_assets_property = $reflection->getProperty('external_inline_assets');
 		$external_inline_assets_property->setAccessible(true);
-		
+
 		$test_data = array(
 			'style' => array(
 				'wp_enqueue_scripts' => array(
@@ -1127,11 +1036,11 @@ class StylesEnqueueTraitTest extends PluginLibTestCase {
 		// Arrange: Set up inline assets for styles (to cover line 728: position = null for styles)
 		$parent_handle  = 'parent-style';
 		$inline_content = '.test { color: blue; }';
-		
+
 		$reflection = new \ReflectionClass($this->instance);
 		$method     = $reflection->getMethod('_concrete_process_inline_assets');
 		$method->setAccessible(true);
-		
+
 		// Set up the inline_assets property using reflection
 		$inline_assets_property = $reflection->getProperty('inline_assets');
 		$inline_assets_property->setAccessible(true);
@@ -1145,22 +1054,22 @@ class StylesEnqueueTraitTest extends PluginLibTestCase {
 			),
 		);
 		$inline_assets_property->setValue($this->instance, $inline_assets);
-		
+
 		// Mock wp_style_is to return true (parent style is registered)
 		\WP_Mock::userFunction('wp_style_is')
 			->once()
 			->with($parent_handle, 'registered')
 			->andReturn(true);
-		
+
 		// Mock wp_add_inline_style to succeed (note: no position parameter for styles)
 		\WP_Mock::userFunction('wp_add_inline_style')
 			->once()
 			->with($parent_handle, $inline_content)
 			->andReturn(true);
-		
+
 		// Act: Call the method with AssetType::Style (this will execute line 728: position = null)
 		$method->invokeArgs($this->instance, array(AssetType::Style, $parent_handle));
-		
+
 		// Assert: Verify the specific branch was executed for styles
 		$this->expectLog('debug', 'Checking for inline styles for parent style');
 		$this->expectLog('debug', 'Adding inline style for');
