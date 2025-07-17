@@ -30,7 +30,7 @@ trait ScriptsEnqueueTrait {
 	 *
 	 * @return array<string, array> An associative array of script definitions, keyed by 'general', 'deferred', and 'inline'.
 	 */
-	public function get_scripts() {
+	public function get() {
 		return $this->get_assets(AssetType::Script);
 	}
 
@@ -52,7 +52,7 @@ trait ScriptsEnqueueTrait {
 	 *     - 'condition' (callable|null, optional): Callback returning boolean. If false, script is not enqueued. Defaults to null.
 	 *     - 'attributes' (array, optional): Key-value pairs of HTML attributes for the `<script>` tag (e.g., `['async' => true]`). Defaults to an empty array.
 	 *     - 'data' (array, optional): Key-value pairs passed to `wp_script_add_data()`. Defaults to an empty array.
-	 *     - 'inline' (array, optional): An array of inline scripts to attach to this handle. See `add_inline_scripts()` for the structure of each inline script definition.
+	 *     - 'inline' (array, optional): An array of inline scripts to attach to this handle. See `add_inline()` for the structure of each inline script definition.
 	 *     - 'hook' (string|null, optional): WordPress hook (e.g., 'admin_enqueue_scripts') to defer enqueuing. Defaults to null for immediate processing.
 	 *     - 'localize' (array, optional): Data to be localized. See `_process_single_asset` for structure.
 	 * @return self Returns the instance of this class for method chaining.
@@ -60,14 +60,14 @@ trait ScriptsEnqueueTrait {
 	 * @see self::enqueue_scripts()
 	 * @see self::enqueue()
 	 */
-	public function add_scripts( array $scripts_to_add ): self {
+	public function add( array $scripts_to_add ): self {
 		return $this->add_assets($scripts_to_add, AssetType::Script);
 	}
 
 	/**
 	 * Registers scripts with WordPress without enqueueing them, handling deferred registration.
 	 *
-	 * This method iterates through the script definitions previously added via `add_scripts()`.
+	 * This method iterates through the script definitions previously added via `add()`.
 	 * For each script:
 	 * - If a `hook` is specified in the definition, its registration is deferred. The script
 	 *   is moved to the `$deferred_scripts` queue, and an action is set up (if not already present)
@@ -80,23 +80,22 @@ trait ScriptsEnqueueTrait {
 	 * `enqueue_scripts()` or `_enqueue_deferred_scripts()`.
 	 *
 	 * @return self Returns the instance of this class for method chaining.
-	 * @see    self::add_scripts()
+	 * @see    self::add()
 	 * @see    self::_process_single_asset()
 	 * @see    self::enqueue_scripts()
 	 * @see    self::_enqueue_deferred_scripts()
 	 * @see    wp_register_script()
 	 */
-	public function stage_scripts(): self {
+	public function stage(): self {
 		return $this->stage_assets(AssetType::Script);
 	}
-
 
 	/**
 	 * Processes and enqueues all immediate scripts that have been registered.
 	 *
 	 * This method iterates through the `$this->scripts` array, which at this stage should only
 	 * contain immediate (non-deferred) scripts, as deferred scripts are moved to their own
-	 * queue by `stage_scripts()`.
+	 * queue by `stage()`.
 	 *
 	 * For each immediate script, it calls `_process_single_asset()` to handle enqueuing and
 	 * the processing of any associated inline scripts or attributes.
@@ -105,13 +104,13 @@ trait ScriptsEnqueueTrait {
 	 * in `$this->deferred_scripts` are not affected.
 	 *
 	 * @return self Returns the instance of this class for method chaining.
-	 * @throws \LogicException If a deferred script is found in the queue, indicating `stage_scripts()` was not called.
-	 * @see    self::add_scripts()
-	 * @see    self::stage_scripts()
+	 * @throws \LogicException If a deferred script is found in the queue, indicating `stage()` was not called.
+	 * @see    self::add()
+	 * @see    self::stage()
 	 * @see    self::_process_single_asset()
 	 * @see    self::_enqueue_deferred_scripts()
 	 */
-	public function enqueue_immediate_scripts(): self {
+	public function enqueue_immediate(): self {
 		return $this->enqueue_immediate_assets(AssetType::Script);
 	}
 
@@ -142,7 +141,7 @@ trait ScriptsEnqueueTrait {
 	 *     - 'parent_hook' (string, optional): Explicitly associate with a parent's hook.
 	 * @return self Returns the instance of this class for method chaining.
 	 */
-	public function add_inline_scripts( array $inline_scripts_to_add ): self {
+	public function add_inline( array $inline_scripts_to_add ): self {
 		return $this->add_inline_assets( $inline_scripts_to_add, AssetType::Script );
 	}
 

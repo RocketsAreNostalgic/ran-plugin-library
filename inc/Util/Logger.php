@@ -213,7 +213,7 @@ class Logger implements LoggerInterface {
 	/**
 	 * Determines if logging should be active and at what level based on URL params or PHP constants.
 	 *
-	 * @since 1.0.0
+	 * @since 0.1.0
 	 */
 	private function _determine_effective_log_level(): void {
 		$this->is_active                    = false;

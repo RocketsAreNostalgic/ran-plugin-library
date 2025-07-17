@@ -69,7 +69,7 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 
 	/**
 	 * @test
-	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::add_scripts
+	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::add
 	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::add_assets
 	 */
 	public function test_add_scripts_adds_asset_correctly(): void {
@@ -80,17 +80,17 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 		);
 
 		// Act
-		$this->instance->add_scripts($asset_to_add);
+		$this->instance->add($asset_to_add);
 
 		// Assert
-		$scripts = $this->instance->get_scripts();
+		$scripts = $this->instance->get();
 		$this->assertCount(1, $scripts['general']);
 		$this->assertEquals('my-asset', $scripts['general'][0]['handle']);
 	}
 
 	/**
 	 * @test
-	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::add_scripts
+	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::add
 	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::add_assets
 	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::get_assets
 	 */
@@ -115,7 +115,7 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 			),
 		);
 		// Call the method under test
-		$result = $this->instance->add_scripts($assets_to_add);
+		$result = $this->instance->add($assets_to_add);
 
 		// Logger expectations for AssetEnqueueBaseTrait::add_assets() via ScriptsEnqueueTrait.
 		$this->expectLog('debug', array('add_', 'Entered. Current', 'count: 0', 'Adding 2 new'), 1);
@@ -127,11 +127,11 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 
 		// Assert chainability
 		$this->assertSame($this->instance, $result,
-			'add_scripts() should be chainable and return an instance of the class.'
+			'add() should be chainable and return an instance of the class.'
 		);
 
-		// get the results of get_scripts() and check that it contains the assets we added
-		$assets = $this->instance->get_scripts();
+		// get the results of get() and check that it contains the assets we added
+		$assets = $this->instance->get();
 		$this->assertArrayHasKey('general', $assets);
 		$this->assertArrayHasKey('deferred', $assets);
 		$this->assertArrayHasKey('external_inline', $assets);
@@ -140,12 +140,12 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 
 	/**
 	 * @test
-	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::add_scripts
+	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::add
 	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::add_assets
 	 */
 	public function test_add_scripts_handles_empty_input_gracefully(): void {
 		// Act
-		$result = $this->instance->add_scripts(array());
+		$result = $this->instance->add(array());
 
 		// Logger expectations for AssetEnqueueBaseTrait::add_assets() via ScriptsEnqueueTrait.
 		$this->expectLog('debug', array('add_', 'Entered with empty array'));
@@ -154,7 +154,7 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 		$this->assertSame($this->instance, $result);
 
 		// Assert that the scripts array remains empty
-		$assets = $this->instance->get_scripts();
+		$assets = $this->instance->get();
 		$this->assertEmpty($assets['general']);
 		$this->assertEmpty($assets['deferred']);
 		$this->assertEmpty($assets['external_inline']);
@@ -162,7 +162,7 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 
 	/**
 	 * @test
-	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::add_scripts
+	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::add
 	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::add_assets
 	 */
 	public function test_add_scripts_throws_exception_for_missing_src(): void {
@@ -174,12 +174,12 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 		$invalid_asset = array('handle' => 'my-script', 'src' => '');
 
 		// Act
-		$this->instance->add_scripts(array($invalid_asset));
+		$this->instance->add(array($invalid_asset));
 	}
 
 	/**
 	 * @test
-	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::add_scripts
+	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::add
 	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::add_assets
 	 */
 	public function test_add_scripts_throws_exception_for_missing_handle(): void {
@@ -191,13 +191,13 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 		$invalid_asset = array('src' => 'path/to/script.js');
 
 		// Act
-		$this->instance->add_scripts(array($invalid_asset));
+		$this->instance->add(array($invalid_asset));
 	}
 
 
 	/**
 	 * @test
-	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::add_scripts
+	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::add
 	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::add_assets
 	 */
 	public function test_add_scripts_handles_single_asset_definition_correctly(): void {
@@ -208,7 +208,7 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 		);
 
 		// Call the method under test
-		$result = $this->instance->add_scripts($asset_to_add);
+		$result = $this->instance->add($asset_to_add);
 
 		// Assert chainability
 		$this->assertSame($this->instance, $result);
@@ -221,7 +221,7 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 		$this->expectLog('debug', array('add_', 'All current', 'single-asset'));
 
 		// Assert that the asset was added
-		$assets = $this->instance->get_scripts();
+		$assets = $this->instance->get();
 		$this->assertCount(1, $assets['general']);
 		$this->assertEquals('single-asset', $assets['general'][0]['handle']);
 	}
@@ -232,22 +232,22 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 
 	/**
 	 * @test
-	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::stage_scripts
+	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::stage
 	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseAbstract::stage_assets
 	 */
 	public function test_stage_scripts_with_no_assets_to_process(): void {
 		// Call the method under test
-		$this->instance->stage_scripts();
+		$this->instance->stage();
 
-		// Logger expectations for stage_scripts() with no assets.
+		// Logger expectations for stage() with no assets.
 		$this->expectLog('debug', array('stage_', 'Entered. Processing 0', 'definition(s) for registration.'), 1);
 		$this->expectLog('debug', array('stage_', 'Exited. Remaining immediate', '0. Total deferred', '0.'), 1);
 	}
 
 	/**
 	 * @test
-	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::add_scripts
-	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::stage_scripts
+	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::add
+	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::stage
 	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::add_assets
 	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseAbstract::stage_assets
 	 */
@@ -259,19 +259,19 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 			'src'       => 'path/to/conditional.js',
 			'condition' => fn() => false,
 		);
-		$this->instance->add_scripts($asset_to_add);
+		$this->instance->add($asset_to_add);
 
 		WP_Mock::userFunction('wp_register_script')->never();
 
 		// Act
-		$this->instance->stage_scripts();
+		$this->instance->stage();
 		// Assert: Set up log expectations
 		$this->expectLog('debug', array('stage_', 'Entered. Processing 1', 'definition(s) for registration.'), 1);
 		$this->expectLog('debug', array('stage_', 'Processing', "\"{$handle}\", original index: 0."), 1);
 		$this->expectLog('debug', array('_process_single_', 'Condition not met for', "'{$handle}'. Skipping."), 1);
 		$this->expectLog('debug', array('stage_', 'Exited. Remaining immediate', '0. Total deferred', '0.'), 1);
 
-		$assets = $this->instance->get_scripts();
+		$assets = $this->instance->get();
 		$this->assertEmpty($assets['general'], 'The general queue should be empty.');
 		$this->assertEmpty($assets['deferred'], 'The deferred queue should be empty.');
 		$this->assertEmpty($assets['external_inline'], 'The external_inline queue should be empty.');
@@ -279,8 +279,8 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 
 	/**
 	 * @test
-	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::add_scripts
-	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::stage_scripts
+	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::add
+	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::stage
 	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::add_assets
 	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseAbstract::stage_assets
 	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_concrete_process_single_asset
@@ -291,7 +291,7 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 			'handle' => 'my-meta-handle',
 			'src'    => false,
 		);
-		$this->instance->add_scripts($asset_to_add);
+		$this->instance->add($asset_to_add);
 
 		// Expect wp_register_script to be called with false for the src.
 		WP_Mock::userFunction('wp_register_script')
@@ -300,7 +300,7 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 			->andReturn(true);
 
 		// Act
-		$this->instance->stage_scripts();
+		$this->instance->stage();
 
 		// Assert: No warnings about missing src should be logged.
 		foreach ($this->logger_mock->get_logs() as $log) {
@@ -321,9 +321,9 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 
 	/**
 	 * @test
-	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::add_scripts
-	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::stage_scripts
-	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::enqueue_immediate_scripts
+	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::add
+	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::stage
+	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::enqueue_immediate
 	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::add_assets
 	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseAbstract::stage_assets
 	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::enqueue_immediate_assets
@@ -349,16 +349,16 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 		);
 
 		// --- Action ---
-		$this->instance->add_scripts($asset_to_add);
+		$this->instance->add($asset_to_add);
 
 		// --- Assert ---
-		// Logger expectations for add_scripts()
+		// Logger expectations for add()
 		$this->expectLog('debug', array('add_', 'Entered. Current', 'count: 0', 'Adding 1 new'), 1);
 		$this->expectLog('debug', array('add_', 'Adding', 'Handle: my-asset'), 1);
 		$this->expectLog('debug', array('add_', 'Exiting', 'New total', 'count: 1'), 1);
 
 		// --- Action ---
-		$this->instance->stage_scripts();
+		$this->instance->stage();
 
 		// --- Assert ---
 		$this->expectLog('debug', array('stage_', 'Entered. Processing 1', 'script definition(s)'), 1);
@@ -367,10 +367,10 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 		$this->expectLog('debug', array('_process_single_', 'Finished processing', 'my-asset'), 1);
 		$this->expectLog('debug', array('stage_', 'Exited. Remaining immediate', '1', 'Total deferred', '0'), 1);
 
-		$this->instance->enqueue_immediate_scripts();
+		$this->instance->enqueue_immediate();
 
 		// Assert that the asset has been removed from the queue after registration.
-		$scripts = $this->instance->get_scripts();
+		$scripts = $this->instance->get();
 		$this->assertEmpty($scripts['general'], 'The general scripts queue should be empty after registration.');
 
 		// Assert that the registered asset has indeed been registered with WP.
@@ -379,7 +379,7 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 
 	/**
 	 * @test
-	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::stage_scripts
+	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::stage
 	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseAbstract::stage_assets
 	 */
 	public function test_stage_scripts_defers_hooked_asset_correctly(): void {
@@ -390,7 +390,7 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 			'src'    => 'path/to/deferred.js',
 			'hook'   => $hook_name,
 		);
-		$this->instance->add_scripts($asset_to_add);
+		$this->instance->add($asset_to_add);
 
 		// Expect the action to be added with a callable (closure).
 		WP_Mock::expectActionAdded($hook_name, Mockery::type('callable'), 10, 0);
@@ -411,13 +411,13 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 				'priority' => 20,
 			),
 		);
-		$this->instance->add_scripts($assets_to_add);
+		$this->instance->add($assets_to_add);
 
 		// Act
-		$this->instance->stage_scripts();
+		$this->instance->stage();
 
 		// Assert
-		$assets = $this->instance->get_scripts();
+		$assets = $this->instance->get();
 
 		$this->assertArrayHasKey($hook_name, $assets['deferred'], 'Hook key should exist in deferred assets.');
 		$this->assertArrayHasKey(10, $assets['deferred'][$hook_name], 'Priority 10 key should exist.');
@@ -434,7 +434,7 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 
 	/**
 	 * @test
-	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::add_scripts
+	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::add
 	 */
 	public function test_stage_scripts_defers_hooked_asset_correctly_with_script_keyword(): void {
 		// Arrange
@@ -442,17 +442,17 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 		$src    = 'path/to/deferred.js';
 		$hook   = 'wp_enqueue_scripts';
 
-		$this->instance->add_scripts( array(
+		$this->instance->add( array(
 			'handle' => $handle,
 			'src'    => $src,
 			'hook'   => $hook,
 		) );
 
 		// Act: Defer the asset by calling stage_scripts.
-		$this->instance->stage_scripts();
+		$this->instance->stage();
 
 		// Assert
-		$assets = $this->instance->get_scripts();
+		$assets = $this->instance->get();
 		$this->assertArrayHasKey('wp_enqueue_scripts', $assets['deferred']);
 		$this->assertArrayHasKey(10, $assets['deferred']['wp_enqueue_scripts']);
 		$this->assertCount(1, $assets['deferred']['wp_enqueue_scripts'][10]);
@@ -475,8 +475,8 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 				'priority' => 10,
 			),
 		);
-		$this->instance->add_scripts($assets_to_add);
-		$this->instance->stage_scripts(); // This populates the deferred assets array
+		$this->instance->add($assets_to_add);
+		$this->instance->stage(); // This populates the deferred assets array
 
 		// Mock wp_script_is calls for proper asset processing
 		WP_Mock::userFunction('wp_script_is')->with('asset-deferred', 'registered')->andReturn(false);
@@ -504,9 +504,9 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 
 	/**
 	 * @test
-	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::add_scripts
-	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::stage_scripts
-	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::add_inline_scripts
+	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::add
+	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::stage
+	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::add_inline
 	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::add_assets
 	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseAbstract::stage_assets
 	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::add_inline_assets
@@ -519,7 +519,7 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 		$hook          = 'admin_enqueue_scripts';
 
 		// Add and register the parent script so the inline script has something to attach to.
-		$result = $this->instance->add_scripts(array(
+		$result = $this->instance->add(array(
 			'handle' => $parent_handle,
 			'src'    => $src,
 			'hook'   => $hook,
@@ -532,12 +532,12 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 
 
 
-		// Act: Defer the asset by calling stage_scripts.
-		$this->instance->stage_scripts();
+		// Act: Defer the asset by calling stage.
+		$this->instance->stage();
 
 		// Add the inline script to the now-deferred parent.
 		$inline_content = 'alert("test");';
-		$result         = $this->instance->add_inline_scripts(array(
+		$result         = $this->instance->add_inline(array(
 			'parent_handle' => $parent_handle,
 			'content'       => $inline_content,
 		));
@@ -549,7 +549,7 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 		$this->expectLog('debug', array('AssetEnqueueBaseTrait::add_inline_', 'Entered. Current', 'count: 0', 'Adding 1 new'), 1);
 
 		// Verify the internal state.
-		$assets = $this->instance->get_scripts();
+		$assets = $this->instance->get();
 
 		// Assert: Verify the inline data was attached to the parent script definition in the pre-registration queue.
 		$this->assertCount(0, $assets['external_inline'], 'external_inline should be empty.');
@@ -561,8 +561,8 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 
 	/**
 	 * @test
-	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::add_scripts
-	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::add_inline_scripts
+	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::add
+	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::add_inline
 	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::add_assets
 	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::add_inline_assets
 	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_add_inline_asset
@@ -574,7 +574,7 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 		$hook          = 'wp_enqueue_scripts';
 
 		// Add and register the parent script so the inline script has something to attach to.
-		$result = $this->instance->add_scripts(array(
+		$result = $this->instance->add(array(
 			'handle' => $parent_handle,
 			'src'    => $src,
 			'hook'   => $hook,
@@ -588,7 +588,7 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 		// Add inline script
 		$inline_content = 'alert("test");';
 
-		$result = $this->instance->add_inline_scripts(array(
+		$result = $this->instance->add_inline(array(
 			'parent_handle' => $parent_handle,
 			'content'       => $inline_content,
 		));
@@ -600,7 +600,7 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 		$this->expectLog('debug', array('AssetEnqueueBaseTrait::add_inline_', 'Entered. Current', 'count: 0', 'Adding 1 new'), 1);
 
 		// Verify the internal state.
-		$assets = $this->instance->get_scripts();
+		$assets = $this->instance->get();
 
 		// Assert: Verify the inline data was attached to the parent script definition in the pre-registration queue.
 		$this->assertCount(0, $assets['external_inline'], 'external_inline should be empty.');
@@ -609,7 +609,7 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 
 	/**
 	 * @test
-	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::add_inline_scripts
+	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::add_inline
 	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::add_inline_assets
 	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_add_inline_asset
 	 */
@@ -622,7 +622,7 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 		WP_Mock::userFunction('wp_script_is')->with($external_handle, 'registered')->andReturn(true);
 
 		// Act
-		$this->instance->add_inline_scripts(array(
+		$this->instance->add_inline(array(
 			array(
 				'parent_handle' => $external_handle,
 				'content'       => $inline_script_data,
@@ -630,7 +630,7 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 		));
 
 		// Assert that the script was added to the external_inline queue.
-		$assets = $this->instance->get_scripts();
+		$assets = $this->instance->get();
 		$this->assertArrayHasKey($external_handle, $assets['external_inline']['wp_enqueue_scripts']);
 		$this->assertCount(1, $assets['external_inline']['wp_enqueue_scripts']);
 		$this->assertEquals($inline_script_data, $assets['external_inline']['wp_enqueue_scripts'][$external_handle][0]['content']);
@@ -638,7 +638,7 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 
 	/**
 	 * @test
-	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::add_inline_scripts
+	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::add_inline
 	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_add_inline_asset
 	 */
 	public function test_add_inline_scripts_associates_with_correct_parent_handle(): void {
@@ -647,17 +647,17 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 		    'handle' => 'parent-script',
 		    'src'    => 'path/to/parent.js',
 		);
-		$this->instance->add_scripts($parent_asset);
+		$this->instance->add($parent_asset);
 
 		// Now, add the inline asset
 		$inline_asset = array(
 		    'parent_handle' => 'parent-script',
 		    'content'       => 'console.log("Hello, world!");',
 		);
-		$this->instance->add_inline_scripts($inline_asset);
+		$this->instance->add_inline($inline_asset);
 
 		// Assert that the inline data was added to the parent asset
-		$scripts = $this->instance->get_scripts();
+		$scripts = $this->instance->get();
 		$this->assertCount(1, $scripts['general']);
 		$this->assertArrayHasKey('inline', $scripts['general'][0]);
 		$this->assertCount(1, $scripts['general'][0]['inline']);
@@ -996,7 +996,7 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 		$deferred_assets_prop->setValue($this->instance, array('script' => array($hook_name => array())));
 
 		// Assert: Verify the internal state has the hook.
-		$assets = $this->instance->get_scripts();
+		$assets = $this->instance->get();
 		$this->assertArrayHasKey($hook_name, $assets['deferred'], 'The hook should be in the deferred assets.');
 
 		// Act: Call the public method that would be triggered by the WordPress hook.
@@ -1007,7 +1007,7 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 		$this->expectLog('debug', array('_enqueue_deferred_', 'Hook "empty_hook_for_test" with priority 10 not found in deferred', 'Exiting - nothing to process.'), 1);
 
 		// Assert: Verify the internal state has the hook cleared.
-		$assets = $this->instance->get_scripts();
+		$assets = $this->instance->get();
 
 		$this->assertArrayNotHasKey($hook_name, $assets['deferred'], 'The hook should be cleared from deferred assets.');
 	}
@@ -1038,8 +1038,8 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 				'priority' => 20,
 			),
 		);
-		$this->instance->add_scripts($assets_to_add);
-		$this->instance->stage_scripts(); // This populates the deferred assets array
+		$this->instance->add($assets_to_add);
+		$this->instance->stage(); // This populates the deferred assets array
 
 		// Mock wp_script_is calls for proper asset processing
 		WP_Mock::userFunction('wp_script_is')->with('asset-prio-10', 'registered')->andReturn(false);
@@ -1063,7 +1063,7 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 		$this->expectLog('debug', array('_enqueue_deferred_', "Processing deferred asset 'asset-prio-10'"), 1);
 
 		// Assert that the priority 10 assets are gone, but priority 20 remains.
-		$assets = $this->instance->get_scripts();
+		$assets = $this->instance->get();
 		$this->assertArrayHasKey($hook_name, $assets['deferred'], 'Hook key should still exist.');
 		$this->assertArrayNotHasKey(10, $assets['deferred'][$hook_name], 'Priority 10 key should be removed.');
 		$this->assertArrayHasKey(20, $assets['deferred'][$hook_name], 'Priority 20 key should still exist.');
@@ -1073,8 +1073,8 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 
 	/**
 	 * @test
-	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::add_scripts
-	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::stage_scripts
+	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::add
+	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::stage
 	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::add_assets
 	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseAbstract::stage_assets
 	 */
@@ -1091,10 +1091,10 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 				'data-custom' => 'value' // Should be passed through
 			),
 		);
-		$this->instance->add_scripts($asset_to_add);
+		$this->instance->add($asset_to_add);
 
 		// Act
-		$this->instance->stage_scripts();
+		$this->instance->stage();
 
 		// Assert
 		$this->expectLog('warning', "Ignoring 'id' attribute for '{$handle}'", 1);
@@ -1124,8 +1124,8 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 		));
 
 		// Use the public API to add the script and stage the scripts.
-		$this->instance->add_scripts( $asset_definition );
-		$this->instance->stage_scripts();
+		$this->instance->add( $asset_definition );
+		$this->instance->stage();
 
 		// The assertion is implicitly handled by the mock expectation for wp_register_script.
 		$this->expectLog('debug', array('_process_single_', 'Registering', 'test-script'), 1);
@@ -1159,8 +1159,8 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 		));
 
 		// Use the public API to add the script and trigger the processing hooks.
-		$this->instance->add_scripts( array( $asset_definition ) );
-		$this->instance->stage_scripts();
+		$this->instance->add( array( $asset_definition ) );
+		$this->instance->stage();
 
 		// The assertion is implicitly handled by the mock expectation for wp_register_script.
 		$this->expectLog('debug', array('_process_single_', 'Registering', 'test-script', $expected_src), 1);
@@ -1610,10 +1610,10 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 		);
 
 		// Add the assets
-		$this->instance->add_scripts($assets_to_add);
+		$this->instance->add($assets_to_add);
 
 		// Stage the assets to process them
-		$this->instance->stage_scripts();
+		$this->instance->stage();
 
 		// Act - Get the deferred hooks
 		$hooks = $this->_invoke_protected_method(
@@ -1671,7 +1671,7 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 		);
 
 		// Add the assets
-		$this->instance->add_scripts($assets_to_add);
+		$this->instance->add($assets_to_add);
 
 		// Act - Get the deferred hooks
 		$hooks = $this->_invoke_protected_method(
@@ -1712,7 +1712,7 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 				'hook'   => 'unprocessed_hook'
 			)
 		);
-		$this->instance->add_scripts($assets_to_add);
+		$this->instance->add($assets_to_add);
 
 		// Act - Get the deferred hooks
 		$hooks = $this->_invoke_protected_method(
@@ -1750,7 +1750,7 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 				'hook'   => 'script_hook'
 			)
 		);
-		$this->instance->add_scripts($script_assets);
+		$this->instance->add($script_assets);
 
 		// Also manually add some style deferred assets to test type isolation
 		$deferred_assets_property = new \ReflectionProperty($this->instance, 'deferred_assets');
