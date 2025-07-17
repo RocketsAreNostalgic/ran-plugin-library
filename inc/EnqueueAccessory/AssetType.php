@@ -24,4 +24,9 @@ enum AssetType: string {
 	 * Represents a CSS stylesheet asset.
 	 */
 	case Style = 'style';
+
+	/**
+	 * Represents a media asset.
+	 */
+	case Media = 'media';
 }
