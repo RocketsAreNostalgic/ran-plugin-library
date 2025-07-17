@@ -13,8 +13,6 @@ declare(strict_types=1);
 namespace Ran\PluginLib\EnqueueAccessory;
 
 use Ran\PluginLib\EnqueueAccessory\AssetType;
-use Ran\PluginLib\Util\Logger;
-
 /**
  * Trait StylesEnqueueTrait
  *
@@ -161,25 +159,6 @@ trait StylesEnqueueTrait {
 	}
 
 	/**
-	 * Processes inline assets associated with a specific parent asset handle and hook context.
-	 *
-	 * @param AssetType $asset_type The type of asset (eg styles in this context) this is a flag for the child method to know what type of asset it is processing.
-	 * @param string      $parent_handle      The handle of the parent style.
-	 * @param string|null $hook_name          (Optional) The hook name if processing for a deferred context.
-	 * @param string      $processing_context A string indicating the context for logging purposes.
-	 * @return void
-	 */
-	protected function _process_inline_style_assets(
-		AssetType $asset_type,
-		string $parent_handle,
-		?string $hook_name = null,
-		string $processing_context = 'immediate'
-	): void {
-		// Use the unified implementation from the base trait
-		$this->_concrete_process_inline_assets($asset_type, $parent_handle, $hook_name, $processing_context);
-	}
-
-	/**
 	 * Processes a single style definition, handling registration, enqueuing, and inline styles.
 	 *
 	 * This is a versatile helper method that underpins the public-facing style methods. It separates
@@ -205,7 +184,7 @@ trait StylesEnqueueTrait {
 	 *
 	 * @return string|false The handle of the style on success, false on failure or if a condition is not met.
 	 */
-	protected function _process_single_style_asset(
+	protected function _process_single_asset(
 		AssetType $asset_type,
 		array $asset_definition,
 		string $processing_context,
@@ -217,7 +196,7 @@ trait StylesEnqueueTrait {
 		$context = __TRAIT__ . '::' . __FUNCTION__;
 
 		if ($asset_type !== AssetType::Style) {
-			$logger->warning("{$context} - Incorrect asset type provided to _process_single_style_asset. Expected 'style', got '{$asset_type->value}'.");
+			$logger->warning("{$context} - Incorrect asset type provided to _process_single_asset. Expected 'style', got '{$asset_type->value}'.");
 			return false;
 		}
 
@@ -255,7 +234,7 @@ trait StylesEnqueueTrait {
 		// If processing was successful and we're enqueueing
 		if ($handle !== false && $do_enqueue) {
 			// Process any inline styles attached to this asset definition
-			$this->_process_inline_style_assets($asset_type, $handle, $hook_name, 'immediate');
+			$this->_process_inline_assets($asset_type, $handle, $hook_name, 'immediate');
 
 			// Process style-specific extras
 			$this->_process_style_extras($asset_definition, $handle, $hook_name);

@@ -52,7 +52,7 @@ abstract class EnqueueTraitTestCase extends PluginLibTestCase {
 		$this->config_mock->shouldReceive('get_logger')->andReturn($this->logger_mock)->byDefault();
 
 		$concrete_class_name = $this->get_concrete_class_name();
-		$this->instance = Mockery::mock($concrete_class_name, [$this->config_mock])
+		$this->instance      = Mockery::mock($concrete_class_name, array($this->config_mock))
 			->makePartial()
 			->shouldAllowMockingProtectedMethods();
 
@@ -67,12 +67,12 @@ abstract class EnqueueTraitTestCase extends PluginLibTestCase {
 			->byDefault();
 
 		$asset_type = $this->get_asset_type();
-		$this->instance->shouldReceive("stage_{" . $asset_type . "}s")->passthru();
+		$this->instance->shouldReceive('stage_{' . $asset_type . '}s')->passthru();
 
 		// Default WP_Mock function mocks for asset functions
-		WP_Mock::userFunction("wp_register_" . $asset_type)->withAnyArgs()->andReturn(true)->byDefault();
-		WP_Mock::userFunction("wp_add_inline_" . $asset_type)->withAnyArgs()->andReturn(true)->byDefault();
-		WP_Mock::userFunction("wp_" . $asset_type . "_is")->withAnyArgs()->andReturn(false)->byDefault();
+		WP_Mock::userFunction('wp_register_' . $asset_type)->withAnyArgs()->andReturn(true)->byDefault();
+		WP_Mock::userFunction('wp_add_inline_' . $asset_type)->withAnyArgs()->andReturn(true)->byDefault();
+		WP_Mock::userFunction('wp_' . $asset_type . '_is')->withAnyArgs()->andReturn(false)->byDefault();
 
 		// Generic mocks shared by both test classes
 		WP_Mock::userFunction('did_action')->withAnyArgs()->andReturn(0)->byDefault();
@@ -81,17 +81,17 @@ abstract class EnqueueTraitTestCase extends PluginLibTestCase {
 		WP_Mock::userFunction('wp_doing_ajax')->andReturn(false)->byDefault();
 		WP_Mock::userFunction('_doing_it_wrong')->withAnyArgs()->andReturnNull()->byDefault();
 
-		WP_Mock::userFunction('wp_json_encode', [
+		WP_Mock::userFunction('wp_json_encode', array(
 			'return' => static function($data) {
 				return json_encode($data);
 			},
-		])->byDefault();
+		))->byDefault();
 
-		WP_Mock::userFunction('esc_attr', [
+		WP_Mock::userFunction('esc_attr', array(
 			'return' => static function($text) {
 				return htmlspecialchars((string) $text, ENT_QUOTES, 'UTF-8');
 			},
-		])->byDefault();
+		))->byDefault();
 
 		WP_Mock::userFunction('has_action')
 			->with(Mockery::any(), Mockery::any())
@@ -100,10 +100,10 @@ abstract class EnqueueTraitTestCase extends PluginLibTestCase {
 			})
 			->byDefault();
 
-		WP_Mock::userFunction('esc_html', [
+		WP_Mock::userFunction('esc_html', array(
 			'return' => static function($text) {
 				return htmlspecialchars((string) $text, ENT_QUOTES, 'UTF-8');
 			},
-		])->byDefault();
+		))->byDefault();
 	}
 }

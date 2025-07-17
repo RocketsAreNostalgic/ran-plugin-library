@@ -19,17 +19,16 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\EnqueueAccessory;
 
-use Ran\PluginLib\EnqueueAccessory\AssetType;
-
-use Ran\PluginLib\Config\ConfigInterface;
 use Ran\PluginLib\Util\Logger;
+use Ran\PluginLib\Config\ConfigInterface;
+use Ran\PluginLib\EnqueueAccessory\AssetType;
 
 /**
  * Provides the core dispatcher functionality for asset processing.
  *
  * This class contains the central dispatcher methods (e.g., `_process_single_asset`)
  * that use an `AssetType` enum to route calls to the correctly-named method
- * within a specific trait (e.g., `_process_single_script_asset` in `ScriptsEnqueueTrait`).
+ * within a specific trait (e.g., `_process_single_asset` in `ScriptsEnqueueTrait`).
  *
  * This pattern avoids fatal errors from trait method name conflicts and provides
  * a clean, unified internal API for asset processing logic that is shared across
@@ -39,10 +38,6 @@ use Ran\PluginLib\Util\Logger;
  * @method void enqueue_inline_styles()
  */
 abstract class AssetEnqueueBaseAbstract {
-	use AssetEnqueueBaseTrait,
-		ScriptsEnqueueTrait,
-		StylesEnqueueTrait,
-		MediaEnqueueTrait;
 	/**
 	 * The ConfigInterface object holding plugin configuration.
 	 *
@@ -102,54 +97,6 @@ abstract class AssetEnqueueBaseAbstract {
 	}
 
 	/**
-	 * Retrieves the registered head callbacks.
-	 *
-	 * @return array<int, callable|array<string, mixed>>
-	 * @see ARD/ADR-001.md For the rationale behind this preemptive check.
-	 */
-	public function get_head_callbacks(string $_asset_type): array {
-		if (!empty($this->head_callbacks)) {
-			return $this->head_callbacks;
-		}
-
-		foreach ($this->assets as $asset) {
-			if (empty($asset['data'])) {
-				continue;
-			}
-			if ('script' === $_asset_type && !empty($asset['in_footer'])) {
-				continue;
-			}
-			return array(true); // Return a non-empty array to signify a callback is needed.
-		}
-
-		return array();
-	}
-
-	/**
-	 * Retrieves the registered footer callbacks.
-	 *
-	 * @return array<int, callable|array<string, mixed>>
-	 * @see ARD/ADR-001.md For the rationale behind this preemptive check.
-	 */
-	public function get_footer_callbacks(string $_asset_type): array {
-		if (!empty($this->footer_callbacks)) {
-			return $this->footer_callbacks;
-		}
-
-		if ('script' !== $_asset_type) {
-			return array();
-		}
-
-		foreach ($this->assets as $asset) {
-			if (!empty($asset['data']) && !empty($asset['in_footer'])) {
-				return array(true);
-			}
-		}
-
-		return array();
-	}
-
-	/**
 	 * Orchestrates the enqueuing of all assets.
 	 *
 	 * This method checks for the existence of asset-specific processing methods
@@ -204,114 +151,161 @@ abstract class AssetEnqueueBaseAbstract {
 		$logger->debug( 'AssetEnqueueBaseAbstract::enqueue - Main enqueue process finished.' );
 	}
 
-
-
 	/**
-	 * Dispatches the processing of a single asset to the appropriate trait.
+	 * Registers assets, separating deferred assets and preparing immediate assets for enqueuing.
 	 *
-	 * This method acts as a router, determining whether the asset is a script or a style
-	 * based on the provided `$asset_type` and then calling the corresponding aliased
-	 * method from either `ScriptsEnqueueTrait` or `StylesEnqueueTrait`.
+	 * This method processes asset definitions previously added via `add_assets($asset_type)`.
+	 * It begins by taking a copy of all current assets and then clearing the main `$this->assets[$asset_type->value]` array.
 	 *
-	 * @param AssetType $asset_type The type of asset ('script' or 'style').
-	 * @param array<string, mixed> $asset_definition The definition of the asset to process.
-	 * @param string $processing_context The context in which the asset is being processed.
-	 * @param string|null $hook_name The name of the hook if the asset is deferred.
-	 * @param bool $do_register Whether to register the asset.
-	 * @param bool $do_enqueue Whether to enqueue the asset.
-	 * @return string|false The handle of the processed asset, or false on failure.
+	 * It then iterates through the copied asset definitions:
+	 * - If an asset specifies a 'hook', it is considered deferred. The asset definition is moved
+	 *   to the `$this->deferred_assets[$asset_type->value]` array, keyed by its hook name. An action is scheduled
+	 *   with WordPress to call `_enqueue_deferred_assets()` for that hook. Deferred assets are
+	 *   not re-added to the main `$this->assets[$asset_type->value]` array.
+	 * - If an asset does not specify a 'hook', it is considered immediate. `_process_single_asset()`
+	 *   is called for this asset with `do_register = true` and `do_enqueue = false` to handle
+	 *   its registration with WordPress.
+	 * - If an immediate asset is successfully registered, its definition is added back into the
+	 *   (initially cleared) `$this->assets[$asset_type->value]` array, preserving its original index.
+	 *
+	 * After processing all assets, the `$this->assets[$asset_type->value]` array will contain only those immediate
+	 * assets that were successfully registered. This array is then re-indexed using `array_values()`.
+	 * The primary role of this method is to manage the initial registration phase and to ensure
+	 * that `$this->assets[$asset_type->value]` is correctly populated with only immediate, registered assets, ready
+	 * for the `stage_assets()` method to handle their final enqueuing.
+	 *
+	 * @return self Returns the instance for method chaining.
 	 */
-	protected function _process_single_asset(
-		AssetType $asset_type,
-		array $asset_definition,
-		string $processing_context,
-		?string $hook_name = null,
-		bool $do_register = true,
-		bool $do_enqueue = false
-	): string|false {
-		return match ($asset_type) {
-			AssetType::Script => $this->_process_single_script_asset(
-				$asset_type,
-				$asset_definition,
-				$processing_context,
-				$hook_name,
-				$do_register,
-				$do_enqueue
-			),
-			AssetType::Style => $this->_process_single_style_asset(
-				$asset_type,
-				$asset_definition,
-				$processing_context,
-				$hook_name,
-				$do_register,
-				$do_enqueue
-			),
-		};
+	public function stage_assets(AssetType $asset_type): self {
+		$logger  = $this->get_logger();
+		$context = __TRAIT__ . '::stage_' . strtolower( $asset_type->value ) . 's';
+
+		// Ensure the asset type key exists to prevent notices on count().
+		if ( ! isset( $this->assets[$asset_type->value] ) ) {
+			$this->assets[$asset_type->value] = array();
+		}
+
+		if ( $logger->is_active() ) {
+			$logger->debug( $context . ' - Entered. Processing ' . count( $this->assets[$asset_type->value] ) . ' ' . $asset_type->value . ' definition(s) for registration.' );
+		}
+
+		$assets_to_process                = $this->assets[$asset_type->value];
+		$immediate_assets                 = array(); // Initialize for collecting immediate assets.
+		$this->assets[$asset_type->value] = array(); // Clear original to re-populate with non-deferred assets that are successfully processed.
+
+		foreach ( $assets_to_process as $index => $asset_definition ) {
+			$hook_name = $asset_definition['hook'] ?? null;
+
+			if ( $logger->is_active() ) {
+				$logger->debug( "{$context} - Processing {$asset_type->value}: \"{$asset_definition['handle']}\", original index: {$index}." );
+			}
+
+			if ( ! empty( $hook_name ) ) {
+				$priority = $asset_definition['priority'] ?? 10;
+				if ( ! is_int( $priority ) ) {
+					$priority = 10;
+				}
+
+				if ( $logger->is_active() ) {
+					$logger->debug( "{$context} - Deferring registration of {$asset_type->value} '{$asset_definition['handle']}' to hook '{$hook_name}' with priority {$priority}." );
+				}
+
+				// Group asset by hook and priority.
+				$this->deferred_assets[ $asset_type->value ][ $hook_name ][ $priority ][] = $asset_definition;
+
+				// Register the action for this specific hook and priority if not already done.
+				if ( ! isset( $this->registered_hooks[ $asset_type->value ][ $hook_name . '_' . $priority ] ) ) {
+					$callback = function () use ( $hook_name, $priority, $context ) {
+						if ( method_exists( $this, $context ) ) {
+							$this->{$context}( $hook_name, $priority );
+						}
+					};
+
+					$this->_do_add_action( $hook_name, $callback, $priority, 0 );
+					$this->registered_hooks[ $asset_type->value ][ $hook_name . '_' . $priority ] = true;
+
+					if ( $logger->is_active() ) {
+						$logger->debug( "{$context} - Added action for hook '{$hook_name}' with priority {$priority}." );
+					}
+				}
+
+				continue; // Skip immediate processing for this deferred asset.
+			} else {
+				// Process immediately for registration.
+				$processed_successfully = $this->_process_single_asset(
+					$asset_type,
+					$asset_definition,
+					$context, // processing_context
+					null,               // hook_name (null for immediate registration)
+					true,               // do_register
+					false              // do_enqueue (registration only)
+				);
+				if ( $processed_successfully ) {
+					$immediate_assets[] = $asset_definition;
+				}
+			}
+		}
+
+		// Replace the original assets array with only the successfully processed immediate assets.
+		$this->assets[$asset_type->value] = $immediate_assets;
+
+		if ( $logger->is_active() ) {
+			$deferred_count = 0;
+			foreach ( ( $this->deferred_assets[ $asset_type->value ] ?? array() ) as $hook_assets ) {
+				foreach ( $hook_assets as $priority_assets ) {
+					$deferred_count += count( $priority_assets );
+				}
+			}
+			$logger->debug( "{$context} - Exited. Remaining immediate {$asset_type->value}s: " . count( $this->assets[$asset_type->value] ) . ". Total deferred {$asset_type->value}s: " . $deferred_count . '.' );
+		}
+		return $this;
 	}
 
 	/**
-	 * Dispatches the processing of inline assets to the appropriate trait.
+	 * Retrieves the registered head callbacks.
 	 *
-	 * @param AssetType $asset_type The type of asset ('script' or 'style').
-	 * @param string $parent_handle The handle of the parent asset.
-	 * @param string|null $hook_name The hook context, if any.
-	 * @param string $processing_context A string indicating the calling context for logging.
-	 * @return void
+	 * @return array<int, callable|array<string, mixed>>
+	 * @see ARD/ADR-001.md For the rationale behind this preemptive check.
 	 */
-	protected function _process_inline_assets(
-		AssetType $asset_type,
-		string $parent_handle,
-		?string $hook_name,
-		string $processing_context
-	): void {
-		match ($asset_type) {
-			AssetType::Script => $this->_process_inline_script_assets(
-				$asset_type,
-				$parent_handle,
-				$hook_name,
-				$processing_context
-			),
-			AssetType::Style => $this->_process_inline_style_assets(
-				$asset_type,
-				$parent_handle,
-				$hook_name,
-				$processing_context
-			),
-		};
+	public function get_head_callbacks(string $_asset_type): array {
+		if (!empty($this->head_callbacks)) {
+			return $this->head_callbacks;
+		}
+
+		foreach ($this->assets as $asset) {
+			if (empty($asset['data'])) {
+				continue;
+			}
+			if ('script' === $_asset_type && !empty($asset['in_footer'])) {
+				continue;
+			}
+			return array(true); // Return a non-empty array to signify a callback is needed.
+		}
+
+		return array();
 	}
 
 	/**
-	 * Dispatches the modification of an HTML asset tag to the appropriate trait.
+	 * Retrieves the registered footer callbacks.
 	 *
-	 * @param AssetType $asset_type The type of asset ('script' or 'style').
-	 * @param string $tag The original HTML tag.
-	 * @param string $tag_handle The handle of the tag being processed.
-	 * @param string $handle_to_match The handle to match against.
-	 * @param array<string, string|true> $attributes_to_apply An array of attributes to add/modify.
-	 * @return string The modified (or original) HTML asset tag.
+	 * @return array<int, callable|array<string, mixed>>
+	 * @see ARD/ADR-001.md For the rationale behind this preemptive check.
 	 */
-	protected function _modify_html_tag_attributes(
-		AssetType $asset_type,
-		string $tag,
-		string $tag_handle,
-		string $handle_to_match,
-		array $attributes_to_apply
-	): string {
-		return match ($asset_type) {
-			AssetType::Script => $this->_modify_script_tag_attributes(
-				$asset_type,
-				$tag,
-				$tag_handle,
-				$handle_to_match,
-				$attributes_to_apply
-			),
-			AssetType::Style => $this->_modify_style_tag_attributes(
-				$asset_type,
-				$tag,
-				$tag_handle,
-				$handle_to_match,
-				$attributes_to_apply
-			),
-		};
+	public function get_footer_callbacks(string $_asset_type): array {
+		if (!empty($this->footer_callbacks)) {
+			return $this->footer_callbacks;
+		}
+
+		if ('script' !== $_asset_type) {
+			return array();
+		}
+
+		foreach ($this->assets as $asset) {
+			if (!empty($asset['data']) && !empty($asset['in_footer'])) {
+				return array(true);
+			}
+		}
+
+		return array();
 	}
 }

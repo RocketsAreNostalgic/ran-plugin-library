@@ -3,19 +3,18 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\Tests\Unit\EnqueueAccessory;
 
-use Ran\PluginLib\Config\ConfigInterface;
-use Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseAbstract;
-use Ran\PluginLib\EnqueueAccessory\AssetType;
 use Ran\PluginLib\Util\Logger;
+use Ran\PluginLib\Config\ConfigInterface;
+use Ran\PluginLib\EnqueueAccessory\AssetType;
+use Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseAbstract;
 
 /**
  * Concrete implementation of EnqueueTrait for testing asset-related methods.
  */
 class ConcreteEnqueueForTesting extends AssetEnqueueBaseAbstract {
-
 	protected array $registered_hooks = array();
 
-	protected array $inline_assets    = array(
+	protected array $inline_assets = array(
 		'script' => array(),
 		'style'  => array(),
 	);
