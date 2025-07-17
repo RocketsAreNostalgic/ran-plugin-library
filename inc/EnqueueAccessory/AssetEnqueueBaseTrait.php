@@ -683,7 +683,7 @@ trait AssetEnqueueBaseTrait {
 		}
 
 		$handle    = $asset_definition['handle'] ?? null;
-		$src       = $asset_definition['src']    ?? null;
+		$src       = $asset_definition['src']    ?? null; // resolved
 		$deps      = $asset_definition['deps']   ?? array();
 		$ver       = $this->_generate_asset_version($asset_definition);
 		$ver       = (false === $ver) ? null : $ver;
@@ -1008,8 +1008,13 @@ trait AssetEnqueueBaseTrait {
 		}
 
 		$src = $asset_definition['src'] ?? null;
-		if (empty($src)) {
-			return $version; // Cannot cache-bust without a source URL.
+
+		// If src is an array with 'dev' and 'prod' keys, resolve it to a string URL
+		if (is_array($src) && (isset($src['dev']) || isset($src['prod']))) {
+			$src = $this->_resolve_environment_src($src, $handle);
+			if ($logger->is_active()) {
+				$logger->debug("{$context} - Resolved environment-specific src for '{$handle}' to '{$src}'.");
+			}
 		}
 
 		$file_path = $this->_resolve_url_to_path($src);
