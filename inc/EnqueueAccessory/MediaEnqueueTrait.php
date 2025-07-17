@@ -12,22 +12,19 @@
 namespace Ran\PluginLib\EnqueueAccessory;
 
 use Ran\PluginLib\Util\Logger;
-use Ran\PluginLib\EnqueueAccessory\AssetType;
 
 /**
  * Trait MediaEnqueueTrait
  *
- * @todo This package is outdated and needs to be aligned with sripts and styles.
- * - stage_media curently takes a $tool_configs param, but it should use the internal $media_tool_configs.
- * - We will have to decide how users will load media tools configuration.
- *
  * Manages the enqueuing of WordPress media tools (uploader, library interface).
+ *
+ * Unlike scripts and styles, wp_enqueue_media() is a singleton function that loads
+ * the entire WordPress media framework. Each configuration represents a call to
+ * wp_enqueue_media() with specific arguments and conditions.
  *
  * @package Ran\PluginLib\EnqueueAccessory
  */
 trait MediaEnqueueTrait {
-	use AssetEnqueueBaseTrait;
-
 	/**
 	 * Array of configurations for loading the WordPress media tools.
 	 * Each configuration details how and when `wp_enqueue_media()` should be called.
@@ -51,34 +48,38 @@ trait MediaEnqueueTrait {
 	 *                                            separated into 'general' and 'deferred'.
 	 */
 	public function get(): array {
-		return $this->get_assets(AssetType::Media);
+		return array(
+			'general'  => $this->media_tool_configs,
+			'deferred' => $this->deferred_media_tool_configs,
+		);
 	}
 
 	/**
 	 * Adds configurations for loading WordPress media tools to an internal queue.
 	 *
-	 * @param  array<int, array<string, mixed>> $tool_configs Array of configurations.
+	 * @param  array<int, array<string, mixed>> $media_configs Array of configurations.
 	 *     Each item is an associative array:
-	 *     - 'args' (array, optional): Arguments for `wp_enqueue_media()`.
+	 *     - 'args' (array, optional): Arguments for `wp_enqueue_media()`. Default: array()
 	 *     - 'condition' (callable|null, optional): Callback returning boolean. If false, not called.
 	 *     - 'hook' (string|null, optional): WordPress hook to defer loading to.
 	 * @return self Returns the instance of this class for method chaining.
 	 */
-	public function add( array $media ): self {
+	public function add( array $media_configs ): self {
 		$logger  = $this->get_logger();
 		$context = __TRAIT__ . '::' . __FUNCTION__;
 		if ($logger->is_active()) {
-			$logger->debug( "{$context} - Adding " . count( $media ) . ' media tool configurations to the queue.' );
+			$logger->debug( "{$context} - Adding " . count( $media_configs ) . ' media tool configurations to the queue.' );
 		}
-		// Based on `add_media` in original EnqueueAbstract, it was an overwrite.
-		// Sticking to that to minimize behavioral change during refactor.
-		$this->media_tool_configs = $media;
+
+		// Based on original implementation, this was an overwrite operation
+		// Sticking to that to minimize behavioral change during refactor
+		$this->media_tool_configs = $media_configs;
 
 		return $this;
 	}
 
 	/**
-	 * Processes media tool configurations, deferring all to WordPress action hooks.
+	 * Processes media tool configurations, deferring them to WordPress action hooks.
 	 *
 	 * @param  array<int, array<string, mixed>> $tool_configs The array of media tool configurations.
 	 * @return self Returns the instance of this class for method chaining.
@@ -89,32 +90,28 @@ trait MediaEnqueueTrait {
 		if ( $logger->is_active() ) {
 			$logger->debug( "{$context} - Entered. Processing " . count( $tool_configs ) . ' media tool configuration(s).' );
 		}
-		foreach ( $tool_configs as $index => $item_definition ) {
+
+		foreach ( $tool_configs as $index => $config ) {
 			if ( $logger->is_active() ) {
 				$logger->debug( "{$context} - Processing media tool configuration at original index: {$index}." );
 			}
 
-			$hook = $item_definition['hook'] ?? null;
-
-			if ( empty( $hook ) ) {
-				if ( $logger->is_active() ) {
-					$logger->debug( "{$context} - No hook specified for media tool configuration at original index {$index}. Defaulting to 'admin_enqueue_scripts'." );
-				}
-				$hook = 'admin_enqueue_scripts';
-			}
+			$hook = $config['hook'] ?? 'admin_enqueue_scripts'; // use wp_enqueue_scripts on front end with propper capability checks
 
 			if ( $logger->is_active() ) {
-				$logger->debug( "MediaEnqueueTrait::enqueue_media - Deferring media tool configuration at original index {$index} to hook: \"{$hook}\"." );
+				$logger->debug( "{$context} - Deferring media tool configuration at original index {$index} to hook: \"{$hook}\"." );
 			}
-			$this->deferred_media_tool_configs[ $hook ][ $index ] = $item_definition;
+
+			$this->deferred_media_tool_configs[ $hook ][ $index ] = $config;
 
 			if ( ! has_action( $hook, array( $this, '_enqueue_deferred_media_tools' ) ) ) {
-				add_action( $hook, array( $this, '_enqueue_deferred_media_tools' ), 10, 0 ); // WP_Enqueue_Media typically doesn't take the hook name as an arg
+				add_action( $hook, array( $this, '_enqueue_deferred_media_tools' ), 10, 0 );
 				if ( $logger->is_active() ) {
 					$logger->debug( "{$context} - Added action for '_enqueue_deferred_media_tools' on hook: \"{$hook}\"." );
 				}
 			}
 		}
+
 		if ( $logger->is_active() ) {
 			$logger->debug( "{$context} - Exited." );
 		}
@@ -124,14 +121,12 @@ trait MediaEnqueueTrait {
 	/**
 	 * Enqueues WordPress media tools deferred to a specific hook.
 	 *
-	 * @param string $hook_name The WordPress hook name that triggered this method (optional, but typically not used by wp_enqueue_media callbacks).
+	 * @param string $hook_name The WordPress hook name that triggered this method (optional).
 	 * @return void
 	 */
-	public function _enqueue_deferred_media_tools( string $hook_name = '' ): void { // Made $hook_name optional as it's context
+	public function _enqueue_deferred_media_tools( string $hook_name = '' ): void {
 		$logger = $this->get_logger();
 
-		// If $hook_name is truly needed for logic, it should not be optional or should be derived via current_action()
-		// For now, using $hook_name if provided, but logging will show if it's empty.
 		$context             = __TRAIT__ . '::' . __FUNCTION__;
 		$effective_hook_name = $hook_name ?: (function_exists('current_action') ? current_action() : 'unknown_hook');
 
@@ -141,26 +136,22 @@ trait MediaEnqueueTrait {
 
 		if ( ! isset( $this->deferred_media_tool_configs[ $effective_hook_name ] ) || empty( $this->deferred_media_tool_configs[ $effective_hook_name ] ) ) {
 			if ( $logger->is_active() ) {
-				$logger->debug( "{$context} - No deferred media tool configurations found or already processed for hook: \"{$effective_hook_name}\"." );
-			}
-			// Unset even if empty to clean up the key, though it might already be unset or never set.
-			// This also prevents re-processing if the hook fires multiple times for some reason.
-			if (isset($this->deferred_media_tool_configs[ $effective_hook_name ])) {
-				unset( $this->deferred_media_tool_configs[ $effective_hook_name ] );
+				$logger->debug( "{$context} - No deferred media tool configurations found for hook: \"{$effective_hook_name}\"." );
 			}
 			return;
 		}
 
 		$media_configs_on_this_hook = $this->deferred_media_tool_configs[ $effective_hook_name ];
 
-		foreach ( $media_configs_on_this_hook as $index => $item_definition ) {
+		foreach ( $media_configs_on_this_hook as $index => $config ) {
 			if ( $logger->is_active() ) {
 				$logger->debug( "{$context} - Processing deferred media tool configuration at original index {$index} for hook: \"{$effective_hook_name}\"." );
 			}
 
-			$args      = $item_definition['args']      ?? array();
-			$condition = $item_definition['condition'] ?? null;
+			$args      = $config['args']      ?? array();
+			$condition = $config['condition'] ?? null;
 
+			// Check condition if provided
 			if ( is_callable( $condition ) && ! $condition() ) {
 				if ( $logger->is_active() ) {
 					$logger->debug( "{$context} - Condition not met for deferred media tool configuration at original index {$index} on hook \"{$effective_hook_name}\". Skipping." );
@@ -168,12 +159,15 @@ trait MediaEnqueueTrait {
 				continue;
 			}
 
+			// Call wp_enqueue_media() with the provided arguments
 			if ( $logger->is_active() ) {
-				$logger->debug( "{$context} - Calling wp_enqueue_media() for deferred configuration at original index {$index} on hook \"{$effective_hook_name}\". Args: " . (function_exists('wp_json_encode') ? wp_json_encode( $args ) : json_encode( $args )) );
+				$logger->debug( "{$context} - Calling wp_enqueue_media() for deferred configuration at original index {$index} on hook \"{$effective_hook_name}\". Args: " . wp_json_encode( $args ) );
 			}
+
 			wp_enqueue_media( $args );
 		}
 
+		// Clean up processed configurations
 		unset( $this->deferred_media_tool_configs[ $effective_hook_name ] );
 
 		if ( $logger->is_active() ) {
