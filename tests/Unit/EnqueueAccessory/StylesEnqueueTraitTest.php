@@ -907,22 +907,22 @@ class StylesEnqueueTraitTest extends EnqueueTraitTestCase {
 	}
 
 	// ------------------------------------------------------------------------
-	// _modify_style_tag_attributes() Tests
+	// _modify_html_tag_attributes() Tests
 	// ------------------------------------------------------------------------
 
 	/**
-	 * Test that _modify_style_tag_attributes correctly handles incorrect asset type.
+	 * Test that _modify_html_tag_attributes correctly handles incorrect asset type.
 	 *
-	 * @covers \Ran\PluginLib\EnqueueAccessory\StylesEnqueueTrait::_modify_style_tag_attributes
+	 * @covers \Ran\PluginLib\EnqueueAccessory\StylesEnqueueTrait::_modify_html_tag_attributes
 	 */
-	public function test_modify_style_tag_attributes_with_incorrect_asset_type(): void {
+	public function test_modify_html_tag_attributes_with_incorrect_asset_type(): void {
 		$handle     = 'test-style';
 		$tag        = '<link rel="stylesheet" id="test-style" href="https://example.com/style.css" />';
 		$attributes = array('data-test' => 'value');
 
 		// Create a reflection to access the protected method
 		$reflection = new \ReflectionClass($this->instance);
-		$method     = $reflection->getMethod('_modify_style_tag_attributes');
+		$method     = $reflection->getMethod('_modify_html_tag_attributes');
 		$method->setAccessible(true);
 
 		// Call the method with incorrect asset type (Script instead of Style)
@@ -938,22 +938,22 @@ class StylesEnqueueTraitTest extends EnqueueTraitTestCase {
 		$this->assertEquals($tag, $result, 'Method should return the original tag when incorrect asset type is provided');
 
 		// Verify that a warning was logged
-		$this->expectLog('warning', array('Incorrect asset type provided to _modify_style_tag_attributes', "Expected 'style', got 'script'"), 1);
+		$this->expectLog('warning', array('Incorrect asset type provided to _modify_html_tag_attributes', "Expected 'style', got 'script'"), 1);
 	}
 
 	/**
 	 * @test
 	 * @dataProvider provide_style_tag_modification_cases
-	 * @covers \Ran\PluginLib\EnqueueAccessory\StylesEnqueueTrait::_modify_style_tag_attributes
+	 * @covers \Ran\PluginLib\EnqueueAccessory\StylesEnqueueTrait::_modify_html_tag_attributes
 	 */
-	public function test_modify_style_tag_attributes_adds_attributes_correctly(string $handle, array $attributes, string $original_tag, string $expected_tag, string $tag_handle = null): void {
+	public function test_modify_html_tag_attributes_adds_attributes_correctly(string $handle, array $attributes, string $original_tag, string $expected_tag, string $tag_handle = null): void {
 		// Arrange
 		// The test class uses a method that calls the protected method from the trait.
 		// Act
 		$tag_handle   = $tag_handle ?? $handle; // Use provided tag_handle or default to handle
 		$modified_tag = $this->_invoke_protected_method(
 			$this->instance,
-			'_modify_style_tag_attributes',
+			'_modify_html_tag_attributes',
 			array(AssetType::Style, $original_tag, $tag_handle, $handle, $attributes)
 		);
 
@@ -962,7 +962,7 @@ class StylesEnqueueTraitTest extends EnqueueTraitTestCase {
 	}
 
 	/**
-	 * Data provider for `test_modify_style_tag_attributes_adds_attributes_correctly`.
+	 * Data provider for `test_modify_html_tag_attributes_adds_attributes_correctly`.
 	 * @dataProvider provide_style_tag_modification_cases
 	 */
 	public static function provide_style_tag_modification_cases(): array {

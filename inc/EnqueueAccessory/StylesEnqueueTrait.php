@@ -215,7 +215,7 @@ trait StylesEnqueueTrait {
 				// Unlike scripts, styles have no native 'strategy' argument for attributes.
 				// All attributes must be applied via the 'style_loader_tag' filter.
 				$callback = function($tag, $tag_handle) use ($handle, $attributes) {
-					return $this->_modify_style_tag_attributes(AssetType::Style, $tag, $tag_handle, $handle, $attributes);
+					return $this->_modify_html_tag_attributes(AssetType::Style, $tag, $tag_handle, $handle, $attributes);
 				};
 				$this->_do_add_filter('style_loader_tag', $callback, 10, 2);
 			}
@@ -310,7 +310,7 @@ trait StylesEnqueueTrait {
 	 *
 	 * @return string The modified HTML tag with added attributes.
 	 */
-	protected function _modify_style_tag_attributes(
+	protected function _modify_html_tag_attributes(
 		AssetType $asset_type,
 		string $tag,
 		string $tag_handle,
@@ -321,7 +321,7 @@ trait StylesEnqueueTrait {
 		$logger  = $this->get_logger();
 
 		if ($asset_type !== AssetType::Style) {
-			$logger->warning("{$context} - Incorrect asset type provided to _modify_style_tag_attributes. Expected 'style', got '{$asset_type->value}'.");
+			$logger->warning("{$context} - Incorrect asset type provided to _modify_html_tag_attributes. Expected 'style', got '{$asset_type->value}'.");
 			return $tag;
 		}
 
