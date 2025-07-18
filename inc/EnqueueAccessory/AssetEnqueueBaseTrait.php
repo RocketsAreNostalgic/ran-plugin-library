@@ -104,9 +104,9 @@ trait AssetEnqueueBaseTrait {
 		$is_dev = $this->get_config()->is_dev_environment();
 
 		if ($is_dev && !empty($src['dev'])) {
-			return $src['dev'];
+			return (string) $src['dev'];
 		} elseif (!empty($src['prod'])) {
-			return $src['prod'];
+			return (string) $src['prod'];
 		}
 
 		// Fallback to the first available URL in the array.

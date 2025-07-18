@@ -43,9 +43,10 @@ class EnqueueAdmin {
 				$this->logger->debug("{$context} - Not on admin page, bailing.");
 			}
 			return;
-			if ($this->logger->is_active()) {
-				$this->logger->debug("{$context} - On admin page, proceeding to set up asset handlers.");
-			}
+		}
+
+		if ($this->logger->is_active()) {
+			$this->logger->debug("{$context} - On admin page, proceeding to set up asset handlers.");
 		}
 
 		$this->scripts_handler = $scripts_handler ?? new ScriptsHandler($config);
