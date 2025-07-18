@@ -139,8 +139,8 @@ trait AssetEnqueueBaseTrait {
 	 * complete list of hooks upfront. This is not required in the admin context, as the
 	 * `admin_enqueue_scripts` hook provides sufficient context.
 	 *
+	 * @deprecated - functionality not required due to stage() and hook processing
 	 * @return string[] An array of unique hook names.
-	 * @see ARD/ADR-001.md For the rationale behind this preemptive check.
 	 */
 	public function get_deferred_hooks(AssetType $asset_type): array {
 		$hooks = array();
