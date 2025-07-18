@@ -241,8 +241,8 @@ abstract class AssetEnqueueBaseAbstract {
 	/**
 	 * Retrieves the registered head callbacks.
 	 *
+	 * @deprecated - functionality not required due to stage() and hook processing
 	 * @return array<int, callable|array<string, mixed>>
-	 * @see ARD/ADR-001.md For the rationale behind this preemptive check.
 	 */
 	public function get_head_callbacks(string $_asset_type): array {
 		if (!empty($this->head_callbacks)) {
@@ -265,8 +265,9 @@ abstract class AssetEnqueueBaseAbstract {
 	/**
 	 * Retrieves the registered footer callbacks.
 	 *
-	 * @return array<int, callable|array<string, mixed>>
+	 * @deprecated - functionality not required due to stage() and hook processing
 	 * @see ARD/ADR-001.md For the rationale behind this preemptive check.
+	 * @return array<int, callable|array<string, mixed>>
 	 */
 	public function get_footer_callbacks(string $_asset_type): array {
 		if (!empty($this->footer_callbacks)) {

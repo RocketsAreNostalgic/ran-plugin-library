@@ -334,6 +334,7 @@ class AssetEnqueueBaseAbstractTest extends PluginLibTestCase {
 
 	// ------------------------------------------------------------------------
 	// _get_head_callbacks() Tests
+	// @deprecated - functionality not required due to stage() and hook processing
 	// ------------------------------------------------------------------------
 
 	/**
@@ -473,6 +474,7 @@ class AssetEnqueueBaseAbstractTest extends PluginLibTestCase {
 
 	// ------------------------------------------------------------------------
 	// _get_footer_callbacks() Tests
+	// @deprecated - functionality not required due to stage() and hook processing
 	// ------------------------------------------------------------------------
 
 	/**

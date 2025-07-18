@@ -362,6 +362,7 @@ class AssetEnqueueTraitBaseTraitTest extends EnqueueTraitTestCase {
 
 	// ------------------------------------------------------------------------
 	// get_deferred_hooks() Tests
+	// @deprecated - functionality not required due to stage() and hook processing
 	// ------------------------------------------------------------------------
 
 	/**
