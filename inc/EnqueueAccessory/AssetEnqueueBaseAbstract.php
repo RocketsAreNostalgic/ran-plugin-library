@@ -108,6 +108,7 @@ abstract class AssetEnqueueBaseAbstract {
 	 * @param bool $do_register Whether to register the asset.
 	 * @param bool $do_enqueue Whether to enqueue the asset.
 	 * @return string|false The asset handle if successful, false otherwise.
+	 * @codeCoverageIgnore This is a placeholder implementation that is overridden by traits
 	 */
 	protected function _process_single_asset(
 		AssetType $asset_type,
@@ -119,7 +120,10 @@ abstract class AssetEnqueueBaseAbstract {
 	): string|false {
 		// Simple implementation for testing purposes
 		$logger = $this->get_logger();
-		$logger->debug('Processing media asset in test class');
+		// Make sure we're using the logger from the config
+		if ($logger) {
+			$logger->debug('Processing media asset in test class');
+		}
 		return $asset_definition['handle'] ?? false;
 	}
 
