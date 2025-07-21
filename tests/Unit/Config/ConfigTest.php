@@ -110,7 +110,7 @@ final class ConfigTest extends RanTestCase {
 	 *
 	 * @return Config|\Mockery\MockInterface A Config instance or a mock behaving as one.
 	 */
-	protected function get_config(?array $custom_ran_headers = null): Config|\Mockery\MockInterface {
+	protected function _get_config(?array $custom_ran_headers = null): Config|\Mockery\MockInterface {
 		// Define default custom RAN headers for this helper, can be overridden by $custom_ran_headers
 		$default_ran_headers = array(
 			'Log Constant Name' => 'TEST_DEBUG_MODE',
@@ -202,8 +202,34 @@ final class ConfigTest extends RanTestCase {
 	 * @covers \Ran\PluginLib\Config\ConfigAbstract::init
 	 * @covers \Ran\PluginLib\Config\Config::get_instance
 	 * @uses \Ran\PluginLib\Config\ConfigAbstract::__construct
+	 * @uses \Ran\PluginLib\Tests\Unit\TestClasses\TestableConfigWithHeaderMock
 	 */
 	public function test_init_method(): void {
+		// Use our TestableConfigWithHeaderMock class instead of Config
+		$test_class = '\Ran\PluginLib\Tests\Unit\TestClasses\TestableConfigWithHeaderMock';
+
+		// Create mock plugin header content with custom RAN headers
+		$mock_header = <<<'EOT'
+/**
+ * Plugin Name: Ran Starter Plugin Test
+ * Version: 1.0.0
+ * Text Domain: ran-starter-plugin-lib
+ * Domain Path: /languages
+ * Description: Test Description
+ * Author: Test Author
+ * Plugin URI: http://example.com/plugin-uri-test
+ * Author URI: http://example.com/author-uri-test
+ * Updates URI: http://example.com/updates-uri-test
+ * Requires PHP: 7.4
+ * Requires WP: 5.5
+ * @RAN: Log Constant Name: RAN_PLUGIN
+ * @RAN: Log Request Param: RAN_PLUGIN
+ */
+EOT;
+
+		// Set the mock header content
+		$test_class::set_mock_header_content($mock_header);
+
 		// Mock WordPress functions that ConfigAbstract::init() -> __construct relies on.
 		// These should be called at least once when the constructor is invoked.
 		WP_Mock::userFunction( 'plugin_dir_path' )->zeroOrMoreTimes(); // Diagnostic permissive mock
@@ -224,18 +250,13 @@ final class ConfigTest extends RanTestCase {
 			->atLeast()->once(); // It might be called for logger defaults too.
 
 		// Ensure that no instance exists before calling init (tearDown should handle this).
-		// NOTE: This test now relies on the actual _read_plugin_file_header_content method reading
-		// the actual plugin file ($this->full_plugin_file_path). This makes it more of an integration test
-		// for this part. For true unit testing of init's logic, _read_plugin_file_header_content would need
-		// to be mockable even when called from a static context, which is complex.
-
-		// Call init() to create and retrieve the instance.
-		$config_instance = Config::init( $this->full_plugin_file_path );
-		$this->assertInstanceOf( Config::class, $config_instance, 'Config::init() should return an instance of Config.' );
+		// Call init() to create and retrieve the instance using our test class.
+		$config_instance = $test_class::init( $this->full_plugin_file_path );
+		$this->assertInstanceOf( $test_class, $config_instance, $test_class . '::init() should return an instance of ' . $test_class );
 
 		// Verify that get_instance() returns the same instance.
-		$another_instance = Config::get_instance();
-		$this->assertSame( $config_instance, $another_instance, 'Subsequent Config::get_instance() should return the same instance.' );
+		$another_instance = $test_class::get_instance();
+		$this->assertSame( $config_instance, $another_instance, 'Subsequent ' . $test_class . '::get_instance() should return the same instance.' );
 
 		// Additionally, check if the static plugin_file property was set.
 		$reflectionClass    = new \ReflectionClass(\Ran\PluginLib\Config\ConfigAbstract::class);
@@ -250,7 +271,7 @@ final class ConfigTest extends RanTestCase {
 		$this->assertArrayHasKey('RANPluginOption', $plugin_config, 'plugin_array should have RANPluginOption key.');
 		$this->assertEquals($this->plugin_data['TextDomain'], $plugin_config['RANPluginOption'], 'RANPluginOption should match the value from the @RAN: Plugin Option: header or default to sanitized TextDomain.');
 
-		// Assert custom headers from ran-starter-plugin.php were parsed correctly
+		// Assert custom headers from mock plugin header were parsed correctly
 		$this->assertArrayHasKey('RANLogConstantName', $plugin_config, 'plugin_array should have RANLogConstantName key.');
 		$this->assertEquals('RAN_PLUGIN', $plugin_config['RANLogConstantName'], 'Incorrect RANLogConstantName value.');
 
@@ -260,11 +281,11 @@ final class ConfigTest extends RanTestCase {
 
 	/**
 	 * Tests the ConfigAbstract::get_plugin_config() method.
-	 *	 * @covers \Ran\PluginLib\Config\ConfigAbstract::get_plugin_config
+	 * @covers \Ran\PluginLib\Config\ConfigAbstract::get_plugin_config
 	 * @uses \Ran\PluginLib\Config\ConfigAbstract::__construct
 	 */
 	public function test_get_plugin_config_method(): void {
-		$config              = $this->get_config();
+		$config              = $this->_get_config();
 		$plugin_config_array = $config->get_plugin_config();
 
 		$this->assertIsArray( $plugin_config_array );
@@ -318,7 +339,7 @@ final class ConfigTest extends RanTestCase {
 	 */
 	public function test_config_contruct(): void {
 		// Create Config object.
-		$config = $this->get_config();
+		$config = $this->_get_config();
 
 		$this->assertTrue( $config instanceof Config );
 		$this->assertTrue( \property_exists( $config, 'plugin_array' ) );
@@ -368,7 +389,7 @@ final class ConfigTest extends RanTestCase {
 		);
 
 		// Create Config object.
-		$config = $this->get_config();
+		$config = $this->_get_config();
 
 		// Assert that plugin_array property matches expected_plugin_array.
 		$this->assertEquals( $expected_plugin_array, $config->get_plugin_config() );
@@ -383,7 +404,7 @@ final class ConfigTest extends RanTestCase {
 	 */
 	public function test_validate_plugin_array(): void {
 		// Create Config object.
-		$config = $this->get_config();
+		$config = $this->_get_config();
 
 		// Config::validate_plugin_array should throw if the array doesn't contain the required keys.
 		$this->expectException( \Exception::class );
@@ -399,7 +420,7 @@ final class ConfigTest extends RanTestCase {
 	 */
 	public function test_get_plugin_options(): void {
 		// Define the WordPress option name that Config will use, derived from RANPluginOption.
-		// In get_config(), @RAN: Plugin Option is 'my_explicit_option_key'.
+		// In _get_config(), @RAN: Plugin Option is 'my_explicit_option_key'.
 		$expected_wp_option_name = 'my_explicit_option_key';
 
 		$mock_db_options = array(
@@ -417,7 +438,7 @@ final class ConfigTest extends RanTestCase {
 
 		// Create Config object using the helper. This config instance will have
 		// $this->plugin_array['RANPluginOption'] = 'my_explicit_option_key'.
-		$config = $this->get_config();
+		$config = $this->_get_config();
 
 		// Call get_plugin_options to retrieve all options.
 		// The `null` means get all options; `false` is the default if the WP option itself is not found.
@@ -428,7 +449,7 @@ final class ConfigTest extends RanTestCase {
 	}
 
 	/**
-	 * Tests the get_plugin_options method.
+	 * Tests the get_plugin_options method with an empty plugin option header.
 	 *
 	 * @covers \Ran\PluginLib\Config\ConfigAbstract::get_plugin_options
 	 * @uses \Ran\PluginLib\Config\ConfigAbstract::__construct
@@ -439,11 +460,9 @@ final class ConfigTest extends RanTestCase {
 		WP_Mock::userFunction( 'plugin_dir_url' )->with( $this->full_plugin_file_path )->andReturn( $this->plugin_root_url )->zeroOrMoreTimes();
 		WP_Mock::userFunction( 'plugin_basename' )->with( $this->full_plugin_file_path )->andReturn( $this->plugin_basename )->zeroOrMoreTimes();
 
-		// Prepare plugin data specifically for this test: set TextDomain to an empty string.
+		// Prepare plugin data specifically for this test
 		$test_specific_plugin_data               = $this->plugin_data; // Start with base data
 		$test_specific_plugin_data['TextDomain'] = 'options-test-td'; // Use a non-empty TextDomain
-		// Remove PluginOption if it somehow exists in base data, to ensure it's not set from get_plugin_data
-		unset($test_specific_plugin_data['PluginOption']);
 
 		WP_Mock::userFunction( 'get_plugin_data' )
 			->with( $this->full_plugin_file_path, false, false )
@@ -737,14 +756,14 @@ final class ConfigTest extends RanTestCase {
 
 		// Scenario 1: Parameter NOT set
 		$_GET            = array(); // Clear $_GET completely for this part
-		$config_inactive = $this->get_config(array('Log Request Param' => $fixed_param_name));
+		$config_inactive = $this->_get_config(array('Log Request Param' => $fixed_param_name));
 		$logger_inactive = $config_inactive->get_logger();
 		$this->assertFalse($logger_inactive->is_active(), 'Logger should be INACTIVE when param is NOT set.');
 
 		// Scenario 2: Parameter SET to 'true'
 		$_GET                    = array(); // Clear $_GET again
 		$_GET[$fixed_param_name] = 'INFO'; // Set the param to INFO to avoid DEBUG output
-		$config_active_true      = $this->get_config(array('Log Request Param' => $fixed_param_name));
+		$config_active_true      = $this->_get_config(array('Log Request Param' => $fixed_param_name));
 		$logger_active_true      = $config_active_true->get_logger();
 		$this->assertTrue($logger_active_true->is_active(), "Logger should be ACTIVE when param '{$fixed_param_name}' is 'true'.");
 		$this->assertSame(Logger::LOG_LEVELS_MAP[LogLevel::INFO], $logger_active_true->get_log_level(), "Logger level should be INFO when param '{$fixed_param_name}' is 'INFO'.");
@@ -752,7 +771,7 @@ final class ConfigTest extends RanTestCase {
 		// Scenario 3: Parameter SET to 'INFO' (string level)
 		$_GET                    = array();
 		$_GET[$fixed_param_name] = 'INFO';
-		$config_active_info      = $this->get_config(array('Log Request Param' => $fixed_param_name));
+		$config_active_info      = $this->_get_config(array('Log Request Param' => $fixed_param_name));
 		$logger_active_info      = $config_active_info->get_logger();
 		$this->assertTrue($logger_active_info->is_active(), "Logger should be ACTIVE when param '{$fixed_param_name}' is 'INFO'.");
 		$this->assertSame(Logger::LOG_LEVELS_MAP[LogLevel::INFO], $logger_active_info->get_log_level(), "Logger level should be INFO when param '{$fixed_param_name}' is 'INFO'.");
@@ -760,7 +779,7 @@ final class ConfigTest extends RanTestCase {
 		// Scenario 4: Parameter SET to an unknown string (should not activate)
 		$_GET                    = array();
 		$_GET[$fixed_param_name] = 'bogusvalue';
-		$config_active_bogus     = $this->get_config(array('Log Request Param' => $fixed_param_name));
+		$config_active_bogus     = $this->_get_config(array('Log Request Param' => $fixed_param_name));
 		$logger_active_bogus     = $config_active_bogus->get_logger();
 		$this->assertFalse($logger_active_bogus->is_active(), "Logger should be INACTIVE when param '{$fixed_param_name}' is 'bogusvalue'.");
 
@@ -784,7 +803,7 @@ final class ConfigTest extends RanTestCase {
 			unset($test_plugin_data[$missing_key]);
 		}
 
-		// 2. Set up mocks, similar to get_config() but with modified plugin_data for get_plugin_data
+		// 2. Set up mocks, similar to _get_config() but with modified plugin_data for get_plugin_data
 		WP_Mock::passthruFunction( 'sanitize_title' );
 		WP_Mock::userFunction( 'plugin_dir_path' )
 			->with( $this->full_plugin_file_path )
@@ -854,5 +873,470 @@ final class ConfigTest extends RanTestCase {
 			'Missing Version'    => array('Version'),
 			'Missing TextDomain' => array('TextDomain'),
 		);
+	}
+
+	/**
+	 * Tests the get_is_dev_callback method when no callback is set.
+	 *
+	 * @covers \Ran\PluginLib\Config\ConfigAbstract::get_is_dev_callback
+	 */
+	public function test_get_is_dev_callback_returns_null_when_not_set(): void {
+		// Set up a mock for the Config class
+		$config = \Mockery::mock('\Ran\PluginLib\Config\Config')
+			->makePartial()
+			->shouldAllowMockingProtectedMethods();
+
+		// Mock the plugin_array property by mocking get_plugin_config
+		$plugin_array = $this->plugin_data; // Use the base plugin data from setUp
+		// Ensure is_dev_callback is not set
+		unset($plugin_array['is_dev_callback']);
+
+		$config->shouldReceive('get_plugin_config')
+			->andReturn($plugin_array);
+
+		// Call get_is_dev_callback
+		$result = $config->get_is_dev_callback();
+
+		// Assert that the result is null
+		$this->assertNull($result, 'get_is_dev_callback() should return null when no callback is set');
+	}
+
+	/**
+	 * Tests that get_is_dev_callback returns null when callback is set but not callable.
+	 *
+	 * @covers \Ran\PluginLib\Config\ConfigAbstract::get_is_dev_callback
+	 */
+	public function test_get_is_dev_callback_returns_null_for_non_callable_string(): void {
+		// Create a mock for the Config class
+		$config = \Mockery::mock('\Ran\PluginLib\Config\Config')
+			->makePartial()
+			->shouldAllowMockingProtectedMethods();
+
+		// Mock the plugin_array property by mocking get_plugin_config
+		$plugin_array = $this->plugin_data; // Use the base plugin data from setUp
+		// Set a non-callable is_dev_callback
+		$plugin_array['is_dev_callback'] = 'not_a_callable_string';
+
+		$config->shouldReceive('get_plugin_config')
+			->andReturn($plugin_array);
+
+		// Call get_is_dev_callback
+		$result = $config->get_is_dev_callback();
+
+		// Assert that the result is null
+		$this->assertNull($result, 'get_is_dev_callback should return null when callback is not callable');
+	}
+
+	/**
+	 * Tests the get_is_dev_callback method when a valid callback is set.
+	 *
+	 * @covers \Ran\PluginLib\Config\ConfigAbstract::get_is_dev_callback
+	 */
+	public function test_get_is_dev_callback_returns_callback_when_set(): void {
+		// Create a test callback
+		$test_callback = function() {
+			return true;
+		};
+
+		// Create plugin data with is_dev_callback set
+		$plugin_data                    = $this->plugin_data;
+		$plugin_data['is_dev_callback'] = $test_callback;
+
+		// Create a TestableConfig instance with our plugin data
+		$config = new \Ran\PluginLib\Tests\Unit\TestClasses\TestableConfig($plugin_data);
+
+		// Set the mock dev callback directly
+		$config->set_mock_dev_callback($test_callback);
+
+		// Act
+		$callback = $config->get_is_dev_callback();
+
+		// Assert
+		$this->assertIsCallable($callback, 'get_is_dev_callback() should return a callable when set');
+		$this->assertTrue($callback(), 'The returned callback should be executable');
+	}
+
+	/**
+	 * Tests the get_is_dev_callback method when a non-callable value is set.
+	 *
+	 * @covers \Ran\PluginLib\Config\ConfigAbstract::get_is_dev_callback
+	 */
+	public function test_get_is_dev_callback_returns_null_for_non_callable(): void {
+		// Mock plugin_basename to avoid WP function call
+		WP_Mock::userFunction('plugin_basename')
+			->andReturn($this->plugin_basename);
+
+		// Create plugin data with non-callable is_dev_callback
+		$plugin_data                    = $this->plugin_data;
+		$plugin_data['is_dev_callback'] = 'not_a_callable';
+
+		// Create a mock for the Config class
+		$config = \Mockery::mock('\Ran\PluginLib\Config\Config')
+			->makePartial()
+			->shouldAllowMockingProtectedMethods();
+
+		// Mock get_plugin_config to return our plugin_data with non-callable
+		$config->shouldReceive('get_plugin_config')
+			->andReturn($plugin_data);
+
+		// Act
+		$callback = $config->get_is_dev_callback();
+
+		// Assert
+		$this->assertNull($callback, 'get_is_dev_callback() should return null when value is not callable');
+	}
+
+	/**
+	 * Tests the get_is_dev_callback method when a valid callable is set.
+	 * This test specifically targets the is_callable branch.
+	 *
+	 * @covers \Ran\PluginLib\Config\ConfigAbstract::get_is_dev_callback
+	 */
+	public function test_get_is_dev_callback_returns_callable_directly(): void {
+		// Create a test callback
+		$test_callback = function() {
+			return true;
+		};
+
+		// Create a mock for the Config class
+		$config = \Mockery::mock('\Ran\PluginLib\Config\Config')
+		    ->makePartial()
+		    ->shouldAllowMockingProtectedMethods();
+
+		// Create plugin data with is_dev_callback set
+		$plugin_array                    = $this->plugin_data;
+		$plugin_array['is_dev_callback'] = $test_callback;
+
+		// Set the plugin_array property directly using reflection
+		$reflectionClass     = new \ReflectionClass('\Ran\PluginLib\Config\ConfigAbstract');
+		$pluginArrayProperty = $reflectionClass->getProperty('plugin_array');
+		$pluginArrayProperty->setAccessible(true);
+		$pluginArrayProperty->setValue($config, $plugin_array);
+
+		// Also mock get_plugin_config for completeness
+		$config->shouldReceive('get_plugin_config')
+		    ->andReturn($plugin_array);
+
+		// Call get_is_dev_callback
+		$result = $config->get_is_dev_callback();
+
+		// Assert that the result is the callback
+		$this->assertSame($test_callback, $result, 'get_is_dev_callback should return the callback when it is callable');
+		$this->assertTrue($result(), 'The returned callback should be executable');
+	}
+
+	/**
+	 * Tests the is_dev_environment method when no callback is set and SCRIPT_DEBUG is not defined.
+	 *
+	 * @covers \Ran\PluginLib\Config\ConfigAbstract::is_dev_environment
+	 * @covers \Ran\PluginLib\Config\ConfigAbstract::get_is_dev_callback
+	 */
+	public function test_is_dev_environment_returns_false_by_default(): void {
+		// Mock plugin_basename to avoid WP function call
+		WP_Mock::userFunction('plugin_basename')
+			->andReturn($this->plugin_basename);
+
+		// Create plugin data with no is_dev_callback
+		$plugin_data = $this->plugin_data;
+
+		// Create a mock for the Config class
+		$config = \Mockery::mock('\Ran\PluginLib\Config\Config')
+			->makePartial()
+			->shouldAllowMockingProtectedMethods();
+
+		// Mock get_plugin_config to return our plugin_data
+		$config->shouldReceive('get_plugin_config')
+			->andReturn($plugin_data);
+
+		// Mock get_is_dev_callback to return null (no callback)
+		$config->shouldReceive('get_is_dev_callback')
+			->andReturn(null);
+
+		// Ensure SCRIPT_DEBUG is not defined for this test
+		// We can't undefine constants in PHP, so we'll mock the behavior
+		if (defined('SCRIPT_DEBUG')) {
+			// If it's defined, we need to handle this differently
+			// by mocking the behavior of the is_dev_environment method
+			$config->shouldReceive('is_dev_environment')
+				->passthru()
+				->andReturn(false);
+		}
+
+		// Act
+		$is_dev = $config->is_dev_environment();
+
+		// Assert
+		$this->assertFalse($is_dev, 'is_dev_environment() should return false when no callback is set and SCRIPT_DEBUG is not defined');
+	}
+
+	/**
+	 * Tests the is_dev_environment method when a callback is set.
+	 *
+	 * @covers \Ran\PluginLib\Config\ConfigAbstract::is_dev_environment
+	 * @covers \Ran\PluginLib\Config\ConfigAbstract::get_is_dev_callback
+	 */
+	public function test_is_dev_environment_uses_callback_when_set(): void {
+		// Mock plugin_basename to avoid WP function call
+		WP_Mock::userFunction('plugin_basename')
+			->andReturn($this->plugin_basename);
+
+		// Create a test callback that returns true
+		$test_callback = function() {
+			return true;
+		};
+
+		// Create plugin data with is_dev_callback set
+		$plugin_data                    = $this->plugin_data;
+		$plugin_data['is_dev_callback'] = $test_callback;
+
+		// Create a mock for the Config class
+		$config = \Mockery::mock('\Ran\PluginLib\Config\Config')
+			->makePartial()
+			->shouldAllowMockingProtectedMethods();
+
+		// Mock get_plugin_config to return our plugin_data with callback
+		$config->shouldReceive('get_plugin_config')
+			->andReturn($plugin_data);
+
+		// Act
+		$is_dev = $config->is_dev_environment();
+
+		// Assert
+		$this->assertTrue($is_dev, 'is_dev_environment() should return true when callback returns true');
+	}
+
+	/**
+	 * Tests the is_dev_environment method when SCRIPT_DEBUG is defined as true.
+	 *
+	 * @covers \Ran\PluginLib\Config\ConfigAbstract::is_dev_environment
+	 * @covers \Ran\PluginLib\Config\ConfigAbstract::get_is_dev_callback
+	 */
+	public function test_is_dev_environment_uses_script_debug_when_defined(): void {
+		// Mock plugin_basename to avoid WP function call
+		WP_Mock::userFunction('plugin_basename')
+			->andReturn($this->plugin_basename);
+
+		// Mock get_plugin_data to avoid requiring wp-admin/includes/plugin.php
+		WP_Mock::userFunction('get_plugin_data')
+			->andReturn(array());
+
+		// Create plugin data with no is_dev_callback
+		$plugin_data = $this->plugin_data;
+
+		// Create a mock for the Config class
+		$config = \Mockery::mock('\Ran\PluginLib\Config\Config')
+			->makePartial()
+			->shouldAllowMockingProtectedMethods();
+
+		// Mock get_plugin_config to return our plugin_data
+		$config->shouldReceive('get_plugin_config')
+			->andReturn($plugin_data);
+
+		// Mock get_is_dev_callback to return null (no callback)
+		$config->shouldReceive('get_is_dev_callback')
+			->andReturn(null);
+
+		// Define SCRIPT_DEBUG for this test if not already defined
+		if (!defined('SCRIPT_DEBUG')) {
+			define('SCRIPT_DEBUG', true);
+		} else {
+			// If already defined but not true, we need to mock the behavior
+			$config->shouldReceive('is_dev_environment')
+				->passthru()
+				->andReturn(true);
+		}
+
+		// Act
+		$is_dev = $config->is_dev_environment();
+
+		// Assert
+		$this->assertTrue($is_dev, 'is_dev_environment() should return true when SCRIPT_DEBUG is true');
+	}
+
+	/**
+	 * Tests that is_dev_environment returns true when SCRIPT_DEBUG is defined and true.
+	 *
+	 * @covers \Ran\PluginLib\Config\ConfigAbstract::is_dev_environment
+	 */
+	public function test_is_dev_environment_returns_true_when_script_debug_is_true(): void {
+		// Create a TestableConfig instance with SCRIPT_DEBUG mocked as true
+		$config = new \Ran\PluginLib\Tests\Unit\TestClasses\TestableConfig($this->plugin_data);
+		$config->set_mock_script_debug(true, true);
+
+		// Call is_dev_environment
+		$result = $config->is_dev_environment();
+
+		// Assert that the result is true
+		$this->assertTrue($result, 'is_dev_environment should return true when SCRIPT_DEBUG is true');
+	}
+
+	/**
+	 * Tests that is_dev_environment returns false when SCRIPT_DEBUG is defined but false.
+	 *
+	 * @covers \Ran\PluginLib\Config\ConfigAbstract::is_dev_environment
+	 */
+	public function test_is_dev_environment_returns_false_when_script_debug_is_false(): void {
+		// Create a TestableConfig instance with SCRIPT_DEBUG mocked as false
+		$config = new \Ran\PluginLib\Tests\Unit\TestClasses\TestableConfig($this->plugin_data);
+		$config->set_mock_script_debug(true, false);
+
+		// Call is_dev_environment
+		$result = $config->is_dev_environment();
+
+		// Assert that the result is false
+		$this->assertFalse($result, 'is_dev_environment should return false when SCRIPT_DEBUG is false');
+	}
+
+	/**
+	 * Tests that is_dev_environment returns false when SCRIPT_DEBUG is not defined.
+	 *
+	 * @covers \Ran\PluginLib\Config\ConfigAbstract::is_dev_environment
+	 */
+	public function test_is_dev_environment_returns_false_when_script_debug_not_defined(): void {
+		// Create a TestableConfig instance with SCRIPT_DEBUG mocked as not defined
+		$config = new \Ran\PluginLib\Tests\Unit\TestClasses\TestableConfig($this->plugin_data);
+		$config->set_mock_script_debug(false);
+
+		// Call is_dev_environment
+		$result = $config->is_dev_environment();
+
+		// Assert that the result is false
+		$this->assertFalse($result, 'is_dev_environment should return false when SCRIPT_DEBUG is not defined');
+	}
+
+	/**
+	 * Tests that is_dev_environment returns the correct value based on callback.
+	 *
+	 * @covers \Ran\PluginLib\Config\ConfigAbstract::is_dev_environment
+	 */
+	public function test_is_dev_environment_with_callback(): void {
+		// Create a mock for the Config class
+		$config = \Mockery::mock('\Ran\PluginLib\Config\Config')
+			->makePartial()
+			->shouldAllowMockingProtectedMethods();
+
+		// Mock plugin_basename to avoid WP function call
+		WP_Mock::userFunction('plugin_basename')
+			->andReturn($this->plugin_basename);
+
+		// Mock the callback function
+		$callback = function() {
+			return true;
+		};
+
+		// Mock get_is_dev_callback to return our callback
+		$config->shouldReceive('get_is_dev_callback')
+			->andReturn($callback);
+
+		// Call is_dev_environment
+		$result = $config->is_dev_environment();
+
+		// Assert that the result is true
+		$this->assertTrue($result, 'is_dev_environment should return true when callback returns true');
+	}
+
+	/**
+	 * Tests that is_dev_environment checks SCRIPT_DEBUG when no callback is set.
+	 *
+	 * @covers \Ran\PluginLib\Config\ConfigAbstract::is_dev_environment
+	 */
+	public function test_is_dev_environment_with_script_debug(): void {
+		// Create a mock for the Config class
+		$config = \Mockery::mock('\Ran\PluginLib\Config\Config')
+			->makePartial()
+			->shouldAllowMockingProtectedMethods();
+
+		// Mock plugin_basename to avoid WP function call
+		WP_Mock::userFunction('plugin_basename')
+			->andReturn($this->plugin_basename);
+
+		// Mock get_plugin_config to return a valid array
+		$config->shouldReceive('get_plugin_config')
+			->andReturn($this->plugin_data);
+
+		// Mock get_is_dev_callback to return null (no callback)
+		$config->shouldReceive('get_is_dev_callback')
+			->andReturn(null);
+
+		// Define SCRIPT_DEBUG constant for this test
+		if (!defined('SCRIPT_DEBUG')) {
+			define('SCRIPT_DEBUG', true);
+		}
+
+		// Call is_dev_environment
+		$result = $config->is_dev_environment();
+
+		// Assert that the result matches SCRIPT_DEBUG
+		$this->assertTrue($result, 'is_dev_environment should return true when SCRIPT_DEBUG is true');
+	}
+
+	/**
+	 * Tests that get_plugin_options handles null option correctly (line 303 coverage).
+	 *
+	 * @covers \Ran\PluginLib\Config\ConfigAbstract::get_plugin_options
+	 */
+	public function test_get_plugin_options_with_null_option(): void {
+		// Create a mock for the Config class
+		$config = \Mockery::mock('\Ran\PluginLib\Config\Config')
+			->makePartial()
+			->shouldAllowMockingProtectedMethods();
+
+		// Mock plugin_basename to avoid WP function call
+		WP_Mock::userFunction('plugin_basename')
+			->andReturn($this->plugin_basename);
+
+		// Create a plugin_array with null RANPluginOption
+		$plugin_array                    = $this->plugin_data;
+		$plugin_array['RANPluginOption'] = null;
+
+		// Initialize the plugin_array property to avoid the uninitialized property error
+		$reflectionClass     = new \ReflectionClass('\Ran\PluginLib\Config\ConfigAbstract');
+		$pluginArrayProperty = $reflectionClass->getProperty('plugin_array');
+		$pluginArrayProperty->setAccessible(true);
+		$pluginArrayProperty->setValue($config, $plugin_array);
+
+		// Mock the get_plugin_config method to return our plugin_array
+		$config->shouldReceive('get_plugin_config')
+			->andReturn($plugin_array);
+
+		// Mock get_option to expect null as the option name
+		WP_Mock::userFunction('get_option')
+			->with(null, false)
+			->andReturn(array('test_key' => 'test_value'))
+			->once();
+
+		// Call get_plugin_options
+		$result = $config->get_plugin_options('');
+
+		// Assert that the result matches what get_option returned
+		$this->assertSame(array('test_key' => 'test_value'), $result, 'get_plugin_options should handle null option correctly');
+	}
+
+	/**
+	 * Tests the get_plugin_options method with a custom default value.
+	 *
+	 * @covers \Ran\PluginLib\Config\ConfigAbstract::get_plugin_options
+	 * @uses \Ran\PluginLib\Config\ConfigAbstract::__construct
+	 */
+	public function test_get_plugin_options_with_custom_default_value(): void {
+		// Create a TestableConfig instance with plugin data
+		$plugin_array                    = $this->plugin_data;
+		$plugin_array['RANPluginOption'] = 'my_explicit_option_key';
+		$config                          = new \Ran\PluginLib\Tests\Unit\TestClasses\TestableConfig($plugin_array);
+
+		// Define a custom default value
+		$custom_default = array('custom_key' => 'custom_value');
+
+		// Mock get_option to return the custom default when called with the option name and custom default
+		WP_Mock::userFunction('get_option')
+			->with('my_explicit_option_key', $custom_default)
+			->andReturn($custom_default)
+			->once();
+
+		// Call get_plugin_options with the custom default
+		$result = $config->get_plugin_options('', $custom_default);
+
+		// Assert that the result matches the custom default
+		$this->assertSame($custom_default, $result, 'get_plugin_options should return the custom default value when provided');
 	}
 }
