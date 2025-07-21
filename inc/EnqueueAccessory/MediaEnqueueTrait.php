@@ -5,7 +5,7 @@
  * @package Ran\PluginLib\EnqueueAccessory
  * @author  Ran Plugin Lib <support@ran.org>
  * @license GPL-2.0+ <http://www.gnu.org/licenses/gpl-2.0.txt>
- * @link    https://www.ran.org
+ * @link    https://github.com/RocketsAreNostalgic
  * @since   0.1.0
  */
 
@@ -40,6 +40,15 @@ trait MediaEnqueueTrait {
 	 * @var array<string, array<int, array<string, mixed>>>
 	 */
 	protected array $deferred_media_tool_configs = array();
+
+	/**
+	 * Returns the asset type for this trait.
+	 *
+	 * @return enum AssetType
+	 */
+	protected function _get_asset_type(): AssetType {
+		return AssetType::Media;
+	}
 
 	/**
 	 * Gets the array of registered configurations for loading WordPress media tools.
