@@ -243,4 +243,21 @@ class MediaEnqueueTraitTest extends PluginLibTestCase {
 		$this->assertSame($second_configs, $result['general']);
 		$this->assertCount(2, $result['general']);
 	}
+
+	/**
+	 * @test
+	 * @covers \Ran\PluginLib\EnqueueAccessory\MediaEnqueueTrait::_get_asset_type
+	 */
+	public function test_get_asset_type_returns_media(): void {
+		// Create a reflection method to access the protected method
+		$reflection = new \ReflectionClass($this->instance);
+		$method     = $reflection->getMethod('_get_asset_type');
+		$method->setAccessible(true);
+
+		// Act
+		$result = $method->invoke($this->instance);
+
+		// Assert
+		$this->assertSame(AssetType::Media, $result, 'MediaEnqueueTrait::_get_asset_type() should return AssetType::Media');
+	}
 }
