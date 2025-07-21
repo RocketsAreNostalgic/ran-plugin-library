@@ -6,7 +6,7 @@
  * @package Ran\PluginLib\Util
  * @author  Ran Plugin Lib <support@ran.org>
  * @license GPL-2.0+ <http://www.gnu.org/licenses/gpl-2.0.txt>
- * @link    https://www.ran.org
+* @link    https://github.com/RocketsAreNostalgic
  * @since   0.1.0
  */
 
