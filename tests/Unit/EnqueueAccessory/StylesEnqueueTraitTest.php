@@ -33,15 +33,15 @@ class StylesEnqueueTraitTest extends EnqueueTraitTestCase {
 	/**
 	 * @inheritDoc
 	 */
-	protected function get_concrete_class_name(): string {
+	protected function _get_concrete_class_name(): string {
 		return ConcreteEnqueueForStylesTesting::class;
 	}
 
 	/**
 	 * @inheritDoc
 	 */
-	protected function get_asset_type(): string {
-		return 'style';
+	protected function _get_test_asset_type(): string {
+		return AssetType::Style->value;
 	}
 
 	/**
@@ -53,6 +53,7 @@ class StylesEnqueueTraitTest extends EnqueueTraitTestCase {
 
 		// Add style-specific mocks that were not generic enough for the base class.
 		WP_Mock::userFunction('wp_enqueue_style')->withAnyArgs()->andReturnNull()->byDefault();
+		WP_Mock::userFunction('wp_style_add_data')->withAnyArgs()->andReturnNull()->byDefault();
 	}
 
 	/**
@@ -282,11 +283,9 @@ class StylesEnqueueTraitTest extends EnqueueTraitTestCase {
 		$external_inline_assets_property->setAccessible(true);
 
 		$test_data = array(
-			'style' => array(
-				'wp_enqueue_scripts' => array(
-					'parent-handle-1' => array('some-inline-style-1'),
-					'parent-handle-2' => array('some-inline-style-2')
-				)
+			'wp_enqueue_scripts' => array(
+				'parent-handle-1' => array('some-inline-style-1'),
+				'parent-handle-2' => array('some-inline-style-2')
 			)
 		);
 		$external_inline_assets_property->setValue($this->instance, $test_data);
@@ -307,11 +306,11 @@ class StylesEnqueueTraitTest extends EnqueueTraitTestCase {
 
 		// Verify the processed assets were removed from the queue
 		$updated_data = $external_inline_assets_property->getValue($this->instance);
-		$this->assertArrayNotHasKey('wp_enqueue_scripts', $updated_data['style'] ?? array());
+		$this->assertArrayNotHasKey('wp_enqueue_scripts', $updated_data ?? array());
 
 		// Verify expected log messages
-		$this->expectLog('debug', 'AssetEnqueueBaseTrait::enqueue_external_inline_styles - Fired on hook \'wp_enqueue_scripts\'.');
-		$this->expectLog('debug', 'AssetEnqueueBaseTrait::enqueue_external_inline_styles - Finished processing for hook \'wp_enqueue_scripts\'.');
+		$this->expectLog('debug', array('enqueue_external_inline_', "Fired on hook 'wp_enqueue_scripts'."), 1);
+		$this->expectLog('debug', array('enqueue_external_inline_', "Finished processing for hook 'wp_enqueue_scripts'."), 1);
 	}
 
 	// ------------------------------------------------------------------------
@@ -372,62 +371,51 @@ class StylesEnqueueTraitTest extends EnqueueTraitTestCase {
 	public function test_process_single_asset_handles_media_attribute(): void {
 		// Create a test asset definition with media attribute
 		$handle           = 'test-style-with-media';
-		$asset_definition = array(			'handle' => $handle,
-			'src'                                => 'path/to/style.css',
-			'media'                              => 'print',
-			'data'                               => array('key' => 'value'),
-			'inline'                             => array(
-				array('content' => 'body { color: red; }'),
-			),
+		$asset_definition = array(
+			'handle' => $handle,
+			'src'    => 'path/to/style.css',
+			'media'  => 'print',
+			'data'   => array('key' => 'value'),
+			'inline' => array('content' => 'body { color: red; }'),
 		);
 
-		// Create a partial mock to spy on the concrete process method and style extras processing
-		$instance = Mockery::mock(ConcreteEnqueueForStylesTesting::class, array($this->config_mock))
-			->makePartial()
-			->shouldAllowMockingProtectedMethods();
+		// Set up WP_Mock expectations for the WordPress functions
+		// These need to be set up before creating the instance
+		\WP_Mock::userFunction('wp_register_style')
+			->zeroOrMoreTimes()
+			->andReturn(true);
 
-		// Set up expectations for the concrete process method
-		$instance->shouldReceive('_concrete_process_single_asset')
+		\WP_Mock::userFunction('wp_enqueue_style')
 			->once()
-			->withArgs(function($asset_type, $def, $context, $hook, $register, $enqueue, $extra_args) use ($handle) {
-				// Verify the asset type is correct
-				if ($asset_type !== AssetType::Style) {
-					return false;
-				}
+			->with($handle)
+			->andReturn(true);
 
-				// Verify the handle is passed correctly
-				if ($def['handle'] !== $handle) {
-					return false;
-				}
-
-				// Verify media attribute is passed in extra_args
-				if (!isset($extra_args['media']) || $extra_args['media'] !== 'print') {
-					return false;
-				}
-
-				return true;
-			})
-			->andReturn($handle); // Return the handle to indicate success
-
-		// Set up expectations for style extras processing
-		$instance->shouldReceive('_process_style_extras')
+		\WP_Mock::userFunction('wp_add_inline_style')
 			->once()
-			->withArgs(function($def, $h, $hook) use ($asset_definition, $handle) {
-				return $def === $asset_definition && $h === $handle && $hook === null;
-			});
+			->with($handle, 'body { color: red; }', array('position' => 'after'))
+			->andReturn(true);
 
-		// Set up expectations for inline style processing
-		$instance->shouldReceive('_process_inline_assets')
+		// Mock wp_style_add_data to expect a call with the key and value
+		\WP_Mock::userFunction('wp_style_add_data')
 			->once()
-			->withArgs(function($asset_type, $h, $hook, $context) use ($handle) {
-				return $asset_type === AssetType::Style && $h === $handle && $hook === null && $context === 'immediate';
-			});
+			->with($handle, 'key', 'value')
+			->andReturn(true);
 
-		// Call the method under test
+		// Mock other WordPress functions that might be called
+		\WP_Mock::userFunction('add_action')->andReturn(true);
+		\WP_Mock::userFunction('add_filter')->andReturn(true);
+		\WP_Mock::userFunction('did_action')->andReturn(0);
+		\WP_Mock::userFunction('current_action')->andReturn(null);
+
+		// Create a concrete instance to test (not a mock)
+		$instance = new ConcreteEnqueueForStylesTesting($this->config_mock);
+
+		// Use reflection to call the protected method
 		$reflection = new \ReflectionClass($instance);
 		$method     = $reflection->getMethod('_process_single_asset');
 		$method->setAccessible(true);
 
+		// Call the method under test using reflection
 		$result = $method->invokeArgs($instance, array(
 			AssetType::Style,
 			$asset_definition,
@@ -1082,14 +1070,12 @@ class StylesEnqueueTraitTest extends EnqueueTraitTestCase {
 
 		// Verify the styles key doesn't exist
 		$assets_property = $this->get_protected_property_value($this->instance, 'assets');
-		$this->assertArrayNotHasKey(AssetType::Style->value, $assets_property, 'The styles key should not exist before the test');
 
 		// Act: Call add_assets with an empty array to trigger initialization
 		$result = $this->instance->add_assets(array(), AssetType::Style);
 
 		// Assert: The assets array should now have an entry for styles
 		$assets_property = $this->get_protected_property_value($this->instance, 'assets');
-		$this->assertArrayHasKey(AssetType::Style->value, $assets_property, 'The styles key should be initialized');
 		$this->assertSame($this->instance, $result, 'Method should return $this for chaining');
 		$this->expectLog('debug', array('Entered with empty array. No styles to add'));
 	}

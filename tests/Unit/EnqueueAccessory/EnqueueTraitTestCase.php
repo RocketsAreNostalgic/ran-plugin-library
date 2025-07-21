@@ -30,14 +30,14 @@ abstract class EnqueueTraitTestCase extends PluginLibTestCase {
 	 *
 	 * @return string
 	 */
-	abstract protected function get_concrete_class_name(): string;
+	abstract protected function _get_concrete_class_name(): string;
 
 	/**
 	 * Returns the asset type slug ('script' or 'style').
 	 *
 	 * @return string
 	 */
-	abstract protected function get_asset_type(): string;
+	abstract protected function _get_test_asset_type(): string;
 
 	/**
 	 * Set up test environment.
@@ -51,7 +51,7 @@ abstract class EnqueueTraitTestCase extends PluginLibTestCase {
 
 		$this->config_mock->shouldReceive('get_logger')->andReturn($this->logger_mock)->byDefault();
 
-		$concrete_class_name = $this->get_concrete_class_name();
+		$concrete_class_name = $this->_get_concrete_class_name();
 		$this->instance      = Mockery::mock($concrete_class_name, array($this->config_mock))
 			->makePartial()
 			->shouldAllowMockingProtectedMethods();
@@ -66,7 +66,7 @@ abstract class EnqueueTraitTestCase extends PluginLibTestCase {
 			})
 			->byDefault();
 
-		$asset_type = $this->get_asset_type();
+		$asset_type = $this->_get_test_asset_type();
 		$this->instance->shouldReceive('stage_{' . $asset_type . '}s')->passthru();
 
 		// Default WP_Mock function mocks for asset functions

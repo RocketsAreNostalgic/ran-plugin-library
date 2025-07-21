@@ -12,13 +12,6 @@ use Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseAbstract;
  * Concrete implementation of EnqueueTrait for testing asset-related methods.
  */
 class ConcreteEnqueueForTesting extends AssetEnqueueBaseAbstract {
-	protected array $registered_hooks = array();
-
-	protected array $inline_assets = array(
-		'script' => array(),
-		'style'  => array(),
-	);
-
 	public function __construct(ConfigInterface $config) {
 		parent::__construct($config);
 	}

@@ -26,12 +26,21 @@ trait ScriptsEnqueueTrait {
 	use AssetEnqueueBaseTrait;
 
 	/**
+	 * Returns the asset type for this trait.
+	 *
+	 * @return AssetType
+	 */
+	protected function _get_asset_type(): AssetType {
+		return AssetType::Script;
+	}
+
+	/**
 	 * Get the array of registered scripts.
 	 *
 	 * @return array<string, array> An associative array of script definitions, keyed by 'general', 'deferred', and 'inline'.
 	 */
 	public function get() {
-		return $this->get_assets(AssetType::Script);
+		return $this->get_assets($this->_get_asset_type());
 	}
 
 	/**
@@ -61,7 +70,7 @@ trait ScriptsEnqueueTrait {
 	 * @see self::enqueue()
 	 */
 	public function add( array $scripts_to_add ): self {
-		return $this->add_assets($scripts_to_add, AssetType::Script);
+		return $this->add_assets($scripts_to_add, $this->_get_asset_type());
 	}
 
 	/**
@@ -87,7 +96,7 @@ trait ScriptsEnqueueTrait {
 	 * @see    wp_register_script()
 	 */
 	public function stage(): self {
-		return $this->stage_assets(AssetType::Script);
+		return $this->stage_assets($this->_get_asset_type());
 	}
 
 	/**
@@ -111,7 +120,7 @@ trait ScriptsEnqueueTrait {
 	 * @see    self::_enqueue_deferred_scripts()
 	 */
 	public function enqueue_immediate(): self {
-		return $this->enqueue_immediate_assets(AssetType::Script);
+		return $this->enqueue_immediate_assets($this->_get_asset_type());
 	}
 
 	/**
@@ -123,7 +132,7 @@ trait ScriptsEnqueueTrait {
 	 * @return void
 	 */
 	public function _enqueue_deferred_scripts( string $hook_name, int $priority ): void {
-		$this->_enqueue_deferred_assets(AssetType::Script, $hook_name, $priority);
+		$this->_enqueue_deferred_assets($this->_get_asset_type(), $hook_name, $priority);
 	}
 
 	/**
@@ -142,7 +151,7 @@ trait ScriptsEnqueueTrait {
 	 * @return self Returns the instance of this class for method chaining.
 	 */
 	public function add_inline( array $inline_scripts_to_add ): self {
-		return $this->add_inline_assets( $inline_scripts_to_add, AssetType::Script );
+		return $this->add_inline_assets( $inline_scripts_to_add, $this->_get_asset_type() );
 	}
 
 	/**
@@ -156,7 +165,7 @@ trait ScriptsEnqueueTrait {
 	 * @return void
 	 */
 	public function _enqueue_external_inline_scripts(): void {
-		$this->_enqueue_external_inline_assets(AssetType::Script);
+		$this->_enqueue_external_inline_assets($this->_get_asset_type());
 	}
 
 
@@ -240,7 +249,7 @@ trait ScriptsEnqueueTrait {
 	protected function _process_script_extras(array $asset_definition, string $handle, ?string $hook_name): void {
 		$logger     = $this->get_logger();
 		$context    = __TRAIT__ . '::' . __FUNCTION__;
-		$asset_type = AssetType::Script;
+		$asset_type = $this->_get_asset_type();
 
 		if (null === $hook_name && $handle) {
 			$data       = $asset_definition['data']       ?? array();
@@ -280,8 +289,8 @@ trait ScriptsEnqueueTrait {
 					$logger->debug("{$context} - Adding attributes to script '{$handle}'.");
 				}
 
-				$callback = function ($tag, $tag_handle) use ($handle, $custom_attributes) {
-					return $this->_modify_html_tag_attributes(AssetType::Script, $tag, $tag_handle, $handle, $custom_attributes);
+				$callback = function ($tag, $tag_handle) use ($handle, $custom_attributes, $asset_type) {
+					return $this->_modify_html_tag_attributes($asset_type, $tag, $tag_handle, $handle, $custom_attributes);
 				};
 				$this->_do_add_filter('script_loader_tag', $callback, 10, 2);
 			}
@@ -346,8 +355,8 @@ trait ScriptsEnqueueTrait {
 		$context = __TRAIT__ . '::' . __FUNCTION__;
 		$logger  = $this->get_logger();
 
-		if ($asset_type !== AssetType::Script) {
-			$logger->warning("{$context} - Incorrect asset type provided to _modify_html_tag_attributes. Expected 'script', got '{$asset_type->value}'.");
+		if ($asset_type !== $this->_get_asset_type()) {
+			$logger->warning("{$context} - Incorrect asset type provided to _modify_html_tag_attributes. Expected '{$this->_get_asset_type()->value}', got '{$asset_type->value}'.");
 			return $tag;
 		}
 
