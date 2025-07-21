@@ -26,12 +26,21 @@ trait StylesEnqueueTrait {
 	use AssetEnqueueBaseTrait;
 
 	/**
+	 * Returns the asset type for this trait.
+	 *
+	 * @return AssetType
+	 */
+	protected function _get_asset_type(): AssetType {
+		return AssetType::Style;
+	}
+
+	/**
 	 * Get the array of registered stylesheets.
 	 *
 	 * @return array<string, array> An associative array of stylesheet definitions, keyed by 'general', 'deferred', and 'inline'.
 	 */
 	public function get(): array {
-		return $this->get_assets(AssetType::Style);
+		return $this->get_assets($this->_get_asset_type());
 	}
 
 	/**
@@ -60,7 +69,7 @@ trait StylesEnqueueTrait {
 	 * @see self::enqueue()
 	 */
 	public function add( array $styles_to_add ): self {
-		return $this->add_assets($styles_to_add, AssetType::Style);
+		return $this->add_assets($styles_to_add, $this->_get_asset_type());
 	}
 
 	/**
@@ -86,7 +95,7 @@ trait StylesEnqueueTrait {
 	 * @see    wp_register_style()
 	 */
 	public function stage(): self {
-		return $this->stage_assets(AssetType::Style);
+		return $this->stage_assets($this->_get_asset_type());
 	}
 
 	/**
@@ -110,7 +119,7 @@ trait StylesEnqueueTrait {
 	 * @see    self::_enqueue_deferred_styles()
 	 */
 	public function enqueue_immediate(): self {
-		return $this->enqueue_immediate_assets(AssetType::Style);
+		return $this->enqueue_immediate_assets($this->_get_asset_type());
 	}
 
 	/**
@@ -122,7 +131,7 @@ trait StylesEnqueueTrait {
 	 * @return void
 	 */
 	public function _enqueue_deferred_styles( string $hook_name, int $priority ): void {
-		$this->_enqueue_deferred_assets( AssetType::Style, $hook_name, $priority );
+		$this->_enqueue_deferred_assets( $this->_get_asset_type(), $hook_name, $priority );
 	}
 
 	/**
@@ -141,7 +150,7 @@ trait StylesEnqueueTrait {
 	 * @return self Returns the instance of this class for method chaining.
 	 */
 	public function add_inline( array $inline_styles_to_add ): self {
-		return $this->add_inline_assets( $inline_styles_to_add, AssetType::Style );
+		return $this->add_inline_assets( $inline_styles_to_add, $this->_get_asset_type() );
 	}
 
 	/**
@@ -155,7 +164,7 @@ trait StylesEnqueueTrait {
 	 * @return void
 	 */
 	public function _enqueue_external_inline_styles(): void {
-		$this->_enqueue_external_inline_assets( AssetType::Style );
+		$this->_enqueue_external_inline_assets( $this->_get_asset_type() );
 	}
 
 	/**
@@ -195,8 +204,8 @@ trait StylesEnqueueTrait {
 		$logger  = $this->get_logger();
 		$context = __TRAIT__ . '::' . __FUNCTION__;
 
-		if ($asset_type !== AssetType::Style) {
-			$logger->warning("{$context} - Incorrect asset type provided to _process_single_asset. Expected 'style', got '{$asset_type->value}'.");
+		if ($asset_type !== $this->_get_asset_type()) {
+			$logger->warning("{$context} - Incorrect asset type provided to _process_single_asset. Expected '{$this->_get_asset_type()->value}', got '{$asset_type->value}'.");
 			return false;
 		}
 
@@ -255,7 +264,7 @@ trait StylesEnqueueTrait {
 		$context          = __TRAIT__ . '::' . __FUNCTION__;
 		$log_hook_context = $hook_name ? " on hook '{$hook_name}'" : '';
 		$data             = $asset_definition['data'] ?? array();
-		$asset_type       = AssetType::Style;
+		$asset_type       = $this->_get_asset_type();
 
 		// Process extras (like data and inline).
 		if (is_array($data) && !empty($data)) {
@@ -320,7 +329,7 @@ trait StylesEnqueueTrait {
 		$context = __TRAIT__ . '::' . __FUNCTION__;
 		$logger  = $this->get_logger();
 
-		if ($asset_type !== AssetType::Style) {
+		if ($asset_type !== $this->_get_asset_type()) {
 			$logger->warning("{$context} - Incorrect asset type provided to _modify_html_tag_attributes. Expected 'style', got '{$asset_type->value}'.");
 			return $tag;
 		}

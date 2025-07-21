@@ -33,15 +33,15 @@ class AssetEnqueueTraitBaseTraitTest extends EnqueueTraitTestCase {
 	/**
 	 * @inheritDoc
 	 */
-	protected function get_concrete_class_name(): string {
+	protected function _get_concrete_class_name(): string {
 		return ConcreteEnqueueForBaseTraitTesting::class;
 	}
 
 	/**
 	 * @inheritDoc
 	 */
-	protected function get_asset_type(): string {
-		return 'script';
+	protected function _get_test_asset_type(): string {
+		return AssetType::Script->value;
 	}
 
 	/**
@@ -479,14 +479,12 @@ class AssetEnqueueTraitBaseTraitTest extends EnqueueTraitTestCase {
 		$deferred_assets_property = new \ReflectionProperty($this->instance, 'deferred_assets');
 		$deferred_assets_property->setAccessible(true);
 		$deferred_assets_property->setValue($this->instance, array(
-			'script' => array(
 				'processed_hook_1' => array(
 					array('handle' => 'processed-script-1', 'src' => 'path/to/processed1.js')
 				),
 				'processed_hook_2' => array(
 					array('handle' => 'processed-script-2', 'src' => 'path/to/processed2.js')
 				)
-			)
 		));
 
 		// Also add some unprocessed assets with hooks
@@ -541,14 +539,9 @@ class AssetEnqueueTraitBaseTraitTest extends EnqueueTraitTestCase {
 		$deferred_assets_property = new \ReflectionProperty($this->instance, 'deferred_assets');
 		$deferred_assets_property->setAccessible(true);
 		$deferred_assets_property->setValue($this->instance, array(
-			'script' => array(
-				'script_deferred_hook' => array(
+			'script_deferred_hook' => array(
+				10 => array(
 					array('handle' => 'deferred-script', 'src' => 'path/to/deferred.js')
-				)
-			),
-			'style' => array(
-				'style_deferred_hook' => array(
-					array('handle' => 'deferred-style', 'src' => 'path/to/deferred.css')
 				)
 			)
 		));
@@ -581,12 +574,11 @@ class AssetEnqueueTraitBaseTraitTest extends EnqueueTraitTestCase {
 	 */
 	public function test_get_deferred_hooks_adds_valid_hooks_from_assets(): void {
 		// Arrange - Directly populate the assets array structure that get_deferred_hooks expects
-		// The method looks for $this->assets[$asset_type->value]['general'], so we need that structure
+		// The method looks for $this->assets['general'], so we need that structure
 		$assets_property = new \ReflectionProperty($this->instance, 'assets');
 		$assets_property->setAccessible(true);
 		$assets_property->setValue($this->instance, array(
-			'script' => array(
-				'general' => array(
+			'general' => array(
 					array(
 						'handle' => 'valid-hook-script-1',
 						'src'    => 'path/to/script1.js',
@@ -604,7 +596,7 @@ class AssetEnqueueTraitBaseTraitTest extends EnqueueTraitTestCase {
 					)
 				)
 			)
-		));
+		);
 
 		// Act - Get the deferred hooks
 		$hooks = $this->_invoke_protected_method(
@@ -641,12 +633,10 @@ class AssetEnqueueTraitBaseTraitTest extends EnqueueTraitTestCase {
 		$assets_property = new \ReflectionProperty($this->instance, 'assets');
 		$assets_property->setAccessible(true);
 		$assets_property->setValue($this->instance, array(
-			'script' => array(
 				array(
 					'handle' => '', // Empty handle - should trigger lines 384-389
 					'src'    => 'path/to/script.js'
 				)
-			)
 		));
 
 		// Act - Call enqueue_immediate_assets
@@ -659,7 +649,7 @@ class AssetEnqueueTraitBaseTraitTest extends EnqueueTraitTestCase {
 		// Assert - Check that warning was logged for empty handle (lines 385-387)
 		$this->expectLog(
 			'warning',
-			'AssetEnqueueBaseTrait::stage_scripts - Skipping asset at index 0 due to missing handle - this should not be possible when using add().'
+			'stage_scripts - Skipping asset at index 0 due to missing handle - this should not be possible when using add().'
 		);
 	}
 
@@ -672,19 +662,17 @@ class AssetEnqueueTraitBaseTraitTest extends EnqueueTraitTestCase {
 		$assets_property = new \ReflectionProperty($this->instance, 'assets');
 		$assets_property->setAccessible(true);
 		$assets_property->setValue($this->instance, array(
-			'script' => array(
-				array(
-					'handle' => 'deferred-script',
-					'src'    => 'path/to/deferred-script.js',
-					'hook'   => 'custom_hook' // This should trigger the LogicException (lines 391-397)
-				)
+			array(
+				'handle' => 'deferred-script',
+				'src'    => 'path/to/deferred-script.js',
+				'hook'   => 'custom_hook' // This should trigger the LogicException (lines 391-397)
 			)
 		));
 
 		// Assert - Should throw LogicException for deferred asset in immediate queue
 		$this->expectException(\LogicException::class);
 		$this->expectExceptionMessage(
-			'AssetEnqueueBaseTrait::stage_scripts - Found a deferred asset (\'deferred-script\') in the immediate queue. ' .
+			'stage_scripts - Found a deferred asset (\'deferred-script\') in the immediate queue. ' .
 			'The `stage_assets()` method must be called before `enqueue_immediate_assets()` to correctly process deferred assets.'
 		);
 
@@ -719,14 +707,13 @@ class AssetEnqueueTraitBaseTraitTest extends EnqueueTraitTestCase {
 		);
 
 		// Set up the deferred assets array with just one priority for the hook
+		// Using flattened array structure (no asset type nesting)
 		$this->set_protected_property_value(
 			$this->instance,
 			'deferred_assets',
 			array(
-				$asset_type->value => array(
-					$hook_name => array(
-						$priority => array($deferred_asset)
-					)
+				$hook_name => array(
+					$priority => array($deferred_asset)
 				)
 			)
 		);
@@ -746,9 +733,109 @@ class AssetEnqueueTraitBaseTraitTest extends EnqueueTraitTestCase {
 		// Get the deferred assets after processing
 		$deferred_assets = $this->get_protected_property_value($this->instance, 'deferred_assets');
 
-		// Verify that the hook has been completely removed
-		$this->assertArrayHasKey($asset_type->value, $deferred_assets, 'Asset type should still exist');
-		$this->assertArrayNotHasKey($hook_name, $deferred_assets[$asset_type->value], 'Hook should be removed after processing');
+		// Verify that the deferred assets array exists and the hook has been removed
+		$this->assertIsArray($deferred_assets, 'Deferred assets should be an array');
+		$this->assertArrayNotHasKey($hook_name, $deferred_assets, 'Hook should be removed after processing');
+	}
+
+	/**
+	 * @test
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_enqueue_deferred_assets
+	 */
+	public function test_enqueue_deferred_assets_skips_missing_priority_and_cleans_empty_hooks(): void {
+		// Set up the asset type
+		$asset_type = AssetType::Script;
+
+		// Define a test hook and priorities
+		$hook_name        = 'test_hook';
+		$priority_exists  = 10;
+		$priority_missing = 20;
+
+		// Create a deferred asset
+		$deferred_asset = array(
+			'handle' => 'test-script',
+			'src'    => 'test.js',
+		);
+
+		// Create a collecting logger that will capture all log messages
+		$collecting_logger = new CollectingLogger();
+
+		// Create a config mock that will return our collecting logger
+		$config_mock = Mockery::mock(ConfigInterface::class);
+		$config_mock->shouldReceive('get_logger')->andReturn($collecting_logger);
+
+		// Create a fresh instance with our mocked config
+		$instance = new ConcreteEnqueueForBaseTraitTesting($config_mock);
+
+		// Set up the deferred assets array with one priority but will call with a different priority
+		// Using flattened array structure (no asset type nesting)
+		$this->set_protected_property_value(
+			$instance,
+			'deferred_assets',
+			array(
+				$hook_name => array(
+					$priority_exists => array($deferred_asset)
+				)
+			)
+		);
+
+		// Call the method with the missing priority
+		$this->_invoke_protected_method(
+			$instance,
+			'_enqueue_deferred_assets',
+			array($asset_type, $hook_name, $priority_missing)
+		);
+
+		// Get the deferred assets after processing
+		$deferred_assets = $this->get_protected_property_value($instance, 'deferred_assets');
+
+		// Verify that the deferred assets array still contains the hook and the existing priority
+		$this->assertIsArray($deferred_assets, 'Deferred assets should be an array');
+		$this->assertArrayHasKey($hook_name, $deferred_assets, 'Hook should still exist');
+		$this->assertArrayHasKey($priority_exists, $deferred_assets[$hook_name], 'Priority should still exist');
+
+		// Now remove the existing priority and call again to test hook cleanup
+		$this->set_protected_property_value(
+			$instance,
+			'deferred_assets',
+			array(
+				$hook_name => array() // Empty priorities array
+			)
+		);
+
+		// Call the method again
+		$this->_invoke_protected_method(
+			$instance,
+			'_enqueue_deferred_assets',
+			array($asset_type, $hook_name, $priority_missing)
+		);
+
+		// Get the deferred assets after processing
+		$deferred_assets = $this->get_protected_property_value($instance, 'deferred_assets');
+
+		// Verify that the hook has been removed because it had no priorities
+		$this->assertIsArray($deferred_assets, 'Deferred assets should be an array');
+		$this->assertArrayNotHasKey($hook_name, $deferred_assets, 'Empty hook should be removed');
+
+		// Verify that the expected log messages were generated
+		$log_messages = $collecting_logger->get_logs();
+
+		// Check for the entry message
+		$entry_message_found     = false;
+		$not_found_message_found = false;
+
+		// Loop through the log messages to find our expected messages
+		foreach ($log_messages as $log) {
+			if (strpos($log['message'], "Entered hook: \"$hook_name\" with priority: $priority_missing") !== false) {
+				$entry_message_found = true;
+			}
+			if (strpos($log['message'], "Hook \"$hook_name\" with priority $priority_missing not found in deferred scripts") !== false) {
+				$not_found_message_found = true;
+			}
+		}
+
+		$this->assertTrue($entry_message_found, 'Entry log message should be present');
+		$this->assertTrue($not_found_message_found, 'Not found log message should be present');
 	}
 
 
@@ -940,11 +1027,10 @@ class AssetEnqueueTraitBaseTraitTest extends EnqueueTraitTestCase {
 		$property->setAccessible(true);
 		$external_inline_assets = $property->getValue($this->instance);
 
-		// The external_inline_assets array might have the 'script' key initialized,
-		// but it should not have any inline assets for our nonexistent parent
+		// The external_inline_assets array should not have any inline assets for our nonexistent parent
 		$found_in_external = false;
-		if (isset($external_inline_assets['script'])) {
-			foreach ($external_inline_assets['script'] as $hook => $handles) {
+		if (isset($external_inline_assets)) {
+			foreach ($external_inline_assets as $hook => $handles) {
 				if (isset($handles['nonexistent-parent'])) {
 					$found_in_external = true;
 					break;
@@ -973,10 +1059,8 @@ class AssetEnqueueTraitBaseTraitTest extends EnqueueTraitTestCase {
 		$external_inline_assets_property->setAccessible(true);
 
 		$test_data = array(
-			'script' => array(
-				'other_hook' => array(
-					'parent-handle-1' => array('some-inline-script-1')
-				)
+			'other_hook' => array(
+				'parent-handle-1' => array('some-inline-script-1')
 			)
 		);
 		$external_inline_assets_property->setValue($this->instance, $test_data);
@@ -989,8 +1073,8 @@ class AssetEnqueueTraitBaseTraitTest extends EnqueueTraitTestCase {
 		);
 
 		// Verify expected log messages for empty case
-		$this->expectLog('debug', 'AssetEnqueueBaseTrait::enqueue_external_inline_scripts - Fired on hook \'wp_enqueue_scripts\'.');
-		$this->expectLog('debug', 'AssetEnqueueBaseTrait::enqueue_external_inline_scripts - No external inline scripts found for hook \'wp_enqueue_scripts\'. Exiting.');
+		$this->expectLog('debug', 'enqueue_external_inline_scripts - Fired on hook \'wp_enqueue_scripts\'.');
+		$this->expectLog('debug', 'enqueue_external_inline_scripts - No external inline scripts found for hook \'wp_enqueue_scripts\'. Exiting.');
 	}
 
 	// ------------------------------------------------------------------------
@@ -1039,13 +1123,11 @@ class AssetEnqueueTraitBaseTraitTest extends EnqueueTraitTestCase {
 		$inline_assets_property = $reflection->getProperty('inline_assets');
 		$inline_assets_property->setAccessible(true);
 		$inline_assets = array(
-			'script' => array(
 				array(
 					'handle'   => 'test-script',
 					'content'  => 'console.log("test");',
 					'position' => 'after'
 				)
-			)
 		);
 		$inline_assets_property->setValue($this->instance, $inline_assets);
 
@@ -1085,7 +1167,6 @@ class AssetEnqueueTraitBaseTraitTest extends EnqueueTraitTestCase {
 		$inline_assets_property = $reflection->getProperty('inline_assets');
 		$inline_assets_property->setAccessible(true);
 		$inline_assets = array(
-			'script' => array(
 				array(
 					'handle'    => 'test-script',
 					'content'   => 'console.log("test");',
@@ -1094,7 +1175,6 @@ class AssetEnqueueTraitBaseTraitTest extends EnqueueTraitTestCase {
 						return false;
 					}
 				)
-			)
 		);
 		$inline_assets_property->setValue($this->instance, $inline_assets);
 
@@ -1127,13 +1207,11 @@ class AssetEnqueueTraitBaseTraitTest extends EnqueueTraitTestCase {
 		$inline_assets_property = $reflection->getProperty('inline_assets');
 		$inline_assets_property->setAccessible(true);
 		$inline_assets = array(
-			'script' => array(
 				array(
 					'handle'   => 'test-script',
 					'content'  => '',
 					'position' => 'after'
 				)
-			)
 		);
 		$inline_assets_property->setValue($this->instance, $inline_assets);
 
@@ -1166,13 +1244,14 @@ class AssetEnqueueTraitBaseTraitTest extends EnqueueTraitTestCase {
 		$inline_assets_property = $reflection->getProperty('inline_assets');
 		$inline_assets_property->setAccessible(true);
 		$inline_assets = array(
-			'script' => array(
-				array(
-					'handle'   => 'test-script',
-					'content'  => 'console.log("test");',
-					'position' => 'after'
-				)
-			)
+			// Valid array element
+			array(
+				'handle'   => 'test-script',
+				'content'  => 'console.log("test");',
+				'position' => 'after'
+			),
+			// Invalid non-array element that should trigger the warning
+			'invalid-string-element'
 		);
 		$inline_assets_property->setValue($this->instance, $inline_assets);
 
@@ -1212,9 +1291,14 @@ class AssetEnqueueTraitBaseTraitTest extends EnqueueTraitTestCase {
 		$inline_assets_property = $reflection->getProperty('inline_assets');
 		$inline_assets_property->setAccessible(true);
 		$inline_assets = array(
-			'script' => array(
-				'invalid_data' // Not an array
-			)
+			// Valid array element
+			array(
+				'handle'   => 'test-script',
+				'content'  => 'console.log("test");',
+				'position' => 'after'
+			),
+			// Invalid non-array element that should trigger the warning
+			'invalid-string-element'
 		);
 		$inline_assets_property->setValue($this->instance, $inline_assets);
 
@@ -1229,8 +1313,8 @@ class AssetEnqueueTraitBaseTraitTest extends EnqueueTraitTestCase {
 
 		// Assert logger messages using expectLog after SUT execution
 		$this->expectLog('debug', 'Checking for inline scripts for parent script');
-		$this->expectLog('warning', 'Invalid inline script data at key');
-		$this->expectLog('debug', 'No inline script found or processed');
+		$this->expectLog('warning', 'Invalid inline script data at key', 1);
+		$this->expectLog('debug', 'Removed processed inline script', 1);
 	}
 
 	/**
@@ -1250,13 +1334,11 @@ class AssetEnqueueTraitBaseTraitTest extends EnqueueTraitTestCase {
 		$inline_assets_property = $reflection->getProperty('inline_assets');
 		$inline_assets_property->setAccessible(true);
 		$inline_assets = array(
-			'style' => array(
-				array(
-					'handle'  => $parent_handle,
-					'content' => $inline_content,
-					// Note: no 'position' for styles - this tests the line 728 branch
-				),
-			),
+			array(
+				'handle'  => $parent_handle,
+				'content' => $inline_content,
+				// Note: no 'position' for styles - this tests the line 728 branch
+			)
 		);
 		$inline_assets_property->setValue($this->instance, $inline_assets);
 
@@ -1299,14 +1381,12 @@ class AssetEnqueueTraitBaseTraitTest extends EnqueueTraitTestCase {
 		$inline_assets_property = $reflection->getProperty('inline_assets');
 		$inline_assets_property->setAccessible(true);
 		$inline_assets = array(
-			'script' => array(
-				array(
-					'handle'      => $parent_handle,
-					'parent_hook' => $hook_name, // This should match the hook_name parameter
-					'content'     => $inline_content,
-					'position'    => 'after',
-				),
-			),
+			array(
+				'handle'      => $parent_handle,
+				'parent_hook' => $hook_name, // This should match the hook_name parameter
+				'content'     => $inline_content,
+				'position'    => 'after',
+			)
 		);
 		$inline_assets_property->setValue($this->instance, $inline_assets);
 
@@ -1329,6 +1409,36 @@ class AssetEnqueueTraitBaseTraitTest extends EnqueueTraitTestCase {
 		$this->expectLog('debug', 'Checking for inline scripts for parent script');
 		$this->expectLog('debug', 'Adding inline script for');
 		$this->expectLog('debug', 'Successfully added inline script for');
+	}
+
+	/**
+	 * @test
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_process_inline_assets
+	 */
+	public function test_process_inline_assets_with_no_inline_assets_found(): void {
+		// Create a reflection method to access the protected method
+		$reflection = new \ReflectionClass($this->instance);
+		$method     = $reflection->getMethod('_process_inline_assets');
+		$method->setAccessible(true);
+
+		// Set up the inline_assets property to be empty
+		$inline_assets_property = $reflection->getProperty('inline_assets');
+		$inline_assets_property->setAccessible(true);
+		$inline_assets_property->setValue($this->instance, array());
+
+		// Mock wp_script_is to return true (parent script is registered)
+		$parent_handle = 'test-script-no-inline';
+		\WP_Mock::userFunction('wp_script_is')
+			->once()
+			->with($parent_handle, 'registered')
+			->andReturn(true);
+
+		// Call the method
+		$method->invokeArgs($this->instance, array(AssetType::Script, $parent_handle));
+
+		// Assert that the debug message for no inline assets found is logged
+		$this->expectLog('debug', 'Checking for inline scripts for parent script');
+		$this->expectLog('debug', "No inline script found or processed for '{$parent_handle}'.");
 	}
 
 	// ------------------------------------------------------------------------

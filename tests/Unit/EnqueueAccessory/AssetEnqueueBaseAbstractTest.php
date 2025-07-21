@@ -36,7 +36,7 @@ class ConcreteAssetEnqueueBase extends AssetEnqueueBaseAbstract {
 	 *
 	 * @return ConfigInterface
 	 */
-	protected function get_config(): ConfigInterface {
+	protected function _get_config(): ConfigInterface {
 		return $this->config;
 	}
 
@@ -193,9 +193,8 @@ class AssetEnqueueBaseAbstractTest extends PluginLibTestCase {
 		$reflection = new \ReflectionClass($this->instance);
 		$property   = $reflection->getProperty('assets');
 		$property->setAccessible(true);
-		$property->setValue($this->instance, array(
-		    'script' => array($asset_definition)
-		));
+		// Using flattened array structure (no asset type nesting)
+		$property->setValue($this->instance, array($asset_definition));
 
 		// Mock the WordPress functions that would be called
 		WP_Mock::userFunction('wp_register_script')->once()->andReturn(true);
@@ -233,9 +232,8 @@ class AssetEnqueueBaseAbstractTest extends PluginLibTestCase {
 		$reflection = new \ReflectionClass($this->instance);
 		$property   = $reflection->getProperty('assets');
 		$property->setAccessible(true);
-		$property->setValue($this->instance, array(
-			'script' => array($asset_definition)
-		));
+		// Using flattened array structure (no asset type nesting)
+		$property->setValue($this->instance, array($asset_definition));
 
 		// Mock WordPress add_action function
 		WP_Mock::expectActionAdded($hook_name, \WP_Mock\Functions::type('callable'), $priority, 0);
@@ -251,15 +249,15 @@ class AssetEnqueueBaseAbstractTest extends PluginLibTestCase {
 		$deferred_property->setAccessible(true);
 		$deferred_assets = $deferred_property->getValue($this->instance);
 
-		$this->assertArrayHasKey('script', $deferred_assets);
-		$this->assertArrayHasKey($hook_name, $deferred_assets['script']);
-		$this->assertArrayHasKey($priority, $deferred_assets['script'][$hook_name]);
-		$this->assertCount(1, $deferred_assets['script'][$hook_name][$priority]);
-		$this->assertSame('deferred-script', $deferred_assets['script'][$hook_name][$priority][0]['handle']);
+		// Using flattened array structure (no asset type nesting)
+		$this->assertArrayHasKey($hook_name, $deferred_assets);
+		$this->assertArrayHasKey($priority, $deferred_assets[$hook_name]);
+		$this->assertCount(1, $deferred_assets[$hook_name][$priority]);
+		$this->assertSame('deferred-script', $deferred_assets[$hook_name][$priority][0]['handle']);
 
 		// Check that the original assets array is now empty
 		$assets = $property->getValue($this->instance);
-		$this->assertEmpty($assets['script']);
+		$this->assertEmpty($assets);
 	}
 
 	/**
@@ -284,8 +282,8 @@ class AssetEnqueueBaseAbstractTest extends PluginLibTestCase {
 
 		// Check that the assets array was initialized
 		$assets = $property->getValue($this->instance);
-		$this->assertArrayHasKey('script', $assets);
-		$this->assertIsArray($assets['script']);
+		// With flattened structure, we just check that it's an array
+		$this->assertIsArray($assets);
 	}
 
 	/**
@@ -309,9 +307,8 @@ class AssetEnqueueBaseAbstractTest extends PluginLibTestCase {
 		$reflection = new \ReflectionClass($this->instance);
 		$property   = $reflection->getProperty('assets');
 		$property->setAccessible(true);
-		$property->setValue($this->instance, array(
-			'script' => array($asset_definition)
-		));
+		// Using flattened array structure (no asset type nesting)
+		$property->setValue($this->instance, array($asset_definition));
 
 		// Mock WordPress add_action function - should use default priority 10
 		WP_Mock::expectActionAdded($hook_name, \WP_Mock\Functions::type('callable'), 10, 0);
@@ -327,9 +324,9 @@ class AssetEnqueueBaseAbstractTest extends PluginLibTestCase {
 		$deferred_property->setAccessible(true);
 		$deferred_assets = $deferred_property->getValue($this->instance);
 
-		$this->assertArrayHasKey('script', $deferred_assets);
-		$this->assertArrayHasKey($hook_name, $deferred_assets['script']);
-		$this->assertArrayHasKey(10, $deferred_assets['script'][$hook_name]); // Default priority
+		// Using flattened array structure (no asset type nesting)
+		$this->assertArrayHasKey($hook_name, $deferred_assets);
+		$this->assertArrayHasKey(10, $deferred_assets[$hook_name]); // Default priority
 	}
 
 	// ------------------------------------------------------------------------
