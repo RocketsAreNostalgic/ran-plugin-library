@@ -79,6 +79,6 @@ class EnqueuePublic implements EnqueueInterface {
 		$this->scripts_handler->stage();
 		$this->styles_handler->stage();
 		// MediaHandler uses stage_media() instead of stage()
-		// $this->media_handler->stage_media($this->media_handler->get()['assets'] ?? []);
+		// $this->media_handler->stage_media($this->media_handler->get_info()['assets'] ?? []);
 	}
 }

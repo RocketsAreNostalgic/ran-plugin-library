@@ -72,7 +72,7 @@ class StylesHandlerTest extends PluginLibTestCase {
 	public function test_uses_styles_enqueue_trait(): void {
 		// Assert - check that trait methods are available
 		$this->assertTrue(method_exists($this->instance, 'add'));
-		$this->assertTrue(method_exists($this->instance, 'get'));
+		$this->assertTrue(method_exists($this->instance, 'get_info'));
 		$this->assertTrue(method_exists($this->instance, 'stage'));
 	}
 }
