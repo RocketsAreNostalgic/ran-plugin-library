@@ -508,7 +508,17 @@ trait AssetEnqueueBaseTrait {
 
 		// Register the action to enqueue the external inline assets, but only once per hook.
 		if ( ! isset( $this->registered_external_hooks[$hook] ) ) {
+			// add_action() with a direct method reference approach is PREFERRED here because:
+			// 1. No additional parameters need to be passed to the callback - unlike in
+			//    AssetEnqueueBaseAbstract where we need to pass $hook_name and $priority
+			// 2. The method name is deterministic and constructed at runtime
+			//    (enqueue_external_inline_scripts or enqueue_external_inline_styles)
+			// 3. The method definitely exists in this class - no safety check needed
+			// 4. Direct method references are more efficient than closures when no additional
+			//    parameters need to be passed
 			$enqueue_method = 'enqueue_external_inline_' . $asset_type->value . 's';
+
+			// Using a hardcoded value of 11 as we want inline assets to be added after all other hooks.
 			$this->_do_add_action( $hook, array( $this, $enqueue_method ), 11 );
 			$this->registered_external_hooks[$hook] = true;
 		}
