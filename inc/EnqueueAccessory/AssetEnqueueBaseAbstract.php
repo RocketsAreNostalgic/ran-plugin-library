@@ -197,13 +197,25 @@ abstract class AssetEnqueueBaseAbstract {
 
 				// Register the action for this specific hook and priority if not already done.
 				if ( ! isset( $this->registered_hooks[ $hook_name . '_' . $priority ] ) ) {
+					// add_action() with an anonymous function approach is REQUIRED here because:
+					// 1. We need to pass additional parameters ($hook_name, $priority) to the callback
+					//    that aren't part of WordPress's standard hook signature - this is the PRIMARY reason
+					//    we can't use a direct method reference here
+					// 2. The $context variable contains a dynamic method name that needs to be
+					//    called at runtime (enqueue_deferred_scripts or enqueue_deferred_styles)
+					// 3. We need a safety check (method_exists) since child classes might not
+					//    implement all asset type methods
+					// 4. This is part of the asset deferral system where hooks are registered
+					//    dynamically based on asset definitions
 					$callback = function () use ( $hook_name, $priority, $context ) {
 						if ( method_exists( $this, $context ) ) {
 							$this->{$context}( $hook_name, $priority );
 						}
 					};
 
-					$this->_do_add_action( $hook_name, $callback, $priority, 0 );
+					// Ensure hook_name is a string as required by _do_add_action
+					$hook_string = is_string($hook_name) ? $hook_name : (string)$hook_name;
+					$this->_do_add_action( $hook_string, $callback, $priority, 0 );
 					$this->registered_hooks[ $hook_name . '_' . $priority ] = true;
 
 					if ( $logger->is_active() ) {
