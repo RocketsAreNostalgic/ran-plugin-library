@@ -120,7 +120,7 @@ class InlineAssetsLifecycleTest extends PluginLibTestCase {
 		$this->stylesInstance->add($asset_definition);
 
 		// Get the styles to verify the asset was added correctly
-		$styles = $this->stylesInstance->get();
+		$styles = $this->stylesInstance->get_info();
 
 		// Verify the asset was added with inline CSS
 		$this->assertArrayHasKey('assets', $styles);
@@ -140,7 +140,7 @@ class InlineAssetsLifecycleTest extends PluginLibTestCase {
 		$this->stylesInstance->enqueue();
 
 		// 3. Verify the inline CSS was processed and cleaned up
-		$styles = $this->stylesInstance->get();
+		$styles = $this->stylesInstance->get_info();
 
 		// The asset should still exist but the inline property should be empty
 		$this->assertArrayHasKey('assets', $styles);
@@ -191,7 +191,7 @@ class InlineAssetsLifecycleTest extends PluginLibTestCase {
 		));
 
 		// Get the styles to verify the inline CSS was added correctly
-		$styles = $this->stylesInstance->get();
+		$styles = $this->stylesInstance->get_info();
 
 		// Verify the inline CSS was added to the parent asset
 		$this->assertArrayHasKey('assets', $styles);
@@ -259,7 +259,7 @@ class InlineAssetsLifecycleTest extends PluginLibTestCase {
 		$this->stylesInstance->add($asset_definition);
 
 		// Get the styles to verify the deferred asset was added correctly
-		$styles = $this->stylesInstance->get();
+		$styles = $this->stylesInstance->get_info();
 
 		// Verify the deferred asset was added with inline CSS
 		$this->assertArrayHasKey('deferred', $styles);
@@ -421,7 +421,7 @@ class InlineAssetsLifecycleTest extends PluginLibTestCase {
 		));
 
 		// 3. Verify the inline JS was processed and cleaned up
-		$scripts = $this->scriptsInstance->get();
+		$scripts = $this->scriptsInstance->get_info();
 
 		// The asset should still exist but the inline property should be empty
 		$this->assertArrayHasKey('assets', $scripts);

@@ -84,7 +84,7 @@ class MediaEnqueueTraitTest extends PluginLibTestCase {
 	/**
 	 * @test
 	 * @covers \Ran\PluginLib\EnqueueAccessory\MediaEnqueueTrait::add
-	 * @covers \Ran\PluginLib\EnqueueAccessory\MediaEnqueueTrait::get
+	 * @covers \Ran\PluginLib\EnqueueAccessory\MediaEnqueueTrait::get_info
 	 */
 	public function test_add_and_get_media_configurations(): void {
 		// Arrange
@@ -107,7 +107,7 @@ class MediaEnqueueTraitTest extends PluginLibTestCase {
 
 		// Act
 		$this->instance->add($media_configs);
-		$result = $this->instance->get();
+		$result = $this->instance->get_info();
 
 		// Assert
 		$this->assertArrayHasKey('assets', $result);
@@ -148,7 +148,7 @@ class MediaEnqueueTraitTest extends PluginLibTestCase {
 
 		// Act
 		$this->instance->stage_media($media_configs);
-		$result = $this->instance->get();
+		$result = $this->instance->get_info();
 
 		// Assert
 		$this->assertArrayHasKey('deferred', $result);
@@ -237,7 +237,7 @@ class MediaEnqueueTraitTest extends PluginLibTestCase {
 		// Act
 		$this->instance->add($first_configs);
 		$this->instance->add($second_configs);
-		$result = $this->instance->get();
+		$result = $this->instance->get_info();
 
 		// Assert - should only have the second configs
 		$this->assertSame($second_configs, $result['assets']);
