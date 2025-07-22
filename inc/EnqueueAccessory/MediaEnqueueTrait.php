@@ -54,11 +54,11 @@ trait MediaEnqueueTrait {
 	 * Gets the array of registered configurations for loading WordPress media tools.
 	 *
 	 * @return array<string, array<int, mixed>> The registered media tool configurations,
-	 *                                            separated into 'general' and 'deferred'.
+	 *                                            separated into 'assets' and 'deferred'.
 	 */
 	public function get(): array {
 		return array(
-			'general'  => $this->media_tool_configs,
+			'assets'   => $this->media_tool_configs,
 			'deferred' => $this->deferred_media_tool_configs,
 		);
 	}

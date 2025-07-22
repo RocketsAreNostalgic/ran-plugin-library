@@ -37,7 +37,7 @@ trait StylesEnqueueTrait {
 	/**
 	 * Get the array of registered stylesheets.
 	 *
-	 * @return array<string, array> An associative array of stylesheet definitions, keyed by 'general', 'deferred', and 'inline'.
+	 * @return array<string, array> An associative array of stylesheet definitions, keyed by 'assets', 'deferred', and 'inline'.
 	 */
 	public function get(): array {
 		return $this->get_assets($this->_get_asset_type());
