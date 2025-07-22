@@ -114,7 +114,7 @@ trait MediaEnqueueTrait {
 			$this->deferred_media_tool_configs[ $hook ][ $index ] = $config;
 
 			if ( ! has_action( $hook, array( $this, '_enqueue_deferred_media_tools' ) ) ) {
-				add_action( $hook, array( $this, '_enqueue_deferred_media_tools' ), 10, 0 );
+				$this->_do_add_action( $hook, array( $this, '_enqueue_deferred_media_tools' ), 10, 0 );
 				if ( $logger->is_active() ) {
 					$logger->debug( "{$context} - Added action for '_enqueue_deferred_media_tools' on hook: \"{$hook}\"." );
 				}
