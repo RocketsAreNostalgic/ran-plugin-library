@@ -880,7 +880,7 @@ class AssetEnqueueTraitBaseTraitTest extends EnqueueTraitTestCase {
 		);
 
 		// Get the assets to verify the inline script was added to external_inline_assets
-		$assets = $this->instance->get_assets(AssetType::Script);
+		$assets = $this->instance->get_assets_info(AssetType::Script);
 
 		$this->assertArrayHasKey('external_inline', $assets);
 		$this->assertArrayHasKey('wp_enqueue_scripts', $assets['external_inline']);
@@ -916,7 +916,7 @@ class AssetEnqueueTraitBaseTraitTest extends EnqueueTraitTestCase {
 		);
 
 		// Get the assets to verify the inline script was added to external_inline_assets with custom hook
-		$assets = $this->instance->get_assets(AssetType::Script);
+		$assets = $this->instance->get_assets_info(AssetType::Script);
 
 		$this->assertArrayHasKey('external_inline', $assets);
 		$this->assertArrayHasKey('custom_hook', $assets['external_inline']);
@@ -951,7 +951,7 @@ class AssetEnqueueTraitBaseTraitTest extends EnqueueTraitTestCase {
 		);
 
 		// Get the assets to verify the inline script was added to the immediate parent
-		$assets = $this->instance->get_assets(AssetType::Script);
+		$assets = $this->instance->get_assets_info(AssetType::Script);
 
 		// Set up logger expectations
 		$this->expectLog(
@@ -997,7 +997,7 @@ class AssetEnqueueTraitBaseTraitTest extends EnqueueTraitTestCase {
 		);
 
 		// Get the assets to verify nothing was added
-		$assets = $this->instance->get_assets(AssetType::Script);
+		$assets = $this->instance->get_assets_info(AssetType::Script);
 
 		// Set up logger expectations
 		$this->expectLog(
