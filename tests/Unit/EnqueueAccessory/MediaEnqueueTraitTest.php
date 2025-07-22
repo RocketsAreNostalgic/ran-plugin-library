@@ -110,9 +110,9 @@ class MediaEnqueueTraitTest extends PluginLibTestCase {
 		$result = $this->instance->get();
 
 		// Assert
-		$this->assertArrayHasKey('general', $result);
+		$this->assertArrayHasKey('assets', $result);
 		$this->assertArrayHasKey('deferred', $result);
-		$this->assertSame($media_configs, $result['general']);
+		$this->assertSame($media_configs, $result['assets']);
 		$this->assertEmpty($result['deferred']); // Should be empty until stage_media() is called
 	}
 
@@ -240,8 +240,8 @@ class MediaEnqueueTraitTest extends PluginLibTestCase {
 		$result = $this->instance->get();
 
 		// Assert - should only have the second configs
-		$this->assertSame($second_configs, $result['general']);
-		$this->assertCount(2, $result['general']);
+		$this->assertSame($second_configs, $result['assets']);
+		$this->assertCount(2, $result['assets']);
 	}
 
 	/**

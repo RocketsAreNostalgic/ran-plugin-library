@@ -37,7 +37,15 @@ use Ran\PluginLib\Util\Logger;
  */
 trait AssetEnqueueBaseTrait {
 	/**
-	 * Holds all general asset definitions.
+	 * Holds all asset definitions registered by this plugin/theme.
+	 *
+	 * This array contains all script / style assets that have been registered
+	 * via the add_asset() method. Each asset is an array with keys for 'handle',
+	 * 'src', 'deps', 'ver', and type-specific properties.
+	 *
+	 * After stage() is called, this array will contain ONLY immediate assets
+	 * (those without a 'hook' property) that were successfully registered. All
+	 * deferred assets are moved to the $deferred_assets array.
 	 *
 	 * @var array<string, array<int, array<string, mixed>>>
 	 */
@@ -45,20 +53,20 @@ trait AssetEnqueueBaseTrait {
 
 	/**
 	 * Array of assets to be loaded at specific WordPress action hooks, grouped by priority.
+	 * These are assets that will be deferred and enqueued only when their specified hook fires.
+	 *
+	 * This array is populated by the stage() method, which moves all assets with a 'hook' property
+	 * from the $assets array. WordPress actions are registered for each hook to handle these assets
+	 * at the appropriate time. After the hook is fired, the asset refrence is removed from this array.
 	 *
 	 * @var array<string, array<string, array<int, array<int, array<string, mixed>>>>>
 	 */
 	protected array $deferred_assets = array();
 
 	/**
-	 * Array of inline assets associated with assets registered by the developer using add_asset.
-	 *
-	 * @var array<string, array<string, array<int, array<string, mixed>>>>
-	 */
-	protected array $inline_assets = array();
-
-	/**
-	 * Array of inline assets for external handles, keyed by hook.
+	 * Array of inline assets (CSS/JS code snippets) for external handles, keyed by hook.
+	 * These are for attaching inline code to assets registered by WordPress core, other plugins, or themes.
+	 * Organized by hook to control when they're processed in the WordPress lifecycle.
 	 *
 	 * @var array<string, array<string, array<int, array<string, mixed>>>>
 	 */
@@ -67,13 +75,23 @@ trait AssetEnqueueBaseTrait {
 	/**
 	 * Tracks which hooks have had an action registered for external inline assets.
 	 *
+	 * This property is used to prevent duplicate action registrations for the same hook.
+	 * It is only used during the registration phase and is not referenced for any logic afterward.
+	 * The key is the hook name and the value is set to true once an action is registered.
+	 *
 	 * @var array<string, array<string, bool>>
 	 */
 	protected array $registered_external_hooks = array();
 
-    /**
+	/**
 	 * Holds all registered hooks.
-	 * @deprecated - functionality not required due to stage() and hook processing
+	 *
+	 * This property is used to track which hook+priority combinations have already
+	 * had WordPress actions registered. It acts as a simple boolean flag to prevent
+	 * duplicate action registrations. The key format is '{hook_name}_{priority}' and
+	 * the value is set to true once an action is registered. This property is only used
+	 * during the registration phase and is not referenced for any logic afterward.
+	 *
 	 * @var array<string, array<int, array<string, mixed>>>
 	 */
 	protected array $registered_hooks = array();
@@ -117,14 +135,15 @@ trait AssetEnqueueBaseTrait {
 	/**
 	 * Retrieves the currently registered array of asset definitions.
 	 *
-	 * @return array<string, array> An associative array of asset definitions, keyed by 'general', 'deferred', and 'external_inline'.
+	 * @return array<string, array> An associative array of asset definitions, keyed by 'assets', 'deferred', and 'external_inline'.
 	 */
 	public function get_assets(): array {
 		return array(
-			'general'         => $this->assets                 ?? array(),
-			'inline'          => $this->inline_assets          ?? array(),
-			'deferred'        => $this->deferred_assets        ?? array(),
-			'external_inline' => $this->external_inline_assets ?? array(),
+			'assets'                  => $this->assets                    ?? array(),
+			'deferred'                => $this->deferred_assets           ?? array(),
+			'external_inline'         => $this->external_inline_assets    ?? array(),
+            'hooks'          => $this->registered_hooks          ?? array(),
+            'external_hooks' => $this->registered_external_hooks ?? array(),
 		);
 	}
 
@@ -148,7 +167,7 @@ trait AssetEnqueueBaseTrait {
 		$hooks = array();
 
 		// Check for hooks in the main assets array for the given type.
-		foreach ( ($this->assets['general'] ?? array()) as $asset ) {
+		foreach ( ($this->assets['assets'] ?? array()) as $asset ) {
 			if ( ! empty( $asset['hook'] ) ) {
 				$hooks[] = $asset['hook'];
 			}
@@ -526,12 +545,12 @@ trait AssetEnqueueBaseTrait {
 				$asset_type,
 				$parent_handle,
 				$hook_name,
-				$context
+				'external'
 			);
 		}
 
-		// Remove the processed assets for this hook from the queue.
-		unset( $this->external_inline_assets[ $hook_name ] );
+		// Note: We don't need to remove processed assets here as the _process_external_inline_assets method
+		// already handles cleanup of the $external_inline_assets array
 
 		if ( $logger->is_active() ) {
 			$logger->debug("{$context} - Finished processing for hook '{$hook_name}'.");
@@ -539,8 +558,11 @@ trait AssetEnqueueBaseTrait {
 	}
 
 	/**
-	 * Concrete implementation for processing inline assets associated with a specific parent asset handle and hook context.
+	 * Process inline assets for a parent asset.
+	 *
+	 * Process inline assets associated with a specific parent asset handle and hook context.
 	 * This method handles both script and style inline assets with appropriate conditional logic.
+	 * It processes inline assets from their actual storage locations: $assets, $deferred_assets, or $external_inline_assets.
 	 *
 	 * @param AssetType   $asset_type        The type of asset (script or style).
 	 * @param string      $parent_handle     The handle of the parent asset.
@@ -557,93 +579,49 @@ trait AssetEnqueueBaseTrait {
 		$logger  = $this->get_logger();
 		$context = get_class($this) . '::' . __METHOD__ . " (context: {$processing_context}) - ";
 
-		$logger->debug( "{$context}Checking for inline {$asset_type->value}s for parent {$asset_type->value} '{$parent_handle}'" . ($hook_name ? " on hook '{$hook_name}'." : '.') );
+		$logger->debug("{$context}Checking for inline {$asset_type->value}s for parent {$asset_type->value} '{$parent_handle}'" . ($hook_name ? " on hook '{$hook_name}'." : '.'));
 
-		// Check if the parent asset is registered or enqueued before processing its inline assets.
+		// Check if the parent asset is registered or enqueued before processing its inline assets
 		$is_registered_function = $asset_type === AssetType::Script ? 'wp_script_is' : 'wp_style_is';
-		if ( ! $is_registered_function( $parent_handle, 'registered' ) && ! $is_registered_function( $parent_handle, 'enqueued' ) ) {
-			$logger->error( "{$context}Cannot add inline {$asset_type->value}s. Parent {$asset_type->value} '{$parent_handle}' is not registered or enqueued." );
+		if (!$is_registered_function($parent_handle, 'registered') && !$is_registered_function($parent_handle, 'enqueued')) {
+			$logger->error("{$context}Cannot add inline {$asset_type->value}s. Parent {$asset_type->value} '{$parent_handle}' is not registered or enqueued.");
 			return;
 		}
 
-		$keys_to_unset          = array();
-		$inline_assets_for_type = $this->inline_assets ?? array();
+		$processed_count = 0;
 
-		foreach ( $inline_assets_for_type as $key => $inline_asset_data ) {
-			if (!is_array($inline_asset_data)) {
-				$logger->warning("{$context}Invalid inline {$asset_type->value} data at key '{$key}'. Skipping.");
-				continue;
-			}
-
-			$inline_target_handle = $inline_asset_data['handle']      ?? null;
-			$inline_parent_hook   = $inline_asset_data['parent_hook'] ?? null;
-			$is_match             = false;
-
-			if ( $inline_target_handle === $parent_handle ) {
-				if ( $hook_name ) { // Deferred context
-					if ( $inline_parent_hook === $hook_name ) {
-						$is_match = true;
-					}
-				} else { // Immediate context
-					if ( empty( $inline_parent_hook ) ) {
-						$is_match = true;
-					}
-				}
-			}
-
-			if ( $is_match ) {
-				$content          = $inline_asset_data['content']   ?? '';
-				$condition_inline = $inline_asset_data['condition'] ?? null;
-
-				// Position is only applicable for scripts
-				$position = $asset_type === AssetType::Script
-					? ($inline_asset_data['position'] ?? 'after')
-					: null;
-
-				if ( is_callable( $condition_inline ) && ! $condition_inline() ) {
-					$logger->debug( "{$context}Condition false for inline {$asset_type->value} targeting '{$parent_handle}' (key: {$key})" . ($hook_name ? " on hook '{$hook_name}'." : '.') );
-					$keys_to_unset[] = $key;
-					continue;
-				}
-
-				if ( empty( $content ) ) {
-					$logger->warning( "{$context}Empty content for inline {$asset_type->value} targeting '{$parent_handle}'" . ($hook_name ? " on hook '{$hook_name}'." : '.') . ' Skipping addition.' );
-					$keys_to_unset[] = $key;
-					continue;
-				}
-
-				$logger->debug( "{$context}Adding inline {$asset_type->value} for '{$parent_handle}' (key: {$key}" .
-					($asset_type === AssetType::Script ? ", position: {$position}" : '') . ')' .
-					($hook_name ? " on hook '{$hook_name}'." : '.') );
-
-				$add_inline_function = $asset_type === AssetType::Script ? 'wp_add_inline_script' : 'wp_add_inline_style';
-				$result              = $asset_type === AssetType::Script
-					? $add_inline_function($parent_handle, $content, $position)
-					: $add_inline_function($parent_handle, $content);
-
-				if ($result) {
-					$logger->debug("{$context}Successfully added inline {$asset_type->value} for '{$parent_handle}' with {$add_inline_function}.");
-				} else {
-					$logger->warning("{$context}Failed to add inline {$asset_type->value} for '{$parent_handle}' with {$add_inline_function}, key {$key} will be removed from queue.");
-				}
-				$keys_to_unset[] = $key;
-			}
+		// Case 1: Check for external inline assets
+		if ($hook_name && isset($this->external_inline_assets[$hook_name][$parent_handle])) {
+			$processed_count += $this->_process_external_inline_assets(
+				$asset_type,
+				$parent_handle,
+				$hook_name,
+				$context
+			);
+		}
+		// Case 2: Check for immediate assets
+		elseif (!$hook_name) {
+			$processed_count += $this->_process_immediate_inline_assets(
+				$asset_type,
+				$parent_handle,
+				$context
+			);
+		}
+		// Case 3: Check for deferred assets
+		else {
+			$processed_count += $this->_process_deferred_inline_assets(
+				$asset_type,
+				$parent_handle,
+				$hook_name,
+				$context
+			);
 		}
 
-		if ( ! empty( $keys_to_unset ) ) {
-			foreach ( $keys_to_unset as $key_to_unset ) {
-				if (isset($this->inline_assets[$key_to_unset])) {
-					$removed_handle_for_log = $this->inline_assets[$key_to_unset]['handle'] ?? 'N/A';
-					unset( $this->inline_assets[ $key_to_unset ] );
-					$logger->debug( "{$context}Removed processed inline {$asset_type->value} with key '{$key_to_unset}' for handle '{$removed_handle_for_log}'" . ($hook_name ? " on hook '{$hook_name}'." : '.') );
-				}
-			}
-			// Re-index the array to prevent issues with numeric keys after unsetting.
-			$this->inline_assets = array_values( $this->inline_assets );
-		} else {
-			$logger->debug( "{$context}No inline {$asset_type->value} found or processed for '{$parent_handle}'" . ($hook_name ? " on hook '{$hook_name}'." : '.') );
+		if ($processed_count === 0) {
+			$logger->debug("{$context}No inline {$asset_type->value} found or processed for '{$parent_handle}'" . ($hook_name ? " on hook '{$hook_name}'." : '.'));
 		}
 	}
+
 
 	/**
 	 * Process a single asset (script or style) with common handling logic.
@@ -1285,5 +1263,220 @@ trait AssetEnqueueBaseTrait {
 	 */
 	protected function _do_add_action( string $hook, callable $callback, int $priority = 10, int $accepted_args = 1 ): void {
 		add_action( $hook, $callback, $priority, $accepted_args );
+	}
+	/**
+	 * Process external inline assets for a specific parent handle and hook.
+	 *
+	 * @param AssetType $asset_type    The type of asset (script or style).
+	 * @param string    $parent_handle The handle of the parent asset.
+	 * @param string    $hook_name     The hook name.
+	 * @param string    $context       Context for logging.
+	 * @return int Number of processed assets.
+	 */
+	private function _process_external_inline_assets(
+		AssetType $asset_type,
+		string $parent_handle,
+		string $hook_name,
+		string $context
+	): int {
+		$logger          = $this->get_logger();
+		$processed_count = 0;
+
+		if (!isset($this->external_inline_assets[$hook_name][$parent_handle])) {
+			return $processed_count;
+		}
+
+		$inline_assets = $this->external_inline_assets[$hook_name][$parent_handle];
+
+		foreach ($inline_assets as $key => $inline_asset) {
+			$content   = $inline_asset['content']   ?? '';
+			$condition = $inline_asset['condition'] ?? null;
+			$position  = $asset_type === AssetType::Script ? ($inline_asset['position'] ?? 'after') : null;
+
+			// Skip if condition is false
+			if (is_callable($condition) && !$condition()) {
+				$logger->debug("{$context}Condition false for external inline {$asset_type->value} targeting '{$parent_handle}'");
+				continue;
+			}
+
+			// Skip if content is empty
+			if (empty($content)) {
+				$logger->warning("{$context}Empty content for external inline {$asset_type->value} targeting '{$parent_handle}'. Skipping.");
+				continue;
+			}
+
+			$logger->debug("{$context}Adding external inline {$asset_type->value} for '{$parent_handle}'" .
+				($asset_type === AssetType::Script ? ", position: {$position}" : ''));
+
+			$add_inline_function = $asset_type === AssetType::Script ? 'wp_add_inline_script' : 'wp_add_inline_style';
+			$result              = $asset_type === AssetType::Script
+				? $add_inline_function($parent_handle, $content, $position)
+				: $add_inline_function($parent_handle, $content);
+
+			if ($result) {
+				$logger->debug("{$context}Successfully added external inline {$asset_type->value} for '{$parent_handle}'.");
+				$processed_count++;
+			} else {
+				$logger->warning("{$context}Failed to add external inline {$asset_type->value} for '{$parent_handle}'.");
+			}
+		}
+
+		// Remove all processed assets for this handle
+		unset($this->external_inline_assets[$hook_name][$parent_handle]);
+
+		// Clean up empty hook entries
+		if (empty($this->external_inline_assets[$hook_name])) {
+			unset($this->external_inline_assets[$hook_name]);
+		}
+
+		return $processed_count;
+	}
+
+	/**
+	 * Process immediate inline assets for a specific parent handle.
+	 *
+	 * @param AssetType $asset_type    The type of asset (script or style).
+	 * @param string    $parent_handle The handle of the parent asset.
+	 * @param string    $context       Context for logging.
+	 * @return int Number of processed assets.
+	 */
+	private function _process_immediate_inline_assets(
+		AssetType $asset_type,
+		string $parent_handle,
+		string $context
+	): int {
+		$logger          = $this->get_logger();
+		$processed_count = 0;
+
+		// Find the parent asset in the assets array
+		foreach ($this->assets as $key => $asset) {
+			if ($asset['handle'] === $parent_handle && $asset['type'] === $asset_type) {
+				// Check if this asset has inline assets
+				if (!empty($asset['inline'])) {
+					$logger->debug("{$context}Found immediate inline {$asset_type->value}s for '{$parent_handle}'.");
+
+					// Process each inline asset
+					foreach ($asset['inline'] as $inline_key => $inline_asset) {
+						$content   = $inline_asset['content']   ?? '';
+						$condition = $inline_asset['condition'] ?? null;
+						$position  = $asset_type === AssetType::Script ? ($inline_asset['position'] ?? 'after') : null;
+
+						// Skip if condition is false
+						if (is_callable($condition) && !$condition()) {
+							$logger->debug("{$context}Condition false for immediate inline {$asset_type->value} targeting '{$parent_handle}'");
+							continue;
+						}
+
+						// Skip if content is empty
+						if (empty($content)) {
+							$logger->warning("{$context}Empty content for immediate inline {$asset_type->value} targeting '{$parent_handle}'. Skipping.");
+							continue;
+						}
+
+						$logger->debug("{$context}Adding immediate inline {$asset_type->value} for '{$parent_handle}'" .
+							($asset_type === AssetType::Script ? ", position: {$position}" : ''));
+
+						$add_inline_function = $asset_type === AssetType::Script ? 'wp_add_inline_script' : 'wp_add_inline_style';
+						$result              = $asset_type === AssetType::Script
+							? $add_inline_function($parent_handle, $content, $position)
+							: $add_inline_function($parent_handle, $content);
+
+						if ($result) {
+							$logger->debug("{$context}Successfully added immediate inline {$asset_type->value} for '{$parent_handle}'.");
+							$processed_count++;
+						} else {
+							$logger->warning("{$context}Failed to add immediate inline {$asset_type->value} for '{$parent_handle}'.");
+						}
+					}
+
+					// Remove all processed inline assets
+					unset($this->assets[$key]['inline']);
+				}
+
+				// We found the asset, no need to continue searching
+				break;
+			}
+		}
+
+		return $processed_count;
+	}
+
+	/**
+	 * Process deferred inline assets for a specific parent handle and hook.
+	 *
+	 * @param AssetType $asset_type    The type of asset (script or style).
+	 * @param string    $parent_handle The handle of the parent asset.
+	 * @param string    $hook_name     The hook name.
+	 * @param string    $context       Context for logging.
+	 * @return int Number of processed assets.
+	 */
+	private function _process_deferred_inline_assets(
+		AssetType $asset_type,
+		string $parent_handle,
+		string $hook_name,
+		string $context
+	): int {
+		$logger          = $this->get_logger();
+		$processed_count = 0;
+
+		// Check if we have deferred assets for this hook
+		if (!isset($this->deferred_assets[$hook_name])) {
+			return $processed_count;
+		}
+
+		// Look through all priorities for this hook
+		foreach ($this->deferred_assets[$hook_name] as $priority => $assets_by_priority) {
+			// Look for the specific asset by handle
+			foreach ($assets_by_priority as $key => $asset) {
+				if ($asset['handle'] === $parent_handle && $asset['type'] === $asset_type) {
+					// Check if this asset has inline assets
+					if (!empty($asset['inline'])) {
+						$logger->debug("{$context}Found deferred inline {$asset_type->value}s for '{$parent_handle}' on hook '{$hook_name}' priority {$priority}.");
+
+						// Process each inline asset
+						foreach ($asset['inline'] as $inline_key => $inline_asset) {
+							$content   = $inline_asset['content']   ?? '';
+							$condition = $inline_asset['condition'] ?? null;
+							$position  = $asset_type === AssetType::Script ? ($inline_asset['position'] ?? 'after') : null;
+
+							// Skip if condition is false
+							if (is_callable($condition) && !$condition()) {
+								$logger->debug("{$context}Condition false for deferred inline {$asset_type->value} targeting '{$parent_handle}'");
+								continue;
+							}
+
+							// Skip if content is empty
+							if (empty($content)) {
+								$logger->warning("{$context}Empty content for deferred inline {$asset_type->value} targeting '{$parent_handle}'. Skipping.");
+								continue;
+							}
+
+							$logger->debug("{$context}Adding deferred inline {$asset_type->value} for '{$parent_handle}'" .
+								($asset_type === AssetType::Script ? ", position: {$position}" : ''));
+
+							$add_inline_function = $asset_type === AssetType::Script ? 'wp_add_inline_script' : 'wp_add_inline_style';
+							$result              = $asset_type === AssetType::Script
+								? $add_inline_function($parent_handle, $content, $position)
+								: $add_inline_function($parent_handle, $content);
+
+							if ($result) {
+								$logger->debug("{$context}Successfully added deferred inline {$asset_type->value} for '{$parent_handle}'.");
+								$processed_count++;
+							} else {
+								$logger->warning("{$context}Failed to add deferred inline {$asset_type->value} for '{$parent_handle}'.");
+							}
+						}
+
+						// Remove all processed inline assets
+						unset($this->deferred_assets[$hook_name][$priority][$key]['inline']);
+					}
+
+					// We found the asset, no need to continue searching in this priority
+					break;
+				}
+			}
+		}
+
+		return $processed_count;
 	}
 }
