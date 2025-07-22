@@ -133,11 +133,11 @@ trait AssetEnqueueBaseTrait {
 	}
 
 	/**
-	 * Retrieves the currently registered array of asset definitions.
+	 * Retrieves the currently registered array of asset definitions and registered hooks.
 	 *
-	 * @return array<string, array> An associative array of asset definitions, keyed by 'assets', 'deferred', and 'external_inline'.
+	 * @return array<string, array> An associative array of asset definitions and registered hooks.
 	 */
-	public function get_assets(): array {
+	public function get_assets_info(): array {
 		return array(
 			'assets'                  => $this->assets                    ?? array(),
 			'deferred'                => $this->deferred_assets           ?? array(),

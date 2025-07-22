@@ -39,8 +39,8 @@ trait ScriptsEnqueueTrait {
 	 *
 	 * @return array<string, array> An associative array of script definitions, keyed by 'assets', 'deferred', and 'inline'.
 	 */
-	public function get() {
-		return $this->get_assets($this->_get_asset_type());
+	public function get_info() {
+		return $this->get_assets_info($this->_get_asset_type());
 	}
 
 	/**

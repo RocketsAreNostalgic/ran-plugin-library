@@ -93,7 +93,7 @@ class StylesEnqueueTraitTest extends EnqueueTraitTestCase {
 		$this->instance->add($asset_to_add);
 
 		// Assert
-		$styles = $this->instance->get();
+		$styles = $this->instance->get_info();
 		$this->assertCount(1, $styles['assets']);
 		$this->assertEquals('my-asset', $styles['assets'][0]['handle']);
 	}
@@ -195,7 +195,7 @@ class StylesEnqueueTraitTest extends EnqueueTraitTestCase {
 		$this->instance->enqueue_immediate();
 
 		// Assert
-		$styles = $this->instance->get();
+		$styles = $this->instance->get_info();
 		$this->assertEmpty($styles['assets'], 'The general queue should be empty after enqueuing.');
 	}
 
@@ -257,7 +257,7 @@ class StylesEnqueueTraitTest extends EnqueueTraitTestCase {
 		$this->instance->add_inline($inline_asset);
 
 		// Assert that the inline data was added to the parent asset
-		$styles = $this->instance->get();
+		$styles = $this->instance->get_info();
 		$this->assertCount(1, $styles['assets']);
 		$this->assertArrayHasKey('inline', $styles['assets'][0]);
 		$this->assertCount(1, $styles['assets'][0]['inline']);
@@ -1199,7 +1199,7 @@ class StylesEnqueueTraitTest extends EnqueueTraitTestCase {
 		$instance->add($asset_definition);
 
 		// Get the styles to verify the asset was added correctly
-		$styles = $instance->get();
+		$styles = $instance->get_info();
 
 		// Verify the asset was added with inline CSS
 		$this->assertArrayHasKey('assets', $styles);
@@ -1274,7 +1274,7 @@ class StylesEnqueueTraitTest extends EnqueueTraitTestCase {
 		));
 
 		// Get the styles to verify the inline CSS was added correctly
-		$styles = $instance->get();
+		$styles = $instance->get_info();
 
 		// Verify the inline CSS was added to the parent asset
 		$this->assertArrayHasKey('assets', $styles);
@@ -1346,7 +1346,7 @@ class StylesEnqueueTraitTest extends EnqueueTraitTestCase {
 		$instance->add($asset_definition);
 
 		// Get the styles to verify the deferred asset was added correctly
-		$styles = $instance->get();
+		$styles = $instance->get_info();
 
 		// Verify the deferred asset was added with inline CSS
 		$this->assertArrayHasKey('deferred', $styles);
@@ -1363,7 +1363,7 @@ class StylesEnqueueTraitTest extends EnqueueTraitTestCase {
 		$method->invoke($instance, $hook, $priority);
 
 		// Get the styles again to verify the deferred asset was processed
-		$styles = $instance->get();
+		$styles = $instance->get_info();
 
 		// After processing, the deferred assets array may be empty or the hook key may not exist
 		// The important verification is that wp_add_inline_style was called with the correct

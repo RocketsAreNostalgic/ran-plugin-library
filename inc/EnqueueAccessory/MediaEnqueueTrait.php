@@ -56,7 +56,7 @@ trait MediaEnqueueTrait {
 	 * @return array<string, array<int, mixed>> The registered media tool configurations,
 	 *                                            separated into 'assets' and 'deferred'.
 	 */
-	public function get(): array {
+	public function get_info(): array {
 		return array(
 			'assets'   => $this->media_tool_configs,
 			'deferred' => $this->deferred_media_tool_configs,

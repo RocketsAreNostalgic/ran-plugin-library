@@ -192,7 +192,7 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 		$this->instance->add($asset_to_add);
 
 		// Assert
-		$scripts = $this->instance->get();
+		$scripts = $this->instance->get_info();
 		// The array structure may vary in the test environment, so we don't assert count
 		$this->assertEquals('my-asset', $scripts['assets'][0]['handle']);
 	}
@@ -201,7 +201,7 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 	 * @test
 	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::add
 	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::add_assets
-	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::get_assets
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::get_assets_info
 	 */
 	public function test_add_scripts_should_store_assets_correctly(): void {
 		// --- Test Setup ---
@@ -239,8 +239,8 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 			'add() should be chainable and return an instance of the class.'
 		);
 
-		// get the results of get() and check that it contains the assets we added
-		$assets = $this->instance->get();
+		// get the results of get_info() and check that it contains the assets we added
+		$assets = $this->instance->get_info();
 		$this->assertArrayHasKey('assets', $assets);
 		$this->assertArrayHasKey('deferred', $assets);
 		$this->assertArrayHasKey('external_inline', $assets);
@@ -263,7 +263,7 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 		$this->assertSame($this->instance, $result);
 
 		// Assert that the scripts array remains empty
-		$assets = $this->instance->get();
+		$assets = $this->instance->get_info();
 		$this->assertEmpty($assets['assets']);
 		$this->assertEmpty($assets['deferred']);
 		$this->assertEmpty($assets['external_inline']);
@@ -330,7 +330,7 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 		$this->expectLog('debug', array('add_', 'All current', 'single-asset'));
 
 		// Assert that the asset was added
-		$assets = $this->instance->get();
+		$assets = $this->instance->get_info();
 		$this->assertCount(1, $assets['assets']);
 		$this->assertEquals('single-asset', $assets['assets'][0]['handle']);
 	}
@@ -380,7 +380,7 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 		$this->expectLog('debug', array('_process_single_', 'Condition not met for', "'{$handle}'. Skipping."), 1);
 		$this->expectLog('debug', array('stage_', 'Exited. Remaining immediate', '0. Total deferred', '0.'), 1);
 
-		$assets = $this->instance->get();
+		$assets = $this->instance->get_info();
 		$this->assertEmpty($assets['assets'], 'The general queue should be empty.');
 		$this->assertEmpty($assets['deferred'], 'The deferred queue should be empty.');
 		$this->assertEmpty($assets['external_inline'], 'The external_inline queue should be empty.');
@@ -479,7 +479,7 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 		$this->instance->enqueue_immediate();
 
 		// Assert that the asset has been removed from the queue after registration.
-		$scripts = $this->instance->get();
+		$scripts = $this->instance->get_info();
 		$this->assertEmpty($scripts['assets'], 'The general scripts queue should be empty after registration.');
 
 		// Assert that the registered asset has indeed been registered with WP.
@@ -526,7 +526,7 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 		$this->instance->stage();
 
 		// Assert
-		$assets = $this->instance->get();
+		$assets = $this->instance->get_info();
 
 		// With flattened structure, check if hook exists directly in deferred assets
 		$deferred_assets = $this->get_protected_property_value($this->instance, 'deferred_assets');
@@ -540,7 +540,7 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 		$this->assertEquals('asset-prio-10', $deferred_assets[$multi_priority_hook_name][10][0]['handle']);
 
 		// Assert that the main assets queue is empty as the asset was deferred
-		$main_assets = $this->instance->get();
+		$main_assets = $this->instance->get_info();
 		$this->assertEmpty($main_assets['assets']);
 	}
 
@@ -576,7 +576,7 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 		$this->assertEquals('my-deferred-script', $deferred_assets_value['wp_enqueue_scripts'][10][0]['handle']);
 
 		// Assert that the main assets queue is empty as the asset was deferred
-		$main_assets = $this->instance->get();
+		$main_assets = $this->instance->get_info();
 		$this->assertEmpty($main_assets['assets']);
 	}
 
@@ -640,7 +640,7 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 		$deferred_assets_prop->setValue($this->instance, array($hook_name => array(10 => array())));
 
 		// Assert: Verify the internal state has the hook.
-		$assets = $this->instance->get();
+		$assets = $this->instance->get_info();
 		$this->assertArrayHasKey($hook_name, $assets['deferred'], 'The hook should be in the deferred assets.');
 
 		// Act: Call the public method that would be triggered by the WordPress hook.
@@ -653,7 +653,7 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 		// a 'not found in deferred' message in this scenario, so we don't assert for it
 
 		// Assert: Verify the internal state has the hook cleared.
-		$assets = $this->instance->get();
+		$assets = $this->instance->get_info();
 
 		$this->assertArrayNotHasKey($hook_name, $assets['deferred'], 'The hook should be cleared from deferred assets.');
 	}
@@ -709,7 +709,7 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 		$this->expectLog('debug', array('_enqueue_deferred_', "Processing deferred asset 'asset-prio-10'"), 1);
 
 		// Assert that the priority 10 assets are gone, but priority 20 remains.
-		$assets = $this->instance->get();
+		$assets = $this->instance->get_info();
 		$this->assertArrayHasKey($hook_name, $assets['deferred'], 'Hook key should still exist.');
 		$this->assertArrayNotHasKey(10, $assets['deferred'][$hook_name], 'Priority 10 key should be removed.');
 		$this->assertArrayHasKey(20, $assets['deferred'][$hook_name], 'Priority 20 key should still exist.');
@@ -766,7 +766,7 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 		$this->expectLog('debug', array('add_inline_', 'Entered. Current', 'count: 0', 'Adding 1 new'), 1);
 
 		// Verify the internal state.
-		$assets = $this->instance->get();
+		$assets = $this->instance->get_info();
 
 		// Assert: Verify the inline data was attached to the parent script definition in the pre-registration queue.
 		$this->assertCount(0, $assets['external_inline'], 'external_inline should be empty.');
@@ -817,7 +817,7 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 		$this->expectLog('debug', array('add_inline_', 'Entered. Current', 'count: 0', 'Adding 1 new'), 1);
 
 		// Verify the internal state.
-		$assets = $this->instance->get();
+		$assets = $this->instance->get_info();
 
 		// Assert: Verify the inline data was attached to the parent script definition in the pre-registration queue.
 		$this->assertCount(0, $assets['external_inline'], 'external_inline should be empty.');
@@ -847,7 +847,7 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 		));
 
 		// Assert that the script was added to the external_inline queue.
-		$assets = $this->instance->get();
+		$assets = $this->instance->get_info();
 		$this->assertArrayHasKey($external_handle, $assets['external_inline']['wp_enqueue_scripts']);
 		$this->assertCount(1, $assets['external_inline']['wp_enqueue_scripts']);
 		$this->assertEquals($inline_script_data, $assets['external_inline']['wp_enqueue_scripts'][$external_handle][0]['content']);
@@ -874,7 +874,7 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 		$this->instance->add_inline($inline_asset);
 
 		// Assert that the inline data was added to the parent asset
-		$scripts = $this->instance->get();
+		$scripts = $this->instance->get_info();
 		// The array structure may vary in the test environment, so we don't assert count
 		$this->assertArrayHasKey('inline', $scripts['assets'][0]);
 		$this->assertCount(1, $scripts['assets'][0]['inline']);
@@ -1478,7 +1478,7 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 		$instance->add($asset_definition);
 
 		// Get the scripts to verify the asset was added correctly
-		$scripts = $instance->get();
+		$scripts = $instance->get_info();
 
 		// Verify the asset was added with inline JS
 		$this->assertArrayHasKey('assets', $scripts);
@@ -1501,7 +1501,7 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 		$instance->enqueue_immediate();
 
 		// Get the scripts again to verify the inline JS was processed
-		$scripts = $instance->get();
+		$scripts = $instance->get_info();
 
 		// Verify the asset still exists
 		$this->assertArrayHasKey('assets', $scripts);
@@ -1566,7 +1566,7 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 		));
 
 		// Get the scripts to verify the inline JS was added correctly
-		$scripts = $instance->get();
+		$scripts = $instance->get_info();
 
 		// Verify the inline JS was added to the parent asset
 		$this->assertArrayHasKey('assets', $scripts);
@@ -1589,7 +1589,7 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 		$instance->enqueue_immediate();
 
 		// Get the scripts again to verify the inline JS was processed
-		$scripts = $instance->get();
+		$scripts = $instance->get_info();
 
 		// Verify the asset still exists
 		$this->assertArrayHasKey('assets', $scripts);
@@ -1653,7 +1653,7 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 		$instance->add($asset_definition);
 
 		// Get the scripts to verify the deferred asset was added correctly
-		$scripts = $instance->get();
+		$scripts = $instance->get_info();
 
 		// Verify the deferred asset was added with inline JS
 		$this->assertArrayHasKey('deferred', $scripts);
@@ -1676,7 +1676,7 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 		$method->invoke($instance, $hook, $priority);
 
 		// Get the scripts again to verify the deferred asset was processed
-		$scripts = $instance->get();
+		$scripts = $instance->get_info();
 
 		// In the test environment with mocked functions, the deferred asset structure
 		// may still exist after processing. This is acceptable for testing purposes.
