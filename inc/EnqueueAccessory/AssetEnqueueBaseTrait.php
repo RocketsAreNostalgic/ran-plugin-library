@@ -24,8 +24,9 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\EnqueueAccessory;
 
-use Ran\PluginLib\EnqueueAccessory\AssetType;
 use Ran\PluginLib\Util\Logger;
+use Ran\PluginLib\EnqueueAccessory\AssetType;
+use Ran\PluginLib\EnqueueAccessory\WPWrappersTrait;
 
 /**
  * Trait AssetEnqueueBaseTrait
@@ -36,6 +37,8 @@ use Ran\PluginLib\Util\Logger;
  * @package Ran\PluginLib\EnqueueAccessory
  */
 trait AssetEnqueueBaseTrait {
+	use WPWrappersTrait;
+
 	/**
 	 * Holds all asset definitions registered by this plugin/theme.
 	 *
@@ -506,7 +509,7 @@ trait AssetEnqueueBaseTrait {
 		// Register the action to enqueue the external inline assets, but only once per hook.
 		if ( ! isset( $this->registered_external_hooks[$hook] ) ) {
 			$enqueue_method = 'enqueue_external_inline_' . $asset_type->value . 's';
-			add_action( $hook, array( $this, $enqueue_method ), 11 );
+			$this->_do_add_action( $hook, array( $this, $enqueue_method ), 11 );
 			$this->registered_external_hooks[$hook] = true;
 		}
 	}
@@ -1237,33 +1240,6 @@ trait AssetEnqueueBaseTrait {
 		}
 	}
 
-	/**
-	 * Wrapper for the global add_filter function to allow for easier mocking in tests.
-	 *
-	 * @param string   $hook          The name of the filter to hook the $callback to.
-	 * @param callable $callback      The callback to be run when the filter is applied.
-	 * @param int      $priority      Used to specify the order in which the functions
-	 *                                associated with a particular action are executed.
-	 * @param int      $accepted_args The number of arguments the function accepts.
-	 * @return void
-	 */
-	protected function _do_add_filter(string $hook, callable $callback, int $priority, int $accepted_args): void {
-		add_filter($hook, $callback, $priority, $accepted_args);
-	}
-
-	/**
-	 * Wraps the global add_action function to allow for easier mocking in tests.
-	 *
-	 * @param string   $hook          The name of the action to which the $function_to_add is hooked.
-	 * @param callable $callback      The name of the function you wish to be called.
-	 * @param int      $priority      Optional. Used to specify the order in which the functions
-	 *                                associated with a particular action are executed. Default 10.
-	 * @param int      $accepted_args Optional. The number of arguments the function accepts. Default 1.
-	 * @return void
-	 */
-	protected function _do_add_action( string $hook, callable $callback, int $priority = 10, int $accepted_args = 1 ): void {
-		add_action( $hook, $callback, $priority, $accepted_args );
-	}
 	/**
 	 * Process external inline assets for a specific parent handle and hook.
 	 *

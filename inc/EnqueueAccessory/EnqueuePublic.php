@@ -11,6 +11,7 @@ namespace Ran\PluginLib\EnqueueAccessory;
 
 use Ran\PluginLib\Util\Logger;
 use Ran\PluginLib\Config\ConfigInterface;
+use Ran\PluginLib\EnqueueAccessory\WPWrappersTrait;
 use Ran\PluginLib\EnqueueAccessory\EnqueueInterface;
 
 /**
@@ -20,6 +21,8 @@ use Ran\PluginLib\EnqueueAccessory\EnqueueInterface;
  * @package Ran\PluginLib\EnqueueAccessory
  */
 class EnqueuePublic implements EnqueueInterface {
+	use WPWrappersTrait;
+
 	private ScriptsHandler $scripts_handler;
 	private StylesHandler $styles_handler;
 	private MediaHandler $media_handler;
@@ -68,7 +71,7 @@ class EnqueuePublic implements EnqueueInterface {
 		if ($this->logger->is_active()) {
 			$this->logger->debug("{$context} - Hooking stage() to wp_enqueue_scripts.");
 		}
-		add_action('wp_enqueue_scripts', array($this, 'stage'));
+		$this->_do_add_action('wp_enqueue_scripts', array($this, 'stage'));
 	}
 
 	public function stage(): void {
