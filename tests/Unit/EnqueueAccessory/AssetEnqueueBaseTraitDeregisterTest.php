@@ -51,6 +51,16 @@ class AssetEnqueueTraitBaseTraitDeregisterTest extends EnqueueTraitTestCase {
 
 		// Add script-specific mocks that were not generic enough for the base class.
 		WP_Mock::userFunction('wp_enqueue_script')->withAnyArgs()->andReturn(true)->byDefault();
+
+		// Add WordPress deregistration function mocks
+		WP_Mock::userFunction('wp_dequeue_script')->withAnyArgs()->andReturn(true)->byDefault();
+		WP_Mock::userFunction('wp_deregister_script')->withAnyArgs()->andReturn(true)->byDefault();
+		WP_Mock::userFunction('wp_dequeue_style')->withAnyArgs()->andReturn(true)->byDefault();
+		WP_Mock::userFunction('wp_deregister_style')->withAnyArgs()->andReturn(true)->byDefault();
+
+		// Add WordPress asset status check mocks
+		WP_Mock::userFunction('wp_script_is')->withAnyArgs()->andReturn(false)->byDefault();
+		WP_Mock::userFunction('wp_style_is')->withAnyArgs()->andReturn(false)->byDefault();
 	}
 
 	/**
@@ -2158,5 +2168,244 @@ class AssetEnqueueTraitBaseTraitDeregisterTest extends EnqueueTraitTestCase {
 		$this->expectLog('warning', "{$expected_context} - Invalid input type at index 2. Expected string or array, got array.", 1);
 		$this->expectLog('warning', "{$expected_context} - Invalid input type at index 3. Expected string or array, got array.", 1);
 		$this->expectLog('warning', "{$expected_context} - Invalid input type at index 4. Expected string or array, got array.", 1);
+	}
+
+	// ------------------------------------------------------------------------
+	// Comprehensive Deferred Asset Replace Flag Integration Tests
+	// ------------------------------------------------------------------------
+
+	/**
+	 * Test that deferred assets with replace flag are processed correctly by _enqueue_deferred_assets.
+	 * This verifies that the replace flag is passed through the deferred asset processing chain.
+	 *
+	 * @test
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_enqueue_deferred_assets
+	 */
+	public function test_deferred_asset_replace_flag_integration_complete_flow(): void {
+		// --- Test Setup ---
+		$handle     = 'deferred-script-with-replace';
+		$src        = 'path/to/deferred-script.js';
+		$hook_name  = 'wp_footer';
+		$priority   = 15;
+		$asset_type = \Ran\PluginLib\EnqueueAccessory\AssetType::Script;
+
+		// Create a deferred asset with replace flag
+		$deferred_asset = array(
+			'handle'  => $handle,
+			'src'     => $src,
+			'replace' => true
+		);
+
+		// Set up the deferred assets property
+		$reflection = new \ReflectionClass($this->instance);
+		$property   = $reflection->getProperty('deferred_assets');
+		$property->setAccessible(true);
+		$property->setValue($this->instance, array(
+			$hook_name => array(
+				$priority => array($deferred_asset)
+			)
+		));
+
+		// Mock _process_single_asset to verify it's called with the deferred asset containing replace flag
+		$this->instance->shouldReceive('_process_single_asset')
+			->with($asset_type, $deferred_asset, Mockery::type('string'), $hook_name, true, true)
+			->once()
+			->andReturn($handle);
+
+		// --- Act ---
+		$this->_invoke_protected_method($this->instance, '_enqueue_deferred_assets', array($asset_type, $hook_name, $priority));
+
+		// --- Assert ---
+		// Verify the deferred assets were removed after processing
+		$this->assertEmpty($property->getValue($this->instance), 'Deferred assets should be empty after processing');
+	}
+
+	/**
+	 * Test deferred asset with replace flag is processed correctly.
+	 * This verifies that the replace flag is passed through to _process_single_asset.
+	 *
+	 * @test
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_enqueue_deferred_assets
+	 */
+	public function test_deferred_asset_replace_flag_with_nonexistent_target(): void {
+		// --- Test Setup ---
+		$handle     = 'nonexistent-deferred-script';
+		$src        = 'path/to/script.js';
+		$hook_name  = 'wp_footer';
+		$priority   = 10;
+		$asset_type = \Ran\PluginLib\EnqueueAccessory\AssetType::Script;
+
+		$deferred_asset = array(
+			'handle'  => $handle,
+			'src'     => $src,
+			'replace' => true
+		);
+
+		// Set up the deferred assets property
+		$reflection = new \ReflectionClass($this->instance);
+		$property   = $reflection->getProperty('deferred_assets');
+		$property->setAccessible(true);
+		$property->setValue($this->instance, array(
+			$hook_name => array(
+				$priority => array($deferred_asset)
+			)
+		));
+
+		// Mock _process_single_asset to verify it's called with the deferred asset containing replace flag
+		$this->instance->shouldReceive('_process_single_asset')
+			->with($asset_type, $deferred_asset, Mockery::type('string'), $hook_name, true, true)
+			->once()
+			->andReturn($handle);
+
+		// --- Act ---
+		$this->_invoke_protected_method($this->instance, '_enqueue_deferred_assets', array($asset_type, $hook_name, $priority));
+
+		// --- Assert ---
+		// Verify the deferred assets were removed after processing
+		$this->assertEmpty($property->getValue($this->instance), 'Deferred assets should be empty after processing');
+	}
+
+	/**
+	 * Test deferred style asset with replace flag.
+	 * This verifies that the replace flag works for style assets in deferred processing.
+	 *
+	 * @test
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_enqueue_deferred_assets
+	 */
+	public function test_deferred_asset_replace_flag_with_protected_asset(): void {
+		// --- Test Setup ---
+		$handle     = 'deferred-style-with-replace';
+		$src        = 'path/to/style.css';
+		$hook_name  = 'wp_head';
+		$priority   = 10;
+		$asset_type = \Ran\PluginLib\EnqueueAccessory\AssetType::Style;
+
+		$deferred_asset = array(
+			'handle'  => $handle,
+			'src'     => $src,
+			'replace' => true
+		);
+
+		// Set up the deferred assets property
+		$reflection = new \ReflectionClass($this->instance);
+		$property   = $reflection->getProperty('deferred_assets');
+		$property->setAccessible(true);
+		$property->setValue($this->instance, array(
+			$hook_name => array(
+				$priority => array($deferred_asset)
+			)
+		));
+
+		// Mock _process_single_asset to verify it's called with the deferred asset containing replace flag
+		$this->instance->shouldReceive('_process_single_asset')
+			->with($asset_type, $deferred_asset, Mockery::type('string'), $hook_name, true, true)
+			->once()
+			->andReturn($handle);
+
+		// --- Act ---
+		$this->_invoke_protected_method($this->instance, '_enqueue_deferred_assets', array($asset_type, $hook_name, $priority));
+
+		// --- Assert ---
+		// Verify the deferred assets were removed after processing
+		$this->assertEmpty($property->getValue($this->instance), 'Deferred assets should be empty after processing');
+	}
+
+	/**
+	 * Test multiple deferred assets with replace flags on the same hook.
+	 * This verifies that multiple assets with replace flags are processed correctly.
+	 *
+	 * @test
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_enqueue_deferred_assets
+	 */
+	public function test_multiple_deferred_assets_with_replace_flags(): void {
+		// --- Test Setup ---
+		$hook_name  = 'wp_footer';
+		$priority   = 10;
+		$asset_type = \Ran\PluginLib\EnqueueAccessory\AssetType::Script;
+
+		$asset1 = array(
+			'handle'  => 'first-deferred-script',
+			'src'     => 'path/to/first.js',
+			'replace' => true
+		);
+
+		$asset2 = array(
+			'handle'  => 'second-deferred-script',
+			'src'     => 'path/to/second.js',
+			'replace' => true
+		);
+
+		// Set up the deferred assets property
+		$reflection = new \ReflectionClass($this->instance);
+		$property   = $reflection->getProperty('deferred_assets');
+		$property->setAccessible(true);
+		$property->setValue($this->instance, array(
+			$hook_name => array(
+				$priority => array($asset1, $asset2)
+			)
+		));
+
+		// Mock _process_single_asset to verify it's called for both assets with replace flags
+		$this->instance->shouldReceive('_process_single_asset')
+			->with($asset_type, $asset1, Mockery::type('string'), $hook_name, true, true)
+			->once()
+			->andReturn($asset1['handle']);
+
+		$this->instance->shouldReceive('_process_single_asset')
+			->with($asset_type, $asset2, Mockery::type('string'), $hook_name, true, true)
+			->once()
+			->andReturn($asset2['handle']);
+
+		// --- Act ---
+		$this->_invoke_protected_method($this->instance, '_enqueue_deferred_assets', array($asset_type, $hook_name, $priority));
+
+		// --- Assert ---
+		// Verify the deferred assets were removed after processing
+		$this->assertEmpty($property->getValue($this->instance), 'Deferred assets should be empty after processing');
+	}
+
+	/**
+	 * Test deferred style asset with replace flag.
+	 * This verifies that the replace flag works for style assets in deferred processing.
+	 *
+	 * @test
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_enqueue_deferred_assets
+	 */
+	public function test_deferred_style_asset_with_replace_flag(): void {
+		// --- Test Setup ---
+		$handle     = 'deferred-style-with-replace';
+		$src        = 'path/to/style.css';
+		$hook_name  = 'wp_head';
+		$priority   = 10;
+		$asset_type = \Ran\PluginLib\EnqueueAccessory\AssetType::Style;
+
+		$deferred_asset = array(
+			'handle'  => $handle,
+			'src'     => $src,
+			'replace' => true
+		);
+
+		// Set up the deferred assets property
+		$reflection = new \ReflectionClass($this->instance);
+		$property   = $reflection->getProperty('deferred_assets');
+		$property->setAccessible(true);
+		$property->setValue($this->instance, array(
+			$hook_name => array(
+				$priority => array($deferred_asset)
+			)
+		));
+
+		// Mock _process_single_asset to verify it's called with the deferred asset containing replace flag
+		$this->instance->shouldReceive('_process_single_asset')
+			->with($asset_type, $deferred_asset, Mockery::type('string'), $hook_name, true, true)
+			->once()
+			->andReturn($handle);
+
+		// --- Act ---
+		$this->_invoke_protected_method($this->instance, '_enqueue_deferred_assets', array($asset_type, $hook_name, $priority));
+
+		// --- Assert ---
+		// Verify the deferred assets were removed after processing
+		$this->assertEmpty($property->getValue($this->instance), 'Deferred assets should be empty after processing');
 	}
 }
