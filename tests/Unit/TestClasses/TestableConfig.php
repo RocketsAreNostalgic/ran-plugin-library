@@ -38,7 +38,7 @@ class TestableConfig extends ConfigAbstract {
 	 * @var bool
 	 */
 	private $mock_script_debug_value = false;
-    
+
 	/**
 	 * Mock plugin data for testing.
 	 *
@@ -57,7 +57,7 @@ class TestableConfig extends ConfigAbstract {
 		$pluginFileProperty = $reflectionClass->getProperty('plugin_file');
 		$pluginFileProperty->setAccessible(true);
 		$pluginFileProperty->setValue(null, 'dummy-file-path.php');
-        
+
 		// Initialize with provided plugin data or default values
 		$this->mock_plugin_data = $plugin_data ?? array(
 		    'Name'            => 'Test Plugin',
@@ -69,7 +69,7 @@ class TestableConfig extends ConfigAbstract {
 		    'File'            => 'dummy-file-path.php',
 		    'Basename'        => 'test-plugin/dummy-file-path.php'
 		);
-        
+
 		// Mock plugin_basename to avoid WP function call
 		if (!function_exists('plugin_basename')) {
 			if (!function_exists('Patchwork\redefine')) {
@@ -79,7 +79,7 @@ class TestableConfig extends ConfigAbstract {
 				return 'test-plugin/dummy-file-path.php';
 			});
 		}
-        
+
 		// Mock plugin_dir_url to avoid WP function call
 		if (!function_exists('plugin_dir_url')) {
 			if (!function_exists('Patchwork\redefine')) {
@@ -89,7 +89,7 @@ class TestableConfig extends ConfigAbstract {
 				return 'https://example.com/plugins/test-plugin/';
 			});
 		}
-        
+
 		// Mock plugin_dir_path to avoid WP function call
 		if (!function_exists('plugin_dir_path')) {
 			if (!function_exists('Patchwork\redefine')) {
@@ -99,7 +99,7 @@ class TestableConfig extends ConfigAbstract {
 				return '/path/to/plugins/test-plugin/';
 			});
 		}
-        
+
 		// Initialize the plugin_array property directly
 		$pluginArrayProperty = $reflectionClass->getProperty('plugin_array');
 		$pluginArrayProperty->setAccessible(true);
@@ -127,9 +127,9 @@ class TestableConfig extends ConfigAbstract {
 		$this->mock_script_debug_defined = $defined;
 		$this->mock_script_debug_value   = $value;
 	}
-    
 
-    
+
+
 	/**
 	 * Override _get_plugin_config to return mock plugin data directly.
 	 * This avoids calling get_plugin_data which requires WordPress core files.
@@ -149,7 +149,7 @@ class TestableConfig extends ConfigAbstract {
 		if (isset($this->mock_dev_callback)) {
 			return is_callable($this->mock_dev_callback) ? $this->mock_dev_callback : null;
 		}
-        
+
 		return null;
 	}
 
@@ -182,7 +182,7 @@ class TestableConfig extends ConfigAbstract {
 	public function get_plugin_config(): array {
 		return $this->mock_plugin_data;
 	}
-    
+
 	/**
 	 * Override validate_plugin_array to always return the mock plugin data.
 	 *
@@ -202,7 +202,7 @@ class TestableConfig extends ConfigAbstract {
 	protected function _read_plugin_file_header_content(string $file_path): string|false {
 		return '';
 	}
-    
+
 	/**
 	 * Override init to return the current instance without requiring a plugin file.
 	 *

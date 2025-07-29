@@ -154,6 +154,29 @@ trait StylesEnqueueTrait {
 	}
 
 	/**
+	 * Deregisters one or more styles from WordPress.
+	 *
+	 * This method supports flexible input formats:
+	 * - A single string handle
+	 * - An array of string handles
+	 * - An array of asset definition arrays with optional hook and priority
+	 * - A mixed array of strings and asset definition arrays
+	 *
+	 * @param string|array<string|array> $styles_to_deregister Styles to deregister.
+	 *     If a string, it's treated as a single style handle.
+	 *     If an array of strings, each string is treated as a style handle.
+	 *     If an array of arrays, each array can include:
+	 *     - 'handle' (string, required): The style handle to deregister.
+	 *     - 'hook' (string, optional): WordPress hook on which to deregister. Default: 'wp_enqueue_scripts'.
+	 *     - 'priority' (int, optional): Priority for the hook. Default: 10.
+	 *     - 'immediate' (bool, optional): Whether to deregister immediately. Default: false.
+	 * @return self Returns the instance of this class for method chaining.
+	 */
+	public function deregister($styles_to_deregister): self {
+		return $this->_deregister_assets($styles_to_deregister, $this->_get_asset_type());
+	}
+
+	/**
 	 * Enqueues inline styles that are not attached to a style being processed in the current lifecycle.
 	 *
 	 * This method is designed to handle inline styles that target already registered/enqueued styles,

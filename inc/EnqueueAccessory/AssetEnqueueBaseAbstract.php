@@ -161,7 +161,7 @@ abstract class AssetEnqueueBaseAbstract {
 	 */
 	public function stage_assets(AssetType $asset_type): self {
 		$logger  = $this->get_logger();
-		$context = __CLASS__ . '::' . __METHOD__ . ' (' . strtolower( $asset_type->value ) . 's)';
+		$context = get_class($this) . '::' . __METHOD__ . ' (' . strtolower( $asset_type->value ) . 's)';
 
 		if ( $logger->is_active() ) {
 			$logger->debug( $context . ' - Entered. Processing ' . count( $this->assets ) . ' ' . $asset_type->value . ' definition(s) for registration.' );

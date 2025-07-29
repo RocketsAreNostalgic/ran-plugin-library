@@ -10,9 +10,6 @@
  */
 
 namespace Ran\PluginLib\EnqueueAccessory;
-
-use Ran\PluginLib\Util\Logger;
-
 /**
  * Trait WPWrappersTrait
  *
@@ -32,6 +29,7 @@ trait WPWrappersTrait {
 	 * @param int $priority Optional. The priority of the action. Default 10.
 	 * @param int $accepted_args Optional. The number of arguments the callback accepts. Default 1.
 	 * @return void
+	 * @codeCoverageIgnore
 	 */
 	protected function _do_add_action(string $hook, $callback, int $priority = 10, int $accepted_args = 1): void {
 		add_action($hook, $callback, $priority, $accepted_args);
@@ -48,6 +46,7 @@ trait WPWrappersTrait {
 	 * @param int $priority Optional. The priority of the filter. Default 10.
 	 * @param int $accepted_args Optional. The number of arguments the callback accepts. Default 1.
 	 * @return void
+	 * @codeCoverageIgnore
 	 */
 	protected function _do_add_filter(string $hook, $callback, int $priority = 10, int $accepted_args = 1): void {
 		add_filter($hook, $callback, $priority, $accepted_args);

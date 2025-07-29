@@ -151,7 +151,30 @@ trait ScriptsEnqueueTrait {
 	 * @return self Returns the instance of this class for method chaining.
 	 */
 	public function add_inline( array $inline_scripts_to_add ): self {
-		return $this->add_inline_assets( $inline_scripts_to_add, $this->_get_asset_type() );
+		return $this->add_inline_assets($inline_scripts_to_add, $this->_get_asset_type());
+	}
+
+	/**
+	 * Deregisters one or more scripts from WordPress.
+	 *
+	 * This method supports flexible input formats:
+	 * - A single string handle
+	 * - An array of string handles
+	 * - An array of asset definition arrays with optional hook and priority
+	 * - A mixed array of strings and asset definition arrays
+	 *
+	 * @param string|array<string|array> $scripts_to_deregister Scripts to deregister.
+	 *     If a string, it's treated as a single script handle.
+	 *     If an array of strings, each string is treated as a script handle.
+	 *     If an array of arrays, each array can include:
+	 *     - 'handle' (string, required): The script handle to deregister.
+	 *     - 'hook' (string, optional): WordPress hook on which to deregister. Default: 'wp_enqueue_scripts'.
+	 *     - 'priority' (int, optional): Priority for the hook. Default: 10.
+	 *     - 'immediate' (bool, optional): Whether to deregister immediately. Default: false.
+	 * @return self Returns the instance of this class for method chaining.
+	 */
+	public function deregister($scripts_to_deregister): self {
+		return $this->_deregister_assets($scripts_to_deregister, $this->_get_asset_type());
 	}
 
 	/**
