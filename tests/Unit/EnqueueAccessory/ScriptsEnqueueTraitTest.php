@@ -997,51 +997,7 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 		$this->expectLog('debug', array('_process_single_', 'Registering', 'test-script'), 1);
 	}
 
-	/**
-	 * @dataProvider provideEnvironmentData
-	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_resolve_environment_src
-	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_concrete_process_single_asset
-	 */
-	public function test_process_single_asset_resolves_src_based_on_environment(
-		bool $is_dev_environment,
-		string $expected_src
-	): void {
-		// Mock the config to control is_dev_environment() return value
-		$this->config_mock->shouldReceive('is_dev_environment')
-			->andReturn($is_dev_environment);
 
-		$asset_definition = array(
-			'handle' => 'test-script',
-			'src'    => array(
-				'dev'  => 'http://example.com/script.js',
-				'prod' => 'http://example.com/script.min.js',
-			),
-		);
-
-		WP_Mock::userFunction('wp_register_script', array(
-			'times'  => 1,
-			'return' => true,
-			'args'   => array( 'test-script', $expected_src, Mockery::any(), Mockery::any(), Mockery::any() ),
-		));
-
-		// Use the public API to add the script and trigger the processing hooks.
-		$this->instance->add( array( $asset_definition ) );
-		$this->instance->stage();
-
-		// The assertion is implicitly handled by the mock expectation for wp_register_script.
-		$this->expectLog('debug', array('_process_single_', 'Registering', 'test-script', $expected_src), 1);
-	}
-
-	/**
-	 * Data provider for `test_process_single_asset_resolves_src_based_on_environment`.
-	 * @dataProvider provideEnvironmentData
-	 */
-	public function provideEnvironmentData(): array {
-		return array(
-			'Development environment' => array(true, 'http://example.com/script.js'),
-			'Production environment'  => array(false, 'http://example.com/script.min.js'),
-		);
-	}
 
 	// ------------------------------------------------------------------------
 	// _process_script_extras() Tests

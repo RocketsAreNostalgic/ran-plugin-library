@@ -209,8 +209,9 @@ trait AssetEnqueueBaseTrait {
 
 		// Validate all assets before adding them to the queue.
 		foreach ($assets_to_add as $key => $asset) {
-			$handle = $asset['handle'] ?? null;
-			$src    = $asset['src']    ?? null;
+			$handle  = $asset['handle']  ?? null;
+			$src     = $asset['src']     ?? null;
+			$replace = $asset['replace'] ?? false;
 
 			if (empty($handle)) {
 				throw new \InvalidArgumentException("Invalid {$asset_type->value} definition at index {$key}. Asset must have a 'handle'.");
@@ -218,6 +219,11 @@ trait AssetEnqueueBaseTrait {
 
 			if ($src !== false && empty($src)) {
 				throw new \InvalidArgumentException("Invalid {$asset_type->value} definition for handle '{$handle}'. Asset must have a 'src' or 'src' must be explicitly set to false.");
+			}
+
+			// Validate replace flag is boolean
+			if ($replace !== false && !is_bool($replace)) {
+				throw new \InvalidArgumentException("Invalid {$asset_type->value} definition for handle '{$handle}'. The 'replace' property must be a boolean.");
 			}
 		}
 
@@ -676,6 +682,7 @@ trait AssetEnqueueBaseTrait {
 		$ver       = $this->_generate_asset_version($asset_definition);
 		$ver       = (false === $ver) ? null : $ver;
 		$condition = $asset_definition['condition'] ?? null;
+		$replace   = $asset_definition['replace']   ?? false;
 
 		$log_hook_context = $hook_name ? " on hook '{$hook_name}'" : '';
 
@@ -721,6 +728,19 @@ trait AssetEnqueueBaseTrait {
 				$logger->error("{$context} - Could not resolve source for {$asset_type->value} '{$handle}'. Skipping.");
 			}
 			return false;
+		}
+
+		// Check if we need to deregister an existing asset before registering
+		if ($replace && $do_register) {
+			if ($logger->is_active()) {
+				$logger->debug("{$context} - Asset '{$handle}' has replace flag set to true. Attempting to deregister existing asset.");
+			}
+
+			// Use the same helper method chain as the deregister() method for consistency
+			$this->_deregister_assets(
+				array('handle' => $handle, 'immediate' => true), // Use immediate deregistration for replace flag
+				$asset_type
+			);
 		}
 
 		// Standard handling for non-deferred assets
@@ -796,8 +816,8 @@ trait AssetEnqueueBaseTrait {
 
 		if ($do_register) {
 			$is_registered = $asset_type === AssetType::Script
-				? wp_script_is($handle, 'registered')
-				: wp_style_is($handle, 'registered');
+				? \wp_script_is($handle, 'registered')
+				: \wp_style_is($handle, 'registered');
 
 			if ($is_registered) {
 				if ( $logger->is_active() ) {
@@ -813,11 +833,11 @@ trait AssetEnqueueBaseTrait {
 					// For scripts, $extra_args would be $in_footer
 					$in_footer = $extra_args['in_footer'] ?? false;
 					// Pass in_footer as an array to match test expectations
-					$result = wp_register_script($handle, $src, $deps, $ver, array('in_footer' => $in_footer));
+					$result = \wp_register_script($handle, $src, $deps, $ver, array('in_footer' => $in_footer));
 				} else {
 					// For styles, $extra_args would be $media
 					$media  = $extra_args['media'] ?? 'all';
-					$result = wp_register_style($handle, $src, $deps, $ver, $media);
+					$result = \wp_register_style($handle, $src, $deps, $ver, $media);
 				}
 
 				if (!$result) {
@@ -904,8 +924,8 @@ trait AssetEnqueueBaseTrait {
 
 		$logger      = $this->get_logger();
 		$is_enqueued = $asset_type === AssetType::Script
-			? wp_script_is($handle, 'enqueued')
-			: wp_style_is($handle, 'enqueued');
+			? \wp_script_is($handle, 'enqueued')
+			: \wp_style_is($handle, 'enqueued');
 
 		if ($is_enqueued) {
 			if ($logger->is_active()) {
@@ -919,8 +939,8 @@ trait AssetEnqueueBaseTrait {
 		$skip_auto_registration = $is_deferred && $hook_name !== null;
 
 		$is_registered = $asset_type === AssetType::Script
-			? wp_script_is($handle, 'registered')
-			: wp_style_is($handle, 'registered');
+			? \wp_script_is($handle, 'registered')
+			: \wp_style_is($handle, 'registered');
 
 		if (!$skip_auto_registration && !$is_registered) {
 			// Asset is not registered yet, register it first
@@ -946,9 +966,9 @@ trait AssetEnqueueBaseTrait {
 			// Register the asset directly using WP functions for test compatibility
 			$register_result = false;
 			if ($asset_type === AssetType::Script) {
-				$register_result = wp_register_script($handle, $src, $deps, $ver, $extra_args);
+				$register_result = \wp_register_script($handle, $src, $deps, $ver, $extra_args);
 			} else {
-				$register_result = wp_register_style($handle, $src, $deps, $ver, $extra_args);
+				$register_result = \wp_register_style($handle, $src, $deps, $ver, $extra_args);
 			}
 
 			if (!$register_result) {
@@ -962,9 +982,26 @@ trait AssetEnqueueBaseTrait {
 		}
 
 		if ($asset_type === AssetType::Script) {
-			wp_enqueue_script($handle);
+			\wp_enqueue_script($handle);
+			$enqueue_result = \wp_script_is($handle, 'enqueued');
 		} else {
-			wp_enqueue_style($handle);
+			\wp_enqueue_style($handle);
+			$enqueue_result = \wp_style_is($handle, 'enqueued');
+		}
+
+		if (!$enqueue_result) {
+			if ($logger->is_active()) {
+				$logger->warning(
+					sprintf(
+						"%s - wp_enqueue_%s() failed for handle '%s'%s. Asset was registered but not enqueued.",
+						$context,
+						$asset_type->value,
+						$handle,
+						$log_hook_context
+					)
+				);
+			}
+			return false;
 		}
 
 		return true;
@@ -1039,8 +1076,8 @@ trait AssetEnqueueBaseTrait {
 
 		// Use content_url() and WP_CONTENT_DIR for robust path resolution in
 		// single and multisite environments.
-		$content_url = content_url();
-		$content_dir = WP_CONTENT_DIR;
+		$content_url = \content_url();
+		$content_dir = \WP_CONTENT_DIR;
 
 		// Check if the asset URL is within the content directory.
 		if (strpos($url, $content_url) === 0) {
@@ -1055,7 +1092,7 @@ trait AssetEnqueueBaseTrait {
 
 		// Fallback for URLs outside of wp-content, e.g., in wp-includes.
 		// This is less common for plugin/theme assets but adds robustness.
-		$site_url = site_url();
+		$site_url = \site_url();
 		if (strpos($url, $site_url) === 0) {
 			$relative_path   = substr($url, strlen($site_url));
 			$file_path       = ABSPATH . ltrim($relative_path, '/');
@@ -1386,6 +1423,332 @@ trait AssetEnqueueBaseTrait {
 
 		return $processed_count;
 	}
+
+	/**
+	 * Deregisters an existing asset if it exists.
+	 *
+	 * This method handles the deregistration of existing WordPress assets when the 'replace' flag is set.
+	 * It includes safety checks to prevent deregistering critical WordPress assets, dequeues the asset before
+	 * deregistering it, and cleans up any references in the internal deferred asset queues.
+	 *
+	 * @param string    $handle     The handle of the asset to deregister.
+	 * @param string    $context    Context for logging.
+	 * @param AssetType $asset_type The type of asset (script or style).
+	 * @return bool True if the asset was successfully deregistered, false otherwise.
+	 */
+	protected function _deregister_existing_asset(
+		string $handle,
+		string $context,
+		AssetType $asset_type,
+	): bool {
+		$logger  = $this->get_logger();
+		$context = __TRAIT__ . '::' . __FUNCTION__ . '(' . $asset_type->value . ') called from ' . $context;
+
+		if ($logger->is_active()) {
+			$logger->debug("{$context} - Attempting to deregister existing '{$handle}' for replacement.");
+		}
+
+		// Check if asset exists in internal queues and get locations
+		$asset_locations = $this->_asset_exists_in_internal_queues($handle, $asset_type);
+		if (!empty($asset_locations) && $logger->is_active()) {
+			$logger->debug("{$context} - Asset '{$handle}' found in internal queues at " . count($asset_locations) . ' location(s). Will clean up after deregistration.');
+		}
+
+		// Alias the appropriate WordPress functions based on asset type
+		$is_enqueued_fn   = $asset_type === AssetType::Script ? 'wp_script_is' : 'wp_style_is';
+		$is_registered_fn = $is_enqueued_fn; // Same function, different second parameter
+		$dequeue_fn       = $asset_type === AssetType::Script ? 'wp_dequeue_script' : 'wp_dequeue_style';
+		$deregister_fn    = $asset_type === AssetType::Script ? 'wp_deregister_script' : 'wp_deregister_style';
+
+		$success            = true;
+		$initial_registered = function_exists($is_registered_fn) && $is_registered_fn($handle, 'registered');
+		$initial_enqueued   = function_exists($is_enqueued_fn)   && $is_enqueued_fn($handle, 'enqueued');
+
+		// Attempt dequeue first
+		if ($initial_enqueued) {
+			$dequeue_fn($handle);
+
+			// Verify dequeue success
+			if ($is_enqueued_fn($handle, 'enqueued')) {
+				$success = false;
+				if ($logger->is_active()) {
+					$logger->warning("{$context} - Failed to dequeue '{$handle}'. It may be protected or re-enqueued by another plugin.");
+				}
+			} else {
+				if ($logger->is_active()) {
+					$logger->debug("{$context} - Successfully dequeued '{$handle}'.");
+				}
+			}
+		}
+
+		// Attempt deregister
+		if ($initial_registered) {
+			$deregister_fn($handle);
+
+			// Verify deregister success
+			if ($is_registered_fn($handle, 'registered')) {
+				$success = false;
+				if ($logger->is_active()) {
+					$logger->warning("{$context} - Failed to deregister '{$handle}'. It may be a protected WordPress core {$asset_type->value} or re-registered by another plugin.");
+				}
+			} else {
+				if ($logger->is_active()) {
+					$logger->debug("{$context} - Successfully deregistered '{$handle}'.");
+				}
+			}
+		}
+
+		// Clean up internal queues using the asset locations
+		if (!empty($asset_locations)) {
+			// Process each location where the asset was found
+			foreach ($asset_locations as $location) {
+				$queue_type = $location['queue_type'] ?? '';
+
+				if ($queue_type === 'deferred' && isset($location['hook_name'], $location['priority'], $location['index'])) {
+					// Clean up from deferred queue
+					$hook_name = $location['hook_name'];
+					$priority  = $location['priority'];
+					$index     = $location['index'];
+
+					if (isset($this->deferred_assets[$hook_name][$priority][$index])) {
+						unset($this->deferred_assets[$hook_name][$priority][$index]);
+						if ($logger->is_active()) {
+							$logger->debug("{$context} - Removed '{$handle}' from internal deferred queue (hook '{$hook_name}', priority {$priority}).");
+						}
+
+						// Clean up empty priority arrays
+						if (empty($this->deferred_assets[$hook_name][$priority])) {
+							unset($this->deferred_assets[$hook_name][$priority]);
+							if ($logger->is_active()) {
+								$logger->debug("{$context} - Cleaned up empty priority {$priority} for hook '{$hook_name}' in internal deferred queue.");
+							}
+						}
+
+						// Clean up empty hook arrays
+						if (empty($this->deferred_assets[$hook_name])) {
+							unset($this->deferred_assets[$hook_name]);
+							if ($logger->is_active()) {
+								$logger->debug("{$context} - Cleaned up empty hook '{$hook_name}' from internal deferred queue.");
+							}
+						}
+					}
+				} else if ($queue_type === 'external_inline' || $queue_type === 'assets') {
+					// These are handled by WordPress core deregister functions
+					if ($logger->is_active()) {
+						$logger->debug("{$context} - Asset '{$handle}' in {$queue_type} queue will be cleaned up by WordPress core functions.");
+					}
+				}
+			}
+		}
+
+		// Log overall result
+		if (!$initial_registered && !$initial_enqueued) {
+			if ($logger->is_active()) {
+				$logger->debug("{$context} - '{$handle}' was not registered or enqueued. Nothing to deregister.");
+			}
+		} elseif ($success) {
+			if ($logger->is_active()) {
+				$logger->debug("{$context} - Successfully completed deregistration of '{$handle}'.");
+			}
+		} else {
+			if ($logger->is_active()) {
+				$logger->warning("{$context} - Deregistration of '{$handle}' was only partially successful. Proceeding with replacement anyway.");
+			}
+		}
+
+		return $success;
+	}
+
+	/**
+	 * Deregisters one or more assets from WordPress.
+	 *
+	 * This method supports flexible input formats:
+	 * - A single string handle
+	 * - An array of string handles
+	 * - An array of asset definition arrays with optional hook and priority
+	 * - A mixed array of strings and asset definition arrays
+	 *
+	 * @param string|array<string|array> $assets_to_deregister Assets to deregister.
+	 * @param AssetType $asset_type The type of asset (script or style).
+	 * @return self Returns the instance of this class for method chaining.
+	 */
+	protected function _deregister_assets($assets_to_deregister, AssetType $asset_type): self {
+		$logger  = $this->get_logger();
+		$context = __TRAIT__ . '::' . __FUNCTION__;
+
+		// Normalize input to array of asset definitions
+		$normalized_assets = $this->_normalize_deregister_input($assets_to_deregister);
+
+		if ($logger->is_active()) {
+			$count = count($normalized_assets);
+			$logger->debug("{$context} - Processing {$count} {$asset_type->value} deregistration(s).");
+		}
+
+		foreach ($normalized_assets as $index => $asset_definition) {
+			$this->_process_single_deregistration($asset_definition, $asset_type);
+		}
+
+		return $this;
+	}
+
+	/**
+	 * Normalizes the input for deregistration to a standard array format.
+	 *
+	 * @param mixed $input The input to normalize.
+	 * @return array An array of normalized asset definitions.
+	 * @throws \InvalidArgumentException If the input format is invalid.
+	 */
+	protected function _normalize_deregister_input($input): array {
+		$logger     = $this->get_logger();
+		$context    = __TRAIT__ . '::' . __FUNCTION__;
+		$normalized = array();
+
+		// Single string handle
+		if (is_string($input)) {
+			return array(array('handle' => $input));
+		}
+
+		// Array input
+		if (is_array($input)) {
+			// Check if it's an associative array (single asset definition)
+			if (isset($input['handle'])) {
+				return array($input);
+			}
+
+			// Process array of mixed types
+			foreach ($input as $index => $item) {
+				if (is_string($item)) {
+					// String handle
+					$normalized[] = array('handle' => $item);
+				} elseif (is_array($item) && isset($item['handle']) && is_string($item['handle'])) {
+					// Asset definition array
+					$normalized[] = $item;
+				} else {
+					// Invalid item
+					if ($logger->is_active()) {
+						$type = gettype($item);
+						$logger->warning("{$context} - Invalid input type at index {$index}. Expected string or array, got {$type}.");
+					}
+				}
+			}
+
+			return $normalized;
+		}
+
+		// Invalid input type
+		$type = gettype($input);
+		throw new \InvalidArgumentException("Invalid input for deregister(). Expected string, array of strings, or array of asset definitions, got {$type}.");
+	}
+
+	/**
+	 * Processes a single asset deregistration.
+	 *
+	 * @param array $asset_definition The asset definition to process.
+	 * @param AssetType $asset_type The type of asset (script or style).
+	 * @return void
+	 * @throws \InvalidArgumentException If the asset definition is invalid.
+	 */
+	protected function _process_single_deregistration(array $asset_definition, AssetType $asset_type): void {
+		$logger  = $this->get_logger();
+		$context = __TRAIT__ . '::' . __FUNCTION__;
+
+		// Validate handle
+		if (!isset($asset_definition['handle']) || !is_string($asset_definition['handle']) || empty($asset_definition['handle'])) {
+			if ($logger->is_active()) {
+				$logger->warning("{$context} - Invalid {$asset_type->value} configuration. A 'handle' is required and must be a string.");
+			}
+			return;
+		}
+
+		$handle    = $asset_definition['handle'];
+		$hook      = $asset_definition['hook']      ?? 'wp_enqueue_scripts';
+		$priority  = $asset_definition['priority']  ?? 10;
+		$immediate = $asset_definition['immediate'] ?? false;
+
+		// Get the trait name for logging
+		$trait_name = $asset_type === AssetType::Script ? 'ScriptsEnqueueTrait' : 'StylesEnqueueTrait';
+
+		if ($immediate) {
+			// Immediate deregistration
+			$this->_deregister_existing_asset($handle, __FUNCTION__, $asset_type);
+			if ($logger->is_active()) {
+				$logger->debug("{$trait_name}::deregister - Immediately deregistered {$asset_type->value} '{$handle}'.");
+			}
+		} else {
+			// Deferred deregistration via hook
+			$this->_do_add_action($hook, function() use ($handle, $asset_type) {
+				$this->_deregister_existing_asset($handle, __FUNCTION__, $asset_type);
+			}, $priority);
+
+			if ($logger->is_active()) {
+				$logger->debug("{$trait_name}::deregister - Scheduled deregistration of {$asset_type->value} '{$handle}' on hook '{$hook}' with priority {$priority}.");
+			}
+		}
+	}
+
+	/**
+	 * Finds an asset in the internal queues and returns its locations.
+	 *
+	 * This method traverses all internal queues (general, deferred, external_inline)
+	 * and returns an array of locations where the asset is found. Each location includes
+	 * the queue type, hook name (for deferred/external_inline), priority (for deferred/external_inline),
+	 * and index within the queue.
+	 *
+	 * @param string $handle The asset handle to check.
+	 * @param AssetType $asset_type The type of asset (script or style).
+	 * @return array An array of asset locations, empty if not found.
+	 */
+	protected function _asset_exists_in_internal_queues(string $handle, AssetType $asset_type): array {
+		$all_queues = $this->get_assets_info();
+		$locations  = array();
+
+		// Check general queue
+		if (isset($all_queues['assets'][$handle])) {
+			$locations[] = array(
+				'queue_type' => 'assets',
+				'handle'     => $handle
+			);
+		}
+
+		// Check deferred queue (nested by hook and priority)
+		if (isset($this->deferred_assets)) {
+			foreach ($this->deferred_assets as $hook_name => $hook_priorities) {
+				foreach ($hook_priorities as $priority => $priority_assets) {
+					foreach ($priority_assets as $index => $asset_definition) {
+						if (($asset_definition['handle'] ?? '') === $handle && ($asset_definition['type'] ?? null) === $asset_type) {
+							$locations[] = array(
+								'queue_type' => 'deferred',
+								'hook_name'  => $hook_name,
+								'priority'   => $priority,
+								'index'      => $index,
+								'handle'     => $handle
+							);
+						}
+					}
+				}
+			}
+		}
+
+		// Check external inline queue (nested by hook and priority)
+		foreach ($all_queues['external_inline'] as $hook_name => $hook_priorities) {
+			foreach ($hook_priorities as $priority => $priority_assets) {
+				foreach ($priority_assets as $index => $asset_data) {
+					if ($index === $handle) {
+						$locations[] = array(
+							'queue_type' => 'external_inline',
+							'hook_name'  => $hook_name,
+							'priority'   => $priority,
+							'handle'     => $handle
+						);
+					}
+				}
+			}
+		}
+
+		return $locations;
+	}
+
+
 
 	/**
 	 * Process deferred inline assets for a specific parent handle and hook.

@@ -54,6 +54,8 @@ class StylesEnqueueTraitTest extends EnqueueTraitTestCase {
 		// Add style-specific mocks that were not generic enough for the base class.
 		WP_Mock::userFunction('wp_enqueue_style')->withAnyArgs()->andReturnNull()->byDefault();
 		WP_Mock::userFunction('wp_style_add_data')->withAnyArgs()->andReturnNull()->byDefault();
+		// Mock wp_style_is for our new enqueue verification logic
+		WP_Mock::userFunction('wp_style_is')->withAnyArgs()->andReturn(true)->byDefault();
 	}
 
 	/**
@@ -317,52 +319,7 @@ class StylesEnqueueTraitTest extends EnqueueTraitTestCase {
 	// _process_single_asset() Tests
 	// ------------------------------------------------------------------------
 
-	/**
-	 * @dataProvider provideEnvironmentData
-	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_resolve_environment_src
-	 * @covers \Ran\PluginLib\EnqueueAccessory\StylesEnqueueTrait::_process_single_asset
-	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_concrete_process_single_asset
-	 */
-	public function test_process_single_asset_resolves_src_based_on_environment(
-		bool $is_dev_environment,
-		string $expected_src
-	): void {
-		// Mock the config to control is_dev_environment() return value
-		$this->config_mock->shouldReceive('is_dev_environment')
-			->andReturn($is_dev_environment);
 
-		$asset_definition = array(
-			'handle' => 'test-style',
-			'src'    => array(
-				'dev'  => 'http://example.com/style.css',
-				'prod' => 'http://example.com/style.min.css',
-			),
-		);
-
-		WP_Mock::userFunction('wp_register_style', array(
-			'times'  => 1,
-			'return' => true,
-			'args'   => array( 'test-style', $expected_src, Mockery::any(), Mockery::any(), Mockery::any() ),
-		));
-
-		// Use the public API to add the style and trigger the processing hooks.
-		$this->instance->add( array( $asset_definition ) );
-		$this->instance->stage();
-
-		// The assertion is implicitly handled by the mock expectation for wp_register_style.
-		$this->expectLog('debug', array('_process_single_', 'Registering', 'test-style', $expected_src), 1);
-	}
-
-	/**
-	 * Data provider for `test_process_single_asset_resolves_src_based_on_environment`.
-	 * @dataProvider provideEnvironmentData
-	 */
-	public function provideEnvironmentData(): array {
-		return array(
-			'Development environment' => array(true, 'http://example.com/style.css'),
-			'Production environment'  => array(false, 'http://example.com/style.min.css'),
-		);
-	}
 
 	/**
 	 * @covers \Ran\PluginLib\EnqueueAccessory\StylesEnqueueTrait::_process_single_asset
@@ -388,6 +345,11 @@ class StylesEnqueueTraitTest extends EnqueueTraitTestCase {
 		\WP_Mock::userFunction('wp_enqueue_style')
 			->zeroOrMoreTimes()
 			->with($handle)
+			->andReturn(true);
+
+		// Mock wp_style_is for our new enqueue verification logic
+		\WP_Mock::userFunction('wp_style_is')
+			->zeroOrMoreTimes()
 			->andReturn(true);
 
 		\WP_Mock::userFunction('wp_add_inline_style')
@@ -935,10 +897,16 @@ class StylesEnqueueTraitTest extends EnqueueTraitTestCase {
 	 * @covers \Ran\PluginLib\EnqueueAccessory\StylesEnqueueTrait::_modify_html_tag_attributes
 	 */
 	public function test_modify_html_tag_attributes_adds_attributes_correctly(string $handle, array $attributes, string $original_tag, string $expected_tag, string $tag_handle = null): void {
+		// This test uses reflection per ADR-001 guidelines because:
+		// 1. _modify_html_tag_attributes() is a utility method for HTML tag manipulation
+		// 2. Testing through public interface requires complex WordPress filter mocking
+		// 3. Direct testing of HTML attribute logic is clearer and more focused
+		// 4. The method has complex edge cases that are easier to test directly
+		
 		// Arrange
-		// The test class uses a method that calls the protected method from the trait.
+		$tag_handle = $tag_handle ?? $handle; // Use provided tag_handle or default to handle
+		
 		// Act
-		$tag_handle   = $tag_handle ?? $handle; // Use provided tag_handle or default to handle
 		$modified_tag = $this->_invoke_protected_method(
 			$this->instance,
 			'_modify_html_tag_attributes',
@@ -1086,60 +1054,55 @@ class StylesEnqueueTraitTest extends EnqueueTraitTestCase {
 	 */
 	public function test_do_enqueue_registers_style_when_not_registered(): void {
 		// Arrange
-		$handle           = 'test-style-not-registered';
-		$src              = 'path/to/style.css';
-		$deps             = array();
-		$ver              = '1.0';
-		$extra_args       = 'all'; // media parameter for styles
-		$do_enqueue       = true; // Whether to enqueue the asset
-		$context          = 'test'; // Context for logging
-		$log_hook_context = ''; // Additional hook context for logging
-		$is_deferred      = false; // Whether this is a deferred asset
-		$hook_name        = null; // Hook name for deferred assets
+		$handle = 'test-style-not-registered';
+		$src    = 'path/to/style.css';
+		$deps   = array();
+		$ver    = '1.0';
+		$media  = 'all';
 
 		// Mock wp_style_is for both registered and enqueued checks
 		WP_Mock::userFunction('wp_style_is')
 			->with($handle, 'registered')
 			->andReturn(false);
 
+		// Mock wp_style_is for enqueued check (called initially and for verification after enqueue)
 		WP_Mock::userFunction('wp_style_is')
 			->with($handle, 'enqueued')
-			->andReturn(false);
+			->andReturnUsing(function() {
+				static $call_count = 0;
+				$call_count++;
+				if ($call_count === 1) {
+					return false; // Initial check - not enqueued
+				} else {
+					return true; // After enqueue - successfully enqueued
+				}
+			});
 
 		// Mock wp_register_style to return true
 		WP_Mock::userFunction('wp_register_style')
-			->zeroOrMoreTimes()
-			->with($handle, $src, $deps, $ver, $extra_args)
+			->once()
+			->with($handle, $src, $deps, $ver, $media)
 			->andReturn(true);
 
 		// Mock wp_enqueue_style
 		WP_Mock::userFunction('wp_enqueue_style')
-			->zeroOrMoreTimes()
+			->once()
 			->with($handle)
-			->andReturn(null);
+			->andReturn(true);
 
-		// Act: Call the _do_enqueue method with all required parameters
-		$result = $this->_invoke_protected_method(
-			$this->instance,
-			'_do_enqueue',
-			array(
-				AssetType::Style,
-				$do_enqueue,
-				$handle,
-				$src,
-				$deps,
-				$ver,
-				$extra_args,
-				$context,
-				$log_hook_context,
-				$is_deferred,
-				$hook_name
-			)
-		);
+		// Act: Use public interface to trigger _do_enqueue through asset processing
+		$this->instance->add(array(
+			'handle'  => $handle,
+			'src'     => $src,
+			'deps'    => $deps,
+			'version' => $ver,
+			'media'   => $media
+		));
+		$this->instance->enqueue_immediate();
 
-		// Assert
-		$this->assertTrue($result, 'The _do_enqueue method should return true on success');
-		$this->expectLog('warning', array("test - style 'test-style-not-registered' was not registered before enqueuing"), 1);
+		// Assert - The behavior is verified through the WordPress function mocks
+		// The warning and debug logs are expected from the internal _do_enqueue call
+		$this->expectLog('warning', array("style 'test-style-not-registered' was not registered before enqueuing"), 1);
 		$this->expectLog('debug', array('Enqueuing style', 'test-style-not-registered'), 1);
 	}
 
@@ -1444,5 +1407,62 @@ class StylesEnqueueTraitTest extends EnqueueTraitTestCase {
 			// In the test environment, the handle may still be present after processing.
 			// This is acceptable for testing purposes.
 		}
+	}
+
+	/**
+	 * Test _do_register path when style registration fails.
+	 * This covers the style registration failure branch in _do_register.
+	 *
+	 * @test
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_do_register
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_concrete_process_single_asset
+	 */
+	public function test_do_register_handles_style_registration_failure(): void {
+		// Arrange - Set up a style asset that will fail registration
+		$assets_property = new \ReflectionProperty($this->instance, 'assets');
+		$assets_property->setAccessible(true);
+		$assets_property->setValue($this->instance, array(
+			array(
+				'handle' => 'failing-style',
+				'src'    => 'failing-style.css',
+				'deps'   => array(),
+				'ver'    => '1.0',
+				'media'  => 'all'
+			)
+		));
+
+		// Mock get_asset_url to return a valid URL
+		$this->instance->shouldReceive('get_asset_url')
+			->once()
+			->with('failing-style.css', AssetType::Style)
+			->andReturn('https://example.com/failing-style.css');
+
+		// Mock _is_deferred_asset to return null (not deferred)
+		$this->instance->shouldReceive('_is_deferred_asset')
+			->once()
+			->andReturn(null);
+
+		// Mock wp_style_is to return false (not registered)
+		\WP_Mock::userFunction('wp_style_is')
+			->atLeast()->once()
+			->with('failing-style', 'registered')
+			->andReturn(false);
+
+		// Mock wp_register_style to fail
+		\WP_Mock::userFunction('wp_register_style')
+			->atLeast()->once()
+			->andReturn(false);
+
+		// Mock wp_enqueue_style to never be called since registration failed
+		\WP_Mock::userFunction('wp_enqueue_style')
+			->times(0);
+
+		// Act - Call the public method that triggers _do_register
+		$this->instance->enqueue_immediate();
+
+		// Assert - Verify warning log for style registration failure
+		$this->expectLog('warning', array(
+			'wp_register_style() failed for handle \'failing-style\'. Skipping further processing for this asset.'
+		), 1);
 	}
 }

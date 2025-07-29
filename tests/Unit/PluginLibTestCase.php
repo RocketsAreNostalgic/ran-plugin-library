@@ -4,15 +4,15 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\Tests\Unit;
 
-use WP_Mock;
 use Mockery;
-use Mockery\MockInterface;
-use PHPUnit\Framework\MockObject\MockObject;
+use WP_Mock;
 use RanTestCase;
+use Mockery\MockInterface;
 use Ran\PluginLib\Config\ConfigAbstract;
-use Ran\PluginLib\Singleton\SingletonAbstract;
-use Ran\PluginLib\EnqueueAccessory\AssetType;
 use Ran\PluginLib\Util\CollectingLogger;
+use PHPUnit\Framework\MockObject\MockObject;
+use Ran\PluginLib\EnqueueAccessory\AssetType;
+use Ran\PluginLib\Singleton\SingletonAbstract;
 
 /**
  * Minimal concrete class for testing ConfigAbstract initialization.
@@ -299,7 +299,6 @@ abstract class PluginLibTestCase extends RanTestCase {
 		$reflection = new \ReflectionClass(get_class($object));
 		$method     = $reflection->getMethod($method_name);
 		$method->setAccessible(true);
-
 		return $method->invokeArgs($object, $parameters);
 	}
 
