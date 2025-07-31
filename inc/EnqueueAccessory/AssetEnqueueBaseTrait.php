@@ -100,6 +100,17 @@ trait AssetEnqueueBaseTrait {
 	protected array $registered_hooks = array();
 
 	/**
+	 * Request-level cache for expensive operations.
+	 *
+	 * This property provides a simple caching mechanism for expensive operations
+	 * that should only be performed once per request, such as block presence detection.
+	 * The cache is cleared automatically at the end of each request.
+	 *
+	 * @var array<string, mixed>
+	 */
+	protected array $_request_cache = array();
+
+	/**
 	 * Abstract method to get the logger instance.
 	 *
 	 * This ensures that any class using this trait provides a logger.
@@ -111,14 +122,18 @@ trait AssetEnqueueBaseTrait {
 	/**
 	 * Resolves the asset source URL based on the environment.
 	 *
-	 * If `SCRIPT_DEBUG` is true, it prefers the 'dev' URL.
-	 * Otherwise, it prefers the 'prod' URL.
+	 * Uses the Config's is_dev_environment() method to determine environment:
+	 * - First checks for a developer-defined callback (if provided)
+	 * - Falls back to SCRIPT_DEBUG constant if no callback is set
+	 *
+	 * If development environment: prefers the 'dev' URL
+	 * If production environment: prefers the 'prod' URL
 	 *
 	 * @param string|array $src The source URL(s) for the asset.
 	 *
 	 * @return string The resolved source URL.
 	 */
-	protected function _resolve_environment_src($src): string {
+	protected function _resolve_environment_src(string|array $src): string {
 		if (is_string($src)) {
 			return $src;
 		}
@@ -188,7 +203,31 @@ trait AssetEnqueueBaseTrait {
 	 * This method is intended to be called by a public-facing wrapper method (e.g., `add_scripts`, `add_styles`)
 	 * which provides the necessary context for logging.
 	 *
-	 * @param array<string, mixed>|array<int, array<string, mixed>> $assets_to_add A single asset definition array or an array of asset definition arrays.
+	 * Accepts either a single asset definition or an array of asset definitions.
+	 * Single asset definitions are automatically normalized to an array.
+	 *
+	 * @param array<string, mixed>|array<int, array<string, mixed>> $assets_to_add Single asset definition or array of asset definitions.
+	 *								Each definition should contain:
+	 *								- 'handle' (string): Unique asset handle (required)
+	 *								- 'src' (string|false): Asset source URL or false for registered-only assets (required)
+	 *								- 'deps' (array, optional): Array of dependency handles. Default: []
+	 *								- 'version' (string|false, optional): Asset version or false to use plugin version. Default: false
+	 *								- 'condition' (callable, optional): Condition callback for conditional loading. Default: null (always load)
+	 *								- 'hook' (string, optional): WordPress hook for deferred loading. Default: immediate loading
+	 *								- 'priority' (int, optional): Hook priority for deferred assets. Default: 10
+	 *								- 'replace' (bool, optional): Whether to replace existing asset with same handle. Default: false
+	 *								- 'cache_bust' (bool, optional): Whether to add cache busting parameter. Default: false
+	 *								- 'inline' (string|array, optional): Inline content to attach to this asset
+	 *								- 'attributes' (array, optional): Custom HTML attributes for the asset tag
+	 *
+	 *								Script-specific properties:
+	 *								- 'in_footer' (bool, optional): Whether to load script in footer. Default: false
+     *								- 'data' (array, optional): Key-value pairs of data attributes for the `<script>` tag (e.g., `['data-some-attr' => 'value']`). Defaults to an empty array.
+	 *
+	 *								Style-specific properties:
+	 *								- 'media' (string, optional): CSS media attribute. Default: 'all'
+	 *
+	 * @param AssetType $asset_type The type of asset being added (Script, Style, or Media).
 	 * @return self Returns the instance of this class for method chaining.
 	 */
 	public function add_assets(array $assets_to_add, AssetType $asset_type): self {
@@ -1207,6 +1246,25 @@ trait AssetEnqueueBaseTrait {
 	 */
 	protected function _md5_file(string $path): string|false {
 		return md5_file($path);
+	}
+
+	/**
+	 * Caches the result of an expensive operation for the duration of the current request.
+	 *
+	 * This method provides a simple caching mechanism for expensive operations that should
+	 * only be performed once per request, such as block presence detection or file system
+	 * operations. The cache is automatically cleared at the end of each request.
+	 *
+	 * @param string   $key      The cache key to use for storing/retrieving the result.
+	 * @param callable $callback The callback function to execute if the result is not cached.
+	 *
+	 * @return mixed The cached result or the result of executing the callback.
+	 */
+	protected function _cache_for_request(string $key, callable $callback) {
+		if (!isset($this->_request_cache[$key])) {
+			$this->_request_cache[$key] = $callback();
+		}
+		return $this->_request_cache[$key];
 	}
 
 	/**
