@@ -305,7 +305,12 @@ trait BlockAssetTrait {
 		global $post;
 
 		// Check if WordPress block functions are available
-		if (!function_exists('has_blocks') || !function_exists('parse_blocks')) {
+		// Cache function existence checks to avoid repeated function_exists() calls
+		$functions_available = $this->_cache_for_request('wp_block_functions_available', function() {
+			return function_exists('has_blocks') && function_exists('parse_blocks');
+		});
+
+		if (!$functions_available) {
 			return array();
 		}
 
