@@ -37,10 +37,11 @@ This document outlines the implementation of a block-aware asset manager that le
 
 #### 1.1 Create BlockAssetManager Class
 
-- [ ] **File**: `inc/EnqueueAccessory/BlockAssetManager.php`
-- [ ] **Extends**: `AssetEnqueueBaseAbstract`
-- [ ] **Purpose**: Primary interface for block asset management
-- [ ] **Key Features**:
+- [x] **File**: `inc/EnqueueAccessory/BlockAssetManager.php`
+- [x] **File**: `inc/EnqueueAccessory/BlockAssetTrait.php` (additional trait for shared functionality)
+- [x] **Extends**: `AssetEnqueueBaseAbstract`
+- [x] **Purpose**: Primary interface for block asset management
+- [x] **Key Features**:
   - Block registration tracking
   - Asset-to-block mapping
   - WordPress block lifecycle integration
@@ -48,10 +49,10 @@ This document outlines the implementation of a block-aware asset manager that le
 
 #### 1.2 Block Asset Registration System
 
-- [ ] **Method**: `register_block_assets(string $block_name, array $asset_config)`
-- [ ] **Storage**: Internal mapping of block names to asset definitions
-- [ ] **Integration**: Use existing `add_assets()` method with block-specific metadata
-- [ ] **Asset Types**:
+- [x] **Method**: `register_block_assets(string $block_name, array $asset_config)`
+- [x] **Storage**: Internal mapping of block names to asset definitions
+- [x] **Integration**: Use existing `add_assets()` method with block-specific metadata
+- [x] **Asset Types**:
   - Editor-only assets (admin context)
   - Frontend-only assets (public context)
   - Universal assets (both contexts)
@@ -59,86 +60,207 @@ This document outlines the implementation of a block-aware asset manager that le
 
 #### 1.3 Block Presence Detection
 
-- [ ] **Method**: `detect_block_presence(): array`
-- [ ] **Implementation**: Parse post content for registered blocks
-- [ ] **Caching**: Cache block presence per request to avoid multiple parsing
-- [ ] **Hook Integration**: `wp` hook for early detection, `wp_enqueue_scripts` for asset loading
+- [x] **Method**: `detect_block_presence(): array`
+- [x] **Implementation**: Parse post content for registered blocks
+- [x] **Caching**: Cache block presence per request to avoid multiple parsing
+- [x] **Hook Integration**: `wp` hook for early detection, `wp_enqueue_scripts` for asset loading
 
 ### Phase 2: WordPress Block Integration
 
 #### 2.1 Block Registration Helper
 
-- [ ] **File**: `inc/EnqueueAccessory/BlockRegistrar.php`
-- [ ] **Purpose**: Simplify block registration with asset management
-- [ ] **Method**: `register_block(string $block_name, array $config)`
-- [ ] **Integration**:
-  - Call WordPress `register_block_type()`
-  - Register assets with `BlockAssetManager`
-  - Set up render callbacks for dynamic blocks
+- [x] **File**: `inc/EnqueueAccessory/BlockRegistrar.php`
+- [x] **Purpose**: Simplify block registration with asset management
+- [x] **Method**: `add(array $blocks_to_add)` _(API evolved during implementation)_
+- [x] **Integration**:
+  - Call WordPress `register_block_type()` via `_register_single_block()`
+  - Register assets with ScriptsHandler and StylesHandler
+  - Set up render callbacks for dynamic blocks via `block_config`
+  - Support both immediate and deferred block registration
+
+**Implementation Note**: The original specification called for `register_block(string $block_name, array $config)` but this was superseded during development by `add(array $blocks_to_add)` for several architectural improvements:
+
+- **Better Separation of Concerns**: Separates `block_config` (WordPress block settings) from `assets` (asset definitions)
+- **Batch Registration Support**: Can register multiple blocks in a single call, improving performance
+- **API Consistency**: Matches the `add()` pattern used by ScriptsHandler and StylesHandler
+- **Enhanced Flexibility**: Supports deferred registration, conditional registration, and custom hooks
+- **Clearer Structure**: Block name is explicit in the definition rather than a separate parameter
+
+The core functionality remains identical - simplified block registration with integrated asset management.
 
 #### 2.2 Dynamic Block Render Integration
 
-- [ ] **Hook**: Integrate with block render callbacks
-- [ ] **Asset Loading**: Trigger asset enqueuing during block rendering
-- [ ] **Context Awareness**: Differentiate between editor and frontend contexts
-- [ ] **Performance**: Avoid duplicate asset loading for multiple block instances
+- [x] **Hook**: Integrate with block render callbacks
+- [x] **Asset Loading**: Trigger asset enqueuing during block rendering
+- [x] **Context Awareness**: Differentiate between editor and frontend contexts
+- [x] **Performance**: Avoid duplicate asset loading for multiple block instances
 
 #### 2.3 WordPress Hook Integration
 
-- [ ] **Editor Assets**: `enqueue_block_editor_assets` hook
-- [ ] **Frontend Assets**: `wp_enqueue_scripts` hook with block presence detection
-- [ ] **Block Assets**: `enqueue_block_assets` hook for universal assets
-- [ ] **Dynamic Loading**: Asset loading during `render_block` for dynamic blocks
+- [x] **Editor Assets**: `enqueue_block_editor_assets` hook
+- [x] **Frontend Assets**: `wp_enqueue_scripts` hook with block presence detection
+- [x] **Dynamic Loading**: Asset loading during `render_block` for dynamic blocks
+- [x] **Block Assets**: `enqueue_block_assets` hook for universal assets _(Superseded by targeted hook integration)_
+
+> **Implementation Note**: The `enqueue_block_assets` hook was superseded by a more sophisticated approach using targeted hooks:
+>
+> - `enqueue_block_editor_assets` for editor-specific assets
+> - `wp_enqueue_scripts` with conditional block presence detection for frontend assets
+> - `render_block` filter for dynamic, per-block asset loading
+>
+> This provides better performance through conditional loading and more granular control over when assets are enqueued, avoiding the "universal loading" approach that `enqueue_block_assets` would have provided.
 
 ### Phase 3: Advanced Features
 
 #### 3.1 Block Asset Grouping
 
-- [ ] **Feature**: Group related assets by block family or plugin
-- [ ] **Method**: `register_block_group(string $group_name, array $blocks, array $shared_assets)`
-- [ ] **Benefits**: Reduce HTTP requests, share common dependencies
-- [ ] **Implementation**: Extend existing asset processing to handle grouped assets
+- [x] **Feature**: Group related assets by block family or plugin
+- [x] **Method**: `register_block_group(string $group_name, array $blocks, array $shared_assets)`
+- [x] **Benefits**: Reduce HTTP requests, share common dependencies
+- [x] **Implementation**: Extend existing asset processing to handle grouped assets
 
 #### 3.2 Block Asset Replacement
 
-- [ ] **Feature**: Replace default block assets with custom versions
-- [ ] **Integration**: Use existing `replace` flag functionality
-- [ ] **Method**: `replace_block_assets(string $block_name, array $replacement_assets)`
-- [ ] **Use Cases**: Custom styling for core blocks, performance optimizations
+- [x] **Feature**: Replace default block assets with custom versions
+- [x] **Integration**: Use existing `replace` flag functionality
+- [x] **Method**: `replace_block_assets(string $block_name, array $replacement_assets)`
+- [x] **Use Cases**: Custom styling for core blocks, performance optimizations
 
-#### 3.3 Block Asset Dependencies
+#### 3.3 Block Asset Dependencies _(Future Enhancement)_
 
 - [ ] **Feature**: Automatic dependency resolution between block assets
 - [ ] **Implementation**: Extend existing dependency handling
 - [ ] **Method**: `add_block_dependency(string $block_name, string $dependency_block)`
 - [ ] **Benefits**: Ensure required assets load when dependent blocks are present
 
+> **Status**: Deferred to future version. This is a valuable advanced feature for complex block ecosystems but not essential for core functionality. Current asset-level dependencies handle most use cases, and block authors can work around this manually. Would be highly beneficial for enterprise block libraries and theme block families.
+
 ### Phase 4: Performance Optimizations
 
 #### 4.1 Block Asset Bundling
 
-- [ ] **Feature**: Combine multiple block assets into bundles
-- [ ] **Method**: `create_block_bundle(string $bundle_name, array $block_assets)`
-- [ ] **Integration**: Use existing asset processing with bundle-specific handles
-- [ ] **Benefits**: Reduce HTTP requests, improve loading performance
+- [x] **Feature**: Combine multiple block assets into bundles
+- [x] **Method**: `create_block_bundle(string $bundle_name, array $block_assets)`
+- [x] **Integration**: Use existing asset processing with bundle-specific handles
+- [x] **Benefits**: Reduce HTTP requests, improve loading performance
 
-#### 4.2 Lazy Loading Integration
+#### 4.2 Lazy Loading Integration _(Future Enhancement)_
 
-- [ ] **Feature**: Defer non-critical block assets until needed
-- [ ] **Implementation**: Use existing deferred asset system
-- [ ] **Triggers**: Intersection Observer, user interaction, scroll events
-- [ ] **Method**: `defer_block_assets(string $block_name, string $trigger_event)`
+- [x] **Feature**: Defer non-critical block assets until needed _(Hook-based deferring implemented)_
+- [ ] **Implementation**: Client-side lazy loading with browser events _(Advanced feature)_
+- [ ] **Triggers**: Intersection Observer, user interaction, scroll events _(JavaScript required)_
+- [x] **Method**: `defer_block_assets(string $block_name, string $trigger_event)` _(WordPress hooks only)_
 
-#### 4.3 Block Asset Preloading
+> **Status**: Core hook-based deferring is complete and provides significant performance benefits. Client-side lazy loading (Intersection Observer, user interaction triggers) would be a valuable advanced enhancement but requires JavaScript development and adds significant complexity. The current implementation covers most use cases effectively.
 
-- [ ] **Feature**: Preload critical block assets
-- [ ] **Method**: `preload_block_assets(array $critical_blocks)`
-- [ ] **Implementation**: Generate `<link rel="preload">` tags
-- [ ] **Integration**: Use existing render_head() functionality
+#### 4.3 Block Asset Preloading _(Future Enhancement)_
 
-## Technical Implementation Details
+- [ ] **Feature**: Preload critical block assets _(Performance optimization)_
+- [ ] **Method**: `preload_block_assets(array $critical_blocks)` _(API design ready)_
+- [ ] **Implementation**: Generate `<link rel="preload">` tags _(Infrastructure exists)_
+- [ ] **Integration**: Use existing render*head() functionality *(Available)\_
 
-### 1. BlockAssetManager Class Structure
+> **Status**: Infrastructure exists but determining "critical" blocks automatically is complex and site-specific. WordPress core and performance plugins already provide preloading capabilities. Would be valuable for performance-critical sites but requires careful implementation to avoid over-preloading. The existing conditional loading system already provides significant performance benefits.
+
+## Minor Implementation Considerations
+
+### 1. Block Detection Caching
+
+**Challenge**: Block presence detection via `parse_blocks()` can be expensive if called multiple times per request.
+
+**Solution**: Add a simple caching method to `AssetEnqueueBaseTrait`:
+
+```php
+// Add to AssetEnqueueBaseTrait
+protected array $_request_cache = [];
+
+protected function _cache_for_request(string $key, callable $callback) {
+    if (!isset($this->_request_cache[$key])) {
+        $this->_request_cache[$key] = $callback();
+    }
+    return $this->_request_cache[$key];
+}
+```
+
+**Usage in BlockAssetManager**:
+
+```php
+protected function detect_block_presence(): array {
+    return $this->_cache_for_request('detected_blocks', function() {
+        // Expensive block parsing logic here
+        return $this->_parse_blocks_from_content();
+    });
+}
+```
+
+### 2. Asset Metadata Extensions
+
+**Challenge**: Need to track which assets belong to which blocks without breaking existing asset structure.
+
+**Solution**: Extend asset definitions with optional metadata fields:
+
+```php
+// Existing asset definition remains unchanged
+$asset_definition = [
+    'handle' => 'my-block-script',
+    'src' => 'blocks/my-block/script.js',
+    'deps' => ['wp-blocks'],
+
+    // New optional block-specific metadata
+    '_block_context' => 'my-plugin/my-block',
+    '_block_scope' => 'frontend', // 'frontend', 'editor', 'both'
+    '_requires_block_presence' => true,
+];
+```
+
+**Integration with existing condition system**:
+
+```php
+// In BlockAssetManager::register_block_assets()
+foreach ($asset_config['frontend_scripts'] ?? [] as $script) {
+    $script['_block_context'] = $block_name;
+    $script['condition'] = function() use ($block_name) {
+        return in_array($block_name, $this->detect_block_presence());
+    };
+
+    $this->add_assets([$script], AssetType::Script);
+}
+```
+
+### 3. Hook Integration Strategy
+
+**Challenge**: Integrate with WordPress block lifecycle hooks while leveraging existing deferred asset system.
+
+**Solution**: Use existing hook registration with block-specific hooks:
+
+```php
+// In BlockAssetManager
+public function register_block_assets(string $block_name, array $asset_config): self {
+    // Dynamic blocks - load during render
+    foreach ($asset_config['dynamic_scripts'] ?? [] as $script) {
+        $script['hook'] = 'render_block';
+        $script['priority'] = 10;
+        $script['_block_context'] = $block_name;
+
+        $this->add_assets([$script], AssetType::Script);
+    }
+
+    // Static blocks - load during wp_enqueue_scripts with presence detection
+    foreach ($asset_config['frontend_scripts'] ?? [] as $script) {
+        $script['condition'] = function() use ($block_name) {
+            return $this->_is_block_present($block_name);
+        };
+
+        $this->add_assets([$script], AssetType::Script);
+    }
+
+    return $this;
+}
+```
+
+## Enhanced Technical Implementation Details
+
+### 1. BlockAssetManager Class Structure (Expanded)
 
 ```php
 class BlockAssetManager extends AssetEnqueueBaseAbstract {
@@ -149,24 +271,231 @@ class BlockAssetManager extends AssetEnqueueBaseAbstract {
     protected array $block_groups = [];
     protected bool $blocks_detected = false;
 
-    public function register_block_assets(string $block_name, array $asset_config): self
-    public function detect_block_presence(): array
-    public function enqueue_block_assets(): void
-    public function replace_block_assets(string $block_name, array $replacement_assets): self
-    public function create_block_bundle(string $bundle_name, array $block_assets): self
+    // Core block asset registration
+    public function register_block_assets(string $block_name, array $asset_config): self {
+        $this->block_assets[$block_name] = $asset_config;
+
+        // Process each asset type
+        $this->_process_block_asset_type($block_name, 'editor_scripts', AssetType::Script, 'editor');
+        $this->_process_block_asset_type($block_name, 'frontend_scripts', AssetType::Script, 'frontend');
+        $this->_process_block_asset_type($block_name, 'editor_styles', AssetType::Style, 'editor');
+        $this->_process_block_asset_type($block_name, 'frontend_styles', AssetType::Style, 'frontend');
+
+        return $this;
+    }
+
+    // Enhanced block presence detection with caching
+    public function detect_block_presence(): array {
+        return $this->_cache_for_request('block_presence', function() {
+            return $this->_detect_blocks_in_content();
+        });
+    }
+
+    // Protected helper methods
+    protected function _process_block_asset_type(string $block_name, string $asset_key, AssetType $asset_type, string $scope): void {
+        $assets = $this->block_assets[$block_name][$asset_key] ?? [];
+
+        foreach ($assets as $asset) {
+            $asset['_block_context'] = $block_name;
+            $asset['_block_scope'] = $scope;
+
+            // Add block presence condition for frontend assets
+            if ($scope === 'frontend') {
+                $asset['condition'] = function() use ($block_name) {
+                    return $this->_is_block_present($block_name);
+                };
+            }
+
+            // Add to appropriate queue using existing infrastructure
+            $this->add_assets([$asset], $asset_type);
+        }
+    }
+
+    protected function _detect_blocks_in_content(): array {
+        global $post;
+
+        if (!$post || !has_blocks($post->post_content)) {
+            return [];
+        }
+
+        $blocks = parse_blocks($post->post_content);
+        $detected = [];
+
+        foreach ($blocks as $block) {
+            if (!empty($block['blockName']) && isset($this->block_assets[$block['blockName']])) {
+                $detected[] = $block['blockName'];
+            }
+
+            // Handle nested blocks
+            if (!empty($block['innerBlocks'])) {
+                $detected = array_merge($detected, $this->_detect_nested_blocks($block['innerBlocks']));
+            }
+        }
+
+        return array_unique($detected);
+    }
+
+    protected function _is_block_present(string $block_name): bool {
+        return in_array($block_name, $this->detect_block_presence());
+    }
 }
 ```
 
-### 2. Asset Configuration Format
+### 2. BlockAssetTrait Implementation
 
 ```php
-$asset_config = [
+trait BlockAssetTrait {
+
+    /**
+     * Register assets for a block group (shared dependencies)
+     */
+    public function register_block_group(string $group_name, array $blocks, array $shared_assets): self {
+        $this->block_groups[$group_name] = [
+            'blocks' => $blocks,
+            'shared_assets' => $shared_assets
+        ];
+
+        // Register shared assets with group condition
+        foreach ($shared_assets as $asset_type => $assets) {
+            foreach ($assets as $asset) {
+                $asset['condition'] = function() use ($blocks) {
+                    $detected = $this->detect_block_presence();
+                    return !empty(array_intersect($blocks, $detected));
+                };
+
+                $this->add_assets([$asset], AssetType::from($asset_type));
+            }
+        }
+
+        return $this;
+    }
+
+    /**
+     * Replace existing block assets
+     */
+    public function replace_block_assets(string $block_name, array $replacement_assets): self {
+        foreach ($replacement_assets as $asset_type => $assets) {
+            foreach ($assets as $asset) {
+                $asset['replace'] = true; // Use existing replace functionality
+                $asset['_block_context'] = $block_name;
+
+                $this->add_assets([$asset], AssetType::from($asset_type));
+            }
+        }
+
+        return $this;
+    }
+
+    /**
+     * Create asset bundle for multiple blocks
+     */
+    public function create_block_bundle(string $bundle_name, array $block_assets): self {
+        $bundle_condition = function() use ($block_assets) {
+            $detected = $this->detect_block_presence();
+            $required_blocks = array_keys($block_assets);
+            return !empty(array_intersect($required_blocks, $detected));
+        };
+
+        // Process bundled assets
+        foreach ($block_assets as $block_name => $assets) {
+            foreach ($assets as $asset_type => $asset_list) {
+                foreach ($asset_list as $asset) {
+                    $asset['condition'] = $bundle_condition;
+                    $asset['_bundle'] = $bundle_name;
+                    $asset['_block_context'] = $block_name;
+
+                    $this->add_assets([$asset], AssetType::from($asset_type));
+                }
+            }
+        }
+
+        return $this;
+    }
+
+    /**
+     * Defer block assets until specific trigger
+     */
+    public function defer_block_assets(string $block_name, string $trigger_hook): self {
+        if (!isset($this->block_assets[$block_name])) {
+            return $this;
+        }
+
+        // Re-register assets with deferred hook
+        foreach ($this->block_assets[$block_name] as $asset_type => $assets) {
+            foreach ($assets as $asset) {
+                $asset['hook'] = $trigger_hook;
+                $asset['_block_context'] = $block_name;
+
+                $this->add_assets([$asset], AssetType::from(str_replace(['_scripts', '_styles'], '', $asset_type)));
+            }
+        }
+
+        return $this;
+    }
+
+    /**
+     * Handle nested block detection recursively
+     */
+    protected function _detect_nested_blocks(array $blocks): array {
+        $detected = [];
+
+        foreach ($blocks as $block) {
+            if (!empty($block['blockName']) && isset($this->block_assets[$block['blockName']])) {
+                $detected[] = $block['blockName'];
+            }
+
+            if (!empty($block['innerBlocks'])) {
+                $detected = array_merge($detected, $this->_detect_nested_blocks($block['innerBlocks']));
+            }
+        }
+
+        return $detected;
+    }
+}
+```
+
+### 3. WordPress Hook Integration (Enhanced)
+
+```php
+// In BlockAssetManager::load() method
+public function load(): void {
+    // Early block detection for static blocks
+    add_action('wp', [$this, 'detect_block_presence'], 5);
+
+    // Standard asset enqueueing with block awareness
+    add_action('wp_enqueue_scripts', [$this, 'stage'], 10);
+    add_action('wp_enqueue_scripts', [$this, 'enqueue_immediate'], 20);
+
+    // Editor-specific hooks
+    add_action('enqueue_block_editor_assets', [$this, 'enqueue_editor_assets'], 10);
+
+    // Dynamic block integration
+    add_filter('render_block', [$this, '_maybe_enqueue_dynamic_assets'], 10, 2);
+}
+
+public function _maybe_enqueue_dynamic_assets(string $block_content, array $block): string {
+    $block_name = $block['blockName'] ?? '';
+
+    if ($block_name && isset($this->block_assets[$block_name])) {
+        // Trigger dynamic asset loading for this specific block
+        $this->_enqueue_dynamic_block_assets($block_name);
+    }
+
+    return $block_content;
+}
+```
+
+### 4. Enhanced Asset Configuration Format
+
+```php
+$enhanced_asset_config = [
     'editor_scripts' => [
         [
             'handle' => 'my-block-editor',
             'src' => 'blocks/my-block/editor.js',
             'deps' => ['wp-blocks', 'wp-element'],
-            'version' => '1.0.0'
+            'version' => '1.0.0',
+            'cache_bust' => true, // Use existing cache busting
         ]
     ],
     'frontend_scripts' => [
@@ -175,82 +504,80 @@ $asset_config = [
             'src' => 'blocks/my-block/frontend.js',
             'deps' => ['jquery'],
             'version' => '1.0.0',
-            'condition' => function() { return !is_admin(); }
+            'in_footer' => true,
+            'condition' => function() { return !is_admin(); }, // Additional conditions
         ]
     ],
-    'editor_styles' => [...],
-    'frontend_styles' => [...],
+    'dynamic_scripts' => [ // New: Scripts loaded during block render
+        [
+            'handle' => 'my-block-dynamic',
+            'src' => 'blocks/my-block/dynamic.js',
+            'hook' => 'render_block', // Leverages existing deferred system
+            'priority' => 10,
+        ]
+    ],
+    'shared_dependencies' => [ // New: Assets shared across block instances
+        [
+            'handle' => 'my-block-shared',
+            'src' => 'blocks/shared/common.js',
+            'deps' => ['wp-api'],
+        ]
+    ],
     'inline_assets' => [
         [
             'parent_handle' => 'my-block-frontend',
-            'content' => 'var myBlockConfig = ' . wp_json_encode($block_config) . ';',
+            'content' => function($block_name) { // Dynamic inline content
+                return 'var blockConfig = ' . wp_json_encode($this->get_block_config($block_name)) . ';';
+            },
             'position' => 'before'
         ]
     ]
 ];
 ```
 
-### 3. Block Registration Integration
+## Integration with Existing Base Classes
+
+### Required Changes to AssetEnqueueBaseTrait
+
+**Add request-level caching method** ✅ **COMPLETED**:
 
 ```php
-public function register_block(string $block_name, array $config): void {
-    // Extract asset definitions
-    $asset_config = $config['assets'] ?? [];
+// Add to AssetEnqueueBaseTrait
+protected array $_request_cache = [];
 
-    // Register assets with our system
-    $this->block_asset_manager->register_block_assets($block_name, $asset_config);
-
-    // Register block with WordPress
-    register_block_type($block_name, [
-        'render_callback' => function($attributes, $content) use ($block_name) {
-            // Trigger asset loading for this block
-            $this->block_asset_manager->enqueue_block_specific_assets($block_name);
-
-            // Call original render callback if provided
-            if (isset($config['render_callback'])) {
-                return call_user_func($config['render_callback'], $attributes, $content);
-            }
-
-            return $content;
-        }
-    ]);
+protected function _cache_for_request(string $key, callable $callback) {
+    if (!isset($this->_request_cache[$key])) {
+        $this->_request_cache[$key] = $callback();
+    }
+    return $this->_request_cache[$key];
 }
 ```
 
-### 4. Block Presence Detection
+**Optional: Add block context to asset processing**:
 
 ```php
-protected function detect_block_presence(): array {
-    if ($this->blocks_detected) {
-        return $this->detected_blocks;
+// Enhance _concrete_process_single_asset() to handle block metadata
+protected function _concrete_process_single_asset(/* existing params */) {
+    // Existing logic remains unchanged
+
+    // Optional: Add block context to logging
+    if (isset($asset_definition['_block_context'])) {
+        $this->_log_debug("Processing asset for block: {$asset_definition['_block_context']}");
     }
 
-    global $post;
-    if (!$post || !has_blocks($post->post_content)) {
-        $this->blocks_detected = true;
-        return $this->detected_blocks = [];
-    }
-
-    $blocks = parse_blocks($post->post_content);
-    $detected = [];
-
-    foreach ($blocks as $block) {
-        if (!empty($block['blockName']) && isset($this->block_assets[$block['blockName']])) {
-            $detected[] = $block['blockName'];
-        }
-
-        // Handle nested blocks recursively
-        if (!empty($block['innerBlocks'])) {
-            $detected = array_merge($detected, $this->detect_nested_blocks($block['innerBlocks']));
-        }
-    }
-
-    $this->detected_blocks = array_unique($detected);
-    $this->blocks_detected = true;
-
-    return $this->detected_blocks;
+    // Continue with existing processing...
 }
 ```
+
+### No Changes Required to AssetEnqueueBaseAbstract
+
+The abstract base class requires **zero modifications**. All block functionality is implemented through:
+
+- Trait composition (`BlockAssetTrait`)
+- Method extension (overriding `load()`)
+- Leveraging existing infrastructure
+
+This approach maintains complete backward compatibility while adding powerful block-aware capabilities.
 
 ## Integration Points with Existing System
 
@@ -282,10 +609,11 @@ protected function detect_block_presence(): array {
 
 ### 1. Unit Tests
 
-- [ ] **File**: `Tests/Unit/EnqueueAccessory/BlockAssetManagerTest.php`
-- [ ] **Coverage**: All public methods and core functionality
-- [ ] **Patterns**: Follow existing test patterns from `AssetEnqueueBaseTraitTest.php`
-- [ ] **Mocking**: WordPress block functions (`has_blocks`, `parse_blocks`, etc.)
+- [x] **File**: `Tests/Unit/EnqueueAccessory/BlockAssetManagerTest.php`
+- [x] **File**: `Tests/Unit/EnqueueAccessory/BlockAssetTraitTest.php` (additional comprehensive trait tests)
+- [x] **Coverage**: All public methods and core functionality
+- [x] **Patterns**: Follow existing test patterns from `AssetEnqueueBaseTraitTest.php`
+- [x] **Mocking**: WordPress block functions (`has_blocks`, `parse_blocks`, etc.)
 
 ### 2. Integration Tests
 
@@ -296,13 +624,13 @@ protected function detect_block_presence(): array {
 
 ### 3. Test Scenarios
 
-- [ ] Block presence detection accuracy
-- [ ] Conditional asset loading based on block presence
-- [ ] Asset replacement for existing blocks
-- [ ] Editor vs frontend asset separation
-- [ ] Dynamic block render callback integration
-- [ ] Block asset bundling and optimization
-- [ ] Error handling for invalid block configurations
+- [x] Block presence detection accuracy
+- [x] Conditional asset loading based on block presence
+- [x] Asset replacement for existing blocks
+- [x] Editor vs frontend asset separation
+- [x] Dynamic block render callback integration
+- [x] Block asset bundling and optimization
+- [x] Error handling for invalid block configurations
 
 ## Documentation Requirements
 
@@ -353,24 +681,24 @@ protected function detect_block_presence(): array {
 
 ### Week 1: Core Infrastructure
 
-- [ ] Create `BlockAssetManager` class
-- [ ] Implement basic block asset registration
-- [ ] Add block presence detection
-- [ ] Create initial unit tests
+- [x] Create `BlockAssetManager` class
+- [x] Implement basic block asset registration
+- [x] Add block presence detection
+- [x] Create initial unit tests
 
 ### Week 2: WordPress Integration
 
 - [ ] Create `BlockRegistrar` helper class
-- [ ] Implement WordPress hook integration
-- [ ] Add dynamic block render integration
-- [ ] Expand test coverage
+- [x] Implement WordPress hook integration
+- [x] Add dynamic block render integration
+- [x] Expand test coverage
 
 ### Week 3: Advanced Features
 
-- [ ] Implement block asset replacement
-- [ ] Add block asset grouping
-- [ ] Create performance optimization features
-- [ ] Complete integration tests
+- [x] Implement block asset replacement
+- [x] Add block asset grouping
+- [x] Create performance optimization features (partially)
+- [ ] Complete integration tests (unit tests completed)
 
 ### Week 4: Documentation and Polish
 

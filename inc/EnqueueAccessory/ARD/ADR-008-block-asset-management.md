@@ -2,7 +2,7 @@
 
 ## Status
 
-**Accepted** - Implementation in progress
+**Accepted** - Implementation Complete with Flattened API
 
 ## Context
 
@@ -13,9 +13,37 @@ WordPress blocks require a different asset management approach compared to tradi
 3. **WordPress Integration**: Must integrate seamlessly with WordPress's `register_block_type()` API
 4. **Asset Lifecycle**: Block assets have different scopes (editor, frontend, dynamic) with different loading requirements
 
+## WordPress Built-in vs BlockRegistrar Capabilities
+
+### What WordPress `register_block_type()` Already Provides
+
+WordPress automatically handles conditional loading for these asset types:
+
+- **`editorScript`** - Only loads in block editor (admin)
+- **`editorStyle`** - Only loads in block editor (admin)
+- **`script`** - Loads on both frontend and editor
+- **`style`** - Loads on both frontend and editor
+- **`viewScript`** - Only loads on frontend when block is present (WordPress 5.9+)
+- **`viewStyle`** - Only loads on frontend when block is present (WordPress 6.1+)
+
+### What BlockRegistrar Adds (Non-Duplicative)
+
+Our BlockRegistrar provides **additional** conditional loading capabilities that WordPress doesn't have:
+
+1. **Block-level conditions** - Whether to register the entire block at all
+2. **Custom asset conditions** - Beyond WordPress's built-in contexts
+3. **Dynamic asset loading** - Assets that load during `render_block` hook
+4. **Environment-aware loading** - Dev vs prod asset selection
+5. **Preloading logic** - `<link rel="preload">` tag generation
+6. **Unified asset management** - Integration with existing AssetEnqueueBase infrastructure
+
+### Key Principle: Complement, Don't Duplicate
+
+BlockRegistrar **complements** WordPress's built-in conditional loading rather than duplicating it. Use WordPress's built-in asset types for standard contexts, and BlockRegistrar's custom conditions for specialized scenarios.
+
 ## Decision
 
-We will extend our existing asset management system with block-aware functionality that **inverts the default behavior** compared to traditional assets:
+We will extend our existing asset management system with block-aware functionality that **inverts the default behavior** compared to traditional assets, and provide a **flattened API** that supports all WordPress block properties plus arbitrary custom properties:
 
 ### **Architectural Pattern Inversion**
 
@@ -37,6 +65,47 @@ BlockRegistrar leverages the existing Scripts and Styles asset management system
 - **StylesHandler**: Manages all CSS assets for blocks (editor, frontend, dynamic)
 - **Unified API**: Block developers use a single interface while benefiting from proven asset management features
 - **Feature Inheritance**: Block assets automatically support all Scripts/Styles features (deferred loading, conditions, environment-aware sources, replacement, inline assets, etc.)
+
+### **Flattened API Design**
+
+BlockRegistrar provides a **natural, WordPress-like API** with a clean flattened configuration:
+
+**Flattened Configuration:**
+
+```php
+$block_registrar->add([
+    'block_name' => 'my-plugin/hero',
+    'title' => 'Hero Block',
+    'description' => 'A hero section block',
+    'category' => 'design',
+    'supports' => ['align' => true],
+    'render_callback' => 'render_hero',
+    'assets' => [...]
+]);
+```
+
+**Key Benefits:**
+
+- **Natural WordPress API**: Familiar to WordPress developers
+- **Full WordPress Support**: All `register_block_type()` properties supported
+- **Arbitrary Properties**: Custom properties for plugin-specific configuration
+- **Clean Architecture**: No nested configuration objects required
+- **Better Discoverability**: IDE autocomplete for WordPress properties
+
+**Arbitrary Properties Support:**
+
+```php
+$block_registrar->add([
+    'block_name' => 'my-plugin/api-block',
+    'title' => 'API Block',
+    'render_callback' => 'render_api_block',
+
+    // Custom properties accessible via $block->block_type->property_name
+    'api_config' => ['endpoint' => 'https://api.example.com'],
+    'display_options' => ['theme' => 'dark'],
+    'plugin_metadata' => ['version' => '2.1.0']
+]);
+```
 
 ## Implementation Architecture
 
@@ -62,7 +131,7 @@ $block_registrar->add([
             [
                 'handle' => 'hero-frontend',
                 'src' => 'blocks/hero/frontend.js'
-                // Loads only when block is present (automatic condition)
+                // Maps to WordPress view_script - loads only when block is present
             ]
         ],
         'dynamic_scripts' => [
@@ -153,11 +222,16 @@ public function detect_block_presence(): array {
 }
 ```
 
-### **2. Conditional Asset Loading**
+### **2. WordPress Integration for Conditional Loading**
 
 ```php
-// Assets load only when their block is present
-foreach ($asset_config['frontend_scripts'] ?? [] as $script) {
+// Frontend assets automatically load only when block is present via WordPress view_script/view_style
+// No manual conditions needed - WordPress handles this through our asset type mapping:
+// 'frontend_scripts' → 'view_script' (WordPress 5.9+)
+// 'frontend_styles'  → 'view_style' (WordPress 6.1+)
+
+// Manual conditions only needed for dynamic assets or custom scenarios
+foreach ($asset_config['dynamic_scripts'] ?? [] as $script) {
     $script['condition'] = function() use ($block_name) {
         return $this->_is_block_present($block_name);
     };
@@ -401,18 +475,90 @@ $block_registrar->add([
 
 ### **Environment Benefits**
 
-- **Development**: Unminified files for debugging, cache busting, source maps
+- **Development**: Un-minified files for debugging, cache busting, source maps
 - **Production**: Minified files for performance, stable versioning
 - **Flexibility**: Custom environment detection beyond SCRIPT_DEBUG
 - **Consistency**: Same pattern across all asset types (scripts, styles, media)
 
+## Block Asset Preloading
+
+The BlockRegistrar supports **preloading critical block assets** to improve performance by generating `<link rel="preload">` tags in the HTML head. This feature helps reduce render-blocking time for above-the-fold blocks and improves Core Web Vitals.
+
+### **Preload Configuration**
+
+Preloading is configured at the block level using the `preload` property:
+
+```php
+// Always preload critical assets
+$block_registrar->add([
+    'block_name' => 'my-plugin/hero-block',
+    'preload' => true,
+    'assets' => [
+        'scripts' => [['handle' => 'hero-script', 'src' => 'hero.js']],
+        'styles' => [['handle' => 'hero-style', 'src' => 'hero.css']]
+    ]
+]);
+
+// Conditional preload based on context
+$block_registrar->add([
+    'block_name' => 'my-plugin/cta-block',
+    'preload' => function() {
+        return is_front_page() || is_page_template('page-landing.php');
+    },
+    'assets' => [
+        'scripts' => [['handle' => 'cta-script', 'src' => 'cta.js']]
+    ]
+]);
+
+// Inherit preload condition from block registration
+$block_registrar->add([
+    'block_name' => 'my-plugin/admin-block',
+    'condition' => function() { return !is_admin(); },
+    'preload' => 'inherit', // Use same condition as block registration
+    'assets' => [
+        'scripts' => [['handle' => 'admin-script', 'src' => 'admin.js']]
+    ]
+]);
+```
+
+### **Generated Output**
+
+For preloaded blocks, the system generates appropriate preload tags in the HTML head:
+
+```html
+<link rel="preload" href="https://example.com/hero.js" as="script" />
+<link
+  rel="preload"
+  href="https://example.com/hero.css"
+  as="style"
+  type="text/css"
+/>
+```
+
+### **Implementation Details**
+
+- **Hook Integration**: Preload tags are generated via `wp_head` hook (priority 2)
+- **Asset Coverage**: All asset types are supported (scripts, styles, editor_scripts, dynamic_scripts, etc.)
+- **Environment Support**: Environment-aware URLs are resolved automatically
+- **Conditional Logic**: Callable conditions are evaluated at render time
+- **Inheritance Support**: `'inherit'` option reuses block registration conditions for DRY principle
+- **Performance**: Only blocks with preload configuration trigger the preload system
+
+### **Best Practices**
+
+1. **Critical Assets Only**: Preload only above-the-fold or critical block assets
+2. **Conditional Logic**: Use conditions to avoid over-preloading on irrelevant pages
+3. **Performance Monitoring**: Test impact with PageSpeed Insights and Core Web Vitals
+4. **Context Awareness**: Consider page templates, device types, and user context
+
 ## Benefits
 
-1. **Performance**: Assets load only when blocks are present
+1. **Performance**: Assets load only when blocks are present + preloading for critical resources
 2. **Consistency**: Familiar API patterns from existing asset system
 3. **Flexibility**: Supports immediate and deferred block registration
 4. **Integration**: Seamless WordPress block registration enhancement
 5. **Maintainability**: Extends proven asset management architecture
+6. **Core Web Vitals**: Preloading improves LCP, FID, and overall user experience
 
 ## Trade-offs
 
@@ -428,6 +574,12 @@ $block_registrar->add([
 4. **Development Tools**: Debug utilities for block asset loading
 
 ---
+
+**Example Files**:
+
+- **`examples/flattened-api-usage.php`**: Comprehensive examples of the new flattened API with WordPress properties and arbitrary custom properties
+- **`examples/wordpress-vs-blockregistrar-conditional-loading.php`**: Comparison of WordPress built-in capabilities vs BlockRegistrar additions
+- **`examples/block-preload-usage.php`**: Block asset preloading examples and best practices
 
 **Related ADRs**:
 
