@@ -477,7 +477,10 @@ class BlockRegistrar extends AssetEnqueueBaseAbstract {
 		}
 
 		// Check if block is already registered with WordPress
-		if (\WP_Block_Type_Registry::get_instance()->is_registered($block_name)) {
+		// Note: We cache the registry instance (singleton) but not the is_registered() result
+		// to avoid stale results if blocks are registered dynamically during the same request
+		$registry = $this->_get_block_registry();
+		if ($registry->is_registered($block_name)) {
 			if ($logger->is_active()) {
 				$logger->debug("{$context} - Block '{$block_name}' already registered with WordPress. Skipping.");
 			}
@@ -486,10 +489,11 @@ class BlockRegistrar extends AssetEnqueueBaseAbstract {
 
 		// Prepare WordPress block configuration
 		// Extract our custom properties that shouldn't go to WordPress
-		$our_properties = array('block_name', 'hook', 'priority', 'condition', 'assets', 'preload');
+		// Cache the flipped array since it's static and used for every block registration
+		$our_properties_flipped = $this->_get_our_properties_flipped();
 
 		// Everything else goes to WordPress (including arbitrary properties)
-		$wp_config = array_diff_key($block_definition, array_flip($our_properties));
+		$wp_config = array_diff_key($block_definition, $our_properties_flipped);
 
 		$wp_config = $this->_map_assets_to_wordpress_config($wp_config, $block_name);
 
@@ -533,14 +537,8 @@ class BlockRegistrar extends AssetEnqueueBaseAbstract {
 		$asset_config = $this->block_assets[$block_name];
 
 		// Map asset handles to WordPress expected keys
-		$asset_mappings = array(
-			'editor_scripts'   => 'editor_script',
-			'frontend_scripts' => 'view_script',    // Use WordPress's built-in conditional loading
-			'editor_styles'    => 'editor_style',
-			'frontend_styles'  => 'view_style',     // Use WordPress's built-in conditional loading
-			'scripts'          => 'script',         // Universal scripts (both contexts)
-			'styles'           => 'style',          // Universal styles (both contexts)
-		);
+		// Cache the static mapping array to avoid recreating it for every block
+		$asset_mappings = $this->_get_asset_mappings();
 
 		foreach ($asset_mappings as $our_key => $wp_key) {
 			if (isset($asset_config[$our_key][0]['handle']) && !isset($wp_config[$wp_key])) {
@@ -766,5 +764,60 @@ class BlockRegistrar extends AssetEnqueueBaseAbstract {
 
 			echo $preload_tag . "\n";
 		}
+	}
+
+	/**
+	 * Get the WordPress Block Type Registry instance with request-level caching.
+	 *
+	 * This method caches the registry singleton instance to avoid repeated singleton
+	 * lookups during the same request. We only cache the instance itself, not the
+	 * results of registry queries like is_registered(), to prevent stale results
+	 * when blocks are registered dynamically during the request lifecycle.
+	 *
+	 * @return \WP_Block_Type_Registry The WordPress block type registry instance.
+	 */
+	protected function _get_block_registry(): \WP_Block_Type_Registry {
+		return $this->_cache_for_request('wp_block_registry', function() {
+			return \WP_Block_Type_Registry::get_instance();
+		});
+	}
+
+	/**
+	 * Get the flipped array of our custom properties with request-level caching.
+	 *
+	 * This method caches the result of array_flip() on our static list of custom
+	 * properties to avoid repeated array operations during block registration.
+	 * The flipped array is used with array_diff_key() to filter out our custom
+	 * properties before passing configuration to WordPress.
+	 *
+	 * @return array<string, int> Flipped array of our custom property names.
+	 */
+	protected function _get_our_properties_flipped(): array {
+		return $this->_cache_for_request('our_properties_flipped', function() {
+			return array_flip(array('block_name', 'hook', 'priority', 'condition', 'assets', 'preload'));
+		});
+	}
+
+	/**
+	 * Get the asset mappings configuration with request-level caching.
+	 *
+	 * This method caches the static asset mapping array that converts our asset
+	 * type keys to WordPress's expected block configuration keys. Since this
+	 * mapping is static and used for every block with assets, caching it avoids
+	 * recreating the same array repeatedly.
+	 *
+	 * @return array<string, string> Asset type mapping from our keys to WordPress keys.
+	 */
+	protected function _get_asset_mappings(): array {
+		return $this->_cache_for_request('asset_mappings', function() {
+			return array(
+				'editor_scripts'   => 'editor_script',
+				'frontend_scripts' => 'view_script',    // Use WordPress's built-in conditional loading
+				'editor_styles'    => 'editor_style',
+				'frontend_styles'  => 'view_style',     // Use WordPress's built-in conditional loading
+				'scripts'          => 'script',         // Universal scripts (both contexts)
+				'styles'           => 'style',          // Universal styles (both contexts)
+			);
+		});
 	}
 }
