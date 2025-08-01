@@ -138,7 +138,9 @@ trait AssetEnqueueBaseTrait {
 			return $src;
 		}
 
-		$is_dev = $this->get_config()->is_dev_environment();
+		$is_dev = $this->_cache_for_request('is_dev_environment', function() {
+			return $this->get_config()->is_dev_environment();
+		});
 
 		if ($is_dev && !empty($src['dev'])) {
 			return (string) $src['dev'];
@@ -1093,10 +1095,15 @@ trait AssetEnqueueBaseTrait {
 		if (!$this->_file_exists($file_path)) {
 			if ($logger->is_active()) {
 				$logger->warning("{$context} - Cache-busting for '{$handle}' failed. File not found at resolved path: '{$file_path}'.");
-			}			return $version;
+			}
+			return $version;
 		}
 
-		$hash = $this->_md5_file($file_path);
+		$cache_key = 'file_hash_' . md5($file_path);
+		$hash = $this->_cache_for_request($cache_key, function() use ($file_path) {
+			return $this->_md5_file($file_path);
+		});
+
 		return $hash ? substr($hash, 0, 10) : $version;
 	}
 
@@ -1115,7 +1122,9 @@ trait AssetEnqueueBaseTrait {
 
 		// Use content_url() and WP_CONTENT_DIR for robust path resolution in
 		// single and multisite environments.
-		$content_url = \content_url();
+		$content_url = $this->_cache_for_request('content_url', function() {
+			return \content_url();
+		});
 		$content_dir = \WP_CONTENT_DIR;
 
 		// Check if the asset URL is within the content directory.
@@ -1131,7 +1140,9 @@ trait AssetEnqueueBaseTrait {
 
 		// Fallback for URLs outside of wp-content, e.g., in wp-includes.
 		// This is less common for plugin/theme assets but adds robustness.
-		$site_url = \site_url();
+		$site_url = $this->_cache_for_request('site_url', function() {
+			return \site_url();
+		});
 		if (strpos($url, $site_url) === 0) {
 			$relative_path   = substr($url, strlen($site_url));
 			$file_path       = ABSPATH . ltrim($relative_path, '/');
