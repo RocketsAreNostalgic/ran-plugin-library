@@ -189,12 +189,14 @@ While public interface testing is our **preferred approach**, there are **legiti
 **When**: Testing utility methods that perform isolated operations without meaningful public interfaces.
 
 **Examples**:
+
 - `_resolve_url_to_path()` - URL to file path conversion utility
 - `_md5_file()` - File hash generation utility
 - `_file_exists()` - File existence checking utility
 - `_build_attribute_string()` - HTML attribute building utility
 
 **Rationale**: These methods are:
+
 - **Self-contained** with clear inputs and outputs
 - **Complex enough** to warrant direct testing
 - **Not easily testable** through public interfaces without contrived setups
@@ -205,8 +207,8 @@ While public interface testing is our **preferred approach**, there are **legiti
 // AssetEnqueueBaseTraitCachingTest.php
 public function test_resolve_url_to_path_handles_various_url_formats(): void {
     $result = $this->_invoke_protected_method(
-        $this->instance, 
-        '_resolve_url_to_path', 
+        $this->instance,
+        '_resolve_url_to_path',
         array('http://example.com/wp-content/plugins/my-plugin/script.js')
     );
     $this->assertSame('/path/to/wp-content/plugins/my-plugin/script.js', $result);
@@ -221,17 +223,17 @@ public function test_cache_busting_generates_hash_version_when_enabled_and_file_
         'version'    => '1.0.0',
         'cache_bust' => true,
     );
-    
+
     // Mock file system calls for successful cache-busting
     $this->instance->shouldReceive('_file_exists')->once()->andReturn(true);
     $this->instance->shouldReceive('_md5_file')->once()->andReturn(md5('file content'));
-    
+
     $actual_version = $this->_invoke_protected_method(
-        $this->instance, 
-        '_generate_asset_version', 
+        $this->instance,
+        '_generate_asset_version',
         array($asset_definition)
     );
-    
+
     $this->assertSame(substr(md5('file content'), 0, 10), $actual_version);
 }
 ```
@@ -241,11 +243,13 @@ public function test_cache_busting_generates_hash_version_when_enabled_and_file_
 **When**: Testing complex algorithms or logic that don't have direct public method equivalents.
 
 **Examples**:
+
 - `_generate_asset_version()` - Cache busting logic with file system operations
 - Complex parsing or transformation methods
 - Internal state management methods
 
-**Rationale**: 
+**Rationale**:
+
 - **Direct testing is clearer** than forcing integration through complex code paths
 - **Easier to test edge cases** without setting up entire execution contexts
 - **More maintainable** than complex mock setups for integration testing
@@ -257,8 +261,8 @@ public function test_cache_busting_generates_hash_version_when_enabled_and_file_
     // Direct testing of cache busting algorithm is more appropriate
     // than forcing integration through asset processing pipeline
     $actual_version = $this->_invoke_protected_method(
-        $this->instance, 
-        '_generate_asset_version', 
+        $this->instance,
+        '_generate_asset_version',
         array($asset_definition)
     );
     $this->assertSame($expected_version, $actual_version);
@@ -270,6 +274,7 @@ public function test_cache_busting_generates_hash_version_when_enabled_and_file_
 **When**: Using reflection to **set up test conditions** rather than invoke methods.
 
 **Examples**:
+
 - Setting internal properties to create specific test scenarios
 - Accessing internal state for assertions after public method calls
 
@@ -282,10 +287,10 @@ public function test_public_behavior_with_internal_state(): void {
     $property = new \ReflectionProperty($this->instance, 'internal_state');
     $property->setAccessible(true);
     $property->setValue($this->instance, $test_data);
-    
+
     // Act - Test through public interface
     $result = $this->instance->public_method();
-    
+
     // Assert - Verify behavior
     $this->assertTrue($result);
 }

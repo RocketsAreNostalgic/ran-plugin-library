@@ -158,9 +158,14 @@ trait BlockAssetTrait {
 			foreach ($assets as $asset) {
 				$asset['replace']        = true; // Use existing replace functionality
 				$asset['_block_context'] = $block_name;
-				$asset['condition']      = function() use ($block_name) {
-					return $this->_is_block_present($block_name);
-				};
+
+				// Only add block presence condition for dynamic assets
+				// Frontend assets use WordPress's built-in view_script/view_style conditional loading
+				if (strpos($asset_type, 'dynamic') !== false) {
+					$asset['condition'] = function() use ($block_name) {
+						return $this->_is_block_present($block_name);
+					};
+				}
 
 				$this->add_assets(array($asset), $asset_type_enum);
 			}
@@ -235,9 +240,14 @@ trait BlockAssetTrait {
 			foreach ($assets as $asset) {
 				$asset['hook']           = $trigger_hook;
 				$asset['_block_context'] = $block_name;
-				$asset['condition']      = function() use ($block_name) {
-					return $this->_is_block_present($block_name);
-				};
+
+				// Only add block presence condition for dynamic assets
+				// Frontend assets use WordPress's built-in view_script/view_style conditional loading
+				if (strpos($asset_type, 'dynamic') !== false) {
+					$asset['condition'] = function() use ($block_name) {
+						return $this->_is_block_present($block_name);
+					};
+				}
 
 				$this->add_assets(array($asset), $asset_type_enum);
 			}
@@ -265,8 +275,9 @@ trait BlockAssetTrait {
 			$asset['_block_context'] = $block_name;
 			$asset['_block_scope']   = $scope;
 
-			// Add block presence condition for frontend and dynamic assets
-			if ($scope === 'frontend' || $scope === 'dynamic') {
+			// Add block presence condition only for dynamic assets
+			// Frontend assets use WordPress's built-in view_script/view_style conditional loading
+			if ($scope === 'dynamic') {
 				$asset['condition'] = function() use ($block_name) {
 					return $this->_is_block_present($block_name);
 				};

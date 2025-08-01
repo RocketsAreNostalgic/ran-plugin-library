@@ -8,6 +8,9 @@
  * principle that blocks default to immediate registration (unlike assets which default
  * to deferred loading).
  *
+ * IMPORTANT: This class complements (doesn't duplicate) WordPress's built-in conditional
+ * asset loading. See examples/wordpress-vs-blockregistrar-assets.php for details.
+ *
  * @package Ran\PluginLib\EnqueueAccessory
  * @author  Ran Plugin Lib
  * @license GPL-2.0+ <http://www.gnu.org/licenses/gpl-2.0.txt>
@@ -104,8 +107,31 @@ class BlockRegistrar extends AssetEnqueueBaseAbstract {
 	 *                            - 'hook' (string, optional): WordPress hook for deferred registration. Default: 'init'
 	 *                            - 'priority' (int, optional): Hook priority. Default: 10
 	 *                            - 'condition' (callable, optional): Condition callback for conditional registration
-	 *                            - 'block_config' (array, optional): WordPress block configuration
 	 *                            - 'assets' (array, optional): Asset definitions for the block
+	 *                            - 'preload' (bool|callable|string, optional): Whether to preload block assets.
+	 *                              Can be true for always preload, callable for conditional preload,
+	 *                              'inherit' to use the same condition as block registration, or false/omitted for no preload.
+	 *
+	 *                            Plus any WordPress block properties (passed directly to register_block_type):
+	 *                            - 'title' (string): Human-readable block type label
+	 *                            - 'description' (string): A detailed block type description
+	 *                            - 'category' (string): Block type category classification
+	 *                            - 'icon' (string): Block type icon
+	 *                            - 'keywords' (array): Additional keywords for search interfaces
+	 *                            - 'supports' (array): Supported features
+	 *                            - 'attributes' (array): Block type attributes property schemas
+	 *                            - 'render_callback' (callable): Block type render callback
+	 *                            - 'parent' (array): Setting parent lets a block require nesting within specified blocks
+	 *                            - 'ancestor' (array): Makes block available only inside specified block types
+	 *                            - 'allowed_blocks' (array): Limits which block types can be inserted as children
+	 *                            - 'styles' (array): Alternative block styles
+	 *                            - 'variations' (array): Block variations
+	 *                            - 'example' (array): Structured data for block preview
+	 *                            - 'uses_context' (array): Context values inherited by blocks of this type
+	 *                            - 'provides_context' (array): Context provided by blocks of this type
+	 *                            - 'textdomain' (string): The translation textdomain
+	 *                            - 'api_version' (string): Block API version
+	 *                            - Plus any arbitrary custom properties for your plugin's use
 	 *
 	 * @return self Returns the instance for method chaining.
 	 */
@@ -160,6 +186,11 @@ class BlockRegistrar extends AssetEnqueueBaseAbstract {
 			if (isset($block_definition['assets'])) {
 				$this->register_block_assets($block_name, $block_definition['assets']);
 			}
+
+			// Register block for preloading if configured
+			if (isset($block_definition['preload'])) {
+				$this->_register_block_for_preloading($block_name, $block_definition['preload']);
+			}
 		}
 
 		return $this;
@@ -208,6 +239,9 @@ class BlockRegistrar extends AssetEnqueueBaseAbstract {
 		$this->scripts_handler->stage();
 		$this->styles_handler->stage();
 
+		// Set up preload functionality
+		$this->_setup_preload_callbacks();
+
 		return $this;
 	}
 
@@ -240,13 +274,13 @@ class BlockRegistrar extends AssetEnqueueBaseAbstract {
 		}
 
 		// Process editor assets for all registered blocks
-		foreach ($this->block_assets as $block_name => $block_config) {
-			if (isset($block_config['editor_scripts'])) {
-				$this->scripts_handler->add($block_config['editor_scripts']);
+		foreach ($this->block_assets as $block_name => $asset_config) {
+			if (isset($asset_config['editor_scripts'])) {
+				$this->scripts_handler->add($asset_config['editor_scripts']);
 			}
 
-			if (isset($block_config['editor_styles'])) {
-				$this->styles_handler->add($block_config['editor_styles']);
+			if (isset($asset_config['editor_styles'])) {
+				$this->styles_handler->add($asset_config['editor_styles']);
 			}
 		}
 
@@ -281,23 +315,23 @@ class BlockRegistrar extends AssetEnqueueBaseAbstract {
 			$logger->debug("{$context} - Integrating assets for block '{$block_name}'.");
 		}
 
-		$block_config = $this->block_assets[$block_name];
+		$asset_config = $this->block_assets[$block_name];
 
 		// Map our asset handles to WordPress expected format
-		if (isset($block_config['editor_scripts'][0]['handle'])) {
-			$args['editor_script'] = $block_config['editor_scripts'][0]['handle'];
+		if (isset($asset_config['editor_scripts'][0]['handle'])) {
+			$args['editor_script'] = $asset_config['editor_scripts'][0]['handle'];
 		}
 
-		if (isset($block_config['frontend_scripts'][0]['handle'])) {
-			$args['script'] = $block_config['frontend_scripts'][0]['handle'];
+		if (isset($asset_config['frontend_scripts'][0]['handle'])) {
+			$args['script'] = $asset_config['frontend_scripts'][0]['handle'];
 		}
 
-		if (isset($block_config['editor_styles'][0]['handle'])) {
-			$args['editor_style'] = $block_config['editor_styles'][0]['handle'];
+		if (isset($asset_config['editor_styles'][0]['handle'])) {
+			$args['editor_style'] = $asset_config['editor_styles'][0]['handle'];
 		}
 
-		if (isset($block_config['frontend_styles'][0]['handle'])) {
-			$args['style'] = $block_config['frontend_styles'][0]['handle'];
+		if (isset($asset_config['frontend_styles'][0]['handle'])) {
+			$args['style'] = $asset_config['frontend_styles'][0]['handle'];
 		}
 
 		return $args;
@@ -389,7 +423,12 @@ class BlockRegistrar extends AssetEnqueueBaseAbstract {
 		}
 
 		// Prepare WordPress block configuration
-		$wp_config = $block_definition['block_config'] ?? array();
+		// Extract our custom properties that shouldn't go to WordPress
+		$our_properties = array('block_name', 'hook', 'priority', 'condition', 'assets', 'preload');
+
+		// Everything else goes to WordPress (including arbitrary properties)
+		$wp_config = array_diff_key($block_definition, array_flip($our_properties));
+
 		$wp_config = $this->_map_assets_to_wordpress_config($wp_config, $block_name);
 
 		if ($logger->is_active()) {
@@ -399,8 +438,17 @@ class BlockRegistrar extends AssetEnqueueBaseAbstract {
 		// Register the block with WordPress
 		$result = \register_block_type($block_name, $wp_config);
 
-		if (!$result && $logger->is_active()) {
-			$logger->warning("{$context} - Failed to register block '{$block_name}' with WordPress.");
+		if ($result instanceof \WP_Block_Type) {
+			// Success: Store the WP_Block_Type object and log success
+			$this->registered_wp_block_types[$block_name] = $result;
+			if ($logger->is_active()) {
+				$logger->debug("{$context} - Successfully registered block '{$block_name}' with WordPress.");
+			}
+		} else {
+			// Failure: Log the failure
+			if ($logger->is_active()) {
+				$logger->warning("{$context} - Failed to register block '{$block_name}' with WordPress.");
+			}
 		}
 	}
 
@@ -420,19 +468,21 @@ class BlockRegistrar extends AssetEnqueueBaseAbstract {
 			return $wp_config;
 		}
 
-		$block_config = $this->block_assets[$block_name];
+		$asset_config = $this->block_assets[$block_name];
 
 		// Map asset handles to WordPress expected keys
 		$asset_mappings = array(
 			'editor_scripts'   => 'editor_script',
-			'frontend_scripts' => 'script',
+			'frontend_scripts' => 'view_script',    // Use WordPress's built-in conditional loading
 			'editor_styles'    => 'editor_style',
-			'frontend_styles'  => 'style',
+			'frontend_styles'  => 'view_style',     // Use WordPress's built-in conditional loading
+			'scripts'          => 'script',         // Universal scripts (both contexts)
+			'styles'           => 'style',          // Universal styles (both contexts)
 		);
 
 		foreach ($asset_mappings as $our_key => $wp_key) {
-			if (isset($block_config[$our_key][0]['handle']) && !isset($wp_config[$wp_key])) {
-				$wp_config[$wp_key] = $block_config[$our_key][0]['handle'];
+			if (isset($asset_config[$our_key][0]['handle']) && !isset($wp_config[$wp_key])) {
+				$wp_config[$wp_key] = $asset_config[$our_key][0]['handle'];
 			}
 		}
 
@@ -480,20 +530,208 @@ class BlockRegistrar extends AssetEnqueueBaseAbstract {
 			$logger->debug("{$context} - Enqueuing dynamic assets for block '{$block_name}'.");
 		}
 
-		$block_config = $this->block_assets[$block_name];
+		$asset_config = $this->block_assets[$block_name];
 
 		// Process dynamic scripts
-		if (isset($block_config['dynamic_scripts'])) {
-			$this->scripts_handler->add($block_config['dynamic_scripts']);
+		if (isset($asset_config['dynamic_scripts'])) {
+			$this->scripts_handler->add($asset_config['dynamic_scripts']);
 		}
 
 		// Process dynamic styles
-		if (isset($block_config['dynamic_styles'])) {
-			$this->styles_handler->add($block_config['dynamic_styles']);
+		if (isset($asset_config['dynamic_styles'])) {
+			$this->styles_handler->add($asset_config['dynamic_styles']);
 		}
 
 		// Immediately enqueue the dynamic assets
 		$this->scripts_handler->enqueue_immediate();
 		$this->styles_handler->enqueue_immediate();
+	}
+
+	/**
+	 * Register a block for preloading.
+	 *
+	 * This method processes preload configuration for a block, supporting boolean flags,
+	 * conditional callable functions, and inheritance from block registration conditions.
+	 *
+	 * @param string $block_name The name of the block.
+	 * @param bool|callable|string $preload_config The preload configuration.
+	 */
+	protected function _register_block_for_preloading(string $block_name, $preload_config): void {
+		$logger  = $this->get_logger();
+		$context = get_class($this) . '::' . __FUNCTION__;
+
+		if ($preload_config === true) {
+			// Always preload
+			$this->preload_blocks[$block_name] = true;
+			if ($logger->is_active()) {
+				$logger->debug("{$context} - Block '{$block_name}' registered for preloading (always).");
+			}
+		} elseif ($preload_config === 'inherit') {
+			// Inherit condition from block registration
+			$block_definition = $this->_find_block_definition($block_name);
+			if ($block_definition && isset($block_definition['condition']) && is_callable($block_definition['condition'])) {
+				$this->conditional_preload_blocks[$block_name] = $block_definition['condition'];
+				if ($logger->is_active()) {
+					$logger->debug("{$context} - Block '{$block_name}' registered for preloading (inherit from block condition).");
+				}
+			} else {
+				// No block condition means always register, so always preload
+				$this->preload_blocks[$block_name] = true;
+				if ($logger->is_active()) {
+					$logger->debug("{$context} - Block '{$block_name}' registered for preloading (inherit - always, no block condition).");
+				}
+			}
+		} elseif (is_callable($preload_config)) {
+			// Conditional preload
+			$this->conditional_preload_blocks[$block_name] = $preload_config;
+			if ($logger->is_active()) {
+				$logger->debug("{$context} - Block '{$block_name}' registered for conditional preloading.");
+			}
+		} else {
+			if ($logger->is_active()) {
+				$logger->warning("{$context} - Invalid preload configuration for block '{$block_name}'. Expected boolean, callable, or 'inherit'.");
+			}
+		}
+	}
+
+	/**
+	 * Find a block definition by block name.
+	 *
+	 * This method searches through all registered blocks (immediate and deferred)
+	 * to find the definition for a specific block name.
+	 *
+	 * @param string $block_name The name of the block to find.
+	 * @return array|null The block definition array or null if not found.
+	 */
+	protected function _find_block_definition(string $block_name): ?array {
+		// Search in immediate blocks
+		foreach ($this->blocks as $block_definition) {
+			if ($block_definition['block_name'] === $block_name) {
+				return $block_definition;
+			}
+		}
+
+		// Search in deferred blocks
+		foreach ($this->deferred_blocks as $priorities) {
+			foreach ($priorities as $blocks) {
+				foreach ($blocks as $block_definition) {
+					if ($block_definition['block_name'] === $block_name) {
+						return $block_definition;
+					}
+				}
+			}
+		}
+
+		return null;
+	}
+
+	/**
+	 * Set up preload callbacks for registered blocks.
+	 *
+	 * This method registers a callback with the wp_head hook to generate
+	 * preload tags for blocks that have been configured for preloading.
+	 */
+	protected function _setup_preload_callbacks(): void {
+		if (empty($this->preload_blocks) && empty($this->conditional_preload_blocks)) {
+			return; // No blocks to preload
+		}
+
+		$this->_do_add_action('wp_head', array($this, '_generate_preload_tags'), 2);
+	}
+
+	/**
+	 * Generate preload tags for all configured blocks.
+	 *
+	 * This method processes both always-preload and conditional-preload blocks,
+	 * generating appropriate <link rel="preload"> tags for their assets.
+	 */
+	protected function _generate_preload_tags(): void {
+		$logger  = $this->get_logger();
+		$context = get_class($this) . '::' . __FUNCTION__;
+
+		// Process always-preload blocks
+		foreach ($this->preload_blocks as $block_name => $enabled) {
+			if ($enabled) {
+				$this->_generate_preload_tags_for_block($block_name);
+			}
+		}
+
+		// Process conditional-preload blocks
+		foreach ($this->conditional_preload_blocks as $block_name => $condition) {
+			if (is_callable($condition) && $condition()) {
+				if ($logger->is_active()) {
+					$logger->debug("{$context} - Conditional preload condition met for block '{$block_name}'.");
+				}
+				$this->_generate_preload_tags_for_block($block_name);
+			}
+		}
+	}
+
+	/**
+	 * Generate preload tags for a specific block.
+	 *
+	 * This method processes the assets for a specific block and generates
+	 * appropriate <link rel="preload"> tags for both CSS and JavaScript assets.
+	 *
+	 * @param string $block_name The name of the block to generate preload tags for.
+	 */
+	protected function _generate_preload_tags_for_block(string $block_name): void {
+		if (!isset($this->block_assets[$block_name])) {
+			return; // No assets registered for this block
+		}
+
+		$logger       = $this->get_logger();
+		$context      = get_class($this) . '::' . __FUNCTION__;
+		$asset_config = $this->block_assets[$block_name];
+
+		if ($logger->is_active()) {
+			$logger->debug("{$context} - Generating preload tags for block '{$block_name}'.");
+		}
+
+		// Process script assets for preloading
+		$script_types = array('scripts', 'editor_scripts', 'dynamic_scripts');
+		foreach ($script_types as $script_type) {
+			if (isset($asset_config[$script_type])) {
+				$this->_generate_preload_tags_for_assets($asset_config[$script_type], 'script');
+			}
+		}
+
+		// Process style assets for preloading
+		$style_types = array('styles', 'editor_styles', 'dynamic_styles');
+		foreach ($style_types as $style_type) {
+			if (isset($asset_config[$style_type])) {
+				$this->_generate_preload_tags_for_assets($asset_config[$style_type], 'style');
+			}
+		}
+	}
+
+	/**
+	 * Generate preload tags for a set of assets.
+	 *
+	 * This method processes an array of asset definitions and generates
+	 * <link rel="preload"> tags for each asset.
+	 *
+	 * @param array  $assets     Array of asset definitions.
+	 * @param string $asset_type The type of asset ('script' or 'style').
+	 */
+	protected function _generate_preload_tags_for_assets(array $assets, string $asset_type): void {
+		foreach ($assets as $asset) {
+			if (!isset($asset['src'])) {
+				continue; // Skip assets without source
+			}
+
+			$src          = $this->_resolve_environment_src($asset['src']);
+			$as_attribute = $asset_type === 'script' ? 'script' : 'style';
+
+			// Generate the preload tag
+			$preload_tag = sprintf(
+				'<link rel="preload" href="%s" as="%s"%s>',
+				esc_url($src),
+				esc_attr($as_attribute),
+				$asset_type === 'script' ? '' : ' type="text/css"'
+			);
+
+			echo $preload_tag . "\n";
+		}
 	}
 }
