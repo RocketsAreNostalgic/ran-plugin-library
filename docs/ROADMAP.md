@@ -44,7 +44,7 @@ The library is **approximately 75% complete** with core infrastructure in place.
 - ✅ `BlockRegistrar` class implemented
 - ✅ `BlockAssetTrait` functionality complete
 - ✅ WordPress integration patterns established
-- ✅ ADR-009 timing documentation complete
+- ✅ ADR-002 timing documentation complete
 - ❌ Unit tests need updates for recent refactoring
 - ❌ Integration tests needed
 
