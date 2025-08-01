@@ -47,20 +47,20 @@ class BlockRegistrarFlattenedApiTest extends PluginLibTestCase {
 		    'custom_property' => 'custom_value'
 		));
 
-		// Use reflection to check internal state - blocks are stored in deferred_blocks
-		$reflection               = new ReflectionClass($this->block_registrar);
-		$deferred_blocks_property = $reflection->getProperty('deferred_blocks');
-		$deferred_blocks_property->setAccessible(true);
-		$deferred_blocks = $deferred_blocks_property->getValue($this->block_registrar);
+		// Use reflection to check internal state - blocks are stored in blocks
+		$reflection      = new ReflectionClass($this->block_registrar);
+		$blocks_property = $reflection->getProperty('blocks');
+		$blocks_property->setAccessible(true);
+		$blocks = $blocks_property->getValue($this->block_registrar);
 
 		// Blocks default to 'init' hook with priority 10
-		$this->assertArrayHasKey('init', $deferred_blocks);
-		$this->assertArrayHasKey(10, $deferred_blocks['init']);
-		$this->assertNotEmpty($deferred_blocks['init'][10]);
+		$this->assertArrayHasKey('init', $blocks);
+		$this->assertArrayHasKey(10, $blocks['init']);
+		$this->assertNotEmpty($blocks['init'][10]);
 
 		// Find our block in the deferred blocks
 		$block_def = null;
-		foreach ($deferred_blocks['init'][10] as $block) {
+		foreach ($blocks['init'][10] as $block) {
 			if ($block['block_name'] === 'test/flattened-block') {
 				$block_def = $block;
 				break;
@@ -94,16 +94,16 @@ class BlockRegistrarFlattenedApiTest extends PluginLibTestCase {
 		));
 
 		// Use reflection to check internal state
-		$reflection               = new ReflectionClass($this->block_registrar);
-		$deferred_blocks_property = $reflection->getProperty('deferred_blocks');
-		$deferred_blocks_property->setAccessible(true);
-		$deferred_blocks = $deferred_blocks_property->getValue($this->block_registrar);
+		$reflection      = new ReflectionClass($this->block_registrar);
+		$blocks_property = $reflection->getProperty('blocks');
+		$blocks_property->setAccessible(true);
+		$blocks = $blocks_property->getValue($this->block_registrar);
 
 		// Block should be stored under wp_loaded hook with priority 20
-		$this->assertArrayHasKey('wp_loaded', $deferred_blocks);
-		$this->assertArrayHasKey(20, $deferred_blocks['wp_loaded']);
+		$this->assertArrayHasKey('wp_loaded', $blocks);
+		$this->assertArrayHasKey(20, $blocks['wp_loaded']);
 
-		$block_def = $deferred_blocks['wp_loaded'][20][0];
+		$block_def = $blocks['wp_loaded'][20][0];
 
 		// Verify properties are stored correctly
 		$this->assertEquals('test/custom-hook-block', $block_def['block_name']);
@@ -138,19 +138,19 @@ class BlockRegistrarFlattenedApiTest extends PluginLibTestCase {
 		));
 
 		// Use reflection to check internal state
-		$reflection               = new ReflectionClass($this->block_registrar);
-		$deferred_blocks_property = $reflection->getProperty('deferred_blocks');
-		$deferred_blocks_property->setAccessible(true);
-		$deferred_blocks = $deferred_blocks_property->getValue($this->block_registrar);
+		$reflection      = new ReflectionClass($this->block_registrar);
+		$blocks_property = $reflection->getProperty('blocks');
+		$blocks_property->setAccessible(true);
+		$blocks = $blocks_property->getValue($this->block_registrar);
 
 		// First block should be in init hook, priority 10
-		$first_block = $deferred_blocks['init'][10][0];
+		$first_block = $blocks['init'][10][0];
 		$this->assertEquals('test/first-block', $first_block['block_name']);
 		$this->assertEquals('First Block', $first_block['title']);
 		$this->assertEquals('value_1', $first_block['custom_prop_1']);
 
 		// Second block should be in wp_loaded hook, priority 15
-		$second_block = $deferred_blocks['wp_loaded'][15][0];
+		$second_block = $blocks['wp_loaded'][15][0];
 		$this->assertEquals('test/second-block', $second_block['block_name']);
 		$this->assertEquals('Second Block', $second_block['title']);
 		$this->assertEquals('value_2', $second_block['custom_prop_2']);
@@ -174,13 +174,13 @@ class BlockRegistrarFlattenedApiTest extends PluginLibTestCase {
 		));
 
 		// Use reflection to check internal state
-		$reflection               = new ReflectionClass($this->block_registrar);
-		$deferred_blocks_property = $reflection->getProperty('deferred_blocks');
-		$deferred_blocks_property->setAccessible(true);
-		$deferred_blocks = $deferred_blocks_property->getValue($this->block_registrar);
+		$reflection      = new ReflectionClass($this->block_registrar);
+		$blocks_property = $reflection->getProperty('blocks');
+		$blocks_property->setAccessible(true);
+		$blocks = $blocks_property->getValue($this->block_registrar);
 
         // Find our block in the deferred blocks
-		$block_def = $deferred_blocks['init'][10][0]; // First block in init hook, priority 10
+		$block_def = $blocks['init'][10][0]; // First block in init hook, priority 10
 
 		// Verify all custom properties are stored
 		$this->assertEquals('Custom Block', $block_def['title']);
