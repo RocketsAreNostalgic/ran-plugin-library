@@ -152,10 +152,10 @@ $block_registrar->add([
 // BlockRegistrar hooks into WordPress lifecycle automatically when stage() is called
 public function stage(): self {
     // Set up block registration hooks for deferred blocks
-    foreach ($this->deferred_blocks as $hook_name => $priorities) {
+    foreach ($this->blocks as $hook_name => $priorities) {
         foreach ($priorities as $priority => $blocks) {
             $this->_do_add_action($hook_name, function() use ($hook_name, $priority) {
-                $this->_register_deferred_blocks($hook_name, $priority);
+                $this->_register_blocks($hook_name, $priority);
             }, $priority);
         }
     }
@@ -521,6 +521,38 @@ $block_registrar->add([
 ]);
 ```
 
+### **Preload Inheritance Behavior**
+
+The `'inherit'` option provides a DRY (Don't Repeat Yourself) approach for preload conditions:
+
+- **With Block Condition**: If the block has a `condition` callable, preloading inherits that same condition
+- **Without Block Condition**: If no block condition exists, assets are always preloaded (since the block itself would always register)
+- **Implementation**: The block's condition is passed directly to the preload system during registration, eliminating the need to duplicate conditional logic
+
+```php
+// Example: Conditional block with inherited preload
+$block_registrar->add([
+    'block_name' => 'my-plugin/premium-block',
+    'condition' => function() {
+        return current_user_can('manage_options') && get_option('premium_enabled');
+    },
+    'preload' => 'inherit', // Preloads only when condition above is true
+    'assets' => [
+        'scripts' => [['handle' => 'premium-script', 'src' => 'premium.js']]
+    ]
+]);
+
+// Example: Always-registered block with inherited preload
+$block_registrar->add([
+    'block_name' => 'my-plugin/public-block',
+    // No condition = always registers
+    'preload' => 'inherit', // Always preloads (since block always registers)
+    'assets' => [
+        'scripts' => [['handle' => 'public-script', 'src' => 'public.js']]
+    ]
+]);
+```
+
 ### **Generated Output**
 
 For preloaded blocks, the system generates appropriate preload tags in the HTML head:
@@ -543,6 +575,7 @@ For preloaded blocks, the system generates appropriate preload tags in the HTML 
 - **Conditional Logic**: Callable conditions are evaluated at render time
 - **Inheritance Support**: `'inherit'` option reuses block registration conditions for DRY principle
 - **Performance**: Only blocks with preload configuration trigger the preload system
+- **Efficient Architecture**: Block conditions are passed directly during registration, eliminating the need for runtime block definition lookups
 
 ### **Best Practices**
 
@@ -550,6 +583,306 @@ For preloaded blocks, the system generates appropriate preload tags in the HTML 
 2. **Conditional Logic**: Use conditions to avoid over-preloading on irrelevant pages
 3. **Performance Monitoring**: Test impact with PageSpeed Insights and Core Web Vitals
 4. **Context Awareness**: Consider page templates, device types, and user context
+
+## WP_Block_Type Collection and Introspection
+
+The BlockRegistrar provides **WP_Block_Type object collection** functionality that allows developers to access and work with successfully registered block objects for advanced use cases like runtime introspection, dynamic rendering, and block relationship analysis.
+
+### **Core Functionality**
+
+When blocks are successfully registered with WordPress via `register_block_type()`, the BlockRegistrar automatically:
+
+1. **Captures Return Values**: Monitors `register_block_type()` success/failure
+2. **Stores WP_Block_Type Objects**: Collects successful registrations in an internal array
+3. **Logs Registration Status**: Provides success and failure logging
+4. **Provides Public Access**: Offers getter methods for developer access
+
+### **Public API Methods**
+
+```php
+// Get all successfully registered WP_Block_Type objects
+$all_blocks = $block_registrar->get_registered_block_types();
+// Returns: array<string, \WP_Block_Type> indexed by block name
+
+// Get a specific registered WP_Block_Type object
+$hero_block = $block_registrar->get_registered_block_type('my-plugin/hero-banner');
+// Returns: \WP_Block_Type|null
+```
+
+### **When to Access WP_Block_Type Objects**
+
+**✅ Safe Access Points** (after WordPress 'init' hook):
+
+- `wp_loaded` hook and later
+- `wp` hook and later
+- `wp_head` hook and later
+- Any frontend rendering context
+- Admin contexts after 'admin_init'
+
+**❌ Unsafe Access Points** (before block registration):
+
+- Plugin initialization
+- `plugins_loaded` hook
+- Before `init` hook fires
+
+### **Practical Use Cases**
+
+#### **1. Runtime Block Introspection**
+
+```php
+add_action('wp_loaded', function() use ($block_registrar) {
+    $hero_block = $block_registrar->get_registered_block_type('my-plugin/hero-banner');
+
+    if ($hero_block instanceof WP_Block_Type) {
+        // Access block metadata
+        $title = $hero_block->title;
+        $description = $hero_block->description;
+        $category = $hero_block->category;
+        $attributes = $hero_block->attributes ?? [];
+        $supports = $hero_block->supports ?? [];
+
+        // Check asset availability
+        $has_editor_script = isset($hero_block->editor_script);
+        $has_view_script = isset($hero_block->view_script);
+    }
+});
+```
+
+#### **2. Dynamic Block Rendering**
+
+```php
+add_action('wp_loaded', function() use ($block_registrar) {
+    $testimonial_block = $block_registrar->get_registered_block_type('my-plugin/testimonial');
+
+    if ($testimonial_block && is_callable($testimonial_block->render_callback)) {
+        // Programmatically render block with custom attributes
+        $custom_attributes = [
+            'quote' => 'Amazing service!',
+            'author' => 'Happy Customer',
+            'rating' => 5
+        ];
+
+        $rendered_content = call_user_func(
+            $testimonial_block->render_callback,
+            $custom_attributes,
+            '',
+            new WP_Block(['blockName' => 'my-plugin/testimonial'])
+        );
+    }
+});
+```
+
+#### **3. Attribute Validation and Defaults**
+
+```php
+add_action('wp_loaded', function() use ($block_registrar) {
+    $hero_block = $block_registrar->get_registered_block_type('my-plugin/hero-banner');
+
+    if ($hero_block && isset($hero_block->attributes)) {
+        // Extract default values for validation
+        $default_attributes = [];
+        foreach ($hero_block->attributes as $attr_name => $attr_config) {
+            if (isset($attr_config['default'])) {
+                $default_attributes[$attr_name] = $attr_config['default'];
+            }
+        }
+
+        // Use for form validation, API responses, etc.
+        function validate_hero_attributes($input) use ($default_attributes, $hero_block) {
+            $validated = wp_parse_args($input, $default_attributes);
+
+            // Validate against registered attribute schema
+            foreach ($hero_block->attributes as $attr_name => $attr_config) {
+                if (isset($validated[$attr_name])) {
+                    $type = $attr_config['type'] ?? 'string';
+                    // Perform type validation...
+                }
+            }
+
+            return $validated;
+        }
+    }
+});
+```
+
+#### **4. Asset Handle Access for Advanced Management**
+
+```php
+add_action('wp_loaded', function() use ($block_registrar) {
+    $cta_block = $block_registrar->get_registered_block_type('my-plugin/cta-block');
+
+    if ($cta_block) {
+        // Access asset handles for advanced manipulation
+        if (isset($cta_block->view_script)) {
+            $script_handle = $cta_block->view_script;
+
+            // Add localized data
+            wp_localize_script($script_handle, 'ctaConfig', [
+                'apiEndpoint' => rest_url('my-plugin/v1/cta-data'),
+                'nonce' => wp_create_nonce('cta_nonce')
+            ]);
+
+            // Modify script loading
+            wp_script_add_data($script_handle, 'async', true);
+        }
+
+        if (isset($cta_block->style)) {
+            $style_handle = $cta_block->style;
+
+            // Add inline styles
+            wp_add_inline_style($style_handle, '
+                .wp-block-my-plugin-cta-block.theme-dark {
+                    background: #1a1a1a;
+                    color: #ffffff;
+                }
+            ');
+        }
+    }
+});
+```
+
+#### **5. Block Relationship Analysis**
+
+```php
+add_action('wp_loaded', function() use ($block_registrar) {
+    $all_blocks = $block_registrar->get_registered_block_types();
+
+    // Analyze block ecosystem
+    $blocks_by_category = [];
+    $blocks_with_render_callbacks = [];
+    $blocks_with_assets = [];
+
+    foreach ($all_blocks as $block_name => $wp_block_type) {
+        // Group by category
+        $category = $wp_block_type->category ?? 'uncategorized';
+        $blocks_by_category[$category][] = $block_name;
+
+        // Find dynamic blocks
+        if (is_callable($wp_block_type->render_callback)) {
+            $blocks_with_render_callbacks[] = $block_name;
+        }
+
+        // Find blocks with assets
+        if (isset($wp_block_type->editor_script) || isset($wp_block_type->view_script) ||
+            isset($wp_block_type->style) || isset($wp_block_type->editor_style)) {
+            $blocks_with_assets[] = $block_name;
+        }
+    }
+
+    // Use analysis for dashboard widgets, debug tools, etc.
+});
+```
+
+#### **6. Theme Integration and Customization**
+
+```php
+add_action('wp_loaded', function() use ($block_registrar) {
+    if (current_theme_supports('custom-blocks')) {
+        $all_blocks = $block_registrar->get_registered_block_types();
+
+        foreach ($all_blocks as $block_name => $wp_block_type) {
+            $theme_support_key = 'custom-block-' . str_replace('/', '-', $block_name);
+
+            if (current_theme_supports($theme_support_key)) {
+                // Apply theme-specific modifications
+                add_filter("render_block_{$block_name}", function($block_content, $block) use ($wp_block_type) {
+                    // Add theme wrapper based on block configuration
+                    $theme_class = 'theme-' . get_template();
+                    return '<div class="' . esc_attr($theme_class) . '">' . $block_content . '</div>';
+                }, 10, 2);
+            }
+        }
+    }
+});
+```
+
+#### **7. Plugin Extension and Block Variations**
+
+```php
+add_action('init', function() use ($block_registrar) {
+    // Register block variations based on registered blocks
+    $testimonial_block = $block_registrar->get_registered_block_type('my-plugin/testimonial');
+
+    if ($testimonial_block) {
+        // Create variations based on block attributes
+        $variations = [
+            [
+                'name' => 'testimonial-5-star',
+                'title' => '5-Star Testimonial',
+                'attributes' => ['rating' => 5],
+                'scope' => ['inserter']
+            ],
+            [
+                'name' => 'testimonial-quote-only',
+                'title' => 'Quote Only',
+                'attributes' => ['showAuthor' => false],
+                'scope' => ['inserter']
+            ]
+        ];
+
+        foreach ($variations as $variation) {
+            wp_register_block_pattern(
+                "my-plugin/{$variation['name']}",
+                [
+                    'title' => $variation['title'],
+                    'content' => "<!-- wp:{$testimonial_block->name} " .
+                               json_encode($variation['attributes']) . " /-->",
+                    'categories' => ['testimonials'],
+                    'blockTypes' => [$testimonial_block->name]
+                ]
+            );
+        }
+    }
+}, 20); // Run after blocks are registered
+```
+
+#### **8. Debugging and Development Tools**
+
+```php
+if (defined('WP_DEBUG') && WP_DEBUG) {
+    add_action('wp_loaded', function() use ($block_registrar) {
+        $all_blocks = $block_registrar->get_registered_block_types();
+
+        foreach ($all_blocks as $block_name => $wp_block_type) {
+            $debug_info = [
+                'name' => $wp_block_type->name,
+                'title' => $wp_block_type->title ?? 'No title',
+                'has_attributes' => !empty($wp_block_type->attributes),
+                'has_render_callback' => is_callable($wp_block_type->render_callback),
+                'supports' => $wp_block_type->supports ?? [],
+                'asset_handles' => [
+                    'editor_script' => $wp_block_type->editor_script ?? null,
+                    'view_script' => $wp_block_type->view_script ?? null,
+                    'style' => $wp_block_type->style ?? null,
+                    'editor_style' => $wp_block_type->editor_style ?? null
+                ]
+            ];
+
+            error_log("Block Debug [{$block_name}]: " . json_encode($debug_info));
+        }
+    });
+}
+```
+
+### **Success and Failure Logging**
+
+The BlockRegistrar automatically logs registration outcomes:
+
+```php
+// Success logging (debug level)
+// "BlockRegistrar - Successfully registered block 'my-plugin/hero-banner' with WordPress."
+
+// Failure logging (warning level)
+// "BlockRegistrar - Failed to register block 'my-plugin/broken-block' with WordPress."
+```
+
+### **Implementation Notes**
+
+- **Storage**: WP_Block_Type objects are stored in `protected array $registered_wp_block_types`
+- **Indexing**: Objects are indexed by block name for efficient lookup
+- **Memory**: Only successful registrations are stored (failures are logged but not stored)
+- **Thread Safety**: Collection is populated during WordPress's single-threaded initialization
+- **Performance**: Getter methods have O(1) lookup time using array keys
 
 ## Benefits
 
@@ -559,6 +892,9 @@ For preloaded blocks, the system generates appropriate preload tags in the HTML 
 4. **Integration**: Seamless WordPress block registration enhancement
 5. **Maintainability**: Extends proven asset management architecture
 6. **Core Web Vitals**: Preloading improves LCP, FID, and overall user experience
+7. **Block Introspection**: Access to WP_Block_Type objects enables advanced block manipulation and analysis
+8. **Developer Experience**: Rich debugging and development tools through block object access
+9. **Extensibility**: Plugin and theme integration capabilities through block metadata access
 
 ## Trade-offs
 
@@ -580,6 +916,7 @@ For preloaded blocks, the system generates appropriate preload tags in the HTML 
 - **`examples/flattened-api-usage.php`**: Comprehensive examples of the new flattened API with WordPress properties and arbitrary custom properties
 - **`examples/wordpress-vs-blockregistrar-conditional-loading.php`**: Comparison of WordPress built-in capabilities vs BlockRegistrar additions
 - **`examples/block-preload-usage.php`**: Block asset preloading examples and best practices
+- **`examples/wp-block-type-collection-usage.php`**: WP_Block_Type object collection, introspection, and advanced use cases
 
 **Related ADRs**:
 
