@@ -275,7 +275,6 @@ class BlockRegistrarPreloadTest extends PluginLibTestCase {
 	/**
 	 * @test
 	 * @covers \Ran\PluginLib\EnqueueAccessory\BlockRegistrar::_register_block_for_preloading
-	 * @covers \Ran\PluginLib\EnqueueAccessory\BlockRegistrar::_find_block_definition
 	 */
 	public function test_preload_inherit_with_block_condition(): void {
 		// Arrange
@@ -311,7 +310,6 @@ class BlockRegistrarPreloadTest extends PluginLibTestCase {
 	/**
 	 * @test
 	 * @covers \Ran\PluginLib\EnqueueAccessory\BlockRegistrar::_register_block_for_preloading
-	 * @covers \Ran\PluginLib\EnqueueAccessory\BlockRegistrar::_find_block_definition
 	 */
 	public function test_preload_inherit_without_block_condition(): void {
 		// Arrange
