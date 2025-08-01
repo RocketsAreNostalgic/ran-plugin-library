@@ -31,6 +31,14 @@ use Ran\PluginLib\Config\ConfigInterface;
  * block registration system. This class follows the inverted pattern where blocks
  * default to immediate registration (on 'init') while assets default to deferred
  * loading for performance.
+ *
+ * Features:
+ * - Unified block + asset registration with WordPress integration
+ * - Success/failure logging for block registration attempts
+ * - Collection and storage of successfully registered WP_Block_Type objects
+ * - Public access to registered block objects for introspection and advanced use cases
+ * - Asset preloading support with configurable conditions
+ * - Flattened API supporting all WordPress block properties and arbitrary custom properties
  */
 class BlockRegistrar extends AssetEnqueueBaseAbstract {
 	use BlockAssetTrait;
@@ -50,18 +58,12 @@ class BlockRegistrar extends AssetEnqueueBaseAbstract {
 	protected StylesHandler $styles_handler;
 
 	/**
-	 * Stores block definitions for immediate registration.
-	 *
-	 * @var array<string, array<string, mixed>>
-	 */
-	protected array $blocks = array();
-
-	/**
 	 * Stores block definitions for deferred registration indexed by hook and priority.
+	 * All blocks are deferred, even those with 'init' hook.
 	 *
 	 * @var array<string, array<int, array<int, array<string, mixed>>>>
 	 */
-	protected array $deferred_blocks = array();
+	protected array $blocks = array();
 
 	/**
 	 * Tracks registered hooks to avoid duplicate registrations.
@@ -76,6 +78,33 @@ class BlockRegistrar extends AssetEnqueueBaseAbstract {
 	 * @var array<string, bool>
 	 */
 	protected array $registered_block_names = array();
+
+	/**
+	 * Array to store successfully registered WP_Block_Type objects.
+	 *
+	 * This array stores WP_Block_Type instances returned by successful
+	 * register_block_type() calls, indexed by block name. This allows
+	 * developers to access the registered block objects for introspection,
+	 * dynamic rendering, attribute validation, and other advanced use cases.
+	 *
+	 * @since 1.0.0
+	 * @var array<string, \WP_Block_Type>
+	 */
+	protected array $registered_wp_block_types = array();
+
+	/**
+	 * Stores blocks that should have their assets preloaded.
+	 *
+	 * @var array<string, bool>
+	 */
+	protected array $preload_blocks = array();
+
+	/**
+	 * Stores blocks with conditional preload logic.
+	 *
+	 * @var array<string, callable>
+	 */
+	protected array $conditional_preload_blocks = array();
 
 	/**
 	 * Constructor.
@@ -180,7 +209,7 @@ class BlockRegistrar extends AssetEnqueueBaseAbstract {
 			$this->registered_block_names[$block_name] = true;
 
 			// Store in deferred blocks array (even 'init' is considered "deferred" until load() is called)
-			$this->deferred_blocks[$hook][$priority][] = $block_definition;
+			$this->blocks[$hook][$priority][] = $block_definition;
 
 			// Register block assets if provided
 			if (isset($block_definition['assets'])) {
@@ -189,7 +218,8 @@ class BlockRegistrar extends AssetEnqueueBaseAbstract {
 
 			// Register block for preloading if configured
 			if (isset($block_definition['preload'])) {
-				$this->_register_block_for_preloading($block_name, $block_definition['preload']);
+				$condition = $block_definition['condition'] ?? null;
+				$this->_register_block_for_preloading($block_name, $block_definition['preload'], $condition);
 			}
 		}
 
@@ -211,7 +241,7 @@ class BlockRegistrar extends AssetEnqueueBaseAbstract {
 		$context = get_class($this) . '::' . __FUNCTION__;
 
 		// Register action hooks for deferred block registration
-		foreach ($this->deferred_blocks as $hook_name => $priorities) {
+		foreach ($this->blocks as $hook_name => $priorities) {
 			foreach ($priorities as $priority => $blocks) {
 				$hook_key = $hook_name . '_' . $priority;
 
@@ -221,7 +251,7 @@ class BlockRegistrar extends AssetEnqueueBaseAbstract {
 					}
 
 					$this->_do_add_action($hook_name, function() use ($hook_name, $priority) {
-						$this->_register_deferred_blocks($hook_name, $priority);
+						$this->_register_blocks($hook_name, $priority);
 					}, $priority);
 
 					$this->registered_hooks[$hook_key] = true;
@@ -254,6 +284,39 @@ class BlockRegistrar extends AssetEnqueueBaseAbstract {
 	 */
 	public function load(): void {
 		$this->stage();
+	}
+
+	/**
+	 * Get all successfully registered WP_Block_Type objects.
+	 *
+	 * Returns an array of WP_Block_Type instances that were successfully
+	 * registered with WordPress, indexed by block name. This allows developers
+	 * to access registered block objects for introspection, dynamic rendering,
+	 * attribute validation, and other advanced use cases.
+	 *
+	 * Note: This array is populated during block registration, which typically
+	 * occurs on WordPress hooks like 'init'. If called before blocks are
+	 * registered, this may return an empty array.
+	 *
+	 * @since 1.0.0
+	 * @return array<string, \WP_Block_Type> Array of WP_Block_Type objects indexed by block name.
+	 */
+	public function get_registered_block_types(): array {
+		return $this->registered_wp_block_types;
+	}
+
+	/**
+	 * Get a specific registered WP_Block_Type object by block name.
+	 *
+	 * Returns the WP_Block_Type instance for the specified block name if it
+	 * was successfully registered with WordPress, or null if not found.
+	 *
+	 * @since 1.0.0
+	 * @param string $block_name The block name (e.g., 'my-plugin/hero').
+	 * @return \WP_Block_Type|null The WP_Block_Type object or null if not found.
+	 */
+	public function get_registered_block_type(string $block_name): ?\WP_Block_Type {
+		return $this->registered_wp_block_types[$block_name] ?? null;
 	}
 
 	/**
@@ -345,7 +408,6 @@ class BlockRegistrar extends AssetEnqueueBaseAbstract {
 	 * This is particularly useful for server-side rendered blocks.
 	 *
 	 * @internal This is an internal method called by WordPress as a filter callback and should not be called directly.
-	 *
 	 * @param string $block_content The block content.
 	 * @param array  $block         The block data.
 	 * @return string The unmodified block content.
@@ -371,11 +433,11 @@ class BlockRegistrar extends AssetEnqueueBaseAbstract {
 	 * @param string $hook_name The hook name that fired.
 	 * @param int    $priority  The priority level being processed.
 	 */
-	protected function _register_deferred_blocks(string $hook_name, int $priority): void {
+	protected function _register_blocks(string $hook_name, int $priority): void {
 		$logger  = $this->get_logger();
 		$context = get_class($this) . '::' . __FUNCTION__;
 
-		$blocks = $this->deferred_blocks[$hook_name][$priority] ?? array();
+		$blocks = $this->blocks[$hook_name][$priority] ?? array();
 
 		if ($logger->is_active()) {
 			$block_count = count($blocks);
@@ -387,7 +449,7 @@ class BlockRegistrar extends AssetEnqueueBaseAbstract {
 		}
 
 		// Clean up after processing to prevent re-processing
-		unset($this->deferred_blocks[$hook_name][$priority]);
+		unset($this->blocks[$hook_name][$priority]);
 	}
 
 	/**
@@ -555,8 +617,9 @@ class BlockRegistrar extends AssetEnqueueBaseAbstract {
 	 *
 	 * @param string $block_name The name of the block.
 	 * @param bool|callable|string $preload_config The preload configuration.
+	 * @param callable|null $block_condition The block's registration condition (for inherit mode).
 	 */
-	protected function _register_block_for_preloading(string $block_name, $preload_config): void {
+	protected function _register_block_for_preloading(string $block_name, $preload_config, ?callable $block_condition = null): void {
 		$logger  = $this->get_logger();
 		$context = get_class($this) . '::' . __FUNCTION__;
 
@@ -568,9 +631,8 @@ class BlockRegistrar extends AssetEnqueueBaseAbstract {
 			}
 		} elseif ($preload_config === 'inherit') {
 			// Inherit condition from block registration
-			$block_definition = $this->_find_block_definition($block_name);
-			if ($block_definition && isset($block_definition['condition']) && is_callable($block_definition['condition'])) {
-				$this->conditional_preload_blocks[$block_name] = $block_definition['condition'];
+			if ($block_condition && is_callable($block_condition)) {
+				$this->conditional_preload_blocks[$block_name] = $block_condition;
 				if ($logger->is_active()) {
 					$logger->debug("{$context} - Block '{$block_name}' registered for preloading (inherit from block condition).");
 				}
@@ -594,36 +656,7 @@ class BlockRegistrar extends AssetEnqueueBaseAbstract {
 		}
 	}
 
-	/**
-	 * Find a block definition by block name.
-	 *
-	 * This method searches through all registered blocks (immediate and deferred)
-	 * to find the definition for a specific block name.
-	 *
-	 * @param string $block_name The name of the block to find.
-	 * @return array|null The block definition array or null if not found.
-	 */
-	protected function _find_block_definition(string $block_name): ?array {
-		// Search in immediate blocks
-		foreach ($this->blocks as $block_definition) {
-			if ($block_definition['block_name'] === $block_name) {
-				return $block_definition;
-			}
-		}
 
-		// Search in deferred blocks
-		foreach ($this->deferred_blocks as $priorities) {
-			foreach ($priorities as $blocks) {
-				foreach ($blocks as $block_definition) {
-					if ($block_definition['block_name'] === $block_name) {
-						return $block_definition;
-					}
-				}
-			}
-		}
-
-		return null;
-	}
 
 	/**
 	 * Set up preload callbacks for registered blocks.
