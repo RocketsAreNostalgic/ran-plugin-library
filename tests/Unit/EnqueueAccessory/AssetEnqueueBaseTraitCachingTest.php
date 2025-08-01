@@ -274,45 +274,69 @@ class AssetEnqueueBaseTraitCachingTest extends EnqueueTraitTestCase {
 	 * @test
 	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_resolve_environment_src
 	 */
-	public function test_resolve_environment_src_with_empty_values(): void {
-		// Set up test cases
-		$test_cases = array(
-			'empty dev value' => array(
-				'src'      => array('dev' => '', 'prod' => 'prod.js'),
-				'is_dev'   => true,
-				'expected' => 'prod.js',
-				'message'  => 'Should fallback to prod when dev is empty in dev environment'
-			),
-			'empty prod value' => array(
-				'src'      => array('dev' => 'dev.js', 'prod' => ''),
-				'is_dev'   => false,
-				'expected' => 'dev.js',
-				'message'  => 'Should fallback to dev when prod is empty in prod environment'
-			),
-			'both empty values' => array(
-				'src'      => array('dev' => '', 'prod' => ''),
-				'is_dev'   => true,
-				'expected' => '',
-				'message'  => 'Should return empty string when both values are empty'
-			)
+	public function test_resolve_environment_src_with_empty_dev_value(): void {
+		// Mock the config to return dev environment
+		$this->config_mock->shouldReceive('is_dev_environment')
+			->once()
+			->andReturn(true);
+
+		$src = array('dev' => '', 'prod' => 'prod.js');
+
+		// Call the method
+		$result = $this->_invoke_protected_method(
+			$this->instance,
+			'_resolve_environment_src',
+			array($src)
 		);
 
-		foreach ($test_cases as $case_name => $case) {
-			// Mock the config to return appropriate environment
-			$this->config_mock->shouldReceive('is_dev_environment')
-				->once()
-				->andReturn($case['is_dev']);
+		// Verify the result
+		$this->assertEquals('prod.js', $result, 'Should fallback to prod when dev is empty in dev environment');
+	}
 
-			// Call the method
-			$result = $this->_invoke_protected_method(
-				$this->instance,
-				'_resolve_environment_src',
-				array($case['src'])
-			);
+	/**
+	 * @test
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_resolve_environment_src
+	 */
+	public function test_resolve_environment_src_with_empty_prod_value(): void {
+		// Mock the config to return prod environment
+		$this->config_mock->shouldReceive('is_dev_environment')
+			->once()
+			->andReturn(false);
 
-			// Verify the result
-			$this->assertEquals($case['expected'], $result, $case['message']);
-		}
+		$src = array('dev' => 'dev.js', 'prod' => '');
+
+		// Call the method
+		$result = $this->_invoke_protected_method(
+			$this->instance,
+			'_resolve_environment_src',
+			array($src)
+		);
+
+		// Verify the result
+		$this->assertEquals('dev.js', $result, 'Should fallback to dev when prod is empty in prod environment');
+	}
+
+	/**
+	 * @test
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_resolve_environment_src
+	 */
+	public function test_resolve_environment_src_with_both_empty_values(): void {
+		// Mock the config to return dev environment
+		$this->config_mock->shouldReceive('is_dev_environment')
+			->once()
+			->andReturn(true);
+
+		$src = array('dev' => '', 'prod' => '');
+
+		// Call the method
+		$result = $this->_invoke_protected_method(
+			$this->instance,
+			'_resolve_environment_src',
+			array($src)
+		);
+
+		// Verify the result
+		$this->assertEquals('', $result, 'Should return empty string when both values are empty');
 	}
 
 	/**
@@ -342,18 +366,45 @@ class AssetEnqueueBaseTraitCachingTest extends EnqueueTraitTestCase {
 		$this->assertIsString($result, 'Should return a string even with non-string input');
 		$this->assertEquals('123', $result, 'Should cast integer to string');
 
-		// Test with prod environment
+		// Note: Due to request-level caching of is_dev_environment(),
+		// we cannot test different environment values in the same test instance.
+		// The environment detection is cached for the entire request, which is correct behavior.
+		// Second call will use cached result, so it will still return '123' (dev value).
+		$result2 = $this->_invoke_protected_method(
+			$this->instance,
+			'_resolve_environment_src',
+			array($src_with_non_strings)
+		);
+
+		$this->assertEquals('123', $result2, 'Should return cached dev value on subsequent calls');
+	}
+
+	/**
+	 * @test
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_resolve_environment_src
+	 */
+	public function test_resolve_environment_src_with_non_string_values_prod_environment(): void {
+		// Set up an array with non-string values
+		$src_with_non_strings = array(
+			'dev'  => 123, // Integer
+			'prod' => true // Boolean
+		);
+
+		// Mock the config to return prod environment
 		$this->config_mock->shouldReceive('is_dev_environment')
 			->once()
 			->andReturn(false);
 
+		// Call the method
 		$result = $this->_invoke_protected_method(
 			$this->instance,
 			'_resolve_environment_src',
 			array($src_with_non_strings)
 		);
 
-		$this->assertEquals('1', $result, 'Should cast boolean to string');
+		// Verify it casts boolean to string in prod environment
+		$this->assertIsString($result, 'Should return a string even with non-string input');
+		$this->assertEquals('1', $result, 'Should cast boolean to string in prod environment');
 	}
 
 	/**
