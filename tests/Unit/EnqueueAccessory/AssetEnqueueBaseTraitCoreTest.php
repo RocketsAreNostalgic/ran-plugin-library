@@ -1218,7 +1218,7 @@ class AssetEnqueueBaseTraitCoreTest extends EnqueueTraitTestCase {
 		$context            = 'TestContext';
 		$handle             = 'test-handle';
 		$asset_type         = AssetType::Script;
-		
+
 		// Special handler that returns false for 'special-attr'
 		$special_attributes = array(
 			'special-attr' => function($attr, $value) {
@@ -2137,5 +2137,956 @@ class AssetEnqueueBaseTraitCoreTest extends EnqueueTraitTestCase {
 
 		// Assert - Should return false when registration fails
 		$this->assertFalse($result, '_do_enqueue should return false when asset registration fails');
+	}
+
+	// ------------------------------------------------------------------------
+	// _remove_assets() Tests
+	// ------------------------------------------------------------------------
+
+	/**
+	 * @test
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_remove_assets
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_normalize_asset_input
+	 */
+	public function test_remove_assets_with_single_string_handle(): void {
+		// Arrange
+		$handle_to_remove = 'test-script';
+		$asset_type       = AssetType::Script;
+
+		// Mock _normalize_asset_input to return normalized format
+		$this->instance->shouldReceive('_normalize_asset_input')
+			->once()
+			->with($handle_to_remove)
+			->andReturn(array(array('handle' => $handle_to_remove)));
+
+		// Mock _process_single_removal to verify it's called with correct parameters
+		$this->instance->shouldReceive('_process_single_removal')
+			->once()
+			->with(array('handle' => $handle_to_remove), $asset_type);
+
+		// Act
+		$result = $this->instance->_remove_assets($handle_to_remove, $asset_type);
+
+		// Assert
+		$this->assertSame($this->instance, $result, 'Method should return self for chaining');
+		$this->expectLog('debug', array('Entered. Processing removal request.'), 1);
+	}
+
+	/**
+	 * @test
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_remove_assets
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_normalize_asset_input
+	 */
+	public function test_remove_assets_with_array_of_handles(): void {
+		// Arrange
+		$handles_to_remove = array('script1', 'script2', 'script3');
+		$asset_type        = AssetType::Style;
+		$normalized_assets = array(
+			array('handle' => 'script1'),
+			array('handle' => 'script2'),
+			array('handle' => 'script3')
+		);
+
+		// Mock _normalize_asset_input to return normalized format
+		$this->instance->shouldReceive('_normalize_asset_input')
+			->once()
+			->with($handles_to_remove)
+			->andReturn($normalized_assets);
+
+		// Mock _process_single_removal for each asset
+		$this->instance->shouldReceive('_process_single_removal')
+			->times(3)
+			->with(Mockery::type('array'), $asset_type);
+
+		// Act
+		$result = $this->instance->_remove_assets($handles_to_remove, $asset_type);
+
+		// Assert
+		$this->assertSame($this->instance, $result, 'Method should return self for chaining');
+		$this->expectLog('debug', array('Entered. Processing removal request.'), 1);
+	}
+
+	/**
+	 * @test
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_remove_assets
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_normalize_asset_input
+	 */
+	public function test_remove_assets_with_asset_definition_arrays(): void {
+		// Arrange
+		$assets_to_remove = array(
+			array('handle' => 'script1', 'hook' => 'wp_footer'),
+			array('handle' => 'script2', 'priority' => 20),
+			array('handle' => 'script3', 'immediate' => true)
+		);
+		$asset_type = AssetType::ScriptModule;
+
+		// Mock _normalize_asset_input to return the same format (already normalized)
+		$this->instance->shouldReceive('_normalize_asset_input')
+			->once()
+			->with($assets_to_remove)
+			->andReturn($assets_to_remove);
+
+		// Mock _process_single_removal for each asset with specific parameters
+		$this->instance->shouldReceive('_process_single_removal')
+			->once()
+			->with($assets_to_remove[0], $asset_type);
+		$this->instance->shouldReceive('_process_single_removal')
+			->once()
+			->with($assets_to_remove[1], $asset_type);
+		$this->instance->shouldReceive('_process_single_removal')
+			->once()
+			->with($assets_to_remove[2], $asset_type);
+
+		// Act
+		$result = $this->instance->_remove_assets($assets_to_remove, $asset_type);
+
+		// Assert
+		$this->assertSame($this->instance, $result, 'Method should return self for chaining');
+		$this->expectLog('debug', array('Entered. Processing removal request.'), 1);
+	}
+
+	/**
+	 * @test
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_remove_assets
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_normalize_asset_input
+	 */
+	public function test_remove_assets_with_mixed_input_formats(): void {
+		// Arrange
+		$mixed_assets = array(
+			'simple-handle',
+			array('handle' => 'complex-handle', 'hook' => 'wp_footer'),
+			'another-simple-handle'
+		);
+		$asset_type        = AssetType::Script;
+		$normalized_assets = array(
+			array('handle' => 'simple-handle'),
+			array('handle' => 'complex-handle', 'hook' => 'wp_footer'),
+			array('handle' => 'another-simple-handle')
+		);
+
+		// Mock _normalize_asset_input to handle mixed formats
+		$this->instance->shouldReceive('_normalize_asset_input')
+			->once()
+			->with($mixed_assets)
+			->andReturn($normalized_assets);
+
+		// Mock _process_single_removal for each normalized asset
+		$this->instance->shouldReceive('_process_single_removal')
+			->times(3)
+			->with(Mockery::type('array'), $asset_type);
+
+		// Act
+		$result = $this->instance->_remove_assets($mixed_assets, $asset_type);
+
+		// Assert
+		$this->assertSame($this->instance, $result, 'Method should return self for chaining');
+		$this->expectLog('debug', array('Entered. Processing removal request.'), 1);
+	}
+
+	/**
+	 * @test
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_remove_assets
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_normalize_asset_input
+	 */
+	public function test_remove_assets_with_empty_array(): void {
+		// Arrange
+		$empty_assets = array();
+		$asset_type   = AssetType::Style;
+
+		// Mock _normalize_asset_input to return empty array
+		$this->instance->shouldReceive('_normalize_asset_input')
+			->once()
+			->with($empty_assets)
+			->andReturn(array());
+
+		// _process_single_removal should not be called for empty array
+		$this->instance->shouldReceive('_process_single_removal')
+			->never();
+
+		// Act
+		$result = $this->instance->_remove_assets($empty_assets, $asset_type);
+
+		// Assert
+		$this->assertSame($this->instance, $result, 'Method should return self for chaining even with empty array');
+		$this->expectLog('debug', array('Entered. Processing removal request.'), 1);
+	}
+
+	/**
+	 * @test
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_remove_assets
+	 */
+	public function test_remove_assets_logs_context_with_correct_class_and_asset_type(): void {
+		// Arrange
+		$handle           = 'test-handle';
+		$asset_type       = AssetType::ScriptModule;
+		$expected_context = get_class($this->instance) . '::_remove_assets (script_modules)';
+
+		// Mock _normalize_asset_input
+		$this->instance->shouldReceive('_normalize_asset_input')
+			->once()
+			->andReturn(array(array('handle' => $handle)));
+
+		// Mock _process_single_removal
+		$this->instance->shouldReceive('_process_single_removal')
+			->once();
+
+		// Act
+		$this->instance->_remove_assets($handle, $asset_type);
+
+		// Assert - Check that the log message includes the correct context
+		$this->expectLog('debug', array('Entered. Processing removal request.'), 1);
+		$this->expectLog('debug', array('(script_modules)'), 1);
+	}
+
+	/**
+	 * @test
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_remove_assets
+	 */
+	public function test_remove_assets_skips_logging_when_logger_inactive(): void {
+		// Arrange
+		$handle     = 'test-handle';
+		$asset_type = AssetType::Script;
+
+		// Create a mock logger that returns false for is_active()
+		$inactive_logger = Mockery::mock(CollectingLogger::class);
+		$inactive_logger->shouldReceive('is_active')->andReturn(false);
+		$inactive_logger->shouldReceive('debug')->never(); // Should not be called
+
+		// Mock the get_logger method to return our inactive logger
+		$this->instance->shouldReceive('get_logger')
+			->andReturn($inactive_logger);
+
+		// Mock _normalize_asset_input
+		$this->instance->shouldReceive('_normalize_asset_input')
+			->once()
+			->andReturn(array(array('handle' => $handle)));
+
+		// Mock _process_single_removal
+		$this->instance->shouldReceive('_process_single_removal')
+			->once();
+
+		// Act
+		$result = $this->instance->_remove_assets($handle, $asset_type);
+
+		// Assert
+		$this->assertSame($this->instance, $result);
+		// No log expectations since logger is inactive
+	}
+
+	/**
+	 * @test
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_remove_assets
+	 */
+	public function test_remove_assets_handles_all_asset_types(): void {
+		// Test that _remove_assets works correctly with all AssetType enum values
+		$test_cases = array(
+			array('asset_type' => AssetType::Script, 'expected_context_suffix' => 'scripts'),
+			array('asset_type' => AssetType::Style, 'expected_context_suffix' => 'styles'),
+			array('asset_type' => AssetType::ScriptModule, 'expected_context_suffix' => 'script_modules')
+		);
+
+		foreach ($test_cases as $case) {
+			// Arrange
+			$handle     = 'test-handle-' . $case['asset_type']->value;
+			$asset_type = $case['asset_type'];
+
+			// Create a fresh instance for each test case
+			$instance = Mockery::mock(ConcreteEnqueueForBaseTraitCoreTesting::class)
+				->makePartial()
+				->shouldAllowMockingProtectedMethods();
+
+			// Mock dependencies
+			$instance->shouldReceive('get_logger')
+				->andReturn($this->logger_mock);
+			$instance->shouldReceive('_normalize_asset_input')
+				->once()
+				->andReturn(array(array('handle' => $handle)));
+			$instance->shouldReceive('_process_single_removal')
+				->once();
+
+			// Act
+			$result = $instance->_remove_assets($handle, $asset_type);
+
+			// Assert
+			$this->assertSame($instance, $result, "Method should return self for {$asset_type->value}");
+
+			// Check that the context includes the correct asset type suffix
+			$expected_context_part = "({$case['expected_context_suffix']})";
+			$this->expectLog('debug', array($expected_context_part), 1);
+
+			// Reset logger for next iteration
+			$this->logger_mock->collected_logs = array();
+		}
+	}
+
+	// ------------------------------------------------------------------------
+	// _normalize_asset_input() Coverage Tests
+	// ------------------------------------------------------------------------
+
+	/**
+	 * Test _normalize_asset_input with empty string handle (single input).
+	 * This specifically targets line 1804: return array(); when single string is empty.
+	 *
+	 * @test
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_normalize_asset_input
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_is_valid_handle
+	 */
+	public function test_normalize_asset_input_with_empty_string_handle_single_input(): void {
+		// Arrange
+		$input = ''; // Empty string handle
+		$expected_context = 'Ran\\PluginLib\\EnqueueAccessory\\AssetEnqueueBaseTrait::_normalize_asset_input';
+
+		// Act
+		$result = $this->_invoke_protected_method(
+			$this->instance,
+			'_normalize_asset_input',
+			array($input)
+		);
+
+		// Assert
+		$this->assertIsArray($result);
+		$this->assertEmpty($result, 'Should return empty array for empty string handle');
+		$this->expectLog('warning', "{$expected_context} - Skipping empty handle.", 1);
+	}
+
+	/**
+	 * Test _normalize_asset_input with empty handle in asset definition (single input).
+	 * This specifically targets line 1814: return array(); when asset definition has empty handle.
+	 *
+	 * @test
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_normalize_asset_input
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_is_valid_handle
+	 */
+	public function test_normalize_asset_input_with_empty_handle_in_asset_definition_single_input(): void {
+		// Arrange
+		$input = array(
+			'handle' => '', // Empty handle in asset definition
+			'hook' => 'wp_enqueue_scripts',
+			'priority' => 10
+		);
+
+		// Act
+		$result = $this->_invoke_protected_method(
+			$this->instance,
+			'_normalize_asset_input',
+			array($input)
+		);
+
+		// Assert
+		$this->assertIsArray($result);
+		$expected_context = 'Ran\\PluginLib\\EnqueueAccessory\\AssetEnqueueBaseTrait::_normalize_asset_input';
+		$this->assertEmpty($result, 'Should return empty array for asset definition with empty handle');
+		$this->expectLog('warning', "{$expected_context} - Skipping asset definition with empty handle.", 1);
+	}
+
+	// ------------------------------------------------------------------------
+	// _process_single_removal() Tests
+	// ------------------------------------------------------------------------
+
+	/**
+	 * @test
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_process_single_removal
+	 */
+	public function test_process_single_removal_throws_exception_for_missing_handle(): void {
+		// Arrange
+		$asset_definition = array('src' => 'test.js'); // Missing handle
+		$asset_type = AssetType::Script;
+
+		// Act & Assert
+		$this->expectException(\InvalidArgumentException::class);
+		$this->expectExceptionMessage('Asset definition must include a non-empty string handle.');
+		$this->instance->_process_single_removal($asset_definition, $asset_type);
+	}
+
+	/**
+	 * @test
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_process_single_removal
+	 */
+	public function test_process_single_removal_throws_exception_for_non_string_handle(): void {
+		// Arrange
+		$asset_definition = array('handle' => 123); // Non-string handle
+		$asset_type = AssetType::Style;
+
+		// Act & Assert
+		$this->expectException(\InvalidArgumentException::class);
+		$this->expectExceptionMessage('Asset definition must include a non-empty string handle.');
+		$this->instance->_process_single_removal($asset_definition, $asset_type);
+	}
+
+	/**
+	 * @test
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_process_single_removal
+	 */
+	public function test_process_single_removal_throws_exception_for_empty_handle(): void {
+		// Arrange
+		$asset_definition = array('handle' => ''); // Empty handle
+		$asset_type = AssetType::ScriptModule;
+
+		// Act & Assert
+		$this->expectException(\InvalidArgumentException::class);
+		$this->expectExceptionMessage('Asset definition must include a non-empty string handle.');
+		$this->instance->_process_single_removal($asset_definition, $asset_type);
+	}
+
+	/**
+	 * @test
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_process_single_removal
+	 */
+	public function test_process_single_removal_immediate_with_active_logger(): void {
+		// Arrange
+		$asset_definition = array(
+			'handle' => 'test-script',
+			'immediate' => true
+		);
+		$asset_type = AssetType::Script;
+
+		// Mock _handle_asset_operation
+		$this->instance->shouldReceive('_handle_asset_operation')
+			->once()
+			->with('test-script', '_process_single_removal', $asset_type, 'remove');
+
+		// Act
+		$this->instance->_process_single_removal($asset_definition, $asset_type);
+
+		// Assert
+		$this->expectLog('debug', array('Immediately removed script'), 1);
+		$this->expectLog('debug', array("'test-script'"), 1);
+	}
+
+	/**
+	 * @test
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_process_single_removal
+	 */
+	public function test_process_single_removal_immediate_with_inactive_logger(): void {
+		// Arrange
+		$asset_definition = array(
+			'handle' => 'test-style',
+			'immediate' => true
+		);
+		$asset_type = AssetType::Style;
+
+		// Create inactive logger
+		$inactive_logger = Mockery::mock(CollectingLogger::class);
+		$inactive_logger->shouldReceive('is_active')->andReturn(false);
+		$inactive_logger->shouldReceive('debug')->never();
+
+		// Mock get_logger to return inactive logger
+		$this->instance->shouldReceive('get_logger')
+			->andReturn($inactive_logger);
+
+		// Mock _handle_asset_operation
+		$this->instance->shouldReceive('_handle_asset_operation')
+			->once()
+			->with('test-style', '_process_single_removal', $asset_type, 'remove');
+
+		// Act
+		$this->instance->_process_single_removal($asset_definition, $asset_type);
+
+		// Assert - Verify that _handle_asset_operation was called even with inactive logger
+		$this->assertTrue(true, 'Method completed successfully with inactive logger');
+	}
+
+	/**
+	 * @test
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_process_single_removal
+	 */
+	public function test_process_single_removal_deferred_with_defaults(): void {
+		// Arrange
+		$asset_definition = array('handle' => 'test-module');
+		$asset_type = AssetType::ScriptModule;
+
+		// Mock _do_add_action to capture the scheduled action
+		$this->instance->shouldReceive('_do_add_action')
+			->once()
+			->with('wp_enqueue_scripts', Mockery::type('callable'), 10);
+
+		// Act
+		$this->instance->_process_single_removal($asset_definition, $asset_type);
+
+		// Assert
+		$this->expectLog('debug', array('Scheduled removal of script_module'), 1);
+		$this->expectLog('debug', array("'test-module'"), 1);
+		$this->expectLog('debug', array("on hook 'wp_enqueue_scripts'"), 1);
+		$this->expectLog('debug', array('with priority 10'), 1);
+	}
+
+	/**
+	 * @test
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_process_single_removal
+	 */
+	public function test_process_single_removal_deferred_with_custom_hook_and_priority(): void {
+		// Arrange
+		$asset_definition = array(
+			'handle' => 'custom-script',
+			'hook' => 'wp_footer',
+			'priority' => 20
+		);
+		$asset_type = AssetType::Script;
+
+		// Mock _do_add_action to capture the scheduled action
+		$this->instance->shouldReceive('_do_add_action')
+			->once()
+			->with('wp_footer', Mockery::type('callable'), 20);
+
+		// Act
+		$this->instance->_process_single_removal($asset_definition, $asset_type);
+
+		// Assert
+		$this->expectLog('debug', array('Scheduled removal of script'), 1);
+		$this->expectLog('debug', array("'custom-script'"), 1);
+		$this->expectLog('debug', array("on hook 'wp_footer'"), 1);
+		$this->expectLog('debug', array('with priority 20'), 1);
+	}
+
+	/**
+	 * @test
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_process_single_removal
+	 */
+	public function test_process_single_removal_deferred_with_inactive_logger(): void {
+		// Arrange
+		$asset_definition = array('handle' => 'test-style');
+		$asset_type = AssetType::Style;
+
+		// Create inactive logger
+		$inactive_logger = Mockery::mock(CollectingLogger::class);
+		$inactive_logger->shouldReceive('is_active')->andReturn(false);
+		$inactive_logger->shouldReceive('debug')->never();
+
+		// Mock get_logger to return inactive logger
+		$this->instance->shouldReceive('get_logger')
+			->andReturn($inactive_logger);
+
+		// Mock _do_add_action
+		$this->instance->shouldReceive('_do_add_action')
+			->once()
+			->with('wp_enqueue_scripts', Mockery::type('callable'), 10);
+
+		// Act
+		$this->instance->_process_single_removal($asset_definition, $asset_type);
+
+		// Assert - Verify that the method completed without errors even with inactive logger
+		// The Mockery expectations ensure _do_add_action was called correctly
+		// and the inactive_logger->debug()->never() ensures no logging was attempted
+		$this->expectNotToPerformAssertions();
+	}
+
+
+
+	/**
+	 * @test
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_process_single_removal
+	 */
+	public function test_process_single_removal_handles_all_asset_types(): void {
+		// Test all asset types to ensure proper logging
+		$test_cases = array(
+			array('asset_type' => AssetType::Script, 'expected_log_type' => 'script'),
+			array('asset_type' => AssetType::Style, 'expected_log_type' => 'style'),
+			array('asset_type' => AssetType::ScriptModule, 'expected_log_type' => 'script_module')
+		);
+
+		foreach ($test_cases as $case) {
+			// Create fresh instance for each test case
+			$instance = Mockery::mock(ConcreteEnqueueForBaseTraitCoreTesting::class)
+				->makePartial()
+				->shouldAllowMockingProtectedMethods();
+
+			$instance->shouldReceive('get_logger')
+				->andReturn($this->logger_mock);
+
+			$instance->shouldReceive('_handle_asset_operation')
+				->once();
+
+			$asset_definition = array(
+				'handle' => 'test-' . $case['asset_type']->value,
+				'immediate' => true
+			);
+
+			// Act
+			$instance->_process_single_removal($asset_definition, $case['asset_type']);
+
+			// Assert
+			$this->expectLog('debug', array('Immediately removed ' . $case['expected_log_type']), 1);
+
+			// Reset logger for next iteration
+			$this->logger_mock->collected_logs = array();
+		}
+	}
+
+	// ------------------------------------------------------------------------
+	// ScriptModules-specific tests for _do_enqueue and _do_register
+	// ------------------------------------------------------------------------
+
+	/**
+	 * @test
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_do_enqueue
+	 */
+	public function test_do_enqueue_uses_script_module_functions_for_script_modules(): void {
+		// Arrange
+		$handle = 'test-module';
+		$src = 'path/to/module.js';
+		$deps = array('dependency-module');
+		$ver = '1.0.0';
+		$extra_args = array();
+		$context = 'TestContext';
+		$asset_type = AssetType::ScriptModule;
+
+		// Mock the _module_is method to return false (not enqueued, not registered)
+		$this->instance->shouldReceive('_module_is')
+			->with($handle, 'enqueued')
+			->once()
+			->andReturn(false);
+		$this->instance->shouldReceive('_module_is')
+			->with($handle, 'registered')
+			->once()
+			->andReturn(false);
+		$this->instance->shouldReceive('_module_is')
+			->with($handle, 'enqueued')
+			->once()
+			->andReturn(true); // After enqueue
+
+		// Mock WordPress functions
+		WP_Mock::userFunction('wp_register_script_module')
+			->once()
+			->with($handle, $src, $deps, $ver)
+			->andReturn(true);
+		WP_Mock::userFunction('wp_enqueue_script_module')
+			->once()
+			->with($handle);
+
+		// Act
+		$result = $this->instance->_do_enqueue(
+			$asset_type,
+			true, // do_enqueue
+			$handle,
+			$src,
+			$deps,
+			$ver,
+			$extra_args,
+			$context
+		);
+
+		// Assert
+		$this->assertTrue($result, 'Should return true for successful enqueue');
+		$this->expectLog('warning', array("was not registered before enqueuing. Registering now."), 1);
+		$this->expectLog('debug', array('Enqueuing script_module'), 1);
+	}
+
+	/**
+	 * @test
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_do_enqueue
+	 */
+	public function test_do_enqueue_tracks_script_module_in_internal_registry(): void {
+		// Arrange
+		$handle = 'test-module';
+		$src = 'path/to/module.js';
+		$deps = array();
+		$ver = '1.0.0';
+		$extra_args = array();
+		$context = 'TestContext';
+		$asset_type = AssetType::ScriptModule;
+
+		// Mock the _module_is method to return false (not enqueued, not registered)
+		$this->instance->shouldReceive('_module_is')
+			->with($handle, 'enqueued')
+			->once()
+			->andReturn(false);
+		$this->instance->shouldReceive('_module_is')
+			->with($handle, 'registered')
+			->once()
+			->andReturn(false);
+		$this->instance->shouldReceive('_module_is')
+			->with($handle, 'enqueued')
+			->once()
+			->andReturn(true); // After enqueue
+
+		// Mock WordPress functions
+		WP_Mock::userFunction('wp_register_script_module')
+			->once()
+			->andReturn(true);
+		WP_Mock::userFunction('wp_enqueue_script_module')
+			->once();
+
+		// Act
+		$result = $this->instance->_do_enqueue(
+			$asset_type,
+			true, // do_enqueue
+			$handle,
+			$src,
+			$deps,
+			$ver,
+			$extra_args,
+			$context
+		);
+
+		// Assert
+		$this->assertTrue($result);
+
+		// Verify internal registry was updated
+		$registry_property = new \ReflectionProperty($this->instance, '_script_module_registry');
+		$registry_property->setAccessible(true);
+		$registry = $registry_property->getValue($this->instance);
+
+		$this->assertIsArray($registry, 'Registry should be initialized as array');
+		$this->assertArrayHasKey('enqueued', $registry, 'Registry should have enqueued key');
+		$this->assertContains($handle, $registry['enqueued'], 'Handle should be tracked in enqueued registry');
+	}
+
+	/**
+	 * @test
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_do_enqueue
+	 */
+	public function test_do_enqueue_skips_already_enqueued_script_module(): void {
+		// Arrange
+		$handle = 'already-enqueued-module';
+		$asset_type = AssetType::ScriptModule;
+		$context = 'TestContext';
+
+		// Mock the _module_is method to return true (already enqueued)
+		$this->instance->shouldReceive('_module_is')
+			->with($handle, 'enqueued')
+			->once()
+			->andReturn(true);
+
+		// WordPress functions should not be called
+		WP_Mock::userFunction('wp_register_script_module')->never();
+		WP_Mock::userFunction('wp_enqueue_script_module')->never();
+
+		// Act
+		$result = $this->instance->_do_enqueue(
+			$asset_type,
+			true, // do_enqueue
+			$handle,
+			'src.js',
+			array(),
+			'1.0',
+			array(),
+			$context
+		);
+
+		// Assert
+		$this->assertTrue($result, 'Should return true when already enqueued');
+		$this->expectLog('debug', array("script_module '{$handle}' already enqueued. Skipping."), 1);
+	}
+
+	/**
+	 * @test
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_do_register
+	 */
+	public function test_do_register_uses_script_module_functions_for_script_modules(): void {
+		// Arrange
+		$handle = 'test-module';
+		$src = 'path/to/module.js';
+		$deps = array('dependency-module');
+		$ver = '1.0.0';
+		$extra_args = array();
+		$context = 'TestContext';
+		$asset_type = AssetType::ScriptModule;
+
+		// Mock the _module_is method to return false (not registered)
+		$this->instance->shouldReceive('_module_is')
+			->with($handle, 'registered')
+			->once()
+			->andReturn(false);
+
+		// Mock WordPress function
+		WP_Mock::userFunction('wp_register_script_module')
+			->once()
+			->with($handle, $src, $deps, $ver)
+			->andReturn(true);
+
+		// Act
+		$result = $this->instance->_do_register(
+			$asset_type,
+			true, // do_register
+			$handle,
+			$src,
+			$deps,
+			$ver,
+			$extra_args,
+			$context
+		);
+
+		// Assert
+		$this->assertTrue($result, 'Should return true for successful registration');
+		$this->expectLog('debug', array("Registering script_module: '{$handle}'"), 1);
+	}
+
+	/**
+	 * @test
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_do_register
+	 */
+	public function test_do_register_tracks_script_module_in_internal_registry(): void {
+		// Arrange
+		$handle = 'test-module';
+		$src = 'path/to/module.js';
+		$deps = array();
+		$ver = '1.0.0';
+		$extra_args = array();
+		$context = 'TestContext';
+		$asset_type = AssetType::ScriptModule;
+
+		// Mock the _module_is method to return false (not registered)
+		$this->instance->shouldReceive('_module_is')
+			->with($handle, 'registered')
+			->once()
+			->andReturn(false);
+
+		// Mock WordPress function
+		WP_Mock::userFunction('wp_register_script_module')
+			->once()
+			->andReturn(true);
+
+		// Act
+		$result = $this->instance->_do_register(
+			$asset_type,
+			true, // do_register
+			$handle,
+			$src,
+			$deps,
+			$ver,
+			$extra_args,
+			$context
+		);
+
+		// Assert
+		$this->assertTrue($result);
+
+		// Verify internal registry was updated
+		$registry_property = new \ReflectionProperty($this->instance, '_script_module_registry');
+		$registry_property->setAccessible(true);
+		$registry = $registry_property->getValue($this->instance);
+
+		$this->assertIsArray($registry, 'Registry should be initialized as array');
+		$this->assertArrayHasKey('registered', $registry, 'Registry should have registered key');
+		$this->assertContains($handle, $registry['registered'], 'Handle should be tracked in registered registry');
+	}
+
+	/**
+	 * @test
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_do_register
+	 */
+	public function test_do_register_skips_already_registered_script_module(): void {
+		// Arrange
+		$handle = 'already-registered-module';
+		$asset_type = AssetType::ScriptModule;
+		$context = 'TestContext';
+
+		// Mock the _module_is method to return true (already registered)
+		$this->instance->shouldReceive('_module_is')
+			->with($handle, 'registered')
+			->once()
+			->andReturn(true);
+
+		// WordPress function should not be called
+		WP_Mock::userFunction('wp_register_script_module')->never();
+
+		// Act
+		$result = $this->instance->_do_register(
+			$asset_type,
+			true, // do_register
+			$handle,
+			'src.js',
+			array(),
+			'1.0',
+			array(),
+			$context
+		);
+
+		// Assert
+		$this->assertTrue($result, 'Should return true when already registered');
+		$this->expectLog('debug', array("script_module '{$handle}' already registered. Skipping registration."), 1);
+	}
+
+	/**
+	 * @test
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_do_register
+	 */
+	public function test_do_register_handles_script_module_registration_failure(): void {
+		// Arrange
+		$handle = 'failing-module';
+		$src = 'path/to/module.js';
+		$deps = array();
+		$ver = '1.0.0';
+		$extra_args = array();
+		$context = 'TestContext';
+		$asset_type = AssetType::ScriptModule;
+
+		// Mock the _module_is method to return false (not registered)
+		$this->instance->shouldReceive('_module_is')
+			->with($handle, 'registered')
+			->once()
+			->andReturn(false);
+
+		// Mock WordPress function to return false (registration failure)
+		WP_Mock::userFunction('wp_register_script_module')
+			->once()
+			->with($handle, $src, $deps, $ver)
+			->andReturn(false);
+
+		// Act
+		$result = $this->instance->_do_register(
+			$asset_type,
+			true, // do_register
+			$handle,
+			$src,
+			$deps,
+			$ver,
+			$extra_args,
+			$context
+		);
+
+		// Assert
+		$this->assertFalse($result, 'Should return false when registration fails');
+		$this->expectLog('warning', array("wp_register_script_module() failed for handle '{$handle}'"), 1);
+	}
+
+	/**
+	 * @test
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_do_enqueue
+	 */
+	public function test_do_enqueue_handles_script_module_enqueue_failure(): void {
+		// Arrange
+		$handle = 'failing-enqueue-module';
+		$src = 'path/to/module.js';
+		$deps = array();
+		$ver = '1.0.0';
+		$extra_args = array();
+		$context = 'TestContext';
+		$asset_type = AssetType::ScriptModule;
+
+		// Mock the _module_is method
+		$this->instance->shouldReceive('_module_is')
+			->with($handle, 'enqueued')
+			->once()
+			->andReturn(false); // Not enqueued initially
+		$this->instance->shouldReceive('_module_is')
+			->with($handle, 'registered')
+			->once()
+			->andReturn(true); // Already registered
+		$this->instance->shouldReceive('_module_is')
+			->with($handle, 'enqueued')
+			->once()
+			->andReturn(false); // Still not enqueued after attempt
+
+		// Mock WordPress functions
+		WP_Mock::userFunction('wp_enqueue_script_module')
+			->once()
+			->with($handle);
+
+		// Act
+		$result = $this->instance->_do_enqueue(
+			$asset_type,
+			true, // do_enqueue
+			$handle,
+			$src,
+			$deps,
+			$ver,
+			$extra_args,
+			$context
+		);
+
+		// Assert
+		$this->assertFalse($result, 'Should return false when enqueue fails');
+		$this->expectLog('warning', array("wp_enqueue_script_module() failed for handle '{$handle}'"), 1);
 	}
 }
