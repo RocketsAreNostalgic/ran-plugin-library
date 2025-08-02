@@ -156,7 +156,46 @@ trait ScriptsEnqueueTrait {
 	}
 
 	/**
+	 * Dequeues one or more scripts from WordPress.
+	 *
+	 * This method allows selective dequeuing of scripts while leaving them registered
+	 * for potential re-enqueuing later. This is useful for conditional script loading or
+	 * temporarily disabling scripts without losing their registration.
+	 *
+	 * Supported input formats:
+	 * - A single string handle
+	 * - An array of string handles
+	 * - An array of asset definition arrays with optional hook and priority
+	 * - A mixed array of strings and asset definition arrays
+	 *
+	 * @param string|array<string|array> $scripts_to_dequeue Scripts to dequeue.
+	 * @return self Returns the instance of this class for method chaining.
+	 */
+	public function dequeue(string|array $scripts_to_dequeue): self {
+		$logger  = $this->get_logger();
+		$context = static::class . '::' . __FUNCTION__;
+
+		// Use shared normalization for consistent input handling
+		$normalized_scripts = $this->_normalize_asset_input($scripts_to_dequeue);
+
+		foreach ($normalized_scripts as $script_definition) {
+			$handle = $script_definition['handle'];
+
+			$this->_handle_asset_operation($handle, __FUNCTION__, $this->_get_asset_type(), 'dequeue');
+
+			if ($logger->is_active()) {
+				$logger->debug("{$context} - Attempted dequeue of script '{$handle}'.");
+			}
+		}
+
+		return $this;
+	}
+
+	/**
 	 * Deregisters one or more scripts from WordPress.
+	 *
+	 * This method only deregisters scripts, leaving any enqueued instances active.
+	 * Use remove() if you want to both dequeue and deregister scripts.
 	 *
 	 * This method supports flexible input formats:
 	 * - A single string handle
@@ -176,6 +215,32 @@ trait ScriptsEnqueueTrait {
 	 */
 	public function deregister($scripts_to_deregister): self {
 		return $this->_deregister_assets($scripts_to_deregister, $this->_get_asset_type());
+	}
+
+	/**
+	 * Removes one or more scripts from WordPress by both dequeuing and deregistering them.
+	 *
+	 * This method combines dequeue and deregister operations, providing complete removal
+	 * of scripts from WordPress. This is equivalent to the previous behavior of deregister().
+	 *
+	 * This method supports flexible input formats:
+	 * - A single string handle
+	 * - An array of string handles
+	 * - An array of asset definition arrays with optional hook and priority
+	 * - A mixed array of strings and asset definition arrays
+	 *
+	 * @param string|array<string|array> $scripts_to_remove Scripts to remove.
+	 *     If a string, it's treated as a single script handle.
+	 *     If an array of strings, each string is treated as a script handle.
+	 *     If an array of arrays, each array can include:
+	 *     - 'handle' (string, required): The script handle to remove.
+	 *     - 'hook' (string, optional): WordPress hook on which to remove. Default: 'wp_enqueue_scripts'.
+	 *     - 'priority' (int, optional): Priority for the hook. Default: 10.
+	 *     - 'immediate' (bool, optional): Whether to remove immediately. Default: false.
+	 * @return self Returns the instance of this class for method chaining.
+	 */
+	public function remove($scripts_to_remove): self {
+		return $this->_remove_assets($scripts_to_remove, $this->_get_asset_type());
 	}
 
 	/**
