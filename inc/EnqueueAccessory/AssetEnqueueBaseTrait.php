@@ -1563,19 +1563,13 @@ trait AssetEnqueueBaseTrait {
 
 		// Handle script modules - WordPress handles deregistration internally
 		if ($asset_type === AssetType::ScriptModule) {
-			if ($logger->is_active()) {
-				$logger->debug("{$context} - Deregistering script module '{$handle}' (WordPress will handle non-existent modules gracefully)");
-			}
-
-			// For script modules, we can't easily check if they're registered/enqueued beforehand
-			// WordPress will handle non-existent modules gracefully
-			$initial_registered = true; // Assume it might be registered
-			$initial_enqueued = false;  // Script modules don't have separate enqueue status
-
+			// Script modules: Always attempt dequeue first, then deregister
+			// WordPress handles non-existent handles gracefully without errors
+			\wp_dequeue_script_module($handle);
 			\wp_deregister_script_module($handle);
-
+			
 			if ($logger->is_active()) {
-				$logger->debug("{$context} - Script module '{$handle}' deregistration completed.");
+				$logger->debug("{$context} - Attempted dequeue and deregister of script module '{$handle}'. WordPress Script Modules API provides no status feedback - operations completed silently.");
 			}
 		} else {
 			// Handle scripts and styles with status checking

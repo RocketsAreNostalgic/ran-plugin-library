@@ -161,6 +161,51 @@ trait ScriptModulesEnqueueTrait {
 	}
 
 	/**
+	 * Dequeues script modules without deregistering them.
+	 *
+	 * This method allows selective dequeuing of script modules while leaving them registered
+	 * for potential re-enqueuing later. This is useful for conditional module loading or
+	 * temporarily disabling modules without losing their registration.
+	 *
+	 * Note: WordPress Script Modules API does not provide status checking functions like
+	 * wp_script_module_is(). This method will attempt to dequeue all specified modules
+	 * silently, and WordPress will handle non-existent modules gracefully without errors.
+	 *
+	 * Supported input formats:
+	 * - Array of string handles: ['@my-plugin/module1', '@theme/module2']
+	 * - Array of module definition arrays: [['handle' => '@plugin/module'], ['handle' => '@theme/module']]
+	 * - Mixed array of strings and definition arrays
+	 *
+	 * @param array<string|array<string, mixed>> $modules_to_dequeue Array of module handles (strings) or module definition arrays
+	 * @return self Returns the instance for method chaining
+	 *
+	 * @since WordPress 6.5.0 (wp_dequeue_script_module function availability)
+	 */
+	public function dequeue(array $modules_to_dequeue): self {
+		$logger = $this->get_logger();
+		$context = static::class . '::' . __FUNCTION__;
+		
+		foreach ($modules_to_dequeue as $module) {
+			$handle = is_string($module) ? $module : ($module['handle'] ?? '');
+			
+			if (empty($handle)) {
+				if ($logger->is_active()) {
+					$logger->warning("{$context} - Skipping module with empty handle.");
+				}
+				continue;
+			}
+			
+			\wp_dequeue_script_module($handle);
+			
+			if ($logger->is_active()) {
+				$logger->debug("{$context} - Attempted dequeue of script module '{$handle}'. WordPress Script Modules API provides no status feedback - operation completed silently.");
+			}
+		}
+		
+		return $this;
+	}
+
+	/**
 	 * Processes a single script module definition, handling registration, enqueuing, and data/attribute additions.
 	 *
 	 * This is a versatile helper method that underpins the public-facing script module methods. It separates
