@@ -18,7 +18,7 @@ use Ran\PluginLib\EnqueueAccessory\AssetType;
  * Trait ScriptModulesEnqueueTrait
  *
  * Manages the registration, enqueuing, and processing of JavaScript module assets.
- * This trait provides script module support using WordPress's native Script Modules API
+ * This trait provides script module support using Wor without dequeuing them firstdPress's native Script Modules API
  * introduced in WordPress 6.5.
  *
  * Key differences from ScriptsEnqueueTrait:
@@ -145,7 +145,52 @@ trait ScriptModulesEnqueueTrait {
 	}
 
 	/**
+	 * Dequeue one or more script modules from WordPress.
+	 *
+	 * This method allows selective dequeuing of script modules while leaving them registered
+	 * for potential re-enqueuing later. This is useful for conditional module loading or
+	 * temporarily disabling modules without losing their registration.
+	 *
+	 * Note: WordPress Script Modules API does not provide status checking functions like
+	 * wp_script_module_is(). This method will attempt to dequeue all specified modules
+	 * silently, and WordPress will handle non-existent modules gracefully without errors.
+	 *
+	 * This method supports flexible input formats:
+	 * - A single string handle
+	 * - An array of string handles
+	 * - An array of asset definition arrays with optional hook and priority
+	 * - A mixed array of strings and asset definition arrays
+	 *
+	 * @param string|array<string|array> $modules_to_dequeue Script modules to dequeue.
+	 * @return self Returns the instance for method chaining
+	 *
+	 * @since WordPress 6.5.0 (wp_dequeue_script_module function availability)
+	 */
+	public function dequeue(string|array $modules_to_dequeue): self {
+		$logger  = $this->get_logger();
+		$context = static::class . '::' . __FUNCTION__;
+
+		// Use shared normalization for consistent input handling
+		$normalized_modules = $this->_normalize_asset_input($modules_to_dequeue);
+
+		foreach ($normalized_modules as $module_definition) {
+			$handle = $module_definition['handle'];
+
+			\wp_dequeue_script_module($handle);
+
+			if ($logger->is_active()) {
+				$logger->debug("{$context} - Attempted dequeue of script module '{$handle}'. WordPress Script Modules API provides no status feedback - operation completed silently.");
+			}
+		}
+
+		return $this;
+	}
+
+	/**
 	 * Deregisters one or more script modules from WordPress.
+	 *
+	 * This method only deregisters script modules, leaving any enqueued instances active.
+	 * Use remove() if you want to both dequeue and deregister script modules.
 	 *
 	 * This method supports flexible input formats:
 	 * - A single string handle
@@ -161,48 +206,22 @@ trait ScriptModulesEnqueueTrait {
 	}
 
 	/**
-	 * Dequeues script modules without deregistering them.
+	 * Removes one or more script modules from WordPress by both dequeuing and deregistering them.
 	 *
-	 * This method allows selective dequeuing of script modules while leaving them registered
-	 * for potential re-enqueuing later. This is useful for conditional module loading or
-	 * temporarily disabling modules without losing their registration.
+	 * This method combines dequeue and deregister operations, providing complete removal
+	 * of script modules from WordPress. This is equivalent to the previous behavior of deregister().
 	 *
-	 * Note: WordPress Script Modules API does not provide status checking functions like
-	 * wp_script_module_is(). This method will attempt to dequeue all specified modules
-	 * silently, and WordPress will handle non-existent modules gracefully without errors.
+	 * This method supports flexible input formats:
+	 * - A single string handle
+	 * - An array of string handles
+	 * - An array of asset definition arrays with optional hook and priority
+	 * - A mixed array of strings and asset definition arrays
 	 *
-	 * Supported input formats:
-	 * - Array of string handles: ['@my-plugin/module1', '@theme/module2']
-	 * - Array of module definition arrays: [['handle' => '@plugin/module'], ['handle' => '@theme/module']]
-	 * - Mixed array of strings and definition arrays
-	 *
-	 * @param array<string|array<string, mixed>> $modules_to_dequeue Array of module handles (strings) or module definition arrays
-	 * @return self Returns the instance for method chaining
-	 *
-	 * @since WordPress 6.5.0 (wp_dequeue_script_module function availability)
+	 * @param string|array<string|array> $modules_to_remove Modules to remove.
+	 * @return self Returns the instance of this class for method chaining.
 	 */
-	public function dequeue(array $modules_to_dequeue): self {
-		$logger = $this->get_logger();
-		$context = static::class . '::' . __FUNCTION__;
-		
-		foreach ($modules_to_dequeue as $module) {
-			$handle = is_string($module) ? $module : ($module['handle'] ?? '');
-			
-			if (empty($handle)) {
-				if ($logger->is_active()) {
-					$logger->warning("{$context} - Skipping module with empty handle.");
-				}
-				continue;
-			}
-			
-			\wp_dequeue_script_module($handle);
-			
-			if ($logger->is_active()) {
-				$logger->debug("{$context} - Attempted dequeue of script module '{$handle}'. WordPress Script Modules API provides no status feedback - operation completed silently.");
-			}
-		}
-		
-		return $this;
+	public function remove($modules_to_remove): self {
+		return $this->_remove_assets($modules_to_remove, $this->_get_asset_type());
 	}
 
 	/**

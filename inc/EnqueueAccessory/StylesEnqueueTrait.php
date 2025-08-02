@@ -154,7 +154,46 @@ trait StylesEnqueueTrait {
 	}
 
 	/**
+	 * Dequeue one or more styles from WordPress.
+	 *
+	 * This method removes styles from the WordPress enqueue queue while keeping them registered
+	 * for potential re-enqueuing later. This is useful for conditional style loading or
+	 * temporarily disabling styles without losing their registration.
+	 *
+	 * This method supports flexible input formats:
+	 * - A single string handle
+	 * - An array of string handles
+	 * - An array of asset definition arrays with optional hook and priority
+	 * - A mixed array of strings and asset definition arrays
+	 *
+	 * @param string|array<string|array> $styles_to_dequeue Styles to dequeue.
+	 * @return self Returns the instance of this class for method chaining.
+	 */
+	public function dequeue(string|array $styles_to_dequeue): self {
+		$logger  = $this->get_logger();
+		$context = static::class . '::' . __FUNCTION__;
+
+		// Use shared normalization for consistent input handling
+		$normalized_styles = $this->_normalize_asset_input($styles_to_dequeue);
+
+		foreach ($normalized_styles as $style_definition) {
+			$handle = $style_definition['handle'];
+
+			$this->_handle_asset_operation($handle, __FUNCTION__, $this->_get_asset_type(), 'dequeue');
+
+			if ($logger->is_active()) {
+				$logger->debug("{$context} - Attempted dequeue of style '{$handle}'.");
+			}
+		}
+
+		return $this;
+	}
+
+	/**
 	 * Deregisters one or more styles from WordPress.
+	 *
+	 * This method only deregisters styles, leaving any enqueued instances active.
+	 * Use remove() if you want to both dequeue and deregister styles.
 	 *
 	 * This method supports flexible input formats:
 	 * - A single string handle
@@ -174,6 +213,32 @@ trait StylesEnqueueTrait {
 	 */
 	public function deregister($styles_to_deregister): self {
 		return $this->_deregister_assets($styles_to_deregister, $this->_get_asset_type());
+	}
+
+	/**
+	 * Removes one or more styles from WordPress by both dequeuing and deregistering them.
+	 *
+	 * This method combines dequeue and deregister operations, providing complete removal
+	 * of styles from WordPress. This is equivalent to the previous behavior of deregister().
+	 *
+	 * This method supports flexible input formats:
+	 * - A single string handle
+	 * - An array of string handles
+	 * - An array of asset definition arrays with optional hook and priority
+	 * - A mixed array of strings and asset definition arrays
+	 *
+	 * @param string|array<string|array> $styles_to_remove Styles to remove.
+	 *     If a string, it's treated as a single style handle.
+	 *     If an array of strings, each string is treated as a style handle.
+	 *     If an array of arrays, each array can include:
+	 *     - 'handle' (string, required): The style handle to remove.
+	 *     - 'hook' (string, optional): WordPress hook on which to remove. Default: 'wp_enqueue_scripts'.
+	 *     - 'priority' (int, optional): Priority for the hook. Default: 10.
+	 *     - 'immediate' (bool, optional): Whether to remove immediately. Default: false.
+	 * @return self Returns the instance of this class for method chaining.
+	 */
+	public function remove($styles_to_remove): self {
+		return $this->_remove_assets($styles_to_remove, $this->_get_asset_type());
 	}
 
 	/**
