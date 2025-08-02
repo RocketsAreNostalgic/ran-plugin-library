@@ -527,6 +527,7 @@ class ScriptModulesEnqueueTraitTest extends EnqueueTraitTestCase {
 	public function test_deregister_with_single_handle_string_immediate(): void {
 		// Arrange - test immediate deregistration
 		$handle = '@my-plugin/test-module';
+		WP_Mock::userFunction('wp_dequeue_script_module')->with($handle)->once();
 		WP_Mock::userFunction('wp_deregister_script_module')->with($handle)->once();
 
 		// Act - deregister with immediate flag
@@ -565,7 +566,9 @@ class ScriptModulesEnqueueTraitTest extends EnqueueTraitTestCase {
 			['handle' => '@my-plugin/module-1', 'immediate' => true],
 			['handle' => '@my-plugin/module-2', 'immediate' => true]
 		];
+		WP_Mock::userFunction('wp_dequeue_script_module')->with('@my-plugin/module-1')->once();
 		WP_Mock::userFunction('wp_deregister_script_module')->with('@my-plugin/module-1')->once();
+		WP_Mock::userFunction('wp_dequeue_script_module')->with('@my-plugin/module-2')->once();
 		WP_Mock::userFunction('wp_deregister_script_module')->with('@my-plugin/module-2')->once();
 
 		// Act
@@ -585,7 +588,9 @@ class ScriptModulesEnqueueTraitTest extends EnqueueTraitTestCase {
 			['handle' => '@my-plugin/module-1', 'immediate' => true],
 			['handle' => '@my-plugin/module-2', 'hook' => 'wp_enqueue_scripts', 'immediate' => true]
 		];
+		WP_Mock::userFunction('wp_dequeue_script_module')->with('@my-plugin/module-1')->once();
 		WP_Mock::userFunction('wp_deregister_script_module')->with('@my-plugin/module-1')->once();
+		WP_Mock::userFunction('wp_dequeue_script_module')->with('@my-plugin/module-2')->once();
 		WP_Mock::userFunction('wp_deregister_script_module')->with('@my-plugin/module-2')->once();
 
 		// Act
@@ -605,7 +610,9 @@ class ScriptModulesEnqueueTraitTest extends EnqueueTraitTestCase {
 			['handle' => '@my-plugin/string-handle', 'immediate' => true],
 			['handle' => '@my-plugin/array-handle', 'immediate' => true]
 		];
+		WP_Mock::userFunction('wp_dequeue_script_module')->with('@my-plugin/string-handle')->once();
 		WP_Mock::userFunction('wp_deregister_script_module')->with('@my-plugin/string-handle')->once();
+		WP_Mock::userFunction('wp_dequeue_script_module')->with('@my-plugin/array-handle')->once();
 		WP_Mock::userFunction('wp_deregister_script_module')->with('@my-plugin/array-handle')->once();
 
 		// Act
@@ -635,6 +642,168 @@ class ScriptModulesEnqueueTraitTest extends EnqueueTraitTestCase {
 
 		// Assert chainability
 		$this->assertSame($this->instance, $result);
+	}
+
+	// ------------------------------------------------------------------------
+	// dequeue() Tests
+	// ------------------------------------------------------------------------
+
+	/**
+	 * @test
+	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptModulesEnqueueTrait::dequeue
+	 */
+	public function test_dequeue_with_string_handles(): void {
+		// Arrange - test dequeuing with array of string handles
+		$handles = ['@my-plugin/module-1', '@theme/module-2', '@shared/component'];
+
+		// Mock WordPress functions
+		WP_Mock::userFunction('wp_dequeue_script_module')->with('@my-plugin/module-1')->once();
+		WP_Mock::userFunction('wp_dequeue_script_module')->with('@theme/module-2')->once();
+		WP_Mock::userFunction('wp_dequeue_script_module')->with('@shared/component')->once();
+
+		// Act
+		$result = $this->instance->dequeue($handles);
+
+		// Assert chainability
+		$this->assertSame($this->instance, $result);
+
+		// Expect debug logs
+		$this->expectLog('debug', array("dequeue - Attempted dequeue of script module '@my-plugin/module-1'"), 1);
+		$this->expectLog('debug', array("dequeue - Attempted dequeue of script module '@theme/module-2'"), 1);
+		$this->expectLog('debug', array("dequeue - Attempted dequeue of script module '@shared/component'"), 1);
+	}
+
+	/**
+	 * @test
+	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptModulesEnqueueTrait::dequeue
+	 */
+	public function test_dequeue_with_definition_arrays(): void {
+		// Arrange - test dequeuing with array of definition arrays
+		$modules = [
+			['handle' => '@my-plugin/module-1'],
+			['handle' => '@theme/module-2'],
+			['handle' => '@shared/component']
+		];
+
+		// Mock WordPress functions
+		WP_Mock::userFunction('wp_dequeue_script_module')->with('@my-plugin/module-1')->once();
+		WP_Mock::userFunction('wp_dequeue_script_module')->with('@theme/module-2')->once();
+		WP_Mock::userFunction('wp_dequeue_script_module')->with('@shared/component')->once();
+
+		// Act
+		$result = $this->instance->dequeue($modules);
+
+		// Assert chainability
+		$this->assertSame($this->instance, $result);
+
+		// Expect debug logs
+		$this->expectLog('debug', array("dequeue - Attempted dequeue of script module '@my-plugin/module-1'"), 1);
+		$this->expectLog('debug', array("dequeue - Attempted dequeue of script module '@theme/module-2'"), 1);
+		$this->expectLog('debug', array("dequeue - Attempted dequeue of script module '@shared/component'"), 1);
+
+
+	}
+
+	/**
+	 * @test
+	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptModulesEnqueueTrait::dequeue
+	 */
+	public function test_dequeue_with_mixed_formats(): void {
+		// Arrange - test dequeuing with mixed string handles and definition arrays
+		$mixed_modules = [
+			'@my-plugin/string-handle',
+			['handle' => '@theme/array-handle'],
+			'@shared/another-string'
+		];
+
+		// Mock WordPress functions
+		WP_Mock::userFunction('wp_dequeue_script_module')->with('@my-plugin/string-handle')->once();
+		WP_Mock::userFunction('wp_dequeue_script_module')->with('@theme/array-handle')->once();
+		WP_Mock::userFunction('wp_dequeue_script_module')->with('@shared/another-string')->once();
+
+		// Act
+		$result = $this->instance->dequeue($mixed_modules);
+
+		// Assert chainability
+		$this->assertSame($this->instance, $result);
+		// Expect debug logs
+		$this->expectLog('debug', array("dequeue - Attempted dequeue of script module '@my-plugin/string-handle'"), 1);
+		$this->expectLog('debug', array("dequeue - Attempted dequeue of script module '@theme/array-handle'"), 1);
+		$this->expectLog('debug', array("dequeue - Attempted dequeue of script module '@shared/another-string'"), 1);
+	}
+
+	/**
+	 * @test
+	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptModulesEnqueueTrait::dequeue
+	 */
+	public function test_dequeue_skips_empty_handles(): void {
+		// Arrange - test that empty handles are skipped with warning
+		$modules_with_empty = [
+			'@valid/module-1',
+			['handle' => ''], // Empty handle
+			['handle' => '@valid/module-2'],
+			['invalid' => 'no-handle-key'], // Missing handle key
+			'@valid/module-3'
+		];
+
+		// Mock WordPress functions - only for valid handles
+		WP_Mock::userFunction('wp_dequeue_script_module')->with('@valid/module-1')->once();
+		WP_Mock::userFunction('wp_dequeue_script_module')->with('@valid/module-2')->once();
+		WP_Mock::userFunction('wp_dequeue_script_module')->with('@valid/module-3')->once();
+
+		// Act
+		$result = $this->instance->dequeue($modules_with_empty);
+
+		// Assert chainability
+		$this->assertSame($this->instance, $result);
+
+		// Expect warning logs for empty handles
+		$this->expectLog('warning', array('dequeue - Skipping module with empty handle'),2);
+
+		// Expect debug logs for valid handles
+		$this->expectLog('debug', array("dequeue - Attempted dequeue of script module"), 3);
+
+		// Assert chainability
+		$this->assertSame($this->instance, $result);
+	}
+
+	/**
+	 * @test
+	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptModulesEnqueueTrait::dequeue
+	 */
+	public function test_dequeue_with_empty_array(): void {
+		// Arrange - test dequeuing with empty array
+		$empty_modules = [];
+
+		// No WordPress functions should be called
+		WP_Mock::userFunction('wp_dequeue_script_module')->never();
+
+		// Act
+		$result = $this->instance->dequeue($empty_modules);
+
+		// Assert chainability
+		$this->assertSame($this->instance, $result);
+	}
+
+	/**
+	 * @test
+	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptModulesEnqueueTrait::dequeue
+	 */
+	public function test_dequeue_with_single_handle(): void {
+		// Arrange - test dequeuing a single module
+		$single_module = ['@my-plugin/single-module'];
+
+		// Mock WordPress function
+		WP_Mock::userFunction('wp_dequeue_script_module')->with('@my-plugin/single-module')->once();
+
+		// Act
+		$result = $this->instance->dequeue($single_module);
+
+		// Assert chainability
+		$this->assertSame($this->instance, $result);
+
+		// Expect debug log
+		$this->expectLog('debug', array("dequeue - Attempted dequeue of script module '@my-plugin/single-module'"), 1);
 	}
 
 	// ------------------------------------------------------------------------
