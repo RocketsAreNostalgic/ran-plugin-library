@@ -28,6 +28,7 @@ class EnqueueAdmin implements EnqueueInterface {
 	use WPWrappersTrait;
 
 	private ScriptsHandler $scripts_handler;
+	private ScriptModulesHandler $script_modules_handler;
 	private StylesHandler $styles_handler;
 	private MediaHandler $media_handler;
 	private Logger $logger;
@@ -35,6 +36,7 @@ class EnqueueAdmin implements EnqueueInterface {
 	public function __construct(
 		ConfigInterface $config,
 		?ScriptsHandler $scripts_handler = null,
+		?ScriptModulesHandler $script_modules_handler = null,
 		?StylesHandler $styles_handler = null,
 		?MediaHandler $media_handler = null
 	) {
@@ -52,13 +54,18 @@ class EnqueueAdmin implements EnqueueInterface {
 			$this->logger->debug("{$context} - On admin page, proceeding to set up asset handlers.");
 		}
 
-		$this->scripts_handler = $scripts_handler ?? new ScriptsHandler($config);
-		$this->styles_handler  = $styles_handler  ?? new StylesHandler($config);
+		$this->scripts_handler        = $scripts_handler        ?? new ScriptsHandler($config);
+		$this->script_modules_handler = $script_modules_handler ?? new ScriptModulesHandler($config);
+		$this->styles_handler         = $styles_handler         ?? new StylesHandler($config);
 		// $this->media_handler   = $media_handler   ?? new MediaHandler($config);
 	}
 
 	public function scripts(): ScriptsHandler {
 		return $this->scripts_handler;
+	}
+
+	public function script_modules(): ScriptModulesHandler {
+		return $this->script_modules_handler;
 	}
 
 	public function styles(): StylesHandler {
@@ -85,6 +92,7 @@ class EnqueueAdmin implements EnqueueInterface {
 			$this->logger->debug("{$context} - Delegating to handlers.");
 		}
 		$this->scripts_handler->stage();
+		$this->script_modules_handler->stage();
 		$this->styles_handler->stage();
 		// $this->media_handler->stage_media($this->media_tool_configs);
 	}

@@ -856,36 +856,54 @@ trait AssetEnqueueBaseTrait {
 		$logger = $this->get_logger();
 
 		if ($do_register) {
-			$is_registered = $asset_type === AssetType::Script
-				? \wp_script_is($handle, 'registered')
-				: \wp_style_is($handle, 'registered');
-
-			if ($is_registered) {
-				if ( $logger->is_active() ) {
-					$logger->debug( "{$context} - {$asset_type->value} '{$handle}'{$log_hook_context} already registered. Skipping registration." );
-				}
-			} else {
+			// Handle script modules - we can't directly check registration status
+			// but we can attempt registration and let WordPress handle duplicates
+			if ($asset_type === AssetType::ScriptModule) {
 				if ($logger->is_active()) {
-					$logger->debug("{$context} - Registering {$asset_type->value}: '{$handle}'{$log_hook_context}: {$src}");
+					$logger->debug("{$context} - Registering {$asset_type->value}: '{$handle}'{$log_hook_context}: {$src} (Note: WordPress will handle duplicate registrations internally)");
 				}
 
-				$result = false;
-				if ($asset_type === AssetType::Script) {
-					// For scripts, $extra_args would be $in_footer
-					$in_footer = $extra_args['in_footer'] ?? false;
-					// Pass in_footer as an array to match test expectations
-					$result = \wp_register_script($handle, $src, $deps, $ver, array('in_footer' => $in_footer));
-				} else {
-					// For styles, $extra_args would be $media
-					$media  = $extra_args['media'] ?? 'all';
-					$result = \wp_register_style($handle, $src, $deps, $ver, $media);
-				}
+				$result = \wp_register_script_module($handle, $src, $deps, $ver);
 
 				if (!$result) {
 					if ($logger->is_active()) {
-						$logger->warning("{$context} - wp_register_{$asset_type->value}() failed for handle '{$handle}'{$log_hook_context}. Skipping further processing for this asset.");
+						$logger->warning("{$context} - wp_register_script_module() failed for handle '{$handle}'{$log_hook_context}. Skipping further processing for this asset.");
 					}
 					return false;
+				}
+			} else {
+				// Handle scripts and styles with registration status checking
+				$is_registered = $asset_type === AssetType::Script
+					? \wp_script_is($handle, 'registered')
+					: \wp_style_is($handle, 'registered');
+
+				if ($is_registered) {
+					if ( $logger->is_active() ) {
+						$logger->debug( "{$context} - {$asset_type->value} '{$handle}'{$log_hook_context} already registered. Skipping registration." );
+					}
+				} else {
+					if ($logger->is_active()) {
+						$logger->debug("{$context} - Registering {$asset_type->value}: '{$handle}'{$log_hook_context}: {$src}");
+					}
+
+					$result = false;
+					if ($asset_type === AssetType::Script) {
+						// For scripts, $extra_args would be $in_footer
+						$in_footer = $extra_args['in_footer'] ?? false;
+						// Pass in_footer as an array to match test expectations
+						$result = \wp_register_script($handle, $src, $deps, $ver, array('in_footer' => $in_footer));
+					} else {
+						// For styles, $extra_args would be $media
+						$media  = $extra_args['media'] ?? 'all';
+						$result = \wp_register_style($handle, $src, $deps, $ver, $media);
+					}
+
+					if (!$result) {
+						if ($logger->is_active()) {
+							$logger->warning("{$context} - wp_register_{$asset_type->value}() failed for handle '{$handle}'{$log_hook_context}. Skipping further processing for this asset.");
+						}
+						return false;
+					}
 				}
 			}
 		}
@@ -963,7 +981,23 @@ trait AssetEnqueueBaseTrait {
 			return true;
 		}
 
-		$logger      = $this->get_logger();
+		$logger = $this->get_logger();
+
+		// Handle script modules - WordPress handles duplicate enqueues internally
+		if ($asset_type === AssetType::ScriptModule) {
+			if ($logger->is_active()) {
+				$logger->debug("{$context} - Enqueuing {$asset_type->value} '{$handle}'{$log_hook_context} (WordPress will handle duplicate enqueues)");
+			}
+
+			\wp_enqueue_script_module($handle);
+
+			if ($logger->is_active()) {
+				$logger->debug("{$context} - Script module '{$handle}' enqueue completed successfully.");
+			}
+			return true;
+		}
+
+		// Handle scripts and styles with enqueue status checking
 		$is_enqueued = $asset_type === AssetType::Script
 			? \wp_script_is($handle, 'enqueued')
 			: \wp_style_is($handle, 'enqueued');
@@ -1100,7 +1134,7 @@ trait AssetEnqueueBaseTrait {
 		}
 
 		$cache_key = 'file_hash_' . md5($file_path);
-		$hash = $this->_cache_for_request($cache_key, function() use ($file_path) {
+		$hash      = $this->_cache_for_request($cache_key, function() use ($file_path) {
 			return $this->_md5_file($file_path);
 		});
 
@@ -1523,46 +1557,67 @@ trait AssetEnqueueBaseTrait {
 			$logger->debug("{$context} - Asset '{$handle}' found in internal queues at " . count($asset_locations) . ' location(s). Will clean up after deregistration.');
 		}
 
-		// Alias the appropriate WordPress functions based on asset type
-		$is_enqueued_fn   = $asset_type === AssetType::Script ? 'wp_script_is' : 'wp_style_is';
-		$is_registered_fn = $is_enqueued_fn; // Same function, different second parameter
-		$dequeue_fn       = $asset_type === AssetType::Script ? 'wp_dequeue_script' : 'wp_dequeue_style';
-		$deregister_fn    = $asset_type === AssetType::Script ? 'wp_deregister_script' : 'wp_deregister_style';
+		$success = true;
+		$initial_registered = false;
+		$initial_enqueued = false;
 
-		$success            = true;
-		$initial_registered = function_exists($is_registered_fn) && $is_registered_fn($handle, 'registered');
-		$initial_enqueued   = function_exists($is_enqueued_fn)   && $is_enqueued_fn($handle, 'enqueued');
+		// Handle script modules - WordPress handles deregistration internally
+		if ($asset_type === AssetType::ScriptModule) {
+			if ($logger->is_active()) {
+				$logger->debug("{$context} - Deregistering script module '{$handle}' (WordPress will handle non-existent modules gracefully)");
+			}
 
-		// Attempt dequeue first
-		if ($initial_enqueued) {
-			$dequeue_fn($handle);
+			// For script modules, we can't easily check if they're registered/enqueued beforehand
+			// WordPress will handle non-existent modules gracefully
+			$initial_registered = true; // Assume it might be registered
+			$initial_enqueued = false;  // Script modules don't have separate enqueue status
 
-			// Verify dequeue success
-			if ($is_enqueued_fn($handle, 'enqueued')) {
-				$success = false;
-				if ($logger->is_active()) {
-					$logger->warning("{$context} - Failed to dequeue '{$handle}'. It may be protected or re-enqueued by another plugin.");
-				}
-			} else {
-				if ($logger->is_active()) {
-					$logger->debug("{$context} - Successfully dequeued '{$handle}'.");
+			\wp_deregister_script_module($handle);
+
+			if ($logger->is_active()) {
+				$logger->debug("{$context} - Script module '{$handle}' deregistration completed.");
+			}
+		} else {
+			// Handle scripts and styles with status checking
+			$is_enqueued_fn   = $asset_type === AssetType::Script ? 'wp_script_is' : 'wp_style_is';
+			$is_registered_fn = $is_enqueued_fn; // Same function, different second parameter
+			$dequeue_fn       = $asset_type === AssetType::Script ? 'wp_dequeue_script' : 'wp_dequeue_style';
+			$deregister_fn    = $asset_type === AssetType::Script ? 'wp_deregister_script' : 'wp_deregister_style';
+
+			$initial_registered = function_exists($is_registered_fn) && $is_registered_fn($handle, 'registered');
+			$initial_enqueued   = function_exists($is_enqueued_fn)   && $is_enqueued_fn($handle, 'enqueued');
+
+			// Attempt dequeue first
+			if ($initial_enqueued) {
+				$dequeue_fn($handle);
+
+				// Verify dequeue success
+				if ($is_enqueued_fn($handle, 'enqueued')) {
+					$success = false;
+					if ($logger->is_active()) {
+						$logger->warning("{$context} - Failed to dequeue '{$handle}'. It may be protected or re-enqueued by another plugin.");
+					}
+				} else {
+					if ($logger->is_active()) {
+						$logger->debug("{$context} - Successfully dequeued '{$handle}'.");
+					}
 				}
 			}
-		}
 
-		// Attempt deregister
-		if ($initial_registered) {
-			$deregister_fn($handle);
+			// Attempt deregister
+			if ($initial_registered) {
+				$deregister_fn($handle);
 
-			// Verify deregister success
-			if ($is_registered_fn($handle, 'registered')) {
-				$success = false;
-				if ($logger->is_active()) {
-					$logger->warning("{$context} - Failed to deregister '{$handle}'. It may be a protected WordPress core {$asset_type->value} or re-registered by another plugin.");
-				}
-			} else {
-				if ($logger->is_active()) {
-					$logger->debug("{$context} - Successfully deregistered '{$handle}'.");
+				// Verify deregister success
+				if ($is_registered_fn($handle, 'registered')) {
+					$success = false;
+					if ($logger->is_active()) {
+						$logger->warning("{$context} - Failed to deregister '{$handle}'. It may be a protected WordPress core {$asset_type->value} or re-registered by another plugin.");
+					}
+				} else {
+					if ($logger->is_active()) {
+						$logger->debug("{$context} - Successfully deregistered '{$handle}'.");
+					}
 				}
 			}
 		}
@@ -1735,7 +1790,12 @@ trait AssetEnqueueBaseTrait {
 		$immediate = $asset_definition['immediate'] ?? false;
 
 		// Get the trait name for logging
-		$trait_name = $asset_type === AssetType::Script ? 'ScriptsEnqueueTrait' : 'StylesEnqueueTrait';
+		$trait_name = match($asset_type) {
+			AssetType::Script => 'ScriptsEnqueueTrait',
+			AssetType::ScriptModule => 'ScriptModulesEnqueueTrait',
+			AssetType::Style => 'StylesEnqueueTrait',
+			default => 'UnknownEnqueueTrait'
+		};
 
 		if ($immediate) {
 			// Immediate deregistration

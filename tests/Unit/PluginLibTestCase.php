@@ -204,17 +204,19 @@ abstract class PluginLibTestCase extends RanTestCase {
 	/**
 	 * Sets up WP_Mock expectations for a full asset lifecycle.
 	 *
-	 * @param string $asset_type         The type of asset ('script' or 'style').
-	 * @param string $register_function  The name of the WordPress registration function.
-	 * @param string $enqueue_function   The name of the WordPress enqueue function.
-	 * @param string $is_function        The name of the WordPress status check function (e.g., 'wp_script_is').
-	 * @param array  $asset_to_add       The asset definition array.
+	 * @param AssetType $asset_type      The type of asset.
+	 * @param string    $register_function  The name of the WordPress registration function.
+	 * @param string    $enqueue_function   The name of the WordPress enqueue function.
+	 * @param ?string   $is_function        The name of the WordPress status check function (e.g., 'wp_script_is'). Null for script modules.
+	 * @param array     $asset_to_add       The asset definition array.
+	 * @param bool      $is_registered      Whether the asset is already registered.
+	 * @param bool      $is_enqueued        Whether the asset is already enqueued.
 	 */
 	protected function _mock_asset_lifecycle_functions(
 		AssetType $asset_type,
 		string $register_function,
 		string $enqueue_function,
-		string $is_function,
+		?string $is_function,
 		array $asset_to_add,
 		bool $is_registered = false,
 		bool $is_enqueued = false
@@ -222,12 +224,19 @@ abstract class PluginLibTestCase extends RanTestCase {
 		$asset_type_string = $asset_type->value;
 		$handle            = $asset_to_add['handle'];
 
-		WP_Mock::userFunction($is_function)->with($handle, 'registered')->andReturn(false, true, true);
+		// Only mock the status function if it's provided (script modules don't have one)
+		if ($is_function !== null) {
+			WP_Mock::userFunction($is_function)->with($handle, 'registered')->andReturn(false, true, true);
+		}
 		// WP_Mock::userFunction($is_function)->with($handle, 'enqueued')->andReturn(false);
 
 		if ($asset_type_string === 'script') {
 			WP_Mock::userFunction($register_function)->with($handle, $asset_to_add['src'], $asset_to_add['deps'], $asset_to_add['version'], false)->andReturn(true);
+		} elseif ($asset_type_string === 'script_module') {
+			// Script modules use a different registration signature
+			WP_Mock::userFunction($register_function)->with($handle, $asset_to_add['src'], $asset_to_add['deps'], $asset_to_add['version'])->andReturn(true);
 		} else {
+			// Styles have a media parameter
 			WP_Mock::userFunction($register_function)->with($handle, $asset_to_add['src'], $asset_to_add['deps'], $asset_to_add['version'], $asset_to_add['media'])->andReturn(true);
 		}
 		WP_Mock::userFunction($enqueue_function)->with($handle);
