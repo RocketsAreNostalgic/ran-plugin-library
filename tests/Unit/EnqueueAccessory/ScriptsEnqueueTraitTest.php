@@ -2128,7 +2128,7 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 	 */
 	public function test_extract_custom_script_attributes_with_reserved_attributes(): void {
 		// Arrange
-		$handle = 'test-script';
+		$handle     = 'test-script';
 		$attributes = array(
 			'src'    => 'should-be-ignored.js',  // Reserved attribute
 			'id'     => 'custom-id',             // Reserved attribute
@@ -2169,7 +2169,7 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 	 */
 	public function test_extract_custom_script_attributes_with_only_custom_attributes(): void {
 		// Arrange
-		$handle = 'test-script';
+		$handle     = 'test-script';
 		$attributes = array(
 			'data-module' => 'true',
 			'crossorigin' => 'anonymous',
@@ -2199,7 +2199,7 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 	 */
 	public function test_extract_custom_script_attributes_with_empty_attributes(): void {
 		// Arrange
-		$handle = 'test-script';
+		$handle     = 'test-script';
 		$attributes = array();
 
 		// Act

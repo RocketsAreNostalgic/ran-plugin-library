@@ -2123,7 +2123,7 @@ class AssetEnqueueTraitBaseTraitDeregisterTest extends EnqueueTraitTestCase {
 	 */
 	public function test_normalize_asset_input_with_empty_string_handle_single_input(): void {
 		// --- Test Setup ---
-		$input = ''; // Empty string handle
+		$input            = ''; // Empty string handle
 		$expected_context = 'Ran\\PluginLib\\EnqueueAccessory\\AssetEnqueueBaseTrait::_normalize_asset_input';
 
 		// --- Act ---
@@ -2150,8 +2150,8 @@ class AssetEnqueueTraitBaseTraitDeregisterTest extends EnqueueTraitTestCase {
 	public function test_normalize_asset_input_with_empty_handle_in_asset_definition_single_input(): void {
 		// --- Test Setup ---
 		$input = array(
-			'handle' => '', // Empty handle in asset definition
-			'hook' => 'wp_enqueue_scripts',
+			'handle'   => '', // Empty handle in asset definition
+			'hook'     => 'wp_enqueue_scripts',
 			'priority' => 10
 		);
 		$expected_context = 'Ran\\PluginLib\\EnqueueAccessory\\AssetEnqueueBaseTrait::_normalize_asset_input';
