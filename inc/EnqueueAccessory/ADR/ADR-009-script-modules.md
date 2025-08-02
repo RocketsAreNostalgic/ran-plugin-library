@@ -1,12 +1,14 @@
-# ADR-009: Script Modules Support
+# ADR-009: Script Modules Support (experimental)
 
 **Date:** 2025-01-02
-**Status:** Accepted
-**Updated:** 2025-01-02
+**Status:** Implemented
+**Updated:** 2025-01-08
 
 ## Context
 
 WordPress 6.5 introduced the Script Modules API, providing native support for ECMAScript modules (ESM) with import/export syntax. WordPress 6.7 further enhanced this with server-to-client data passing capabilities via the `script_module_data_{$module_id}` filter. Our existing asset handling system (`AssetEnqueueBaseTrait` and `ScriptsEnqueueTrait`) lacks support for this modern JavaScript module system.
+
+> **⚠️ EXPERIMENTAL FEATURE**: This implementation is marked as experimental due to active WordPress Script Modules API development. Missing core functions like `wp_script_module_is()` require temporary workarounds that have limitations. See Implementation Limitations section below.
 
 ### Current System Limitations
 
@@ -87,9 +89,13 @@ trait ScriptModulesEnqueueTrait {
 
     public function add(array $modules_to_add): self;
     public function stage(): self;
-    public function enqueue(): self;
+    public function enqueue_immediate(): self;
+    public function dequeue(string|array $modules_to_dequeue): self;
+    public function deregister($modules_to_deregister): self;
+    public function remove($modules_to_remove): self;
     protected function _process_single_asset(...): string|false;
     protected function _process_module_extras(...): void;
+    protected function _module_is(string $handle, string $status): bool;
 }
 ```
 
@@ -99,6 +105,10 @@ Extend core methods to handle `AssetType::ScriptModule`:
 
 - `_do_register()`: Add branch for `wp_register_script_module()`
 - `_do_enqueue()`: Add branch for `wp_enqueue_script_module()`
+- `_do_dequeue()`: Add branch for `wp_dequeue_script_module()`
+- `_do_deregister()`: Add branch for `wp_deregister_script_module()`
+- Request-scoped caching for performance optimization
+- Enhanced asset operation handling with granular management methods
 
 ## Module Definition Format
 
@@ -243,27 +253,6 @@ class MyPlugin {
 }
 ```
 
-## Implementation Status
-
-### ✅ Completed
-
-- `ScriptModulesEnqueueTrait` implementation
-- `AssetType::ScriptModule` enum value
-- Basic module registration and enqueuing
-- Module data passing via `script_module_data_{$module_id}` filter
-- Validation and warnings for unsupported features
-- Comprehensive documentation and examples
-
-### 🚧 In Progress
-
-- `ScriptModulesHandler` class (following `ScriptsHandler` pattern)
-
-### ❌ Current Limitations
-
-- **No Custom Attributes**: WordPress lacks `script_module_loader_tag` filter
-- **No Inline Modules**: WordPress doesn't support inline modules yet
-- **No Script Interoperability**: Modules and scripts cannot depend on each other
-
 ## Workarounds for Current Limitations
 
 ### Inline Module Workaround
@@ -354,6 +343,70 @@ Instead of inline modules, consider:
 - Enhanced debugging and development tools
 - Potential script-module interoperability
 
+## Implementation Limitations
+
+### `_module_is()` Shim Behavior
+
+Due to WordPress core's missing `wp_script_module_is()` function, we implement a temporary shim with important limitations:
+
+**✅ What Works:**
+
+- Dequeue/deregister operations work on ALL script modules (internal and external)
+- WordPress `WP_Script_Modules` class handles missing modules gracefully by failing silently
+- All core WordPress script module functions operate normally
+
+**⚠️ Core WordPress Limitations:**
+
+- **No Status Visibility**: WordPress `WP_Script_Modules` class uses private `$registered` and `$enqueued_before_registered` arrays with no public access
+- **Silent Failures**: WordPress fails silently when registering duplicate modules or dequeuing/deregistering non-existent modules
+- **No Feedback Mechanism**: No way to determine if operations succeeded or failed
+
+**⚠️ Our Shim Limitations:**
+
+- **Internal Registry Only**: The `_module_is()` shim only tracks script modules registered through this library instance
+- **External Modules Invisible**: Script modules registered by other plugins, themes, or WordPress core are not tracked in our internal registry
+- **Logging Reflects Internal State**: Status checking and logging only reflect modules we've registered, not the complete WordPress state
+- **Debug Warnings**: The shim logs debug warnings when checking status of externally registered modules
+
+**Example Behavior:**
+
+```php
+// Another plugin registers a module
+wp_register_script_module('@other-plugin/module', 'path/to/module.js');
+
+// Our library can still dequeue it
+$handler->dequeue('@other-plugin/module'); // ✅ Works fine
+
+// But status checking returns false (not tracked internally)
+$handler->_module_is('@other-plugin/module', 'registered'); // ❌ Returns false + debug warning
+```
+
+This limitation is acceptable because:
+
+- WordPress dequeue/deregister functions handle missing modules gracefully
+- Our tracking scope is intentionally limited to modules we manage
+- This behavior will be replaced when WordPress provides `wp_script_module_is()`
+
+## Implementation Status
+
+**✅ Completed Features:**
+
+- `ScriptModulesEnqueueTrait` with full API support
+- `ScriptModulesHandler` class implementation
+- Module data passing via `script_module_data_{$module_id}` filter (WP 6.7+)
+- Granular asset management: `dequeue()`, `deregister()`, and `remove()` methods
+- Request-scoped caching for performance optimization
+- Temporary `_module_is()` shim for status checking
+- Comprehensive PHPUnit test coverage
+- Integration with existing asset handling infrastructure
+
+**📋 Test Coverage:**
+
+- `ScriptModulesEnqueueTraitTest`: Core trait functionality
+- `ScriptModulesHandlerTest`: Handler class verification
+- `AssetEnqueueBaseTraitHandleOperationTest`: Asset operation handling
+- Updated existing test suites for script module support
+
 ## Benefits
 
 1. **Modern JavaScript Support**: Native ES modules with import/export syntax
@@ -392,4 +445,12 @@ Instead of inline modules, consider:
 
 ## Conclusion
 
-The `ScriptModulesEnqueueTrait` provides essential support for WordPress's modern Script Modules API while maintaining clear separation from traditional scripts. This positions our asset handling system for the future of WordPress development while acknowledging current limitations.
+The `ScriptModulesEnqueueTrait` has been successfully implemented and provides comprehensive support for WordPress's modern Script Modules API while maintaining clear separation from traditional scripts. The implementation includes:
+
+- **Complete API Coverage**: Registration, enqueueing, dequeueing, deregistering, and removal operations
+- **Modern Data Passing**: Support for WordPress 6.7's `script_module_data_{$module_id}` filter
+- **Performance Optimization**: Request-scoped caching integration
+- **Robust Testing**: Comprehensive PHPUnit test coverage ensuring reliability
+- **Future-Ready Architecture**: Prepared for upcoming WordPress module enhancements
+
+This implementation positions our asset handling system at the forefront of WordPress development while maintaining backward compatibility and clear architectural boundaries.
