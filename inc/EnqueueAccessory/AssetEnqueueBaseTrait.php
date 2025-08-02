@@ -129,6 +129,9 @@ trait AssetEnqueueBaseTrait {
 	 * If development environment: prefers the 'dev' URL
 	 * If production environment: prefers the 'prod' URL
 	 *
+	 * Uses request-scoped caching to avoid redundant environment detection and
+	 * array processing for the same source configuration within a single request.
+	 *
 	 * @param string|array $src The source URL(s) for the asset.
 	 *
 	 * @return string The resolved source URL.
@@ -138,18 +141,24 @@ trait AssetEnqueueBaseTrait {
 			return $src;
 		}
 
-		$is_dev = $this->_cache_for_request('is_dev_environment', function() {
-			return $this->get_config()->is_dev_environment();
+		// Cache the entire environment source resolution for arrays to avoid
+		// redundant environment checks and array processing for the same
+		// source configuration within a single request.
+		$cache_key = 'env_src_' . md5(serialize($src));
+		return $this->_cache_for_request($cache_key, function() use ($src) {
+			$is_dev = $this->_cache_for_request('is_dev_environment', function() {
+				return $this->get_config()->is_dev_environment();
+			});
+
+			if ($is_dev && !empty($src['dev'])) {
+				return (string) $src['dev'];
+			} elseif (!empty($src['prod'])) {
+				return (string) $src['prod'];
+			}
+
+			// Fallback to the first available URL in the array.
+			return (string) reset($src);
 		});
-
-		if ($is_dev && !empty($src['dev'])) {
-			return (string) $src['dev'];
-		} elseif (!empty($src['prod'])) {
-			return (string) $src['prod'];
-		}
-
-		// Fallback to the first available URL in the array.
-		return (string) reset($src);
 	}
 
 	/**
@@ -1154,10 +1163,30 @@ trait AssetEnqueueBaseTrait {
 	 * This is a helper for the cache-busting mechanism to locate the file and read its content.
 	 * It needs to handle various URL formats (plugin-relative, theme-relative, absolute).
 	 *
+	 * Uses request-scoped caching to avoid redundant string operations for the same URL
+	 * within a single request, improving performance when multiple assets reference the
+	 * same URL or when cache-busting processes the same asset multiple times.
+	 *
 	 * @param string $url The asset URL to resolve.
 	 * @return string|false The absolute file path, or false if resolution fails.
 	 */
 	protected function _resolve_url_to_path(string $url): string|false {
+		// Cache the entire URL-to-path resolution to avoid redundant string operations
+		// for the same URL within a single request. This is safe because URL-to-path
+		// mappings are static during a request and the cache is cleared at request end.
+		$cache_key = 'url_to_path_' . md5($url);
+		return $this->_cache_for_request($cache_key, function() use ($url) {
+			return $this->_resolve_url_to_path_uncached($url);
+		});
+	}
+
+	/**
+	 * Internal method that performs the actual URL-to-path resolution without caching.
+	 *
+	 * @param string $url The asset URL to resolve.
+	 * @return string|false The absolute file path, or false if resolution fails.
+	 */
+	protected function _resolve_url_to_path_uncached(string $url): string|false {
 		$logger  = $this->get_logger();
 		$context = get_class($this) . '::' . __METHOD__;
 
@@ -1209,12 +1238,22 @@ trait AssetEnqueueBaseTrait {
 	/**
 	 * Wraps the native file_exists function to allow for mocking in tests.
 	 *
+	 * Uses request-scoped caching to avoid redundant filesystem calls for the same
+	 * path within a single request. This is safe because files don't appear or
+	 * disappear during a single request, and the cache is cleared at request end.
+	 *
 	 * @param string $path The file path to check.
 	 *
 	 * @return bool True if the file exists, false otherwise.
 	 */
 	protected function _file_exists(string $path): bool {
-		return file_exists($path);
+		// Cache file existence checks to avoid redundant filesystem calls
+		// for the same path within a single request. This is safe because
+		// files don't appear/disappear during a request lifecycle.
+		$cache_key = 'file_exists_' . md5($path);
+		return $this->_cache_for_request($cache_key, function() use ($path) {
+			return file_exists($path);
+		});
 	}
 
 	/**
