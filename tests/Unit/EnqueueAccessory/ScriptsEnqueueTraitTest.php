@@ -1708,4 +1708,509 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 			// This is acceptable for testing purposes.
 		}
 	}
+
+	// ------------------------------------------------------------------------
+	// Dequeue Method Tests
+	// ------------------------------------------------------------------------
+
+	/**
+	 * @test
+	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::dequeue
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_handle_asset_operation
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_normalize_asset_input
+	 */
+	public function test_dequeue_with_string_handles(): void {
+		// --- Test Setup ---
+		$handles = array('script1', 'script2', 'script3');
+
+		// Mock WordPress functions
+		WP_Mock::userFunction('wp_dequeue_script')
+			->times(3)
+			->with(Mockery::type('string'))
+			->andReturn(true);
+
+		// --- Act ---
+		$result = $this->instance->dequeue($handles);
+
+		// --- Assert ---
+		$this->assertSame($this->instance, $result);
+		$this->expectLog('debug', array("dequeue - Attempted dequeue of script 'script1'"), 1);
+		$this->expectLog('debug', array("dequeue - Attempted dequeue of script 'script2'"), 1);
+		$this->expectLog('debug', array("dequeue - Attempted dequeue of script 'script3'"), 1);
+	}
+
+	/**
+	 * @test
+	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::dequeue
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_handle_asset_operation
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_normalize_asset_input
+	 */
+	public function test_dequeue_with_definition_arrays(): void {
+		// --- Test Setup ---
+		$assets = array(
+			array('handle' => 'script1'),
+			array('handle' => 'script2'),
+		);
+
+		// Mock WordPress functions
+		WP_Mock::userFunction('wp_dequeue_script')
+			->times(2)
+			->with(Mockery::type('string'))
+			->andReturn(true);
+
+		// --- Act ---
+		$result = $this->instance->dequeue($assets);
+
+		// --- Assert ---
+		$this->assertSame($this->instance, $result);
+		$this->expectLog('debug', array("dequeue - Attempted dequeue of script 'script1'"), 1);
+		$this->expectLog('debug', array("dequeue - Attempted dequeue of script 'script2'"), 1);
+	}
+
+	/**
+	 * @test
+	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::dequeue
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_handle_asset_operation
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_normalize_asset_input
+	 */
+	public function test_dequeue_with_mixed_formats(): void {
+		// --- Test Setup ---
+		$assets = array(
+			'script1',
+			array('handle' => 'script2'),
+			'script3',
+		);
+
+		// Mock WordPress functions
+		WP_Mock::userFunction('wp_dequeue_script')
+			->times(3)
+			->with(Mockery::type('string'))
+			->andReturn(true);
+
+		// --- Act ---
+		$result = $this->instance->dequeue($assets);
+
+		// --- Assert ---
+		$this->assertSame($this->instance, $result);
+		$this->expectLog('debug', array("dequeue - Attempted dequeue of script 'script1'"), 1);
+		$this->expectLog('debug', array("dequeue - Attempted dequeue of script 'script2'"), 1);
+		$this->expectLog('debug', array("dequeue - Attempted dequeue of script 'script3'"), 1);
+	}
+
+	/**
+	 * @test
+	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::dequeue
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_handle_asset_operation
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_normalize_asset_input
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_is_valid_handle
+	 */
+	public function test_dequeue_skips_empty_handles(): void {
+		// --- Test Setup ---
+		$assets = array(
+			'valid-script',
+			'', // Empty handle should be skipped
+			array('handle' => ''), // Empty handle in array should be skipped
+			'another-valid-script',
+		);
+
+		// Mock WordPress functions - should only be called for valid handles
+		WP_Mock::userFunction('wp_dequeue_script')
+			->times(2)
+			->with(Mockery::type('string'))
+			->andReturn(true);
+
+		// --- Act ---
+		$result = $this->instance->dequeue($assets);
+
+		// --- Assert ---
+		$this->assertSame($this->instance, $result);
+		$this->expectLog('debug', array("dequeue - Attempted dequeue of script 'valid-script'"), 1);
+		$this->expectLog('debug', array("dequeue - Attempted dequeue of script 'another-valid-script'"), 1);
+		$this->expectLog('warning', array('Skipping asset definition with empty handle at index'), 1);
+	}
+
+	/**
+	 * @test
+	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::dequeue
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_handle_asset_operation
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_normalize_asset_input
+	 */
+	public function test_dequeue_with_empty_array(): void {
+		// --- Test Setup ---
+		$assets = array();
+
+		// Mock WordPress functions - should not be called
+		WP_Mock::userFunction('wp_dequeue_script')->never();
+
+		// --- Act ---
+		$result = $this->instance->dequeue($assets);
+
+		// --- Assert ---
+		$this->assertSame($this->instance, $result);
+		// Empty arrays are handled silently - no log expected
+	}
+
+	/**
+	 * @test
+	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::dequeue
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_handle_asset_operation
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_normalize_asset_input
+	 */
+	public function test_dequeue_with_single_handle(): void {
+		// --- Test Setup ---
+		$handle = 'single-script';
+
+		// Mock WordPress functions
+		WP_Mock::userFunction('wp_dequeue_script')
+			->once()
+			->with($handle)
+			->andReturn(true);
+
+		// --- Act ---
+		$result = $this->instance->dequeue($handle);
+
+		// --- Assert ---
+		$this->assertSame($this->instance, $result);
+		$this->expectLog('debug', array("dequeue - Attempted dequeue of script 'single-script'"), 1);
+	}
+
+	// ------------------------------------------------------------------------
+	// Remove Method Tests
+	// ------------------------------------------------------------------------
+
+	/**
+	 * @test
+	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::remove
+	 */
+	public function test_remove_with_string_handles(): void {
+		// Arrange
+		$scripts_to_remove = array('script1', 'script2', 'script3');
+
+		// Mock the _remove_assets method call
+		$this->instance = Mockery::mock(ConcreteEnqueueForScriptsTesting::class)
+			->makePartial()
+			->shouldAllowMockingProtectedMethods();
+		$this->instance->shouldReceive('_remove_assets')
+			->with($scripts_to_remove, AssetType::Script)
+			->once()
+			->andReturn($this->instance);
+
+		// Act
+		$result = $this->instance->remove($scripts_to_remove);
+
+		// Assert
+		$this->assertSame($this->instance, $result);
+	}
+
+	/**
+	 * @test
+	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::remove
+	 */
+	public function test_remove_with_definition_arrays(): void {
+		// Arrange
+		$scripts_to_remove = array(
+			array('handle' => 'script1'),
+			array('handle' => 'script2'),
+		);
+
+		// Mock the _remove_assets method call
+		$this->instance = Mockery::mock(ConcreteEnqueueForScriptsTesting::class)
+			->makePartial()
+			->shouldAllowMockingProtectedMethods();
+		$this->instance->shouldReceive('_remove_assets')
+			->with($scripts_to_remove, AssetType::Script)
+			->once()
+			->andReturn($this->instance);
+
+		// Act
+		$result = $this->instance->remove($scripts_to_remove);
+
+		// Assert
+		$this->assertSame($this->instance, $result);
+	}
+
+	/**
+	 * @test
+	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::remove
+	 */
+	public function test_remove_with_mixed_formats(): void {
+		// Arrange
+		$scripts_to_remove = array(
+			'script1',
+			array('handle' => 'script2'),
+			'script3',
+		);
+
+		// Mock the _remove_assets method call
+		$this->instance = Mockery::mock(ConcreteEnqueueForScriptsTesting::class)
+			->makePartial()
+			->shouldAllowMockingProtectedMethods();
+		$this->instance->shouldReceive('_remove_assets')
+			->with($scripts_to_remove, AssetType::Script)
+			->once()
+			->andReturn($this->instance);
+
+		// Act
+		$result = $this->instance->remove($scripts_to_remove);
+
+		// Assert
+		$this->assertSame($this->instance, $result);
+	}
+
+	/**
+	 * @test
+	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::remove
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_handle_asset_operation
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_normalize_asset_input
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_process_single_removal
+	 */
+	public function test_remove_with_single_handle_string(): void {
+		// --- Test Setup ---
+		$handle = 'single-script';
+
+		// --- Act ---
+		$result = $this->instance->remove($handle);
+
+		// --- Assert ---
+		$this->assertSame($this->instance, $result);
+		$this->expectLog('debug', array("remove - Scheduled removal of script 'single-script' on hook 'wp_enqueue_scripts' with priority 10."), 1);
+	}
+
+	/**
+	 * @test
+	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::remove
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_handle_asset_operation
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_normalize_asset_input
+	 */
+	public function test_remove_with_empty_array(): void {
+		// --- Test Setup ---
+		$assets = array();
+
+		// Mock WordPress functions - should not be called
+		WP_Mock::userFunction('wp_dequeue_script')->never();
+		WP_Mock::userFunction('wp_deregister_script')->never();
+
+		// --- Act ---
+		$result = $this->instance->remove($assets);
+
+		// --- Assert ---
+		$this->assertSame($this->instance, $result);
+	}
+
+	// ------------------------------------------------------------------------
+	// Coverage Gap Tests for _process_single_asset and _extract_custom_script_attributes
+	// ------------------------------------------------------------------------
+
+	/**
+	 * Test _process_single_asset with incorrect asset type to cover error path.
+	 *
+	 * @test
+	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::_process_single_asset
+	 */
+	public function test_process_single_asset_with_incorrect_asset_type(): void {
+		// Arrange
+		$asset_definition = array(
+			'handle' => 'test-script',
+			'src'    => 'test.js'
+		);
+
+		// Act - Call with wrong asset type (Style instead of Script)
+		$result = $this->_invoke_protected_method(
+			$this->instance,
+			'_process_single_asset',
+			array(
+				\Ran\PluginLib\EnqueueAccessory\AssetType::Style,
+				$asset_definition,
+				'test_context'
+			)
+		);
+
+		// Assert
+		$this->assertFalse($result);
+		$this->expectLog('warning', array('Incorrect asset type provided to _process_single_asset', 'Expected \'script\'', 'got \'style\''), 1);
+	}
+
+	/**
+	 * Test _process_single_asset with defer strategy to cover defer branch.
+	 *
+	 * @test
+	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::_process_single_asset
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_concrete_process_single_asset
+	 */
+	public function test_process_single_asset_with_defer_strategy(): void {
+		// Arrange
+		$asset_definition = array(
+			'handle'     => 'test-defer-script',
+			'src'        => 'test-defer.js',
+			'attributes' => array(
+				'defer' => true
+			)
+		);
+
+		// Mock WordPress function - strategy is handled during enqueue, not register
+		WP_Mock::userFunction('wp_register_script')
+			->with(
+				'test-defer-script',
+				\Mockery::type('string'),
+				array(),
+				null,
+				array('in_footer' => false)
+			)
+			->once()
+			->andReturn(true);
+
+		// Act
+		$result = $this->_invoke_protected_method(
+			$this->instance,
+			'_process_single_asset',
+			array(
+				\Ran\PluginLib\EnqueueAccessory\AssetType::Script,
+				$asset_definition,
+				'test_context'
+			)
+		);
+
+		// Assert
+		$this->assertEquals('test-defer-script', $result);
+		// The defer strategy is processed and stored in enqueue_args but not passed to wp_register_script
+	}
+
+	/**
+	 * Test _process_single_asset with async strategy to cover async branch.
+	 *
+	 * @test
+	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::_process_single_asset
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_concrete_process_single_asset
+	 */
+	public function test_process_single_asset_with_async_strategy(): void {
+		// Arrange
+		$asset_definition = array(
+			'handle'     => 'test-async-script',
+			'src'        => 'test-async.js',
+			'attributes' => array(
+				'async' => true
+			)
+		);
+
+		// Mock WordPress function - strategy is handled during enqueue, not register
+		WP_Mock::userFunction('wp_register_script')
+			->with(
+				'test-async-script',
+				\Mockery::type('string'),
+				array(),
+				null,
+				array('in_footer' => false)
+			)
+			->once()
+			->andReturn(true);
+
+		// Act
+		$result = $this->_invoke_protected_method(
+			$this->instance,
+			'_process_single_asset',
+			array(
+				\Ran\PluginLib\EnqueueAccessory\AssetType::Script,
+				$asset_definition,
+				'test_context'
+			)
+		);
+
+		// Assert
+		$this->assertEquals('test-async-script', $result);
+		// The async strategy is processed and stored in enqueue_args but not passed to wp_register_script
+	}
+
+	/**
+	 * Test _extract_custom_script_attributes with reserved attributes to cover warning path.
+	 *
+	 * @test
+	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::_extract_custom_script_attributes
+	 */
+	public function test_extract_custom_script_attributes_with_reserved_attributes(): void {
+		// Arrange
+		$handle = 'test-script';
+		$attributes = array(
+			'src'    => 'should-be-ignored.js',  // Reserved attribute
+			'id'     => 'custom-id',             // Reserved attribute
+			'type'   => 'module',                // Reserved attribute
+			'custom' => 'value',                 // Custom attribute (should be kept)
+			'async'  => true,                    // Handled by strategy (should be ignored)
+			'defer'  => false                    // Handled by strategy (should be ignored)
+		);
+
+		// Act
+		$result = $this->_invoke_protected_method(
+			$this->instance,
+			'_extract_custom_script_attributes',
+			array($handle, $attributes)
+		);
+
+		// Assert
+		$this->assertIsArray($result);
+		$this->assertArrayHasKey('custom', $result);
+		$this->assertEquals('value', $result['custom']);
+		$this->assertArrayNotHasKey('src', $result);
+		$this->assertArrayNotHasKey('id', $result);
+		$this->assertArrayNotHasKey('type', $result);
+		$this->assertArrayNotHasKey('async', $result);
+		$this->assertArrayNotHasKey('defer', $result);
+
+		// Verify warning logs for reserved attributes
+		$this->expectLog('warning', array('_extract_custom_script_attributes', 'Ignoring \'src\' attribute', 'test-script'), 1);
+		$this->expectLog('warning', array('_extract_custom_script_attributes', 'Ignoring \'id\' attribute', 'test-script'), 1);
+		$this->expectLog('warning', array('_extract_custom_script_attributes', 'Ignoring \'type\' attribute', 'test-script'), 1);
+	}
+
+	/**
+	 * Test _extract_custom_script_attributes with only custom attributes.
+	 *
+	 * @test
+	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::_extract_custom_script_attributes
+	 */
+	public function test_extract_custom_script_attributes_with_only_custom_attributes(): void {
+		// Arrange
+		$handle = 'test-script';
+		$attributes = array(
+			'data-module' => 'true',
+			'crossorigin' => 'anonymous',
+			'integrity'   => 'sha256-abc123'
+		);
+
+		// Act
+		$result = $this->_invoke_protected_method(
+			$this->instance,
+			'_extract_custom_script_attributes',
+			array($handle, $attributes)
+		);
+
+		// Assert
+		$this->assertIsArray($result);
+		$this->assertEquals($attributes, $result);
+		$this->assertArrayHasKey('data-module', $result);
+		$this->assertArrayHasKey('crossorigin', $result);
+		$this->assertArrayHasKey('integrity', $result);
+	}
+
+	/**
+	 * Test _extract_custom_script_attributes with empty attributes array.
+	 *
+	 * @test
+	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::_extract_custom_script_attributes
+	 */
+	public function test_extract_custom_script_attributes_with_empty_attributes(): void {
+		// Arrange
+		$handle = 'test-script';
+		$attributes = array();
+
+		// Act
+		$result = $this->_invoke_protected_method(
+			$this->instance,
+			'_extract_custom_script_attributes',
+			array($handle, $attributes)
+		);
+
+		// Assert
+		$this->assertIsArray($result);
+		$this->assertEmpty($result);
+	}
 }

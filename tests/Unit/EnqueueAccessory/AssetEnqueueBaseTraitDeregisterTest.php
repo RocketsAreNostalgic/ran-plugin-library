@@ -185,11 +185,13 @@ class AssetEnqueueTraitBaseTraitDeregisterTest extends EnqueueTraitTestCase {
 			'replace' => true // Set the replace flag
 		);
 
-		// Mock the _deregister_existing_asset method to verify it's called
-		$this->instance->shouldReceive('_deregister_existing_asset')
-			->with($handle, Mockery::type('string'), $asset_type)
+		// Mock the _deregister_assets method to verify it's called when replace flag is set
+		$this->instance->shouldReceive('_deregister_assets')
+			->with(Mockery::on(function($arg) use ($handle) {
+				return is_array($arg) && $arg['handle'] === $handle && $arg['immediate'] === true;
+			}), $asset_type)
 			->once()
-			->andReturn(true);
+			->andReturn($this->instance);
 
 		// Mock other methods needed for _concrete_process_single_asset
 		$this->instance->shouldReceive('_resolve_environment_src')
@@ -359,9 +361,9 @@ class AssetEnqueueTraitBaseTraitDeregisterTest extends EnqueueTraitTestCase {
 			'valid-handle'  // This one should work
 		);
 
-		// Mock _normalize_deregister_input to pass through the invalid array
+		// Mock _normalize_asset_input to pass through the invalid array
 		// This ensures _process_single_deregistration gets called with the invalid input
-		$this->instance->shouldReceive('_normalize_deregister_input')
+		$this->instance->shouldReceive('_normalize_asset_input')
 			->with($invalid_inputs)
 			->andReturn(array(
 				array('missing_handle' => true),  // This will trigger the warning we want to test
@@ -388,19 +390,19 @@ class AssetEnqueueTraitBaseTraitDeregisterTest extends EnqueueTraitTestCase {
 
 
 	// ------------------------------------------------------------------------
-	// Deregister _deregister_existing_asset() Tests
+	// Deregister _handle_asset_operation() Tests
 	// ------------------------------------------------------------------------
 
 	/**
 	 * @test
-	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_deregister_existing_asset
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_handle_asset_operation
 	 */
 	public function test_deregister_existing_asset_with_non_registered_asset(): void {
 		// --- Test Setup ---
 		$asset_type       = \Ran\PluginLib\EnqueueAccessory\AssetType::Script;
 		$handle           = 'non-registered-script';
 		$context          = 'TestContext';
-		$expected_context = __TRAIT__ . '::' . '_deregister_existing_asset(script)';
+		$expected_context = __TRAIT__ . '::' . '_handle_asset_operation(script)';
 
 		// Set up WP_Mock for wp_script_is to return false (not registered)
 		WP_Mock::userFunction('wp_script_is')
@@ -415,23 +417,27 @@ class AssetEnqueueTraitBaseTraitDeregisterTest extends EnqueueTraitTestCase {
 			->once();
 
 		// --- Act ---
-		$result = $this->_invoke_protected_method($this->instance, '_deregister_existing_asset', array($handle, $context, $asset_type));
+		$result = $this->_invoke_protected_method($this->instance, '_handle_asset_operation', array($handle, $context, $asset_type, 'deregister', array()));
 
 		// --- Assert ---
 		$this->assertTrue($result, 'Non-registered assets should return true (no need to deregister)');
-		$this->expectLog('debug', "{$expected_context} called from {$context} - '{$handle}' was not registered or enqueued. Nothing to deregister.", 1);
+		$expected_context = 'Ran\\PluginLib\\EnqueueAccessory\\AssetEnqueueBaseTrait::_handle_asset_operation(script) called from ' . $context;
+		$this->expectLog('debug', "{$expected_context} - Attempting to deregister existing '{$handle}'.", 1);
+		$this->expectLog('debug', "{$expected_context} - '{$handle}' was not registered or enqueued. Nothing to deregister.", 1);
 	}
 
 	/**
 	 * @test
-	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_deregister_existing_asset
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_handle_asset_operation
+	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::deregister
+	 * @covers \Ran\PluginLib\EnqueueAccessory\StylesEnqueueTrait::deregister
 	 */
 	public function test_deregister_existing_asset_with_registered_asset(): void {
 		// --- Test Setup ---
 		$asset_type       = \Ran\PluginLib\EnqueueAccessory\AssetType::Script;
 		$handle           = 'registered-script';
 		$context          = 'TestContext';
-		$expected_context = __TRAIT__ . '::' . '_deregister_existing_asset(script)';
+		$expected_context = __TRAIT__ . '::' . '_handle_asset_operation(script)';
 
 		// Set up WP_Mock for wp_script_is to return true (registered)
 		WP_Mock::userFunction('wp_script_is')
@@ -457,25 +463,27 @@ class AssetEnqueueTraitBaseTraitDeregisterTest extends EnqueueTraitTestCase {
 			->once();
 
 		// --- Act ---
-		$result = $this->_invoke_protected_method($this->instance, '_deregister_existing_asset', array($handle, $context, $asset_type));
+		$result = $this->_invoke_protected_method($this->instance, '_handle_asset_operation', array($handle, $context, $asset_type, 'deregister', array()));
 
 		// --- Assert ---
 		$this->assertTrue($result, 'Registered assets should be deregistered successfully');
-		$this->expectLog('debug', "{$expected_context} called from {$context} - Successfully deregistered '{$handle}'.");
+		$expected_context = 'Ran\\PluginLib\\EnqueueAccessory\\AssetEnqueueBaseTrait::_handle_asset_operation(script) called from ' . $context;
+		$this->expectLog('debug', "{$expected_context} - Attempting to deregister existing '{$handle}'.", 1);
+		$this->expectLog('debug', "{$expected_context} - Successfully deregistered '{$handle}'.", 1);
 	}
 
 	/**
-	 * Validates that the _deregister_existing_asset() method deregisters an existing style asset.
+	 * Validates that the _handle_asset_operation() method deregisters an existing style asset.
 
 	 * @test
-	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_deregister_existing_asset
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_handle_asset_operation
 	 */
 	public function test_deregister_existing_asset_with_style_asset(): void {
 		// --- Test Setup ---
 		$asset_type       = \Ran\PluginLib\EnqueueAccessory\AssetType::Style;
 		$handle           = 'registered-style';
 		$context          = 'TestContext';
-		$expected_context = __TRAIT__ . '::' . '_deregister_existing_asset(style)';
+		$expected_context = __TRAIT__ . '::' . '_handle_asset_operation(style)';
 
 		// No need to mock function_exists as it's a PHP internal function
 
@@ -503,16 +511,18 @@ class AssetEnqueueTraitBaseTraitDeregisterTest extends EnqueueTraitTestCase {
 			->once();
 
 		// --- Act ---
-		$result = $this->_invoke_protected_method($this->instance, '_deregister_existing_asset', array($handle, $context, $asset_type));
+		$result = $this->_invoke_protected_method($this->instance, '_handle_asset_operation', array($handle, $context, $asset_type, 'deregister', array()));
 
 		// --- Assert ---
 		$this->assertTrue($result, 'Registered style assets should be deregistered successfully');
-		$this->expectLog('debug', "{$expected_context} called from {$context} - Successfully deregistered '{$handle}'");
+		$expected_context = 'Ran\\PluginLib\\EnqueueAccessory\\AssetEnqueueBaseTrait::_handle_asset_operation(style) called from ' . $context;
+		$this->expectLog('debug', "{$expected_context} - Attempting to deregister existing '{$handle}'.", 1);
+		$this->expectLog('debug', "{$expected_context} - Successfully deregistered '{$handle}'.", 1);
 	}
 
 	/**
 	 * @test
-	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_deregister_existing_asset
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_handle_asset_operation
 	 */
 	public function test_deregister_existing_asset_with_nonexistent_asset(): void {
 		// --- Test Setup ---
@@ -520,27 +530,28 @@ class AssetEnqueueTraitBaseTraitDeregisterTest extends EnqueueTraitTestCase {
 		$asset_type = AssetType::Script;
 		$context    = 'Test Context';
 
-		// Mock the WordPress deregister function
+		// Mock the WordPress deregister function - now always called since WordPress handles missing assets gracefully
 		WP_Mock::userFunction('wp_deregister_script')
 			->with($handle)
-			->never();
+			->once();
 
 		// --- Act ---
 		$result = $this->_invoke_protected_method(
 			$this->instance,
-			'_deregister_existing_asset',
-			array($handle, $context, $asset_type)
+			'_handle_asset_operation',
+			array($handle, $context, $asset_type, 'deregister', array())
 		);
 
 		// --- Assert ---
 		$this->assertTrue($result, 'Should return true when asset not found (success=true by default)');
-		$this->expectLog('debug', "{$context} - Attempting to deregister existing '{$handle}' for replacement.", 1);
-		$this->expectLog('debug', "{$context} - '{$handle}' was not registered or enqueued. Nothing to deregister.", 1);
+		$expected_context = 'Ran\\PluginLib\\EnqueueAccessory\\AssetEnqueueBaseTrait::_handle_asset_operation(script) called from ' . $context;
+		$this->expectLog('debug', "{$expected_context} - Attempting to deregister existing '{$handle}'.", 1);
+		$this->expectLog('debug', "{$expected_context} - '{$handle}' was not registered or enqueued. Nothing to deregister.", 1);
 	}
 
 	/**
 	 * @test
-	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_deregister_existing_asset
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_handle_asset_operation
 	 */
 	public function test_deregister_existing_asset_with_wp_registered_asset(): void {
 		// --- Test Setup ---
@@ -565,20 +576,20 @@ class AssetEnqueueTraitBaseTraitDeregisterTest extends EnqueueTraitTestCase {
 		// --- Act ---
 		$result = $this->_invoke_protected_method(
 			$this->instance,
-			'_deregister_existing_asset',
-			array($handle, $context, $asset_type)
+			'_handle_asset_operation',
+			array($handle, $context, $asset_type, 'deregister', array())
 		);
 
 		// --- Assert ---
 		$this->assertTrue($result, 'Should return true when asset deregistered');
-		$expected_context = 'Ran\\PluginLib\\EnqueueAccessory\\AssetEnqueueBaseTrait::_deregister_existing_asset(script)';
-		$this->expectLog('debug', "{$expected_context} called from {$context} - Attempting to deregister existing '{$handle}' for replacement.");
-		$this->expectLog('debug', "{$expected_context} called from {$context} - Successfully deregistered '{$handle}'");
+		$expected_context = 'Ran\\PluginLib\\EnqueueAccessory\\AssetEnqueueBaseTrait::_handle_asset_operation(script) called from ' . $context;
+		$this->expectLog('debug', "{$expected_context} - Attempting to deregister existing '{$handle}'.");
+		$this->expectLog('debug', "{$expected_context} - Successfully deregistered '{$handle}'.");
 	}
 
 	/**
 	 * @test
-	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_deregister_existing_asset
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_handle_asset_operation
 	 */
 	public function test_deregister_existing_asset_with_deferred_asset(): void {
 		// --- Test Setup ---
@@ -594,7 +605,8 @@ class AssetEnqueueTraitBaseTraitDeregisterTest extends EnqueueTraitTestCase {
 			->andReturn(false);
 
 		WP_Mock::userFunction('wp_deregister_script')
-			->never();
+			->with($handle)
+			->once();
 
 		// Set up a deferred asset in the instance
 		$reflection = new \ReflectionClass($this->instance);
@@ -618,23 +630,26 @@ class AssetEnqueueTraitBaseTraitDeregisterTest extends EnqueueTraitTestCase {
 		// --- Act ---
 		$result = $this->_invoke_protected_method(
 			$this->instance,
-			'_deregister_existing_asset',
-			array($handle, $context, $asset_type)
+			'_handle_asset_operation',
+			array($handle, $context, $asset_type, 'deregister', array())
 		);
 
 		// --- Assert ---
-		$this->assertTrue($result, 'Should return true when asset found and cleaned up');
-		$this->expectLog('debug', array("{$context} - Asset '{$handle}' found in internal queues at 1 location(s). Will clean up after deregistration."), 1);
-		$this->expectLog('debug', array("{$context} - Removed '{$handle}' from internal deferred queue (hook '{$hook_name}', priority {$priority})."), 1);
+		$this->assertTrue($result, 'Should return true when deregister completes');
+		$expected_context = 'Ran\\PluginLib\\EnqueueAccessory\\AssetEnqueueBaseTrait::_handle_asset_operation(script) called from ' . $context;
+		$this->expectLog('debug', "{$expected_context} - Attempting to deregister existing '{$handle}'.", 1);
+		$this->expectLog('debug', "{$expected_context} - '{$handle}' was not registered or enqueued. Nothing to deregister.", 1);
+		// After API normalization, deregister() no longer performs internal queue cleanup
 
-		// Verify the asset was removed from deferred_assets
+		// After API normalization, deregister() no longer performs internal queue cleanup
+		// The deferred asset should still be present since only remove() performs cleanup
 		$updated_deferred_assets = $property->getValue($this->instance);
-		$this->assertEmpty($updated_deferred_assets, 'Deferred assets should be empty after cleanup');
+		$this->assertNotEmpty($updated_deferred_assets, 'Deferred assets should remain after deregister (cleanup only happens with remove())');
 	}
 
 	/**
 	 * @test
-	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_deregister_existing_asset
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_handle_asset_operation
 	 */
 	public function test_deregister_existing_asset_with_multiple_locations(): void {
 		// --- Test Setup ---
@@ -687,97 +702,34 @@ class AssetEnqueueTraitBaseTraitDeregisterTest extends EnqueueTraitTestCase {
 		// --- Act ---
 		$result = $this->_invoke_protected_method(
 			$this->instance,
-			'_deregister_existing_asset',
-			array($handle, $context, $asset_type)
+			'_handle_asset_operation',
+			array($handle, $context, $asset_type, 'deregister', array())
 		);
 
 		// --- Assert ---
-		$this->assertTrue($result, 'Should return true when asset found and cleaned up');
-		$expected_context = 'Ran\\PluginLib\\EnqueueAccessory\\AssetEnqueueBaseTrait::_deregister_existing_asset(script)';
-		$this->expectLog('debug', "{$expected_context} called from {$context} - Attempting to deregister existing '{$handle}' for replacement.", 1);
-		$this->expectLog('debug', "{$expected_context} called from {$context} - Asset '{$handle}' found in internal queues at 2 location(s). Will clean up after deregistration.", 1);
-		$this->expectLog('debug', "{$expected_context} called from {$context} - Removed '{$handle}' from internal deferred queue (hook 'wp_footer', priority 10).", 1);
-		$this->expectLog('debug', "{$expected_context} called from {$context} - Removed '{$handle}' from internal deferred queue (hook 'wp_head', priority 20).", 1);
+		$this->assertTrue($result, 'Should return true when deregister completes');
+		$expected_context = 'Ran\\PluginLib\\EnqueueAccessory\\AssetEnqueueBaseTrait::_handle_asset_operation(script) called from ' . $context;
+		$this->expectLog('debug', "{$expected_context} - Attempting to deregister existing '{$handle}'.", 1);
+		$this->expectLog('debug', "{$expected_context} - Successfully deregistered '{$handle}'.", 1);
+		$this->expectLog('debug', "{$expected_context} - Successfully completed deregister of '{$handle}'.", 1);
+		// After API normalization, deregister() no longer performs internal queue cleanup
 
-		// Verify all assets were removed from deferred_assets
+		// After API normalization, deregister() no longer performs internal queue cleanup
+		// The deferred assets should still be present since only remove() performs cleanup
 		$updated_deferred_assets = $property->getValue($this->instance);
-		$this->assertEmpty($updated_deferred_assets, 'Deferred assets should be empty after cleanup');
+		$this->assertNotEmpty($updated_deferred_assets, 'Deferred assets should remain after deregister (cleanup only happens with remove())');
 	}
 
 	/**
-	 * Test _deregister_existing_asset handles dequeue failure.
-	 * This covers the dequeue failure path.
-	 *
 	 * @test
-	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_deregister_existing_asset
-	 */
-	public function test_deregister_existing_asset_handles_dequeue_failure(): void {
-		// --- Test Setup ---
-		$asset_type       = \Ran\PluginLib\EnqueueAccessory\AssetType::Script;
-		$handle           = 'protected-script';
-		$context          = 'TestContext';
-		$expected_context = 'Ran\\PluginLib\\EnqueueAccessory\\AssetEnqueueBaseTrait::_deregister_existing_asset(script)';
-
-		// Mock _asset_exists_in_internal_queues to return empty array
-		$this->instance->shouldReceive('_asset_exists_in_internal_queues')
-			->with($handle, $asset_type)
-			->andReturn(array());
-
-		// Mock wp_script_is calls in sequence
-		\WP_Mock::userFunction('wp_script_is')
-			->with($handle, 'registered')
-			->andReturn(true)
-			->once();
-		\WP_Mock::userFunction('wp_script_is')
-			->with($handle, 'enqueued')
-			->andReturn(true)
-			->once();
-
-		// Mock wp_dequeue_script to be called
-		\WP_Mock::userFunction('wp_dequeue_script')
-			->with($handle)
-			->once();
-
-		// Mock wp_script_is to still return true after dequeue (failure)
-		\WP_Mock::userFunction('wp_script_is')
-			->with($handle, 'enqueued')
-			->andReturn(true)
-			->once(); // Still enqueued = dequeue failed
-
-		// Mock wp_deregister_script to be called
-		\WP_Mock::userFunction('wp_deregister_script')
-			->with($handle)
-			->once();
-
-		// Mock wp_script_is to return false after deregister (success)
-		\WP_Mock::userFunction('wp_script_is')
-			->with($handle, 'registered')
-			->andReturn(false)
-			->once(); // Not registered = deregister succeeded
-
-		// --- Act ---
-		$result = $this->_invoke_protected_method($this->instance, '_deregister_existing_asset', array($handle, $context, $asset_type));
-
-		// --- Assert ---
-		$this->assertFalse($result, 'Should return false when dequeue fails');
-		$this->expectLog('warning', "{$expected_context} called from {$context} - Failed to dequeue '{$handle}'. It may be protected or re-enqueued by another plugin.", 1);
-		$this->expectLog('debug', "{$expected_context} called from {$context} - Successfully deregistered '{$handle}'.", 1);
-		$this->expectLog('warning', "{$expected_context} called from {$context} - Deregistration of '{$handle}' was only partially successful. Proceeding with replacement anyway.", 1);
-	}
-
-	/**
-	 * Test _deregister_existing_asset handles deregister failure.
-	 * This covers the deregister failure path.
-	 *
-	 * @test
-	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_deregister_existing_asset
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_handle_asset_operation
 	 */
 	public function test_deregister_existing_asset_handles_deregister_failure(): void {
 		// --- Test Setup ---
 		$asset_type       = \Ran\PluginLib\EnqueueAccessory\AssetType::Style;
 		$handle           = 'protected-style';
 		$context          = 'TestContext';
-		$expected_context = 'Ran\\PluginLib\\EnqueueAccessory\\AssetEnqueueBaseTrait::_deregister_existing_asset(style)';
+		$expected_context = 'Ran\\PluginLib\\EnqueueAccessory\\AssetEnqueueBaseTrait::_handle_asset_operation(style) called from ' . $context;
 
 		// Mock _asset_exists_in_internal_queues to return empty array
 		$this->instance->shouldReceive('_asset_exists_in_internal_queues')
@@ -803,27 +755,27 @@ class AssetEnqueueTraitBaseTraitDeregisterTest extends EnqueueTraitTestCase {
 			->andReturn(true); // Still registered = deregister failed
 
 		// --- Act ---
-		$result = $this->_invoke_protected_method($this->instance, '_deregister_existing_asset', array($handle, $context, $asset_type));
+		$result = $this->_invoke_protected_method($this->instance, '_handle_asset_operation', array($handle, $context, $asset_type, 'deregister', array()));
 
 		// --- Assert ---
 		$this->assertFalse($result, 'Should return false when deregister fails');
-		$this->expectLog('warning', "{$expected_context} called from {$context} - Failed to deregister '{$handle}'. It may be a protected WordPress core style or re-registered by another plugin.", 1);
-		$this->expectLog('warning', "{$expected_context} called from {$context} - Deregistration of '{$handle}' was only partially successful. Proceeding with replacement anyway.", 1);
+		$this->expectLog('warning', "{$expected_context} - Failed to deregister '{$handle}'. It may be a protected WordPress core style or re-registered by another plugin.", 1);
+		$this->expectLog('warning', "{$expected_context} - deregister of '{$handle}' was only partially successful.", 1);
 	}
 
 	/**
-	 * Test _deregister_existing_asset handles assets queue cleanup.
+	 * Test _handle_asset_operation handles assets queue cleanup.
 	 * This covers the assets queue type cleanup path.
 	 *
 	 * @test
-	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_deregister_existing_asset
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_handle_asset_operation
 	 */
 	public function test_deregister_existing_asset_handles_assets_queue_cleanup(): void {
 		// --- Test Setup ---
 		$asset_type       = \Ran\PluginLib\EnqueueAccessory\AssetType::Script;
 		$handle           = 'test-script';
 		$context          = 'TestContext';
-		$expected_context = 'Ran\\PluginLib\\EnqueueAccessory\\AssetEnqueueBaseTrait::_deregister_existing_asset(script)';
+		$expected_context = 'Ran\\PluginLib\\EnqueueAccessory\\AssetEnqueueBaseTrait::_handle_asset_operation(script)';
 
 		// Mock _asset_exists_in_internal_queues to return assets queue location
 		$asset_locations = array(
@@ -845,21 +797,22 @@ class AssetEnqueueTraitBaseTraitDeregisterTest extends EnqueueTraitTestCase {
 			->andReturn(false);
 
 		// --- Act ---
-		$result = $this->_invoke_protected_method($this->instance, '_deregister_existing_asset', array($handle, $context, $asset_type));
+		$result = $this->_invoke_protected_method($this->instance, '_handle_asset_operation', array($handle, $context, $asset_type, 'deregister', array()));
 
 		// --- Assert ---
-		$this->assertTrue($result, 'Should return true when no deregistration needed');
-		$this->expectLog('debug', "{$expected_context} called from {$context} - Asset '{$handle}' found in internal queues at 1 location(s). Will clean up after deregistration.", 1);
-		$this->expectLog('debug', "{$expected_context} called from {$context} - Asset '{$handle}' in assets queue will be cleaned up by WordPress core functions.", 1);
-		$this->expectLog('debug', "{$expected_context} called from {$context} - '{$handle}' was not registered or enqueued. Nothing to deregister.", 1);
+		$this->assertTrue($result, 'Should return true when deregister completes');
+		$expected_context = 'Ran\\PluginLib\\EnqueueAccessory\\AssetEnqueueBaseTrait::_handle_asset_operation(script) called from ' . $context;
+		$this->expectLog('debug', "{$expected_context} - Attempting to deregister existing '{$handle}'.", 1);
+		$this->expectLog('debug', "{$expected_context} - '{$handle}' was not registered or enqueued. Nothing to deregister.", 1);
+		// After API normalization, deregister() no longer performs internal queue cleanup
 	}
 
 	/**
-	 * Test _deregister_existing_asset handles deferred queue cleanup with empty priority cleanup.
+	 * Test _handle_asset_operation handles deferred queue cleanup with empty priority cleanup.
 	 * This covers the empty priority array cleanup path.
 	 *
 	 * @test
-	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_deregister_existing_asset
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_handle_asset_operation
 	 */
 	public function test_deregister_existing_asset_cleans_up_empty_priority(): void {
 		// --- Test Setup ---
@@ -869,7 +822,7 @@ class AssetEnqueueTraitBaseTraitDeregisterTest extends EnqueueTraitTestCase {
 		$hook_name        = 'wp_enqueue_scripts';
 		$priority         = 10;
 		$index            = 0;
-		$expected_context = 'Ran\\PluginLib\\EnqueueAccessory\\AssetEnqueueBaseTrait::_deregister_existing_asset(script)';
+		$expected_context = 'Ran\\PluginLib\\EnqueueAccessory\\AssetEnqueueBaseTrait::_handle_asset_operation(script)';
 
 		// Set up deferred_assets property with the asset to be removed
 		$reflection               = new \ReflectionClass($this->instance);
@@ -908,61 +861,47 @@ class AssetEnqueueTraitBaseTraitDeregisterTest extends EnqueueTraitTestCase {
 			->andReturn(false);
 
 		// --- Act ---
-		$result = $this->_invoke_protected_method($this->instance, '_deregister_existing_asset', array($handle, $context, $asset_type));
+		$result = $this->_invoke_protected_method($this->instance, '_handle_asset_operation', array($handle, $context, $asset_type, 'deregister', array()));
 
 		// --- Assert ---
-		$this->assertTrue($result, 'Should return true when cleanup succeeds');
+		$this->assertTrue($result, 'Should return true when deregister completes');
 
-		// Verify that the deferred asset was removed and empty arrays cleaned up
+		// After API normalization, deregister() no longer performs internal queue cleanup
+		// The deferred assets should still be present since only remove() performs cleanup
 		$deferred_assets = $deferred_assets_property->getValue($this->instance);
-		$this->assertEmpty($deferred_assets, 'Deferred assets should be completely cleaned up');
+		$this->assertNotEmpty($deferred_assets, 'Deferred assets should remain after deregister (cleanup only happens with remove())');
 
-		// Verify log messages
-		$this->expectLog('debug', "{$expected_context} called from {$context} - Removed '{$handle}' from internal deferred queue (hook '{$hook_name}', priority {$priority}).", 1);
-		$this->expectLog('debug', "{$expected_context} called from {$context} - Cleaned up empty priority {$priority} for hook '{$hook_name}' in internal deferred queue.", 1);
-		$this->expectLog('debug', "{$expected_context} called from {$context} - Cleaned up empty hook '{$hook_name}' from internal deferred queue.", 1);
-		$this->expectLog('debug', "{$expected_context} called from {$context} - '{$handle}' was not registered or enqueued. Nothing to deregister.", 1);
+		// Verify log messages match new _handle_asset_operation format
+		$expected_context = 'Ran\\PluginLib\\EnqueueAccessory\\AssetEnqueueBaseTrait::_handle_asset_operation(script) called from ' . $context;
+		$this->expectLog('debug', "{$expected_context} - Attempting to deregister existing '{$handle}'.", 1);
+		$this->expectLog('debug', "{$expected_context} - '{$handle}' was not registered or enqueued. Nothing to deregister.", 1);
+		// After API normalization, deregister() no longer performs internal queue cleanup
 	}
 
 	/**
-	 * Test _deregister_existing_asset handles successful dequeue and deregister.
+	 * Test _handle_asset_operation handles successful dequeue and deregister.
 	 * This covers the complete success path.
 	 *
 	 * @test
-	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_deregister_existing_asset
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_handle_asset_operation
 	 */
 	public function test_deregister_existing_asset_complete_success(): void {
 		// --- Test Setup ---
 		$asset_type       = \Ran\PluginLib\EnqueueAccessory\AssetType::Script;
 		$handle           = 'test-script';
 		$context          = 'TestContext';
-		$expected_context = 'Ran\\PluginLib\\EnqueueAccessory\\AssetEnqueueBaseTrait::_deregister_existing_asset(script)';
+		$expected_context = 'Ran\\PluginLib\\EnqueueAccessory\\AssetEnqueueBaseTrait::_handle_asset_operation(script)';
 
 		// Mock _asset_exists_in_internal_queues to return empty array
 		$this->instance->shouldReceive('_asset_exists_in_internal_queues')
 			->with($handle, $asset_type)
 			->andReturn(array());
 
-		// Mock wp_script_is calls in sequence
+		// Mock wp_script_is to return true for registered initially
 		\WP_Mock::userFunction('wp_script_is')
 			->with($handle, 'registered')
 			->andReturn(true)
 			->once();
-		\WP_Mock::userFunction('wp_script_is')
-			->with($handle, 'enqueued')
-			->andReturn(true)
-			->once();
-
-		// Mock wp_dequeue_script to be called
-		\WP_Mock::userFunction('wp_dequeue_script')
-			->with($handle)
-			->once();
-
-		// Mock wp_script_is to return false after dequeue (success)
-		\WP_Mock::userFunction('wp_script_is')
-			->with($handle, 'enqueued')
-			->andReturn(false)
-			->once(); // Not enqueued = dequeue succeeded
 
 		// Mock wp_deregister_script to be called
 		\WP_Mock::userFunction('wp_deregister_script')
@@ -976,13 +915,14 @@ class AssetEnqueueTraitBaseTraitDeregisterTest extends EnqueueTraitTestCase {
 			->once(); // Not registered = deregister succeeded
 
 		// --- Act ---
-		$result = $this->_invoke_protected_method($this->instance, '_deregister_existing_asset', array($handle, $context, $asset_type));
+		$result = $this->_invoke_protected_method($this->instance, '_handle_asset_operation', array($handle, $context, $asset_type, 'deregister', array()));
 
 		// --- Assert ---
-		$this->assertTrue($result, 'Should return true when both dequeue and deregister succeed');
-		$this->expectLog('debug', "{$expected_context} called from {$context} - Successfully dequeued '{$handle}'.", 1);
-		$this->expectLog('debug', "{$expected_context} called from {$context} - Successfully deregistered '{$handle}'.", 1);
-		$this->expectLog('debug', "{$expected_context} called from {$context} - Successfully completed deregistration of '{$handle}'.", 1);
+		$this->assertTrue($result, 'Should return true when deregister succeeds');
+		$expected_context = 'Ran\\PluginLib\\EnqueueAccessory\\AssetEnqueueBaseTrait::_handle_asset_operation(script) called from ' . $context;
+		$this->expectLog('debug', "{$expected_context} - Attempting to deregister existing '{$handle}'.", 1);
+		$this->expectLog('debug', "{$expected_context} - Successfully deregistered '{$handle}'.", 1);
+		$this->expectLog('debug', "{$expected_context} - Successfully completed deregister of '{$handle}'.", 1);
 	}
 
 	// ------------------------------------------------------------------------
@@ -992,6 +932,9 @@ class AssetEnqueueTraitBaseTraitDeregisterTest extends EnqueueTraitTestCase {
 	/**
 	 * @test
 	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_deregister_assets
+	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::deregister
+	 * @covers \Ran\PluginLib\EnqueueAccessory\StylesEnqueueTrait::deregister
+	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptModulesEnqueueTrait::deregister
 	 */
 	public function test_deregister_assets_with_multiple_inputs(): void {
 		// --- Test Setup ---
@@ -1006,9 +949,9 @@ class AssetEnqueueTraitBaseTraitDeregisterTest extends EnqueueTraitTestCase {
 			array()         // Invalid array (should be skipped/logged)
 		);
 		$asset_type = AssetType::Script;
-		$context    = __TRAIT__ . '::' . '_normalize_deregister_input';
+		$context    = __TRAIT__ . '::' . '_normalize_asset_input';
 
-		// Don't mock _normalize_deregister_input so it can generate real logs
+		// Don't mock _normalize_asset_input so it can generate real logs
 		// Instead, mock _process_single_deregistration to verify it's called correctly with the expected outputs
 		$this->instance->shouldReceive('_process_single_deregistration')
 			->with(array('handle' => 'simple-handle'), $asset_type)
@@ -1168,9 +1111,9 @@ class AssetEnqueueTraitBaseTraitDeregisterTest extends EnqueueTraitTestCase {
 		);
 		$asset_type = \Ran\PluginLib\EnqueueAccessory\AssetType::Script;
 
-		// Mock _deregister_existing_asset to verify it's called
-		$this->instance->shouldReceive('_deregister_existing_asset')
-			->with('test-handle', '_process_single_deregistration', $asset_type)
+		// Mock _handle_asset_operation to verify it's called
+		$this->instance->shouldReceive('_handle_asset_operation')
+			->with('test-handle', '_process_single_deregistration', $asset_type, 'deregister')
 			->once();
 
 		// --- Act ---
@@ -1199,9 +1142,9 @@ class AssetEnqueueTraitBaseTraitDeregisterTest extends EnqueueTraitTestCase {
 		);
 		$asset_type = \Ran\PluginLib\EnqueueAccessory\AssetType::Style;
 
-		// Mock _deregister_existing_asset to verify it's called
-		$this->instance->shouldReceive('_deregister_existing_asset')
-			->with('test-style', '_process_single_deregistration', $asset_type)
+		// Mock _handle_asset_operation to verify it's called
+		$this->instance->shouldReceive('_handle_asset_operation')
+			->with('test-style', '_process_single_deregistration', $asset_type, 'deregister')
 			->once();
 
 		// --- Act ---
@@ -1853,21 +1796,21 @@ class AssetEnqueueTraitBaseTraitDeregisterTest extends EnqueueTraitTestCase {
 	}
 
 	// ------------------------------------------------------------------------
-	// _normalize_deregister_input() Tests
+	// _normalize_asset_input() Tests
 	// ------------------------------------------------------------------------
 
 	/**
 	 * @test
-	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_normalize_deregister_input
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_normalize_asset_input
 	 */
-	public function test_normalize_deregister_input_with_string(): void {
+	public function test_normalize_asset_input_with_string(): void {
 		// --- Test Setup ---
 		$input = 'test-handle';
 
 		// --- Act ---
 		$result = $this->_invoke_protected_method(
 			$this->instance,
-			'_normalize_deregister_input',
+			'_normalize_asset_input',
 			array($input)
 		);
 
@@ -1882,9 +1825,9 @@ class AssetEnqueueTraitBaseTraitDeregisterTest extends EnqueueTraitTestCase {
 
 	/**
 	 * @test
-	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_normalize_deregister_input
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_normalize_asset_input
 	 */
-	public function test_normalize_deregister_input_with_array(): void {
+	public function test_normalize_asset_input_with_array(): void {
 		// --- Test Setup ---
 		$input = array(
 			'handle'   => 'test-handle',
@@ -1895,7 +1838,7 @@ class AssetEnqueueTraitBaseTraitDeregisterTest extends EnqueueTraitTestCase {
 		// --- Act ---
 		$result = $this->_invoke_protected_method(
 			$this->instance,
-			'_normalize_deregister_input',
+			'_normalize_asset_input',
 			array($input)
 		);
 
@@ -1911,35 +1854,35 @@ class AssetEnqueueTraitBaseTraitDeregisterTest extends EnqueueTraitTestCase {
 
 	/**
 	 * @test
-	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_normalize_deregister_input
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_normalize_asset_input
 	 */
-	public function test_normalize_deregister_input_with_invalid_type(): void {
+	public function test_normalize_asset_input_with_invalid_type(): void {
 		// --- Test Setup ---
 		$input = 42; // Invalid type (integer)
 
 		// --- Act & Assert ---
 		$this->expectException(\InvalidArgumentException::class);
-		$this->expectExceptionMessage('Invalid input for deregister(). Expected string, array of strings, or array of asset definitions, got integer.');
+		$this->expectExceptionMessage('Invalid input for asset operation. Expected string, array of strings, or array of asset definitions, got integer.');
 
 		$this->_invoke_protected_method(
 			$this->instance,
-			'_normalize_deregister_input',
+			'_normalize_asset_input',
 			array($input)
 		);
 	}
 
 	/**
 	 * @test
-	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_normalize_deregister_input
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_normalize_asset_input
 	 */
-	public function test_normalize_deregister_input_with_invalid_array(): void {
+	public function test_normalize_asset_input_with_invalid_array(): void {
 		// --- Test Setup ---
 		$input = array('priority' => 10); // Missing required 'handle' key
 
 		// --- Act ---
 		$result = $this->_invoke_protected_method(
 			$this->instance,
-			'_normalize_deregister_input',
+			'_normalize_asset_input',
 			array($input)
 		);
 
@@ -1949,13 +1892,13 @@ class AssetEnqueueTraitBaseTraitDeregisterTest extends EnqueueTraitTestCase {
 	}
 
 	/**
-	 * Test _normalize_deregister_input with mixed array types.
+	 * Test _normalize_asset_input with mixed array types.
 	 * This covers the foreach loop processing mixed string/array items.
 	 *
 	 * @test
-	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_normalize_deregister_input
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_normalize_asset_input
 	 */
-	public function test_normalize_deregister_input_with_mixed_array_types(): void {
+	public function test_normalize_asset_input_with_mixed_array_types(): void {
 		// --- Test Setup ---
 		$input = array(
 			'string-handle',
@@ -1970,7 +1913,7 @@ class AssetEnqueueTraitBaseTraitDeregisterTest extends EnqueueTraitTestCase {
 		// --- Act ---
 		$result = $this->_invoke_protected_method(
 			$this->instance,
-			'_normalize_deregister_input',
+			'_normalize_asset_input',
 			array($input)
 		);
 
@@ -1991,13 +1934,13 @@ class AssetEnqueueTraitBaseTraitDeregisterTest extends EnqueueTraitTestCase {
 	}
 
 	/**
-	 * Test _normalize_deregister_input with invalid items in array.
+	 * Test _normalize_asset_input with invalid items in array.
 	 * This covers the invalid item logging path.
 	 *
 	 * @test
-	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_normalize_deregister_input
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_normalize_asset_input
 	 */
-	public function test_normalize_deregister_input_with_invalid_items_in_array(): void {
+	public function test_normalize_asset_input_with_invalid_items_in_array(): void {
 		// --- Test Setup ---
 		$input = array(
 			'valid-handle',
@@ -2008,12 +1951,12 @@ class AssetEnqueueTraitBaseTraitDeregisterTest extends EnqueueTraitTestCase {
 			null, // Invalid null
 			'another-valid-handle'
 		);
-		$expected_context = 'Ran\\PluginLib\\EnqueueAccessory\\AssetEnqueueBaseTrait::_normalize_deregister_input';
+		$expected_context = 'Ran\\PluginLib\\EnqueueAccessory\\AssetEnqueueBaseTrait::_normalize_asset_input';
 
 		// --- Act ---
 		$result = $this->_invoke_protected_method(
 			$this->instance,
-			'_normalize_deregister_input',
+			'_normalize_asset_input',
 			array($input)
 		);
 
@@ -2034,13 +1977,13 @@ class AssetEnqueueTraitBaseTraitDeregisterTest extends EnqueueTraitTestCase {
 	}
 
 	/**
-	 * Test _normalize_deregister_input with logger inactive.
+	 * Test _normalize_asset_input with logger inactive.
 	 * This covers the logger inactive scenario during invalid item processing.
 	 *
 	 * @test
-	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_normalize_deregister_input
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_normalize_asset_input
 	 */
-	public function test_normalize_deregister_input_with_logger_inactive(): void {
+	public function test_normalize_asset_input_with_logger_inactive(): void {
 		// --- Test Setup ---
 		$input = array(
 			'valid-handle',
@@ -2060,7 +2003,7 @@ class AssetEnqueueTraitBaseTraitDeregisterTest extends EnqueueTraitTestCase {
 		// --- Act ---
 		$result = $this->_invoke_protected_method(
 			$this->instance,
-			'_normalize_deregister_input',
+			'_normalize_asset_input',
 			array($input)
 		);
 
@@ -2072,20 +2015,20 @@ class AssetEnqueueTraitBaseTraitDeregisterTest extends EnqueueTraitTestCase {
 	}
 
 	/**
-	 * Test _normalize_deregister_input with empty array.
+	 * Test _normalize_asset_input with empty array.
 	 * This covers the empty array input scenario.
 	 *
 	 * @test
-	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_normalize_deregister_input
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_normalize_asset_input
 	 */
-	public function test_normalize_deregister_input_with_empty_array(): void {
+	public function test_normalize_asset_input_with_empty_array(): void {
 		// --- Test Setup ---
 		$input = array();
 
 		// --- Act ---
 		$result = $this->_invoke_protected_method(
 			$this->instance,
-			'_normalize_deregister_input',
+			'_normalize_asset_input',
 			array($input)
 		);
 
@@ -2095,13 +2038,13 @@ class AssetEnqueueTraitBaseTraitDeregisterTest extends EnqueueTraitTestCase {
 	}
 
 	/**
-	 * Test _normalize_deregister_input with array containing only invalid items.
+	 * Test _normalize_asset_input with array containing only invalid items.
 	 * This covers the scenario where all items in array are invalid.
 	 *
 	 * @test
-	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_normalize_deregister_input
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_normalize_asset_input
 	 */
-	public function test_normalize_deregister_input_with_all_invalid_items(): void {
+	public function test_normalize_asset_input_with_all_invalid_items(): void {
 		// --- Test Setup ---
 		$input = array(
 			123, // Invalid integer
@@ -2109,12 +2052,12 @@ class AssetEnqueueTraitBaseTraitDeregisterTest extends EnqueueTraitTestCase {
 			array('no-handle' => 'value'), // Invalid array
 			null // Invalid null
 		);
-		$expected_context = 'Ran\\PluginLib\\EnqueueAccessory\\AssetEnqueueBaseTrait::_normalize_deregister_input';
+		$expected_context = 'Ran\\PluginLib\\EnqueueAccessory\\AssetEnqueueBaseTrait::_normalize_asset_input';
 
 		// --- Act ---
 		$result = $this->_invoke_protected_method(
 			$this->instance,
-			'_normalize_deregister_input',
+			'_normalize_asset_input',
 			array($input)
 		);
 
@@ -2130,13 +2073,13 @@ class AssetEnqueueTraitBaseTraitDeregisterTest extends EnqueueTraitTestCase {
 	}
 
 	/**
-	 * Test _normalize_deregister_input with array having non-string handle.
+	 * Test _normalize_asset_input with array having non-string handle.
 	 * This covers the specific edge case where isset($item['handle']) is true but is_string($item['handle']) is false.
 	 *
 	 * @test
-	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_normalize_deregister_input
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_normalize_asset_input
 	 */
-	public function test_normalize_deregister_input_with_non_string_handle(): void {
+	public function test_normalize_asset_input_with_non_string_handle(): void {
 		// --- Test Setup ---
 		$input = array(
 			'valid-handle',
@@ -2146,12 +2089,12 @@ class AssetEnqueueTraitBaseTraitDeregisterTest extends EnqueueTraitTestCase {
 			array('handle' => array()), // Array with handle key but array value
 			'another-valid-handle'
 		);
-		$expected_context = 'Ran\\PluginLib\\EnqueueAccessory\\AssetEnqueueBaseTrait::_normalize_deregister_input';
+		$expected_context = 'Ran\\PluginLib\\EnqueueAccessory\\AssetEnqueueBaseTrait::_normalize_asset_input';
 
 		// --- Act ---
 		$result = $this->_invoke_protected_method(
 			$this->instance,
-			'_normalize_deregister_input',
+			'_normalize_asset_input',
 			array($input)
 		);
 
@@ -2168,6 +2111,62 @@ class AssetEnqueueTraitBaseTraitDeregisterTest extends EnqueueTraitTestCase {
 		$this->expectLog('warning', "{$expected_context} - Invalid input type at index 2. Expected string or array, got array.", 1);
 		$this->expectLog('warning', "{$expected_context} - Invalid input type at index 3. Expected string or array, got array.", 1);
 		$this->expectLog('warning', "{$expected_context} - Invalid input type at index 4. Expected string or array, got array.", 1);
+	}
+
+	/**
+	 * Test _normalize_asset_input with empty string handle (single input).
+	 * This specifically targets line 1804: return array(); when single string is empty.
+	 *
+	 * @test
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_normalize_asset_input
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_is_valid_handle
+	 */
+	public function test_normalize_asset_input_with_empty_string_handle_single_input(): void {
+		// --- Test Setup ---
+		$input = ''; // Empty string handle
+		$expected_context = 'Ran\\PluginLib\\EnqueueAccessory\\AssetEnqueueBaseTrait::_normalize_asset_input';
+
+		// --- Act ---
+		$result = $this->_invoke_protected_method(
+			$this->instance,
+			'_normalize_asset_input',
+			array($input)
+		);
+
+		// --- Assert ---
+		$this->assertIsArray($result);
+		$this->assertEmpty($result, 'Should return empty array for empty string handle');
+		$this->expectLog('warning', "{$expected_context} - Skipping empty handle.", 1);
+	}
+
+	/**
+	 * Test _normalize_asset_input with empty handle in asset definition (single input).
+	 * This specifically targets line 1814: return array(); when asset definition has empty handle.
+	 *
+	 * @test
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_normalize_asset_input
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_is_valid_handle
+	 */
+	public function test_normalize_asset_input_with_empty_handle_in_asset_definition_single_input(): void {
+		// --- Test Setup ---
+		$input = array(
+			'handle' => '', // Empty handle in asset definition
+			'hook' => 'wp_enqueue_scripts',
+			'priority' => 10
+		);
+		$expected_context = 'Ran\\PluginLib\\EnqueueAccessory\\AssetEnqueueBaseTrait::_normalize_asset_input';
+
+		// --- Act ---
+		$result = $this->_invoke_protected_method(
+			$this->instance,
+			'_normalize_asset_input',
+			array($input)
+		);
+
+		// --- Assert ---
+		$this->assertIsArray($result);
+		$this->assertEmpty($result, 'Should return empty array for asset definition with empty handle');
+		$this->expectLog('warning', "{$expected_context} - Skipping asset definition with empty handle.", 1);
 	}
 
 	// ------------------------------------------------------------------------

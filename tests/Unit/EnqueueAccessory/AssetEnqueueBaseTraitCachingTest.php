@@ -809,4 +809,202 @@ class AssetEnqueueBaseTraitCachingTest extends EnqueueTraitTestCase {
 		$expected_hash = md5_file(__FILE__);
 		$this->assertEquals($expected_hash, $result, 'Should return the same hash as PHP\'s md5_file function');
 	}
+
+	// ------------------------------------------------------------------------
+	// _cache_for_request() Tests
+	// ------------------------------------------------------------------------
+
+	/**
+	 * @test
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_cache_for_request
+	 */
+	public function test_cache_for_request_executes_callback_on_first_call(): void {
+		// --- Test Setup ---
+		$cache_key         = 'test_key';
+		$expected_result   = 'callback_result';
+		$callback_executed = false;
+
+		$callback = function() use ($expected_result, &$callback_executed) {
+			$callback_executed = true;
+			return $expected_result;
+		};
+
+		// --- Execute Test ---
+		$result = $this->_invoke_protected_method(
+			$this->instance,
+			'_cache_for_request',
+			array($cache_key, $callback)
+		);
+
+		// --- Verify Results ---
+		$this->assertTrue($callback_executed, 'Callback should be executed on first call');
+		$this->assertEquals($expected_result, $result, 'Should return the callback result');
+	}
+
+	/**
+	 * @test
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_cache_for_request
+	 */
+	public function test_cache_for_request_returns_cached_result_on_subsequent_calls(): void {
+		// --- Test Setup ---
+		$cache_key       = 'test_key';
+		$expected_result = 'cached_result';
+		$callback_count  = 0;
+
+		$callback = function() use ($expected_result, &$callback_count) {
+			$callback_count++;
+			return $expected_result;
+		};
+
+		// --- Execute Test - First Call ---
+		$first_result = $this->_invoke_protected_method(
+			$this->instance,
+			'_cache_for_request',
+			array($cache_key, $callback)
+		);
+
+		// --- Execute Test - Second Call ---
+		$second_result = $this->_invoke_protected_method(
+			$this->instance,
+			'_cache_for_request',
+			array($cache_key, $callback)
+		);
+
+		// --- Verify Results ---
+		$this->assertEquals(1, $callback_count, 'Callback should only be executed once');
+		$this->assertEquals($expected_result, $first_result, 'First call should return callback result');
+		$this->assertEquals($expected_result, $second_result, 'Second call should return cached result');
+		$this->assertEquals($first_result, $second_result, 'Both calls should return the same result');
+	}
+
+	/**
+	 * @test
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_cache_for_request
+	 */
+	public function test_cache_for_request_handles_different_cache_keys(): void {
+		// --- Test Setup ---
+		$cache_key_1    = 'key_one';
+		$cache_key_2    = 'key_two';
+		$result_1       = 'result_one';
+		$result_2       = 'result_two';
+		$callback_count = 0;
+
+		$callback_1 = function() use ($result_1, &$callback_count) {
+			$callback_count++;
+			return $result_1;
+		};
+
+		$callback_2 = function() use ($result_2, &$callback_count) {
+			$callback_count++;
+			return $result_2;
+		};
+
+		// --- Execute Test ---
+		$first_result = $this->_invoke_protected_method(
+			$this->instance,
+			'_cache_for_request',
+			array($cache_key_1, $callback_1)
+		);
+
+		$second_result = $this->_invoke_protected_method(
+			$this->instance,
+			'_cache_for_request',
+			array($cache_key_2, $callback_2)
+		);
+
+		// --- Verify Results ---
+		$this->assertEquals(2, $callback_count, 'Both callbacks should be executed for different keys');
+		$this->assertEquals($result_1, $first_result, 'First key should return first result');
+		$this->assertEquals($result_2, $second_result, 'Second key should return second result');
+		$this->assertNotEquals($first_result, $second_result, 'Different keys should return different results');
+	}
+
+	/**
+	 * @test
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_cache_for_request
+	 */
+	public function test_cache_for_request_handles_various_data_types(): void {
+		// --- Test Setup - Array Result ---
+		$array_key      = 'array_key';
+		$array_result   = array('key' => 'value', 'number' => 42);
+		$array_callback = function() use ($array_result) {
+			return $array_result;
+		};
+
+		// --- Test Setup - Object Result ---
+		$object_key      = 'object_key';
+		$object_result   = (object) array('property' => 'value');
+		$object_callback = function() use ($object_result) {
+			return $object_result;
+		};
+
+		// --- Test Setup - Boolean Result ---
+		$bool_key      = 'bool_key';
+		$bool_result   = true;
+		$bool_callback = function() use ($bool_result) {
+			return $bool_result;
+		};
+
+		// --- Test Setup - Null Result ---
+		$null_key      = 'null_key';
+		$null_result   = null;
+		$null_callback = function() use ($null_result) {
+			return $null_result;
+		};
+
+		// --- Execute Tests ---
+		$cached_array = $this->_invoke_protected_method(
+			$this->instance,
+			'_cache_for_request',
+			array($array_key, $array_callback)
+		);
+
+		$cached_object = $this->_invoke_protected_method(
+			$this->instance,
+			'_cache_for_request',
+			array($object_key, $object_callback)
+		);
+
+		$cached_bool = $this->_invoke_protected_method(
+			$this->instance,
+			'_cache_for_request',
+			array($bool_key, $bool_callback)
+		);
+
+		$cached_null = $this->_invoke_protected_method(
+			$this->instance,
+			'_cache_for_request',
+			array($null_key, $null_callback)
+		);
+
+		// --- Verify Results ---
+		$this->assertEquals($array_result, $cached_array, 'Should cache and return array correctly');
+		$this->assertEquals($object_result, $cached_object, 'Should cache and return object correctly');
+		$this->assertEquals($bool_result, $cached_bool, 'Should cache and return boolean correctly');
+		$this->assertEquals($null_result, $cached_null, 'Should cache and return null correctly');
+	}
+
+	/**
+	 * @test
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_cache_for_request
+	 */
+	public function test_cache_for_request_preserves_callback_exceptions(): void {
+		// --- Test Setup ---
+		$cache_key         = 'exception_key';
+		$exception_message = 'Test exception message';
+
+		$callback = function() use ($exception_message) {
+			throw new \RuntimeException($exception_message);
+		};
+
+		// --- Execute Test & Verify Exception ---
+		$this->expectException(\RuntimeException::class);
+		$this->expectExceptionMessage($exception_message);
+
+		$this->_invoke_protected_method(
+			$this->instance,
+			'_cache_for_request',
+			array($cache_key, $callback)
+		);
+	}
 }
