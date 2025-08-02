@@ -36,6 +36,15 @@ interface EnqueueInterface {
 	public function scripts(): ScriptsHandler;
 
 	/**
+	 * Returns the ScriptModulesHandler instance.
+	 *
+	 * @since 0.1.0
+	 *
+	 * @return ScriptModulesHandler
+	 */
+	public function script_modules(): ScriptModulesHandler;
+
+	/**
 	 * Returns the StylesHandler instance.
 	 *
 	 * @since 0.1.0

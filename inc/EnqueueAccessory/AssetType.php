@@ -21,6 +21,11 @@ enum AssetType: string {
 	case Script = 'script';
 
 	/**
+	 * Represents a JavaScript module asset.
+	 */
+	case ScriptModule = 'script_module';
+
+	/**
 	 * Represents a CSS stylesheet asset.
 	 */
 	case Style = 'style';

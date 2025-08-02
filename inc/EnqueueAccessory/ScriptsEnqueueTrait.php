@@ -13,6 +13,7 @@ declare(strict_types=1);
 namespace Ran\PluginLib\EnqueueAccessory;
 
 use Ran\PluginLib\EnqueueAccessory\AssetType;
+
 /**
  * Trait ScriptsEnqueueTrait
  *
