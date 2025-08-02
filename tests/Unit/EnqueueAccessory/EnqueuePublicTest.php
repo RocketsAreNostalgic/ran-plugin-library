@@ -4,14 +4,15 @@ declare(strict_types=1);
 namespace Ran\PluginLib\Tests\Unit\EnqueueAccessory;
 
 use Mockery;
+use WP_Mock;
+use Ran\PluginLib\Util\CollectingLogger;
 use Ran\PluginLib\Config\ConfigInterface;
 use Ran\PluginLib\Tests\Unit\PluginLibTestCase;
-use Ran\PluginLib\EnqueueAccessory\EnqueuePublic;
-use Ran\PluginLib\EnqueueAccessory\ScriptsHandler;
-use Ran\PluginLib\EnqueueAccessory\StylesHandler;
 use Ran\PluginLib\EnqueueAccessory\MediaHandler;
-use Ran\PluginLib\Util\CollectingLogger;
-use WP_Mock;
+use Ran\PluginLib\EnqueueAccessory\EnqueuePublic;
+use Ran\PluginLib\EnqueueAccessory\StylesHandler;
+use Ran\PluginLib\EnqueueAccessory\ScriptsHandler;
+use Ran\PluginLib\EnqueueAccessory\ScriptModulesHandler;
 
 /**
  * Class EnqueuePublicTest
@@ -68,8 +69,9 @@ class EnqueuePublicTest extends PluginLibTestCase {
 		// Assert
 		$this->assertInstanceOf(EnqueuePublic::class, $this->instance);
 		$this->assertInstanceOf(ScriptsHandler::class, $this->instance->scripts());
+		$this->assertInstanceOf(ScriptModulesHandler::class, $this->instance->script_modules());
 		$this->assertInstanceOf(StylesHandler::class, $this->instance->styles());
-		
+
 		// Verify public logging occurred
 		$logs = $this->logger->get_logs();
 		$this->assertNotEmpty($logs);
@@ -89,7 +91,7 @@ class EnqueuePublicTest extends PluginLibTestCase {
 
 		// Assert - constructor should return early, handlers won't be initialized
 		$this->assertInstanceOf(EnqueuePublic::class, $this->instance);
-		
+
 		// Verify debug logging occurred
 		$logs = $this->logger->get_logs();
 		$this->assertNotEmpty($logs);
@@ -103,16 +105,18 @@ class EnqueuePublicTest extends PluginLibTestCase {
 	public function test_constructor_accepts_custom_handlers(): void {
 		// Arrange
 		WP_Mock::userFunction('is_admin')->andReturn(false);
-		
-		$scripts_mock = Mockery::mock(ScriptsHandler::class);
-		$styles_mock  = Mockery::mock(StylesHandler::class);
-		$media_mock   = Mockery::mock(MediaHandler::class);
+
+		$scripts_mock        = Mockery::mock(ScriptsHandler::class);
+		$script_modules_mock = Mockery::mock(ScriptModulesHandler::class);
+		$styles_mock         = Mockery::mock(StylesHandler::class);
+		$media_mock          = Mockery::mock(MediaHandler::class);
 
 		// Act
-		$this->instance = new EnqueuePublic($this->config_mock, $scripts_mock, $styles_mock, $media_mock);
+		$this->instance = new EnqueuePublic($this->config_mock, $scripts_mock, $script_modules_mock, $styles_mock, $media_mock);
 
 		// Assert
 		$this->assertSame($scripts_mock, $this->instance->scripts());
+		$this->assertSame($script_modules_mock, $this->instance->script_modules());
 		$this->assertSame($styles_mock, $this->instance->styles());
 	}
 
@@ -142,14 +146,17 @@ class EnqueuePublicTest extends PluginLibTestCase {
 	public function test_stage_delegates_to_handlers(): void {
 		// Arrange
 		WP_Mock::userFunction('is_admin')->andReturn(false);
-		
+
 		$scripts_mock = Mockery::mock(ScriptsHandler::class);
 		$scripts_mock->shouldReceive('stage')->once();
-		
+
+		$script_modules_mock = Mockery::mock(ScriptModulesHandler::class);
+		$script_modules_mock->shouldReceive('stage')->once();
+
 		$styles_mock = Mockery::mock(StylesHandler::class);
 		$styles_mock->shouldReceive('stage')->once();
 
-		$this->instance = new EnqueuePublic($this->config_mock, $scripts_mock, $styles_mock);
+		$this->instance = new EnqueuePublic($this->config_mock, $scripts_mock, $script_modules_mock, $styles_mock);
 
 		// Act
 		$this->instance->stage();
@@ -161,6 +168,7 @@ class EnqueuePublicTest extends PluginLibTestCase {
 	/**
 	 * @test
 	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueuePublic::scripts
+	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueuePublic::script_modules
 	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueuePublic::styles
 	 */
 	public function test_accessor_methods_return_handlers(): void {
@@ -170,6 +178,7 @@ class EnqueuePublicTest extends PluginLibTestCase {
 
 		// Act & Assert
 		$this->assertInstanceOf(ScriptsHandler::class, $this->instance->scripts());
+		$this->assertInstanceOf(ScriptModulesHandler::class, $this->instance->script_modules());
 		$this->assertInstanceOf(StylesHandler::class, $this->instance->styles());
 	}
 }
