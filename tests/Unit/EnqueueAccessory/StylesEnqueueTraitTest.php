@@ -902,10 +902,10 @@ class StylesEnqueueTraitTest extends EnqueueTraitTestCase {
 		// 2. Testing through public interface requires complex WordPress filter mocking
 		// 3. Direct testing of HTML attribute logic is clearer and more focused
 		// 4. The method has complex edge cases that are easier to test directly
-		
+
 		// Arrange
 		$tag_handle = $tag_handle ?? $handle; // Use provided tag_handle or default to handle
-		
+
 		// Act
 		$modified_tag = $this->_invoke_protected_method(
 			$this->instance,
@@ -1464,5 +1464,356 @@ class StylesEnqueueTraitTest extends EnqueueTraitTestCase {
 		$this->expectLog('warning', array(
 			'wp_register_style() failed for handle \'failing-style\'. Skipping further processing for this asset.'
 		), 1);
+	}
+
+	// ------------------------------------------------------------------------
+	// Dequeue Method Tests
+	// ------------------------------------------------------------------------
+
+	/**
+	 * @test
+	 * @covers \Ran\PluginLib\EnqueueAccessory\StylesEnqueueTrait::dequeue
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_handle_asset_operation
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_normalize_asset_input
+	 */
+	public function test_dequeue_with_string_handles(): void {
+		// --- Test Setup ---
+		$handles = array('style1', 'style2', 'style3');
+
+		// Mock WordPress functions
+		WP_Mock::userFunction('wp_dequeue_style')
+			->times(3)
+			->with(Mockery::type('string'))
+			->andReturn(true);
+
+		// --- Act ---
+		$result = $this->instance->dequeue($handles);
+
+		// --- Assert ---
+		$this->assertSame($this->instance, $result);
+		$this->expectLog('debug', array("dequeue - Attempted dequeue of style 'style1'"), 1);
+		$this->expectLog('debug', array("dequeue - Attempted dequeue of style 'style2'"), 1);
+		$this->expectLog('debug', array("dequeue - Attempted dequeue of style 'style3'"), 1);
+	}
+
+	/**
+	 * @test
+	 * @covers \Ran\PluginLib\EnqueueAccessory\StylesEnqueueTrait::dequeue
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_handle_asset_operation
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_normalize_asset_input
+	 */
+	public function test_dequeue_with_definition_arrays(): void {
+		// --- Test Setup ---
+		$assets = array(
+			array('handle' => 'style1'),
+			array('handle' => 'style2'),
+		);
+
+		// Mock WordPress functions
+		WP_Mock::userFunction('wp_dequeue_style')
+			->times(2)
+			->with(Mockery::type('string'))
+			->andReturn(true);
+
+		// --- Act ---
+		$result = $this->instance->dequeue($assets);
+
+		// --- Assert ---
+		$this->assertSame($this->instance, $result);
+		$this->expectLog('debug', array("dequeue - Attempted dequeue of style 'style1'"), 1);
+		$this->expectLog('debug', array("dequeue - Attempted dequeue of style 'style2'"), 1);
+	}
+
+	/**
+	 * @test
+	 * @covers \Ran\PluginLib\EnqueueAccessory\StylesEnqueueTrait::dequeue
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_handle_asset_operation
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_normalize_asset_input
+	 */
+	public function test_dequeue_with_mixed_formats(): void {
+		// --- Test Setup ---
+		$assets = array(
+			'style1',
+			array('handle' => 'style2'),
+			'style3',
+		);
+
+		// Mock WordPress functions
+		WP_Mock::userFunction('wp_dequeue_style')
+			->times(3)
+			->with(Mockery::type('string'))
+			->andReturn(true);
+
+		// --- Act ---
+		$result = $this->instance->dequeue($assets);
+
+		// --- Assert ---
+		$this->assertSame($this->instance, $result);
+		$this->expectLog('debug', array("dequeue - Attempted dequeue of style 'style1'"), 1);
+		$this->expectLog('debug', array("dequeue - Attempted dequeue of style 'style2'"), 1);
+		$this->expectLog('debug', array("dequeue - Attempted dequeue of style 'style3'"), 1);
+	}
+
+	/**
+	 * @test
+	 * @covers \Ran\PluginLib\EnqueueAccessory\StylesEnqueueTrait::dequeue
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_handle_asset_operation
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_normalize_asset_input
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_is_valid_handle
+	 */
+	public function test_dequeue_skips_empty_handles(): void {
+		// --- Test Setup ---
+		$assets = array(
+			'valid-style',
+			'', // Empty handle should be skipped
+			array('handle' => ''), // Empty handle in array should be skipped
+			'another-valid-style',
+		);
+
+		// Mock WordPress functions - should only be called for valid handles
+		WP_Mock::userFunction('wp_dequeue_style')
+			->times(2)
+			->with(Mockery::type('string'))
+			->andReturn(true);
+
+		// --- Act ---
+		$result = $this->instance->dequeue($assets);
+
+		// --- Assert ---
+		$this->assertSame($this->instance, $result);
+		$this->expectLog('debug', array("dequeue - Attempted dequeue of style 'valid-style'"), 1);
+		$this->expectLog('debug', array("dequeue - Attempted dequeue of style 'another-valid-style'"), 1);
+		$this->expectLog('warning', array('Skipping asset definition with empty handle at index'), 1);
+	}
+
+	/**
+	 * @test
+	 * @covers \Ran\PluginLib\EnqueueAccessory\StylesEnqueueTrait::dequeue
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_handle_asset_operation
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_normalize_asset_input
+	 */
+	public function test_dequeue_with_empty_array(): void {
+		// --- Test Setup ---
+		$assets = array();
+
+		// Mock WordPress functions - should not be called
+		WP_Mock::userFunction('wp_dequeue_style')->never();
+
+		// --- Act ---
+		$result = $this->instance->dequeue($assets);
+
+		// --- Assert ---
+		$this->assertSame($this->instance, $result);
+		// No log expectations - empty arrays are handled silently
+	}
+
+	/**
+	 * @test
+	 * @covers \Ran\PluginLib\EnqueueAccessory\StylesEnqueueTrait::dequeue
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_handle_asset_operation
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_normalize_asset_input
+	 */
+	public function test_dequeue_with_single_handle(): void {
+		// --- Test Setup ---
+		$handle = 'single-style';
+
+		// Mock WordPress functions
+		WP_Mock::userFunction('wp_dequeue_style')
+			->once()
+			->with($handle)
+			->andReturn(true);
+
+		// --- Act ---
+		$result = $this->instance->dequeue($handle);
+
+		// --- Assert ---
+		$this->assertSame($this->instance, $result);
+		$this->expectLog('debug', array("dequeue - Attempted dequeue of style 'single-style'"), 1);
+	}
+
+	// ------------------------------------------------------------------------
+	// Deregister Method Tests
+	// ------------------------------------------------------------------------
+
+	/**
+	 * @test
+	 * @covers \Ran\PluginLib\EnqueueAccessory\StylesEnqueueTrait::deregister
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_deregister_assets
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_normalize_asset_input
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_process_single_deregistration
+	 */
+	public function test_deregister_with_string_handles(): void {
+		// --- Test Setup ---
+		$handles = array('style1', 'style2', 'style3');
+
+		// --- Act ---
+		$result = $this->instance->deregister($handles);
+
+		// --- Assert ---
+		$this->assertSame($this->instance, $result);
+		$this->expectLog('debug', array('_deregister_assets - Processing 3 style deregistration(s)'), 1);
+		$this->expectLog('debug', array("deregister - Scheduled deregistration of style 'style1' on hook 'wp_enqueue_scripts' with priority 10"), 1);
+		$this->expectLog('debug', array("deregister - Scheduled deregistration of style 'style2' on hook 'wp_enqueue_scripts' with priority 10"), 1);
+		$this->expectLog('debug', array("deregister - Scheduled deregistration of style 'style3' on hook 'wp_enqueue_scripts' with priority 10"), 1);
+	}
+
+	/**
+	 * @test
+	 * @covers \Ran\PluginLib\EnqueueAccessory\StylesEnqueueTrait::deregister
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_handle_asset_operation
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_normalize_asset_input
+	 */
+	public function test_deregister_with_definition_arrays(): void {
+		// --- Test Setup ---
+		$assets = array(
+			array('handle' => 'style1'),
+			array('handle' => 'style2'),
+		);
+
+		// --- Act ---
+		$result = $this->instance->deregister($assets);
+
+		// --- Assert ---
+		$this->assertSame($this->instance, $result);
+		$this->expectLog('debug', array("deregister - Scheduled deregistration of style 'style1' on hook 'wp_enqueue_scripts' with priority 10."), 1);
+		$this->expectLog('debug', array("deregister - Scheduled deregistration of style 'style2' on hook 'wp_enqueue_scripts' with priority 10."), 1);
+	}
+
+	/**
+	 * @test
+	 * @covers \Ran\PluginLib\EnqueueAccessory\StylesEnqueueTrait::deregister
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_handle_asset_operation
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_normalize_asset_input
+	 */
+	public function test_deregister_with_single_handle(): void {
+		// --- Test Setup ---
+		$handle = 'single-style';
+
+		// --- Act ---
+		$result = $this->instance->deregister($handle);
+
+		// --- Assert ---
+		$this->assertSame($this->instance, $result);
+		$this->expectLog('debug', array("deregister - Scheduled deregistration of style 'single-style' on hook 'wp_enqueue_scripts' with priority 10."), 1);
+	}
+
+	// ------------------------------------------------------------------------
+	// Remove Method Tests
+	// ------------------------------------------------------------------------
+
+	/**
+	 * @test
+	 * @covers \Ran\PluginLib\EnqueueAccessory\StylesEnqueueTrait::remove
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_handle_asset_operation
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_normalize_asset_input
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_process_single_removal
+	 */
+	public function test_remove_with_string_handles(): void {
+		// --- Test Setup ---
+		$handles = array('style1', 'style2', 'style3');
+
+		// --- Act ---
+		$result = $this->instance->remove($handles);
+
+		// --- Assert ---
+		$this->assertSame($this->instance, $result);
+		$this->expectLog('debug', array("remove - Scheduled removal of style 'style1' on hook 'wp_enqueue_scripts' with priority 10."), 1);
+		$this->expectLog('debug', array("remove - Scheduled removal of style 'style2'"), 1);
+		$this->expectLog('debug', array("remove - Scheduled removal of style 'style3'"), 1);
+	}
+
+	/**
+	 * @test
+	 * @covers \Ran\PluginLib\EnqueueAccessory\StylesEnqueueTrait::remove
+	 */
+	public function test_remove_with_definition_arrays(): void {
+		// Arrange
+		$styles_to_remove = array(
+			array('handle' => 'style1'),
+			array('handle' => 'style2'),
+		);
+
+		// Mock the _remove_assets method call
+		$this->instance = Mockery::mock(ConcreteEnqueueForStylesTesting::class)
+			->makePartial()
+			->shouldAllowMockingProtectedMethods();
+		$this->instance->shouldReceive('_remove_assets')
+			->with($styles_to_remove, AssetType::Style)
+			->once()
+			->andReturn($this->instance);
+
+		// Act
+		$result = $this->instance->remove($styles_to_remove);
+
+		// Assert
+		$this->assertSame($this->instance, $result);
+	}
+
+	/**
+	 * @test
+	 * @covers \Ran\PluginLib\EnqueueAccessory\StylesEnqueueTrait::remove
+	 */
+	public function test_remove_with_mixed_formats(): void {
+		// Arrange
+		$styles_to_remove = array(
+			'style1',
+			array('handle' => 'style2'),
+			'style3',
+		);
+
+		// Mock the _remove_assets method call
+		$this->instance = Mockery::mock(ConcreteEnqueueForStylesTesting::class)
+			->makePartial()
+			->shouldAllowMockingProtectedMethods();
+		$this->instance->shouldReceive('_remove_assets')
+			->with($styles_to_remove, AssetType::Style)
+			->once()
+			->andReturn($this->instance);
+
+		// Act
+		$result = $this->instance->remove($styles_to_remove);
+
+		// Assert
+		$this->assertSame($this->instance, $result);
+	}
+
+	/**
+	 * @test
+	 * @covers \Ran\PluginLib\EnqueueAccessory\StylesEnqueueTrait::remove
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_handle_asset_operation
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_normalize_asset_input
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_process_single_removal
+	 */
+	public function test_remove_with_single_handle_string(): void {
+		// --- Test Setup ---
+		$handle = 'single-style';
+
+		// --- Act ---
+		$result = $this->instance->remove($handle);
+
+		// --- Assert ---
+		$this->assertSame($this->instance, $result);
+		$this->expectLog('debug', array("remove - Scheduled removal of style 'single-style' on hook 'wp_enqueue_scripts' with priority 10."), 1);
+	}
+
+	/**
+	 * @test
+	 * @covers \Ran\PluginLib\EnqueueAccessory\StylesEnqueueTrait::remove
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_handle_asset_operation
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_normalize_asset_input
+	 */
+	public function test_remove_with_empty_array(): void {
+		// --- Test Setup ---
+		$assets = array();
+
+		// Mock WordPress functions - should not be called
+		WP_Mock::userFunction('wp_dequeue_style')->never();
+		WP_Mock::userFunction('wp_deregister_style')->never();
+
+		// --- Act ---
+		$result = $this->instance->remove($assets);
+
+		// --- Assert ---
+		$this->assertSame($this->instance, $result);
 	}
 }
