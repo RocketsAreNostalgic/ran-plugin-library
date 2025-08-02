@@ -2433,7 +2433,7 @@ class AssetEnqueueBaseTraitCoreTest extends EnqueueTraitTestCase {
 	 */
 	public function test_normalize_asset_input_with_empty_string_handle_single_input(): void {
 		// Arrange
-		$input = ''; // Empty string handle
+		$input            = ''; // Empty string handle
 		$expected_context = 'Ran\\PluginLib\\EnqueueAccessory\\AssetEnqueueBaseTrait::_normalize_asset_input';
 
 		// Act
@@ -2460,8 +2460,8 @@ class AssetEnqueueBaseTraitCoreTest extends EnqueueTraitTestCase {
 	public function test_normalize_asset_input_with_empty_handle_in_asset_definition_single_input(): void {
 		// Arrange
 		$input = array(
-			'handle' => '', // Empty handle in asset definition
-			'hook' => 'wp_enqueue_scripts',
+			'handle'   => '', // Empty handle in asset definition
+			'hook'     => 'wp_enqueue_scripts',
 			'priority' => 10
 		);
 
@@ -2490,7 +2490,7 @@ class AssetEnqueueBaseTraitCoreTest extends EnqueueTraitTestCase {
 	public function test_process_single_removal_throws_exception_for_missing_handle(): void {
 		// Arrange
 		$asset_definition = array('src' => 'test.js'); // Missing handle
-		$asset_type = AssetType::Script;
+		$asset_type       = AssetType::Script;
 
 		// Act & Assert
 		$this->expectException(\InvalidArgumentException::class);
@@ -2505,7 +2505,7 @@ class AssetEnqueueBaseTraitCoreTest extends EnqueueTraitTestCase {
 	public function test_process_single_removal_throws_exception_for_non_string_handle(): void {
 		// Arrange
 		$asset_definition = array('handle' => 123); // Non-string handle
-		$asset_type = AssetType::Style;
+		$asset_type       = AssetType::Style;
 
 		// Act & Assert
 		$this->expectException(\InvalidArgumentException::class);
@@ -2520,7 +2520,7 @@ class AssetEnqueueBaseTraitCoreTest extends EnqueueTraitTestCase {
 	public function test_process_single_removal_throws_exception_for_empty_handle(): void {
 		// Arrange
 		$asset_definition = array('handle' => ''); // Empty handle
-		$asset_type = AssetType::ScriptModule;
+		$asset_type       = AssetType::ScriptModule;
 
 		// Act & Assert
 		$this->expectException(\InvalidArgumentException::class);
@@ -2535,7 +2535,7 @@ class AssetEnqueueBaseTraitCoreTest extends EnqueueTraitTestCase {
 	public function test_process_single_removal_immediate_with_active_logger(): void {
 		// Arrange
 		$asset_definition = array(
-			'handle' => 'test-script',
+			'handle'    => 'test-script',
 			'immediate' => true
 		);
 		$asset_type = AssetType::Script;
@@ -2560,7 +2560,7 @@ class AssetEnqueueBaseTraitCoreTest extends EnqueueTraitTestCase {
 	public function test_process_single_removal_immediate_with_inactive_logger(): void {
 		// Arrange
 		$asset_definition = array(
-			'handle' => 'test-style',
+			'handle'    => 'test-style',
 			'immediate' => true
 		);
 		$asset_type = AssetType::Style;
@@ -2593,7 +2593,7 @@ class AssetEnqueueBaseTraitCoreTest extends EnqueueTraitTestCase {
 	public function test_process_single_removal_deferred_with_defaults(): void {
 		// Arrange
 		$asset_definition = array('handle' => 'test-module');
-		$asset_type = AssetType::ScriptModule;
+		$asset_type       = AssetType::ScriptModule;
 
 		// Mock _do_add_action to capture the scheduled action
 		$this->instance->shouldReceive('_do_add_action')
@@ -2617,8 +2617,8 @@ class AssetEnqueueBaseTraitCoreTest extends EnqueueTraitTestCase {
 	public function test_process_single_removal_deferred_with_custom_hook_and_priority(): void {
 		// Arrange
 		$asset_definition = array(
-			'handle' => 'custom-script',
-			'hook' => 'wp_footer',
+			'handle'   => 'custom-script',
+			'hook'     => 'wp_footer',
 			'priority' => 20
 		);
 		$asset_type = AssetType::Script;
@@ -2645,7 +2645,7 @@ class AssetEnqueueBaseTraitCoreTest extends EnqueueTraitTestCase {
 	public function test_process_single_removal_deferred_with_inactive_logger(): void {
 		// Arrange
 		$asset_definition = array('handle' => 'test-style');
-		$asset_type = AssetType::Style;
+		$asset_type       = AssetType::Style;
 
 		// Create inactive logger
 		$inactive_logger = Mockery::mock(CollectingLogger::class);
@@ -2697,7 +2697,7 @@ class AssetEnqueueBaseTraitCoreTest extends EnqueueTraitTestCase {
 				->once();
 
 			$asset_definition = array(
-				'handle' => 'test-' . $case['asset_type']->value,
+				'handle'    => 'test-' . $case['asset_type']->value,
 				'immediate' => true
 			);
 
@@ -2722,12 +2722,12 @@ class AssetEnqueueBaseTraitCoreTest extends EnqueueTraitTestCase {
 	 */
 	public function test_do_enqueue_uses_script_module_functions_for_script_modules(): void {
 		// Arrange
-		$handle = 'test-module';
-		$src = 'path/to/module.js';
-		$deps = array('dependency-module');
-		$ver = '1.0.0';
+		$handle     = 'test-module';
+		$src        = 'path/to/module.js';
+		$deps       = array('dependency-module');
+		$ver        = '1.0.0';
 		$extra_args = array();
-		$context = 'TestContext';
+		$context    = 'TestContext';
 		$asset_type = AssetType::ScriptModule;
 
 		// Mock the _module_is method to return false (not enqueued, not registered)
@@ -2767,7 +2767,7 @@ class AssetEnqueueBaseTraitCoreTest extends EnqueueTraitTestCase {
 
 		// Assert
 		$this->assertTrue($result, 'Should return true for successful enqueue');
-		$this->expectLog('warning', array("was not registered before enqueuing. Registering now."), 1);
+		$this->expectLog('warning', array('was not registered before enqueuing. Registering now.'), 1);
 		$this->expectLog('debug', array('Enqueuing script_module'), 1);
 	}
 
@@ -2777,12 +2777,12 @@ class AssetEnqueueBaseTraitCoreTest extends EnqueueTraitTestCase {
 	 */
 	public function test_do_enqueue_tracks_script_module_in_internal_registry(): void {
 		// Arrange
-		$handle = 'test-module';
-		$src = 'path/to/module.js';
-		$deps = array();
-		$ver = '1.0.0';
+		$handle     = 'test-module';
+		$src        = 'path/to/module.js';
+		$deps       = array();
+		$ver        = '1.0.0';
 		$extra_args = array();
-		$context = 'TestContext';
+		$context    = 'TestContext';
 		$asset_type = AssetType::ScriptModule;
 
 		// Mock the _module_is method to return false (not enqueued, not registered)
@@ -2837,9 +2837,9 @@ class AssetEnqueueBaseTraitCoreTest extends EnqueueTraitTestCase {
 	 */
 	public function test_do_enqueue_skips_already_enqueued_script_module(): void {
 		// Arrange
-		$handle = 'already-enqueued-module';
+		$handle     = 'already-enqueued-module';
 		$asset_type = AssetType::ScriptModule;
-		$context = 'TestContext';
+		$context    = 'TestContext';
 
 		// Mock the _module_is method to return true (already enqueued)
 		$this->instance->shouldReceive('_module_is')
@@ -2874,12 +2874,12 @@ class AssetEnqueueBaseTraitCoreTest extends EnqueueTraitTestCase {
 	 */
 	public function test_do_register_uses_script_module_functions_for_script_modules(): void {
 		// Arrange
-		$handle = 'test-module';
-		$src = 'path/to/module.js';
-		$deps = array('dependency-module');
-		$ver = '1.0.0';
+		$handle     = 'test-module';
+		$src        = 'path/to/module.js';
+		$deps       = array('dependency-module');
+		$ver        = '1.0.0';
 		$extra_args = array();
-		$context = 'TestContext';
+		$context    = 'TestContext';
 		$asset_type = AssetType::ScriptModule;
 
 		// Mock the _module_is method to return false (not registered)
@@ -2917,12 +2917,12 @@ class AssetEnqueueBaseTraitCoreTest extends EnqueueTraitTestCase {
 	 */
 	public function test_do_register_tracks_script_module_in_internal_registry(): void {
 		// Arrange
-		$handle = 'test-module';
-		$src = 'path/to/module.js';
-		$deps = array();
-		$ver = '1.0.0';
+		$handle     = 'test-module';
+		$src        = 'path/to/module.js';
+		$deps       = array();
+		$ver        = '1.0.0';
 		$extra_args = array();
-		$context = 'TestContext';
+		$context    = 'TestContext';
 		$asset_type = AssetType::ScriptModule;
 
 		// Mock the _module_is method to return false (not registered)
@@ -2967,9 +2967,9 @@ class AssetEnqueueBaseTraitCoreTest extends EnqueueTraitTestCase {
 	 */
 	public function test_do_register_skips_already_registered_script_module(): void {
 		// Arrange
-		$handle = 'already-registered-module';
+		$handle     = 'already-registered-module';
 		$asset_type = AssetType::ScriptModule;
-		$context = 'TestContext';
+		$context    = 'TestContext';
 
 		// Mock the _module_is method to return true (already registered)
 		$this->instance->shouldReceive('_module_is')
@@ -3003,12 +3003,12 @@ class AssetEnqueueBaseTraitCoreTest extends EnqueueTraitTestCase {
 	 */
 	public function test_do_register_handles_script_module_registration_failure(): void {
 		// Arrange
-		$handle = 'failing-module';
-		$src = 'path/to/module.js';
-		$deps = array();
-		$ver = '1.0.0';
+		$handle     = 'failing-module';
+		$src        = 'path/to/module.js';
+		$deps       = array();
+		$ver        = '1.0.0';
 		$extra_args = array();
-		$context = 'TestContext';
+		$context    = 'TestContext';
 		$asset_type = AssetType::ScriptModule;
 
 		// Mock the _module_is method to return false (not registered)
@@ -3046,12 +3046,12 @@ class AssetEnqueueBaseTraitCoreTest extends EnqueueTraitTestCase {
 	 */
 	public function test_do_enqueue_handles_script_module_enqueue_failure(): void {
 		// Arrange
-		$handle = 'failing-enqueue-module';
-		$src = 'path/to/module.js';
-		$deps = array();
-		$ver = '1.0.0';
+		$handle     = 'failing-enqueue-module';
+		$src        = 'path/to/module.js';
+		$deps       = array();
+		$ver        = '1.0.0';
 		$extra_args = array();
-		$context = 'TestContext';
+		$context    = 'TestContext';
 		$asset_type = AssetType::ScriptModule;
 
 		// Mock the _module_is method
