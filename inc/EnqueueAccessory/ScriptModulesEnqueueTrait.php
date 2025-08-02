@@ -1,6 +1,6 @@
 <?php
 /**
- * Trait ScriptModulesEnqueueTrait
+ * Trait ScriptModulesEnqueueTrait (experimental)
  *
  * @package Ran\PluginLib\EnqueueAccessory
  * @author  Ran Plugin Lib
@@ -15,11 +15,13 @@ namespace Ran\PluginLib\EnqueueAccessory;
 use Ran\PluginLib\EnqueueAccessory\AssetType;
 
 /**
- * Trait ScriptModulesEnqueueTrait
+ * Trait ScriptModulesEnqueueTrait (experimental)
  *
  * Manages the registration, enqueuing, and processing of JavaScript module assets.
- * This trait provides script module support using Wor without dequeuing them firstdPress's native Script Modules API
- * introduced in WordPress 6.5.
+ *
+ * This trait provides script module support using WordPress's native Script Modules API
+ * introduced in WordPress 6.5. Admin support was added in WordPress 6.7,
+ * and module_data was added in WordPress 6.7.
  *
  * Key differences from ScriptsEnqueueTrait:
  * - Uses wp_register_script_module() and wp_enqueue_script_module() instead of script functions
@@ -31,6 +33,9 @@ use Ran\PluginLib\EnqueueAccessory\AssetType;
  *
  * Script modules are completely separate from regular scripts in WordPress - they cannot
  * depend on each other and use different registration/enqueuing systems.
+ *
+ * NOTE: This trait is experimental and may change in future versions, as module support in WordPress is still in development.
+ * One noteable limitation is wp_script_module_is() is not available as of WordPress 6.7, so a temporary shim is provided.
  *
  * @package Ran\PluginLib\EnqueueAccessory
  * @since WordPress 6.5 (Script Modules API)
@@ -357,5 +362,56 @@ trait ScriptModulesEnqueueTrait {
 				}
 			}
 		}
+	}
+
+	/**
+	 * Temporary stand-in for the future wp_script_module_is() function (or equivalent).
+	 *
+	 * WordPress doesn't currently provide wp_script_module_is() for status checking,
+	 * so this method acts as a temporary placeholder that allows us to unify the code flow
+	 * across all asset types. When WordPress adds wp_script_module_is(), this method
+	 * can be easily replaced.
+	 *
+	 * IMPORTANT LIMITATION: This method only tracks script modules that have been
+	 * registered or enqueued through this AssetEnqueueBaseTrait instance. Script modules
+	 * registered by other plugins, themes, or WordPress core will not be tracked in our
+	 * internal registry and will return false even if they exist in WordPress.
+	 *
+	 * This limitation is acceptable because:
+	 * - WordPress dequeue/deregister functions handle missing modules gracefully
+	 * - Our tracking scope is limited to modules we manage
+	 * - This behavior will be replaced when WordPress provides wp_script_module_is()
+	 *
+	 * @param string $handle The script module handle to check.
+	 * @param string $status The status to check: 'registered' or 'enqueued'.
+	 * @return bool Returns registration status based on internal tracking only.
+	 *              Does NOT reflect modules registered by external code.
+	 *
+	 * @todo Replace with wp_script_module_is() when WordPress core provides it.
+	 *
+	 * @codeCoverageIgnore This is a temporary shim/placeholder for WordPress core functionality
+	 */
+	protected function _module_is(string $handle, string $status): bool {
+		// TODO: Replace with wp_script_module_is($handle, $status) - or whatever fills this gap when available
+
+		// Initialize internal registry if not exists
+		if (!isset($this->_script_module_registry)) {
+			$this->_script_module_registry = array('registered' => array(), 'enqueued' => array());
+		}
+
+		// Check our internal registry
+		$is_tracked = in_array($handle, $this->_script_module_registry[$status] ?? array(), true);
+
+		// Log warning if we're checking status for a module we haven't tracked
+		// This alerts developers that the module might be registered externally
+		if (!$is_tracked && $this->get_logger()->is_active()) {
+			$this->get_logger()->debug(
+				"AssetEnqueueBaseTrait::_module_is() - Script module '{$handle}' not found in internal {$status} registry. "
+				. "This may indicate the module was {$status} by external code (other plugins/themes/core). "
+				. 'WordPress will handle the operation gracefully regardless.'
+			);
+		}
+
+		return $is_tracked;
 	}
 }
