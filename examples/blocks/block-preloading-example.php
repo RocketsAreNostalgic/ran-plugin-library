@@ -3,8 +3,8 @@
  * Example: Block Asset Preloading Usage
  *
  * This example demonstrates how to use the Block Asset Preloading feature
- * with the BlockRegistrar class to improve performance by preloading critical
- * block assets.
+ * with both the modern BlockFactory/Block API and the underlying BlockRegistrar.
+ * The BlockFactory/Block approach is recommended for new code.
  *
  * For a comprehensive comparison of WordPress built-in capabilities vs
  * BlockRegistrar additions, see: wordpress-vs-blockregistrar-conditional-loading.php
@@ -19,15 +19,101 @@
 declare(strict_types=1);
 
 use Ran\PluginLib\EnqueueAccessory\BlockRegistrar;
+use Ran\PluginLib\EnqueueAccessory\BlockFactory;
+use Ran\PluginLib\EnqueueAccessory\Block;
 use Ran\PluginLib\Config\ConfigInterface;
 
 // Assuming you have a config instance
 /** @var ConfigInterface $config */
 
-// Create BlockRegistrar instance
+// MODERN APPROACH: BlockFactory/Block API (Recommended)
+// =====================================================
+
+// Create BlockFactory instance (creates shared instance)
+$blockManager = new BlockFactory($config);
+
+// ALTERNATIVE: Direct BlockRegistrar API (Lower-level)
+// ===================================================
+
+// Create BlockRegistrar instance for direct usage
 $block_registrar = new BlockRegistrar($config);
 
-// Example 1: Always preload block assets
+// =====================================================
+// MODERN EXAMPLES: BlockFactory/Block API
+// =====================================================
+
+// Example 1A: Always preload block assets (Modern API)
+$heroBlock = new Block('my-plugin/hero-block');
+$heroBlock
+	->add_script(array(
+		'handle' => 'hero-script',
+		'src'    => 'assets/js/hero-block.js',
+		'deps'   => array('wp-blocks', 'wp-element')
+	))
+	->add_style(array(
+		'handle' => 'hero-style',
+		'src'    => 'assets/css/hero-block.css'
+	))
+	->preload(true); // Always preload this block's assets
+
+// Example 2A: Conditionally preload block assets (Modern API)
+$ctaBlock = new Block('my-plugin/cta-block');
+$ctaBlock
+	->add_script(array(
+		'handle' => 'cta-script',
+		'src'    => array(
+			'dev'  => 'assets/js/cta-block.js',
+			'prod' => 'assets/js/cta-block.min.js'
+		),
+		'deps' => array('wp-blocks')
+	))
+	->add_style(array(
+		'handle' => 'cta-style',
+		'src'    => array(
+			'dev'  => 'assets/css/cta-block.css',
+			'prod' => 'assets/css/cta-block.min.css'
+		)
+	))
+	->preload(function() {
+		// Only preload on front page and landing pages
+		return is_front_page() || is_page_template('page-landing.php');
+	});
+
+// Example 3A: Block without preloading (Modern API)
+$testimonialBlock = new Block('my-plugin/testimonial-block');
+$testimonialBlock
+	->add_script(array(
+		'handle' => 'testimonial-script',
+		'src'    => 'assets/js/testimonial-block.js'
+	));
+// No preload() call means no preloading (default behavior)
+
+// =====================================================
+// REGISTRATION: Modern BlockFactory/Block API
+// =====================================================
+
+// Register all blocks using BlockFactory
+$results = $blockManager->register();
+
+// Or register individual blocks
+// $heroResult = $heroBlock->register();
+// $ctaResult = $ctaBlock->register();
+// $testimonialResult = $testimonialBlock->register();
+
+// Check registration results
+foreach ($results as $blockName => $result) {
+	if ($result instanceof WP_Block_Type) {
+		echo "Block {$blockName} registered successfully\n";
+	} else {
+		echo "Block {$blockName} registration failed\n";
+	}
+}
+
+// =====================================================
+// ALTERNATIVE: Direct BlockRegistrar API Examples
+// =====================================================
+
+// Example 1B: Always preload block assets (Direct API)
 $hero_block = array(
     'block_name' => 'my-plugin/hero-block',
     'preload'    => true, // Always preload this block's assets
@@ -48,7 +134,7 @@ $hero_block = array(
     )
 );
 
-// Example 2: Conditionally preload block assets
+// Example 2B: Conditionally preload block assets (Direct API)
 $cta_block = array(
     'block_name' => 'my-plugin/cta-block',
     'preload'    => function() {
@@ -78,7 +164,7 @@ $cta_block = array(
     )
 );
 
-// Example 3: Block without preloading (default behavior)
+// Example 3B: Block without preloading (Direct API)
 $testimonial_block = array(
     'block_name' => 'my-plugin/testimonial-block',
     // No 'preload' key means no preloading
@@ -92,7 +178,7 @@ $testimonial_block = array(
     )
 );
 
-// Example 4: Inherit preload condition from block registration
+// Example 4B: Inherit preload condition from block registration (Direct API)
 $admin_block = array(
     'block_name' => 'my-plugin/admin-block',
     'condition'  => function() {

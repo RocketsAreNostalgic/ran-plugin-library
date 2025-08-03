@@ -1,14 +1,20 @@
 <?php
 /**
- * Example: WP_Block_Type Collection Usage
+ * Example: WP_Block_Type Collection Usage Examples
  *
- * This example demonstrates how to use the BlockRegistrar's WP_Block_Type collection
- * functionality to access and work with successfully registered block objects.
+ * This file demonstrates how to work with collections of WP_Block_Type objects
+ * returned by BlockRegistrar methods, including filtering, iteration, and
+ * bulk operations.
  *
- * @package Ran\PluginLib
+ * Shows both the modern BlockFactory/Block API and the direct BlockRegistrar approach.
+ * The BlockFactory/Block approach is recommended for new code.
+ *
+ * @package RanPluginLib
  * @since 1.0.0
  */
 
+use Ran\PluginLib\EnqueueAccessory\Block;
+use Ran\PluginLib\EnqueueAccessory\BlockFactory;
 use Ran\PluginLib\EnqueueAccessory\BlockRegistrar;
 use Ran\PluginLib\Config\ConfigInterface;
 
@@ -78,16 +84,16 @@ $block_registrar->stage();
 add_action('wp_loaded', function() use ($block_registrar) {
 	// Example 1: Get all registered block types
 	$all_blocks = $block_registrar->get_registered_block_types();
-    
+
 	echo '<!-- Registered ' . count($all_blocks) . " blocks -->\n";
-    
+
 	foreach ($all_blocks as $block_name => $wp_block_type) {
 		echo "<!-- Block: {$block_name} -->\n";
 	}
-    
+
 	// Example 2: Get a specific block type
 	$hero_block = $block_registrar->get_registered_block_type('my-plugin/hero-banner');
-    
+
 	if ($hero_block instanceof WP_Block_Type) {
 		// Example 3: Runtime Block Introspection
 		echo "<!-- Hero Banner Block Details:\n";
@@ -97,7 +103,7 @@ add_action('wp_loaded', function() use ($block_registrar) {
 		echo 'Has Editor Script: ' . (isset($hero_block->editor_script) ? 'Yes' : 'No') . "\n";
 		echo 'Has View Script: ' . (isset($hero_block->view_script) ? 'Yes' : 'No') . "\n";
 		echo "-->\n";
-        
+
 		// Example 4: Attribute Validation
 		$default_attributes = array();
 		if (isset($hero_block->attributes)) {
@@ -108,23 +114,23 @@ add_action('wp_loaded', function() use ($block_registrar) {
 			}
 		}
 		echo '<!-- Default Attributes: ' . json_encode($default_attributes) . " -->\n";
-        
+
 		// Example 5: Dynamic Block Rendering
 		if (is_callable(array($hero_block, 'render'))) {
 			$sample_attributes = array(
 			    'title'           => 'Dynamic Hero Title',
 			    'backgroundImage' => '/images/hero-bg.jpg'
 			);
-            
+
 			// Note: This would typically be done in a proper rendering context
 			// $rendered_content = $hero_block->render($sample_attributes);
 		}
 	}
-    
+
 	// Example 6: Block Relationship Analysis
 	$blocks_with_scripts = array();
 	$blocks_with_styles  = array();
-    
+
 	foreach ($all_blocks as $block_name => $wp_block_type) {
 		if (isset($wp_block_type->editor_script) || isset($wp_block_type->view_script)) {
 			$blocks_with_scripts[] = $block_name;
@@ -133,20 +139,20 @@ add_action('wp_loaded', function() use ($block_registrar) {
 			$blocks_with_styles[] = $block_name;
 		}
 	}
-    
+
 	echo '<!-- Blocks with Scripts: ' . implode(', ', $blocks_with_scripts) . " -->\n";
 	echo '<!-- Blocks with Styles: ' . implode(', ', $blocks_with_styles) . " -->\n";
-    
+
 	// Example 7: Asset Handle Access
 	$testimonial_block = $block_registrar->get_registered_block_type('my-plugin/testimonial');
 	if ($testimonial_block && isset($testimonial_block->view_script)) {
 		$script_handle = $testimonial_block->view_script;
 		echo "<!-- Testimonial script handle: {$script_handle} -->\n";
-        
+
 		// You could use this handle for advanced asset management
 		// wp_localize_script($script_handle, 'testimonialConfig', $custom_config);
 	}
-    
+
 	// Example 8: Theme Integration
 	if (current_theme_supports('custom-blocks')) {
 		$theme_supported_blocks = array();
@@ -158,7 +164,7 @@ add_action('wp_loaded', function() use ($block_registrar) {
 		}
 		echo '<!-- Theme supported blocks: ' . implode(', ', $theme_supported_blocks) . " -->\n";
 	}
-    
+
 	// Example 9: Debugging Information
 	if (defined('WP_DEBUG') && WP_DEBUG) {
 		foreach ($all_blocks as $block_name => $wp_block_type) {
@@ -172,7 +178,7 @@ add_action('wp_loaded', function() use ($block_registrar) {
 			echo "<!-- DEBUG {$block_name}: " . json_encode($debug_info) . " -->\n";
 		}
 	}
-    
+
 	// Example 10: Custom Block Editor Integration
 	add_action('enqueue_block_editor_assets', function() use ($all_blocks) {
 		// Pass block metadata to custom editor components
@@ -185,7 +191,7 @@ add_action('wp_loaded', function() use ($block_registrar) {
 			    'attributes'  => $wp_block_type->attributes ?? array()
 			);
 		}
-        
+
 		wp_localize_script(
 			'wp-blocks',
 			'myPluginBlockMetadata',
@@ -197,7 +203,7 @@ add_action('wp_loaded', function() use ($block_registrar) {
 // Example 11: Plugin Extension Hook
 add_action('my_plugin_extend_blocks', function() use ($block_registrar) {
 	$hero_block = $block_registrar->get_registered_block_type('my-plugin/hero-banner');
-    
+
 	if ($hero_block) {
 		// Extend the block with additional functionality
 		add_filter('render_block_my-plugin/hero-banner', function($block_content, $block) use ($hero_block) {
@@ -214,7 +220,7 @@ add_action('my_plugin_extend_blocks', function() use ($block_registrar) {
 // Example 12: Block Variations Management
 add_action('init', function() use ($block_registrar) {
 	$testimonial_block = $block_registrar->get_registered_block_type('my-plugin/testimonial');
-    
+
 	if ($testimonial_block) {
 		// Register block variations based on the registered block
 		wp_register_block_pattern(
