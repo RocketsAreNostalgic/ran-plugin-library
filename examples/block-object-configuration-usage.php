@@ -266,7 +266,7 @@ function my_plugin_render_gallery_block(array $attributes, string $content): str
 	$images       = $attributes['images'] ?? array();
 	$columns      = intval($attributes['columns'] ?? 3);
 	$showCaptions = $attributes['showCaptions'] ?? true;
-	$lightbox     = $attributes['lightbox'] ?? true;
+	$lightbox     = $attributes['lightbox']     ?? true;
 
 	if (empty($images)) {
 		return '<p>No images selected for gallery.</p>';
