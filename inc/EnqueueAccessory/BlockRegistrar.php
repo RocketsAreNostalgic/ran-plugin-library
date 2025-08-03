@@ -280,10 +280,29 @@ class BlockRegistrar extends AssetEnqueueBaseAbstract {
 	 *
 	 * This method stages the block registrar and enqueues immediate assets.
 	 *
+	 * @deprecated Use register() instead for better semantic clarity.
 	 * @return void
 	 */
 	public function load(): void {
 		$this->stage();
+	}
+
+	/**
+	 * Register blocks with WordPress.
+	 *
+	 * This method stages the block registrar and sets up WordPress hooks
+	 * for block registration. This is the preferred method name for
+	 * semantic clarity over load().
+	 *
+	 * @return array<string, \WP_Block_Type|false> Array of registration results indexed by block name.
+	 *                                            WP_Block_Type on success, false on failure.
+	 */
+	public function register(): array {
+		$this->stage();
+
+		// Return the registration results
+		// Note: This may be empty if blocks are registered on hooks that haven't fired yet
+		return $this->_get_registration_results();
 	}
 
 	/**
@@ -317,6 +336,112 @@ class BlockRegistrar extends AssetEnqueueBaseAbstract {
 	 */
 	public function get_registered_block_type(string $block_name): ?\WP_Block_Type {
 		return $this->registered_wp_block_types[$block_name] ?? null;
+	}
+
+	/**
+	 * Get registration results for all blocks.
+	 *
+	 * Returns an array of registration results indexed by block name.
+	 * Successful registrations return WP_Block_Type objects, failed
+	 * registrations return false.
+	 *
+	 * @return array<string, \WP_Block_Type|false> Registration results.
+	 */
+	private function _get_registration_results(): array {
+		$results = array();
+		
+		// Iterate over the nested blocks structure: hook -> priority -> blocks
+		foreach ($this->blocks as $hook => $priorities) {
+			foreach ($priorities as $priority => $block_definitions) {
+				foreach ($block_definitions as $block_definition) {
+					$block_name = $block_definition['block_name'];
+					
+					// If successfully registered, include the WP_Block_Type object
+					if (isset($this->registered_wp_block_types[$block_name])) {
+						$results[$block_name] = $this->registered_wp_block_types[$block_name];
+					} else {
+						// If not registered (failed), mark as false
+						$results[$block_name] = false;
+					}
+				}
+			}
+		}
+		
+		return $results;
+	}
+
+	/**
+	 * Get comprehensive status for all blocks.
+	 *
+	 * Returns detailed status information for all blocks including their
+	 * registration state, hook configuration, and registration results.
+	 * Useful for debugging and monitoring block registration lifecycle.
+	 *
+	 * @return array<string, array> Block status information indexed by block name.
+	 *                              Each entry contains: status, hook, priority, and additional data.
+	 */
+	public function get_block_status(): array {
+		$status = array();
+		
+		// Process all staged blocks (including deferred ones)
+		foreach ($this->blocks as $hook => $priorities) {
+			foreach ($priorities as $priority => $block_definitions) {
+				foreach ($block_definitions as $block_definition) {
+					$block_name = $block_definition['block_name'];
+					
+					// Determine current status
+					if (isset($this->registered_wp_block_types[$block_name])) {
+						// Successfully registered with WordPress
+						$status[$block_name] = array(
+							'status'        => 'registered',
+							'hook'          => $hook,
+							'priority'      => $priority,
+							'wp_block_type' => $this->registered_wp_block_types[$block_name],
+							'registered_at' => $this->registered_wp_block_types[$block_name]->name ?? null
+						);
+					} elseif ($this->_has_hook_fired($hook)) {
+						// Hook has fired but registration failed
+						$status[$block_name] = array(
+							'status'   => 'failed',
+							'hook'     => $hook,
+							'priority' => $priority,
+							'error'    => 'WordPress registration failed'
+						);
+					} else {
+						// Hook hasn't fired yet - block is pending
+						$status[$block_name] = array(
+							'status'   => 'pending',
+							'hook'     => $hook,
+							'priority' => $priority,
+							'message'  => "Waiting for '{$hook}' hook to fire"
+						);
+					}
+					
+					// Add additional metadata
+					$status[$block_name]['config']          = $block_definition;
+					$status[$block_name]['has_assets']      = isset($block_definition['assets']);
+					$status[$block_name]['has_condition']   = isset($block_definition['condition']);
+					$status[$block_name]['preload_enabled'] = isset($block_definition['preload']);
+				}
+			}
+		}
+		
+		return $status;
+	}
+
+	/**
+	 * Check if a WordPress hook has already fired.
+	 *
+	 * Uses WordPress's did_action() function to determine if a hook has been executed.
+	 * This works for both core WordPress hooks and custom hooks.
+	 *
+	 * @param string $hook_name The hook name to check.
+	 * @return bool True if the hook has fired, false otherwise.
+	 */
+	private function _has_hook_fired(string $hook_name): bool {
+		// Use did_action() to check if the hook has fired
+		// Returns the number of times the hook has been executed
+		return did_action($hook_name) > 0;
 	}
 
 	/**
