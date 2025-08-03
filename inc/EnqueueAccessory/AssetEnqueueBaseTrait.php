@@ -1176,60 +1176,52 @@ trait AssetEnqueueBaseTrait {
 		// mappings are static during a request and the cache is cleared at request end.
 		$cache_key = 'url_to_path_' . md5($url);
 		return $this->_cache_for_request($cache_key, function() use ($url) {
-			return $this->_resolve_url_to_path_uncached($url);
+			$logger  = $this->get_logger();
+			$context = get_class($this) . '::_resolve_url_to_path';
+
+			// Use content_url() and WP_CONTENT_DIR for robust path resolution in
+			// single and multisite environments.
+			$content_url = $this->_cache_for_request('content_url', function() {
+				return \content_url();
+			});
+			$content_dir = \WP_CONTENT_DIR;
+
+			// Check if the asset URL is within the content directory.
+			if (strpos($url, $content_url) === 0) {
+				$file_path       = str_replace($content_url, $content_dir, $url);
+				$normalized_path = wp_normalize_path($file_path);
+
+				if ($logger->is_active()) {
+					$logger->debug("{$context} - Resolved URL to path: '{$url}' -> '{$normalized_path}'.");
+				}
+				return $normalized_path;
+			}
+
+			// Fallback for URLs outside of wp-content, e.g., in wp-includes.
+			// This is less common for plugin/theme assets but adds robustness.
+			$site_url = $this->_cache_for_request('site_url', function() {
+				return \site_url();
+			});
+			if (strpos($url, $site_url) === 0) {
+				$relative_path   = substr($url, strlen($site_url));
+				$file_path       = ABSPATH . ltrim($relative_path, '/');
+				$normalized_path = wp_normalize_path($file_path);
+
+				if ($logger->is_active()) {
+					$logger->debug("{$context} - Resolved URL to path (fallback): '{$url}' -> '{$normalized_path}'.");
+				}
+				return $normalized_path;
+			}
+
+			if ($logger->is_active()) {
+				$logger->warning("{$context} - Could not resolve URL to path: '{$url}'. URL does not start with content_url ('{$content_url}') or site_url ('{$site_url}').");
+			}
+
+			return false;
 		});
 	}
 
-	/**
-	 * Internal method that performs the actual URL-to-path resolution without caching.
-	 *
-	 * @param string $url The asset URL to resolve.
-	 * @return string|false The absolute file path, or false if resolution fails.
-	 */
-	protected function _resolve_url_to_path_uncached(string $url): string|false {
-		$logger  = $this->get_logger();
-		$context = get_class($this) . '::' . __METHOD__;
 
-		// Use content_url() and WP_CONTENT_DIR for robust path resolution in
-		// single and multisite environments.
-		$content_url = $this->_cache_for_request('content_url', function() {
-			return \content_url();
-		});
-		$content_dir = \WP_CONTENT_DIR;
-
-		// Check if the asset URL is within the content directory.
-		if (strpos($url, $content_url) === 0) {
-			$file_path       = str_replace($content_url, $content_dir, $url);
-			$normalized_path = wp_normalize_path($file_path);
-
-			if ($logger->is_active()) {
-				$logger->debug("{$context} - Resolved URL to path: '{$url}' -> '{$normalized_path}'.");
-			}
-			return $normalized_path;
-		}
-
-		// Fallback for URLs outside of wp-content, e.g., in wp-includes.
-		// This is less common for plugin/theme assets but adds robustness.
-		$site_url = $this->_cache_for_request('site_url', function() {
-			return \site_url();
-		});
-		if (strpos($url, $site_url) === 0) {
-			$relative_path   = substr($url, strlen($site_url));
-			$file_path       = ABSPATH . ltrim($relative_path, '/');
-			$normalized_path = wp_normalize_path($file_path);
-
-			if ($logger->is_active()) {
-				$logger->debug("{$context} - Resolved URL to path (fallback): '{$url}' -> '{$normalized_path}'.");
-			}
-			return $normalized_path;
-		}
-
-		if ($logger->is_active()) {
-			$logger->warning("{$context} - Could not resolve URL to path: '{$url}'. URL does not start with content_url ('{$content_url}') or site_url ('{$site_url}').");
-		}
-
-		return false;
-	}
 
 	// ------------------------------------------------------------------------
 	// FILESYSTEM WRAPPERS FOR TESTABILITY
