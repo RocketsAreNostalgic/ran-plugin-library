@@ -10,7 +10,27 @@ The library is **approximately 75% complete** with core infrastructure in place.
 
 ---
 
+## 🎯 High Priority - Project rename to `orbital`
+
+**Status**: 🟡 In Progress
+**Priority**: High
+
 ## 🎯 High Priority - EnqueueAccessory System
+
+### ScriptModulesTrait Completion
+
+**Status**: 🟡 Partially Complete
+**Priority**: High
+
+- ✅ `ScriptModulesEnqueueTrait` implemented
+- ✅ Basic module registration and enqueuing working
+- ✅ Module data passing via `script_module_data_{$module_id}` filter
+- ✅ Validation and warnings for unsupported features
+- ✅ Basic documentation and examples
+- ❌ Comprehensive unit tests
+- ❌ Integration tests with WordPress
+- ❌ Advanced error handling scenarios
+- ✅ Documentation and usage examples in ADR-009
 
 ### MediaTrait Completion
 
@@ -45,8 +65,10 @@ The library is **approximately 75% complete** with core infrastructure in place.
 - ✅ `BlockAssetTrait` functionality complete
 - ✅ WordPress integration patterns established
 - ✅ ADR-002 timing documentation complete
-- ❌ Unit tests need updates for recent refactoring
-- ❌ Integration tests needed
+- ❌ Block Bindings
+- ❌ Block Variations
+- ❌ Unit tests
+- ❌ Integration tests
 
 **Tasks:**
 
