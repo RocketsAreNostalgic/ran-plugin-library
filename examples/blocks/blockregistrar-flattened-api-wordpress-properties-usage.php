@@ -2,14 +2,73 @@
 /**
  * BlockRegistrar Flattened API Usage Examples
  *
- * This file demonstrates the new flattened API that allows WordPress block properties
+ * This file demonstrates the flattened API that allows WordPress block properties
  * and arbitrary custom properties to be specified at the top level, making the API
  * more natural and WordPress-like.
+ *
+ * Shows both the modern BlockFactory/Block API and the direct BlockRegistrar approach.
+ * The BlockFactory/Block approach is recommended for new code.
  *
  * @package RanPluginLib
  */
 
-// Example 1: Basic Block with WordPress Properties
+use Ran\PluginLib\EnqueueAccessory\Block;
+use Ran\PluginLib\EnqueueAccessory\BlockFactory;
+use Ran\PluginLib\EnqueueAccessory\BlockRegistrar;
+
+// =====================================================
+// MODERN APPROACH: BlockFactory/Block API (Recommended)
+// =====================================================
+
+// Example 1A: Basic Block with WordPress Properties (Modern API)
+function example_basic_flattened_api_modern() {
+	// Create block using modern API
+	$heroBlock = new Block('my-plugin/hero-block');
+
+	// WordPress block properties can be set directly
+	$heroBlock
+		->set('title', 'Hero Block')
+		->set('description', 'A customizable hero section block')
+		->category('design')
+		->icon('cover-image')
+		->set('keywords', array('hero', 'banner', 'header'))
+		->set('supports', array(
+			'align' => array('wide', 'full'),
+			'color' => array(
+				'background' => true,
+				'text'       => true
+			)
+		))
+		->attributes(array(
+			'heading' => array(
+				'type'    => 'string',
+				'default' => 'Welcome'
+			),
+			'backgroundImage' => array(
+				'type' => 'string'
+			)
+		))
+		->render_callback('render_hero_block')
+		// Asset management with modern API
+		->add_script(array(
+			'handle' => 'hero-frontend',
+			'src'    => array('dev' => 'src/hero.js', 'prod' => 'dist/hero.min.js'),
+			'deps'   => array('jquery')
+		))
+		->add_style(array(
+			'handle' => 'hero-styles',
+			'src'    => array('dev' => 'src/hero.css', 'prod' => 'dist/hero.min.css')
+		))
+		->preload(true);
+
+	return $heroBlock;
+}
+
+// =====================================================
+// ALTERNATIVE: Direct BlockRegistrar API
+// =====================================================
+
+// Example 1B: Basic Block with WordPress Properties (Direct API)
 function example_basic_flattened_api($block_registrar) {
 	$block_registrar->add(array(
 	    'block_name' => 'my-plugin/hero-block',
