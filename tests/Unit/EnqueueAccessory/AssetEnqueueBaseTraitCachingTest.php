@@ -752,7 +752,7 @@ class AssetEnqueueBaseTraitCachingTest extends EnqueueTraitTestCase {
 
 		// Verify warning was logged for external URL
 		$this->expectLog('warning', array(
-			'_resolve_url_to_path_uncached - Could not resolve URL to path',
+			'_resolve_url_to_path - Could not resolve URL to path',
 			'https://external-site.com/script.js'
 		), 1);
 	}

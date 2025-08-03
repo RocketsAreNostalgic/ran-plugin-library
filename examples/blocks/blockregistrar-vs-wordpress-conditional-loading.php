@@ -1,13 +1,20 @@
 <?php
 /**
- * WordPress Built-in vs BlockRegistrar Conditional Asset Loading Examples
+ * WordPress vs BlockRegistrar: Conditional Loading Comparison
  *
- * This file demonstrates the difference between WordPress's built-in conditional
- * asset loading and BlockRegistrar's additional capabilities.
+ * This file demonstrates the differences between WordPress's native block registration
+ * and BlockRegistrar's enhanced conditional loading capabilities.
+ *
+ * Shows both the modern BlockFactory/Block API and the direct BlockRegistrar approach.
+ * The BlockFactory/Block approach is recommended for new code.
  *
  * @package RanPluginLib
  * @subpackage Examples
  */
+
+use Ran\PluginLib\EnqueueAccessory\Block;
+use Ran\PluginLib\EnqueueAccessory\BlockFactory;
+use Ran\PluginLib\EnqueueAccessory\BlockRegistrar;
 
 // Prevent direct access
 if (!defined('ABSPATH')) {
@@ -50,8 +57,8 @@ function example_wordpress_builtin_loading() {
  * These complement WordPress's built-in loading.
  */
 
-// Example 2: Block-Level Conditional Registration
-function example_block_level_conditions($block_registrar) {
+// Example 2: Block-Level Conditional Registration (Original Direct API)
+function example_block_level_conditions_direct($block_registrar) {
 	// WordPress CAN'T do this - register entire block conditionally
 	$block_registrar->add(array(
 	    'block_name' => 'my-plugin/admin-only-block',
@@ -262,3 +269,75 @@ function good_practice_use_blockregistrar($block_registrar) {
  * - Dynamic asset loading during render
  * - Integration with existing AssetEnqueueBase infrastructure
  */
+
+/**
+ * PART 2: WHAT BLOCKREGISTRAR ADDS
+ * =================================
+ *
+ * BlockRegistrar extends WordPress's capabilities with:
+ * - Block-level conditional registration
+ * - Custom asset conditions beyond WordPress defaults
+ * - Environment-aware loading
+ * - Asset preloading
+ * - Dynamic asset loading during render
+ *
+ * Available in two approaches:
+ * A) Modern BlockFactory/Block API (Recommended)
+ * B) Direct BlockRegistrar API (Alternative)
+ */
+
+// =====================================================
+// MODERN APPROACH: BlockFactory/Block API (Recommended)
+// =====================================================
+
+// Example 2A: Block-Level Conditional Registration (Modern API)
+function example_block_level_conditions_modern() {
+	// Create block that only registers on specific conditions
+	$adminBlock = new Block('my-plugin/admin-only-block');
+
+	$adminBlock
+		->condition(function() {
+			// Block only exists in admin area
+			return is_admin();
+		})
+		->add_script(array(
+			'handle' => 'admin-block-script',
+			'src'    => 'assets/js/admin-block.js'
+		))
+		->add_style(array(
+			'handle' => 'admin-block-style',
+			'src'    => 'assets/css/admin-block.css'
+		));
+
+	return $adminBlock;
+}
+
+// =====================================================
+// ALTERNATIVE: Direct BlockRegistrar API
+// =====================================================
+
+// Example 2B: Block-Level Conditional Registration (Direct API)
+function example_block_level_conditions_alternative($block_registrar) {
+	// Block that only registers on specific conditions
+	$block_registrar->add(array(
+	    'block_name' => 'my-plugin/admin-only-block',
+	    'condition'  => function() {
+	    	// Block only exists in admin area
+	    	return is_admin();
+	    },
+	    'assets' => array(
+	        'scripts' => array(
+	            array(
+	                'handle' => 'admin-block-script',
+	                'src'    => 'assets/js/admin-block.js'
+	            )
+	        ),
+	        'styles' => array(
+	            array(
+	                'handle' => 'admin-block-style',
+	                'src'    => 'assets/css/admin-block.css'
+	            )
+	        )
+	    )
+	));
+}
