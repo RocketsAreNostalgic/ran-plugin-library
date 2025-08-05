@@ -1,4 +1,4 @@
-# ADR-003: Specialized Handler Classes with Trait Composition
+# TFS-003: Specialized Handler Classes with Trait Composition
 
 **Date:** 2025-07-11
 **Updated:** 2025-07-18
@@ -12,7 +12,7 @@ The challenge arises when a class attempts to use multiple PHP traits that have 
 
 ## Decision
 
-Initially, we implemented a **Trait Dispatcher Pattern** as described in the original version of this ADR. However, after further development and testing, we found that this approach added unnecessary complexity and indirection.
+Initially, we implemented a **Trait Dispatcher Pattern** as described in the original version of this TFS. However, after further development and testing, we found that this approach added unnecessary complexity and indirection.
 
 Instead, we have adopted a simpler and more direct approach:
 
