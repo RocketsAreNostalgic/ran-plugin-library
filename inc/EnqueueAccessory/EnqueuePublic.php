@@ -11,7 +11,7 @@ namespace Ran\PluginLib\EnqueueAccessory;
 
 use Ran\PluginLib\Util\Logger;
 use Ran\PluginLib\Config\ConfigInterface;
-use Ran\PluginLib\EnqueueAccessory\WPWrappersTrait;
+use Ran\PluginLib\Util\WPWrappersTrait;
 use Ran\PluginLib\EnqueueAccessory\EnqueueInterface;
 
 /**
