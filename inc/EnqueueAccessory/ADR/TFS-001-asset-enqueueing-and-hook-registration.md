@@ -1,4 +1,4 @@
-# ADR-001: Asset Enqueuing and Hook Registration
+# TFS-001: Asset Enqueuing and Hook Registration
 
 **Date:** 2025-06-25
 **Status:** Accepted
@@ -21,6 +21,187 @@ This approach has several advantages:
 3. **Reduced Coupling**: Asset processing is no longer tied to the internal structure of the raw asset array
 
 The legacy helper methods (`get_head_callbacks()`, `get_footer_callbacks()`, and `get_deferred_hooks()`) have been marked as deprecated and will be removed in a future release. They are currently maintained only for backward compatibility with existing tests and implementations.
+
+## API Design
+
+### Public Interface
+
+The asset enqueueing system provides a simple, predictable API that abstracts away the complexity of WordPress hook timing:
+
+#### Core Methods
+
+```php
+// Add assets to the system
+public function add_scripts(array $scripts): self
+public function add_styles(array $styles): self
+
+// Stage assets for processing
+public function stage(): self
+
+// Enqueue immediate assets
+public function enqueue_immediate(): self
+```
+
+#### Asset Definition Format
+
+```php
+$asset_definition = [
+    'handle' => 'my-script',                    // Required: Unique identifier
+    'src' => 'path/to/script.js',              // Required: Asset source
+    'deps' => ['jquery', 'wp-api'],            // Optional: Dependencies
+    'ver' => '1.0.0',                          // Optional: Version
+    'in_footer' => true,                        // Optional: Script placement
+    'hook' => 'wp_footer',                      // Optional: Deferred hook
+    'priority' => 10,                           // Optional: Hook priority
+    'condition' => function() {                 // Optional: Conditional loading
+        return is_single() && has_block('my-block');
+    }
+];
+```
+
+### Hook Registration API
+
+The system automatically handles hook registration for deferred assets:
+
+```php
+// Deferred asset - hook registered automatically during staging
+$handler->add_scripts([
+    [
+        'handle' => 'deferred-script',
+        'src' => 'path/to/deferred.js',
+        'hook' => 'wp_footer',
+        'priority' => 20
+    ]
+]);
+
+// Immediate asset - requires manual enqueueing
+$handler->add_scripts([
+    [
+        'handle' => 'immediate-script',
+        'src' => 'path/to/immediate.js'
+    ]
+]);
+```
+
+### Usage Examples
+
+#### Basic Asset Registration
+
+```php
+class MyPlugin {
+    private EnqueuePublic $asset_handler;
+
+    public function __construct(ConfigInterface $config) {
+        $this->asset_handler = new EnqueuePublic($config);
+        $this->asset_handler->load();
+    }
+
+    public function init() {
+        // Add assets
+        $this->asset_handler->scripts()->add([
+            [
+                'handle' => 'my-public-script',
+                'src' => 'assets/js/public.js',
+                'deps' => ['jquery'],
+                'ver' => '1.0.0',
+                'in_footer' => true
+            ]
+        ]);
+
+        $this->asset_handler->styles()->add([
+            [
+                'handle' => 'my-public-style',
+                'src' => 'assets/css/public.css',
+                'deps' => ['wp-block-library']
+            ]
+        ]);
+    }
+}
+```
+
+#### Deferred Asset Loading
+
+```php
+// Assets that load on specific hooks
+$this->asset_handler->scripts()->add([
+    [
+        'handle' => 'footer-script',
+        'src' => 'assets/js/footer.js',
+        'hook' => 'wp_footer',
+        'priority' => 10
+    ],
+    [
+        'handle' => 'admin-script',
+        'src' => 'assets/js/admin.js',
+        'hook' => 'admin_enqueue_scripts',
+        'condition' => function() { return is_admin(); }
+    ]
+]);
+```
+
+#### Conditional Asset Loading
+
+```php
+// Assets that load based on conditions
+$this->asset_handler->scripts()->add([
+    [
+        'handle' => 'single-post-script',
+        'src' => 'assets/js/single-post.js',
+        'condition' => function() { return is_single(); }
+    ],
+    [
+        'handle' => 'block-specific-script',
+        'src' => 'assets/js/block-specific.js',
+        'condition' => function() { return has_block('my-plugin/block'); }
+    ]
+]);
+```
+
+### Error Handling
+
+The system provides comprehensive error handling and validation:
+
+```php
+// Invalid asset definition throws exception
+try {
+    $handler->add_scripts([
+        [
+            'handle' => '',  // Invalid: empty handle
+            'src' => 'script.js'
+        ]
+    ]);
+} catch (InvalidArgumentException $e) {
+    // Handle validation error
+    error_log("Asset validation failed: " . $e->getMessage());
+}
+
+// Graceful handling of immediate assets
+$handler->add_scripts([
+    [
+        'handle' => 'immediate-script',
+        'src' => 'script.js'
+        // No hook = immediate asset
+    ]
+]);
+
+// Manual enqueueing required for immediate assets
+$handler->enqueue_immediate();
+```
+
+### Configuration Options
+
+The system supports various configuration options through the Config interface:
+
+```php
+$config = new Config([
+    'asset_path' => 'assets/',
+    'version' => '1.0.0',
+    'debug' => WP_DEBUG,
+    'cache_bust' => true
+]);
+
+$handler = new EnqueuePublic($config);
+```
 
 ## Alternatives Considered
 
@@ -72,4 +253,4 @@ Identified custom hooks that needed to be registered for deferred assets. This m
 - **Deferred Assets:** These are automatically handled via hook registration during the staging process. No additional developer action is required.
 - **Immediate Assets:** These require manual invocation by the developer at the appropriate time.
 - **Asset Placement:** The placement of assets (header vs. footer) is determined by the asset definition itself (e.g., using the `'in_footer'` flag for scripts).
-- **Timing:** The responsibility for ensuring assets are stage_assetsed at the correct time lies with the developer.
+- **Timing:** The responsibility for ensuring assets are stage-assisted at the correct time lies with the developer.

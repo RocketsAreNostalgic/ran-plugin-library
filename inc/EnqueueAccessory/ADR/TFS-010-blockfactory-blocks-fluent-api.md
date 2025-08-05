@@ -1,4 +1,4 @@
-# ADR-010: BlockFactory/Block Fluent API
+# TFS-010: BlockFactory/Block Fluent API
 
 **Date:** 2025-01-08
 **Status:** ✅ Implemented
@@ -6,7 +6,7 @@
 
 ## Context
 
-The BlockRegistrar system (documented in ADR-008) provides powerful block asset management capabilities through a comprehensive array-based configuration API. While functionally complete, the "huge array" approach presents significant developer experience challenges:
+The BlockRegistrar system (documented in TFS-008) provides powerful block asset management capabilities through a comprehensive array-based configuration API. While functionally complete, the "huge array" approach presents significant developer experience challenges:
 
 ### Developer Experience Issues with Array-Based Configuration
 
@@ -55,7 +55,7 @@ Implement a **BlockFactory/Block object-oriented fluent API** that provides:
 
 1. **Incremental Configuration**: Build block definitions step by step via Block objects
 2. **Feature-Specific Methods**: Dedicated methods for each available feature
-3. **Chainable API**: Fluent interface on Block objects for readable configuration
+3. **Chain-able API**: Fluent interface on Block objects for readable configuration
 4. **Block Retrieval**: Access and modify existing block configurations via `block()` method
 5. **Backward Compatibility**: Wrapper around existing BlockRegistrar
 6. **Object-Oriented Design**: Each block is an independent object with its own configuration
@@ -75,7 +75,7 @@ Implement a **BlockFactory/Block object-oriented fluent API** that provides:
 #### Block
 
 - **Configuration Object**: Encapsulates individual block configuration
-- **Fluent Interface**: Chainable methods for incremental configuration
+- **Fluent Interface**: Chain-able methods for incremental configuration
 - **WordPress Integration**: Handles registration with WordPress block system
 - **Status Tracking**: Provides visibility into registration state
 
@@ -343,7 +343,7 @@ Both approaches:
 
 - Use the same underlying BlockRegistrar logic
 - Provide identical WordPress integration
-- Support all ADR-008 features (conditional loading, preloading, etc.)
+- Support all TFS-008 features (conditional loading, preloading, etc.)
 - Have the same performance characteristics
 
 ## Future Extensibility
@@ -398,6 +398,6 @@ This enables:
 
 ## Conclusion
 
-The BlockFactory/Block fluent API successfully addresses the developer experience challenges of the array-based BlockRegistrar configuration while maintaining full backward compatibility and performance. It provides a modern, object-oriented interface that makes block registration more readable, maintainable, and discoverable without sacrificing any of the powerful features documented in ADR-008.
+The BlockFactory/Block fluent API successfully addresses the developer experience challenges of the array-based BlockRegistrar configuration while maintaining full backward compatibility and performance. It provides a modern, object-oriented interface that makes block registration more readable, maintainable, and discoverable without sacrificing any of the powerful features documented in TFS-008.
 
 The implementation demonstrates that improved developer experience and technical excellence can coexist, providing both immediate usability benefits and a foundation for future feature expansion.

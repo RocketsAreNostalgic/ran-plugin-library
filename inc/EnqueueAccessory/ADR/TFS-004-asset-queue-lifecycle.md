@@ -1,4 +1,4 @@
-# ADR-004: Asset Queue Lifecycle and Management
+# TFS-004: Asset Queue Lifecycle and Management
 
 ## Status
 
@@ -10,10 +10,10 @@ The WordPress asset enqueueing system manages multiple types of asset queues to 
 
 The system uses three primary internal asset queues:
 
-1. **General Assets** (`$this->assets`) - Initial queue for all assests before `stage()`. Also holds immidate assets to be processed with `enqueue_immediate()`
+1. **General Assets** (`$this->assets`) - Initial queue for all assets before `stage()`. Also holds immediate assets to be processed with `enqueue_immediate()`
 2. **Inline Assets** (`$this->inline_assets`) - Inline content attached to parent assets that are intended to be enqueued immediately, and so not require a hook.
 3. **Deferred Assets** (`$this->deferred_assets`) - Assets processed on specific WordPress hooks
-4. **External Inline Assets** (`$this->external_inline_assets`) - Inline content attached to parent assets on specific hooks. These parents do not exsist in our sytem but are assumed by the system to be registed elsewhere, e.g. another plugin or theme.
+4. **External Inline Assets** (`$this->external_inline_assets`) - Inline content attached to parent assets on specific hooks. These parents do not exists in our system but are assumed by the system to be registered elsewhere, e.g. another plugin or theme.
 
 ## Decision
 

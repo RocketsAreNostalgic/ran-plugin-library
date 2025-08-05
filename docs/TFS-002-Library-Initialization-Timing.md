@@ -1,4 +1,4 @@
-# ADR-009: Library Initialization Timing and WordPress Hook Integration
+# TFS-009: Library Initialization Timing and WordPress Hook Integration
 
 ## Status
 
@@ -31,7 +31,7 @@ add_action('init', function() {
 
 Our library integrates with multiple WordPress hooks that execute in sequence:
 
-```
+```php
 plugins_loaded          // ← Ideal library initialization point
     ↓
 init                   // ← Block registration, asset addition

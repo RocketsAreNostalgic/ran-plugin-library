@@ -636,9 +636,9 @@ This approach maintains complete backward compatibility while adding powerful bl
 
 ### 1. API Documentation
 
-- [ ] **File**: `inc/EnqueueAccessory/ARD/ADR-008-block-asset-management.md`
+- [ ] **File**: `inc/EnqueueAccessory/ARD/TFS-008-block-asset-management.md`
 - [ ] **Content**: Architecture decisions, API usage, examples
-- [ ] **Format**: Follow existing ADR format and structure
+- [ ] **Format**: Follow existing TFS format and structure
 
 ### 2. Usage Examples
 
@@ -696,7 +696,7 @@ This approach maintains complete backward compatibility while adding powerful bl
 
 ### Week 4: Documentation and Polish
 
-- [ ] Write comprehensive ADR documentation
+- [ ] Write comprehensive TFS documentation
 - [ ] Create usage examples and migration guide
 - [ ] Performance testing and optimization
 - [ ] Final code review and refinement

@@ -1,4 +1,4 @@
-# ADR-007: Asset Deregistration and Replacement APIs
+# TFS-007: Asset Deregistration and Replacement APIs
 
 **Date:** 2025-07-29
 **Status:** Accepted
@@ -44,7 +44,7 @@ The `_deregister_existing_asset()` method handles:
 - Comprehensive logging for debugging and tracing
 - Graceful handling of protected WordPress core assets
 
-WordPress will automatically handel dependancy chains when using the replace flag, so long as the repace flag is set to true, and the hook timing is appropriate.
+WordPress will automatically handle dependance chains when using the replace flag, so long as the replace flag is set to true, and the hook timing is appropriate.
 
 ### Queue Cleanup
 

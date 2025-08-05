@@ -7,7 +7,7 @@
 
 ## Context
 
-This ADR presents the complete vision for how all planned BlockRegistrar features will integrate together into a single, unified API. This represents the culmination of multiple feature proposals:
+This TFS presents the complete vision for how all planned BlockRegistrar features will integrate together into a single, unified API. This represents the culmination of multiple feature proposals:
 
 - **Block Asset Manager**: Advanced asset management and performance optimization
 - **Block Bindings API**: Server-side dynamic data binding
@@ -289,7 +289,7 @@ class BlockRegistrar {
 
 ### Data Flow Integration
 
-```
+```php
 Server Request → Block Bindings (Dynamic Data) → Block Render
                                                       ↓
 Client Load → Interactivity API (Reactive State) → User Interactions

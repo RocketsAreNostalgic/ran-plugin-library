@@ -40,7 +40,7 @@ $block_registrar->add([
 
 1. **Incremental Configuration**: Build block definitions step by step via Block objects
 2. **Feature-Specific Methods**: Dedicated methods for each currently available feature
-3. **Chainable API**: Fluent interface on Block objects for readable configuration
+3. **Chain-able API**: Fluent interface on Block objects for readable configuration
 4. **Block Retrieval**: Access and modify existing block configurations via `block()` method
 5. **Backward Compatibility**: Wrapper around existing BlockRegistrar
 6. **Object-Oriented Design**: Each block is an independent object with its own configuration
@@ -524,7 +524,7 @@ class BlockFactoryTest extends TestCase
 
 ## Conclusion
 
-The BlockFactory fluent interface solves the developer experience challenges of the unified BlockRegistrar API while maintaining all its power and flexibility. By providing a chainable, feature-focused API, developers can build complex block configurations incrementally and maintainably.
+The BlockFactory fluent interface solves the developer experience challenges of the unified BlockRegistrar API while maintaining all its power and flexibility. By providing a chain-able, feature-focused API, developers can build complex block configurations incrementally and maintainably.
 
 This approach transforms the "huge array" problem into an opportunity for better code organization, improved readability, and enhanced developer productivity while preserving the comprehensive functionality of the unified block registration system.
 ```

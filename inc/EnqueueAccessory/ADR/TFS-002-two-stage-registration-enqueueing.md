@@ -1,4 +1,4 @@
-# ADR-002: Two-Stage Asset Registration and Enqueuing
+# TFS-002: Two-Stage Asset Registration and Enqueuing
 
 **Date**: 2025-07-03
 **Status**: Accepted
@@ -98,7 +98,7 @@ For more complex scenarios, such as adding inline code that is decoupled from th
 
 This approach provides greater flexibility for managing complex or conditionally-loaded inline assets.
 
-**Interaction with Deferred Assets**
+#### Interaction with Deferred Assets
 
 How inline assets are handled depends on the method used:
 
@@ -179,7 +179,7 @@ This design choice has several significant consequences, both positive and negat
 ### Weaknesses
 
 - **Implicit State Management**: The status of an asset is tracked implicitly by its presence in the internal queue. There is no explicit `is_registered` flag on the asset definition itself, which requires developers to understand the stateful nature of the process.
-- **Legacy Helper Methods**: The system still maintains deprecated helper methods (`get_head_callbacks()`, `get_footer_callbacks()`, and `get_deferred_hooks()`) for backward compatibility, which adds some complexity to the codebase. These methods are marked for removal in a future release as described in ADR-001.
+- **Legacy Helper Methods**: The system still maintains deprecated helper methods (`get_head_callbacks()`, `get_footer_callbacks()`, and `get_deferred_hooks()`) for backward compatibility, which adds some complexity to the codebase. These methods are marked for removal in a future release as described in TFS-001.
 
 ### Error Handling and Forgiveness
 
@@ -189,8 +189,8 @@ The system is designed to be both robust and forgiving, handling common develope
 
 - **Strict Handling of Deferred Assets**: In contrast, attempting to enqueue a _deferred_ asset (one defined with a `hook`) without proper setup is a critical misuse of the API. The `stage_assets()` method is essential for correctly parsing the hook and setting up the deferred action with dynamic closures. This prevents assets from being loaded in the wrong context (e.g., an admin script loading on the frontend).
 
-### Relationship with ADR-001
+### Relationship with TFS-001
 
-This ADR complements ADR-001 ("Asset Enqueuing and Hook Registration"), which describes the evolution from a "look-ahead" mechanism to the current dynamic hook registration approach. While ADR-001 focuses on the hook registration strategy, this ADR focuses on the overall asset processing lifecycle.
+This TFS complements TFS-001 ("Asset Enqueuing and Hook Registration"), which describes the evolution from a "look-ahead" mechanism to the current dynamic hook registration approach. While TFS-001 focuses on the hook registration strategy, this TFS focuses on the overall asset processing lifecycle.
 
-The current implementation uses dynamic hook registration during the staging process, eliminating the need for the legacy helper methods (`get_head_callbacks()`, `get_footer_callbacks()`, and `get_deferred_hooks()`) described in ADR-001. These methods are maintained only for backward compatibility and will be removed in a future release.
+The current implementation uses dynamic hook registration during the staging process, eliminating the need for the legacy helper methods (`get_head_callbacks()`, `get_footer_callbacks()`, and `get_deferred_hooks()`) described in TFS-001. These methods are maintained only for backward compatibility and will be removed in a future release.
