@@ -1,4 +1,4 @@
-# ADR-008: Block Asset Management Architecture
+# TFS-008: Block Asset Management Architecture
 
 ## Status
 
@@ -918,9 +918,9 @@ The BlockRegistrar automatically logs registration outcomes:
 - **`examples/block-preload-usage.php`**: Block asset preloading examples and best practices
 - **`examples/wp-block-type-collection-usage.php`**: WP_Block_Type object collection, introspection, and advanced use cases
 
-**Related ADRs**:
+**Related TFSs**:
 
-- **ADR-001**: Asset Deferral - Block assets inherit deferred loading capabilities
-- **ADR-004**: Asset Queues - Block assets use the same queuing system as Scripts/Styles
-- **ADR-005**: Scripts and Styles Management - BlockRegistrar composes ScriptsHandler and StylesHandler
-- **ADR-007**: Asset Replacement - Block assets support the `replace` flag functionality
+- **TFS-001**: Asset Deferral - Block assets inherit deferred loading capabilities
+- **TFS-004**: Asset Queues - Block assets use the same queuing system as Scripts/Styles
+- **TFS-005**: Scripts and Styles Management - BlockRegistrar composes ScriptsHandler and StylesHandler
+- **TFS-007**: Asset Replacement - Block assets support the `replace` flag functionality

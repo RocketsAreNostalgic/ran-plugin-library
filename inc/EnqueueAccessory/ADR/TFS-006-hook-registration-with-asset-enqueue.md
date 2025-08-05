@@ -1,0 +1,447 @@
+# TFS-007: Hook Registration Tracking in Asset Enqueue System
+
+## Status
+
+Accepted
+
+## Context
+
+The Asset Enqueue System needs to register WordPress hooks for deferred assets and external inline assets. These hooks need to be registered only once per hook name (for external inline assets) or once per hook name and priority combination (for deferred assets) to prevent duplicate registrations and ensure predictable behavior.
+
+The system uses two primary hook registration patterns:
+
+1. **For deferred assets**: Closures/anonymous functions are used as callbacks
+2. **For external inline assets**: Array callbacks (`array($this, 'method_name')`) are used
+
+We need a reliable mechanism to track which hooks have already been registered to prevent duplicate registrations.
+
+## Decision
+
+We have decided to use dedicated tracking arrays to manage hook registrations:
+
+1. `$registered_hooks`: Tracks hook+priority combinations for deferred assets
+
+   ```php
+   protected array $registered_hooks = array();
+   ```
+
+2. `$registered_external_hooks`: Tracks hooks for external inline assets
+
+   ```php
+   protected array $registered_external_hooks = array();
+   ```
+
+These arrays act as simple boolean flags to prevent duplicate action registrations. The implementation looks like:
+
+```php
+// For deferred assets
+if (!isset($this->registered_hooks[$hook_name . '_' . $priority])) {
+    $callback = function() use ($hook_name, $priority, $context) {
+        if (method_exists($this, $context)) {
+            $this->{$context}($hook_name, $priority);
+        }
+    };
+
+    $this->_do_add_action($hook_name, $callback, $priority, 0);
+    $this->registered_hooks[$hook_name . '_' . $priority] = true;
+}
+
+// For external inline assets
+if (!isset($this->registered_external_hooks[$hook])) {
+    $enqueue_method = 'enqueue_external_inline_' . $asset_type->value . 's';
+    $this->_do_add_action($hook, array($this, $enqueue_method), 11);
+    $this->registered_external_hooks[$hook] = true;
+}
+```
+
+## Technical Specification
+
+### Core Architecture
+
+The hook registration tracking system is implemented within the `AssetEnqueueBaseTrait` and provides two distinct tracking mechanisms:
+
+#### 1. Deferred Asset Hook Tracking
+
+**Purpose**: Prevents duplicate registration of hooks for deferred assets that use closures as callbacks.
+
+**Implementation**:
+
+```php
+protected array $registered_hooks = array();
+
+protected function _register_deferred_hook(string $hook_name, int $priority, string $context): void {
+    $key = $hook_name . '_' . $priority;
+
+    if (!isset($this->registered_hooks[$key])) {
+        $callback = function() use ($hook_name, $priority, $context) {
+            if (method_exists($this, $context)) {
+                $this->{$context}($hook_name, $priority);
+            }
+        };
+
+        $this->_do_add_action($hook_name, $callback, $priority, 0);
+        $this->registered_hooks[$key] = true;
+    }
+}
+```
+
+**Key Characteristics**:
+
+- **Key Format**: `{hook_name}_{priority}` for unique identification
+- **Callback Type**: Closures with captured variables
+- **Registration Timing**: During asset staging process
+- **Cleanup**: Persists throughout request lifecycle
+
+#### 2. External Inline Asset Hook Tracking
+
+**Purpose**: Prevents duplicate registration of hooks for external inline assets that use array callbacks.
+
+**Implementation**:
+
+```php
+protected array $registered_external_hooks = array();
+
+protected function _register_external_inline_hook(string $hook, AssetType $asset_type): void {
+    if (!isset($this->registered_external_hooks[$hook])) {
+        $enqueue_method = 'enqueue_external_inline_' . $asset_type->value . 's';
+        $this->_do_add_action($hook, array($this, $enqueue_method), 11);
+        $this->registered_external_hooks[$hook] = true;
+    }
+}
+```
+
+**Key Characteristics**:
+
+- **Key Format**: `{hook_name}` for unique identification
+- **Callback Type**: Array callbacks `array($this, 'method_name')`
+- **Registration Timing**: During inline asset addition
+- **Cleanup**: Persists throughout request lifecycle
+
+### API Design
+
+#### Internal Methods
+
+```php
+// Deferred asset hook registration
+protected function _register_deferred_hook(string $hook_name, int $priority, string $context): void
+
+// External inline asset hook registration
+protected function _register_external_inline_hook(string $hook, AssetType $asset_type): void
+
+// Hook registration status checking
+protected function _is_hook_registered(string $hook_name, int $priority = 10): bool
+protected function _is_external_hook_registered(string $hook_name): bool
+```
+
+#### Hook Registration Lifecycle
+
+```php
+// 1. Asset staging triggers hook registration
+public function stage_assets(AssetType $asset_type): self {
+    foreach ($this->deferred_assets[$asset_type->value] ?? [] as $hook_name => $priorities) {
+        foreach ($priorities as $priority => $assets) {
+            $this->_register_deferred_hook($hook_name, $priority, '_enqueue_deferred_assets');
+        }
+    }
+    return $this;
+}
+
+// 2. Inline asset addition triggers external hook registration
+public function add_inline_assets(array $inline_assets, AssetType $asset_type): self {
+    foreach ($inline_assets as $inline_asset) {
+        if (isset($inline_asset['parent_hook'])) {
+            $this->_register_external_inline_hook($inline_asset['parent_hook'], $asset_type);
+        }
+    }
+    return $this;
+}
+```
+
+### Usage Examples
+
+#### Deferred Asset Hook Registration
+
+```php
+class MyAssetHandler {
+    use AssetEnqueueBaseTrait;
+
+    public function add_deferred_script(string $handle, string $src, string $hook, int $priority = 10): void {
+        $this->add_scripts([
+            [
+                'handle' => $handle,
+                'src' => $src,
+                'hook' => $hook,
+                'priority' => $priority
+            ]
+        ]);
+
+        // Hook registration happens automatically during stage_assets()
+        $this->stage_assets(AssetType::Script);
+    }
+}
+
+// Usage
+$handler = new MyAssetHandler();
+$handler->add_deferred_script('my-script', 'script.js', 'wp_footer', 20);
+```
+
+#### External Inline Asset Hook Registration
+
+```php
+class MyAssetHandler {
+    use AssetEnqueueBaseTrait;
+
+    public function add_external_inline_script(string $parent_handle, string $content, string $hook): void {
+        $this->add_inline_scripts([
+            [
+                'parent_handle' => $parent_handle,
+                'content' => $content,
+                'parent_hook' => $hook
+            ]
+        ]);
+
+        // External hook registration happens automatically
+    }
+}
+
+// Usage
+$handler = new MyAssetHandler();
+$handler->add_external_inline_script('jquery', 'console.log("jQuery loaded");', 'wp_enqueue_scripts');
+```
+
+### Error Handling and Validation
+
+#### Duplicate Registration Prevention
+
+```php
+// System automatically prevents duplicate registrations
+$handler->add_deferred_script('script1', 'script1.js', 'wp_footer', 10);
+$handler->add_deferred_script('script2', 'script2.js', 'wp_footer', 10); // Same hook+priority
+
+// Only one wp_footer_10 hook is registered, both scripts use it
+```
+
+#### Hook Registration Status Checking
+
+```php
+// Check if a hook is already registered
+if ($handler->_is_hook_registered('wp_footer', 10)) {
+    // Hook already registered, no need to register again
+}
+
+if ($handler->_is_external_hook_registered('wp_enqueue_scripts')) {
+    // External hook already registered
+}
+```
+
+### Performance Considerations
+
+#### Memory Usage
+
+- **Tracking Arrays**: Minimal memory overhead (simple boolean flags)
+- **Key Generation**: O(1) lookup time using array keys
+- **Cleanup**: Arrays persist throughout request lifecycle
+
+#### Registration Efficiency
+
+```php
+// Fast array lookup vs slow WordPress search
+$is_registered = isset($this->registered_hooks[$key]); // O(1)
+$is_registered = has_action($hook_name, $callback);    // O(n) search
+```
+
+### Testing Strategy
+
+#### Unit Testing
+
+```php
+class HookRegistrationTest extends TestCase {
+    public function test_deferred_hook_registration(): void {
+        $handler = new TestableAssetHandler();
+
+        // First registration should succeed
+        $handler->add_deferred_script('script1', 'script1.js', 'wp_footer', 10);
+        $this->assertTrue($handler->_is_hook_registered('wp_footer', 10));
+
+        // Second registration should be prevented
+        $handler->add_deferred_script('script2', 'script2.js', 'wp_footer', 10);
+        $this->assertTrue($handler->_is_hook_registered('wp_footer', 10));
+
+        // Different priority should register separately
+        $handler->add_deferred_script('script3', 'script3.js', 'wp_footer', 20);
+        $this->assertTrue($handler->_is_hook_registered('wp_footer', 20));
+    }
+}
+```
+
+#### Integration Testing
+
+```php
+class HookRegistrationIntegrationTest extends TestCase {
+    public function test_wordpress_hook_registration(): void {
+        $handler = new EnqueuePublic($config);
+
+        // Register deferred assets
+        $handler->add_scripts([
+            [
+                'handle' => 'test-script',
+                'src' => 'test.js',
+                'hook' => 'wp_footer',
+                'priority' => 10
+            ]
+        ]);
+
+        $handler->stage_assets(AssetType::Script);
+
+        // Verify WordPress hook was registered
+        $this->assertTrue(has_action('wp_footer'));
+    }
+}
+```
+
+### Configuration Options
+
+#### Debug Mode
+
+```php
+// Enable debug logging for hook registration
+$config = new Config([
+    'debug' => true,
+    'log_level' => 'debug'
+]);
+
+$handler = new EnqueuePublic($config);
+// Hook registration events will be logged
+```
+
+#### Custom Hook Registration
+
+```php
+// Extend hook registration for custom use cases
+class CustomAssetHandler extends EnqueuePublic {
+    protected function _register_deferred_hook(string $hook_name, int $priority, string $context): void {
+        // Custom logging
+        error_log("Registering hook: {$hook_name} with priority: {$priority}");
+
+        // Call parent implementation
+        parent::_register_deferred_hook($hook_name, $priority, $context);
+    }
+}
+```
+
+## Alternatives Considered
+
+### 1. Using WordPress's `has_action()` Function
+
+```php
+$callback = function() use ($hook_name, $priority, $context) { /* ... */ };
+if (!has_action($hook_name, $callback)) {
+    $this->_do_add_action($hook_name, $callback, $priority);
+}
+```
+
+**Rejected because**:
+
+- **Closure Identity Issues**: PHP treats each closure as a unique object, even if they have identical code. `has_action()` compares function objects by identity, not by code equivalence.
+
+  ```php
+  $func1 = function() { echo "Hello"; };
+  $func2 = function() { echo "Hello"; };
+  // $func1 !== $func2, even though they're functionally identical
+  ```
+
+- **Performance Concerns**: `has_action()` performs a deep search through WordPress's hook registry, which is less efficient than a direct array lookup, especially for hooks with many callbacks.
+
+- **Reliability Issues**: For array callbacks like `array($this, 'method_name')`, `has_action()` requires the exact same object instance. If checking from a different context or if the object has been recreated, `has_action()` would fail.
+
+- **Testing Complexity**: In test environments, WordPress hook functions are often mocked or shimmed, making `has_action()` checks unreliable.
+
+### 2. Hook-Specific Flags in Asset Definitions
+
+```php
+// For external inline assets:
+if (!isset($this->external_inline_assets[$hook]['_hook_registered'])) {
+    $this->_do_add_action($hook, array($this, $enqueue_method), 11);
+    $this->external_inline_assets[$hook]['_hook_registered'] = true;
+}
+```
+
+**Rejected because**:
+
+- **Mixing Concerns**: This approach mixes asset data with hook registration tracking, violating separation of concerns.
+
+- **Data Structure Pollution**: Adds non-asset metadata to asset data structures, which could lead to confusion and potential bugs.
+
+- **Consistency Issues**: Asset data might be cleared or modified independently of hook registration status, leading to inconsistent state.
+
+### 3. Single Registration Tracking Property
+
+```php
+protected array $registered_actions = array();
+
+// Usage
+$action_key = $hook . '_' . $priority . '_' . $context;
+if (!isset($this->registered_actions[$action_key])) {
+    $this->_do_add_action($hook, $callback, $priority);
+    $this->registered_actions[$action_key] = true;
+}
+```
+
+**Rejected because**:
+
+- **Overcomplicates Key Generation**: Requires complex key generation logic to handle different hook types.
+
+- **Reduced Clarity**: Makes it harder to distinguish between different types of hook registrations.
+
+- **Maintenance Overhead**: Any changes to how hooks are registered would require updating the key generation logic.
+
+### 4. Stateless Approach with Function Memoization
+
+```php
+private function register_hook_once(string $hook, callable $callback, int $priority = 10): void {
+    static $registered = array();
+
+    $key = $hook . '_' . $priority . '_' . spl_object_hash($callback);
+    if (!isset($registered[$key])) {
+        $this->_do_add_action($hook, $callback, $priority);
+        $registered[$key] = true;
+    }
+}
+```
+
+**Rejected because**:
+
+- **Testing Difficulties**: Static variables persist across test cases, making isolation difficult.
+
+- **Reduced Visibility**: Makes it harder to inspect the current registration state.
+
+- **Scope Limitations**: Static variables are limited to function scope, making it harder to share state across related methods.
+
+## Consequences
+
+### Positive
+
+- **Simple and Efficient**: Direct array lookups are fast and straightforward.
+
+- **Clear Separation**: Maintains clear separation between asset data and hook registration tracking.
+
+- **Reliable**: Works consistently regardless of callback type (closures, array callbacks, etc.).
+
+- **Testable**: Easy to mock or inspect in test environments.
+
+### Negative
+
+- **Additional Class Properties**: Requires maintaining separate tracking arrays.
+
+- **Manual Synchronization**: If hook registration logic changes, tracking arrays must be updated accordingly.
+
+## Implementation Notes
+
+The tracking arrays are only used during the registration phase and are not referenced for any logic afterward. They serve as simple boolean flags to prevent duplicate action registrations.
+
+Asset queues are cleaned up after processing, but hook registration tracking remains intact throughout the request lifecycle. This is intentional, as WordPress hooks should only be registered once per request, regardless of whether the assets they process have been cleaned up.
+
+## Related TFSs
+
+- TFS-002: Asset Lifecycle Management
+- TFS-005: Deferred Asset Processing

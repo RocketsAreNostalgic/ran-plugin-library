@@ -1,4 +1,4 @@
-# ADR-001: Public Interface Testing Patterns for WordPress Plugin Development
+# TFS-001: Public Interface Testing Patterns for WordPress Plugin Development
 
 ## Status
 
@@ -6,7 +6,7 @@
 
 ## Context
 
-This ADR establishes our testing philosophy and patterns for WordPress plugin development, emphasizing robust, maintainable testing practices that focus on behavior verification and real-world usage scenarios.
+This TFS establishes our testing philosophy and patterns for WordPress plugin development, emphasizing robust, maintainable testing practices that focus on behavior verification and real-world usage scenarios.
 
 ### Our Testing Goals
 

@@ -1,4 +1,4 @@
-# ADR-006: Inline Assets Handling in AssetEnqueueBaseTrait
+# TFS-006: Inline Assets Handling in AssetEnqueueBaseTrait
 
 ## Status
 
@@ -19,11 +19,11 @@ The trait maintains four key arrays for asset management:
 3. `$inline_assets` - Array for inline assets associated with plugin/theme assets
 4. `$external_inline_assets` - Array for inline assets attached to external handles
 
-This ADR documents the current state of how inline assets are handled throughout their lifecycle, from addition to processing and cleanup.
+This TFS documents the current state of how inline assets are handled throughout their lifecycle, from addition to processing and cleanup.
 
 ## Decision
 
-This ADR documents the current implementation of inline asset handling in the `AssetEnqueueBaseTrait`. The key aspects of this implementation are:
+This TFS documents the current implementation of inline asset handling in the `AssetEnqueueBaseTrait`. The key aspects of this implementation are:
 
 1. Inline assets can be added through two pathways:
 
