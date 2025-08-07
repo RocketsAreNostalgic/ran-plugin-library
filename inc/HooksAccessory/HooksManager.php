@@ -15,7 +15,7 @@ declare(strict_types=1);
 namespace Ran\PluginLib\HooksAccessory;
 
 use Ran\PluginLib\Util\Logger;
-use Ran\PluginLib\EnqueueAccessory\WPWrappersTrait;
+use Ran\PluginLib\Util\WPWrappersTrait;
 use Ran\PluginLib\HooksAccessory\ActionHooksInterface;
 use Ran\PluginLib\HooksAccessory\ActionHooksRegistrar;
 use Ran\PluginLib\HooksAccessory\FilterHooksInterface;
@@ -94,7 +94,7 @@ class HooksManager {
 			$this->stats['actions_registered'] += count($this->owner::declare_action_hooks());
 
 			if ($this->logger->is_active()) {
-				$this->logger->debug('EnhancedHooksManager - Registered ' . count($this->owner::declare_action_hooks()) . ' declarative actions for ' . get_class($this->owner));
+				$this->logger->debug('HooksManager - Registered ' . count($this->owner::declare_action_hooks()) . ' declarative actions for ' . get_class($this->owner));
 			}
 		}
 
@@ -105,7 +105,7 @@ class HooksManager {
 			$this->stats['filters_registered'] += count($this->owner::declare_filter_hooks());
 
 			if ($this->logger->is_active()) {
-				$this->logger->debug('EnhancedHooksManager - Registered ' . count($this->owner::declare_filter_hooks()) . ' declarative filters for ' . get_class($this->owner));
+				$this->logger->debug('HooksManager - Registered ' . count($this->owner::declare_filter_hooks()) . ' declarative filters for ' . get_class($this->owner));
 			}
 		}
 	}
@@ -140,7 +140,7 @@ class HooksManager {
 
 		if (!is_callable($callback)) {
 			if ($this->logger->is_active()) {
-				$this->logger->warning("EnhancedHooksManager - Invalid callback provided for action: {$hook_name}");
+				$this->logger->warning("HooksManager - Invalid callback provided for action: {$hook_name}");
 			}
 			return false;
 		}
@@ -222,7 +222,7 @@ class HooksManager {
 
 		if (!is_callable($callback)) {
 			if ($this->logger->is_active()) {
-				$this->logger->warning("EnhancedHooksManager - Invalid callback provided for filter: {$hook_name}");
+				$this->logger->warning("HooksManager - Invalid callback provided for filter: {$hook_name}");
 			}
 			return false;
 		}
@@ -330,7 +330,7 @@ class HooksManager {
 		if (isset($this->registered_hooks[$hook_key])) {
 			$this->stats['duplicates_prevented']++;
 			if ($this->logger->is_active()) {
-				$this->logger->debug("EnhancedHooksManager - Prevented duplicate {$type} registration: {$hook_name} (priority: {$priority})");
+				$this->logger->debug("HooksManager - Prevented duplicate {$type} registration: {$hook_name} (priority: {$priority})");
 			}
 			return false;
 		}
@@ -348,7 +348,7 @@ class HooksManager {
 
 			if ($this->logger->is_active()) {
 				$context_str = !empty($context) ? ' [' . json_encode($context) . ']' : '';
-				$this->logger->debug("EnhancedHooksManager - Registered {$type}: {$hook_name} (priority: {$priority}){$context_str}");
+				$this->logger->debug("HooksManager - Registered {$type}: {$hook_name} (priority: {$priority}){$context_str}");
 			}
 		}
 
@@ -383,7 +383,7 @@ class HooksManager {
     ): bool {
 		if (!method_exists($this->owner, $method_name)) {
 			if ($this->logger->is_active()) {
-				$this->logger->warning("EnhancedHooksManager - Method '{$method_name}' does not exist on " . get_class($this->owner));
+				$this->logger->warning("HooksManager - Method '{$method_name}' does not exist on " . get_class($this->owner));
 			}
 			return false;
 		}
@@ -392,7 +392,7 @@ class HooksManager {
 		$callback = array($this->owner, $method_name);
 		if (!is_callable($callback)) {
 			if ($this->logger->is_active()) {
-				$this->logger->warning("EnhancedHooksManager - Method '{$method_name}' is is not callable, and is likely access protected or private, and cannot be used as a callback on " . get_class($this->owner));
+				$this->logger->warning("HooksManager - Method '{$method_name}' is is not callable, and is likely access protected or private, and cannot be used as a callback on " . get_class($this->owner));
 			}
 			return false;
 		}
@@ -503,7 +503,7 @@ class HooksManager {
 		if ($this->logger->is_active()) {
 			$count  = count($hook_definitions);
 			$status = $all_successful ? 'successfully' : 'with some failures';
-			$this->logger->debug("EnhancedHooksManager - Registered hook group '{$group_name}' ({$count} hooks) {$status}");
+			$this->logger->debug("HooksManager - Registered hook group '{$group_name}' ({$count} hooks) {$status}");
 		}
 
 		return $all_successful;
