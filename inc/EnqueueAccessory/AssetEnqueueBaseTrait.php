@@ -25,8 +25,8 @@ declare(strict_types=1);
 namespace Ran\PluginLib\EnqueueAccessory;
 
 use Ran\PluginLib\Util\Logger;
-use Ran\PluginLib\EnqueueAccessory\AssetType;
 use Ran\PluginLib\Util\WPWrappersTrait;
+use Ran\PluginLib\EnqueueAccessory\AssetType;
 
 /**
  * Trait AssetEnqueueBaseTrait
