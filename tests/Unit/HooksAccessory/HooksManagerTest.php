@@ -9,10 +9,10 @@ use WP_Mock;
 use Ran\PluginLib\Util\Logger;
 use Ran\PluginLib\Util\ExpectLogTrait;
 use Ran\PluginLib\Util\CollectingLogger;
-use Ran\PluginLib\Tests\Unit\PluginLibTestCase;
-use Ran\PluginLib\HooksAccessory\ActionHooksInterface;
-// use Ran\PluginLib\HooksAccessory\ActionHooksRegistrar;
 use Ran\PluginLib\HooksAccessory\HooksManager;
+use Ran\PluginLib\Tests\Unit\PluginLibTestCase;
+// use Ran\PluginLib\HooksAccessory\ActionHooksRegistrar;
+use Ran\PluginLib\HooksAccessory\ActionHooksInterface;
 use Ran\PluginLib\HooksAccessory\FilterHooksInterface;
 // use Ran\PluginLib\HooksAccessory\FilterHooksRegistrar;
 
@@ -65,31 +65,6 @@ class TestHooksManager extends HooksManager {
 		return $this->stats;
 	}
 
-	// Override wrapper methods to avoid actual WordPress function calls
-	public function _do_add_action(string $hook, $callback, int $priority = 10, int $accepted_args = 1): bool {
-		// Update stats for dynamic hooks
-		$this->stats['dynamic_hooks_registered']++;
-		return true;
-	}
-
-	public function _do_add_filter(string $hook, $callback, int $priority = 10, int $accepted_args = 1): bool {
-		// Update stats for dynamic hooks
-		$this->stats['dynamic_hooks_registered']++;
-		return true;
-	}
-
-	public function _do_remove_action(string $hook, $callback, int $priority = 10): bool {
-		// Update stats for dynamic hooks
-		$this->stats['dynamic_hooks_removed']++;
-		return true;
-	}
-
-	public function _do_remove_filter(string $hook, $callback, int $priority = 10): bool {
-		// Update stats for dynamic hooks
-		$this->stats['dynamic_hooks_removed']++;
-		return true;
-	}
-
 	/**
 	 * Generate a hash for a callback that works with closures
 	 *
@@ -135,7 +110,11 @@ class TestHooksManager extends HooksManager {
 
 		// Register the hook
 		$this->registered_hooks[$hash] = true;
-		return $this->_do_add_action($hook_name, $callback, $priority, $accepted_args);
+		$this->_do_add_action($hook_name, $callback, $priority, $accepted_args);
+
+		// Update stats for dynamic hooks
+		$this->stats['dynamic_hooks_registered']++;
+		return true;
 	}
 
 	// Override register_filter to track duplicates
@@ -158,7 +137,11 @@ class TestHooksManager extends HooksManager {
 
 		// Register the hook
 		$this->registered_hooks[$hash] = true;
-		return $this->_do_add_filter($hook_name, $callback, $priority, $accepted_args);
+		$this->_do_add_filter($hook_name, $callback, $priority, $accepted_args);
+
+		// Update stats for dynamic hooks
+		$this->stats['dynamic_hooks_registered']++;
+		return true;
 	}
 
 	// Make registered_hooks accessible for testing
@@ -2054,11 +2037,11 @@ class HooksManagerTest extends PluginLibTestCase {
 	}
 
 	/**
-	 * Test _register_hook with WordPress registration failure
+	 * Test _register_hook with WordPress registration success
 	 *
 	 * @covers \Ran\PluginLib\HooksAccessory\HooksManager::_register_hook
 	 */
-	public function test_register_hook_wordpress_failure(): void {
+	public function test_register_hook_wordpress_success(): void {
 		$hooksManager = new HooksManager($this->test_object, $this->logger);
 
 		// Create a mock to control the registration
@@ -2067,12 +2050,12 @@ class HooksManagerTest extends PluginLibTestCase {
 		$hooksManager->shouldReceive('_do_add_action')
 		    ->once()
 		    ->with('test_hook', Mockery::any(), 10, 1)
-		    ->andReturn(false); // WordPress registration fails
+		    ->andReturnNull(); // WordPress registration returns void (null)
 
 		$callback = function () {
 		};
 		$result = $this->invoke_private_method($hooksManager, '_register_hook', array('action', 'test_hook', $callback, 10, 1, array()));
-		$this->assertFalse($result, 'Should return false when WordPress registration fails');
+		$this->assertTrue($result, 'Should return true when WordPress registration succeeds');
 	}
 
 	/**
@@ -4538,19 +4521,19 @@ class HooksManagerTest extends PluginLibTestCase {
 	}
 
 	/**
-	 * Test register_method_hook with WordPress registration failure
+	 * Test register_method_hook with WordPress registration success
 	 * @covers \Ran\PluginLib\HooksAccessory\HooksManager::register_method_hook
 	 * @covers \Ran\PluginLib\HooksAccessory\HooksManager::_register_hook
 	 */
-	public function test_register_method_hook_wordpress_failure(): void {
-		// Configure the mock to return false for this test
+	public function test_register_method_hook_wordpress_success(): void {
+		// Configure the mock to return null (void) for this test
 		$this->hooksManager->shouldReceive('_do_add_action')
 			->once()
 			->with('test_action', array($this->test_object, 'test_method'), 10, 1)
-			->andReturn(false);
+			->andReturnNull();
 
 		$result = $this->hooksManager->register_method_hook('action', 'test_action', 'test_method', 10, 1);
-		$this->assertFalse($result, 'Should fail when WordPress registration fails');
+		$this->assertTrue($result, 'Should succeed when WordPress registration succeeds');
 	}
 
 
