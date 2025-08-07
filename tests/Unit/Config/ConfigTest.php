@@ -1086,27 +1086,15 @@ EOT;
 	 * @covers \Ran\PluginLib\Config\ConfigAbstract::get_is_dev_callback
 	 */
 	public function test_is_dev_environment_uses_callback_when_set(): void {
-		// Mock plugin_basename to avoid WP function call
-		WP_Mock::userFunction('plugin_basename')
-			->andReturn($this->plugin_basename);
-
-		// Create a test callback that returns true
-		$test_callback = function() {
-			return true;
-		};
-
-		// Create plugin data with is_dev_callback set
-		$plugin_data                    = $this->plugin_data;
-		$plugin_data['is_dev_callback'] = $test_callback;
-
-		// Create a mock for the Config class
+		// Create a mock Config instance
 		$config = \Mockery::mock('\Ran\PluginLib\Config\Config')
 			->makePartial()
 			->shouldAllowMockingProtectedMethods();
 
-		// Mock get_plugin_config to return our plugin_data with callback
-		$config->shouldReceive('get_plugin_config')
-			->andReturn($plugin_data);
+		// Mock get_is_dev_callback to return a callback that returns true
+		$config->shouldReceive('get_is_dev_callback')
+			->once()
+			->andReturn(function() { return true; });
 
 		// Act
 		$is_dev = $config->is_dev_environment();

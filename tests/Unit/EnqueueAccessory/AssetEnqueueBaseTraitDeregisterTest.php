@@ -25,7 +25,7 @@ class ConcreteEnqueueForBaseTraitDeregisterTesting extends ConcreteEnqueueForTes
  *
  * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait
  */
-class AssetEnqueueTraitBaseTraitDeregisterTest extends EnqueueTraitTestCase {
+class AssetEnqueueBaseTraitDeregisterTest extends EnqueueTraitTestCase {
 	use ExpectLogTrait;
 
 	/**
