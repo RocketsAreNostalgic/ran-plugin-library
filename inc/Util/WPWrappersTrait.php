@@ -2,20 +2,20 @@
 /**
  * WPWrappersTrait.php
  *
- * @package Ran\PluginLib\EnqueueAccessory
+ * @package Ran\PluginLib\Util
  * @author  Ran Plugin Lib <support@ran.org>
  * @license GPL-2.0+ <http://www.gnu.org/licenses/gpl-2.0.txt>
  * @link    https://github.com/RocketsAreNostalgic
  * @since   0.1.0
  */
 
-namespace Ran\PluginLib\EnqueueAccessory;
+namespace Ran\PluginLib\Util;
 /**
  * Trait WPWrappersTrait
  *
  * Wrappers for common WordPress functions to allow for easier testing and potential future modifications.
  *
- * @package Ran\PluginLib\EnqueueAccessory
+ * @package Ran\PluginLib\Util
  */
 trait WPWrappersTrait {
 	/**
@@ -28,13 +28,11 @@ trait WPWrappersTrait {
 	 * @param mixed $callback The callback function or method to be executed.
 	 * @param int $priority Optional. The priority of the action. Default 10.
 	 * @param int $accepted_args Optional. The number of arguments the callback accepts. Default 1.
-	 * @return bool True if successful, false otherwise
+	 * @return void
 	 * @codeCoverageIgnore
 	 */
-	public function _do_add_action(string $hook, $callback, int $priority = 10, int $accepted_args = 1): bool {
-		add_action($hook, $callback, $priority, $accepted_args);
-		// Ensure we return a boolean as required by the method signature
-		return true;
+	public function _do_add_action(string $hook, $callback, int $priority = 10, int $accepted_args = 1): void {
+		\add_action($hook, $callback, $priority, $accepted_args);
 	}
 
 	/**
@@ -47,8 +45,9 @@ trait WPWrappersTrait {
 	 * @return int Number of times the hook has been executed.
 	 */
 	public function _do_did_action(string $hook_name): int {
-		// Ensure we always return an integer, even if did_action returns null in tests
-		$result = did_action($hook_name);
+		// Due to a shorcoming in WP_Mock's behavior, did_action returns null in tests.
+		// So we always return an integer, even if did_action returns null in tests,
+		$result = \did_action($hook_name);
 		return is_null($result) ? 0 : (int) $result;
 	}
 
@@ -62,11 +61,11 @@ trait WPWrappersTrait {
 	 * @param mixed $callback The callback function or method to be executed.
 	 * @param int $priority Optional. The priority of the filter. Default 10.
 	 * @param int $accepted_args Optional. The number of arguments the callback accepts. Default 1.
-	 * @return bool True if successful, false otherwise
+	 * @return void
 	 * @codeCoverageIgnore
 	 */
 	public function _do_add_filter(string $hook, $callback, int $priority = 10, int $accepted_args = 1): void {
-		add_filter($hook, $callback, $priority, $accepted_args);
+		\add_filter($hook, $callback, $priority, $accepted_args);
 	}
 
 
@@ -79,7 +78,7 @@ trait WPWrappersTrait {
 	 * @return bool True if successful, false otherwise
 	 */
 	public function _do_remove_action(string $hook_name, callable $callback, int $priority = 10): bool {
-		return remove_action($hook_name, $callback, $priority);
+		return \remove_action($hook_name, $callback, $priority);
 	}
 
 	/**
@@ -91,7 +90,7 @@ trait WPWrappersTrait {
 	 * @return bool True if successful, false otherwise
 	 */
 	public function _do_remove_filter(string $hook_name, callable $callback, int $priority = 10): bool {
-		return remove_filter($hook_name, $callback, $priority);
+		return \remove_filter($hook_name, $callback, $priority);
 	}
 
 	/**

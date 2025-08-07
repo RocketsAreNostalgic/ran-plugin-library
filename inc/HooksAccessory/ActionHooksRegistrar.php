@@ -19,7 +19,7 @@ namespace Ran\PluginLib\HooksAccessory;
 
 use Ran\PluginLib\AccessoryAPI\AccessoryBaseInterface;
 use Ran\PluginLib\Util\Logger;
-use Ran\PluginLib\EnqueueAccessory\WPWrappersTrait;
+use Ran\PluginLib\Util\WPWrappersTrait;
 
 /**
  * Registrar for WordPress action hooks
