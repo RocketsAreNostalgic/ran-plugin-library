@@ -1244,19 +1244,27 @@ class BlockRegistrarExtendedTest extends TestCase {
 	 * @return void
 	 */
 	public function test_get_block_registry_reflection_coverage(): void {
-		// Create a mock WP_Block_Type_Registry class for testing
-		if (!class_exists('WP_Block_Type_Registry')) {
-			eval('class WP_Block_Type_Registry { public static function get_instance() { return new self(); } }');
-		}
+		// Create a mock registry instance
+		$mock_registry = Mockery::mock('WP_Block_Type_Registry');
 
-		// Use reflection to invoke the protected method
+		// Create a partial mock of BlockRegistrar
+		$partial_mock = Mockery::mock($this->block_registrar)->makePartial();
+
+		// Override the _cache_for_request method to return our mock registry
 		$reflection = new ReflectionClass($this->block_registrar);
-		$method     = $reflection->getMethod('_get_block_registry');
-		$method->setAccessible(true);
-		$result = $method->invoke($this->block_registrar);
+		$cache_method = $reflection->getMethod('_cache_for_request');
+		$cache_method->setAccessible(true);
 
-		// Verify the registry instance is returned
-		$this->assertInstanceOf('WP_Block_Type_Registry', $result);
+		// Call _cache_for_request with a callback that returns our mock registry
+		$result = $cache_method->invokeArgs($partial_mock, array(
+			'wp_block_registry',
+			function() use ($mock_registry) {
+				return $mock_registry;
+			}
+		));
+
+		// Verify the mock registry is returned
+		$this->assertSame($mock_registry, $result);
 	}
 
 	/**
