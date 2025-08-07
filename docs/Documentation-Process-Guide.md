@@ -2,7 +2,7 @@
 
 ## Overview
 
-This guide defines our three-tier documentation process for technical features, from initial concept to implementation record.
+This guide defines our three-tier documentation process for technical features, from initial business requirements through technical planning to detailed implementation specification.
 
 ## Tier 1: Product Requirements Document (PRD)
 
@@ -61,7 +61,7 @@ High-level feature requirements that define what needs to be built and why.
 
 ### Purpose
 
-Technical vision and brainstorming that defines how the feature will work and integrate.
+Technical vision and brainstorming that explores how the feature might work, evaluates different approaches, and defines the overall implementation strategy.
 
 ### Template
 
@@ -117,65 +117,203 @@ Technical vision and brainstorming that defines how the feature will work and in
 - **Research Needed**: [What needs to be researched or prototyped?]
 ```
 
-## Tier 3: Implementation Record (IR)
+## Tier 3: Technical Feature Specification (TFS)
 
 ### Purpose
 
-Document the actual implementation, integration patterns, and lessons learned.
+Detailed technical specification that defines exactly how the feature will be implemented, including specific APIs, performance requirements, and testing strategy.
 
 ### Template
 
 ```markdown
-# [Feature Name] - Implementation Record
+# [Feature Name] - Technical Feature Specification
 
 ## Document Information
 
-- **Status**: [Implemented/Deprecated]
-- **Implementation Date**: [YYYY-MM-DD]
-- **Version**: [1.0]
-- **Contributors**: [List of developers]
+- **Status**: [Draft/In Review/Approved/Implemented]
+- **Date**: [YYYY-MM-DD]
+- **Updated**: [YYYY-MM-DD]
+- **Implementation Priority**: [High/Medium/Low]
+- **Technical Complexity**: [Simple/Medium/Complex]
+- **Dependencies**: [List features that must be completed first]
 
-## 1. Implementation Summary
+## Context
 
-- **Final Architecture**: [What was actually built?]
-- **Key Decisions**: [What architectural decisions were made?]
-- **Integration Patterns**: [How does it integrate with the system?]
+[What problem does this feature solve? What is the current state and why does it need to change? Include technical background and constraints.]
 
-## 2. Code Structure
+### Problem Statement
 
-- **Core Classes**: [What classes were created?]
-- **File Organization**: [Where are the files located?]
-- **Namespace Structure**: [How is the code organized?]
+[Clear description of the specific problem being solved, including technical challenges and constraints.]
 
-## 3. Integration Points
+### Current System Limitations
 
-- **WordPress Integration**: [How does it hook into WordPress?]
-- **System Integration**: [How does it work with existing features?]
-- **API Usage**: [How do other parts of the system use it?]
+[What are the current limitations or issues with the existing system?]
 
-## 4. Configuration & Usage
+## Decision
 
-- **Setup Requirements**: [What configuration is needed?]
-- **Usage Examples**: [How do developers use this feature?]
-- **Best Practices**: [What patterns work well?]
+[What architectural/design decision was made? Include the rationale and key principles.]
 
-## 5. Testing & Quality
+### Core Architecture
 
-- **Test Coverage**: [What tests were written?]
-- **Performance Results**: [How does it perform?]
-- **Known Issues**: [What issues were discovered?]
+[High-level architectural overview with key components and their relationships.]
 
-## 6. Lessons Learned
+### Key Design Principles
 
-- **What Worked Well**: [What went smoothly?]
-- **Challenges**: [What was difficult?]
-- **Future Improvements**: [What could be better?]
+[The fundamental principles that guided the design decisions.]
 
-## 7. Maintenance Notes
+## Implementation Strategy
 
-- **Monitoring**: [What should be monitored?]
-- **Common Issues**: [What problems might occur?]
-- **Troubleshooting**: [How to debug common issues?]
+### Core Components
+
+[What classes/components will be created or modified?]
+
+### Integration Points
+
+[How will this integrate with existing systems?]
+
+### Data Flow
+
+[How does data move through the system?]
+
+## API Design
+
+### Public Interface
+
+[What APIs will be exposed? Include method signatures and key interfaces.]
+
+### Usage Examples
+
+[Comprehensive code examples showing how developers will use this feature.]
+
+### Configuration Options
+
+[What configuration options are available?]
+
+## Technical Constraints
+
+### Performance Requirements
+
+[Specific performance targets and considerations.]
+
+### Compatibility Requirements
+
+[WordPress version, PHP version, browser requirements, etc.]
+
+### Security Considerations
+
+[Authentication, authorization, data protection, etc.]
+
+## Implementation Phases
+
+### Phase 1: [Core Infrastructure]
+
+[Specific deliverables and timeline.]
+
+### Phase 2: [Feature Implementation]
+
+[Specific deliverables and timeline.]
+
+### Phase 3: [Integration & Testing]
+
+[Specific deliverables and timeline.]
+
+## Alternatives Considered
+
+[What other approaches were evaluated and why they were rejected?]
+
+### Alternative 1: [Description]
+
+**Why this was rejected:** [Specific reasons.]
+
+### Alternative 2: [Description]
+
+**Why this was rejected:** [Specific reasons.]
+
+## Consequences
+
+### Positive
+
+[What are the benefits of this approach?]
+
+### Negative
+
+[What are the drawbacks or trade-offs?]
+
+### Limitations
+
+[What are the known limitations or constraints?]
+
+## Testing Strategy
+
+### Unit Tests
+
+[What unit tests will be written?]
+
+### Integration Tests
+
+[What integration tests will be written?]
+
+### Performance Tests
+
+[What performance tests will be written?]
+
+## Error Handling
+
+### Validation Strategy
+
+[How will input validation be handled?]
+
+### Error Recovery
+
+[How will errors be handled and recovered from?]
+
+### Logging and Debugging
+
+[What logging and debugging capabilities will be provided?]
+
+## Migration Path (if required)
+
+### From Previous Implementation
+
+[How will existing code be migrated?]
+
+### Backward Compatibility
+
+[What backward compatibility considerations are there?]
+
+## Future Considerations
+
+### Potential Enhancements
+
+[What future enhancements might be made?]
+
+### Scalability Considerations
+
+[How will this scale with increased usage?]
+
+## Developer Guidelines
+
+### Best Practices
+
+[What are the recommended best practices for using this feature?]
+
+### Common Pitfalls
+
+[What are common mistakes to avoid?]
+
+### Troubleshooting
+
+[Common issues and how to resolve them.]
+
+## Related Documentation
+
+### Dependencies
+
+[Links to related ADRs, PRDs, or other documentation.]
+
+### References
+
+[Links to WordPress documentation, standards, or other relevant resources.]
 ```
 
 ## Process Flow
@@ -183,22 +321,24 @@ Document the actual implementation, integration patterns, and lessons learned.
 ### 1. Feature Proposal
 
 - Create **Tier 1 (PRD)** for new features
-- Review and approve
+- Review and approve business requirements
 
 ### 2. Technical Planning
 
-- Create **Tier 2 (TFS)** based on approved PRD
-- Define implementation approach
+- Create **Tier 2 (FPD)** based on approved PRD
+- Explore implementation approaches and alternatives
+- Define overall technical strategy
 
-### 3. Implementation
+### 3. Technical Specification
 
-- Follow **Tier 2 (TFS)** during development
-- Update as needed during implementation
+- Create **Tier 3 (TFS)** based on FPD decisions
+- Define detailed implementation specifications
+- Include specific APIs, performance requirements, and testing strategy
 
-### 4. Documentation
+### 4. Implementation
 
-- Create **Tier 3 (IR)** after implementation
-- Capture actual implementation and integration patterns
+- Follow **Tier 3 (TFS)** during development
+- Update TFS as needed during implementation
 
 ## File Naming Convention
 
@@ -206,11 +346,13 @@ Document the actual implementation, integration patterns, and lessons learned.
 docs/
 ├── PRDs/
 │   └── [feature-name]-prd.md
-├── TFSs/
-│   └── [feature-name]-tfs.md
-└── IRs/
-    └── [feature-name]-ir.md
+├── FPDs/
+│   └── [feature-name]-fpd.md
+└── TFSs/
+    └── TFS-###-[feature-name].md
 ```
+
+**Note**: TFS documents use a numbered format (TFS-001, TFS-002, etc.) to indicate implementation order and dependencies.
 
 ## Benefits of This Process
 
@@ -244,38 +386,41 @@ docs/
 - Architecture changes
 - Integration with external systems
 
-### Create Tier 2 (TFS) When
+### Create Tier 2 (FPD) When
 
-- Feature requires technical design
-- Multiple implementation options exist
-- Integration with existing systems is complex
+- Feature requires technical planning
+- Multiple implementation approaches need evaluation
+- Integration strategy needs to be defined
+- Technical feasibility needs to be explored
+
+### Always Create Tier 3 (TFS) When
+
+- Feature requires detailed technical specification
+- Specific APIs need to be defined
 - Performance or security requirements are significant
+- Implementation phases need to be planned
+- Testing strategy needs to be documented
 
-### Always Create Tier 3 (IR) When
-
-- Feature implementation is complete
-- Integration patterns are established
-- Lessons learned should be captured
-- Future maintenance will be needed
-
-## Example: Your Block Asset Management Feature
+## Example: Block Asset Management Feature
 
 ### Tier 1 (PRD): "Block Asset Management"
 
-- Problem: WordPress blocks need conditional asset loading
-- Goal: Load block assets only when blocks are present
-- Success: Performance improvement, reduced HTTP requests
+- **Problem**: WordPress blocks need conditional asset loading
+- **Goal**: Load block assets only when blocks are present
+- **Success**: Performance improvement, reduced HTTP requests
 
-### Tier 2 (TFS): "Block Asset Management Architecture"
+### Tier 2 (FPD): "Block Asset Management Planning"
 
-- Architecture: Extend existing asset system with block awareness
-- API: BlockRegistrar class with WordPress integration
-- Implementation: BlockAssetTrait, WordPress hook integration
+- **Technical Vision**: Extend existing asset system with block awareness
+- **Approaches**: Evaluate hook-based vs. render-time detection
+- **Integration Strategy**: BlockRegistrar class with WordPress integration
+- **Recommended**: Hook-based approach for better performance
 
-### Tier 3 (IR): "Block Asset Management Implementation"
+### Tier 3 (TFS): "Block Asset Management Specification"
 
-- Actual classes: BlockRegistrar, BlockAssetTrait
-- Integration: WordPress filter-based enhancement
-- Lessons: WordPress timing constraints, conditional loading patterns
+- **API Design**: Specific BlockRegistrar methods and BlockAssetTrait interface
+- **Implementation**: Detailed WordPress hook integration patterns
+- **Performance**: Specific performance targets and testing strategy
+- **Testing**: Unit test requirements for block detection logic
 
-This process ensures that your documentation evolves with your understanding of the feature, from initial concept through implementation to maintenance.
+This process ensures that your documentation evolves with your understanding of the feature, from initial business concept through technical planning to detailed implementation specification.
