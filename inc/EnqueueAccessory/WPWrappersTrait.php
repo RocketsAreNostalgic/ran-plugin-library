@@ -9,13 +9,13 @@
  * @since   0.1.0
  */
 
-namespace Ran\PluginLib\Util;
+namespace Ran\PluginLib\EnqueueAccessory;
 /**
  * Trait WPWrappersTrait
  *
  * Wrappers for common WordPress functions to allow for easier testing and potential future modifications.
  *
- * @package Ran\PluginLib\Util
+ * @package Ran\PluginLib\EnqueueAccessory
  */
 trait WPWrappersTrait {
 	/**
