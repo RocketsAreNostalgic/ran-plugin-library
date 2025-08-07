@@ -381,7 +381,7 @@ trait ScriptsEnqueueTrait {
 				$callback = function ($tag, $tag_handle) use ($handle, $custom_attributes, $asset_type) {
 					return $this->_modify_html_tag_attributes($asset_type, $tag, $tag_handle, $handle, $custom_attributes);
 				};
-				$this->_do_add_filter('script_loader_tag', $callback, 10, 2);
+				$this->get_hooks_manager()->register_filter('script_loader_tag', $callback, 10, 2);
 			}
 		}
 	}
