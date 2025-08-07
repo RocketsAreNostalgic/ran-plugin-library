@@ -1915,9 +1915,9 @@ trait AssetEnqueueBaseTrait {
 			if ($logger->is_active()) {
 				$logger->debug("{$trait_name}::deregister - Immediately deregistered {$asset_type->value} '{$handle}'.");
 			}
-		} else {
-			// Deferred deregistration via hook
-			$this->_do_add_action($hook, function() use ($handle, $asset_type) {
+				} else {
+		// Deferred deregistration via hook
+		$this->_do_add_action($hook, function() use ($handle, $asset_type) {
 				$this->_handle_asset_operation($handle, __FUNCTION__, $asset_type, 'deregister');
 			}, $priority);
 
@@ -1956,9 +1956,9 @@ trait AssetEnqueueBaseTrait {
 			if ($logger->is_active()) {
 				$logger->debug("{$trait_name}::remove - Immediately removed {$asset_type->value} '{$handle}'.");
 			}
-		} else {
-			// Deferred removal via hook
-			$this->_do_add_action($hook, function() use ($handle, $asset_type) {
+				} else {
+		// Deferred removal via hook
+		$this->_do_add_action($hook, function() use ($handle, $asset_type) {
 				$this->_handle_asset_operation($handle, __FUNCTION__, $asset_type, 'remove');
 			}, $priority);
 
