@@ -284,7 +284,7 @@ abstract class AssetEnqueueBaseAbstract {
 	 * Retrieves the registered footer callbacks.
 	 *
 	 * @deprecated - functionality not required due to stage() and hook processing
-	 * @see ARD/ADR-001.md For the rationale behind this preemptive check.
+	 * @see ARD/TFS-001.md For the rationale behind this preemptive check.
 	 * @return array<int, callable|array<string, mixed>>
 	 */
 	public function get_footer_callbacks(string $_asset_type): array {

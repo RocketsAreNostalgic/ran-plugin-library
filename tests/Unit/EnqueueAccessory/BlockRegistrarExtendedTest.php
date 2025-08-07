@@ -67,7 +67,7 @@ class BlockRegistrarExtendedTest extends TestCase {
 		Mockery::close();
 	}
 
-	// === PUBLIC INTERFACE TESTS (ADR-001 Compliant) ===
+	// === PUBLIC INTERFACE TESTS (TFS-001 Compliant) ===
 
 	/**
 	 * Test block addition and storage through public interface.

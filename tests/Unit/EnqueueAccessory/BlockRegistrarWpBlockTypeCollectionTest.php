@@ -30,7 +30,7 @@ use Mockery;
  * Tests the WP_Block_Type collection functionality of BlockRegistrar,
  * including success/failure logging and public access methods.
  *
- * ADR-001 Compliance: FULLY COMPLIANT
+ * TFS-001 Compliance: FULLY COMPLIANT
  * - Uses public interface testing exclusively
  * - Tests behavior, not implementation
  * - Uses reflection only for internal state assertions (not method invocation)

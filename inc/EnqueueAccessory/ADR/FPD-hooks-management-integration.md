@@ -63,15 +63,15 @@ trait AssetEnqueueBaseTrait {
      * Shared HookManager instance for the entire asset management toolchain.
      * This single instance will be available to all asset handlers and their traits.
      */
-    private ?EnhancedHooksManager $shared_hooks_manager = null;
+    private ?HooksManager $shared_hooks_manager = null;
 
     /**
      * Override the HooksManagementTrait's get_hooks_manager to use our shared instance.
      * This ensures a single HookManager instance is used throughout the entire asset management system.
      */
-    protected function get_hooks_manager(): EnhancedHooksManager {
+    protected function get_hooks_manager(): HooksManager {
         if ($this->shared_hooks_manager === null) {
-            $this->shared_hooks_manager = new EnhancedHooksManager($this, $this->get_logger());
+            $this->shared_hooks_manager = new HooksManager($this, $this->get_logger());
         }
         return $this->shared_hooks_manager;
     }

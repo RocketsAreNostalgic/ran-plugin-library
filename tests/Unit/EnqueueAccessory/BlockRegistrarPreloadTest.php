@@ -2,9 +2,9 @@
 /**
  * Tests for BlockRegistrar preload functionality
  *
- * ADR-001 COMPLIANCE STATUS: PARTIALLY COMPLIANT WITH DOCUMENTED EXCEPTIONS
+ * TFS-001 COMPLIANCE STATUS: PARTIALLY COMPLIANT WITH DOCUMENTED EXCEPTIONS
  *
- * This test suite follows ADR-001 public interface testing patterns where possible,
+ * This test suite follows TFS-001 public interface testing patterns where possible,
  * but includes documented exceptions for WordPress hook callback testing.
  *
  * COMPLIANT ASPECTS:
@@ -201,7 +201,7 @@ class BlockRegistrarPreloadTest extends PluginLibTestCase {
 	 * @test
 	 * @covers \Ran\PluginLib\EnqueueAccessory\BlockRegistrar::_generate_preload_tags_for_assets
 	 *
-	 * ADR-001 Exception: Direct private method testing justified because:
+	 * TFS-001 Exception: Direct private method testing justified because:
 	 * 1. WordPress Hook Integration: Method is designed as WordPress hook callback, not accessible through public interface
 	 * 2. HTML Output Testing: Critical to verify correct HTML preload tag generation for security/functionality
 	 * 3. WP_Mock Limitations: WP_Mock doesn't execute hook callbacks, making integration testing impossible
@@ -238,7 +238,7 @@ class BlockRegistrarPreloadTest extends PluginLibTestCase {
 	 * @test
 	 * @covers \Ran\PluginLib\EnqueueAccessory\BlockRegistrar::_generate_preload_tags_for_assets
 	 *
-	 * ADR-001 Exception: Direct private method testing justified because:
+	 * TFS-001 Exception: Direct private method testing justified because:
 	 * 1. WordPress Hook Integration: Method is designed as WordPress hook callback, not accessible through public interface
 	 * 2. HTML Output Testing: Critical to verify correct HTML preload tag generation for security/functionality
 	 * 3. WP_Mock Limitations: WP_Mock doesn't execute hook callbacks, making integration testing impossible
@@ -341,7 +341,7 @@ class BlockRegistrarPreloadTest extends PluginLibTestCase {
 	 * @test
 	 * @covers \Ran\PluginLib\EnqueueAccessory\BlockRegistrar::_generate_preload_tags
 	 *
-	 * ADR-001 Exception: Direct private method testing justified because:
+	 * TFS-001 Exception: Direct private method testing justified because:
 	 * 1. WordPress Hook Integration: Method is designed as WordPress hook callback, not accessible through public interface
 	 * 2. Complex Conditional Logic: Testing inherit preload logic requires direct method access
 	 * 3. WP_Mock Limitations: WP_Mock doesn't execute hook callbacks, making integration testing impossible

@@ -897,7 +897,7 @@ class StylesEnqueueTraitTest extends EnqueueTraitTestCase {
 	 * @covers \Ran\PluginLib\EnqueueAccessory\StylesEnqueueTrait::_modify_html_tag_attributes
 	 */
 	public function test_modify_html_tag_attributes_adds_attributes_correctly(string $handle, array $attributes, string $original_tag, string $expected_tag, string $tag_handle = null): void {
-		// This test uses reflection per ADR-001 guidelines because:
+		// This test uses reflection per TFS-001 guidelines because:
 		// 1. _modify_html_tag_attributes() is a utility method for HTML tag manipulation
 		// 2. Testing through public interface requires complex WordPress filter mocking
 		// 3. Direct testing of HTML attribute logic is clearer and more focused

@@ -676,7 +676,7 @@ class AssetEnqueueBaseTraitInlineAssetsTest extends EnqueueTraitTestCase {
 
 	// ------------------------------------------------------------------------
 	// _process_external_inline_assets() Tests
-	// These tests use reflection per ADR-001 guidelines because:
+	// These tests use reflection per TFS-001 guidelines because:
 	// 1. _process_external_inline_assets() is a utility method that returns a count
 	// 2. The public interface (_enqueue_external_inline_scripts) doesn't expose this count
 	// 3. Testing the count return value requires direct method access
@@ -1298,7 +1298,7 @@ class AssetEnqueueBaseTraitInlineAssetsTest extends EnqueueTraitTestCase {
 	}
 
 	// _process_immediate_inline_assets() Tests
-	// These tests use reflection per ADR-001 guidelines because:
+	// These tests use reflection per TFS-001 guidelines because:
 	// 1. _process_immediate_inline_assets() is a utility method that returns a count
 	// 2. The public interface (add_inline) doesn't expose this count directly
 	// 3. Testing the count return value and internal logic requires direct method access

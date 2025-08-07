@@ -30,7 +30,7 @@ The library is **approximately 75% complete** with core infrastructure in place.
 - ❌ Comprehensive unit tests
 - ❌ Integration tests with WordPress
 - ❌ Advanced error handling scenarios
-- ✅ Documentation and usage examples in ADR-009
+- ✅ Documentation and usage examples in TFS-009
 
 ### MediaTrait Completion
 
@@ -64,7 +64,7 @@ The library is **approximately 75% complete** with core infrastructure in place.
 - ✅ `BlockRegistrar` class implemented
 - ✅ `BlockAssetTrait` functionality complete
 - ✅ WordPress integration patterns established
-- ✅ ADR-002 timing documentation complete
+- ✅ TFS-002 timing documentation complete
 - ❌ Block Bindings
 - ❌ Block Variations
 - ❌ Unit tests
@@ -244,7 +244,7 @@ The library is **approximately 75% complete** with core infrastructure in place.
 
 1. **API Documentation**: Complete PHPDoc coverage
 2. **Usage Guides**: Real-world implementation examples
-3. **Architecture Decisions**: ADR documentation for major decisions
+3. **Architecture Decisions**: TFS documentation for major decisions
 4. **Migration Guides**: Upgrade paths for breaking changes
 5. **Performance Guidelines**: Best practices for optimization
 
