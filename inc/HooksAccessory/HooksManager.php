@@ -1,6 +1,6 @@
 <?php
 /**
- * Enhanced Hooks Manager - Generic WordPress Hook Management System
+ * Hooks Manager - Generic WordPress Hook Management System
  *
  * Provides sophisticated hook registration patterns that can be used throughout
  * the plugin library for any WordPress hook scenario, from simple declarative
@@ -15,14 +15,14 @@ declare(strict_types=1);
 namespace Ran\PluginLib\HooksAccessory;
 
 use Ran\PluginLib\Util\Logger;
-use Ran\PluginLib\Util\WPWrappersTrait;
+use Ran\PluginLib\EnqueueAccessory\WPWrappersTrait;
 use Ran\PluginLib\HooksAccessory\ActionHooksInterface;
 use Ran\PluginLib\HooksAccessory\ActionHooksRegistrar;
 use Ran\PluginLib\HooksAccessory\FilterHooksInterface;
 use Ran\PluginLib\HooksAccessory\FilterHooksRegistrar;
 
 /**
- * Enhanced hook manager supporting both declarative and dynamic hook patterns
+ * Hook manager supporting both declarative and dynamic hook patterns
  *
  * This class extends the existing HooksAccessory pattern to support:
  * - Static declarative hooks (existing ActionHooksInterface/FilterHooksInterface)
@@ -32,7 +32,7 @@ use Ran\PluginLib\HooksAccessory\FilterHooksRegistrar;
  * - Hook deduplication and tracking
  * - Comprehensive logging and debugging
  */
-class EnhancedHooksManager {
+class HooksManager {
 	use WPWrappersTrait;
 	/**
 	 * Tracks registered hooks to prevent duplicates
