@@ -1,6 +1,10 @@
-# RAN PluginLib - Architecture Overview
+# TFS-002: RAN PluginLib - Architecture Overview
 
-This document provides an overview of the RAN PluginLib architecture after the branch reconciliation completed in January 2025.
+## Status
+
+**Accepted** - 2025-08-08
+
+This document provides an overview of the RAN PluginLib architecture.
 
 ## Component Architecture
 
@@ -128,4 +132,4 @@ This document provides an overview of the RAN PluginLib architecture after the b
                       └──────────┘
 ```
 
-_Last Updated: January 2025 - Post Branch Reconciliation_
+_Last Updated: Aug 2025_
