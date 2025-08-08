@@ -3,11 +3,10 @@
 	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 	xsi:noNamespaceSchemaLocation="https://schema.phpunit.de/9.5/phpunit.xsd"
 	bootstrap="Tests/test_bootstrap.php"
-	cacheResult="true"
 	cacheResultFile="Tests/.phpunit.cache/results.cache"
+	cacheResult="true"
 	colors="true"
 	executionOrder="depends,defects"
-
 	beStrictAboutOutputDuringTests="true"
 	beStrictAboutTodoAnnotatedTests="true"
 	convertDeprecationsToExceptions="true"
@@ -17,20 +16,28 @@
 	convertNoticesToExceptions="true"
 	convertWarningsToExceptions="true"
 	verbose="false"
+	backupGlobals="false"
 >
 	<testsuites>
 		<testsuite name="Unit Tests">
 			<directory>Tests/Unit</directory>
 		</testsuite>
 	</testsuites>
-
 	<coverage
 		cacheDirectory="Tests/.phpunit.cache/code-coverage/"
 		processUncoveredFiles="true"
 		>
 		<include>
-			<directory suffix=".php">./inc</directory>
+			<directory suffix=".php">inc</directory>
+			<directory>Tests</directory>
 		</include>
+		<exclude>
+			<!-- Exclude all documentation and example code from coverage/parsing -->
+			<directory>inc/**/docs</directory>
+			<directory>inc/**/docs/**</directory>
+			<directory>docs</directory>
+			<directory>examples</directory>
+		</exclude>
 		<report>
 			<html outputDirectory="Tests/coverage/html-coverage" lowUpperBound="50" highLowerBound="90"/>
 			<clover outputFile="Tests/coverage/clover.xml"/>
