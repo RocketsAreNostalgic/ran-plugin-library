@@ -1094,7 +1094,9 @@ EOT;
 		// Mock get_is_dev_callback to return a callback that returns true
 		$config->shouldReceive('get_is_dev_callback')
 			->once()
-			->andReturn(function() { return true; });
+			->andReturn(function() {
+				return true;
+			});
 
 		// Act
 		$is_dev = $config->is_dev_environment();

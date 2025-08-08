@@ -1088,10 +1088,8 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 			->with($handle, $asset_definition['attributes'])
 			->andReturn($asset_definition['attributes']);
 
-		// Mock _do_add_filter to verify filter is added
-		$this->instance->shouldReceive('_do_add_filter')
-			->zeroOrMoreTimes()
-			->with('script_loader_tag', Mockery::type('callable'), 10, 2);
+		// Expect HooksManager register_filter is added
+		$this->expectFilter('script_loader_tag', 10, 1, 2);
 
 		// Act
 		$this->_invoke_protected_method(
