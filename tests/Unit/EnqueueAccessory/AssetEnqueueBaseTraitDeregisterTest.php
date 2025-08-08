@@ -204,7 +204,7 @@ class AssetEnqueueTraitBaseTraitDeregisterTest extends EnqueueTraitTestCase {
 		$this->instance->shouldReceive('_is_deferred_asset')
 			->andReturn(null);
 
-		$this->instance->shouldReceive('get_asset_url')
+		$this->instance->shouldReceive('_get_asset_url')
 			->andReturn($src);
 
 		$this->instance->shouldReceive('_do_register')

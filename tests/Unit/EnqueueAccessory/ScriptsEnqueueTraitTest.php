@@ -529,7 +529,7 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 		$assets = $this->instance->get_info();
 
 		// With flattened structure, check if hook exists directly in deferred assets
-		$deferred_assets = $this->get_protected_property_value($this->instance, 'deferred_assets');
+		$deferred_assets = $this->_get_protected_property_value($this->instance, 'deferred_assets');
 		$this->assertArrayHasKey($hook_name, $deferred_assets, 'Hook key should exist in deferred assets.');
 		$this->assertArrayHasKey(10, $deferred_assets[$hook_name], 'Priority 10 key should exist.');
 		$this->assertCount(1, $deferred_assets[$hook_name][10]);

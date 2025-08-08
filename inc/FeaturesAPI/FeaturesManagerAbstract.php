@@ -19,8 +19,8 @@ namespace Ran\PluginLib\FeaturesAPI;
 
 use Exception;
 use Ran\PluginLib\Config\ConfigInterface;
-use Ran\PluginLib\FeaturesAPI\FeatureContainer;
 use Ran\PluginLib\FeaturesAPI\FeatureRegistry;
+use Ran\PluginLib\FeaturesAPI\FeatureContainer;
 use Ran\PluginLib\FeaturesAPI\RegistrableFeatureInterface;
 
 /**
@@ -99,7 +99,7 @@ abstract class FeaturesManagerAbstract {
 	public function load_all(): void {
 		$features = $this->registery->get_registery();
 		foreach ( $features as $feature ) {
-			$this->load_feature_container( $feature );
+			$this->_load_feature_container( $feature );
 		}
 	}
 
@@ -111,7 +111,7 @@ abstract class FeaturesManagerAbstract {
 	public function load( string $slug_id ): void {
 		$feature = $this->get_registered_feature( $slug_id );
 
-		$this->load_feature_container( $feature );
+		$this->_load_feature_container( $feature );
 	}
 
 	/**
@@ -119,9 +119,9 @@ abstract class FeaturesManagerAbstract {
 	 *
 	 * @param  FeatureContainer $feature A FeatureContainer object.
 	 */
-	protected function load_feature_container( FeatureContainer $feature ): void {
+	protected function _load_feature_container( FeatureContainer $feature ): void {
 		// Create new feature class.
-		$instance = $this->create_new_feature_class(
+		$instance = $this->_create_new_feature_class(
 			$this->plugin,
 			$feature->qualified_classname,
 			$feature->deps
@@ -145,7 +145,7 @@ abstract class FeaturesManagerAbstract {
 	 * @throws \Exception Throws when the feature class doesn't extend FeatureControllerAbstract or implement RegistrableFeatureInterface or .
 	 * @throws \Exception Throws if $deps property hasn't been declared on the FeatureController before trying to set its value.
 	 */
-	protected function create_new_feature_class(
+	protected function _create_new_feature_class(
 		ConfigInterface $plugin,
 		string $class,
 		array $deps
@@ -166,9 +166,9 @@ abstract class FeaturesManagerAbstract {
 		$instance = new $class( $plugin );
 
 		// Inject dependencies.
-		$this->set_instance_dependencies( $instance, $deps );
+		$this->_set_instance_dependencies( $instance, $deps );
 		// Call any Accessory Interfaces.
-		$this->enable_instance_accessiories( $instance );
+		$this->_enable_instance_accessiories( $instance );
 
 		return $instance;
 	}
@@ -185,7 +185,7 @@ abstract class FeaturesManagerAbstract {
 	 *
 	 * @throws \Exception Will throw if the property is not present, public, or if the property is protected|private and a sett_*() method has not been defined.
 	 */
-	protected function set_instance_dependencies( RegistrableFeatureInterface $instance, array $deps ): void {
+	protected function _set_instance_dependencies( RegistrableFeatureInterface $instance, array $deps ): void {
 		$reflected_instance = new \ReflectionClass( $instance );
 
 		// Loop through all deps and assign them to the object, but only if the prop has been set on the FeatureController.
@@ -227,7 +227,7 @@ abstract class FeaturesManagerAbstract {
 	 * @throws \Exception Throws when the Accessory is missing its <Accessory>Manager adjacent class.
 	 * @throws \Exception Throws when the <Accessory>Manager adjacent class doesn't implement AccessoryManagerBaseInterface.
 	 */
-	protected function enable_instance_accessiories( RegistrableFeatureInterface $instance ): void {
+	protected function _enable_instance_accessiories( RegistrableFeatureInterface $instance ): void {
 		// Array of implemented interfaces.
 		$interfaces = \class_implements( $instance );
 

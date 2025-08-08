@@ -1383,16 +1383,16 @@ class BlockRegistrarExtendedTest extends TestCase {
 			)
 		));
 
-		// Mock the handlers to include the missing get_asset_url method
+		// Mock the handlers to include the missing _get_asset_url method
 		$scripts_handler = Mockery::mock('Ran\PluginLib\EnqueueAccessory\ScriptsHandler');
 		$scripts_handler->shouldReceive('add')->andReturnSelf();
 		$scripts_handler->shouldReceive('enqueue_immediate')->andReturnSelf();
-		$scripts_handler->shouldReceive('get_asset_url')->andReturn('mocked-url.js');
+		$scripts_handler->shouldReceive('_get_asset_url')->andReturn('mocked-url.js');
 
 		$styles_handler = Mockery::mock('Ran\PluginLib\EnqueueAccessory\StylesHandler');
 		$styles_handler->shouldReceive('add')->andReturnSelf();
 		$styles_handler->shouldReceive('enqueue_immediate')->andReturnSelf();
-		$styles_handler->shouldReceive('get_asset_url')->andReturn('mocked-url.css');
+		$styles_handler->shouldReceive('_get_asset_url')->andReturn('mocked-url.css');
 
 		// Set the mocked handlers on the BlockRegistrar
 		$scripts_handler_property = $reflection->getProperty('scripts_handler');

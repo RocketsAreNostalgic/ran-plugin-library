@@ -204,7 +204,7 @@ $block_registrar->add([
 
 ```php
 // Early detection on 'wp' hook for static blocks
-public function detect_block_presence(): array {
+public function _detect_block_presence(): array {
     if ($this->blocks_detected) {
         return $this->detected_blocks;
     }

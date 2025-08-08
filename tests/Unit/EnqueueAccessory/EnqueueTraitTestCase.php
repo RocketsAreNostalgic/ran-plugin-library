@@ -63,9 +63,9 @@ abstract class EnqueueTraitTestCase extends PluginLibTestCase {
 		$this->hooks_manager_mock = Mockery::mock('Ran\PluginLib\HooksAccessory\HooksManager');
 		$this->hooks_manager_mock->shouldReceive('register_action')->withAnyArgs()->andReturn(true)->byDefault();
 		$this->hooks_manager_mock->shouldReceive('register_filter')->withAnyArgs()->andReturn(true)->byDefault();
-		$this->instance->shouldReceive('get_hooks_manager')->andReturn($this->hooks_manager_mock)->byDefault();
+		$this->instance->shouldReceive('_get_hooks_manager')->andReturn($this->hooks_manager_mock)->byDefault();
 
-		$this->instance->shouldReceive('get_asset_url')
+		$this->instance->shouldReceive('_get_asset_url')
 			->withAnyArgs()
 			->andReturnUsing(function($src) {
 				return $src;

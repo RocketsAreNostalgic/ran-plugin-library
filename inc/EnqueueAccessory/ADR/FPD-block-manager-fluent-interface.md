@@ -443,11 +443,11 @@ $blocks_b->add_block('plugin-a/hero', [
 ```php
 class BlockFactoryTest extends TestCase
 {
-    protected function setUp(): void {
+    protected function _setUp(): void {
         BlockFactory::enableTestingMode();
     }
 
-    protected function tearDown(): void {
+    protected function _tearDown(): void {
         BlockFactory::disableTestingMode();
     }
 

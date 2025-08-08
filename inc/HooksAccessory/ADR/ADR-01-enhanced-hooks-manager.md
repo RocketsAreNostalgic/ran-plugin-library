@@ -204,7 +204,7 @@ class SimpleComponent implements ActionHooksInterface, FilterHooksInterface {
     use HooksManagementTrait;
 
     public function init(): void {
-        $this->init_hooks(); // Handles both declarative and dynamic
+        $this->_init_hooks(); // Handles both declarative and dynamic
     }
 
     // === DECLARATIVE HOOKS ===
@@ -223,7 +223,7 @@ class SimpleComponent implements ActionHooksInterface, FilterHooksInterface {
     }
 
     // === DYNAMIC HOOKS ===
-    protected function register_hooks(): void {
+    protected function _register_hooks(): void {
         // WordPress-specific patterns
         $this->register_admin_action('admin_init', [$this, 'admin_setup']);
         $this->register_frontend_action('wp_enqueue_scripts', [$this, 'enqueue_assets']);
@@ -242,7 +242,7 @@ class SimpleComponent implements ActionHooksInterface, FilterHooksInterface {
         ]);
 
         // Bulk registration
-        $this->register_hooks_bulk([
+        $this->_register_hooks_bulk([
             [
                 'type' => 'action',
                 'hook' => 'wp_head',
