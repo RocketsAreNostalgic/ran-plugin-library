@@ -67,7 +67,7 @@ class BlockRegistrarExtendedTest extends TestCase {
 		Mockery::close();
 	}
 
-	// === PUBLIC INTERFACE TESTS (ADR-001 Compliant) ===
+	// === PUBLIC INTERFACE TESTS (TFS-001 Compliant) ===
 
 	/**
 	 * Test block addition and storage through public interface.
@@ -1244,19 +1244,27 @@ class BlockRegistrarExtendedTest extends TestCase {
 	 * @return void
 	 */
 	public function test_get_block_registry_reflection_coverage(): void {
-		// Create a mock WP_Block_Type_Registry class for testing
-		if (!class_exists('WP_Block_Type_Registry')) {
-			eval('class WP_Block_Type_Registry { public static function get_instance() { return new self(); } }');
-		}
+		// Create a mock registry instance
+		$mock_registry = Mockery::mock('WP_Block_Type_Registry');
 
-		// Use reflection to invoke the protected method
-		$reflection = new ReflectionClass($this->block_registrar);
-		$method     = $reflection->getMethod('_get_block_registry');
-		$method->setAccessible(true);
-		$result = $method->invoke($this->block_registrar);
+		// Create a partial mock of BlockRegistrar
+		$partial_mock = Mockery::mock($this->block_registrar)->makePartial();
 
-		// Verify the registry instance is returned
-		$this->assertInstanceOf('WP_Block_Type_Registry', $result);
+		// Override the _cache_for_request method to return our mock registry
+		$reflection   = new ReflectionClass($this->block_registrar);
+		$cache_method = $reflection->getMethod('_cache_for_request');
+		$cache_method->setAccessible(true);
+
+		// Call _cache_for_request with a callback that returns our mock registry
+		$result = $cache_method->invokeArgs($partial_mock, array(
+			'wp_block_registry',
+			function() use ($mock_registry) {
+				return $mock_registry;
+			}
+		));
+
+		// Verify the mock registry is returned
+		$this->assertSame($mock_registry, $result);
 	}
 
 	/**
@@ -1375,16 +1383,16 @@ class BlockRegistrarExtendedTest extends TestCase {
 			)
 		));
 
-		// Mock the handlers to include the missing get_asset_url method
+		// Mock the handlers to include the missing _get_asset_url method
 		$scripts_handler = Mockery::mock('Ran\PluginLib\EnqueueAccessory\ScriptsHandler');
 		$scripts_handler->shouldReceive('add')->andReturnSelf();
 		$scripts_handler->shouldReceive('enqueue_immediate')->andReturnSelf();
-		$scripts_handler->shouldReceive('get_asset_url')->andReturn('mocked-url.js');
+		$scripts_handler->shouldReceive('_get_asset_url')->andReturn('mocked-url.js');
 
 		$styles_handler = Mockery::mock('Ran\PluginLib\EnqueueAccessory\StylesHandler');
 		$styles_handler->shouldReceive('add')->andReturnSelf();
 		$styles_handler->shouldReceive('enqueue_immediate')->andReturnSelf();
-		$styles_handler->shouldReceive('get_asset_url')->andReturn('mocked-url.css');
+		$styles_handler->shouldReceive('_get_asset_url')->andReturn('mocked-url.css');
 
 		// Set the mocked handlers on the BlockRegistrar
 		$scripts_handler_property = $reflection->getProperty('scripts_handler');

@@ -529,7 +529,7 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 		$assets = $this->instance->get_info();
 
 		// With flattened structure, check if hook exists directly in deferred assets
-		$deferred_assets = $this->get_protected_property_value($this->instance, 'deferred_assets');
+		$deferred_assets = $this->_get_protected_property_value($this->instance, 'deferred_assets');
 		$this->assertArrayHasKey($hook_name, $deferred_assets, 'Hook key should exist in deferred assets.');
 		$this->assertArrayHasKey(10, $deferred_assets[$hook_name], 'Priority 10 key should exist.');
 		$this->assertCount(1, $deferred_assets[$hook_name][10]);
@@ -1088,10 +1088,8 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 			->with($handle, $asset_definition['attributes'])
 			->andReturn($asset_definition['attributes']);
 
-		// Mock _do_add_filter to verify filter is added
-		$this->instance->shouldReceive('_do_add_filter')
-			->zeroOrMoreTimes()
-			->with('script_loader_tag', Mockery::type('callable'), 10, 2);
+		// Expect HooksManager register_filter is added
+		$this->expectFilter('script_loader_tag', 10, 1, 2);
 
 		// Act
 		$this->_invoke_protected_method(

@@ -250,17 +250,29 @@ class BlockRegistrar extends AssetEnqueueBaseAbstract {
 						$logger->debug("{$context} - Registering action for hook '{$hook_name}' with priority {$priority}.");
 					}
 
-					$this->_do_add_action($hook_name, function() use ($hook_name, $priority) {
-						$this->_register_blocks($hook_name, $priority);
-					}, $priority);
+					$this->_get_hooks_manager()->register_action(
+						$hook_name,
+						function() use ($hook_name, $priority) {
+							$this->_register_blocks($hook_name, $priority);
+						},
+						$priority,
+						0,
+						array('context' => 'block_registrar')
+					);
 
 					$this->registered_hooks[$hook_key] = true;
 				}
 			}
 		}
 
-		// Enhance external block registrations with our asset system
-		$this->_do_add_filter('register_block_type_args', array($this, '_integrate_block_assets'), 10, 2);
+		// Enhance external block registrations with our asset system via HooksManager
+		$this->_get_hooks_manager()->register_filter(
+			'register_block_type_args',
+			array($this, '_integrate_block_assets'),
+			10,
+			2,
+			array('context' => 'block_registrar')
+		);
 
 		// Set up asset management hooks (inherited from BlockAssetTrait via AssetEnqueueBaseAbstract)
 		$this->_setup_asset_hooks();
@@ -349,13 +361,13 @@ class BlockRegistrar extends AssetEnqueueBaseAbstract {
 	 */
 	private function _get_registration_results(): array {
 		$results = array();
-		
+
 		// Iterate over the nested blocks structure: hook -> priority -> blocks
 		foreach ($this->blocks as $hook => $priorities) {
 			foreach ($priorities as $priority => $block_definitions) {
 				foreach ($block_definitions as $block_definition) {
 					$block_name = $block_definition['block_name'];
-					
+
 					// If successfully registered, include the WP_Block_Type object
 					if (isset($this->registered_wp_block_types[$block_name])) {
 						$results[$block_name] = $this->registered_wp_block_types[$block_name];
@@ -366,7 +378,7 @@ class BlockRegistrar extends AssetEnqueueBaseAbstract {
 				}
 			}
 		}
-		
+
 		return $results;
 	}
 
@@ -382,13 +394,13 @@ class BlockRegistrar extends AssetEnqueueBaseAbstract {
 	 */
 	public function get_block_status(): array {
 		$status = array();
-		
+
 		// Process all staged blocks (including deferred ones)
 		foreach ($this->blocks as $hook => $priorities) {
 			foreach ($priorities as $priority => $block_definitions) {
 				foreach ($block_definitions as $block_definition) {
 					$block_name = $block_definition['block_name'];
-					
+
 					// Determine current status
 					if (isset($this->registered_wp_block_types[$block_name])) {
 						// Successfully registered with WordPress
@@ -416,7 +428,7 @@ class BlockRegistrar extends AssetEnqueueBaseAbstract {
 							'message'  => "Waiting for '{$hook}' hook to fire"
 						);
 					}
-					
+
 					// Add additional metadata
 					$status[$block_name]['config']          = $block_definition;
 					$status[$block_name]['has_assets']      = isset($block_definition['assets']);
@@ -425,7 +437,7 @@ class BlockRegistrar extends AssetEnqueueBaseAbstract {
 				}
 			}
 		}
-		
+
 		return $status;
 	}
 
@@ -438,10 +450,10 @@ class BlockRegistrar extends AssetEnqueueBaseAbstract {
 	 * @param string $hook_name The hook name to check.
 	 * @return bool True if the hook has fired, false otherwise.
 	 */
-	private function _has_hook_fired(string $hook_name): bool {
-		// Use did_action() to check if the hook has fired
+	protected function _has_hook_fired(string $hook_name): bool {
+		// Use _do_did_action() wrapper to check if the hook has fired
 		// Returns the number of times the hook has been executed
-		return did_action($hook_name) > 0;
+		return $this->_do_did_action($hook_name) > 0;
 	}
 
 	/**
@@ -682,16 +694,16 @@ class BlockRegistrar extends AssetEnqueueBaseAbstract {
 	 */
 	protected function _setup_asset_hooks(): void {
 		// Early block detection for conditional asset loading
-		$this->_do_add_action('wp', array($this, 'detect_block_presence'), 5);
+		$this->_get_hooks_manager()->register_action('wp', array($this, '_detect_block_presence'), 5, 1, array('context' => 'block_registrar'));
 
 		// Standard asset processing
-		$this->_do_add_action('wp_enqueue_scripts', array($this, 'stage'), 10);
+		$this->_get_hooks_manager()->register_action('wp_enqueue_scripts', array($this, 'stage'), 10, 1, array('context' => 'block_registrar'));
 
 		// Editor-specific assets
-		$this->_do_add_action('enqueue_block_editor_assets', array($this, '_enqueue_editor_assets'), 10);
+		$this->_get_hooks_manager()->register_action('enqueue_block_editor_assets', array($this, '_enqueue_editor_assets'), 10, 1, array('context' => 'block_registrar'));
 
 		// Dynamic block integration
-		$this->_do_add_filter('render_block', array($this, '_maybe_enqueue_dynamic_assets'), 10, 2);
+		$this->_get_hooks_manager()->register_filter('render_block', array($this, '_maybe_enqueue_dynamic_assets'), 10, 2, array('context' => 'block_registrar'));
 	}
 
 	/**
@@ -792,7 +804,7 @@ class BlockRegistrar extends AssetEnqueueBaseAbstract {
 			return; // No blocks to preload
 		}
 
-		$this->_do_add_action('wp_head', array($this, '_generate_preload_tags'), 2);
+		$this->_get_hooks_manager()->register_action('wp_head', array($this, '_generate_preload_tags'), 2, 0, array('context' => 'block_registrar'));
 	}
 
 	/**

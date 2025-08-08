@@ -20,7 +20,7 @@ class ConcreteEnqueueForTesting extends AssetEnqueueBaseAbstract {
 		// Minimal implementation for testing purposes.
 	}
 
-	public function get_asset_url(string $path, ?AssetType $asset_type = null): ?string {
+	public function _get_asset_url(string $path, ?AssetType $asset_type = null): ?string {
 		return 'https://example.com/' . $path;
 	}
 

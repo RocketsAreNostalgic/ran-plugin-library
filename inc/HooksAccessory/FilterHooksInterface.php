@@ -1,37 +1,83 @@
 <?php
 /**
- * FilterHookAttributeInterface is used by an object that needs to subscribe to
- * WordPress filter hooks.
+ * WordPress Filter Hooks Provider Interface
  *
- * Reference https://carlalexander.ca/polymorphism-wordpress-interfaces/
+ * Defines a contract for objects that need to register WordPress filter hooks
+ * in a declarative, type-safe manner. This interface provides a modern,
+ * comprehensive approach to filter hook registration with enhanced validation
+ * and error handling capabilities.
  *
- *  @package  RanPluginLib
+ * This implementation is inspired by the polymorphic interface concepts from
+ * https://carlalexander.ca/polymorphism-wordpress-interfaces/
+ *
+ * @package Ran\PluginLib\HooksAccessory
+ * @since 0.0.10
  */
 
-declare(strict_types = 1);
+declare(strict_types=1);
 
 namespace Ran\PluginLib\HooksAccessory;
 
+use Ran\PluginLib\AccessoryAPI\AccessoryBaseInterface;
+
 /**
- * ActionHookAttributeInterface is used by an object that needs to subscribe to WordPress filter hooks.
+ * Interface for objects that provide WordPress filter hook registrations
+ *
+ * Classes implementing this interface can declare their filter hook requirements
+ * in a static, declarative manner. The hook registration system will automatically
+ * process these declarations and register the appropriate WordPress filter hooks.
+ *
+ * This interface supports multiple declaration formats for maximum flexibility
+ * while maintaining type safety and comprehensive validation.
  */
-interface FilterHooksInterface {
+interface FilterHooksInterface extends AccessoryBaseInterface {
 	/**
-	 * Returns an array of filters that the object needs to be subscribed to.
+	 * Declare the filter hook registrations for this object
 	 *
-	 * The array key is the name of the filter hook. The value can be:
+	 * Returns an associative array where keys are WordPress filter hook names
+	 * and values define the callback method and optional parameters.
 	 *
-	 *  * The method name
-	 *  * An array with the method name and priority
-	 *  * An array with the method name, priority and number of accepted arguments
+	 * Supported value formats:
+	 * - 'method_name' - Simple method name with default priority (10) and args (1)
+	 * - ['method_name', priority] - Method name with custom priority
+	 * - ['method_name', priority, accepted_args] - Full specification
 	 *
-	 * For instance:
+	 * All callback methods must:
+	 * - Be public methods on the implementing class
+	 * - Accept the correct number of parameters as specified
+	 * - Return the filtered value (filters must return values)
+	 * - Have appropriate return types for the filter context
 	 *
-	 *  * array('filter_name' => 'method_name')
-	 *  * array('filter_name' => array('method_name', $priority))
-	 *  * array('filter_name' => array('method_name', $priority, $accepted_args))
-	 *
-	 * @return array<string, string|array> Array of filters.
+	 * @return array<string, string|array{string, int}|array{string, int, int}> Filter hook definitions
+	 * @throws \InvalidArgumentException If hook definitions are malformed
+	 * @throws \BadMethodCallException If referenced methods don't exist
 	 */
-	public static function get_filter(): array;
+	public static function declare_filter_hooks(): array;
+
+	/**
+	 * Validate that all declared filter hooks are properly configured
+	 *
+	 * This method is called during hook registration to ensure that:
+	 * - All referenced methods exist and are callable
+	 * - Hook definitions are properly formatted
+	 * - No conflicts exist between hook registrations
+	 * - Filter methods return appropriate values
+	 *
+	 * Implementations should override this method if they need custom
+	 * validation logic beyond the standard checks.
+	 *
+	 * @param object $instance The instance that will receive the hook callbacks
+	 * @return array<string> Array of validation error messages (empty if valid)
+	 */
+	public static function validate_filter_hooks(object $instance): array;
+
+	/**
+	 * Get metadata about the filter hook registrations
+	 *
+	 * Returns additional information about the hook registrations that can be
+	 * used for debugging, documentation, or advanced hook management features.
+	 *
+	 * @return array<string, mixed> Metadata about the hook registrations
+	 */
+	public static function get_filter_hooks_metadata(): array;
 }

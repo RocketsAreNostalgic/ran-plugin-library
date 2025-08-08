@@ -8,8 +8,8 @@
 declare(strict_types = 1);
 
 use WP_Mock\Tools\TestCase;
-use \Ran\PluginLib\Util\CollectingLogger;
 use \Ran\PluginLib\Util\ExpectLogTrait;
+use \Ran\PluginLib\Util\CollectingLogger;
 
 // Bootstrap WP_Mock to initialize built-in features.
 WP_Mock::bootstrap();
@@ -84,7 +84,7 @@ abstract class RanTestCase extends TestCase {
 	 * @return mixed The value of the property.
 	 * @throws \ReflectionException If the property does not exist.
 	 */
-	protected function get_protected_property_value(object $object, string $property_name) {
+	protected function _get_protected_property_value(object $object, string $property_name) {
 		$reflector = new \ReflectionClass($object);
 
 		// If the object is a Mockery mock, get the reflection of the mocked class

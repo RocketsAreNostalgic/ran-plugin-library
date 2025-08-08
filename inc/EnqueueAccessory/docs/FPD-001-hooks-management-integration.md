@@ -63,15 +63,15 @@ trait AssetEnqueueBaseTrait {
      * Shared HookManager instance for the entire asset management toolchain.
      * This single instance will be available to all asset handlers and their traits.
      */
-    private ?EnhancedHooksManager $shared_hooks_manager = null;
+    private ?HooksManager $shared_hooks_manager = null;
 
     /**
-     * Override the HooksManagementTrait's get_hooks_manager to use our shared instance.
+     * Override the HooksManagementTrait's _get_hooks_manager to use our shared instance.
      * This ensures a single HookManager instance is used throughout the entire asset management system.
      */
-    protected function get_hooks_manager(): EnhancedHooksManager {
+    protected function _get_hooks_manager(): HooksManager {
         if ($this->shared_hooks_manager === null) {
-            $this->shared_hooks_manager = new EnhancedHooksManager($this, $this->get_logger());
+            $this->shared_hooks_manager = new HooksManager($this, $this->get_logger());
         }
         return $this->shared_hooks_manager;
     }
@@ -222,7 +222,7 @@ $this->_do_add_action('admin_head', array($this, 'render_head'));
 
 ```php
 // Single registration that handles both contexts
-$this->register_universal_action('wp_head', [$this, 'render_head']);
+$this->_register_universal_action('wp_head', [$this, 'render_head']);
 ```
 
 ### Phase 4: Advanced Hook Management Features
@@ -271,7 +271,7 @@ $this->register_conditional_action(
 
 - [ ] Add `HooksManagementTrait` to `AssetEnqueueBaseTrait`
 - [ ] Implement shared HookManager instance
-- [ ] Override `get_hooks_manager()` method
+- [ ] Override `_get_hooks_manager()` method
 - [ ] Add basic tests for shared instance functionality
 
 ### Step 2: Deferred Asset System (Week 2)
