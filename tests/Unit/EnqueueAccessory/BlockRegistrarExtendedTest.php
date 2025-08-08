@@ -1251,7 +1251,7 @@ class BlockRegistrarExtendedTest extends TestCase {
 		$partial_mock = Mockery::mock($this->block_registrar)->makePartial();
 
 		// Override the _cache_for_request method to return our mock registry
-		$reflection = new ReflectionClass($this->block_registrar);
+		$reflection   = new ReflectionClass($this->block_registrar);
 		$cache_method = $reflection->getMethod('_cache_for_request');
 		$cache_method->setAccessible(true);
 

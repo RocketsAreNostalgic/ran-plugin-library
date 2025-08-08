@@ -24,11 +24,17 @@ trait WPWrappersTrait {
 	 * This method provides a consistent interface for adding actions across the codebase
 	 * and allows for easier testing and potential future modifications to action registration.
 	 *
+	* Note: For anything beyond simple, one-off registrations or when a hooks manager is already available,
+	* prefer using the HooksManager API (via HooksManagementTrait::register_action) which provides
+	* deduplication, grouping, conditional registration, and richer logging.
+	*
 	 * @param string $hook The WordPress hook to add the action to.
 	 * @param mixed $callback The callback function or method to be executed.
 	 * @param int $priority Optional. The priority of the action. Default 10.
 	 * @param int $accepted_args Optional. The number of arguments the callback accepts. Default 1.
 	 * @return void
+	* @see \Ran\PluginLib\HooksAccessory\HooksManagementTrait::register_action
+	* @see \Ran\PluginLib\HooksAccessory\HooksManager
 	 * @codeCoverageIgnore
 	 */
 	public function _do_add_action(string $hook, $callback, int $priority = 10, int $accepted_args = 1): void {
@@ -57,11 +63,17 @@ trait WPWrappersTrait {
 	 * This method provides a consistent interface for adding filters across the codebase
 	 * and allows for easier testing and potential future modifications to filter registration.
 	 *
+	* Note: For anything beyond simple, one-off registrations or when a hooks manager is already available,
+	* prefer using the HooksManager API (via HooksManagementTrait::register_filter) which provides
+	* deduplication, grouping, conditional registration, and richer logging.
+	*
 	 * @param string $hook The WordPress hook to add the filter to.
 	 * @param mixed $callback The callback function or method to be executed.
 	 * @param int $priority Optional. The priority of the filter. Default 10.
 	 * @param int $accepted_args Optional. The number of arguments the callback accepts. Default 1.
 	 * @return void
+	* @see \Ran\PluginLib\HooksAccessory\HooksManagementTrait::register_filter
+	* @see \Ran\PluginLib\HooksAccessory\HooksManager
 	 * @codeCoverageIgnore
 	 */
 	public function _do_add_filter(string $hook, $callback, int $priority = 10, int $accepted_args = 1): void {
@@ -71,6 +83,11 @@ trait WPWrappersTrait {
 
 	/**
 	 * public wrapper for WordPress remove_action function
+	*
+	* Note: If an action was registered via HooksManager, prefer removing it via
+	* HooksManager too to keep internal tracking in sync:
+	* `$this->get_hooks_manager()->remove_hook('action', $hook_name, $callback, $priority)`.
+	* This wrapper remains valid for one-off direct removals.
 	 *
 	 * @param string $hook_name The name of the action
 	 * @param callable $callback The callback function
@@ -83,6 +100,11 @@ trait WPWrappersTrait {
 
 	/**
 	 * public wrapper for WordPress remove_filter function
+	*
+	* Note: If a filter was registered via HooksManager, prefer removing it via
+	* HooksManager as well to keep tracking in sync:
+	* `$this->get_hooks_manager()->remove_hook('filter', $hook_name, $callback, $priority)`.
+	* This wrapper remains valid for one-off direct removals.
 	 *
 	 * @param string $hook_name The name of the filter
 	 * @param callable $callback The callback function
@@ -95,6 +117,10 @@ trait WPWrappersTrait {
 
 	/**
 	 * public wrapper for WordPress do_action function
+	*
+	* Invocation guidance: Registration should go through HooksManager, but
+	* dispatching an action is unaffected; calling WordPress `do_action` directly
+	* via this wrapper is appropriate.
 	 *
 	 * @param string $hook_name The name of the action
 	 * @param mixed ...$args Arguments to pass to the callbacks
@@ -105,6 +131,10 @@ trait WPWrappersTrait {
 
 	/**
 	 * public wrapper for WordPress apply_filters function
+	*
+	* Invocation guidance: Registration should go through HooksManager, but
+	* applying filters to a value can use this wrapper (or
+	* `$this->get_hooks_manager()->apply_filters(...)`, which forwards here).
 	 *
 	 * @param string $hook_name The name of the filter
 	 * @param mixed $value The value to filter

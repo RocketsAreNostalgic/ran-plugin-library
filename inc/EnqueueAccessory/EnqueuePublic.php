@@ -13,6 +13,7 @@ use Ran\PluginLib\Util\Logger;
 use Ran\PluginLib\Config\ConfigInterface;
 use Ran\PluginLib\Util\WPWrappersTrait;
 use Ran\PluginLib\EnqueueAccessory\EnqueueInterface;
+use Ran\PluginLib\HooksAccessory\HooksManagementTrait;
 
 /**
  * This class is meant to be implemented and instantiated via the RegisterServices Class.
@@ -21,6 +22,7 @@ use Ran\PluginLib\EnqueueAccessory\EnqueueInterface;
  * @package Ran\PluginLib\EnqueueAccessory
  */
 class EnqueuePublic implements EnqueueInterface {
+	use WPWrappersTrait;
 	use WPWrappersTrait;
 
 	private ScriptsHandler $scripts_handler;

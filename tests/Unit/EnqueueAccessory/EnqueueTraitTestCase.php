@@ -23,6 +23,8 @@ abstract class EnqueueTraitTestCase extends PluginLibTestCase {
 
 	/** @var MockInterface|ConfigInterface */
 	protected $config_mock;
+	/** @var Mockery|mixed */
+	protected $hooks_manager_mock;
 
 	/**
 	 * Returns the fully qualified class name of the concrete class used for testing.
@@ -58,6 +60,10 @@ abstract class EnqueueTraitTestCase extends PluginLibTestCase {
 
 		$this->instance->shouldReceive('get_logger')->andReturn($this->logger_mock)->byDefault();
 		$this->instance->shouldReceive('get_config')->andReturn($this->config_mock)->byDefault();
+		$this->hooks_manager_mock = Mockery::mock('Ran\PluginLib\HooksAccessory\HooksManager');
+		$this->hooks_manager_mock->shouldReceive('register_action')->withAnyArgs()->andReturn(true)->byDefault();
+		$this->hooks_manager_mock->shouldReceive('register_filter')->withAnyArgs()->andReturn(true)->byDefault();
+		$this->instance->shouldReceive('get_hooks_manager')->andReturn($this->hooks_manager_mock)->byDefault();
 
 		$this->instance->shouldReceive('get_asset_url')
 			->withAnyArgs()
@@ -105,5 +111,32 @@ abstract class EnqueueTraitTestCase extends PluginLibTestCase {
 				return htmlspecialchars((string) $text, ENT_QUOTES, 'UTF-8');
 			},
 		))->byDefault();
+		WP_Mock::userFunction('esc_html', array(
+			'return' => static function($text) {
+				return htmlspecialchars((string) $text, ENT_QUOTES, 'UTF-8');
+			},
+		))->byDefault();
+	}
+
+	/**
+		* Expect an action registration via HooksManager.
+		*/
+	protected function expectAction(string $hook, int $priority = 10, int $times = 1, int $acceptedArgs = 1): void {
+		$this->hooks_manager_mock
+			->shouldReceive('register_action')
+			->with($hook, Mockery::type('callable'), $priority, $acceptedArgs, Mockery::any())
+			->times($times)
+			->andReturn(true);
+	}
+
+	/**
+		* Expect a filter registration via HooksManager.
+		*/
+	protected function expectFilter(string $hook, int $priority = 10, int $times = 1, int $acceptedArgs = 1): void {
+		$this->hooks_manager_mock
+			->shouldReceive('register_filter')
+			->with($hook, Mockery::type('callable'), $priority, $acceptedArgs, Mockery::any())
+			->times($times)
+			->andReturn(true);
 	}
 }

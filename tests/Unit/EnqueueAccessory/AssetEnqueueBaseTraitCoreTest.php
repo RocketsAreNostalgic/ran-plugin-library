@@ -2596,9 +2596,7 @@ class AssetEnqueueBaseTraitCoreTest extends EnqueueTraitTestCase {
 		$asset_type       = AssetType::ScriptModule;
 
 		// Mock _do_add_action to capture the scheduled action
-		$this->instance->shouldReceive('_do_add_action')
-			->once()
-			->with('wp_enqueue_scripts', Mockery::type('callable'), 10);
+		$this->expectAction('wp_enqueue_scripts', 10, 1);
 
 		// Act
 		$this->instance->_process_single_removal($asset_definition, $asset_type);
@@ -2624,9 +2622,7 @@ class AssetEnqueueBaseTraitCoreTest extends EnqueueTraitTestCase {
 		$asset_type = AssetType::Script;
 
 		// Mock _do_add_action to capture the scheduled action
-		$this->instance->shouldReceive('_do_add_action')
-			->once()
-			->with('wp_footer', Mockery::type('callable'), 20);
+		$this->expectAction('wp_footer', 20, 1);
 
 		// Act
 		$this->instance->_process_single_removal($asset_definition, $asset_type);
@@ -2657,9 +2653,7 @@ class AssetEnqueueBaseTraitCoreTest extends EnqueueTraitTestCase {
 			->andReturn($inactive_logger);
 
 		// Mock _do_add_action
-		$this->instance->shouldReceive('_do_add_action')
-			->once()
-			->with('wp_enqueue_scripts', Mockery::type('callable'), 10);
+		$this->expectAction('wp_enqueue_scripts', 10, 1);
 
 		// Act
 		$this->instance->_process_single_removal($asset_definition, $asset_type);

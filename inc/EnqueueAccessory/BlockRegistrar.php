@@ -682,16 +682,16 @@ class BlockRegistrar extends AssetEnqueueBaseAbstract {
 	 */
 	protected function _setup_asset_hooks(): void {
 		// Early block detection for conditional asset loading
-		$this->_do_add_action('wp', array($this, 'detect_block_presence'), 5);
+		$this->get_hooks_manager()->register_action('wp', array($this, 'detect_block_presence'), 5, 1, array('context' => 'block_registrar'));
 
 		// Standard asset processing
-		$this->_do_add_action('wp_enqueue_scripts', array($this, 'stage'), 10);
+		$this->get_hooks_manager()->register_action('wp_enqueue_scripts', array($this, 'stage'), 10, 1, array('context' => 'block_registrar'));
 
 		// Editor-specific assets
-		$this->_do_add_action('enqueue_block_editor_assets', array($this, '_enqueue_editor_assets'), 10);
+		$this->get_hooks_manager()->register_action('enqueue_block_editor_assets', array($this, '_enqueue_editor_assets'), 10, 1, array('context' => 'block_registrar'));
 
 		// Dynamic block integration
-		$this->_do_add_filter('render_block', array($this, '_maybe_enqueue_dynamic_assets'), 10, 2);
+		$this->get_hooks_manager()->register_filter('render_block', array($this, '_maybe_enqueue_dynamic_assets'), 10, 2, array('context' => 'block_registrar'));
 	}
 
 	/**
