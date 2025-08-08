@@ -1,4 +1,4 @@
-# TFS-009: Library Initialization Timing and WordPress Hook Integration
+# TFS-003: Library Initialization Timing and WordPress Hook Integration
 
 ## Status
 

@@ -2,9 +2,9 @@
 /**
  * Tests for BlockRegistrar preload functionality
  *
- * ADR-001 COMPLIANCE STATUS: PARTIALLY COMPLIANT WITH DOCUMENTED EXCEPTIONS
+ * TFS-001 COMPLIANCE STATUS: PARTIALLY COMPLIANT WITH DOCUMENTED EXCEPTIONS
  *
- * This test suite follows ADR-001 public interface testing patterns where possible,
+ * This test suite follows TFS-001 public interface testing patterns where possible,
  * but includes documented exceptions for WordPress hook callback testing.
  *
  * COMPLIANT ASPECTS:
@@ -182,12 +182,27 @@ class BlockRegistrarPreloadTest extends PluginLibTestCase {
 	 */
 	public function test_setup_preload_callbacks_registers_wp_head_hook(): void {
 		// Arrange
+		// Recreate instance as partial mock to stub HooksManager
+		$hooksManager = Mockery::mock('Ran\\PluginLib\\HooksAccessory\\HooksManager');
+		$hooksManager->shouldReceive('register_action')->withAnyArgs()->andReturn(true)->byDefault();
+		$hooksManager->shouldReceive('register_filter')->withAnyArgs()->andReturn(true)->byDefault();
+		$this->instance = Mockery::mock(BlockRegistrar::class, array($this->config))->makePartial();
+		$this->instance->shouldAllowMockingProtectedMethods();
+		$this->instance->shouldReceive('_get_hooks_manager')->andReturn($hooksManager);
+
+		// Expect a specific call registering wp_head with priority 2
+		$hooksManager
+			->shouldReceive('register_action')
+			->withArgs(function($hook, $callback, $priority, $acceptedArgs, $context) {
+				return $hook === 'wp_head' && $priority === 2;
+			})
+			->once()
+			->andReturn(true);
+
 		$this->instance->add(array(
 			'block_name' => 'my-plugin/hero-block',
 			'preload'    => true
 		));
-
-		WP_Mock::expectActionAdded('wp_head', array($this->instance, '_generate_preload_tags'), 2);
 
 		// Act
 		$result = $this->instance->stage();
@@ -201,7 +216,7 @@ class BlockRegistrarPreloadTest extends PluginLibTestCase {
 	 * @test
 	 * @covers \Ran\PluginLib\EnqueueAccessory\BlockRegistrar::_generate_preload_tags_for_assets
 	 *
-	 * ADR-001 Exception: Direct private method testing justified because:
+	 * TFS-001 Exception: Direct private method testing justified because:
 	 * 1. WordPress Hook Integration: Method is designed as WordPress hook callback, not accessible through public interface
 	 * 2. HTML Output Testing: Critical to verify correct HTML preload tag generation for security/functionality
 	 * 3. WP_Mock Limitations: WP_Mock doesn't execute hook callbacks, making integration testing impossible
@@ -238,7 +253,7 @@ class BlockRegistrarPreloadTest extends PluginLibTestCase {
 	 * @test
 	 * @covers \Ran\PluginLib\EnqueueAccessory\BlockRegistrar::_generate_preload_tags_for_assets
 	 *
-	 * ADR-001 Exception: Direct private method testing justified because:
+	 * TFS-001 Exception: Direct private method testing justified because:
 	 * 1. WordPress Hook Integration: Method is designed as WordPress hook callback, not accessible through public interface
 	 * 2. HTML Output Testing: Critical to verify correct HTML preload tag generation for security/functionality
 	 * 3. WP_Mock Limitations: WP_Mock doesn't execute hook callbacks, making integration testing impossible
@@ -341,7 +356,7 @@ class BlockRegistrarPreloadTest extends PluginLibTestCase {
 	 * @test
 	 * @covers \Ran\PluginLib\EnqueueAccessory\BlockRegistrar::_generate_preload_tags
 	 *
-	 * ADR-001 Exception: Direct private method testing justified because:
+	 * TFS-001 Exception: Direct private method testing justified because:
 	 * 1. WordPress Hook Integration: Method is designed as WordPress hook callback, not accessible through public interface
 	 * 2. Complex Conditional Logic: Testing inherit preload logic requires direct method access
 	 * 3. WP_Mock Limitations: WP_Mock doesn't execute hook callbacks, making integration testing impossible

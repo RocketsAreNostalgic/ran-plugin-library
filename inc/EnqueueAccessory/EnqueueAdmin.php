@@ -13,8 +13,9 @@ namespace Ran\PluginLib\EnqueueAccessory;
 
 use Ran\PluginLib\Util\Logger;
 use Ran\PluginLib\Config\ConfigInterface;
-use Ran\PluginLib\EnqueueAccessory\WPWrappersTrait;
+use Ran\PluginLib\Util\WPWrappersTrait;
 use Ran\PluginLib\EnqueueAccessory\EnqueueInterface;
+use Ran\PluginLib\HooksAccessory\HooksManagementTrait;
 
 /**
  * Class for handling admin script and style enqueuing.
@@ -26,6 +27,7 @@ use Ran\PluginLib\EnqueueAccessory\EnqueueInterface;
  */
 class EnqueueAdmin implements EnqueueInterface {
 	use WPWrappersTrait;
+	use HooksManagementTrait;
 
 	private ScriptsHandler $scripts_handler;
 	private ScriptModulesHandler $script_modules_handler;

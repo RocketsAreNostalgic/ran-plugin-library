@@ -65,7 +65,7 @@ class AssetEnqueueBaseTraitCachingTest extends EnqueueTraitTestCase {
 	// Cache Busting
 	// We have to rely heavily on reflection for this suite via _invoke_protected_method
 	// because most tests here are testing pure utility methods and complex internal logic
-	// that don't have meaningful public interfaces (per ADR-001 guidelines):
+	// that don't have meaningful public interfaces (per TFS-001 guidelines):
 	//
 	// 1. _generate_asset_version() - Complex cache-busting logic with file system operations
 	// 2. _resolve_environment_src() - URL resolution utility for dev/prod environments
@@ -74,7 +74,7 @@ class AssetEnqueueBaseTraitCachingTest extends EnqueueTraitTestCase {
 	//
 	// These methods are self-contained utilities that are clearer to test directly
 	// rather than forcing integration tests through complex public interface setups.
-	// This is documented as an acceptable exception in ADR-001.
+	// This is documented as an acceptable exception in TFS-001.
 	// ------------------------------------------------------------------------
 
 	// ------------------------------------------------------------------------
