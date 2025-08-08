@@ -314,7 +314,7 @@ trait StylesEnqueueTrait {
 				$callback = function($tag, $tag_handle) use ($handle, $attributes) {
 					return $this->_modify_html_tag_attributes(AssetType::Style, $tag, $tag_handle, $handle, $attributes);
 				};
-				$this->get_hooks_manager()->register_filter('style_loader_tag', $callback, 10, 2, array());
+				$this->_get_hooks_manager()->register_filter('style_loader_tag', $callback, 10, 2, array());
 			}
 		}
 

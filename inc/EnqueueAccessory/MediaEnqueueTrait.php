@@ -114,7 +114,7 @@ trait MediaEnqueueTrait {
 			$this->deferred_media_tool_configs[ $hook ][ $index ] = $config;
 
 			// Ensure one-time registration via HooksManager
-			$this->get_hooks_manager()->register_action(
+			$this->_get_hooks_manager()->register_action(
 				$hook,
 				array( $this, '_enqueue_deferred_media_tools' ),
 				10,

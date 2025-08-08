@@ -63,7 +63,7 @@ class ConcreteAssetEnqueueBase extends AssetEnqueueBaseAbstract {
 	 * @param string $path The asset path.
 	 * @return string The full asset URL.
 	 */
-	protected function get_asset_url(string $path): string {
+	protected function _get_asset_url(string $path): string {
 		return 'https://example.com/' . ltrim($path, '/');
 	}
 }
