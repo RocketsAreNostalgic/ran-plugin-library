@@ -265,8 +265,14 @@ class BlockRegistrar extends AssetEnqueueBaseAbstract {
 			}
 		}
 
-		// Enhance external block registrations with our asset system
-		$this->_do_add_filter('register_block_type_args', array($this, '_integrate_block_assets'), 10, 2);
+		// Enhance external block registrations with our asset system via HooksManager
+		$this->_get_hooks_manager()->register_filter(
+			'register_block_type_args',
+			array($this, '_integrate_block_assets'),
+			10,
+			2,
+			array('context' => 'block_registrar')
+		);
 
 		// Set up asset management hooks (inherited from BlockAssetTrait via AssetEnqueueBaseAbstract)
 		$this->_setup_asset_hooks();
