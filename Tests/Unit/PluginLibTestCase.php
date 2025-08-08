@@ -186,8 +186,8 @@ abstract class PluginLibTestCase extends RanTestCase {
 		WP_Mock::tearDown();
 
 		// Clean up singleton instances
-		$this->removeSingletonInstance(ConcreteConfigForTesting::class);
-		$this->removeSingletonInstance(ConfigAbstract::class);
+		$this->_removeSingletonInstance(ConcreteConfigForTesting::class);
+		$this->_removeSingletonInstance(ConfigAbstract::class);
 
 		parent::tearDown();
 	}
@@ -256,7 +256,7 @@ abstract class PluginLibTestCase extends RanTestCase {
 	 * @return void
 	 * @throws \ReflectionException If the property does not exist in the object or any of its parents.
 	 */
-	protected function set_protected_property_value(object &$object, string $property_name, $value): void {
+	protected function _set_protected_property_value(object &$object, string $property_name, $value): void {
 		$reflection = new \ReflectionObject($object);
 
 		// Walk up the inheritance tree to find the property
@@ -291,7 +291,7 @@ abstract class PluginLibTestCase extends RanTestCase {
 	 * @return mixed The value of the property.
 	 * @throws \ReflectionException If the property does not exist on the object.
 	 */
-	protected function get_protected_property_value(object $object, string $property_name) {
+	protected function _get_protected_property_value(object $object, string $property_name) {
 		$reflection = new \ReflectionObject($object);
 		$property   = $reflection->getProperty($property_name);
 		$property->setAccessible(true);
@@ -326,7 +326,7 @@ abstract class PluginLibTestCase extends RanTestCase {
 	 * @param string $className The fully qualified class name of the singleton to remove.
 	 * @return void
 	 */
-	protected function removeSingletonInstance(string $className): void {
+	protected function _removeSingletonInstance(string $className): void {
 		try {
 			$reflectionSingleton = new \ReflectionClass(SingletonAbstract::class);
 			$instancesProperty   = $reflectionSingleton->getProperty('instances');
