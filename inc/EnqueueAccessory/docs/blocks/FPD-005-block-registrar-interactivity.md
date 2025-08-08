@@ -507,7 +507,7 @@ $block_registrar->add([
 
 ```php
 // BlockRegistrar automatically injects context data
-protected function process_interactivity_context(array $block_definition, array $attributes): string {
+protected function _process_interactivity_context(array $block_definition, array $attributes): string {
     if (!isset($block_definition['interactivity']['context_data'])) {
         return '';
     }

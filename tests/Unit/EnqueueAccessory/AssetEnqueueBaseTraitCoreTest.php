@@ -153,7 +153,7 @@ class AssetEnqueueBaseTraitCoreTest extends EnqueueTraitTestCase {
 
 		// Set up the deferred assets array with just one priority for the hook
 		// Using flattened array structure (no asset type nesting)
-		$this->set_protected_property_value(
+		$this->_set_protected_property_value(
 			$this->instance,
 			'deferred_assets',
 			array(
@@ -172,7 +172,7 @@ class AssetEnqueueBaseTraitCoreTest extends EnqueueTraitTestCase {
 		$this->instance->_enqueue_deferred_scripts($hook_name, $priority);
 
 		// Assert - Get the deferred assets after processing
-		$deferred_assets = $this->get_protected_property_value($this->instance, 'deferred_assets');
+		$deferred_assets = $this->_get_protected_property_value($this->instance, 'deferred_assets');
 
 		// Verify that the deferred assets array exists and the hook has been removed
 		$this->assertIsArray($deferred_assets, 'Deferred assets should be an array');
@@ -207,7 +207,7 @@ class AssetEnqueueBaseTraitCoreTest extends EnqueueTraitTestCase {
 
 		// Set up the deferred assets array with one priority but will call with a different priority
 		// Using flattened array structure (no asset type nesting)
-		$this->set_protected_property_value(
+		$this->_set_protected_property_value(
 			$instance,
 			'deferred_assets',
 			array(
@@ -221,7 +221,7 @@ class AssetEnqueueBaseTraitCoreTest extends EnqueueTraitTestCase {
 		$instance->_enqueue_deferred_scripts($hook_name, $priority_missing);
 
 		// Assert - Get the deferred assets after processing
-		$deferred_assets = $this->get_protected_property_value($instance, 'deferred_assets');
+		$deferred_assets = $this->_get_protected_property_value($instance, 'deferred_assets');
 
 		// Verify that the deferred assets array still contains the hook and the existing priority
 		$this->assertIsArray($deferred_assets, 'Deferred assets should be an array');
@@ -229,7 +229,7 @@ class AssetEnqueueBaseTraitCoreTest extends EnqueueTraitTestCase {
 		$this->assertArrayHasKey($priority_exists, $deferred_assets[$hook_name], 'Priority should still exist');
 
 		// Now remove the existing priority and call again to test hook cleanup
-		$this->set_protected_property_value(
+		$this->_set_protected_property_value(
 			$instance,
 			'deferred_assets',
 			array(
@@ -241,7 +241,7 @@ class AssetEnqueueBaseTraitCoreTest extends EnqueueTraitTestCase {
 		$instance->_enqueue_deferred_scripts($hook_name, $priority_missing);
 
 		// Get the deferred assets after processing
-		$deferred_assets = $this->get_protected_property_value($instance, 'deferred_assets');
+		$deferred_assets = $this->_get_protected_property_value($instance, 'deferred_assets');
 
 		// Verify that the hook has been removed because it had no priorities
 		$this->assertIsArray($deferred_assets, 'Deferred assets should be an array');
@@ -388,8 +388,8 @@ class AssetEnqueueBaseTraitCoreTest extends EnqueueTraitTestCase {
 			)
 		));
 
-		// Mock get_asset_url to return null (resolution failure)
-		$this->instance->shouldReceive('get_asset_url')
+		// Mock _get_asset_url to return null (resolution failure)
+		$this->instance->shouldReceive('_get_asset_url')
 			->once()
 			->with('invalid/path/script.js', AssetType::Script)
 			->andReturn(null);
@@ -429,8 +429,8 @@ class AssetEnqueueBaseTraitCoreTest extends EnqueueTraitTestCase {
 			)
 		));
 
-		// Mock get_asset_url to return a valid URL
-		$this->instance->shouldReceive('get_asset_url')
+		// Mock _get_asset_url to return a valid URL
+		$this->instance->shouldReceive('_get_asset_url')
 			->once()
 			->with('path/to/success.js', AssetType::Script)
 			->andReturn('https://example.com/path/to/success.js');
@@ -503,8 +503,8 @@ class AssetEnqueueBaseTraitCoreTest extends EnqueueTraitTestCase {
 			)
 		));
 
-		// Mock get_asset_url to return a valid URL
-		$this->instance->shouldReceive('get_asset_url')
+		// Mock _get_asset_url to return a valid URL
+		$this->instance->shouldReceive('_get_asset_url')
 			->once()
 			->with('path/to/script.js', AssetType::Script)
 			->andReturn('https://example.com/path/to/script.js');
@@ -546,8 +546,8 @@ class AssetEnqueueBaseTraitCoreTest extends EnqueueTraitTestCase {
 			)
 		));
 
-		// Mock the get_asset_url method
-		$this->instance->shouldReceive('get_asset_url')
+		// Mock the _get_asset_url method
+		$this->instance->shouldReceive('_get_asset_url')
 			->with('path/to/script.js', AssetType::Script)
 			->andReturn('path/to/script.js');
 
@@ -600,8 +600,8 @@ class AssetEnqueueBaseTraitCoreTest extends EnqueueTraitTestCase {
 			)
 		));
 
-		// Mock the get_asset_url method
-		$this->instance->shouldReceive('get_asset_url')
+		// Mock the _get_asset_url method
+		$this->instance->shouldReceive('_get_asset_url')
 			->with('path/to/script.js', AssetType::Script)
 			->andReturn('path/to/script.js');
 
@@ -650,8 +650,8 @@ class AssetEnqueueBaseTraitCoreTest extends EnqueueTraitTestCase {
 			)
 		));
 
-		// Mock get_asset_url to return a valid URL
-		$this->instance->shouldReceive('get_asset_url')
+		// Mock _get_asset_url to return a valid URL
+		$this->instance->shouldReceive('_get_asset_url')
 			->once()
 			->with('path/to/script.js', AssetType::Script)
 			->andReturn('https://example.com/path/to/script.js');
@@ -705,8 +705,8 @@ class AssetEnqueueBaseTraitCoreTest extends EnqueueTraitTestCase {
 			)
 		));
 
-		// Mock get_asset_url to return a valid URL
-		$this->instance->shouldReceive('get_asset_url')
+		// Mock _get_asset_url to return a valid URL
+		$this->instance->shouldReceive('_get_asset_url')
 			->once()
 			->with('path/to/script.js', AssetType::Script)
 			->andReturn('https://example.com/path/to/script.js');
@@ -825,8 +825,8 @@ class AssetEnqueueBaseTraitCoreTest extends EnqueueTraitTestCase {
 			)
 		));
 
-		// Mock get_asset_url to return the expected URL
-		$this->instance->shouldReceive('get_asset_url')
+		// Mock _get_asset_url to return the expected URL
+		$this->instance->shouldReceive('_get_asset_url')
 			->once()
 			->with('script.js', AssetType::Script)
 			->andReturn('https://example.com/script.js');
@@ -1076,8 +1076,8 @@ class AssetEnqueueBaseTraitCoreTest extends EnqueueTraitTestCase {
 			)
 		));
 
-		// Mock get_asset_url to return the expected URL
-		$this->instance->shouldReceive('get_asset_url')
+		// Mock _get_asset_url to return the expected URL
+		$this->instance->shouldReceive('_get_asset_url')
 			->once()
 			->with('script.js', AssetType::Script)
 			->andReturn('https://example.com/script.js');
@@ -1144,8 +1144,8 @@ class AssetEnqueueBaseTraitCoreTest extends EnqueueTraitTestCase {
 			)
 		));
 
-		// Mock get_asset_url to return the expected URL
-		$this->instance->shouldReceive('get_asset_url')
+		// Mock _get_asset_url to return the expected URL
+		$this->instance->shouldReceive('_get_asset_url')
 			->once()
 			->with('script.js', AssetType::Script)
 			->andReturn('https://example.com/script.js');
@@ -1273,8 +1273,8 @@ class AssetEnqueueBaseTraitCoreTest extends EnqueueTraitTestCase {
 			)
 		));
 
-		// Mock get_asset_url to return a valid URL
-		$this->instance->shouldReceive('get_asset_url')
+		// Mock _get_asset_url to return a valid URL
+		$this->instance->shouldReceive('_get_asset_url')
 			->once()
 			->with('script.js', AssetType::Script)
 			->andReturn('https://example.com/script.js');
@@ -1337,8 +1337,8 @@ class AssetEnqueueBaseTraitCoreTest extends EnqueueTraitTestCase {
 			)
 		));
 
-		// Mock get_asset_url to return a valid URL
-		$this->instance->shouldReceive('get_asset_url')
+		// Mock _get_asset_url to return a valid URL
+		$this->instance->shouldReceive('_get_asset_url')
 			->once()
 			->with('failing-script.js', AssetType::Script)
 			->andReturn('https://example.com/failing-script.js');
@@ -1395,8 +1395,8 @@ class AssetEnqueueBaseTraitCoreTest extends EnqueueTraitTestCase {
 			)
 		));
 
-		// Mock get_asset_url to return a valid URL
-		$this->instance->shouldReceive('get_asset_url')
+		// Mock _get_asset_url to return a valid URL
+		$this->instance->shouldReceive('_get_asset_url')
 			->once()
 			->with('script.js', AssetType::Script)
 			->andReturn('https://example.com/script.js');
@@ -1860,8 +1860,8 @@ class AssetEnqueueBaseTraitCoreTest extends EnqueueTraitTestCase {
 			->once()
 			->andReturn(null);
 
-		// Mock get_asset_url to return a valid URL
-		$this->instance->shouldReceive('get_asset_url')
+		// Mock _get_asset_url to return a valid URL
+		$this->instance->shouldReceive('_get_asset_url')
 			->once()
 			->with('failing-script.js', AssetType::Script)
 			->andReturn('https://example.com/failing-script.js');
@@ -1966,8 +1966,8 @@ class AssetEnqueueBaseTraitCoreTest extends EnqueueTraitTestCase {
 			)
 		));
 
-		// Mock get_asset_url to return empty string (simulating empty src)
-		$this->instance->shouldReceive('get_asset_url')
+		// Mock _get_asset_url to return empty string (simulating empty src)
+		$this->instance->shouldReceive('_get_asset_url')
 			->once()
 			->with('', AssetType::Script)
 			->andReturn('');
@@ -2596,9 +2596,7 @@ class AssetEnqueueBaseTraitCoreTest extends EnqueueTraitTestCase {
 		$asset_type       = AssetType::ScriptModule;
 
 		// Mock _do_add_action to capture the scheduled action
-		$this->instance->shouldReceive('_do_add_action')
-			->once()
-			->with('wp_enqueue_scripts', Mockery::type('callable'), 10);
+		$this->expectAction('wp_enqueue_scripts', 10, 1);
 
 		// Act
 		$this->instance->_process_single_removal($asset_definition, $asset_type);
@@ -2624,9 +2622,7 @@ class AssetEnqueueBaseTraitCoreTest extends EnqueueTraitTestCase {
 		$asset_type = AssetType::Script;
 
 		// Mock _do_add_action to capture the scheduled action
-		$this->instance->shouldReceive('_do_add_action')
-			->once()
-			->with('wp_footer', Mockery::type('callable'), 20);
+		$this->expectAction('wp_footer', 20, 1);
 
 		// Act
 		$this->instance->_process_single_removal($asset_definition, $asset_type);
@@ -2657,9 +2653,7 @@ class AssetEnqueueBaseTraitCoreTest extends EnqueueTraitTestCase {
 			->andReturn($inactive_logger);
 
 		// Mock _do_add_action
-		$this->instance->shouldReceive('_do_add_action')
-			->once()
-			->with('wp_enqueue_scripts', Mockery::type('callable'), 10);
+		$this->expectAction('wp_enqueue_scripts', 10, 1);
 
 		// Act
 		$this->instance->_process_single_removal($asset_definition, $asset_type);

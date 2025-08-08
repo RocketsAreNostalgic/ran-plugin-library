@@ -60,7 +60,7 @@ This document outlines the implementation of a block-aware asset manager that le
 
 #### 1.3 Block Presence Detection
 
-- [x] **Method**: `detect_block_presence(): array`
+- [x] **Method**: `_detect_block_presence(): array`
 - [x] **Implementation**: Parse post content for registered blocks
 - [x] **Caching**: Cache block presence per request to avoid multiple parsing
 - [x] **Hook Integration**: `wp` hook for early detection, `wp_enqueue_scripts` for asset loading
@@ -185,7 +185,7 @@ protected function _cache_for_request(string $key, callable $callback) {
 **Usage in BlockAssetManager**:
 
 ```php
-protected function detect_block_presence(): array {
+protected function _detect_block_presence(): array {
     return $this->_cache_for_request('detected_blocks', function() {
         // Expensive block parsing logic here
         return $this->_parse_blocks_from_content();
@@ -220,7 +220,7 @@ $asset_definition = [
 foreach ($asset_config['frontend_scripts'] ?? [] as $script) {
     $script['_block_context'] = $block_name;
     $script['condition'] = function() use ($block_name) {
-        return in_array($block_name, $this->detect_block_presence());
+        return in_array($block_name, $this->_detect_block_presence());
     };
 
     $this->add_assets([$script], AssetType::Script);
@@ -285,7 +285,7 @@ class BlockAssetManager extends AssetEnqueueBaseAbstract {
     }
 
     // Enhanced block presence detection with caching
-    public function detect_block_presence(): array {
+    public function _detect_block_presence(): array {
         return $this->_cache_for_request('block_presence', function() {
             return $this->_detect_blocks_in_content();
         });
@@ -336,7 +336,7 @@ class BlockAssetManager extends AssetEnqueueBaseAbstract {
     }
 
     protected function _is_block_present(string $block_name): bool {
-        return in_array($block_name, $this->detect_block_presence());
+        return in_array($block_name, $this->_detect_block_presence());
     }
 }
 ```
@@ -359,7 +359,7 @@ trait BlockAssetTrait {
         foreach ($shared_assets as $asset_type => $assets) {
             foreach ($assets as $asset) {
                 $asset['condition'] = function() use ($blocks) {
-                    $detected = $this->detect_block_presence();
+                    $detected = $this->_detect_block_presence();
                     return !empty(array_intersect($blocks, $detected));
                 };
 
@@ -391,7 +391,7 @@ trait BlockAssetTrait {
      */
     public function create_block_bundle(string $bundle_name, array $block_assets): self {
         $bundle_condition = function() use ($block_assets) {
-            $detected = $this->detect_block_presence();
+            $detected = $this->_detect_block_presence();
             $required_blocks = array_keys($block_assets);
             return !empty(array_intersect($required_blocks, $detected));
         };
@@ -460,7 +460,7 @@ trait BlockAssetTrait {
 // In BlockAssetManager::load() method
 public function load(): void {
     // Early block detection for static blocks
-    add_action('wp', [$this, 'detect_block_presence'], 5);
+    add_action('wp', [$this, '_detect_block_presence'], 5);
 
     // Standard asset enqueueing with block awareness
     add_action('wp_enqueue_scripts', [$this, 'stage'], 10);

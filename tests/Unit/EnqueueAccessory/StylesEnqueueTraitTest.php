@@ -120,7 +120,7 @@ class StylesEnqueueTraitTest extends EnqueueTraitTestCase {
 		$this->instance->add($asset_to_add);
 
 		// Expect wp_register_style to be called with the 'print' media type.
-		$expected_url = $this->instance->get_asset_url('path/to/style.css');
+		$expected_url = $this->instance->_get_asset_url('path/to/style.css');
 		WP_Mock::userFunction('wp_register_style')
 		    ->zeroOrMoreTimes()
 		    ->with($handle, $expected_url, array(), false, 'print');
@@ -441,11 +441,9 @@ class StylesEnqueueTraitTest extends EnqueueTraitTestCase {
 			),
 		);
 
-		// Use the instance from setUp() which already has protected methods mocking enabled
+		// Expect HooksManager register_filter for style tag modification
 		// Set up expectations for the _do_add_filter method
-		$this->instance->shouldReceive('_do_add_filter')
-			->zeroOrMoreTimes()
-			->with('style_loader_tag', Mockery::type('callable'), 10, 2);
+		$this->expectFilter('style_loader_tag', 10, 1, 2);
 
 		// Call the method under test
 		$reflection = new \ReflectionClass($this->instance);
@@ -1029,21 +1027,21 @@ class StylesEnqueueTraitTest extends EnqueueTraitTestCase {
 	 */
 	public function test_add_assets_initializes_assets_array_if_not_set(): void {
 		// Arrange: Ensure the assets array doesn't have an entry for styles
-		$assets_property = $this->get_protected_property_value($this->instance, 'assets');
+		$assets_property = $this->_get_protected_property_value($this->instance, 'assets');
 		// Remove the styles key if it exists
 		if (isset($assets_property[AssetType::Style->value])) {
 			unset($assets_property[AssetType::Style->value]);
-			$this->set_protected_property_value($this->instance, 'assets', $assets_property);
+			$this->_set_protected_property_value($this->instance, 'assets', $assets_property);
 		}
 
 		// Verify the styles key doesn't exist
-		$assets_property = $this->get_protected_property_value($this->instance, 'assets');
+		$assets_property = $this->_get_protected_property_value($this->instance, 'assets');
 
 		// Act: Call add_assets with an empty array to trigger initialization
 		$result = $this->instance->add_assets(array(), AssetType::Style);
 
 		// Assert: The assets array should now have an entry for styles
-		$assets_property = $this->get_protected_property_value($this->instance, 'assets');
+		$assets_property = $this->_get_protected_property_value($this->instance, 'assets');
 		$this->assertSame($this->instance, $result, 'Method should return $this for chaining');
 		$this->expectLog('debug', array('Entered with empty array. No styles to add'));
 	}
@@ -1431,8 +1429,8 @@ class StylesEnqueueTraitTest extends EnqueueTraitTestCase {
 			)
 		));
 
-		// Mock get_asset_url to return a valid URL
-		$this->instance->shouldReceive('get_asset_url')
+		// Mock _get_asset_url to return a valid URL
+		$this->instance->shouldReceive('_get_asset_url')
 			->once()
 			->with('failing-style.css', AssetType::Style)
 			->andReturn('https://example.com/failing-style.css');

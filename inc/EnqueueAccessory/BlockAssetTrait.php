@@ -90,7 +90,7 @@ trait BlockAssetTrait {
 	 *
 	 * @return array<string> Array of block names that are present on the page.
 	 */
-	public function detect_block_presence(): array {
+	public function _detect_block_presence(): array {
 		return $this->_cache_for_request('block_presence', function() {
 			return $this->_detect_blocks_in_content();
 		});
@@ -124,7 +124,7 @@ trait BlockAssetTrait {
 
 			foreach ($assets as $asset) {
 				$asset['condition'] = function() use ($blocks) {
-					$detected = $this->detect_block_presence();
+					$detected = $this->_detect_block_presence();
 					return !empty(array_intersect($blocks, $detected));
 				};
 				$asset['_block_group'] = $group_name;
@@ -188,7 +188,7 @@ trait BlockAssetTrait {
 	 */
 	public function create_block_bundle(string $bundle_name, array $block_assets): self {
 		$bundle_condition = function() use ($block_assets) {
-			$detected        = $this->detect_block_presence();
+			$detected        = $this->_detect_block_presence();
 			$required_blocks = array_keys($block_assets);
 			return !empty(array_intersect($required_blocks, $detected));
 		};
@@ -369,7 +369,7 @@ trait BlockAssetTrait {
 	 * @return bool True if the block is present, false otherwise.
 	 */
 	protected function _is_block_present(string $block_name): bool {
-		return in_array($block_name, $this->detect_block_presence(), true);
+		return in_array($block_name, $this->_detect_block_presence(), true);
 	}
 
 	/**
