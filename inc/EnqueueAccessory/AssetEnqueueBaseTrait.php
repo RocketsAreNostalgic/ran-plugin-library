@@ -582,7 +582,7 @@ trait AssetEnqueueBaseTrait {
 			$enqueue_method = 'enqueue_external_inline_' . $asset_type->value . 's';
 
 			// Using a hardcoded value of 11 as we want inline assets to be added after all other hooks.
-			$this->get_hooks_manager()->register_action(
+			$this->_get_hooks_manager()->register_action(
 				$hook,
 				array( $this, $enqueue_method ),
 				11,
@@ -784,7 +784,7 @@ trait AssetEnqueueBaseTrait {
 			}
 		}
 
-		$src_url = ($src === false) ? false : $this->get_asset_url($src, $asset_type);
+		$src_url = ($src === false) ? false : $this->_get_asset_url($src, $asset_type);
 
 		if ($src_url === null && $src !== false) {
 			if ($logger->is_active()) {
@@ -1930,7 +1930,7 @@ trait AssetEnqueueBaseTrait {
 			}
 		} else {
 			// Deferred deregistration via HooksManager action registration
-			$this->get_hooks_manager()->register_action(
+			$this->_get_hooks_manager()->register_action(
 				$hook,
 				function() use ($handle, $asset_type) {
 					$this->_handle_asset_operation($handle, __FUNCTION__, $asset_type, 'deregister');
@@ -1977,7 +1977,7 @@ trait AssetEnqueueBaseTrait {
 			}
 		} else {
 			// Deferred removal via HooksManager action registration
-			$this->get_hooks_manager()->register_action(
+			$this->_get_hooks_manager()->register_action(
 				$hook,
 				function() use ($handle, $asset_type) {
 					$this->_handle_asset_operation($handle, __FUNCTION__, $asset_type, 'remove');

@@ -86,7 +86,7 @@ trait WPWrappersTrait {
 	*
 	* Note: If an action was registered via HooksManager, prefer removing it via
 	* HooksManager too to keep internal tracking in sync:
-	* `$this->get_hooks_manager()->remove_hook('action', $hook_name, $callback, $priority)`.
+	* `$this->_get_hooks_manager()->remove_hook('action', $hook_name, $callback, $priority)`.
 	* This wrapper remains valid for one-off direct removals.
 	 *
 	 * @param string $hook_name The name of the action
@@ -103,7 +103,7 @@ trait WPWrappersTrait {
 	*
 	* Note: If a filter was registered via HooksManager, prefer removing it via
 	* HooksManager as well to keep tracking in sync:
-	* `$this->get_hooks_manager()->remove_hook('filter', $hook_name, $callback, $priority)`.
+	* `$this->_get_hooks_manager()->remove_hook('filter', $hook_name, $callback, $priority)`.
 	* This wrapper remains valid for one-off direct removals.
 	 *
 	 * @param string $hook_name The name of the filter
@@ -134,7 +134,7 @@ trait WPWrappersTrait {
 	*
 	* Invocation guidance: Registration should go through HooksManager, but
 	* applying filters to a value can use this wrapper (or
-	* `$this->get_hooks_manager()->apply_filters(...)`, which forwards here).
+	* `$this->_get_hooks_manager()->apply_filters(...)`, which forwards here).
 	 *
 	 * @param string $hook_name The name of the filter
 	 * @param mixed $value The value to filter

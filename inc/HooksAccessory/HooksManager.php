@@ -445,7 +445,7 @@ class HooksManager {
 
 		foreach ($hook_definitions as $definition) {
 			// Validate definition
-			if (!$this->validate_hook_definition($definition)) {
+			if (!$this->_validate_hook_definition($definition)) {
 				$results[] = array('success' => false, 'error' => 'Invalid hook definition');
 				continue;
 			}
@@ -540,7 +540,7 @@ class HooksManager {
 	/**
 	 * Validate a hook definition array
 	 */
-	private function validate_hook_definition(array $definition): bool {
+	private function _validate_hook_definition(array $definition): bool {
 		$required_fields = array('type', 'hook', 'callback');
 
 		foreach ($required_fields as $field) {
