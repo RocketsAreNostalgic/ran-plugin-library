@@ -441,11 +441,9 @@ class StylesEnqueueTraitTest extends EnqueueTraitTestCase {
 			),
 		);
 
-		// Use the instance from setUp() which already has protected methods mocking enabled
+		// Expect HooksManager register_filter for style tag modification
 		// Set up expectations for the _do_add_filter method
-		$this->instance->shouldReceive('_do_add_filter')
-			->zeroOrMoreTimes()
-			->with('style_loader_tag', Mockery::type('callable'), 10, 2);
+		$this->expectFilter('style_loader_tag', 10, 1, 2);
 
 		// Call the method under test
 		$reflection = new \ReflectionClass($this->instance);

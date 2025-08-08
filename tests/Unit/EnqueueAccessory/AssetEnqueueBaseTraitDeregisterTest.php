@@ -25,7 +25,7 @@ class ConcreteEnqueueForBaseTraitDeregisterTesting extends ConcreteEnqueueForTes
  *
  * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait
  */
-class AssetEnqueueBaseTraitDeregisterTest extends EnqueueTraitTestCase {
+class AssetEnqueueTraitBaseTraitDeregisterTest extends EnqueueTraitTestCase {
 	use ExpectLogTrait;
 
 	/**
@@ -235,10 +235,8 @@ class AssetEnqueueBaseTraitDeregisterTest extends EnqueueTraitTestCase {
 		$hook     = 'wp_enqueue_scripts';
 		$priority = 10;
 
-		// Mock _do_add_action to verify it's called with correct parameters
-		$this->instance->shouldReceive('_do_add_action')
-			->with($hook, Mockery::type('Closure'), $priority)
-			->once();
+		// Expect registration via HooksManager for correct parameters
+		$this->expectAction($hook, $priority, 1);
 
 		// --- Act ---
 		$result = $this->instance->deregister($handle);
@@ -258,10 +256,8 @@ class AssetEnqueueBaseTraitDeregisterTest extends EnqueueTraitTestCase {
 		$hook     = 'wp_enqueue_scripts';
 		$priority = 10;
 
-		// Mock _do_add_action to verify it's called for each handle
-		$this->instance->shouldReceive('_do_add_action')
-			->with($hook, Mockery::type('Closure'), $priority)
-			->times(3);
+		// Expect HooksManager register_action for each handle
+		$this->expectAction($hook, $priority, 3);
 
 		// --- Act ---
 		$result = $this->instance->deregister($handles);
@@ -294,14 +290,10 @@ class AssetEnqueueBaseTraitDeregisterTest extends EnqueueTraitTestCase {
 			)
 		);
 
-		// Mock _do_add_action to verify it's called with correct parameters
-		$this->instance->shouldReceive('_do_add_action')
-			->with('wp_enqueue_scripts', Mockery::type('Closure'), 5)
-			->once();
+		// Expect HooksManager registration with correct parameters
+		$this->expectAction('wp_enqueue_scripts', 5, 1);
 
-		$this->instance->shouldReceive('_do_add_action')
-			->with('admin_enqueue_scripts', Mockery::type('Closure'), 1)
-			->once();
+		$this->expectAction('admin_enqueue_scripts', 1, 1);
 
 		// --- Act ---
 		$result = $this->instance->deregister($configs);
@@ -329,14 +321,10 @@ class AssetEnqueueBaseTraitDeregisterTest extends EnqueueTraitTestCase {
 			)
 		);
 
-		// Mock _do_add_action to verify it's called with correct parameters
-		$this->instance->shouldReceive('_do_add_action')
-			->with('wp_enqueue_scripts', Mockery::type('Closure'), 10)
-			->once();
+		// Expect HooksManager registration with correct parameters
+		$this->expectAction('wp_enqueue_scripts', 10, 1);
 
-		$this->instance->shouldReceive('_do_add_action')
-			->with('wp_footer', Mockery::type('Closure'), 15)
-			->once();
+		$this->expectAction('wp_footer', 15, 1);
 
 		// --- Act ---
 		$result = $this->instance->deregister($mixed_inputs);
@@ -370,10 +358,8 @@ class AssetEnqueueBaseTraitDeregisterTest extends EnqueueTraitTestCase {
 				array('handle' => 'valid-handle')
 			));
 
-		// Mock _do_add_action to verify it's called only for the valid handle
-		$this->instance->shouldReceive('_do_add_action')
-			->with('wp_enqueue_scripts', Mockery::type('Closure'), 10)
-			->once();
+		// Expect HooksManager registration only for the valid handle
+		$this->expectAction('wp_enqueue_scripts', 10, 1);
 
 		// --- Act ---
 		$result = $this->instance->deregister($invalid_inputs);
@@ -997,9 +983,7 @@ class AssetEnqueueBaseTraitDeregisterTest extends EnqueueTraitTestCase {
 		$asset_type = AssetType::Script;
 
 		// Mock _do_add_action to verify it's called with correct parameters
-		$this->instance->shouldReceive('_do_add_action')
-			->with('wp_footer', Mockery::type('Closure'), 15)
-			->once();
+		$this->expectAction('wp_footer', 15, 1);
 
 		// --- Act ---
 		$this->_invoke_protected_method(
@@ -1173,10 +1157,8 @@ class AssetEnqueueBaseTraitDeregisterTest extends EnqueueTraitTestCase {
 		);
 		$asset_type = \Ran\PluginLib\EnqueueAccessory\AssetType::Script;
 
-		// Mock _do_add_action to verify it's called with default values
-		$this->instance->shouldReceive('_do_add_action')
-			->with('wp_enqueue_scripts', \Mockery::type('Closure'), 10)
-			->once();
+		// Expect HooksManager registration with default values
+		$this->expectAction('wp_enqueue_scripts', 10, 1);
 
 		// --- Act ---
 		$this->_invoke_protected_method(
@@ -1240,10 +1222,8 @@ class AssetEnqueueBaseTraitDeregisterTest extends EnqueueTraitTestCase {
 		);
 		$asset_type = \Ran\PluginLib\EnqueueAccessory\AssetType::Style;
 
-		// Mock _do_add_action to verify it's called with correct parameters
-		$this->instance->shouldReceive('_do_add_action')
-			->with('wp_head', \Mockery::type('Closure'), 5)
-			->once();
+		// Expect HooksManager registration with correct parameters
+		$this->expectAction('wp_head', 5, 1);
 
 		// --- Act ---
 		$this->_invoke_protected_method(

@@ -4,15 +4,15 @@ declare(strict_types=1);
 namespace Ran\PluginLib\Tests\Unit\EnqueueAccessory;
 
 use Mockery;
+use WP_Mock;
+use Ran\PluginLib\Util\CollectingLogger;
 use Ran\PluginLib\Config\ConfigInterface;
 use Ran\PluginLib\Tests\Unit\PluginLibTestCase;
 use Ran\PluginLib\EnqueueAccessory\EnqueueAdmin;
+use Ran\PluginLib\EnqueueAccessory\MediaHandler;
+use Ran\PluginLib\EnqueueAccessory\StylesHandler;
 use Ran\PluginLib\EnqueueAccessory\ScriptsHandler;
 use Ran\PluginLib\EnqueueAccessory\ScriptModulesHandler;
-use Ran\PluginLib\EnqueueAccessory\StylesHandler;
-use Ran\PluginLib\EnqueueAccessory\MediaHandler;
-use Ran\PluginLib\Util\CollectingLogger;
-use WP_Mock;
 
 /**
  * Class EnqueueAdminTest
