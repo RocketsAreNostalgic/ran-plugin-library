@@ -1,8 +1,8 @@
 # Feature Proposal: WordPress Block Bindings API Integration
 
-**Status**: Proposed  
-**Date**: 2025-01-08  
-**Deciders**: Development Team  
+**Status**: Proposed
+**Date**: 2025-01-08
+**Deciders**: Development Team
 **Technical Story**: Extend BlockRegistrar to support WordPress Block Bindings API (WP 6.5+)
 
 ## Context
@@ -74,7 +74,7 @@ $block_definition = [
     'block_name' => 'my-plugin/dynamic-content',
     'title' => 'Dynamic Content Block',
     'category' => 'common',
-    
+
     // NEW: Block Bindings Sources
     'bindings_sources' => [
         [
@@ -93,7 +93,7 @@ $block_definition = [
             'condition' => function() { return is_user_logged_in(); }
         ]
     ],
-    
+
     // Existing block properties
     'render_callback' => [$this, 'render_dynamic_content'],
     'assets' => [/* asset definitions */]
@@ -109,14 +109,14 @@ $block_definition = [
  * @param string $block_name The block name.
  * @param array  $block_definition The block definition.
  */
-protected function register_block_bindings_sources(string $block_name, array $block_definition): void {
+protected function _register_block_bindings_sources(string $block_name, array $block_definition): void {
     $logger = $this->get_logger();
     $context = get_class($this) . '::' . __FUNCTION__;
-    
+
     if (!isset($block_definition['bindings_sources']) || !is_array($block_definition['bindings_sources'])) {
         return;
     }
-    
+
     foreach ($block_definition['bindings_sources'] as $source_definition) {
         if (!isset($source_definition['name']) || !isset($source_definition['get_value_callback'])) {
             if ($logger->is_active()) {
@@ -124,12 +124,12 @@ protected function register_block_bindings_sources(string $block_name, array $bl
             }
             continue;
         }
-        
+
         $source_name = $source_definition['name'];
         $hook = $source_definition['hook'] ?? 'init';
         $priority = $source_definition['priority'] ?? 10;
         $condition = $source_definition['condition'] ?? null;
-        
+
         // Register the binding source on the specified hook
         add_action($hook, function() use ($source_definition, $source_name, $condition, $logger, $context) {
             // Check condition if provided
@@ -139,25 +139,25 @@ protected function register_block_bindings_sources(string $block_name, array $bl
                 }
                 return;
             }
-            
+
             // Prepare arguments for register_block_bindings_source
             $args = [
                 'label' => $source_definition['label'] ?? $source_name,
                 'get_value_callback' => $source_definition['get_value_callback']
             ];
-            
+
             if (isset($source_definition['uses_context'])) {
                 $args['uses_context'] = $source_definition['uses_context'];
             }
-            
+
             // Register with WordPress
             register_block_bindings_source($source_name, $args);
-            
+
             if ($logger->is_active()) {
                 $logger->debug("{$context} - Successfully registered block bindings source '{$source_name}'.");
             }
         }, $priority);
-        
+
         if ($logger->is_active()) {
             $logger->debug("{$context} - Scheduled block bindings source '{$source_name}' for registration on '{$hook}' hook.");
         }
@@ -172,28 +172,32 @@ protected function register_block_bindings_sources(string $block_name, array $bl
 
 // Register block bindings sources if provided
 if (isset($block_definition['bindings_sources'])) {
-    $this->register_block_bindings_sources($block_name, $block_definition);
+    $this->_register_block_bindings_sources($block_name, $block_definition);
 }
 ```
 
 ## Benefits
 
 ### 1. Unified Architecture
+
 - Single configuration object for blocks, assets, and data sources
 - Consistent conditional loading patterns across all components
 - Integrated logging and error handling
 
 ### 2. Developer Experience
+
 - Familiar API patterns from existing asset system
 - Clear separation of concerns within unified interface
 - Comprehensive debugging through existing logging infrastructure
 
 ### 3. Flexibility
+
 - Conditional registration of binding sources
 - Custom hook timing and priorities
 - Support for context-aware data sources
 
 ### 4. Performance
+
 - No impact when bindings aren't used
 - Leverages existing deferred loading system
 - Conditional registration prevents unnecessary overhead
@@ -201,14 +205,17 @@ if (isset($block_definition['bindings_sources'])) {
 ## Limitations
 
 ### 1. WordPress Version Dependency
+
 - Requires WordPress 6.5+ for Block Bindings API
 - Graceful degradation needed for older versions
 
 ### 2. Server-Side Only
+
 - Block Bindings API is server-side focused
 - Client-side interactivity requires separate solutions (Script Modules, Interactivity API)
 
 ### 3. Block Context Dependency
+
 - Some binding sources require specific block context
 - Context availability varies by block placement and type
 
@@ -219,14 +226,14 @@ if (isset($block_definition['bindings_sources'])) {
 ```php
 class MyPlugin {
     use BlockRegistrarTrait;
-    
+
     public function init() {
         $this->block_registrar->add([
             [
                 'block_name' => 'my-plugin/user-profile',
                 'title' => 'User Profile Block',
                 'category' => 'widgets',
-                
+
                 'bindings_sources' => [
                     [
                         'name' => 'my-plugin/current-user',
@@ -235,7 +242,7 @@ class MyPlugin {
                         'condition' => function() { return is_user_logged_in(); }
                     ]
                 ],
-                
+
                 'assets' => [
                     'editor_scripts' => [
                         [
@@ -245,14 +252,14 @@ class MyPlugin {
                         ]
                     ]
                 ],
-                
+
                 'render_callback' => [$this, 'render_user_profile']
             ]
         ]);
-        
+
         $this->block_registrar->load();
     }
-    
+
     /**
      * Get current user data for block bindings.
      */
@@ -260,9 +267,9 @@ class MyPlugin {
         if (!is_user_logged_in()) {
             return '';
         }
-        
+
         $user = wp_get_current_user();
-        
+
         switch ($attribute_name) {
             case 'display_name':
                 return $user->display_name;
@@ -285,15 +292,15 @@ $this->block_registrar->add([
         'block_name' => 'my-plugin/post-analytics',
         'title' => 'Post Analytics Block',
         'category' => 'widgets',
-        
+
         'bindings_sources' => [
             [
                 'name' => 'my-plugin/post-stats',
                 'label' => __('Post Statistics', 'my-plugin'),
                 'get_value_callback' => [$this, 'get_post_statistics'],
                 'uses_context' => ['postId', 'postType'],
-                'condition' => function() { 
-                    return current_user_can('edit_posts') && is_single(); 
+                'condition' => function() {
+                    return current_user_can('edit_posts') && is_single();
                 }
             ],
             [
@@ -305,7 +312,7 @@ $this->block_registrar->add([
                 'priority' => 20
             ]
         ],
-        
+
         'condition' => function() { return is_admin() || is_single(); },
         'assets' => [/* asset definitions */]
     ]
@@ -321,7 +328,7 @@ Block Bindings and Script Modules work together seamlessly:
 ```php
 [
     'block_name' => 'my-plugin/interactive-content',
-    
+
     // Server-side data binding
     'bindings_sources' => [
         [
@@ -329,7 +336,7 @@ Block Bindings and Script Modules work together seamlessly:
             'get_value_callback' => [$this, 'get_api_data']
         ]
     ],
-    
+
     // Client-side interactivity
     'assets' => [
         'modules' => [
@@ -348,23 +355,27 @@ Block Bindings and Script Modules work together seamlessly:
 ```
 
 This provides:
+
 - **Block Bindings**: Server-side dynamic data binding
-- **Script Modules**: Modern client-side interactivity  
+- **Script Modules**: Modern client-side interactivity
 - **Unified Management**: Single configuration for complete block functionality
 
 ## Implementation Phases
 
 ### Phase 1: Core Integration
-- Add `register_block_bindings_sources()` method to `BlockRegistrar`
+
+- Add `_register_block_bindings_sources()` method to `BlockRegistrar`
 - Integrate with existing `add()` method
 - Implement basic logging and error handling
 
 ### Phase 2: Advanced Features
+
 - Add validation for binding source definitions
 - Implement conditional registration patterns
 - Add support for custom hook timing
 
 ### Phase 3: Documentation and Examples
+
 - Create comprehensive usage examples
 - Document integration patterns with Script Modules
 - Add troubleshooting guides

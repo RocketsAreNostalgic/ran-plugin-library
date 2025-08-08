@@ -182,12 +182,27 @@ class BlockRegistrarPreloadTest extends PluginLibTestCase {
 	 */
 	public function test_setup_preload_callbacks_registers_wp_head_hook(): void {
 		// Arrange
+		// Recreate instance as partial mock to stub HooksManager
+		$hooksManager = Mockery::mock('Ran\\PluginLib\\HooksAccessory\\HooksManager');
+		$hooksManager->shouldReceive('register_action')->withAnyArgs()->andReturn(true)->byDefault();
+		$hooksManager->shouldReceive('register_filter')->withAnyArgs()->andReturn(true)->byDefault();
+		$this->instance = Mockery::mock(BlockRegistrar::class, array($this->config))->makePartial();
+		$this->instance->shouldAllowMockingProtectedMethods();
+		$this->instance->shouldReceive('_get_hooks_manager')->andReturn($hooksManager);
+
+		// Expect a specific call registering wp_head with priority 2
+		$hooksManager
+			->shouldReceive('register_action')
+			->withArgs(function($hook, $callback, $priority, $acceptedArgs, $context) {
+				return $hook === 'wp_head' && $priority === 2;
+			})
+			->once()
+			->andReturn(true);
+
 		$this->instance->add(array(
 			'block_name' => 'my-plugin/hero-block',
 			'preload'    => true
 		));
-
-		WP_Mock::expectActionAdded('wp_head', array($this->instance, '_generate_preload_tags'), 2);
 
 		// Act
 		$result = $this->instance->stage();

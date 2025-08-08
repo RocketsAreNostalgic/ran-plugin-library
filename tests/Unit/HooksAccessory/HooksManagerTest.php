@@ -172,7 +172,7 @@ class TestHooksManager extends HooksManager {
  * @covers \Ran\PluginLib\HooksAccessory\HooksManager
  * @covers \Ran\PluginLib\HooksAccessory\HooksManager::__construct
  * @covers \Ran\PluginLib\HooksAccessory\HooksManager::_register_hook
- * @covers \Ran\PluginLib\HooksAccessory\HooksManager::validate_hook_definition
+ * @covers \Ran\PluginLib\HooksAccessory\HooksManager::_validate_hook_definition
  */
 class HooksManagerTest extends PluginLibTestCase {
 	use ExpectLogTrait;
@@ -675,7 +675,7 @@ class HooksManagerTest extends PluginLibTestCase {
 		'dynamic_hooks_registered' => 0,
 		'duplicates_prevented'     => 0,
 		);
-		$this->set_protected_property_value($hooksManager, 'stats', $initialStats);
+		$this->_set_protected_property_value($hooksManager, 'stats', $initialStats);
 
 		// Call the public method under test directly
 		$hooksManager->init_declarative_hooks();
@@ -713,7 +713,7 @@ class HooksManagerTest extends PluginLibTestCase {
 		);
 
 		// Set the registered_hooks property using reflection
-		$this->set_protected_property_value($hooksManager, 'registered_hooks', $testHooks);
+		$this->_set_protected_property_value($hooksManager, 'registered_hooks', $testHooks);
 
 		// Test getting frontend hooks
 		$frontendHooks = $hooksManager->get_hooks_by_group('frontend');
@@ -1642,11 +1642,11 @@ class HooksManagerTest extends PluginLibTestCase {
 	}
 
 	/**
-	 * Test validate_hook_definition with valid definition
+	 * Test _validate_hook_definition with valid definition
 	 *
-	 * @covers \Ran\PluginLib\HooksAccessory\HooksManager::validate_hook_definition
+	 * @covers \Ran\PluginLib\HooksAccessory\HooksManager::_validate_hook_definition
 	 */
-	public function test_validate_hook_definition_valid(): void {
+	public function test__validate_hook_definition_valid(): void {
 		$hooksManager = new HooksManager($this->test_object, $this->logger);
 
 		$definition = array(
@@ -1656,16 +1656,16 @@ class HooksManagerTest extends PluginLibTestCase {
 			}
 		);
 
-		$result = $this->invoke_private_method($hooksManager, 'validate_hook_definition', array($definition));
+		$result = $this->invoke_private_method($hooksManager, '_validate_hook_definition', array($definition));
 		$this->assertTrue($result, 'Should validate correct hook definition');
 	}
 
 	/**
-	 * Test validate_hook_definition with missing fields
+	 * Test _validate_hook_definition with missing fields
 	 *
-	 * @covers \Ran\PluginLib\HooksAccessory\HooksManager::validate_hook_definition
+	 * @covers \Ran\PluginLib\HooksAccessory\HooksManager::_validate_hook_definition
 	 */
-	public function test_validate_hook_definition_missing_fields(): void {
+	public function test__validate_hook_definition_missing_fields(): void {
 		$hooksManager = new HooksManager($this->test_object, $this->logger);
 
 		// Test with missing 'type'
@@ -1674,7 +1674,7 @@ class HooksManagerTest extends PluginLibTestCase {
 			'callback' => function () {
 			}
 		);
-		$result = $this->invoke_private_method($hooksManager, 'validate_hook_definition', array($definition));
+		$result = $this->invoke_private_method($hooksManager, '_validate_hook_definition', array($definition));
 		$this->assertFalse($result, 'Should fail validation for missing type');
 
 		// Test with missing 'hook'
@@ -1683,7 +1683,7 @@ class HooksManagerTest extends PluginLibTestCase {
 			'callback' => function () {
 			}
 		);
-		$result = $this->invoke_private_method($hooksManager, 'validate_hook_definition', array($definition));
+		$result = $this->invoke_private_method($hooksManager, '_validate_hook_definition', array($definition));
 		$this->assertFalse($result, 'Should fail validation for missing hook');
 
 		// Test with missing 'callback'
@@ -1691,16 +1691,16 @@ class HooksManagerTest extends PluginLibTestCase {
 			'type' => 'action',
 			'hook' => 'test_hook'
 		);
-		$result = $this->invoke_private_method($hooksManager, 'validate_hook_definition', array($definition));
+		$result = $this->invoke_private_method($hooksManager, '_validate_hook_definition', array($definition));
 		$this->assertFalse($result, 'Should fail validation for missing callback');
 	}
 
 	/**
-	 * Test validate_hook_definition with invalid type
+	 * Test _validate_hook_definition with invalid type
 	 *
-	 * @covers \Ran\PluginLib\HooksAccessory\HooksManager::validate_hook_definition
+	 * @covers \Ran\PluginLib\HooksAccessory\HooksManager::_validate_hook_definition
 	 */
-	public function test_validate_hook_definition_invalid_type(): void {
+	public function test__validate_hook_definition_invalid_type(): void {
 		$hooksManager = new HooksManager($this->test_object, $this->logger);
 
 		$definition = array(
@@ -1710,16 +1710,16 @@ class HooksManagerTest extends PluginLibTestCase {
 			}
 		);
 
-		$result = $this->invoke_private_method($hooksManager, 'validate_hook_definition', array($definition));
+		$result = $this->invoke_private_method($hooksManager, '_validate_hook_definition', array($definition));
 		$this->assertFalse($result, 'Should fail validation for invalid type');
 	}
 
 	/**
-	 * Test validate_hook_definition with non-callable callback
+	 * Test _validate_hook_definition with non-callable callback
 	 *
-	 * @covers \Ran\PluginLib\HooksAccessory\HooksManager::validate_hook_definition
+	 * @covers \Ran\PluginLib\HooksAccessory\HooksManager::_validate_hook_definition
 	 */
-	public function test_validate_hook_definition_non_callable(): void {
+	public function test__validate_hook_definition_non_callable(): void {
 		$hooksManager = new HooksManager($this->test_object, $this->logger);
 
 		$definition = array(
@@ -1728,7 +1728,7 @@ class HooksManagerTest extends PluginLibTestCase {
 			'callback' => 'non_existent_function'
 		);
 
-		$result = $this->invoke_private_method($hooksManager, 'validate_hook_definition', array($definition));
+		$result = $this->invoke_private_method($hooksManager, '_validate_hook_definition', array($definition));
 		$this->assertFalse($result, 'Should fail validation for non-callable callback');
 	}
 
@@ -2704,7 +2704,7 @@ class HooksManagerTest extends PluginLibTestCase {
 	 */
 	public function test_register_method_hook_protected_method(): void {
 		$testObject = new class() {
-			protected function protected_method() {
+			protected function _protected_method() {
 				return 'protected';
 			}
 		};
@@ -2712,7 +2712,7 @@ class HooksManagerTest extends PluginLibTestCase {
 		$hooksManager = new HooksManager($testObject, $this->logger);
 
 		// This should fail gracefully with a warning and return false
-		$result = $hooksManager->register_method_hook('action', 'test_hook', 'protected_method', 10, 1);
+		$result = $hooksManager->register_method_hook('action', 'test_hook', '_protected_method', 10, 1);
 		$this->assertFalse($result, 'Should fail to register protected method hook gracefully');
 	}
 

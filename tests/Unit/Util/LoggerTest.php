@@ -191,7 +191,7 @@ class LoggerTest extends PluginLibTestCase {
 
 		$this->assertTrue($logger->is_active(), 'Logger should be active with a valid level string constant.');
 		$this->assertSame(Logger::LOG_LEVELS_MAP[LogLevel::WARNING], $logger->get_log_level(), 'Log level should be WARNING for "WARNING" string constant.');
-		$this->assertSame('constant', $this->get_protected_property_value($logger, 'activation_mode'), 'Activation mode should be "constant".');
+		$this->assertSame('constant', $this->_get_protected_property_value($logger, 'activation_mode'), 'Activation mode should be "constant".');
 	}
 
 	/**
@@ -210,7 +210,7 @@ class LoggerTest extends PluginLibTestCase {
 		$this->assertSame(Logger::LOG_LEVELS_MAP[$level_name], $logger->get_log_level(), 'Logger effective log level should match the URL parameter.');
 
 		// Assert activation mode
-		$activation_mode = $this->get_protected_property_value($logger, 'activation_mode');
+		$activation_mode = $this->_get_protected_property_value($logger, 'activation_mode');
 		$this->assertSame('url', $activation_mode, 'Activation mode should be set to "url".');
 
 		// Clean up the GET parameter
@@ -233,7 +233,7 @@ class LoggerTest extends PluginLibTestCase {
 		$this->assertSame(0, $logger->get_log_level(), 'Logger effective log level should be 0 for an invalid URL parameter.');
 
 		// Assert activation mode is an empty string
-		$activation_mode = $this->get_protected_property_value($logger, 'activation_mode');
+		$activation_mode = $this->_get_protected_property_value($logger, 'activation_mode');
 		$this->assertSame('', $activation_mode, 'Activation mode should be an empty string for an invalid URL parameter.');
 
 		// Clean up the GET parameter
@@ -414,7 +414,7 @@ class LoggerTest extends PluginLibTestCase {
 
 		$this->assertTrue($logger->is_active(), 'Logger should be active via constant.');
 		$this->assertSame(Logger::LOG_LEVELS_MAP[LogLevel::INFO], $logger->get_log_level(), 'Logger effective log level should be INFO.');
-		$activation_mode = $this->get_protected_property_value($logger, 'activation_mode');
+		$activation_mode = $this->_get_protected_property_value($logger, 'activation_mode');
 		$this->assertSame('constant', $activation_mode, 'Activation mode should be constant.');
 
 		// Log a message to ensure it works
@@ -434,7 +434,7 @@ class LoggerTest extends PluginLibTestCase {
 		    'error_log_handler' => array($this, 'mock_error_log_handler'), // To prevent actual error_log
 		);
 		$logger               = new Logger($config);
-		$actual_constant_name = $this->get_protected_property_value($logger, 'custom_debug_constant_name');
+		$actual_constant_name = $this->_get_protected_property_value($logger, 'custom_debug_constant_name');
 		$this->assertSame('MY_AWESOME_PLUGIN_DEBUG_MODE', $actual_constant_name, 'custom_debug_constant_name should default based on TextDomain.');
 	}
 
@@ -448,7 +448,7 @@ class LoggerTest extends PluginLibTestCase {
 		    'error_log_handler' => array($this, 'mock_error_log_handler'),
 		);
 		$logger               = new Logger($config);
-		$actual_constant_name = $this->get_protected_property_value($logger, 'custom_debug_constant_name');
+		$actual_constant_name = $this->_get_protected_property_value($logger, 'custom_debug_constant_name');
 		$this->assertSame('', $actual_constant_name, 'custom_debug_constant_name should default to empty string when config is non-empty but lacks specific keys.');
 	}
 
@@ -463,7 +463,7 @@ class LoggerTest extends PluginLibTestCase {
 		    'error_log_handler' => array($this, 'mock_error_log_handler'),
 		);
 		$logger1               = new Logger($config1);
-		$actual_request_param1 = $this->get_protected_property_value($logger1, 'debug_request_param');
+		$actual_request_param1 = $this->_get_protected_property_value($logger1, 'debug_request_param');
 		$this->assertSame('EXPLICIT_CONST_NAME', $actual_request_param1, 'debug_request_param should default to explicit custom_debug_constant_name.');
 
 		// Case 2: custom_debug_constant_name is defaulted from TextDomain
@@ -474,7 +474,7 @@ class LoggerTest extends PluginLibTestCase {
 		    'error_log_handler' => array($this, 'mock_error_log_handler'),
 		);
 		$logger2               = new Logger($config2);
-		$actual_request_param2 = $this->get_protected_property_value($logger2, 'debug_request_param');
+		$actual_request_param2 = $this->_get_protected_property_value($logger2, 'debug_request_param');
 		$this->assertSame('TD_FOR_PARAM_DEFAULT_DEBUG_MODE', $actual_request_param2, 'debug_request_param should default to TextDomain-derived custom_debug_constant_name.');
 	}
 
@@ -486,7 +486,7 @@ class LoggerTest extends PluginLibTestCase {
 		    'error_log_handler' => 'this_is_not_a_function_or_callable_array',
 		);
 		$logger         = new Logger($config);
-		$actual_handler = $this->get_protected_property_value($logger, 'error_log_handler');
+		$actual_handler = $this->_get_protected_property_value($logger, 'error_log_handler');
 		$this->assertNull($actual_handler, 'error_log_handler should be null if a non-callable one is provided.');
 	}
 }

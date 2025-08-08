@@ -88,8 +88,6 @@ final readonly class HookDefinition {
 
 			return new self($hook_name, $callback, $priority, $accepted_args, $hook_type);
 		}
-
-		throw new \InvalidArgumentException('Hook definition must be a string or array');
 	}
 
 	/**

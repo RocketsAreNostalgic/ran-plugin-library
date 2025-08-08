@@ -151,20 +151,24 @@ class HooksManager {
 	/**
 	 * Apply filters on a value.
 	 *
-	 * @param string $hook_name The name of the filter hook.
-	 * @param mixed $value The value to filter.
-	 * @param mixed ...$args Additional parameters to pass to the filter functions.
-	 * @return mixed The filtered value.
+	 * @param string $hook_name The name of the filter hook
+	 * @param mixed  $value     The value to filter
+	 * @param mixed  ...$args   Additional parameters to pass to filter callbacks
+	 * @return mixed The filtered value
 	 */
 	public function apply_filters(string $hook_name, $value, ...$args) {
 		return $this->_do_apply_filter($hook_name, $value, ...$args);
 	}
 
 	/**
-	 * Removes a callback function from an action or filter hook.
-	 *
-	 * @param string $hook_name The action or filter hook to which the function to be removed is hooked.
-	 */
+     * Remove a callback from an action or filter hook with internal tracking cleanup.
+     *
+     * @param string   $type         'action'|'filter'
+     * @param string   $hook_name    Hook name
+     * @param callable $callback     Callback to remove
+     * @param int      $priority     Priority used during registration (default 10)
+     * @return bool True if WordPress removed the hook or our internal tracking was updated
+     */
 	public function remove_hook(string $type, string $hook_name, callable $callback, int $priority = 10): bool {
 		if (!in_array($type, array('action', 'filter'), true)) {
 			return false;
@@ -435,17 +439,25 @@ class HooksManager {
 	}
 
 	/**
-	 * Register conditional hooks based on configuration
+	 * Register conditional hooks based on configuration.
 	 *
-	 * @param array $hook_definitions An array of hook definitions
-	 * @return array An array of results for each hook registration
+	 * @param array<int, array{
+	 *   type: 'action'|'filter',
+	 *   hook: string,
+	 *   callback: callable,
+	 *   priority?: int,
+	 *   accepted_args?: int,
+	 *   context?: array<string,mixed>,
+	 *   condition?: callable|string|bool
+	 * }> $hook_definitions
+	 * @return array<int, array{success: bool, hook?: string, error?: string}> Results per definition
 	 */
 	public function register_conditional_hooks(array $hook_definitions): array {
 		$results = array();
 
 		foreach ($hook_definitions as $definition) {
 			// Validate definition
-			if (!$this->validate_hook_definition($definition)) {
+			if (!$this->_validate_hook_definition($definition)) {
 				$results[] = array('success' => false, 'error' => 'Invalid hook definition');
 				continue;
 			}
@@ -473,10 +485,17 @@ class HooksManager {
 	}
 
 	/**
-	 * Register hooks in bulk with grouping
+	 * Register hooks in bulk with grouping.
 	 *
-	 * @param string $group_name The name of the group
-	 * @param array $hook_definitions An array of hook definitions
+	 * @param string $group_name Identifier for the group (used in context)
+	 * @param array<int, array{
+	 *   type: 'action'|'filter',
+	 *   hook: string,
+	 *   callback: callable,
+	 *   priority?: int,
+	 *   accepted_args?: int,
+	 *   context?: array<string,mixed>
+	 * }> $hook_definitions
 	 * @return bool True if all hooks were registered successfully, false otherwise
 	 */
 	public function register_hook_group(string $group_name, array $hook_definitions): bool {
@@ -512,7 +531,11 @@ class HooksManager {
 	// === UTILITY METHODS ===
 
 	/**
-	 * Generate a unique hash for a callback to prevent duplicates
+	 * Generate a unique hash for a callback to prevent duplicates.
+	 *
+	 * @param callable             $callback Callback used for the hook
+	 * @param array<string,mixed>  $context  Optional context to include in the hash
+	 * @return string Unique, deterministic hash for the callback+context pair
 	 */
 	private function _generate_callback_hash(callable $callback, array $context = array()): string {
 		if (is_array($callback)) {
@@ -538,9 +561,12 @@ class HooksManager {
 	}
 
 	/**
-	 * Validate a hook definition array
+	 * Validate a hook definition array.
+	 *
+	 * @param array<string,mixed> $definition Hook definition
+	 * @return bool True if the definition has required fields and a callable
 	 */
-	private function validate_hook_definition(array $definition): bool {
+	private function _validate_hook_definition(array $definition): bool {
 		$required_fields = array('type', 'hook', 'callback');
 
 		foreach ($required_fields as $field) {
@@ -561,7 +587,10 @@ class HooksManager {
 	}
 
 	/**
-	 * Evaluate a condition for conditional hook registration
+	 * Evaluate a condition for conditional hook registration.
+	 *
+	 * @param callable|string|bool $condition Condition predicate/function name or boolean
+	 * @return bool True if the condition evaluates to truthy
 	 */
 	private function evaluate_condition($condition): bool {
 		if (is_bool($condition)) {
@@ -585,22 +614,35 @@ class HooksManager {
 	// === INTROSPECTION AND DEBUGGING ===
 
 	/**
-	 * Get all registered hooks for debugging
+	 * Get all registered hooks for debugging.
+	 *
+	 * @return array<int, string> List of unique hook keys
 	 */
 	public function get_registered_hooks(): array {
 		return array_keys($this->registered_hooks);
 	}
 
 	/**
-	 * Get registration statistics
-	 */
+     * Get registration statistics.
+     *
+     * @return array<string,int> Stats counters (actions_registered, filters_registered, dynamic_hooks_registered, duplicates_prevented)
+     */
 	public function get_stats(): array {
 		return $this->stats;
 	}
 
 	/**
-	 * Check if a specific hook is registered
-	 */
+     * Check if a specific hook is registered.
+     *
+     * When no callback is provided, this checks if any hook with the given
+     * name and priority exists for the specified type.
+     *
+     * @param string        $type       'action'|'filter'
+     * @param string        $hook_name  Hook name
+     * @param int           $priority   Priority to check (default 10)
+     * @param callable|null $callback   Specific callback to check (optional)
+     * @return bool True if a matching hook is registered
+     */
 	public function is_hook_registered(string $type, string $hook_name, int $priority = 10, ?callable $callback = null): bool {
 		if ($callback === null) {
 			// Check if any hook with this name and priority exists
@@ -620,7 +662,10 @@ class HooksManager {
 	}
 
 	/**
-	 * Get hooks by group
+	 * Get hooks by group.
+	 *
+	 * @param string $group_name Group identifier set in context
+	 * @return array<int, string> Matching hook keys
 	 */
 	public function get_hooks_by_group(string $group_name): array {
 		$group_hooks = array();
@@ -636,7 +681,9 @@ class HooksManager {
 	}
 
 	/**
-	 * Clear all registered hooks (for testing)
+	 * Clear all internal hook tracking and statistics (primarily for tests).
+	 *
+	 * @return void
 	 */
 	public function clear_hooks(): void {
 		$this->registered_hooks = array();
@@ -649,7 +696,9 @@ class HooksManager {
 	}
 
 	/**
-	 * Generate a comprehensive debug report
+	 * Generate a comprehensive debug report.
+	 *
+	 * @return array<string,mixed> Structured report of owner, stats, counts, and declarative hook info
 	 */
 	public function generate_debug_report(): array {
 		return array(

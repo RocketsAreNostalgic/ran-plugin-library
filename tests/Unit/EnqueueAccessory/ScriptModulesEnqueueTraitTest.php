@@ -416,7 +416,7 @@ class ScriptModulesEnqueueTraitTest extends EnqueueTraitTestCase {
 		$assets = $this->instance->get_info();
 
 		// With flattened structure, check if hook exists directly in deferred assets
-		$deferred_assets = $this->get_protected_property_value($this->instance, 'deferred_assets');
+		$deferred_assets = $this->_get_protected_property_value($this->instance, 'deferred_assets');
 		$this->assertArrayHasKey($hook_name, $deferred_assets, 'Hook key should exist in deferred assets.');
 		$this->assertArrayHasKey(10, $deferred_assets[$hook_name], 'Priority 10 key should exist.');
 		$this->assertCount(1, $deferred_assets[$hook_name][10]);
@@ -827,7 +827,7 @@ class ScriptModulesEnqueueTraitTest extends EnqueueTraitTestCase {
 
 		// Use reflection to set up deferred assets directly
 		$deferred_assets = array($hook_name => array($priority => array($deferred_asset)));
-		$this->set_protected_property_value($this->instance, 'deferred_assets', $deferred_assets);
+		$this->_set_protected_property_value($this->instance, 'deferred_assets', $deferred_assets);
 
 		// Mock WordPress functions
 		WP_Mock::userFunction('wp_register_script_module')
@@ -842,7 +842,7 @@ class ScriptModulesEnqueueTraitTest extends EnqueueTraitTestCase {
 		$this->instance->_enqueue_deferred_modules($hook_name, $priority);
 
 		// Assert - verify the deferred asset was processed
-		$remaining_deferred = $this->get_protected_property_value($this->instance, 'deferred_assets');
+		$remaining_deferred = $this->_get_protected_property_value($this->instance, 'deferred_assets');
 		$this->assertEmpty($remaining_deferred[$hook_name][$priority] ?? array());
 	}
 
@@ -856,7 +856,7 @@ class ScriptModulesEnqueueTraitTest extends EnqueueTraitTestCase {
 		$priority  = 10;
 
 		// Set up empty deferred assets
-		$this->set_protected_property_value($this->instance, 'deferred_assets', array());
+		$this->_set_protected_property_value($this->instance, 'deferred_assets', array());
 
 		// Act - should not throw any errors
 		$this->instance->_enqueue_deferred_modules($hook_name, $priority);
@@ -866,7 +866,7 @@ class ScriptModulesEnqueueTraitTest extends EnqueueTraitTestCase {
 		WP_Mock::userFunction('wp_enqueue_script_module')->never();
 
 		// Assert - verify no deferred assets remain
-		$remaining_deferred = $this->get_protected_property_value($this->instance, 'deferred_assets');
+		$remaining_deferred = $this->_get_protected_property_value($this->instance, 'deferred_assets');
 		$this->assertEmpty($remaining_deferred[$hook_name][$priority] ?? array());
 	}
 
@@ -895,7 +895,7 @@ class ScriptModulesEnqueueTraitTest extends EnqueueTraitTestCase {
 
 		// Set up deferred assets
 		$deferred_assets = array($hook_name => array($priority => $assets));
-		$this->set_protected_property_value($this->instance, 'deferred_assets', $deferred_assets);
+		$this->_set_protected_property_value($this->instance, 'deferred_assets', $deferred_assets);
 
 		// Mock WordPress functions for both modules
 		WP_Mock::userFunction('wp_register_script_module')
@@ -917,7 +917,7 @@ class ScriptModulesEnqueueTraitTest extends EnqueueTraitTestCase {
 		$this->instance->_enqueue_deferred_modules($hook_name, $priority);
 
 		// Assert - verify both assets were processed
-		$remaining_deferred = $this->get_protected_property_value($this->instance, 'deferred_assets');
+		$remaining_deferred = $this->_get_protected_property_value($this->instance, 'deferred_assets');
 		$this->assertEmpty($remaining_deferred[$hook_name][$priority] ?? array());
 	}
 

@@ -127,7 +127,7 @@ class BlockStatusTrackingTest extends TestCase {
 	 * @param BlockRegistrar $registrar The registrar to use.
 	 * @return BlockFactory The factory with the registrar set.
 	 */
-	protected function createFactoryWithRegistrar($registrar): BlockFactory {
+	protected function _createFactoryWithRegistrar($registrar): BlockFactory {
 		$factory = new BlockFactory($this->config);
 
 		// Use reflection to set the private registrar property
@@ -265,7 +265,7 @@ class BlockStatusTrackingTest extends TestCase {
 		// since we've mocked the underlying WordPress function did_action
 
 		// Create a factory with our test helper that allows setting the registrar
-		$manager = $this->createFactoryWithRegistrar($registrar);
+		$manager = $this->_createFactoryWithRegistrar($registrar);
 
 		$manager->add_block('test/fired', array(
 			'title' => 'Fired Block'
@@ -307,7 +307,7 @@ class BlockStatusTrackingTest extends TestCase {
 		// since we've mocked the underlying WordPress function did_action
 
 		// Create a factory with our test helper that allows setting the registrar
-		$manager = $this->createFactoryWithRegistrar($registrar);
+		$manager = $this->_createFactoryWithRegistrar($registrar);
 
 		// Add blocks with different configurations
 		$manager->add_block('test/failed', array(

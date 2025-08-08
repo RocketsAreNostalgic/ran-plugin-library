@@ -16,23 +16,33 @@ namespace Ran\PluginLib\HooksAccessory;
 use Ran\PluginLib\Util\Logger;
 
 /**
- * Trait for easy integration of enhanced hook management
+ * Trait for integrating the enhanced `HooksManager` API into any class.
+ *
+ * Overview:
+ * - Provides memoized access to a per-owner `HooksManager` instance
+ * - Thin convenience wrappers for registering actions/filters by callable or method name
+ * - Conditional and bulk registration helpers with consistent shapes
+ * - Common WordPress patterns (admin-only, frontend-only, universal) for ergonomics
+ * - Debug/introspection helpers to assist testing and diagnostics
  *
  * Usage:
  * ```php
  * class MyClass {
  *     use HooksManagementTrait;
  *
- *     public function init() {
- *         // Initialize declarative hooks
- *         $this->init_hooks();
- *
- *         // Register dynamic hooks
- *         $this->register_action('wp_init', [$this, 'on_wp_init']);
- *         $this->register_conditional_action('admin_init', [$this, 'admin_only'], 'is_admin');
+ *     public function init(): void {
+ *         // Declarative hooks (via interfaces) + optional programmatic hooks
+ *         $this->_init_hooks();
+ *         $this->_register_action('wp_init', [$this, 'on_wp_init']);
+ *         $this->_register_conditional_action('admin_init', [$this, 'admin_only'], 'is_admin');
  *     }
  * }
  * ```
+ *
+ * Notes:
+ * - Prefer these helpers over direct `add_action`/`add_filter` calls when a `HooksManager`
+ *   is already in use for the class. For one-off hooks in isolated classes, wrappers from
+ *   `WPWrappersTrait` remain acceptable as documented.
  */
 trait HooksManagementTrait {
 	/**
@@ -42,9 +52,14 @@ trait HooksManagementTrait {
 	private ?HooksManager $hooks_manager = null;
 
 	/**
-	 * Get or create the hooks manager
+	 * Get or lazily create the per-owner `HooksManager`.
+	 *
+	 * Returns a memoized instance constructed with `$this` as the owner and the
+	 * class logger when available. Subsequent calls return the same instance.
+	 *
+	 * @return HooksManager Hooks manager bound to the current object
 	 */
-	protected function get_hooks_manager(): HooksManager {
+	protected function _get_hooks_manager(): HooksManager {
 		if ($this->hooks_manager === null) {
 			$logger              = method_exists($this, 'get_logger') ? $this->get_logger() : new Logger();
 			$this->hooks_manager = new HooksManager($this, $logger);
@@ -53,10 +68,17 @@ trait HooksManagementTrait {
 	}
 
 	/**
-	 * Initialize all hooks (both declarative and dynamic)
+	 * Initialize all hooks (declarative + optional programmatic).
+	 *
+	 * - Invokes `init_declarative_hooks()` to register hooks declared via
+	 *   the action/filter provider interfaces.
+	 * - If the owner defines a `register_hooks()` method, it is invoked to
+	 *   allow programmatic registrations using the helpers below.
+	 *
+	 * @return void
 	 */
-	protected function init_hooks(): void {
-		$hooks_manager = $this->get_hooks_manager();
+	protected function _init_hooks(): void {
+		$hooks_manager = $this->_get_hooks_manager();
 
 		// Initialize declarative hooks from interfaces
 		$hooks_manager->init_declarative_hooks();
@@ -70,42 +92,63 @@ trait HooksManagementTrait {
 	// === CONVENIENT ACTION REGISTRATION METHODS ===
 
 	/**
-	 * Register an action hook
+	 * Register an action hook.
+	 *
+	 * @param string   $hook_name      WordPress action name
+	 * @param callable $callback       Callable to execute
+	 * @param int      $priority       Priority (lower runs earlier)
+	 * @param int      $accepted_args  Number of accepted arguments
+	 * @param array    $context        Optional context metadata stored with the hook
+	 * @return bool True on successful registration
 	 */
-	protected function register_action(
+	protected function _register_action(
         string $hook_name,
         callable $callback,
         int $priority = 10,
         int $accepted_args = 1,
         array $context = array()
     ): bool {
-		return $this->get_hooks_manager()->register_action($hook_name, $callback, $priority, $accepted_args, $context);
+		return $this->_get_hooks_manager()->register_action($hook_name, $callback, $priority, $accepted_args, $context);
 	}
 
 	/**
-	 * Register a filter hook
+	 * Register a filter hook.
+	 *
+	 * @param string   $hook_name      WordPress filter name
+	 * @param callable $callback       Callable to execute
+	 * @param int      $priority       Priority (lower runs earlier)
+	 * @param int      $accepted_args  Number of accepted arguments
+	 * @param array    $context        Optional context metadata stored with the hook
+	 * @return bool True on successful registration
 	 */
-	protected function register_filter(
+	protected function _register_filter(
         string $hook_name,
         callable $callback,
         int $priority = 10,
         int $accepted_args = 1,
         array $context = array()
     ): bool {
-		return $this->get_hooks_manager()->register_filter($hook_name, $callback, $priority, $accepted_args, $context);
+		return $this->_get_hooks_manager()->register_filter($hook_name, $callback, $priority, $accepted_args, $context);
 	}
 
 	/**
-	 * Register an action hook using a method name
+	 * Register an action hook by method name on the owner object.
+	 *
+	 * @param string $hook_name     WordPress action name
+	 * @param string $method_name   Method on `$this` to invoke
+	 * @param int    $priority      Priority (lower runs earlier)
+	 * @param int    $accepted_args Number of accepted arguments
+	 * @param array  $context       Optional context metadata stored with the hook
+	 * @return bool True on successful registration
 	 */
-	protected function register_action_method(
+	protected function _register_action_method(
         string $hook_name,
         string $method_name,
         int $priority = 10,
         int $accepted_args = 1,
         array $context = array()
     ): bool {
-		return $this->get_hooks_manager()->register_method_hook(
+		return $this->_get_hooks_manager()->register_method_hook(
 			'action',
 			$hook_name,
 			$method_name,
@@ -116,16 +159,23 @@ trait HooksManagementTrait {
 	}
 
 	/**
-	 * Register a filter hook using a method name
+	 * Register a filter hook by method name on the owner object.
+	 *
+	 * @param string $hook_name     WordPress filter name
+	 * @param string $method_name   Method on `$this` to invoke
+	 * @param int    $priority      Priority (lower runs earlier)
+	 * @param int    $accepted_args Number of accepted arguments
+	 * @param array  $context       Optional context metadata stored with the hook
+	 * @return bool True on successful registration
 	 */
-	protected function register_filter_method(
+	protected function _register_filter_method(
         string $hook_name,
         string $method_name,
         int $priority = 10,
         int $accepted_args = 1,
         array $context = array()
     ): bool {
-		return $this->get_hooks_manager()->register_method_hook(
+		return $this->_get_hooks_manager()->register_method_hook(
 			'filter',
 			$hook_name,
 			$method_name,
@@ -138,9 +188,17 @@ trait HooksManagementTrait {
 	// === CONDITIONAL REGISTRATION METHODS ===
 
 	/**
-	 * Register an action hook conditionally
+	 * Register an action hook conditionally.
+	 *
+	 * @param string          $hook_name     Action name
+	 * @param callable        $callback      Callback to execute
+	 * @param callable|string $condition     Predicate (callable) or function name
+	 * @param int             $priority      Priority
+	 * @param int             $accepted_args Accepted args
+	 * @param array           $context       Context metadata
+	 * @return bool True when the registration was queued successfully
 	 */
-	protected function register_conditional_action(
+	protected function _register_conditional_action(
         string $hook_name,
         callable $callback,
         $condition,
@@ -158,14 +216,22 @@ trait HooksManagementTrait {
 		    'condition'     => $condition,
 		);
 
-		$results = $this->get_hooks_manager()->register_conditional_hooks(array($hook_definition));
+		$results = $this->_get_hooks_manager()->register_conditional_hooks(array($hook_definition));
 		return $results[0]['success'] ?? false;
 	}
 
 	/**
-	 * Register a filter hook conditionally
+	 * Register a filter hook conditionally.
+	 *
+	 * @param string          $hook_name     Filter name
+	 * @param callable        $callback      Callback to execute
+	 * @param callable|string $condition     Predicate (callable) or function name
+	 * @param int             $priority      Priority
+	 * @param int             $accepted_args Accepted args
+	 * @param array           $context       Context metadata
+	 * @return bool True when the registration was queued successfully
 	 */
-	protected function register_conditional_filter(
+	protected function _register_conditional_filter(
         string $hook_name,
         callable $callback,
         $condition,
@@ -183,43 +249,62 @@ trait HooksManagementTrait {
 		    'condition'     => $condition,
 		);
 
-		$results = $this->get_hooks_manager()->register_conditional_hooks(array($hook_definition));
+		$results = $this->_get_hooks_manager()->register_conditional_hooks(array($hook_definition));
 		return $results[0]['success'] ?? false;
 	}
 
 	// === BULK REGISTRATION METHODS ===
 
 	/**
-	 * Register multiple hooks at once
+	 * Register multiple hooks at once.
+	 *
+	 * Expects an array of hook definitions matching the `register_conditional_hooks`
+	 * input shape used by `HooksManager`.
+	 *
+	 * @param array<int, array<string,mixed>> $hook_definitions Array of hook definitions
+	 * @return array<int, array{success:bool, error?:string}> Registration results
 	 */
-	protected function register_hooks_bulk(array $hook_definitions): array {
-		return $this->get_hooks_manager()->register_conditional_hooks($hook_definitions);
+	protected function _register_hooks_bulk(array $hook_definitions): array {
+		return $this->_get_hooks_manager()->register_conditional_hooks($hook_definitions);
 	}
 
 	/**
-	 * Register a group of related hooks
+	 * Register a named group of related hooks (for tracking/debugging).
+	 *
+	 * @param string                              $group_name       Identifier for the group
+	 * @param array<int, array<string,mixed>>     $hook_definitions Hook definitions
+	 * @return bool True if group registration succeeded
 	 */
-	protected function register_hook_group(string $group_name, array $hook_definitions): bool {
-		return $this->get_hooks_manager()->register_hook_group($group_name, $hook_definitions);
+	protected function _register_hook_group(string $group_name, array $hook_definitions): bool {
+		return $this->_get_hooks_manager()->register_hook_group($group_name, $hook_definitions);
 	}
 
 	// === COMMON WORDPRESS PATTERNS ===
 
 	/**
-	 * Register hooks for both frontend and admin
+	 * Register hooks for both frontend and admin.
+	 *
+	 * For enqueue-oriented hooks, also registers the `admin_` companion for
+	 * parity.
+	 *
+	 * @param string   $hook_name     Action name
+	 * @param callable $callback      Callback to execute
+	 * @param int      $priority      Priority
+	 * @param int      $accepted_args Accepted args
+	 * @return bool True if all required registrations succeeded
 	 */
-	protected function register_universal_action(
+	protected function _register_universal_action(
         string $hook_name,
         callable $callback,
         int $priority = 10,
         int $accepted_args = 1
     ): bool {
-		$success1 = $this->register_action($hook_name, $callback, $priority, $accepted_args, array('context' => 'universal'));
+		$success1 = $this->_register_action($hook_name, $callback, $priority, $accepted_args, array('context' => 'universal'));
 
 		// For scripts/styles, also register admin version
 		if (in_array($hook_name, array('wp_enqueue_scripts', 'wp_head', 'wp_footer'))) {
 			$admin_hook = str_replace('wp_', 'admin_', $hook_name);
-			$success2   = $this->register_action($admin_hook, $callback, $priority, $accepted_args, array('context' => 'universal_admin'));
+			$success2   = $this->_register_action($admin_hook, $callback, $priority, $accepted_args, array('context' => 'universal_admin'));
 			return $success1 && $success2;
 		}
 
@@ -227,15 +312,21 @@ trait HooksManagementTrait {
 	}
 
 	/**
-	 * Register admin-only hooks
+	 * Register admin-only hooks.
+	 *
+	 * @param string   $hook_name     Action name
+	 * @param callable $callback      Callback to execute
+	 * @param int      $priority      Priority
+	 * @param int      $accepted_args Accepted args
+	 * @return bool True when queued successfully
 	 */
-	protected function register_admin_action(
+	protected function _register_admin_action(
         string $hook_name,
         callable $callback,
         int $priority = 10,
         int $accepted_args = 1
     ): bool {
-		return $this->register_conditional_action(
+		return $this->_register_conditional_action(
 			$hook_name,
 			$callback,
 			'is_admin',
@@ -246,15 +337,21 @@ trait HooksManagementTrait {
 	}
 
 	/**
-	 * Register frontend-only hooks
+	 * Register frontend-only hooks.
+	 *
+	 * @param string   $hook_name     Action name
+	 * @param callable $callback      Callback to execute
+	 * @param int      $priority      Priority
+	 * @param int      $accepted_args Accepted args
+	 * @return bool True when queued successfully
 	 */
-	protected function register_frontend_action(
+	protected function _register_frontend_action(
         string $hook_name,
         callable $callback,
         int $priority = 10,
         int $accepted_args = 1
     ): bool {
-		return $this->register_conditional_action(
+		return $this->_register_conditional_action(
 			$hook_name,
 			$callback,
 			function() {
@@ -269,9 +366,13 @@ trait HooksManagementTrait {
 	// === ASSET-SPECIFIC CONVENIENCE METHODS ===
 
 	/**
-	 * Register asset enqueue hooks with common patterns
+	 * Register asset enqueue hooks with common patterns.
+	 *
+	 * @param string               $asset_type    Asset type identifier (e.g. 'script','style','media')
+	 * @param array<string,int>    $hooks_config  Map of hook_name => priority (overrides defaults)
+	 * @return bool True if all registrations succeeded; false if missing handler or partial failures
 	 */
-	protected function register_asset_hooks(string $asset_type, array $hooks_config = array()): bool {
+	protected function _register_asset_hooks(string $asset_type, array $hooks_config = array()): bool {
 		$default_hooks = array(
 		    'wp_enqueue_scripts'    => 10,
 		    'admin_enqueue_scripts' => 10,
@@ -286,7 +387,7 @@ trait HooksManagementTrait {
 
 		$all_successful = true;
 		foreach ($hooks_to_register as $hook => $priority) {
-			$success = $this->register_action_method(
+			$success = $this->_register_action_method(
 				$hook,
 				$method_name,
 				$priority,
@@ -302,9 +403,13 @@ trait HooksManagementTrait {
 	}
 
 	/**
-	 * Register deferred processing hooks
+	 * Register deferred processing hooks.
+	 *
+	 * @param array<string, array{priority?:int, callback?:callable, context?:array<string,mixed>}> $deferred_config
+	 *        Map of hook_name => options; entries with null callbacks are skipped.
+	 * @return bool True if group registration succeeded
 	 */
-	protected function register_deferred_hooks(array $deferred_config): bool {
+	protected function _register_deferred_hooks(array $deferred_config): bool {
 		$hook_definitions = array();
 
 		foreach ($deferred_config as $hook_name => $config) {
@@ -326,50 +431,87 @@ trait HooksManagementTrait {
 			);
 		}
 
-		return $this->register_hook_group('deferred_processing', $hook_definitions);
+		return $this->_register_hook_group('deferred_processing', $hook_definitions);
 	}
 
 	// === DEBUGGING AND INTROSPECTION ===
 
 	/**
-	 * Check if a hook is registered
+	 * Check if a hook is registered.
+	 *
+	 * @param string $type      'action'|'filter'
+	 * @param string $hook_name Hook name
+	 * @param int    $priority  Priority to test
+	 * @return bool True if a matching registration exists
 	 */
-	protected function is_hook_registered(string $type, string $hook_name, int $priority = 10): bool {
-		return $this->get_hooks_manager()->is_hook_registered($type, $hook_name, $priority);
+	protected function _is_hook_registered(string $type, string $hook_name, int $priority = 10): bool {
+		return $this->_get_hooks_manager()->is_hook_registered($type, $hook_name, $priority);
 	}
 
 	/**
-	 * Get all registered hooks
+	 * Get all registered hook keys.
+	 *
+	  * @return array<int, string> List of unique hook keys
 	 */
-	protected function get_registered_hooks(): array {
-		return $this->get_hooks_manager()->get_registered_hooks();
+	protected function _get_registered_hooks(): array {
+		return $this->_get_hooks_manager()->get_registered_hooks();
 	}
 
 	/**
-	 * Get hook registration statistics
+	 * Get hook registration statistics.
+	 *
+	 * @return array<string, int|float> Stats (e.g., totals, duplicates prevented)
 	 */
-	protected function get_hook_stats(): array {
-		return $this->get_hooks_manager()->get_stats();
+	protected function _get_hook_stats(): array {
+		return $this->_get_hooks_manager()->get_stats();
 	}
 
 	/**
-	 * Get hooks by group
+	 * Public: Get hook registration statistics for userland access.
+	 *
+	 * Exposes `HooksManager::get_stats()` without requiring consumers to call a
+	 * protected underscore method.
+	 *
+	 * @return array<string, int|float>
 	 */
-	protected function get_hooks_by_group(string $group_name): array {
-		return $this->get_hooks_manager()->get_hooks_by_group($group_name);
+	public function get_hook_stats(): array {
+		return $this->_get_hooks_manager()->get_stats();
 	}
 
 	/**
-	 * Generate debug report for hooks
+	 * Get hooks by group name.
+	 *
+	 * @param string $group_name Group identifier
+	 * @return array<int, array<string,mixed>> Hook definitions in the group
 	 */
-	protected function get_hooks_debug_report(): array {
-		return $this->get_hooks_manager()->generate_debug_report();
+	protected function _get_hooks_by_group(string $group_name): array {
+		return $this->_get_hooks_manager()->get_hooks_by_group($group_name);
 	}
 
 	/**
-	 * Clear all hooks (for testing)
+	 * Public: Get all registered hook keys for userland access.
+	 *
+	 * @return array<int, string>
 	 */
-	protected function clear_hooks(): void {
-		$this->get_hooks_manager()->clear_hooks();
+	public function get_registered_hooks(): array {
+		return $this->_get_hooks_manager()->get_registered_hooks();
+	}
+
+	/**
+	 * Generate a structured debug report for hooks.
+	 *
+	 * @return array<string, mixed>
+	 */
+	protected function _get_hooks_debug_report(): array {
+		return $this->_get_hooks_manager()->generate_debug_report();
+	}
+
+	/**
+	 * Clear all hooks (primarily for testing teardown).
+	 *
+	 * @return void
+	 */
+	protected function _clear_hooks(): void {
+		$this->_get_hooks_manager()->clear_hooks();
 	}
 }

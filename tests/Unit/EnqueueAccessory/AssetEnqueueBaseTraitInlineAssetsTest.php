@@ -83,11 +83,7 @@ class AssetEnqueueBaseTraitInlineAssetsTest extends EnqueueTraitTestCase {
 		));
 
 		// Mock the add_action call for the external inline script
-		WP_Mock::expectActionAdded(
-			'wp_enqueue_scripts',
-			array($this->instance, 'enqueue_external_inline_scripts'),
-			11
-		);
+		$this->expectAction('wp_enqueue_scripts', 11, 1, 0);
 
 		// Test through public interface - add inline script
 		$this->instance->add_inline(array(
@@ -113,11 +109,7 @@ class AssetEnqueueBaseTraitInlineAssetsTest extends EnqueueTraitTestCase {
 	 */
 	public function test_add_inline_asset_with_custom_parent_hook(): void {
 		// Mock the add_action call for the external inline script with custom hook
-		WP_Mock::expectActionAdded(
-			'custom_hook',
-			array($this->instance, 'enqueue_external_inline_scripts'),
-			11
-		);
+		$this->expectAction('custom_hook', 11, 1, 0);
 
 		// Test through public interface - add inline script with custom parent hook
 		$this->instance->add_inline(array(

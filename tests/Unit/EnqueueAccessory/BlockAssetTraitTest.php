@@ -139,7 +139,7 @@ class BlockAssetTraitTest extends EnqueueTraitTestCase {
 		// Assert
 		$this->assertSame($this->instance, $result, 'Method should return instance for chaining');
 
-		$block_assets = $this->get_protected_property_value($this->instance, 'block_assets');
+		$block_assets = $this->_get_protected_property_value($this->instance, 'block_assets');
 		$this->assertArrayHasKey($block_name, $block_assets);
 		$this->assertEquals($asset_config, $block_assets[$block_name]);
 	}
@@ -170,7 +170,7 @@ class BlockAssetTraitTest extends EnqueueTraitTestCase {
 		$this->instance->register_block_assets($block_name, $asset_config);
 
 		// Assert
-		$block_assets = $this->get_protected_property_value($this->instance, 'block_assets');
+		$block_assets = $this->_get_protected_property_value($this->instance, 'block_assets');
 		$this->assertArrayHasKey('editor_scripts', $block_assets[$block_name]);
 		$this->assertArrayHasKey('frontend_scripts', $block_assets[$block_name]);
 	}
@@ -181,9 +181,9 @@ class BlockAssetTraitTest extends EnqueueTraitTestCase {
 
 	/**
 	 * @test
-	 * @covers \Ran\PluginLib\EnqueueAccessory\BlockAssetTrait::detect_block_presence
+	 * @covers \Ran\PluginLib\EnqueueAccessory\BlockAssetTrait::_detect_block_presence
 	 */
-	public function test_detect_block_presence_uses_caching(): void {
+	public function test__detect_block_presence_uses_caching(): void {
 		// Arrange - Mock global $post
 		global $post;
 		$post = (object) array('post_content' => '<!-- wp:core/paragraph --><p>Test</p><!-- /wp:core/paragraph -->');
@@ -199,8 +199,8 @@ class BlockAssetTraitTest extends EnqueueTraitTestCase {
 			));
 
 		// Act - Call twice to test caching
-		$result1 = $this->instance->detect_block_presence();
-		$result2 = $this->instance->detect_block_presence();
+		$result1 = $this->instance->_detect_block_presence();
+		$result2 = $this->instance->_detect_block_presence();
 
 		// Assert
 		$this->assertEquals(array('core/paragraph'), $result1);
@@ -687,7 +687,7 @@ class BlockAssetTraitTest extends EnqueueTraitTestCase {
 		$this->assertSame($this->instance, $result, 'Method should return instance for chaining');
 
 		// Verify the block group was stored with correct structure
-		$block_groups = $this->get_protected_property_value($this->instance, 'block_groups');
+		$block_groups = $this->_get_protected_property_value($this->instance, 'block_groups');
 		$this->assertArrayHasKey($group_name, $block_groups);
 		$this->assertArrayHasKey('blocks', $block_groups[$group_name]);
 		$this->assertArrayHasKey('shared_assets', $block_groups[$group_name]);

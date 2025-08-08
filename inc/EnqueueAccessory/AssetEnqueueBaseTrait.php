@@ -1,7 +1,7 @@
 <?php
 /**
  * Provides common, asset-agnostic functionality for asset processing.
- *
+	* @var array<string, array<int, array<string, mixed>>>
  * This trait contains the shared helper methods used by the asset-specific traits
  * (ScriptsEnqueueTrait, StylesEnqueueTrait). It provides the foundational layer
  * for asset management using a flattened array structure where each trait instance
@@ -26,6 +26,7 @@ namespace Ran\PluginLib\EnqueueAccessory;
 
 use Ran\PluginLib\Util\Logger;
 use Ran\PluginLib\Util\WPWrappersTrait;
+use Ran\PluginLib\HooksAccessory\HooksManagementTrait;
 use Ran\PluginLib\EnqueueAccessory\AssetType;
 
 /**
@@ -38,6 +39,7 @@ use Ran\PluginLib\EnqueueAccessory\AssetType;
  */
 trait AssetEnqueueBaseTrait {
 	use WPWrappersTrait;
+	use HooksManagementTrait;
 
 	/**
 	 * Holds all asset definitions registered by this plugin/theme.
@@ -50,7 +52,7 @@ trait AssetEnqueueBaseTrait {
 	 * (those without a 'hook' property) that were successfully registered. All
 	 * deferred assets are moved to the $deferred_assets array.
 	 *
-	 * @var array<string, array<int, array<string, mixed>>>
+	@var array<int, array<string, mixed>>
 	 */
 	protected array $assets = array();
 
@@ -71,7 +73,7 @@ trait AssetEnqueueBaseTrait {
 	 * These are for attaching inline code to assets registered by WordPress core, other plugins, or themes.
 	 * Organized by hook to control when they're processed in the WordPress lifecycle.
 	 *
-	 * @var array<string, array<string, array<int, array<string, mixed>>>>
+	@var array<string, array<string, array<int, array<string, mixed>>>>
 	 */
 	protected array $external_inline_assets = array();
 
@@ -84,6 +86,8 @@ trait AssetEnqueueBaseTrait {
 	 *
 	 * @var array<string, array<string, bool>>
 	 */
+	// Note: external inline scheduling now relies on HooksManager deduplication.
+	// Left for backward-compat of get_assets_info() until fully removed.
 	protected array $registered_external_hooks = array();
 
 	/**
@@ -562,21 +566,30 @@ trait AssetEnqueueBaseTrait {
 		// Add to the single external queue.
 		$this->external_inline_assets[$hook][$parent_handle][] = $inline_asset_definition;
 
-		// Register the action to enqueue the external inline assets, but only once per hook.
-		if ( ! isset( $this->registered_external_hooks[$hook] ) ) {
-			// add_action() with a direct method reference approach is PREFERRED here because:
-			// 1. No additional parameters need to be passed to the callback - unlike in
-			//    AssetEnqueueBaseAbstract where we need to pass $hook_name and $priority
+		// Register the action to enqueue the external inline assets via HooksManager
+		// (one-time registration and internal de-duplication handled by HooksManager).
+		{
+			// register_action() with a direct method reference is PREFERRED here because:
+			// 1. No additional parameters need to be passed to the callback — unlike in
+			//    AssetEnqueueBaseAbstract where we need to pass $hook_name and $priority.
 			// 2. The method name is deterministic and constructed at runtime
-			//    (enqueue_external_inline_scripts or enqueue_external_inline_styles)
-			// 3. The method definitely exists in this class - no safety check needed
+			//    (enqueue_external_inline_scripts or enqueue_external_inline_styles).
+			// 3. The method definitely exists on this class — no safety check needed.
 			// 4. Direct method references are more efficient than closures when no additional
-			//    parameters need to be passed
+			//    parameters need to be passed.
+			// 5. Using HooksManager centralizes registration and provides de-duplication
+			//    if this path is invoked multiple times for the same hook.
 			$enqueue_method = 'enqueue_external_inline_' . $asset_type->value . 's';
 
 			// Using a hardcoded value of 11 as we want inline assets to be added after all other hooks.
-			$this->_do_add_action( $hook, array( $this, $enqueue_method ), 11 );
-			$this->registered_external_hooks[$hook] = true;
+			$this->_get_hooks_manager()->register_action(
+				$hook,
+				array( $this, $enqueue_method ),
+				11,
+				0,
+				array('context' => 'external_inline_assets')
+			);
+			$this->registered_external_hooks[$hook] = true; // retained temporarily for get_assets_info() exposure
 		}
 	}
 
@@ -771,7 +784,7 @@ trait AssetEnqueueBaseTrait {
 			}
 		}
 
-		$src_url = ($src === false) ? false : $this->get_asset_url($src, $asset_type);
+		$src_url = ($src === false) ? false : $this->_get_asset_url($src, $asset_type);
 
 		if ($src_url === null && $src !== false) {
 			if ($logger->is_active()) {
@@ -1916,10 +1929,16 @@ trait AssetEnqueueBaseTrait {
 				$logger->debug("{$trait_name}::deregister - Immediately deregistered {$asset_type->value} '{$handle}'.");
 			}
 		} else {
-			// Deferred deregistration via hook
-			$this->_do_add_action($hook, function() use ($handle, $asset_type) {
-				$this->_handle_asset_operation($handle, __FUNCTION__, $asset_type, 'deregister');
-			}, $priority);
+			// Deferred deregistration via HooksManager action registration
+			$this->_get_hooks_manager()->register_action(
+				$hook,
+				function() use ($handle, $asset_type) {
+					$this->_handle_asset_operation($handle, __FUNCTION__, $asset_type, 'deregister');
+				},
+				$priority,
+				1,
+				array()
+			);
 
 			if ($logger->is_active()) {
 				$logger->debug("{$trait_name}::deregister - Scheduled deregistration of {$asset_type->value} '{$handle}' on hook '{$hook}' with priority {$priority}.");
@@ -1957,10 +1976,16 @@ trait AssetEnqueueBaseTrait {
 				$logger->debug("{$trait_name}::remove - Immediately removed {$asset_type->value} '{$handle}'.");
 			}
 		} else {
-			// Deferred removal via hook
-			$this->_do_add_action($hook, function() use ($handle, $asset_type) {
-				$this->_handle_asset_operation($handle, __FUNCTION__, $asset_type, 'remove');
-			}, $priority);
+			// Deferred removal via HooksManager action registration
+			$this->_get_hooks_manager()->register_action(
+				$hook,
+				function() use ($handle, $asset_type) {
+					$this->_handle_asset_operation($handle, __FUNCTION__, $asset_type, 'remove');
+				},
+				$priority,
+				1,
+				array()
+			);
 
 			if ($logger->is_active()) {
 				$logger->debug("{$trait_name}::remove - Scheduled removal of {$asset_type->value} '{$handle}' on hook '{$hook}' with priority {$priority}.");
