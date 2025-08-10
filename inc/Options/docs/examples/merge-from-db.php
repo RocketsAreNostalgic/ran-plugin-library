@@ -34,16 +34,16 @@ declare(strict_types=1);
 use Ran\PluginLib\Config\Config;
 use Ran\PluginLib\Options\RegisterOptions;
 
-$config  = Config::get_instance();
+$config = Config::get_instance();
 $options = RegisterOptions::from_config($config);
 
 // SCENARIO: Plugin activation while admin is changing settings
 // Your activation script needs to set version info without losing user settings
-$options->add_options(array(
-  'plugin_version'       => '2.0.0',    // Your activation script sets this
-  'activation_timestamp' => time(),     // Your activation script sets this
-  'migration_completed'  => true,       // Your activation script sets this
-)); // Stage in memory only, will flush below
+$options->set_options([
+  'plugin_version' => '2.0.0',           // Your activation script sets this
+  'activation_timestamp' => time(),      // Your activation script sets this
+  'migration_completed' => true,         // Your activation script sets this
+], false); // Stage in memory only
 
 // Meanwhile, admin user might be saving these settings:
 // 'notification_email' => 'admin@example.com'
@@ -59,7 +59,7 @@ $options->flush(mergeFromDb: true);
 //     $options = RegisterOptions::from_config(Config::get_instance());
 //
 //     // Set activation defaults without losing existing user settings
-//     $options->add_options([
+//     $options->set_options([
 //         'version' => '1.0.0',
 //         'installed_date' => current_time('mysql'),
 //         'needs_welcome_screen' => true,
@@ -72,7 +72,7 @@ $options->flush(mergeFromDb: true);
 // add_action('my_plugin_daily_stats', function() {
 //     $options = RegisterOptions::from_config(Config::get_instance());
 //
-//     $options->add_options([
+//     $options->set_options([
 //         'daily_stats' => calculate_daily_stats(),
 //         'last_stats_update' => current_time('mysql'),
 //         'cache_status' => 'updated',

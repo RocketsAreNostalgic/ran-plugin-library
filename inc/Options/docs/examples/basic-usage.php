@@ -31,11 +31,11 @@ $config = Config::get_instance();
 // RATIONALE: from_config() uses your plugin's configured option name from Config,
 // ensuring consistency across your plugin and avoiding hardcoded strings.
 // The 'true' parameter enables autoloading for frequently accessed options.
-$options = RegisterOptions::from_config($config, /* initial */ array(), /* autoload */ true);
+$options = RegisterOptions::from_config($config, /* initial */ [], /* autoload */ true);
 
 // Set individual options - each call writes to database immediately
 // PERFORMANCE NOTE: Each set_option() call triggers a database write.
-// For multiple options, prefer add_option(s) + flush() (see batch-and-flush.php)
+// For multiple options, consider using set_options() + flush() pattern (see batch-and-flush.php)
 $options->set_option('api_key', 'abc123');
 $options->set_option('enabled', true);
 

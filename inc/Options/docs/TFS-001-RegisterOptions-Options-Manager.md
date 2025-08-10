@@ -67,7 +67,7 @@ Adopt a single-row, schema-aware options manager (`RegisterOptions`) that:
 1. Construct instance (from config or directly).
 2. Load existing grouped options from DB.
 3. Normalize schema; seed defaults for missing keys if provided.
-4. Callers read via `get_option()`/`get_values()` and write via `set_option()` for single writes or `add_option(s)` + `flush()` for batching.
+4. Callers read via `get_option()`/`get_values()` and write via `set_option()`/`set_options()`.
 5. Persist explicitly via `flush()` (or implicitly via `set_option`).
 
 ## API Design
@@ -97,8 +97,7 @@ public function get_options(): array // values with metadata
 public function get_values(): array  // values only
 public function has_option(string $option_name): bool
 public function set_option(string $option_name, mixed $value, ?bool $autoload_hint = null): bool
-public function add_option(string $option_name, mixed $value, ?bool $autoload_hint = null): self
-public function add_options(array $keyToValue): self
+public function set_options(array $keyToValue, ?bool $flush = null): bool
 public function update_option(string $option_name, mixed $value, ?bool $autoload_hint = null): bool
 public function delete_option(string $option_name): bool
 public function clear(): bool
@@ -141,7 +140,7 @@ public static function sanitize_option_key(string $key): string
 ### Security Considerations
 
 - Schema validators should ensure values are of expected types and formats.
-- Callers must avoid storing sensitive secrets in auto-loaded groups if memory concerns exist.
+- Callers must avoid storing sensitive secrets in autoloaded groups if memory concerns exist.
 
 ## Implementation Phases
 
@@ -192,7 +191,7 @@ public static function sanitize_option_key(string $key): string
 
 - Getter/setter correctness, including `has_option`, `get_values`.
 - No-op write guard: unchanged values skip persistence.
-- Batch via `add_option(s)` and `flush()`.
+- Batch `set_options` with and without `flush`.
 - Schema default seeding; callable defaults; sanitize/validate flows.
 - `set_main_autoload` preserves data and flips autoload.
 - Error messages include truncated value and callable descriptor.

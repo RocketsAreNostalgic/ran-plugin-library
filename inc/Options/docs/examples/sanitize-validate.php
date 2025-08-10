@@ -34,92 +34,94 @@ use Ran\PluginLib\Options\RegisterOptions;
 $config = Config::get_instance();
 
 // COMPREHENSIVE SCHEMA EXAMPLES:
-$schema = array(
+$schema = [
     // API Key validation - common for third-party integrations
-    'stripe_api_key' => array(
+    'stripe_api_key' => [
         'default'  => '',
         'sanitize' => fn($v) => is_string($v) ? trim($v) : '',
         'validate' => fn($v) => is_string($v) && preg_match('/^sk_(test_|live_)[a-zA-Z0-9]{24,}$/', $v),
-    ),
+    ],
 
     // Email validation - for notifications, admin contacts
-    'notification_email' => array(
+    'notification_email' => [
         'default'  => get_option('admin_email', ''),
         'sanitize' => fn($v) => sanitize_email($v),
         'validate' => fn($v) => is_email($v),
-    ),
+    ],
 
     // URL validation - for webhooks, API endpoints
-    'webhook_url' => array(
+    'webhook_url' => [
         'default'  => '',
         'sanitize' => fn($v) => esc_url_raw($v),
         'validate' => fn($v) => filter_var($v, FILTER_VALIDATE_URL) !== false,
-    ),
+    ],
 
     // Numeric range validation - for timeouts, limits
-    'api_timeout' => array(
+    'api_timeout' => [
         'default'  => 30,
         'sanitize' => fn($v) => (int) $v,
         'validate' => fn($v) => is_int($v) && $v >= 5 && $v <= 300, // 5-300 seconds
-    ),
+    ],
 
     // Percentage validation - for quality settings, rates
-    'image_quality' => array(
+    'image_quality' => [
         'default'  => 85,
         'sanitize' => fn($v) => max(1, min(100, (int) $v)), // Clamp to 1-100
         'validate' => fn($v) => is_int($v) && $v >= 1 && $v <= 100,
-    ),
+    ],
 
     // Array validation - for feature lists, selected options
-    'enabled_features' => array(
-        'default'  => array('basic'),
-        'sanitize' => fn($v) => is_array($v) ? array_map('sanitize_key', $v) : array('basic'),
-        'validate' => fn($v) => is_array($v) && !empty($v) && array_intersect($v, array('basic', 'advanced', 'premium')) === $v,
-    ),
+    'enabled_features' => [
+        'default'  => ['basic'],
+        'sanitize' => fn($v) => is_array($v) ? array_map('sanitize_key', $v) : ['basic'],
+        'validate' => fn($v) => is_array($v) && !empty($v) &&
+                               array_intersect($v, ['basic', 'advanced', 'premium']) === $v,
+    ],
 
     // File path validation - for upload directories, log files
-    'upload_directory' => array(
+    'upload_directory' => [
         'default'  => wp_upload_dir()['basedir'] . '/my-plugin',
         'sanitize' => fn($v) => sanitize_text_field($v),
-        'validate' => fn($v) => is_string($v) && strpos($v, '..')     === false && // Prevent path traversal
+        'validate' => fn($v) => is_string($v) &&
+                               strpos($v, '..') === false && // Prevent path traversal
                                strpos($v, wp_upload_dir()['basedir']) === 0, // Must be in uploads
-    ),
-);
+    ],
+];
 
-$options = RegisterOptions::from_config($config, array(), true, null, $schema);
+$options = RegisterOptions::from_config($config, [], true, null, $schema);
 
 // EXAMPLES OF SANITIZATION AND VALIDATION IN ACTION:
 
 try {
-	// This will be trimmed and validated
-	$options->set_option('stripe_api_key', '  ***REMOVED***  ');
-	echo "✓ API key saved successfully\n";
+    // This will be trimmed and validated
+    $options->set_option('stripe_api_key', '  ***REMOVED***  ');
+    echo "✓ API key saved successfully\n";
 } catch (InvalidArgumentException $e) {
-	echo '✗ API key validation failed: ' . $e->getMessage() . "\n";
+    echo "✗ API key validation failed: " . $e->getMessage() . "\n";
 }
 
 try {
-	// This will be sanitized to a valid email
-	$options->set_option('notification_email', ' admin@example.com ');
-	echo "✓ Email saved successfully\n";
+    // This will be sanitized to a valid email
+    $options->set_option('notification_email', ' admin@example.com ');
+    echo "✓ Email saved successfully\n";
 } catch (InvalidArgumentException $e) {
-	echo '✗ Email validation failed: ' . $e->getMessage() . "\n";
+    echo "✗ Email validation failed: " . $e->getMessage() . "\n";
 }
 
 try {
-	// This will fail validation (invalid URL)
-	$options->set_option('webhook_url', 'not-a-valid-url');
-	echo "✓ Webhook URL saved successfully\n";
+    // This will fail validation (invalid URL)
+    $options->set_option('webhook_url', 'not-a-valid-url');
+    echo "✓ Webhook URL saved successfully\n";
 } catch (InvalidArgumentException $e) {
-	echo '✗ Webhook URL validation failed: ' . $e->getMessage() . "\n";
+    echo "✗ Webhook URL validation failed: " . $e->getMessage() . "\n";
 }
 
 try {
     // This will be clamped to valid range by sanitizer
-	$options->set_option('image_quality', 150); // Will become 100
-	echo '✓ Image quality saved as: ' . $options->get_option('image_quality') . "\n";
+    $options->set_option('image_quality', 150); // Will become 100
+    echo "✓ Image quality saved as: " . $options->get_option('image_quality') . "\n";
 } catch (InvalidArgumentException $e) {
-	echo '✗ Image quality validation failed: ' . $e->getMessage() . "\n";
+    echo "✗ Image quality validation failed: " . $e->getMessage() . "\n";
 }
 
 // REAL-WORLD FORM PROCESSING EXAMPLE:
