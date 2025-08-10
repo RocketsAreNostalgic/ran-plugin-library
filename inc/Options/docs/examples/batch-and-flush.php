@@ -28,23 +28,17 @@ declare(strict_types=1);
 use Ran\PluginLib\Config\Config;
 use Ran\PluginLib\Options\RegisterOptions;
 
-$config = Config::get_instance();
+$config  = Config::get_instance();
 $options = RegisterOptions::from_config($config);
 
-// BATCH PATTERN: Stage multiple changes in memory first
+// BATCH PATTERN: Stage multiple changes in memory first, then flush once
 // Note: You can mix simple values and structured definitions
-$changed = $options->set_options([
-  'api_key' => 'abc',                           // Simple value
-  'enabled' => ['value' => true],               // With metadata structure
-  'timeout' => 30,                              // Simple value
-  'cache_duration' => ['value' => 3600],        // With metadata structure
-], false); // false = don't write to DB yet, just stage in memory
-
-// Only write to database if something actually changed
-// RATIONALE: Avoids unnecessary DB writes and potential lock contention
-if ($changed) {
-  $options->flush(); // Single DB write for all changes
-}
+$options->add_options(array(
+  'api_key'        => 'abc',                 // Simple value
+  'enabled'        => array('value' => true), // With metadata structure
+  'timeout'        => 30,                    // Simple value
+  'cache_duration' => array('value' => 3600) // With metadata structure
+))->flush(); // Single DB write for all changes
 
 // REAL-WORLD EXAMPLE: Plugin activation with many defaults
 // $activation_defaults = [
@@ -62,7 +56,7 @@ if ($changed) {
 //     ]
 // ];
 //
-// $options->set_options($activation_defaults, true); // Single write for all
+// $options->add_options($activation_defaults)->flush(); // Single write for all
 
 // FORM PROCESSING EXAMPLE: Handle admin settings form
 // if ($_POST['save_settings']) {
@@ -73,7 +67,6 @@ if ($changed) {
 //         'last_updated' => current_time('mysql')
 //     ];
 //
-//     if ($options->set_options($form_data, true)) {
-//         wp_redirect(add_query_arg('updated', '1', wp_get_referer()));
-//     }
+//     $options->add_options($form_data)->flush();
+//     wp_redirect(add_query_arg('updated', '1', wp_get_referer()));
 // }

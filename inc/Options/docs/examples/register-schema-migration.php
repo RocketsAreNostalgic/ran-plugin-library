@@ -30,72 +30,72 @@ declare(strict_types=1);
 use Ran\PluginLib\Config\Config;
 use Ran\PluginLib\Options\RegisterOptions;
 
-$config = Config::get_instance();
+$config  = Config::get_instance();
 $options = RegisterOptions::from_config($config);
 
 // EXAMPLE 1: Plugin version upgrade - add new feature with safe defaults
 $current_version = $options->get_option('plugin_version', '1.0.0');
 if (version_compare($current_version, '2.0.0', '<')) {
-    // Version 2.0 introduces analytics feature
-    $options->register_schema([
-        'analytics_enabled' => [
-            'default'  => false,  // Default to disabled for safety
-            'validate' => fn($v) => is_bool($v),
-        ],
-        'analytics_tracking_id' => [
-            'default'  => '',
-            'sanitize' => fn($v) => sanitize_text_field($v),
-            'validate' => fn($v) => is_string($v),
-        ],
-        'plugin_version' => [
-            'default'  => '2.0.0',
-            'validate' => fn($v) => is_string($v) && !empty($v),
-        ],
-    ], seedDefaults: true, flush: true);
+	// Version 2.0 introduces analytics feature
+	$options->register_schema(array(
+	    'analytics_enabled' => array(
+	        'default'  => false,  // Default to disabled for safety
+	        'validate' => fn($v) => is_bool($v),
+	    ),
+	    'analytics_tracking_id' => array(
+	        'default'  => '',
+	        'sanitize' => fn($v) => sanitize_text_field($v),
+	        'validate' => fn($v) => is_string($v),
+	    ),
+	    'plugin_version' => array(
+	        'default'  => '2.0.0',
+	        'validate' => fn($v) => is_string($v) && !empty($v),
+	    ),
+	), seedDefaults: true, flush: true);
 }
 
 // EXAMPLE 2: Conditional feature registration based on server capabilities
 if (function_exists('imagick') || extension_loaded('gd')) {
-    $options->register_schema([
-        'image_processing_enabled' => [
-            'default'  => true,  // Enable if server supports it
-            'validate' => fn($v) => is_bool($v),
-        ],
-        'image_quality' => [
-            'default'  => 85,
-            'validate' => fn($v) => is_int($v) && $v >= 1 && $v <= 100,
-        ],
-    ], seedDefaults: true, flush: false); // Don't flush yet, may add more
+	$options->register_schema(array(
+	    'image_processing_enabled' => array(
+	        'default'  => true,  // Enable if server supports it
+	        'validate' => fn($v) => is_bool($v),
+	    ),
+	    'image_quality' => array(
+	        'default'  => 85,
+	        'validate' => fn($v) => is_int($v) && $v >= 1 && $v <= 100,
+	    ),
+	), seedDefaults: true, flush: false); // Don't flush yet, may add more
 }
 
 // EXAMPLE 3: User role-based feature availability
 $current_user = wp_get_current_user();
 if (user_can($current_user, 'manage_options')) {
-    $options->register_schema([
-        'admin_debug_mode' => [
-            'default'  => false,
-            'validate' => fn($v) => is_bool($v),
-        ],
-        'show_performance_metrics' => [
-            'default'  => false,
-            'validate' => fn($v) => is_bool($v),
-        ],
-    ], seedDefaults: true, flush: false);
+	$options->register_schema(array(
+	    'admin_debug_mode' => array(
+	        'default'  => false,
+	        'validate' => fn($v) => is_bool($v),
+	    ),
+	    'show_performance_metrics' => array(
+	        'default'  => false,
+	        'validate' => fn($v) => is_bool($v),
+	    ),
+	), seedDefaults: true, flush: false);
 }
 
 // EXAMPLE 4: A/B testing feature flags
-$user_id = get_current_user_id();
+$user_id    = get_current_user_id();
 $test_group = $user_id % 2; // Simple A/B split
-$options->register_schema([
-    'new_ui_enabled' => [
+$options->register_schema(array(
+    'new_ui_enabled' => array(
         'default'  => $test_group === 1, // 50% of users get new UI
         'validate' => fn($v) => is_bool($v),
-    ],
-    'test_group' => [
+    ),
+    'test_group' => array(
         'default'  => $test_group,
-        'validate' => fn($v) => is_int($v) && in_array($v, [0, 1]),
-    ],
-], seedDefaults: true, flush: false);
+        'validate' => fn($v) => is_int($v) && in_array($v, array(0, 1)),
+    ),
+), seedDefaults: true, flush: false);
 
 // Flush all schema changes at once for efficiency
 $options->flush();
