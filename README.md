@@ -9,9 +9,17 @@ An example implementation is available at <https://github.com/RocketsAreNostalgi
 ## Features
 
 - **Configuration Management:** Easily load plugin metadata and custom configuration from your main plugin file's docblock.
-- **Asset Enqueuing:** A flexible system for adding and managing CSS and JavaScript files for both admin and public-facing pages, with support for conditions, dependencies, inline scripts, and deferred loading.
+- **Asset Enqueuing Accessory:** A flexible system for adding and managing CSS and JavaScript files for both admin and public-facing pages, with support for conditions, dependencies, inline scripts, and deferred loading.
+
+- **Hooks Accessory:** A system to organize plugin filter and action hooks.
+- **Features API:** A system to organize plugin 'features' into distinct classes with Dependency Injection support.
+- **Block Management:** A system to register plugin 'blocks', with comprehensive asset management.
+
+## Utilities
+
 - **Logging:** Built-in PSR-3 compatible logger, configurable via plugin headers or constants, to aid in development and debugging.
-- **Feature Management:** (Coming Soon/Basic Implementation) A system to organize plugin 'features' into distinct classes.
+- **Options Management:** A system to register plugin 'options', with comprehensive schema management, and dynamic default seeding.
+
 - **WordPress Coding Standards Compliant:** Developed with WordPress coding standards in mind.
 
 ## Getting Started

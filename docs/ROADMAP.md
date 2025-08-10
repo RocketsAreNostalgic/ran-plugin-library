@@ -32,6 +32,14 @@ The library is **approximately 75% complete** with core infrastructure in place.
 - ✅ Advanced error handling scenarios
 - ✅ Documentation and usage examples in TFS-008
 
+### Review Config Class and Options class interaction with options
+
+Config supplies a `get_wp_options()` method that retrieves an options:
+
+_"The `get_wp_options()` method returns the value of the current plugin's primary WordPress option or `false` if none has been set."_
+
+This needs to be reviewed agains our `RegisterOptions` class. Maybe we should provide an instantiated Options instance on demand from the Config class?
+
 ### Modify Config class to support both Plugins and Theme headers
 
 **Status**: 🟢 Nearly Complete
