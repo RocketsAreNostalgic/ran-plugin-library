@@ -523,6 +523,7 @@ class RegisterOptions {
 			return \sanitize_key($key);
 		}
 		$key = strtolower($key);
+		// Match WP semantics: allow a-z, 0-9, underscore and hyphen; strip everything else
 		$key = preg_replace('/[^a-z0-9_]+/', '_', $key) ?? $key;
 		return trim($key, '_');
 	}
