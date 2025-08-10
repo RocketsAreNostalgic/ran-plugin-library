@@ -45,11 +45,13 @@ dev-debug.log
 *.njsproj
 *.sln
 *.sw?
-# OS specific
+
+# IDE
+
+.windsurf/
+.cursor/
 
 # Task files
+.taskmaster/
 tasks.json
 tasks/
-
-.cursor/
-.taskmaster/
