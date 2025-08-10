@@ -16,7 +16,6 @@ namespace Ran\PluginLib\Options;
 use Ran\PluginLib\Config\ConfigAbstract;
 use Ran\PluginLib\Config\ConfigInterface;
 use Ran\PluginLib\Util\Logger;
-use Ran\PluginLib\Util\WPWrappersTrait;
 
 /**
  * Manages plugin options by storing them as a single array in the wp_options table.
@@ -40,11 +39,9 @@ use Ran\PluginLib\Util\WPWrappersTrait;
  *     3) Write back: `$options->set_option('my_key', $merged);`
  *     4) Persist once (batch-friendly): `$options->flush(false);`
  *   Prefer flat keys where possible, and for disjoint top-level keys use
- *   `$options->add_options([...])` then `$options->flush(true)` to reduce churn.
+ *   `$options->set_options([...], false)` then `$options->flush(true)` to reduce churn.
  */
 class RegisterOptions {
-	use WPWrappersTrait;
-
 	/**
 	 * The in-memory store for all plugin options.
 	 * Structure: ['option_key' => ['value' => mixed, 'autoload_hint' => bool|null]]
@@ -123,7 +120,7 @@ class RegisterOptions {
 		$this->config               = $config ?? $this->config;
 
 		// Load all existing options from the single database entry.
-		$this->options = $this->_do_get_option($this->main_wp_option_name, array());
+		$this->options = \get_option($this->main_wp_option_name, array());
 		// @codeCoverageIgnoreStart
 		if ($this->_get_logger()->is_active()) {
 			$this->_get_logger()->debug("RegisterOptions: Initialized with main option '{$this->main_wp_option_name}'. Loaded " . count($this->options) . ' existing sub-options.');
@@ -143,8 +140,8 @@ class RegisterOptions {
 			foreach ($this->schema as $normalized_key => $rules) {
 				$has_value = isset($this->options[$normalized_key]) && array_key_exists('value', $this->options[$normalized_key]);
 				if (!$has_value && array_key_exists('default', $rules)) {
-					$resolved_default               = $this->_resolve_default_value($rules['default'] ?? null);
-					$resolved_default               = $this->_sanitize_and_validate_option($normalized_key, $resolved_default);
+					$resolved_default               = $this->resolve_default_value($rules['default'] ?? null);
+					$resolved_default               = $this->_sanitize_and_validate($normalized_key, $resolved_default);
 					$this->options[$normalized_key] = array(
 					    'value'         => $resolved_default,
 					    'autoload_hint' => $this->options[$normalized_key]['autoload_hint'] ?? null,
@@ -158,12 +155,12 @@ class RegisterOptions {
 		if (!empty($initial_options)) {
 			$options_changed = $options_changed || false;
 			foreach ($initial_options as $option_name => $definition) {
-				$option_name_clean    = self::sanitize_key((string) $option_name);
+				$option_name_clean    = self::sanitize_option_key((string) $option_name);
 				$current_value_exists = isset($this->options[$option_name_clean]);
 
 				$value_to_set = is_array($definition) && isset($definition['value']) ? $definition['value'] : $definition;
 				// Apply schema sanitization/validation if defined
-				$value_to_set  = $this->_sanitize_and_validate_option($option_name_clean, $value_to_set);
+				$value_to_set  = $this->_sanitize_and_validate($option_name_clean, $value_to_set);
 				$autoload_hint = is_array($definition) && isset($definition['autoload_hint']) ? $definition['autoload_hint'] : ($this->options[$option_name_clean]['autoload_hint'] ?? null);
 
 				// Set if new, or if existing value is different (for complex types, this is a simple check).
@@ -201,12 +198,12 @@ class RegisterOptions {
 	/**
 	 * Retrieves a specific option's value from the main options array.
 	 *
-     * @param string $option_name The name of the sub-option to retrieve. Key is sanitized via sanitize_key().
+     * @param string $option_name The name of the sub-option to retrieve. Key is sanitized via sanitize_option_key().
 	 * @param mixed  $default     Optional. Default value to return if the sub-option does not exist.
 	 * @return mixed The value of the sub-option, or the default value if not found.
 	 */
 	public function get_option(string $option_name, mixed $default = false): mixed {
-		$option_name_clean = self::sanitize_key($option_name);
+		$option_name_clean = self::sanitize_option_key($option_name);
 		$value             = $this->options[$option_name_clean]['value'] ?? $default;
 
 		// @codeCoverageIgnoreStart
@@ -253,12 +250,12 @@ class RegisterOptions {
 	}
 
 	/**
-	 * Sets or updates a specific option's value within the main options array and saves any added options to the DB.
+	 * Sets or updates a specific option's value within the main options array and saves all options.
 	 *
-     * @param string     $option_name The name of the sub-option to set. Key is sanitized via sanitize_key().
+     * @param string     $option_name The name of the sub-option to set. Key is sanitized via sanitize_option_key().
 	 * @param mixed      $value       The value for the sub-option.
 	 * @param bool|null  $autoload_hint Optional. A hint for whether this specific sub-option might have been intended for autoloading (for metadata purposes only).
-	 * @return bool True if any added options were successfully saved, false otherwise.
+	 * @return bool True if the options were successfully saved, false otherwise.
      *
      * Note:
      * - No-op guard uses strict (===) comparison for both value and autoload_hint.
@@ -266,8 +263,8 @@ class RegisterOptions {
      * - Objects must be the same instance to avoid a write; identical state in different instances will trigger a save.
 	 */
 	public function set_option(string $option_name, mixed $value, ?bool $autoload_hint = null): bool {
-		$option_name_clean = self::sanitize_key($option_name);
-		$value             = $this->_sanitize_and_validate_option($option_name_clean, $value);
+		$option_name_clean = self::sanitize_option_key($option_name);
+		$value             = $this->_sanitize_and_validate($option_name_clean, $value);
 
 		// @codeCoverageIgnoreStart
 		if ($this->_get_logger()->is_active()) {
@@ -294,19 +291,26 @@ class RegisterOptions {
 	}
 
 	/**
-	 * Batch add multiple options to the in-memory store (fluent). Call flush() to persist.
+	 * Batch set multiple options with a single optional write.
+	 *
+	 * - When $flush === true:
+	 *   - If changes were applied: persists and returns the result of the save
+	 *   - If no changes: returns true without touching the database
+	 * - When $flush is false or null:
+	 *   - Does not persist; returns whether any changes were applied (bool)
 	 *
 	 * @param array<string, mixed|array{value:mixed, autoload_hint?:bool|null}> $keyToValue Map of option name => value or ['value'=>..., 'autoload_hint'=>...]
-	 * @return self
+	 * @param bool|null $flush If true, persist after applying; if false/null, do not persist here (call flush() later)
+	 * @return bool
 	 */
-	public function add_options(array $keyToValue): self {
+	public function set_options(array $keyToValue, ?bool $flush = null): bool {
 		$changed = false;
 
 		foreach ($keyToValue as $option_name => $definition) {
-			$key = self::sanitize_key((string) $option_name);
+			$key = self::sanitize_option_key((string) $option_name);
 
 			$value    = is_array($definition) && array_key_exists('value', $definition) ? $definition['value'] : $definition;
-			$value    = $this->_sanitize_and_validate_option($key, $value);
+			$value    = $this->_sanitize_and_validate($key, $value);
 			$new_hint = is_array($definition) && array_key_exists('autoload_hint', $definition)
 			    ? $definition['autoload_hint']
 			    : ($this->options[$key]['autoload_hint'] ?? null);
@@ -326,36 +330,11 @@ class RegisterOptions {
 			$changed = true;
 		}
 
-		// Return self for fluent chaining (flush separately)
-		return $this;
-	}
-
-	/**
-	 * Add a single option to the in-memory store (fluent). Call flush() to persist.
-	 *
-	 * @param string $option_name The name of the sub-option to add.
-	 * @param mixed $value The value for the sub-option.
-	 * @param bool|null $autoload_hint Optional. A hint for whether this specific sub-option might have been intended for autoloading (for metadata purposes only).
-	 * @return self
-	 */
-	public function add_option(string $option_name, mixed $value, ?bool $autoload_hint = null): self {
-		$key   = self::sanitize_key($option_name);
-		$value = $this->_sanitize_and_validate_option($key, $value);
-
-		// No-op guard
-		if (isset($this->options[$key])) {
-			$existing      = $this->options[$key];
-			$existing_hint = $existing['autoload_hint'] ?? null;
-			if (($existing['value'] ?? null) === $value && $existing_hint === ($autoload_hint ?? $existing_hint)) {
-				return $this;
-			}
+		if ($flush === true) {
+			return $changed ? $this->_save_all_options() : true;
 		}
-
-		$this->options[$key] = array(
-		    'value'         => $value,
-		    'autoload_hint' => $autoload_hint ?? ($this->options[$key]['autoload_hint'] ?? null),
-		);
-		return $this;
+		// If not flushing, return whether anything changed
+		return $changed;
 	}
 
 	/**
@@ -414,8 +393,8 @@ class RegisterOptions {
 			foreach ($normalized as $key => $rules) {
 				$has_value = isset($this->options[$key]) && array_key_exists('value', $this->options[$key]);
 				if (!$has_value && array_key_exists('default', $rules)) {
-					$resolved            = $this->_resolve_default_value($rules['default']);
-					$resolved            = $this->_sanitize_and_validate_option($key, $resolved);
+					$resolved            = $this->resolve_default_value($rules['default']);
+					$resolved            = $this->_sanitize_and_validate($key, $resolved);
 					$this->options[$key] = array(
 					    'value'         => $resolved,
 					    'autoload_hint' => $this->options[$key]['autoload_hint'] ?? null,
@@ -455,7 +434,7 @@ class RegisterOptions {
 	 * Determine if an option exists (by normalized key) in the in-memory store.
 	 */
 	public function has_option(string $option_name): bool {
-		$key = self::sanitize_key($option_name);
+		$key = self::sanitize_option_key($option_name);
 		return array_key_exists($key, $this->options) && array_key_exists('value', $this->options[$key]);
 	}
 
@@ -468,14 +447,14 @@ class RegisterOptions {
 			$this->_get_logger()->debug("RegisterOptions: Refreshing options from database for '{$this->main_wp_option_name}'.");
 		}
 		// @codeCoverageIgnoreEnd
-		$this->options = $this->_do_get_option($this->main_wp_option_name, array());
+		$this->options = \get_option($this->main_wp_option_name, array());
 	}
 
 	/**
 	 * Delete an option by name and persist changes. Returns true if the key existed and was removed.
 	 */
 	public function delete_option(string $option_name): bool {
-		$key = self::sanitize_key($option_name);
+		$key = self::sanitize_option_key($option_name);
 		if (!array_key_exists($key, $this->options)) {
 			return false;
 		}
@@ -500,7 +479,7 @@ class RegisterOptions {
 	 * @return bool|null
 	 */
 	public function get_autoload_hint(string $key): ?bool {
-		$k = self::sanitize_key($key);
+		$k = self::sanitize_option_key($key);
 		return $this->options[$k]['autoload_hint'] ?? null;
 	}
 
@@ -514,9 +493,9 @@ class RegisterOptions {
 	 * @return bool
 	 */
 	public function set_main_autoload(bool $autoload): bool {
-		$current = $this->_do_get_option($this->main_wp_option_name, array());
-		$this->_do_delete_option($this->main_wp_option_name);
-		$result = $this->_do_add_option(
+		$current = \get_option($this->main_wp_option_name, array());
+		\delete_option($this->main_wp_option_name);
+		$result = \add_option(
 			$this->main_wp_option_name,
 			$current,
 			'',
@@ -539,14 +518,11 @@ class RegisterOptions {
 	 * @param string $key Raw option key
 	 * @return string Normalized option key
 	 */
-	public static function sanitize_key(string $key): string {
+	public static function sanitize_option_key(string $key): string {
 		if (\function_exists('sanitize_key')) {
-			// @codeCoverageIgnoreStart
 			return \sanitize_key($key);
-			// @codeCoverageIgnoreEnd
 		}
 		$key = strtolower($key);
-		// Match WP semantics: allow a-z, 0-9, underscore and hyphen; strip everything else
 		$key = preg_replace('/[^a-z0-9_]+/', '_', $key) ?? $key;
 		return trim($key, '_');
 	}
@@ -631,7 +607,7 @@ class RegisterOptions {
 		$to_save = $this->options;
 
 		if ($mergeFromDb) {
-			$dbCurrent = $this->_do_get_option($this->main_wp_option_name, array());
+			$dbCurrent = \get_option($this->main_wp_option_name, array());
 			if (!is_array($dbCurrent)) {
 				$dbCurrent = array();
 			}
@@ -642,14 +618,14 @@ class RegisterOptions {
 			$to_save = $dbCurrent;
 		}
 
-		$result = $this->_do_update_option($this->main_wp_option_name, $to_save, $this->main_option_autoload);
+		$result = \update_option($this->main_wp_option_name, $to_save, $this->main_option_autoload);
 		// Mirror what we just saved to keep local cache consistent
 		$this->options = $to_save;
 		return $result;
 	}
 
 	/**
-	 * Applies schema-based sanitization and validation to the value of a given option key.
+	 * Applies schema-based sanitization and validation for a given option key.
 	 * If no schema exists for the key, returns the value unchanged.
 	 *
 	 * @param string $normalized_key
@@ -657,7 +633,7 @@ class RegisterOptions {
 	 * @return mixed
 	 * @throws \InvalidArgumentException on failed validation
 	 */
-	private function _sanitize_and_validate_option(string $normalized_key, mixed $value): mixed {
+	private function _sanitize_and_validate(string $normalized_key, mixed $value): mixed {
 		if (!isset($this->schema[$normalized_key])) {
 			return $value;
 		}
@@ -689,7 +665,7 @@ class RegisterOptions {
 	 * @param mixed $default
 	 * @return mixed
 	 */
-	private function _resolve_default_value(mixed $default): mixed {
+	private function resolve_default_value(mixed $default): mixed {
 		if (\is_callable($default)) {
 			return $default($this->config);
 		}
@@ -739,24 +715,18 @@ class RegisterOptions {
 	/**
 	 * Normalize external schema map keys to internal normalized option keys.
 	 *
-	 * Note: 'default' is included only when explicitly provided by caller to
-	 * avoid seeding with null unintentionally.
-	 *
 	 * @param array $schema
-	 * @return array<string, array{default?:mixed|null, sanitize?:callable|null, validate?:callable|null}>
+	 * @return array<string, array{default:mixed|null, sanitize?:callable|null, validate?:callable|null}>
 	 */
 	private function normalize_schema_keys(array $schema): array {
 		$normalized = array();
 		foreach ($schema as $key => $rules) {
-			$nKey  = self::sanitize_key((string) $key);
-			$entry = array(
-			    'sanitize' => $rules['sanitize'] ?? null,
-			    'validate' => $rules['validate'] ?? null,
+			$nKey              = self::sanitize_option_key((string) $key);
+			$normalized[$nKey] = array(
+                'default' => $rules['default']  ?? null,
+			    'sanitize'         => $rules['sanitize'] ?? null,
+			    'validate'         => $rules['validate'] ?? null,
 			);
-			if (\is_array($rules) && array_key_exists('default', $rules)) {
-				$entry['default'] = $rules['default'];
-			}
-			$normalized[$nKey] = $entry;
 		}
 		return $normalized;
 	}
