@@ -1,5 +1,9 @@
 # Summary
 
+## 0.0.12 - 2025-08-11
+
+**Documentation and Foundation Release**: Comprehensive documentation overhaul establishing the library as a mature, enterprise-ready WordPress development framework. This release introduces a complete **CHANGELOG.md** with narrative format covering the entire project evolution from initial scaffolding to current capabilities. The **README.md** received major expansion with detailed usage examples, setup instructions, and comprehensive API documentation covering all core components (Config, Bootstrap, Asset Enqueuing, Features API, Block Management). Enhanced **ROADMAP.md** with Config/Options integration notes and development priorities. Added extensive **Options Management** system with `RegisterOptions` class providing schema-driven defaults, sanitization, validation, and batch operations. Introduced **SmokeTestAccessory** system for development testing and enhanced **PluginLibTestCase** with reflection utilities and logger mocking. The release establishes a solid foundation for release documentation and developer onboarding, positioning the library for broader adoption and contribution.
+
 ## 0.0.1 - 2023-01-21
 
 Initial commits add foundational project scaffolding: created LICENSE and README.md, initialized Composer package via composer.json, and added a base .gitignore to define ignored artifacts.
