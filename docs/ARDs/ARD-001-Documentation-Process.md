@@ -1,8 +1,18 @@
-# Multi-Tier Documentation Process Guide
+# ADR-001: Multi-Tier Documentation Process Guide
 
-## Overview
+## Document Information
 
-This guide defines our three-tier documentation process for technical features, from initial business requirements through technical planning to detailed implementation specification.
+- **Status**: Accepted
+- **Date**: 2025-08-08
+- **Decision Type**: Process
+
+## Context
+
+This guide defines our three-tier documentation process for technical features, from initial business requirements through technical planning to detailed implementation specification. A fourth tier, the Architectural Decision Record (ARD), documents significant architectural decisions.
+
+## Decision
+
+We adopt a multi-tier documentation process for technical features, consisting of four tiers: Product Requirements Document (PRD), Feature Planning Document (FPD), Technical Feature Specification (TFS), and Architectural Decision Record (ARD). Each tier serves a specific purpose and audience, providing progressively more detailed information as the feature evolves.
 
 ## Tier 1: Product Requirements Document (PRD)
 
@@ -314,6 +324,60 @@ Detailed technical specification that defines exactly how the feature will be im
 ### References
 
 [Links to WordPress documentation, standards, or other relevant resources.]
+```
+
+## Tier 4: Architectural Decision Record (ARD)
+
+### Purpose
+
+Documentation of major architectural decisions, including the rationale and alternatives considered.
+
+### Template
+
+```markdown
+# [Feature Name] - Architectural Decision Record
+
+## Document Information
+
+- **Status**: [Draft/In Review/Approved/Implemented]
+- **Date**: [YYYY-MM-DD]
+- **Updated**: [YYYY-MM-DD]
+- **Decision Type**: [Architectural/Design/Technical]
+- **Related Features**: [List related features]
+
+## Context
+
+[What problem does this decision address? What are the technical and business constraints?]
+
+## Decision
+
+[What architectural/design decision was made? Include the rationale and key principles.]
+
+## Considered Alternatives
+
+[What other approaches were evaluated and why they were rejected?]
+
+### Alternative 1: [Description]
+
+**Why this was rejected:** [Specific reasons.]
+
+### Alternative 2: [Description]
+
+**Why this was rejected:** [Specific reasons.]
+
+## Consequences
+
+### Positive
+
+[What are the benefits of this approach?]
+
+### Negative
+
+[What are the drawbacks or trade-offs?]
+
+### Limitations
+
+[What are the known limitations or constraints?]
 ```
 
 ## Process Flow

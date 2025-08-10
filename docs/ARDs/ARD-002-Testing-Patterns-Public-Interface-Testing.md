@@ -1,4 +1,4 @@
-# TFS-001: Public Interface Testing Patterns for WordPress Plugin Development
+# ADR-002: Public Interface Testing Patterns for WordPress Plugin Development
 
 ## Status
 

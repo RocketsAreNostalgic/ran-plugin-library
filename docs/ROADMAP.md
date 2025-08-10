@@ -32,9 +32,54 @@ The library is **approximately 75% complete** with core infrastructure in place.
 - ✅ Advanced error handling scenarios
 - ✅ Documentation and usage examples in TFS-008
 
+### Modify Config class to support both Plugins and Theme headers
+
+**Status**: 🟢 Nearly Complete
+**Priority**: High
+
+**Current State:**
+
+- ✅ Basic `ConfigAbstract` and `ConfigInterface` implemented to support plugin headers
+- ✅ Standard WordPress headers parsed
+- ✅ Custom headers prefixed with `@RAN:` parsed
+- ✅ Basic documentation and examples
+- ✅ Comprehensive unit tests
+- ✅ Integration tests with WordPress
+- ✅ Advanced error handling scenarios
+- ✅ Documentation and usage examples in TFS-002
+
+**Tasks:**
+
+- [ ] Introduce dual-mode support in `ConfigAbstract` (plugin|theme) or create a `ThemeConfig` alongside existing `Config` (plugin-only)
+- [ ] Implement theme data provider
+  - [ ] Use `wp_get_theme()` for theme headers/metadata
+  - [ ] Use `get_stylesheet_directory()` / `get_stylesheet_directory_uri()` for PATH/URL
+- [ ] Unify key normalization and validation across modes
+  - [ ] Accept either plugin headers or theme headers
+  - [ ] Do not require `RANPluginOption` for themes (plugin-only concern)
+  - [ ] Normalize `PluginURI`/`ThemeURI` to a shared key (e.g., `ProjectURI`)
+- [ ] Keep `Config.php` (plugin) unchanged; add `ThemeConfig.php` or a small factory to select mode
+- [ ] Update documentation to reflect theme support and header expectations
+- [ ] Testing
+  - [ ] Add unit tests for theme mode/provider
+  - [ ] Add integration tests verifying `wp_get_theme()` and theme path helpers
+
+### Update ModifyOptions with crud and validation features
+
+**Status**: 🟢 Done
+**Priority**: High
+
+**Current State:**
+
+- ✅ Advanced `ModifyOptions` implemented
+- ✅ Comprehensive unit tests
+- ✅ Advanced error handling scenarios
+- ✅ README documentation
+- ✅ Co-located TFS and usage examples
+
 ### MediaTrait Completion
 
-**Status**: 🟡 Partially Complete
+**Status**: 🟢 Nearly Complete
 **Priority**: High
 
 **Current State:**

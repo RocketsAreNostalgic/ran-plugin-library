@@ -1,4 +1,4 @@
-# TFS-002: RAN PluginLib - Architecture Overview
+# ADR-003: RAN PluginLib - Architecture Overview
 
 ## Status
 
@@ -15,9 +15,9 @@ This document provides an overview of the RAN PluginLib architecture.
 **Key Components**:
 
 - `Logger.php` - PSR-3 compatible logging system
-- `WPWrappersTrait.php` - WordPress function wrappers for testing and abstraction
 - `CollectingLogger.php` - Test-specific logger implementation
 - `ExpectLogTrait.php` - Testing utilities for log assertions
+- `WPWrappersTrait.php` - WordPress function wrappers for testing and abstraction
 
 **Design Pattern**: Utility classes and traits that provide common functionality across different library components.
 
