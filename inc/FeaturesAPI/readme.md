@@ -1,6 +1,6 @@
 # Features API
 
-The Features API handles registering and loading our plugin's 'Features'. Features are self-contained bits of our plugin's functionality, such as a shortcode or an admin page –– any discreet tasks or groups of tasks can be considered a 'Feature'. The work done by a Feature is carried by its `FeatureController`, and by convention these are found in the directory `/plugin-root/inc/features/SomeFeatureController.php`.
+The Features API handles registering and loading of a plugin or theme's 'Features'. Features are self-contained bits of functionality, such as a shortcode or an admin page –– any discreet tasks or groups of tasks can be considered a 'Feature'. The work done by a Feature is carried by its `FeatureController`, and by convention these are found in the directory `/plugin-root/inc/features/SomeFeatureController.php`.
 
 At a high level, in a bootstrapping file, the `FeatureManager::register_feature()` method handles the registration of each Feature, storing its qualified namespace, `slug_id`, and dependencies into separate `FeatureManager` objects.
 
@@ -57,12 +57,12 @@ $manager->load_all();
 
 The `register_feature()` method takes the following parameters:
 
--   Required: (string) The fully qualified name of the feature controller class:
-    `Fully\Qualified\Classname\ToFeatureController::class`
--   Required: (string) A unique slug name of the feature. This is used as the key for the feature in the `Registry`, and may be used as the feature's slug name in any admin UI screens. This string is passed through the WordPress [`sanitize_title()`](https://developer.wordpress.org/reference/functions/sanitize_title/) function.
--   Optional: (array) A nested array of dynamically injected values that the Feature may need. The key name of the dependency _must also_ be a public property of the Feature object.
-    `array( array(dependency_public_key => its_value) )`
--   Optional: (boolean) indicating if the feature has a public settings screen
+- Required: (string) The fully qualified name of the feature controller class:
+  `Fully\Qualified\Classname\ToFeatureController::class`
+- Required: (string) A unique slug name of the feature. This is used as the key for the feature in the `Registry`, and may be used as the feature's slug name in any admin UI screens. This string is passed through the WordPress [`sanitize_title()`](https://developer.wordpress.org/reference/functions/sanitize_title/) function.
+- Optional: (array) A nested array of dynamically injected values that the Feature may need. The key name of the dependency _must also_ be a public property of the Feature object.
+  `array( array(dependency_public_key => its_value) )`
+- Optional: (boolean) indicating if the feature has a public settings screen
 
 Under the hood, `register_feature()` loads the above values unto `FeatureContainer` objects and then adds each object into a FeatureRegistry object.
 
@@ -70,10 +70,10 @@ Under the hood, `register_feature()` loads the above values unto `FeatureContain
 
 The `load_all()` method should be called after all FeatureControllers have been registered. This method iterates over all registered features and does the following:
 
--   Checks that the feature has implemented the `Registerable` interface
--   Creates a new instance of the `FeatureController`
--   Iterates over all the implemented interfaces, looking for any Accessories † which should be called on the `FeatureController`
--   Instantiates the feature by calling its `init()` method
+- Checks that the feature has implemented the `Registerable` interface
+- Creates a new instance of the `FeatureController`
+- Iterates over all the implemented interfaces, looking for any Accessories † which should be called on the `FeatureController`
+- Instantiates the feature by calling its `init()` method
 
 ### `load($slug_id)`
 

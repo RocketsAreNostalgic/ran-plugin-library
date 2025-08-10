@@ -1,29 +1,28 @@
 <?php
 /**
- * Abstract implementation of TestManager class.
+ * Manager for the SmokeTest accessory.
  *
  * @package  RanPluginLib
  */
 
 declare(strict_types = 1);
 
-namespace Ran\PluginLib\TestAccessory;
+namespace Ran\PluginLib\SmokeTestAccessory;
 
 use Ran\PluginLib\AccessoryAPI\AccessoryBaseInterface;
 use Ran\PluginLib\AccessoryAPI\AccessoryManagerBaseInterface;
-use Ran\PluginLib\TestAccessory\TestAccessoryInterface;
 
 /**
  * Manages Features Objects by registering them with the Plugin class, and loading them.
  */
-final class TestAccessoryManager implements AccessoryManagerBaseInterface {
+final class SmokeTestAccessoryManager implements AccessoryManagerBaseInterface {
 	/**
 	 * Registers an object with the WordPress Plugin API.
 	 *
 	 * @param AccessoryBaseInterface $object An object that implements either the ActionHookSubscriberInterface or FilterHookSubscriberInterface.
 	 */
 	public function init( AccessoryBaseInterface $object ): void {
-		if ( $object instanceof TestAccessoryInterface ) {
+		if ( $object instanceof SmokeTestAccessory ) {
 			$this->callback( $object->test() );
 		}
 	}

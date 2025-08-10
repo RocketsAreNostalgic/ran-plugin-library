@@ -47,9 +47,11 @@ dev-debug.log
 *.sw?
 # OS specific
 
+# IDE
+.windsurf/
+.cursor/
+
 # Task files
+.taskmaster/
 tasks.json
 tasks/
-
-.cursor/
-.taskmaster/

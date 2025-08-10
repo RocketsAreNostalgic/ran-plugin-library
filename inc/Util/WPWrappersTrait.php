@@ -144,4 +144,58 @@ trait WPWrappersTrait {
 	public function _do_apply_filter(string $hook_name, $value, ...$args) {
 		return apply_filters($hook_name, $value, ...$args);
 	}
+
+	/**
+	 * Public wrapper for WordPress get_option function
+	 *
+	 * @param  string $option
+	 * @param  mixed  $default
+	 *
+	 * @return mixed
+	 */
+	public function _do_get_option(string $option, mixed $default = false): mixed {
+		return \get_option($option, $default);
+	}
+
+	/**
+	 * Public wrapper for WordPress update_option function
+	 *
+	 * @param  string $option
+	 * @param  mixed  $value
+	 * @param  mixed  $autoload
+	 *
+	 * @return bool
+	 */
+	public function _do_update_option(string $option, mixed $value, mixed $autoload = 'yes'): bool {
+		return \update_option($option, $value, $autoload);
+	}
+
+	/**
+	 * Public wrapper for WordPress add_option function
+	 * @codeCoverageIgnore
+	 */
+	public function _do_add_option(string $option, mixed $value = '', string $deprecated = '', mixed $autoload = 'yes'): bool {
+		return \add_option($option, $value, $deprecated, $autoload);
+	}
+
+	/**
+	 * Public wrapper for WordPress delete_option function
+	 * @codeCoverageIgnore
+	 */
+	public function _do_delete_option(string $option): bool {
+		return \delete_option($option);
+	}
+
+	/**
+	 * Public wrapper for WordPress sanitize_key with fallback when WP not loaded
+	 * @codeCoverageIgnore
+	 */
+	public function _do_sanitize_key(string $key): string {
+		if (\function_exists('sanitize_key')) {
+			return \sanitize_key($key);
+		}
+		$key = strtolower($key);
+		$key = preg_replace('/[^a-z0-9_]+/', '_', $key) ?? $key;
+		return trim($key, '_');
+	}
 }

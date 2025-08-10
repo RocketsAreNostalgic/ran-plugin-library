@@ -29,9 +29,10 @@
 		>
 		<include>
 			<directory suffix=".php">inc</directory>
-			<directory>Tests</directory>
 		</include>
 		<exclude>
+			<!-- Exclude all test code from coverage -->
+			<directory>Tests</directory>
 			<!-- Exclude all documentation and example code from coverage/parsing -->
 			<directory>inc/**/docs</directory>
 			<directory>inc/**/docs/**</directory>
