@@ -1,8 +1,8 @@
-### RegisterOptions
+# RegisterOptions
 
 A small, pragmatic options manager that stores all of your plugin settings in a single WordPress `wp_options` row. It provides schema-driven defaults, sanitization/validation, batching, and escape hatches for WordPress autoload semantics.
 
-### Quick start
+## Quick start
 
 ```php
 use Ran\PluginLib\Config\Config;
@@ -40,7 +40,7 @@ $options = new RegisterOptions('my_plugin_option_name', /* initial */ [], /* aut
 
 ### Minimal schema (optional)
 
-Provide default values and data integrity via per-key schema. Defaults can be callables that receive `ConfigInterface|null`.
+Provide default values and data integrity via per-key schema. Defaults can be a callable that receives `ConfigInterface|null`.
 
 ```php
 $schema = [
@@ -66,17 +66,15 @@ $options->register_schema([
 
 ### Batch updates (recommended for bulk operations)
 
-Apply changes in memory and persist once:
+Stage changes in memory and persist once:
 
 ```php
-$changed = $options->set_options([
-  'enabled' => ['value' => true],
-  'timeout' => 30,
-], false); // stage only
-
-if ($changed) {
-  $options->flush(); // single DB write
-}
+$options
+  ->add_options([
+    'enabled' => ['value' => true],
+    'timeout' => 30,
+  ])
+  ->flush(); // single DB write
 ```
 
 ### Autoload semantics (WordPress)
@@ -85,7 +83,7 @@ What “autoload” means: WordPress can preload certain options into memory on 
 
 Why you should care:
 
-- Performance: Large autoloaded rows increase memory usage and slow down every request, frontend and admin.
+- Performance: Large auto-loaded rows increase memory usage and slow down every request, frontend and admin.
 - Access patterns: Frequently-read, small settings benefit from autoload. Large or rarely used data should not autoload.
 - Creation-time rule: WordPress applies the autoload flag when an option row is created. Changing the flag later requires delete+add.
 
@@ -127,7 +125,8 @@ $options->set_option('complex_map', $merged);
 
 - `get_option($key, $default)` / `set_option($key, $value, ?$hint)`
 - `get_values()` returns values only; `get_options()` includes metadata
-- `set_options([...], ?$flush)` + `flush()` for batching
+- Fluent batching: `add_option($k,$v)->add_option($k2,$v2)->flush()` or `add_options([...])->flush()`
+- `flush(bool $mergeFromDb = false)` supports optional shallow merge-from-DB
 - `register_schema(...)` / `with_schema(...)` for post-construction schema
 - `get_autoload_hint($key)` reads stored hints
 - `set_main_autoload($bool)` performs a safe autoload flip for the grouped row
