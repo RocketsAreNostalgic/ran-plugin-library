@@ -1,0 +1,55 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Navigate to project root (directory of this script is .git/hooks after install)
+PROJECT_ROOT_DIR="$(git rev-parse --show-toplevel 2>/dev/null || echo "")"
+if [[ -z "${PROJECT_ROOT_DIR}" ]]; then
+  echo "pre-commit: Unable to determine git project root. Skipping checks."
+  exit 0
+fi
+cd "${PROJECT_ROOT_DIR}"
+
+# Only check staged PHP files
+STAGED_PHP_FILES=$(git diff --cached --name-only --diff-filter=ACMR | grep -E '\\.php$' || true)
+
+if [[ -z "${STAGED_PHP_FILES}" ]]; then
+  echo "pre-commit: No staged PHP files. Skipping."
+  exit 0
+fi
+
+echo "pre-commit: Running PHP CS Fixer (dry-run) on staged PHP files..."
+# Use path-mode=intersection so only staged files are considered
+php -v >/dev/null 2>&1 || { echo "pre-commit: PHP not found in PATH"; exit 1; }
+composer -V >/dev/null 2>&1 || { echo "pre-commit: Composer not found in PATH"; exit 1; }
+
+# Create a temporary file list for tools that accept --path-mode or --file-list
+TMP_FILE_LIST=$(mktemp)
+trap 'rm -f "${TMP_FILE_LIST}"' EXIT
+echo "${STAGED_PHP_FILES}" | tr '\n' '\0' | xargs -0 -I{} bash -c '[[ -f "{}" ]] && echo "{}"' >> "${TMP_FILE_LIST}"
+
+# PHP CS Fixer dry-run
+if ! vendor/bin/php-cs-fixer fix --config='./scripts/php-cs-fixer.php' --allow-risky=yes --dry-run --diff --path-mode=intersection $(cat "${TMP_FILE_LIST}"); then
+  echo "pre-commit: PHP CS Fixer found issues. Attempting to auto-fix..."
+  # Auto-fix and re-stage
+  vendor/bin/php-cs-fixer fix --config='./scripts/php-cs-fixer.php' --allow-risky=yes --path-mode=intersection $(cat "${TMP_FILE_LIST}")
+  echo "pre-commit: Re-staging fixed files..."
+  xargs -a "${TMP_FILE_LIST}" git add
+fi
+
+echo "pre-commit: Running PHPCS (auto-fix) on staged PHP files..."
+# Attempt PHPCS auto-fix on staged files, then re-stage
+php ./scripts/php-codesniffer.php --fix --report=summary --file-list="${TMP_FILE_LIST}" || true
+echo "pre-commit: Re-staging PHPCS-fixed files..."
+xargs -a "${TMP_FILE_LIST}" git add || true
+
+echo "pre-commit: Verifying PHPCS is clean on staged files..."
+# Verify clean after fixes
+if ! php ./scripts/php-codesniffer.php --report=full --file-list="${TMP_FILE_LIST}"; then
+  echo "pre-commit: PHPCS violations detected after auto-fix. Commit aborted."
+  exit 1
+fi
+
+echo "pre-commit: OK"
+exit 0
+
+

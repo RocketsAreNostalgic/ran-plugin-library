@@ -490,7 +490,7 @@ WARNING;
 		} else {
 			// Not a glob. Determine if it's an absolute path or needs to be made absolute.
 			$path_is_device_absolute    = preg_match( '/^[a-zA-Z]:(\\|\/)/', $pattern ) || strpos( $pattern, '\\' ) === 0; // C:\foo or \\server\share.
-			$path_is_unix_root_prefixed = strpos( $pattern, '/' )                                                   === 0;
+			$path_is_unix_root_prefixed = strpos( $pattern, '/' ) === 0;
 
 			if ( $path_is_device_absolute ) { // True absolute like C:\foo.
 				$current_final_pattern = str_replace( DIRECTORY_SEPARATOR, '/', $pattern );
@@ -584,7 +584,7 @@ WARNING;
 	 * @param \DOMDocument $doc_to_modify The runner DOM document.
 	 */
 	private function process_comment_node( \DOMComment $source_node, \DOMDocument $doc_to_modify ): ?\DOMComment {
-		if ( strpos( $source_node->nodeValue, 'This is a generated file' )   === false && // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
+		if ( strpos( $source_node->nodeValue, 'This is a generated file' ) === false && // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
 			strpos( $source_node->nodeValue, 'created by php-codesniffer.php' ) === false ) { // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
 			return $doc_to_modify->importNode( $source_node, true );
 		}
@@ -677,9 +677,9 @@ WARNING;
 				$source_child_comment = $source_child_node;
 				// Avoid logging every comment if too verbose, or shorten it.
 				// fwrite(STDERR, "DEBUG: Processing XML_COMMENT_NODE from source. Value: " . substr($source_child_comment->nodeValue, 0, 50) . "...\n");.
-				if ( strpos( $source_child_comment->nodeValue, 'This is a generated file' )        === false && // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase -- Check comment content.
+				if ( strpos( $source_child_comment->nodeValue, 'This is a generated file' ) === false && // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase -- Check comment content.
 					 strpos( $source_child_comment->nodeValue, 'created by ' . basename( __FILE__ ) ) === false && // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase -- Match new comment format.
-					 strpos( $source_child_comment->nodeValue, 'created by .php-codesniffer.php' )    === false // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase -- Match old comment format.
+					 strpos( $source_child_comment->nodeValue, 'created by .php-codesniffer.php' ) === false // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase -- Match old comment format.
 				) {
 					$comment_node = $this->process_comment_node( $source_child_comment, $runner_doc );
 					if ( $comment_node ) {

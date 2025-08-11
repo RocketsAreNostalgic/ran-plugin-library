@@ -29,16 +29,39 @@ composer update
 # Check if installation was successful
 if [ $? -eq 0 ]; then
     echo "Dependencies installed successfully!"
+
+    # Attempt to install git hooks if this is a git repository
+    if [ -d ".git" ]; then
+        echo "Installing git pre-commit hook..."
+        if composer hooks:install > /dev/null 2>&1; then
+            echo "Pre-commit hook installed."
+        else
+            echo "Warning: Failed to install pre-commit hook (continuing)."
+        fi
+    else
+        echo "Git repository not detected; skipping hook installation."
+    fi
     echo ""
     echo "Available commands:"
-	echo "  composer format     - Format code according to WordPress standards (peforms all steps in the correct order)"
-    echo "  composer lint       - Check PHP syntax"
-    echo "  composer phpcs      - Check coding standards (summary)"
-    echo "  composer phpcs-full - Check coding standards (detailed)"
-    echo "  composer phpcbf     - Fix coding standards automatically"
-    echo "  composer cs-fix     - Fix code style with PHP CS Fixer"
-    echo "  composer cs-check   - Check code style with PHP CS Fixer"
+    echo "  composer lint         - Run PHP CS Fixer (dry-run) and PHPCS (summary)"
+    echo "  composer cs           - Fix code style with PHP CS Fixer, not as thorough as format."
+    echo "  composer format       - Run PHP CS Fixer, then PHPCBF, full style enforcement, but slower."
+    echo "  composer qa           - Run code style check, PHPCS summary, and tests, checks all files no code changes"
+    echo "  composer qa:ci        - Run code style check, full PHPCS, and tests with coverage"
+    echo "  composer hooks:install - Install pre-commit hook"
     echo ""
+    echo "See composer.json for all available commands."
+    echo ""
+    echo "Recommended workflow:"
+    echo "  - While coding: run 'composer cs' periodically to quickly fix style."
+    echo "  - Commit: rely on the pre-commit hook; optionally run 'composer lint' first."
+    echo "  - Before push/PR: run 'composer qa' (checks + tests)."
+    echo "  - Repo-wide normalize (infrequent): run 'composer format'."
+    echo ""
+    echo "Pre-commit hook covers (staged PHP files only):"
+    echo "  1) PHP CS Fixer dry-run; auto-fix and re-stage if needed."
+    echo "  2) PHPCS auto-fix (PHPCBF) via project runner; re-stage."
+    echo "  3) PHPCS verification; blocks commit if violations remain."
     echo "Setup complete! You're ready to start development."
 else
     echo "Error: Failed to install dependencies."
