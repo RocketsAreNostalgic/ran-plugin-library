@@ -1,8 +1,13 @@
 # RAN Orbital Plugin Library Changelog
 
+## 0.0.13 - 2025-08-11
+
+- Refined Options system with continued improvements to `RegisterOptions` (fluent API polish, batch set/flush behaviors, autoload control) and moved the class to `Ran\PluginLib\Options\RegisterOptions` while removing legacy paths; added comprehensive docs and examples.
+- Code quality and hygiene: prefixed private methods with `_`, removed a stray dummy API key, linted codebase, and adjusted CHANGELOG ordering and `.gitignore` entries.
+
 ## 0.0.12 - 2025-08-10
 
-Between 0.0.11 and 0.0.12, the library delivered a major options system rewrite with a schema‑driven `RegisterOptions` (defaults/sanitize/validate), batch writes, explicit autoload control, and a fluent API; added experimental WordPress Script Modules support with enqueue/dequeue/deregister/remove and robust tests; introduced a SmokeTest accessory to replace legacy testing hooks; standardized hook registration across the codebase via `HooksManager` and updated enqueue/blocks to use it; implemented request‑scoped caching across hot paths (asset resolution, block registry lookups) for notable performance gains; shipped a new block management system (`BlockFactory`, `Block`, and enhanced `BlockRegistrar` with semantic `register()` and status tracking); moved `WPWrappersTrait` to `inc/Util` and standardized protected method prefixes; significantly expanded and stabilized tests (helpers, coverage config, reliability improvements); and completed a comprehensive documentation overhaul (ADR/TFS/Guides reorg, examples, integration docs, roadmap). In total: 39 files changed, 4,957 insertions, 918 deletions.
+Between 0.0.11 and 0.0.12, the library delivered a major options system rewrite with a schema‑driven `RegisterOptions` (defaults/sanitize/validate), batch writes, explicit autoload control, and a fluent API; added experimental WordPress Script Modules support with enqueue/dequeue/deregister/remove and robust tests; introduced a SmokeTest accessory to replace legacy testing hooks; standardized hook registration across the codebase via `HooksManager` and updated enqueue/blocks to use it; implemented request‑scoped caching across hot paths (asset resolution, block registry lookups) for notable performance gains; shipped a new block management system (`BlockFactory`, `Block`, and enhanced `BlockRegistrar` with semantic `register()` and status tracking); moved `WPWrappersTrait` to `inc/Util` and standardized protected method prefixes; significantly expanded and stabilized tests (helpers, coverage config, reliability improvements); and completed a comprehensive documentation overhaul (ADR/TFS/Guides reorg, examples, integration docs, roadmap).
 
 ## 0.0.11 - 2025-08-08
 
@@ -14,7 +19,7 @@ Consolidation release building upon the major asset management enhancements from
 
 ## 0.0.9 - 2025-08-02
 
-Asset management and performance enhancements, introducing comprehensive Script Modules API support with dedicated ADR documentation and full integration across the enqueue system. The release featured granular asset dequeue and removal methods across all asset types (`ScriptsEnqueueTrait`, `StylesEnqueueTrait`, `ScriptModulesEnqueueTrait`), providing fine-grained control over asset lifecycle management. Performance optimizations continued with expanded request-scoped caching throughout `AssetEnqueueBaseTrait`, while architectural improvements included co-locating the `_module_is()` method within `ScriptModulesEnqueueTrait` for better code organization. The release achieved \*comprehensiv test coverage with extensive test suites for dequeue and remove methods, script modules functionality, and handle operations, supported by PHP-CS-Fixer formatting standardization. These enhancements established the library as a cutting-edge WordPress asset management solution with full support for modern Script Modules API alongside traditional script and style handling—providing developers with both performance optimization and advanced asset control capabilities.
+Asset management and performance enhancements, introducing comprehensive Script Modules API support with dedicated ADR documentation and full integration across the enqueue system. The release featured granular asset dequeue and removal methods across all asset types (`ScriptsEnqueueTrait`, `StylesEnqueueTrait`, `ScriptModulesEnqueueTrait`), providing fine-grained control over asset lifecycle management. Performance optimizations continued with expanded request-scoped caching throughout `AssetEnqueueBaseTrait`, while architectural improvements included co-locating the `_module_is()` method within `ScriptModulesEnqueueTrait` for better code organization. The release achieved comprehensive test coverage with extensive test suites for dequeue and remove methods, script modules functionality, and handle operations, supported by PHP-CS-Fixer formatting standardization. These enhancements established the library as a cutting-edge WordPress asset management solution with full support for modern Script Modules API alongside traditional script and style handling—providing developers with both performance optimization and advanced asset control capabilities.
 
 ## 0.0.8 - 2025-08-01
 
@@ -47,4 +52,4 @@ The library matured from early scaffolding into a structured, testable codebase.
 ## 0.0.1 - 2023-01-21
 
 Initial commits add foundational project scaffolding: created LICENSE and README.md, initialized Composer package via composer.json, and added a base .gitignore to define ignored artifacts.
-sem ver (1e32530) updated composer.json to introduce explicit version metadata, establishing a Semantic Versioning baseline for the project.
+semver (1e32530) updated composer.json to introduce explicit version metadata, establishing a Semantic Versioning baseline for the project.

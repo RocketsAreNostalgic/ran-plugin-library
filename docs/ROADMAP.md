@@ -85,7 +85,6 @@ This needs to be reviewed agains our `RegisterOptions` class. Maybe we should pr
 - ✅ README documentation
 - ✅ Co-located TFS and usage examples
 
->>>>>>> feat/improve-options-smoke
 ### MediaTrait Completion
 
 **Status**: 🟢 Nearly Complete
