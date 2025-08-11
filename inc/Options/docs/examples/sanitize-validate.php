@@ -92,7 +92,7 @@ $options = RegisterOptions::from_config($config, array(), true, null, $schema);
 
 try {
 	// This will be trimmed and validated
-	$options->set_option('stripe_api_key', '  ***REMOVED***  ');
+	$options->set_option('stripe_api_key', '  sk_test_redacted  ');
 	echo "✓ API key saved successfully\n";
 } catch (InvalidArgumentException $e) {
 	echo '✗ API key validation failed: ' . $e->getMessage() . "\n";
