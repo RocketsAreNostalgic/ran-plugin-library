@@ -132,7 +132,7 @@ class RegisterOptions {
 
 		// Normalize and set schema
 		if (!empty($schema)) {
-			$this->schema = $this->normalize_schema_keys($schema);
+			$this->schema = $this->_normalize_schema_keys($schema);
 		}
 
 		// Track whether defaults or initial options cause persistence
@@ -393,7 +393,7 @@ class RegisterOptions {
 			return false;
 		}
 
-		$normalized = $this->normalize_schema_keys($schema);
+		$normalized = $this->_normalize_schema_keys($schema);
 
 		// Merge schema shallowly per provided fields (by design)
 		foreach ($normalized as $key => $rules) {
@@ -745,7 +745,7 @@ class RegisterOptions {
 	 * @param array $schema
 	 * @return array<string, array{default?:mixed|null, sanitize?:callable|null, validate?:callable|null}>
 	 */
-	private function normalize_schema_keys(array $schema): array {
+	private function _normalize_schema_keys(array $schema): array {
 		$normalized = array();
 		foreach ($schema as $key => $rules) {
 			$nKey  = self::sanitize_key((string) $key);
