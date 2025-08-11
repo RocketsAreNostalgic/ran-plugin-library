@@ -10,7 +10,6 @@ use Ran\PluginLib\EnqueueAccessory\ScriptsHandler;
 use Ran\PluginLib\HooksAccessory\HooksManagementTrait;
 
 class DeferredHeadFooterFeature {
-
 	use HooksManagementTrait;
 
 	public function __construct( private ScriptsHandler $scripts ) {

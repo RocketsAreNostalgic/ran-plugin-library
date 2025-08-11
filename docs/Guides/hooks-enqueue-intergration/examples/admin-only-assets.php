@@ -10,7 +10,6 @@ use Ran\PluginLib\EnqueueAccessory\StylesHandler;
 use Ran\PluginLib\HooksAccessory\HooksManagementTrait;
 
 class AdminAssetsFeature {
-
 	use HooksManagementTrait;
 
 	public function __construct( private StylesHandler $styles ) {

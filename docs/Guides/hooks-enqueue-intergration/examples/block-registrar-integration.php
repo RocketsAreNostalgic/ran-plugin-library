@@ -10,7 +10,6 @@ use Ran\PluginLib\EnqueueAccessory\BlockFactory;
 use Ran\PluginLib\HooksAccessory\HooksManagementTrait;
 
 class BlocksFeature {
-
 	use HooksManagementTrait;
 
 	public function __construct( private BlockFactory $blocks ) {
