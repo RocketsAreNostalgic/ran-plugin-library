@@ -1,108 +1,262 @@
-# Config Class
+# Config System (Plugins & Themes)
 
-The `Config` class collates basic information about the plugin, including text domain and configuration details, and relies heavily on `get_plugin_data()` to gather header details found in the [docblock in the plugin root file](https://codex.wordpress.org/File_Header). The `Config` class accepts one parameter: the path to the plugin root, i.e., the value of `__FILE__` of the plugin root class.
-As `get_plugin_data()` involves a file system read to parse the plugin's docblock, this class is best instantiated once and then passed using dependency injection.
+The Config system provides a single, environment‑agnostic way to read WordPress metadata, expose normalized paths/URLs, and surface custom headers for both plugins and themes.
 
-If created in the my-plugin.php root file, a new instance of `Config` can be created by passing a reference to the root WordPress plugin file:
+It builds on WordPress' own APIs for “blessed” headers and augments them with a simple, namespaced custom‑header mechanism.
+
+## Goals
+
+- Use WordPress to resolve standard header fields (robust and future‑proof).
+- Normalize common fields (PATH, URL, Slug, Type) across plugins and themes.
+- Support custom headers via namespaced annotations in file comments.
+- Provide a single API for options, logging, and environment detection.
+
+## Quick start
+
+### Plugins
 
 ```php
-use \Ran\PluginLib\Config;
+use Ran\PluginLib\Config\Config;
 
-$config = new Config(__FILE__);
+// Typically from your plugin root (e.g., my-plugin.php)
+$config = Config::fromPluginFile(__FILE__);
 
-print_r $config->plugin_array;
+$cfg = $config->get_config();
+// $cfg['Name'], $cfg['Version'], $cfg['PATH'], $cfg['URL'], $cfg['Slug'], $cfg['Type'] === 'plugin'
+
+// Options from WordPress database (entire payload for the app's option key)
+$options = $config->get_options();
+
+// Logger (uses RAN.LogConstantName / RAN.LogRequestParam or sane defaults)
+$logger  = $config->get_logger();
+
+// Environment detection (callback > constant > SCRIPT_DEBUG > WP_DEBUG)
+$isDev   = $config->is_dev_environment();
 ```
 
-## Minimum headers & derived values
+### Themes
 
-Our `Config` class collates environment information from various sources and puts them in one convenient place. These sources include WordPress methods such as `plugin_dir_path()` and `get_plugin_data()`, which parses the root plugin docblock. As PluginLib relies on additional fields, the WordPress minimum headers requirements have been expanded to include the following:
+```php
+use Ran\PluginLib\Config\Config;
+
+// Provide explicit stylesheet directory or allow runtime detection
+$config = Config::fromThemeDir(get_stylesheet_directory());
+
+$cfg = $config->get_config();
+// $cfg['Name'], $cfg['Version'], $cfg['PATH'] (StylesheetDir), $cfg['URL'] (StylesheetURL), $cfg['Slug'], $cfg['Type'] === 'theme'
+
+$logger = $config->get_logger();
+$isDev  = $config->is_dev_environment();
+```
+
+## Initialization helpers
+
+- `Config::fromPluginFile(string $pluginFile): Config`
+  - Hydrates from the plugin root file (typically `__FILE__` from your main plugin).
+- `Config::fromThemeDir(?string $stylesheetDir = null): Config`
+  - Hydrates from a theme stylesheet directory. If omitted, it attempts runtime detection (requires WP loaded).
+
+## Normalized structure
+
+`get_config()` returns a single normalized array with these keys:
+
+- Core (both environments)
+  - `Name`, `Version`, `TextDomain`
+  - `PATH` (base path), `URL` (base URL), `Slug`
+  - `Type` (one of: `plugin`, `theme`)
+- Plugin‑specific
+  - `Basename`, `File`
+- Theme‑specific
+  - `StylesheetDir`, `StylesheetURL`
+- Extra headers (generic, non‑reserved)
+  - `ExtraHeaders` (associative array of additional non‑reserved header pairs)
+- Namespaced custom headers (see below)
+  - Each `@<Namespace>:` block is added as a top‑level object: `RAN`, `Acme`, etc.
+
+Example (plugin):
+
+```php
+$cfg = [
+  'Name' => 'My Plugin',
+  'Version' => '1.2.3',
+  'TextDomain' => 'my-plugin',
+  'PATH' => '/path/to/wp-content/plugins/my-plugin/',
+  'URL'  => 'https://example.com/wp-content/plugins/my-plugin/',
+  'Slug' => 'my-plugin',
+  'Type' => 'plugin',
+  'Basename' => 'my-plugin/my-plugin.php',
+  'File' => '/path/to/my-plugin/my-plugin.php',
+  'RAN' => [
+    'AppOption'       => 'my_plugin',
+    'LogConstantName' => 'RAN_LOG',
+    'LogRequestParam' => 'ran_log',
+  ],
+  'ExtraHeaders' => [ /* ... */ ],
+];
+```
+
+## Custom headers (namespaced)
+
+Custom metadata is declared in the file's first comment block using an `@<Namespace>:` prefix:
+
+```text
+@RAN: App Option: my_plugin
+@RAN: Log Constant Name: MY_DEBUG_FLAG
+@RAN: Log Request Param: my_debug
+
+@Acme: Api Base: https://api.example.com
+@Acme: Feature Flag: on
+```
+
+The parser produces top‑level namespaces with normalized PascalCase keys:
+
+```php
+$cfg['RAN']['AppOption']        === 'my_plugin';
+$cfg['RAN']['LogConstantName']  === 'MY_DEBUG_FLAG';
+$cfg['RAN']['LogRequestParam']  === 'my_debug';
+
+$cfg['Acme']['ApiBase']         === 'https://api.example.com';
+$cfg['Acme']['FeatureFlag']     === 'on';
+```
+
+Notes:
+
+- Reserved WP header names are blocked (collision throws).
+- Empty namespace/name/value lines are ignored.
+- Generic "Key: Value" pairs (without `@<NS>:`) are added to `ExtraHeaders` if they don’t collide with reserved names.
+
+## Options API
+
+```php
+// Read the full options payload for the app's option key
+$value = $config->get_options([]); // Returns [] if the option row is missing
+```
+
+App option key resolution:
+
+- Prefer `RAN.AppOption` if present.
+- Otherwise default to `Slug`.
+
+## Logger & environment
+
+```php
+$logger = $config->get_logger();
+$isDev  = $config->is_dev_environment();
+```
+
+- Logger settings from headers (with defaults):
+  - `RAN.LogConstantName` (default: `RAN_LOG`)
+  - `RAN.LogRequestParam` (default: `ran_log`)
+- Development detection precedence:
+  1. Developer callback (see below)
+  2. Defined debug constant named in `RAN.LogConstantName`
+  3. `SCRIPT_DEBUG === true`
+  4. `WP_DEBUG === true`
+
+Developer override:
+
+```php
+// Inside your filter or bootstrap code, add a callable to config normalized data
+add_filter('ran/plugin_lib/config', function(array $normalized) {
+  $normalized['is_dev_callback'] = static function (): bool {
+    return defined('MY_ENV') && MY_ENV === 'development';
+  };
+  return $normalized;
+});
+```
+
+Programmatic override (no filters):
+
+```php
+use Ran\PluginLib\Config\Config;
+
+// Plugin
+$config = Config::fromPluginFile(__FILE__)
+  ->set_is_dev_callback(static function (): bool {
+    return defined('MY_ENV') && MY_ENV === 'development';
+  });
+
+// Theme
+$themeCfg = Config::fromThemeDir(get_stylesheet_directory())
+  ->set_is_dev_callback(static function (): bool {
+    return current_user_can('manage_options');
+  });
+```
+
+## WordPress filter for final adjustments
+
+Before validation, the normalized array is passed through a filter if available:
+
+```php
+apply_filters('ran/plugin_lib/config', $normalized, [
+  'environment'      => 'plugin'|'theme',
+  'standard_headers' => [ /* from WP */ ],
+  'namespaces'       => [ /* parsed @NS headers */ ],
+  'extra_headers'    => [ /* generic non-reserved */ ],
+  'base_path'        => '...',
+  'base_url'         => '...',
+  'base_name'        => '...',
+  'comment_source'   => '/absolute/path',
+]);
+```
+
+Use this to set `is_dev_callback`, adjust normalized values, or derive additional metadata.
+
+## Validation
+
+The following keys must be present and non‑empty:
+
+- Common: `Name`, `Version`, `TextDomain`, `PATH`, `URL`, `Slug`, `Type`
+- Plugin: `Basename`, `File`
+- Theme: `StylesheetDir`, `StylesheetURL`
+
+If a required field is missing, an exception is thrown with a plain (non‑WP‑escaped) message.
+
+## Performance
+
+- Standard headers are read using WordPress APIs (`get_plugin_data`, `wp_get_theme`).
+- Custom headers are parsed from the file’s first comment block (first 8KB).
+- To avoid redundant reads within a single request, the comment‑block read is memoized (in‑memory static cache keyed by file path).
+
+## Theme specifics
+
+- Hydration requires a stylesheet directory. If not provided and WP is loaded, the system will try to detect it (`get_stylesheet_directory()`), otherwise hydration throws a clear exception.
+
+## Examples
+
+### Custom headers in a plugin root (my-plugin.php)
 
 ```php
 /**
- * Plugin Name
- * Description
- * Version
- * Plugin URI
- * Update URI
- * Requires at least: (^6.1.0)
- * Requires PHP: (^8.1.0)
- * Author
- * Author URI
- * License
- * Text Domain (optional|derived)
- * Domain Path: /lang
-*/
+ * Plugin Name: My Plugin
+ * Description: Example
+ * Version: 1.0.0
+ * Text Domain: my-plugin
+ *
+ * @RAN: App Option: my_plugin
+ * @RAN: Log Constant Name: MY_DEBUG
+ * @RAN: Log Request Param: my_debug
+ *
+ * @Acme: Api Base: https://api.example.com
+ */
 ```
 
-These values and more generated by WordPress and our Plugin class can be found in the `readonly` parameter `Plugin::plugin_array`.
-
-## Plugin class methods and properties
-
-### readonly: `Config::plugin_array`
-
-`plugin_array` is a read-only property which holds useful details, including ones inferred from the environment and derived from the WordPress plugin header docblock:
-
-- `['Name']` // The name of the plugin (declared as 'Plugin Name' in headers).
-- `['Version']` // The version of the plugin.
-- `['Description']` // The description of the plugin.
-- `['PluginURI']` // The project URI for the plugin.
-- `['UpdatesURI']` // The plugin updates URI, which is not required if hosted on the WP Plugin Directory. [See Announcement](https://make.wordpress.org/core/2021/06/29/introducing-update-uri-plugin-header-in-wordpress-5-8/)
-- `['Title']` // (derived) The plugin's title is rendered as a link pointing to the plugin URI.
-- `['FileName']` // (derived) The file name of the root plugin file.
-- `['URL']` // (derived) URL to the plugins containing directories within WordPress.
-- `['PATH']` // (derived) Full file path to the plugin's containing directory.
-
-- `['Author']` // The author of the plugin.
-- `['AuthorURI']` // The author's webpage URI.
-- `['AuthorName']` // (derived) The plugin's author is rendered as a link pointing to the author URI.
-- `['TextDomain']` // (optional|derived) [The text domain of the plugin, used as the plugin slug in URLs, in lower-kebab-case](https://developer.wordpress.org/plugins/internationalization/how-to-internationalize-your-plugin/#text-domains).
-- `['DomainPath']` // A relative path to language translation files. Defaults to '/lang' <https://developer.wordpress.org/plugins/internationalization/how-to-internationalize-your-plugin/#domain-path>
-- `['PluginOption']` // (derived) The plugin's name in the WP options table is auto-generated from the text domain in lower_snake_case.
-- `['RequiresPHP']` // The required PHP version of the plugin.
-- `['RequiresWP']` // The required WordPress version for this plugin.
-
-### Note
-
-- Your output may also include valid additional [plugin header](https://developer.wordpress.org/plugins/plugin-basics/header-requirements/) options.
-- Array keys in CamelCase represent space separated DockBlock names, with exception of "Name" which is identified as "Plugin Name" in the docblock.
-
-#### `Config::plugin_array` derived values
-
-Details on how `plugin_array` derived values are generated:
-
-- `['PATH']` Derived from the return value of `plugin_dir_path( dirname( __FILE__, 5 ) )`
-- `['URL']` Derived from the return value of `plugin_dir_path( dirname( __FILE__, 5 ) )`
-- `['FileName']` Derived from the return value of `plugin_basename( $plugin_file )`, where `$plugin_file` is the path to the root plugin file passed to the Plugin constructor on instantiation.
-  - The `Plugin` class is often instantiated in the plugin root so the magic constant `__FILE__` is typically passed.
-- `['Title']` An HTML string link to the plugin homepage, derived by WordPress from `Plugin Name` and `Description`.
-- `['PluginOption']` The name of the plugin in the WP options table is auto-generated from the `Text Domain` converted to `lower_snake_case`. _At the time of writing, this value cannot be overridden._
-- `['Author']` An HTML string link to the author homepage derived from `Author Name` and `Author URI`.
-- `['TextDomain']` As of WordPress 4.6, this required value will be automatically generated using the containing plugin directory name, as it is also the plugin's slug in url's. If you wish a different value then the directory name, it may be set here in `lower-kebab-case`. [WP Docs](https://developer.wordpress.org/plugins/internationalization/how-to-internationalize-your-plugin/#text-domains)
-
-### `Config::validate_plugin_array($plugin_array)`
-
-The `validate_plugin_array()` method accepts an array and checks that a minimum list of required headers and generated values are present as keys on the array. By default, the required entries include:
+### Reading values
 
 ```php
-[
-    'Name',
-    'Version',
-    'PluginURI',
-    'Author',
-    'PluginOption',
-    'TextDomain',
-    'DomainPath',
-    'RequiresPHP',
-    'RequiresWP',
-]
+$config = Ran\PluginLib\Config\Config::fromPluginFile(__FILE__);
+$cfg    = $config->get_config();
+
+$cfg['RAN']['AppOption'];       // my_plugin
+$cfg['RAN']['LogConstantName']; // MY_DEBUG
+$cfg['Acme']['ApiBase'];        // https://api.example.com
+
+$options = $config->get_options();
+$logger  = $config->get_logger();
 ```
 
-> Note: `validate_plugin_array()` does not validate the structure of the header values, only that required values are present as keys on the array.
+---
 
-### `get_wp_options()`
+For detailed architecture and header parsing semantics, see `docs/PRD-001-Unified-Config-for-themes-plugins.md`.
 
-The `get_wp_options()` method returns the value of the current plugin's primary WordPress option or `false` if none has been set.
-
-### `get_is_dev_callback()`
-
-The `get_is_dev_callback()` method returns the developer-defined callback for checking if the environment is 'dev'. By default, this method returns `null`. If a callback is provided, it should return a boolean value indicating whether the environment is 'dev'.
+---
