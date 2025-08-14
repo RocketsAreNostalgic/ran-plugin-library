@@ -555,7 +555,7 @@ class RegisterOptions {
 	 * Factory: create a RegisterOptions instance using the option name derived from Config.
 	 *
 	 * Uses the library's convention of storing the primary option name in
-	 * `$config->get_plugin_config()['RANPluginOption']`.
+     * `$config->get_config()['RAN']['AppOption']`.
 	 *
 	 * @param ConfigInterface $config        Initialized config instance.
 	 * @param array           $initial       Optional initial options (same structure as constructor).
@@ -571,11 +571,12 @@ class RegisterOptions {
         ?Logger $logger = null,
         array $schema = array()
     ): self {
-		$plugin_config = $config->get_plugin_config();
-		$main_option   = $plugin_config['RANPluginOption'] ?? '';
+		$plugin_config = method_exists($config, 'get_plugin_config') ? $config->get_config() : $config->get_config();
+		$ran           = (array)($plugin_config['RAN'] ?? array());
+		$main_option   = (string)($ran['AppOption'] ?? '');
 
 		if ($main_option === '' || !is_string($main_option)) {
-			throw new \InvalidArgumentException(static::class . ': Missing or invalid RANPluginOption in Config::get_plugin_config().');
+			throw new \InvalidArgumentException(static::class . ': Missing or invalid RAN.AppOption in Config config (expected RAN.AppOption).');
 		}
 
 		return new self($main_option, $initial, $autoload, $logger, $config, $schema);
@@ -592,9 +593,8 @@ class RegisterOptions {
 			if ($this->config instanceof ConfigInterface) {
 				$logger_from_config = $this->config->get_logger();
 			} else {
-				// Fallback to abstract base if available
-				$config_instance    = ConfigAbstract::get_instance();
-				$logger_from_config = $config_instance->get_logger();
+				// No config provided; create a lightweight default logger
+				$logger_from_config = new Logger(array());
 			}
 
 			if (null === $logger_from_config) {

@@ -76,7 +76,7 @@ abstract class FeaturesManagerAbstract {
 		$slug_id = sanitize_title( $slug_id );
 
 		if ( ! $slug_id || array_key_exists( $slug_id, $this->registery->get_registery() ) ) {
-			throw new Exception( \sprintf( '"A unique feature slug is required for managed class: "%s', esc_html( $qualified_classname ) ) );
+			throw new Exception( \sprintf( '"A unique feature slug is required for managed class: "%s', $qualified_classname ) );
 		}
 
 		$feature = new FeatureContainer(
@@ -154,12 +154,12 @@ abstract class FeaturesManagerAbstract {
 			throw new \Exception(
 				\sprintf(
 					'Each FeatureController must impliment RegistrableFeatureInterface:  %s',
-					esc_html( print_r( $class ) )
+					print_r( $class, true )
 				)
 			);
 		}
-		if ( ! is_subclass_of( $class, 'Ran\PluginLib\FeaturesAPI\FeatureControllerAbstract' ) ) {
-			throw new \Exception( \sprintf( 'Each FeatureController must extend FeatureControllerAbstract:  %s', esc_html( print_r( $class ) ) ) );
+		if ( ! is_subclass_of( $class, 'Ran\\PluginLib\\FeaturesAPI\\FeatureControllerAbstract' ) ) {
+			throw new \Exception( \sprintf( 'Each FeatureController must extend FeatureControllerAbstract:  %s', print_r( $class, true ) ) );
 		}
 
 		// Create new instance.
@@ -206,14 +206,14 @@ abstract class FeaturesManagerAbstract {
 							// We have a public setter method, so set the property.
 							$instance->$setter( $value[ key( $value ) ] );
 						} else {
-							throw new Exception( \sprintf( 'Can not set property "%s" because it is not "public", and a public method "set_%s()" has not been declared on "%s".', esc_html( key( $value ) ), esc_html( key( $value ) ), esc_html( get_class( $instance ) ) ) );
+							throw new Exception( \sprintf( 'Can not set property "%s" because it is not "public", and a public method "set_%s()" has not been declared on "%s".', key( $value ), key( $value ), get_class( $instance ) ) );
 						}
 					} else {
-						throw new Exception( \sprintf( 'Can not set property "%s" because the public method "set_%s()" has not been declared on "%s".', esc_html( key( $value ) ), esc_html( key( $value ) ), esc_html( get_class( $instance ) ) ) );
+						throw new Exception( \sprintf( 'Can not set property "%s" because the public method "set_%s()" has not been declared on "%s".', key( $value ), key( $value ), get_class( $instance ) ) );
 					}
 				}
 			} else {
-				throw new Exception( \sprintf( 'Can not set property "%s" because it has not been declared on "%s"', esc_html( key( $value ) ), esc_html( get_class( $instance ) ) ) );
+				throw new Exception( \sprintf( 'Can not set property "%s" because it has not been declared on "%s"', key( $value ), get_class( $instance ) ) );
 			}
 		}
 	}
@@ -247,10 +247,10 @@ abstract class FeaturesManagerAbstract {
 						$manager = new $adjacent_class();
 						$manager->init( $instance );
 					} else {
-						throw new \Exception( \sprintf( 'The Manager class for AccessoryInterface "%s" does not impliment the "AccessoryManagerBaseInterface" and cannot be called.', esc_html( $interface_name ), esc_html( $adjacent_class ), esc_html( get_class( $instance ) ) ) );
+						throw new \Exception( \sprintf( 'The Manager class for AccessoryInterface "%s" does not impliment the "AccessoryManagerBaseInterface" and cannot be called.', $interface_name, $adjacent_class, get_class( $instance ) ) );
 					}
 				} else {
-					throw new \Exception( \sprintf( 'The AccessoryInterface "%s" is missing its adjacent Manager "%s".', esc_html( $interface_name ), esc_html( $adjacent_class ), esc_html( \get_class( $instance ) ) ) );
+					throw new \Exception( \sprintf( 'The AccessoryInterface "%s" is missing its adjacent Manager "%s".', $interface_name, $adjacent_class, \get_class( $instance ) ) );
 				}
 			}
 		}
