@@ -54,6 +54,8 @@
   - `Type` (string: `plugin`|`theme`) for diagnostics
   - Logging: `RANLogConstantName`, `RANLogRequestParam`
 
+(NOTE: RANAppOption is now namespaced to `[RAN][AppOption]` )
+
 - Plugin-specific additions
 
   - `Basename` (string) plugin basename
