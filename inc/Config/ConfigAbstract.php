@@ -109,8 +109,22 @@ abstract class ConfigAbstract implements ConfigInterface {
 	 * @return void
 	 */
 	protected function _hydrateFromPlugin( string $plugin_file ): void {
+		$logger  = $this->get_logger();
+		$context = get_class($this) . '::_hydrateFromPlugin';
+		if ( $logger->is_active() ) {
+			$logger->debug("{$context} - Entered.", array(
+				'type' => 'plugin',
+				'file' => $plugin_file,
+			));
+		}
 		// Fail fast with a clear error if the provided plugin file is not usable
 		if ($plugin_file === '' || !is_file($plugin_file) || !is_readable($plugin_file)) {
+			if ( $logger->is_active() ) {
+				$logger->warning("{$context} - Invalid or unreadable plugin file.", array(
+					'type' => 'plugin',
+					'file' => $plugin_file,
+				));
+			}
 			throw new \RuntimeException('Config::fromPlugin requires a valid, readable plugin root file.');
 		}
 		$provider = new PluginHeaderProvider($plugin_file, $this);
@@ -124,8 +138,16 @@ abstract class ConfigAbstract implements ConfigInterface {
 	 * @return void
 	 */
 	protected function _hydrateFromTheme( string $stylesheet_dir ): void {
-		$dir = $stylesheet_dir ?: (function_exists('get_stylesheet_directory') ? get_stylesheet_directory() : '');
+		$logger  = $this->get_logger();
+		$context = get_class($this) . '::_hydrateFromTheme';
+		$dir     = $stylesheet_dir ?: (function_exists('get_stylesheet_directory') ? get_stylesheet_directory() : '');
 		if ($dir === '') {
+			if ( $logger->is_active() ) {
+				$logger->warning("{$context} - Missing stylesheet directory or unavailable WordPress runtime.", array(
+					'type' => 'theme',
+					'dir'  => $stylesheet_dir,
+				));
+			}
 			throw new \RuntimeException('Config::fromThemeDir requires a stylesheet directory or WordPress runtime.');
 		}
 		$provider = new ThemeHeaderProvider($dir, $this);
@@ -138,17 +160,38 @@ abstract class ConfigAbstract implements ConfigInterface {
 	 *
 	 */
 	private function _hydrate_generic(HeaderProviderInterface $provider): void {
+		$logger  = $this->get_logger();
+		$context = get_class($this) . '::_hydrate_generic';
 		// 1) Ensure WP is loaded
 		$provider->ensure_wp_loaded();
+		if ( $logger->is_active() ) {
+			$logger->debug("{$context} - ensure_wp_loaded() completed.", array(
+				'type' => $provider->get_type()->value,
+			));
+		}
 
 		// 2) Establish Standard Headers
 		$standard_headers = $provider->get_standard_headers();
-		$name             = (string) ($standard_headers['Name'] ?? '');
-		$version          = (string) ($standard_headers['Version'] ?? '');
-		$text_domain      = (string) ($standard_headers['TextDomain'] ?? '');
+		if ( $logger->is_active() ) {
+			$logger->debug("{$context} - Collected standard headers.", array(
+				'type'  => $provider->get_type()->value,
+				'count' => count($standard_headers),
+			));
+		}
+		$name        = (string) ($standard_headers['Name'] ?? '');
+		$version     = (string) ($standard_headers['Version'] ?? '');
+		$text_domain = (string) ($standard_headers['TextDomain'] ?? '');
 
 		// 3) Gather path/url/ID
 		[$base_path, $base_url, $base_name] = $provider->get_base_identifiers();
+		if ( $logger->is_active() ) {
+			$logger->debug("{$context} - Base identifiers.", array(
+				'type' => $provider->get_type()->value,
+				'path' => $base_path,
+				'url'  => $base_url,
+				'name' => $base_name,
+			));
+		}
 
 		// 4) Parse headers from comment source
 		$comment_source_path = $provider->get_comment_source_path();
@@ -158,6 +201,12 @@ abstract class ConfigAbstract implements ConfigInterface {
 
 		// Parse all namespaced @<Namespace>: Key: Value headers into nested structure
 		$namespaced_headers = $this->_parse_namespaced_headers($first_comment, $reserved);
+		if ( $logger->is_active() ) {
+			$logger->debug("{$context} - Parsed namespaces.", array(
+				'type'       => $provider->get_type()->value,
+				'namespaces' => array_keys($namespaced_headers),
+			));
+		}
 
 		$extra_header_pairs = $this->_parse_generic_headers($first_comment);
 
@@ -205,6 +254,12 @@ abstract class ConfigAbstract implements ConfigInterface {
 		// Namespace remaining generic extras to avoid polluting top-level
 		if (!empty($filtered_extra)) {
 			$normalized['ExtraHeaders'] = $filtered_extra;
+			if ( $logger->is_active() ) {
+				$logger->debug("{$context} - Extra headers kept.", array(
+					'type'  => $provider->get_type()->value,
+					'count' => count($filtered_extra),
+				));
+			}
 		}
 
 		// Add each namespace directly at the top level
@@ -214,6 +269,11 @@ abstract class ConfigAbstract implements ConfigInterface {
 
 		// Allow final adjustments via WordPress filter
 		if (function_exists('apply_filters')) {
+			if ( $logger->is_active() ) {
+				$logger->debug("{$context} - Applying filter 'ran/plugin_lib/config'.", array(
+					'type' => $provider->get_type()->value,
+				));
+			}
 			$context = array(
 			    'environment'      => $provider->get_type()->value,
 			    'standard_headers' => $standard_headers,
@@ -241,6 +301,12 @@ abstract class ConfigAbstract implements ConfigInterface {
 
 		// 6) Validate & set to unified_cache
 		$this->validate_config($normalized);
+		if ( $logger->is_active() ) {
+			$logger->debug("{$context} - Hydration complete.", array(
+				'type' => $provider->get_type()->value,
+				'slug' => $normalized['Slug'] ?? '',
+			));
+		}
 		$this->unified_cache = $normalized;
 	}
 
@@ -357,6 +423,14 @@ abstract class ConfigAbstract implements ConfigInterface {
 				$reserved_normalized[$this->_normalize_header_key($rk)] = true;
 			}
 			if (isset($reserved_names[$raw_name]) || isset($reserved_normalized[$normalized_display])) {
+				$logger  = $this->get_logger();
+				$context = get_class($this) . '::_parse_namespaced_headers';
+				if ( $logger->is_active() ) {
+					$logger->warning("{$context} - Reserved header collision.", array(
+						'namespace' => $ns,
+						'name'      => $raw_name,
+					));
+				}
 				throw new \Exception(sprintf(
 					'Naming @%s: custom headers the same as standard WP headers is not allowed. Problematic header: "@%s: %s".',
 					$ns,
@@ -484,11 +558,23 @@ abstract class ConfigAbstract implements ConfigInterface {
 	protected function _read_header_content( string $file_path ): string|false {
 		// Return from lightweight per-request cache if available
 		if ( isset( self::$_header_buffer_cache[ $file_path ] ) ) {
+			$logger  = $this->get_logger();
+			$context = get_class($this) . '::_read_header_content';
+			if ( $logger->is_active() ) {
+				$logger->debug("{$context} - Cache hit.", array('file' => $file_path));
+			}
 			return self::$_header_buffer_cache[ $file_path ];
 		}
 
 		// Read first 8KB of the file for header parsing
 		$buf = file_get_contents( $file_path, false, null, 0, 8 * 1024 );
+		if ( $buf === false ) {
+			$logger  = $this->get_logger();
+			$context = get_class($this) . '::_read_header_content';
+			if ( $logger->is_active() ) {
+				$logger->warning("{$context} - Failed to read header content.", array('file' => $file_path));
+			}
+		}
 
 		// Cache only successful reads to avoid storing false values
 		if ( $buf !== false ) {
@@ -576,23 +662,43 @@ abstract class ConfigAbstract implements ConfigInterface {
 	 * @return bool True if it's a development environment, false otherwise.
 	 */
 	public function is_dev_environment(): bool {
+		$logger  = $this->get_logger();
+		$context = get_class($this) . '::is_dev_environment';
+		$cfg     = $this->get_config();
+		$type    = $cfg['Type'] ?? '';
+		$slug    = $cfg['Slug'] ?? '';
 		if ( null !== $this->is_dev_cache ) {
 			return $this->is_dev_cache;
 		}
 		$callback = $this->get_is_dev_callback();
 		if ( is_callable( $callback ) ) {
-			return $this->is_dev_cache = (bool) $callback();
+			$result = (bool) $callback();
+			if ( $logger->is_active() ) {
+				$logger->debug("{$context} - Decision via callback.", array('type' => $type, 'slug' => $slug, 'result' => $result));
+			}
+			return $this->is_dev_cache = $result;
 		}
-		$cfg   = $this->get_config();
 		$const = (string)(($cfg['RAN']['LogConstantName'] ?? null) ?: 'RAN_LOG');
 		if ( $const && defined( $const ) && (bool) constant( $const ) ) {
+			if ( $logger->is_active() ) {
+				$logger->debug("{$context} - Decision via const.", array('type' => $type, 'slug' => $slug, 'const' => $const, 'result' => true));
+			}
 			return $this->is_dev_cache = true;
 		}
 		if ( defined( 'SCRIPT_DEBUG' ) && SCRIPT_DEBUG ) {
+			if ( $logger->is_active() ) {
+				$logger->debug("{$context} - Decision via SCRIPT_DEBUG.", array('type' => $type, 'slug' => $slug, 'result' => true));
+			}
 			return $this->is_dev_cache = true;
 		}
 		if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+			if ( $logger->is_active() ) {
+				$logger->debug("{$context} - Decision via WP_DEBUG.", array('type' => $type, 'slug' => $slug, 'result' => true));
+			}
 			return $this->is_dev_cache = true;
+		}
+		if ( $logger->is_active() ) {
+			$logger->debug("{$context} - Decision default.", array('type' => $type, 'slug' => $slug, 'result' => false));
 		}
 		return $this->is_dev_cache = false;
 	}
@@ -685,6 +791,8 @@ abstract class ConfigAbstract implements ConfigInterface {
 	 * @throws \Exception Throws if the minimum headers have not been set.
 	 */
 	public function validate_config( array $unified_cache ): array|Exception {
+		$logger  = $this->get_logger();
+		$context = get_class($this) . '::validate_config';
 		// Common normalized keys required across both environments
 		$common_required = array(
 		    'Name',
@@ -716,6 +824,9 @@ abstract class ConfigAbstract implements ConfigInterface {
 				}
 			}
 		}
+		if ( $logger->is_active() ) {
+			$logger->debug("{$context} - Validation OK.", array('type' => ($unified_cache['Type'] ?? 'unknown'), 'slug' => ($unified_cache['Slug'] ?? '')));
+		}
 
 		return $unified_cache;
 	}
@@ -730,13 +841,25 @@ abstract class ConfigAbstract implements ConfigInterface {
 	 * @return string
 	 */
 	public function get_options_key(): string {
-		$cfg = $this->get_config();
-		$ran = (array)($cfg['RAN'] ?? array());
+		$logger  = $this->get_logger();
+		$context = get_class($this) . '::get_options_key';
+		$cfg     = $this->get_config();
+		$ran     = (array)($cfg['RAN'] ?? array());
+		$used    = 'slug';
+		$key     = (string) ($cfg['Slug'] ?? '');
 		if (!empty($ran['AppOption'])) {
-			return (string) $ran['AppOption'];
+			$key  = (string) $ran['AppOption'];
+			$used = 'RAN.AppOption';
 		}
-		$slug = (string) ($cfg['Slug'] ?? '');
-		return $slug;
+		if ( $logger->is_active() ) {
+			$logger->debug("{$context} - Resolved options key.", array(
+			    'type' => $cfg['Type'] ?? '',
+			    'slug' => $cfg['Slug'] ?? '',
+			    'via'  => $used,
+			    'key'  => $key,
+			));
+		}
+		return $key;
 	}
 
 	/**
