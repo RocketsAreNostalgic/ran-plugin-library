@@ -540,12 +540,17 @@ class RegisterOptions {
 	 * @return string Normalized option key
 	 */
 	public static function sanitize_key(string $key): string {
+		$original = $key;
 		if (\function_exists('sanitize_key')) {
 			// @codeCoverageIgnoreStart
-			return \sanitize_key($key);
+			$maybe = \sanitize_key($key);
+			if (is_string($maybe) && $maybe !== '') {
+				return $maybe;
+			}
+			// Fallback to internal normalization if sanitize_key returned non-string/null/empty
 			// @codeCoverageIgnoreEnd
 		}
-		$key = strtolower($key);
+		$key = strtolower($original);
 		// Match WP semantics: allow a-z, 0-9, underscore and hyphen; strip everything else
 		$key = preg_replace('/[^a-z0-9_]+/', '_', $key) ?? $key;
 		return trim($key, '_');
