@@ -274,7 +274,7 @@ abstract class ConfigAbstract implements ConfigInterface {
 					'type' => $provider->get_type()->value,
 				));
 			}
-			$context = array(
+			$filter_context = array(
 			    'environment'      => $provider->get_type()->value,
 			    'standard_headers' => $standard_headers,
 			    'namespaces'       => $namespaced_headers,
@@ -293,7 +293,7 @@ abstract class ConfigAbstract implements ConfigInterface {
 			 * @param array $normalized Final normalized config array
 			 * @param array $context    Context details (environment, sources)
 			 */
-			$normalized = apply_filters('ran/plugin_lib/config', $normalized, $context);
+			$normalized = apply_filters('ran/plugin_lib/config', $normalized, $filter_context);
 			if (!is_array($normalized)) {
 				$normalized = (array) $normalized;
 			}
@@ -354,32 +354,7 @@ abstract class ConfigAbstract implements ConfigInterface {
 		return '';
 	}
 
-	/**
-	 * Parses @RAN: header lines from a pre-extracted comment block, enforcing reserved-name protection.
-	 * Returns normalized keys like RAN{PascalCase} => value.
-	 *
-	 * @param array<string,bool> $reserved_names
-	 * @throws \Exception on collision with reserved WordPress headers
-    */
-	protected function _parse_ran_headers(string $comment_block, array $reserved_names): array {
-		$headers = array();
-		if ($comment_block === '') {
-			return $headers;
-		}
-		preg_match_all('/^[ \t\*]*@RAN:\s*(?<name>[A-Za-z0-9\s\-]+):\s*(?<value>.+)/m', $comment_block, $matches, PREG_SET_ORDER);
-		foreach ($matches as $match) {
-			$raw_name  = trim($match['name']);
-			$raw_value = trim($match['value']);
-			if (isset($reserved_names[$raw_name])) {
-				throw new \Exception(sprintf(
-					'Naming @RAN: custom headers the same as standard WP headers is not allowed. Problematic header: "@RAN: %s".',
-					$raw_name
-				));
-			}
-			$headers['RAN' . $this->_normalize_header_key($raw_name)] = $raw_value;
-		}
-		return $headers;
-	}
+	// Note: legacy RAN-prefixed header parser removed; namespaced headers are handled by _parse_namespaced_headers().
 
 	/**
 	 * Parses all @<Namespace>: Name: Value headers into a nested map under NamespacedHeaders.
@@ -654,6 +629,18 @@ abstract class ConfigAbstract implements ConfigInterface {
 		    'debug_request_param'        => $param,
 		) );
 		return $this->logger;
+	}
+
+	/**
+	 * Override the logger instance to use for all logging.
+	 * Useful for testing and advanced integration scenarios.
+	 *
+	 * @param Logger $logger
+	 * @return self
+	 */
+	public function set_logger(Logger $logger): self {
+		$this->logger = $logger;
+		return $this;
 	}
 
 	/**
