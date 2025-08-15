@@ -5,7 +5,7 @@ namespace Ran\PluginLib\Tests\Unit\Config;
 
 use WP_Mock;
 use Ran\PluginLib\Config\Config;
-use RanTestCase; // Declared in test_bootstrap.php
+use Ran\PluginLib\Tests\Unit\Config\ConfigTestCase;
 
 /**
  * Smoke tests for Config in a theme context (happy-path behaviors).
@@ -14,7 +14,7 @@ use RanTestCase; // Declared in test_bootstrap.php
  * @covers \Ran\PluginLib\Config\ConfigAbstract::get_config
  * @covers \Ran\PluginLib\Config\ConfigAbstract::validate_config
  */
-final class ConfigThemeSmokeTest extends RanTestCase {
+final class ConfigThemeSmokeTest extends ConfigTestCase {
 	private string $theme_dir;
 
 	public function setUp(): void {
@@ -63,7 +63,7 @@ final class ConfigThemeSmokeTest extends RanTestCase {
 	}
 
 	public function test_happy_path_theme_initialization_and_accessors(): void {
-		$config = Config::fromThemeDir($this->theme_dir);
+		$config = $this->configFromThemeDirWithLogger($this->theme_dir);
 		$cfg    = $config->get_config();
 
 		$this->assertSame('theme', $cfg['Type']);

@@ -5,7 +5,7 @@ namespace Ran\PluginLib\Tests\Unit\Config;
 
 use WP_Mock;
 use Ran\PluginLib\Config\Config;
-use RanTestCase; // Declared in test_bootstrap.php
+use Ran\PluginLib\Tests\Unit\Config\ConfigTestCase;
 
 /**
  * Extended tests for Config in theme context.
@@ -14,7 +14,7 @@ use RanTestCase; // Declared in test_bootstrap.php
  * @covers \Ran\PluginLib\Config\ConfigAbstract::get_config
  * @covers \Ran\PluginLib\Config\ConfigAbstract::validate_config
  */
-final class ConfigThemeExtendedTest extends RanTestCase {
+final class ConfigThemeExtendedTest extends ConfigTestCase {
 	private string $themeDir;
 
 	public function setUp(): void {
@@ -53,7 +53,7 @@ final class ConfigThemeExtendedTest extends RanTestCase {
 	}
 
 	public function test_theme_happy_path_and_required_keys(): void {
-		$config = Config::fromThemeDir($this->themeDir);
+		$config = $this->configFromThemeDirWithLogger($this->themeDir);
 		$cfg    = $config->get_config();
 
 		$this->assertSame('theme', $cfg['Type']);
@@ -79,7 +79,7 @@ final class ConfigThemeExtendedTest extends RanTestCase {
 		WP_Mock::userFunction('sanitize_key')->andReturnUsing(fn($v) => strtolower(preg_replace('/[^a-z0-9_\-]/i', '_', (string)$v)));
 
 		$this->expectException(\Exception::class);
-		Config::fromThemeDir($this->themeDir)->get_config();
+		Config::fromThemeDirWithLogger($this->themeDir, $this->logger_mock)->get_config();
 	}
 }
 

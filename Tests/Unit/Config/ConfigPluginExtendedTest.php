@@ -7,7 +7,7 @@ use WP_Mock;
 use Psr\Log\LogLevel;
 use Ran\PluginLib\Config\Config;
 use Ran\PluginLib\Util\Logger;
-use RanTestCase; // Declared in test_bootstrap.php
+use Ran\PluginLib\Tests\Unit\Config\ConfigTestCase;
 
 /**
  * Extended tests for Config in plugin context.
@@ -19,7 +19,7 @@ use RanTestCase; // Declared in test_bootstrap.php
  * @covers \Ran\PluginLib\Config\ConfigAbstract::validate_config
  * @covers \Ran\PluginLib\Config\ConfigAbstract::set_is_dev_callback
  */
-final class ConfigPluginExtendedTest extends RanTestCase {
+final class ConfigPluginExtendedTest extends ConfigTestCase {
 	private string $pluginDir;
 	private string $pluginFile;
 	private string $pluginBasename;
@@ -75,7 +75,7 @@ PHP;
 		WP_Mock::userFunction('get_plugin_data')->with($this->pluginFile, false, false)->andReturn($pluginData)->byDefault();
 		WP_Mock::userFunction('sanitize_key')->andReturnUsing(fn($v) => strtolower(preg_replace('/[^a-z0-9_\-]/i', '_', (string)$v)))->byDefault();
 
-		$config = Config::fromPluginFile($this->pluginFile);
+		$config = $this->configFromPluginFileWithLogger($this->pluginFile);
 		$cfg    = $config->get_config();
 
 		$this->assertSame('plugin', $cfg['Type']);
@@ -119,7 +119,7 @@ PHP;
 		WP_Mock::userFunction('get_plugin_data')->with($this->pluginFile, false, false)->andReturn($pluginData);
 		WP_Mock::userFunction('sanitize_key')->andReturnUsing(fn($v) => strtolower(preg_replace('/[^a-z0-9_\-]/i', '_', (string)$v)));
 
-		$config = Config::fromPluginFile($this->pluginFile);
+		$config = $this->configFromPluginFileWithLogger($this->pluginFile);
 		$config->set_is_dev_callback(static fn() => true);
 		$this->assertTrue($config->is_dev_environment());
 
@@ -129,7 +129,8 @@ PHP;
 
 	public function test_invalid_plugin_file_throws_runtime_exception(): void {
 		$this->expectException(\RuntimeException::class);
-		Config::fromPluginFile('');
+		// Use withLogger to avoid console logging from hydration path
+		Config::fromPluginFileWithLogger('', $this->logger_mock);
 	}
 
 	public function test_validate_missing_name_throws_exception(): void {
@@ -152,7 +153,7 @@ PHP;
 
 		$this->expectException(\Exception::class);
 		$this->expectExceptionMessage('Missing required config key: "Name"');
-		Config::fromPluginFile($this->pluginFile)->get_config();
+		Config::fromPluginFileWithLogger($this->pluginFile, $this->logger_mock)->get_config();
 	}
 
 	public function test_get_options_uses_slug_when_no_app_option(): void {
@@ -180,7 +181,7 @@ PHP;
 		WP_Mock::userFunction('get_plugin_data')->with($this->pluginFile, false, false)->andReturn($pluginData);
 		WP_Mock::userFunction('sanitize_key')->andReturnUsing(fn($v) => strtolower(preg_replace('/[^a-z0-9_\-]/i', '_', (string)$v)));
 
-		$config      = Config::fromPluginFile($this->pluginFile);
+		$config      = $this->configFromPluginFileWithLogger($this->pluginFile);
 		$cfg         = $config->get_config();
 		$expectedKey = $cfg['RAN']['AppOption'] ?? $cfg['Slug'];
 
@@ -217,7 +218,7 @@ PHP;
 		WP_Mock::userFunction('get_plugin_data')->with($this->pluginFile, false, false)->andReturn($pluginData);
 		WP_Mock::userFunction('sanitize_key')->andReturnUsing(fn($v) => strtolower(preg_replace('/[^a-z0-9_\-]/i', '_', (string)$v)));
 
-		$config = Config::fromPluginFile($this->pluginFile);
+		$config = $this->configFromPluginFileWithLogger($this->pluginFile);
 		$this->assertFalse($config->is_dev_environment());
 		unset($_GET['dev']);
 	}

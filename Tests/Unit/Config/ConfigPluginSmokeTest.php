@@ -6,7 +6,7 @@ namespace Ran\PluginLib\Tests\Unit\Config;
 use WP_Mock;
 use Ran\PluginLib\Util\Logger;
 use Ran\PluginLib\Config\Config;
-use RanTestCase; // Declared in test_bootstrap.php
+use Ran\PluginLib\Tests\Unit\Config\ConfigTestCase;
 
 /**
  * Smoke tests for Config in a plugin context (happy-path behaviors).
@@ -18,7 +18,7 @@ use RanTestCase; // Declared in test_bootstrap.php
  * @covers \Ran\PluginLib\Config\ConfigAbstract::is_dev_environment
  * @covers \Ran\PluginLib\Config\ConfigAbstract::validate_config
  */
-final class ConfigPluginSmokeTest extends RanTestCase {
+final class ConfigPluginSmokeTest extends ConfigTestCase {
 	private string $plugin_dir;
 	private string $plugin_file;
 	private string $plugin_basename;
@@ -70,8 +70,8 @@ final class ConfigPluginSmokeTest extends RanTestCase {
 	}
 
 	public function test_happy_path_initialization_and_accessors(): void {
-		// Arrange: WP functions already mocked by PluginLibTestCase::setUp()
-		$config = Config::fromPluginFile($this->plugin_file);
+		// Arrange
+		$config = $this->configFromPluginFileWithLogger($this->plugin_file);
 
 		// Act
 		$cfg = $config->get_config();
