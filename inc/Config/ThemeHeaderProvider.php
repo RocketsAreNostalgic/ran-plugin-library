@@ -9,9 +9,11 @@ final class ThemeHeaderProvider implements HeaderProviderInterface {
 	}
 
 	public function ensure_wp_loaded(): void {
+		// @codeCoverageIgnoreStart
 		if (!\function_exists('get_stylesheet_directory') && defined('ABSPATH')) {
 			require_once ABSPATH . 'wp-includes/theme.php';
 		}
+		// @codeCoverageIgnoreEnd
 	}
 
 	public function get_standard_headers(): array {

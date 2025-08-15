@@ -9,9 +9,11 @@ final class PluginHeaderProvider implements HeaderProviderInterface {
 	}
 
 	public function ensure_wp_loaded(): void {
+		// @codeCoverageIgnoreStart
 		if (!\function_exists('get_plugin_data') && defined('ABSPATH')) {
 			require_once ABSPATH . 'wp-admin/includes/plugin.php';
 		}
+		// @codeCoverageIgnoreEnd
 	}
 
 	public function get_standard_headers(): array {
