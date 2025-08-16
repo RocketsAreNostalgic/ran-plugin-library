@@ -1,8 +1,6 @@
-<<<<<<<< HEAD:docs/TFS-001-Testing-Patterns-Public-Interface-Testing.md
 # TFS-001: Public Interface Testing Patterns for WordPress Plugin Development
+
 ========
-# ADR-002: Public Interface Testing Patterns for WordPress Plugin Development
->>>>>>>> feat/improve-options-smoke:docs/ARDs/ARD-002-Testing-Patterns-Public-Interface-Testing.md
 
 ## Status
 
