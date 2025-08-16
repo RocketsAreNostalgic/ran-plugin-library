@@ -16,6 +16,7 @@ final class ConfigAbstractProbe extends ConfigAbstract {
 	/** @var array<string,mixed> */
 	private array $overrideConfig                       = array();
 	private ?\Ran\PluginLib\Util\Logger $overrideLogger = null;
+	private array $seamConstants                        = array();
 
 	public function __construct(array $cfg = array()) {
 		$this->overrideConfig = $cfg;
@@ -34,6 +35,18 @@ final class ConfigAbstractProbe extends ConfigAbstract {
 			return $this->overrideLogger;
 		}
 		return parent::get_logger();
+	}
+
+	public function setSeamConstant(string $name, $value): void {
+		$this->seamConstants[$name] = $value;
+	}
+
+	protected function _defined(string $name): bool {
+		return array_key_exists($name, $this->seamConstants);
+	}
+
+	protected function _constant(string $name) {
+		return $this->seamConstants[$name] ?? null;
 	}
 
 	public function callNormalizeHeaderKey(string $name): string {
@@ -178,8 +191,15 @@ final class ConfigAbstractProtectedTest extends RanTestCase {
 		$this->assertSame('on', $parsed['Acme']['FeatureFlag']);
 
 		$this->expectException(\Exception::class);
-		$collision = "@RAN: Version: 2.0\n"; // reserved header name
-		$p->callParseNamespacedHeaders($collision, $reserved);
+		$collision         = "@RAN: Version: 2.0\n"; // reserved header name
+		$logger            = new \Ran\PluginLib\Util\CollectingLogger();
+		$this->logger_mock = $logger;
+		$p->setTestLogger($logger);
+		try {
+			$p->callParseNamespacedHeaders($collision, $reserved);
+		} finally {
+			$this->expectLog('warning', array('::_parse_namespaced_headers', 'Reserved header collision'), 1);
+		}
 	}
 
 	/**
@@ -188,6 +208,20 @@ final class ConfigAbstractProtectedTest extends RanTestCase {
 	public function test_parse_namespaced_headers_empty_block_returns_empty(): void {
 		$p = new ConfigAbstractProbe();
 		$this->assertSame(array(), $p->callParseNamespacedHeaders('', $p->callReservedPlugin()));
+	}
+
+	/**
+	 * @covers ::_parse_namespaced_headers
+	 */
+	public function test_parse_namespaced_headers_skips_incomplete_entries(): void {
+		$p        = new ConfigAbstractProbe();
+		$reserved = $p->callReservedPlugin();
+		$block    = "@Acme: Feature: on\n@Acme: EmptyVal:    \n@Foo:   : value\n@Bar: NameOnly:\n"; // lines with empty value/name should be skipped
+		$parsed   = $p->callParseNamespacedHeaders($block, $reserved);
+		$this->assertSame('on', $parsed['Acme']['Feature'] ?? null);
+		$this->assertTrue(!isset($parsed['Acme']['EmptyVal']));
+		$this->assertTrue(!isset($parsed['Foo']));
+		$this->assertTrue(!isset($parsed['Bar']['NameOnly']));
 	}
 
 	// _parse_ran_headers removed with namespaced headers refactor. No tests needed.
@@ -229,13 +263,17 @@ final class ConfigAbstractProtectedTest extends RanTestCase {
 	 * @covers ::_read_header_content
 	 */
 	public function test_read_header_content_memoizes(): void {
-		$p   = new ConfigAbstractProbe();
+		$p                 = new ConfigAbstractProbe();
+		$logger            = new \Ran\PluginLib\Util\CollectingLogger();
+		$this->logger_mock = $logger;
+		$p->setTestLogger($logger);
 		$tmp = tempnam(sys_get_temp_dir(), 'hdr_');
 		file_put_contents($tmp, str_repeat('A', 100));
 		$c1 = $p->callReadHeaderContent($tmp);
 		$c2 = $p->callReadHeaderContent($tmp);
 		$this->assertIsString($c1);
 		$this->assertSame($c1, $c2);
+		$this->expectLog('debug', array('::_read_header_content', 'Cache hit'), 1);
 	}
 
 	/**
@@ -277,8 +315,30 @@ final class ConfigAbstractProtectedTest extends RanTestCase {
 	}
 
 	/**
-	 * @covers ::_get_standard_plugin_headers
-	 */
+		* Explicitly covers early return when get_plugin_data() is absent.
+		*
+		* @covers ::_get_standard_plugin_headers
+		*/
+	public function test_get_standard_plugin_headers_returns_empty_when_function_absent(): void {
+		$p = new ConfigAbstractProbe();
+		// No WP_Mock::userFunction('get_plugin_data') defined here
+		$this->assertSame(array(), $p->callGetStandardPluginHeaders(__FILE__));
+	}
+
+	/**
+		* Explicitly covers early return when wp_get_theme() is absent.
+		*
+		* @covers ::_get_standard_theme_headers
+		*/
+	public function test_get_standard_theme_headers_returns_empty_when_function_absent(): void {
+		$p = new ConfigAbstractProbe();
+		// No WP_Mock::userFunction('wp_get_theme') defined here
+		$this->assertSame(array(), $p->callGetStandardThemeHeaders(sys_get_temp_dir()));
+	}
+
+	/**
+		* @covers ::_get_standard_plugin_headers
+		*/
 	public function test_get_standard_plugin_headers_filters_empty(): void {
 		$p = new ConfigAbstractProbe();
 		\WP_Mock::setUp();
@@ -328,28 +388,25 @@ final class ConfigAbstractProtectedTest extends RanTestCase {
 	public function test_is_dev_environment_via_custom_constant(): void {
 		$p     = new ConfigAbstractProbe();
 		$const = 'UNIT_DEV_' . strtoupper(substr(md5((string) microtime(true)), 0, 8));
-		if (!defined($const)) {
-			define($const, true);
-		}
+		$p->setSeamConstant($const, true);
 		$cfg                           = $p->get_config();
 		$cfg['RAN']['LogConstantName'] = $const;
 		$p->setOverrideConfig($cfg);
-		// Swallow logs to avoid polluting test output
-		$silencer = new \Ran\PluginLib\Util\Logger(array(
-		    'custom_debug_constant_name' => $const,
-		    'debug_request_param'        => $const,
-		    'error_log_handler'          => function(string $m): void { /* no-op for tests */
-		    },
-		));
-		$p->setTestLogger($silencer);
+		$logger            = new \Ran\PluginLib\Util\CollectingLogger();
+		$this->logger_mock = $logger;
+		$p->setTestLogger($logger);
 		$this->assertTrue($p->is_dev_environment());
+		$this->expectLog('debug', array('::is_dev_environment', 'Decision via const'), 1);
 	}
 
 	/**
 	 * @covers ::_read_header_content
 	 */
 	public function test_read_header_content_failure_returns_false(): void {
-		$p           = new ConfigAbstractProbe();
+		$p                 = new ConfigAbstractProbe();
+		$logger            = new \Ran\PluginLib\Util\CollectingLogger();
+		$this->logger_mock = $logger;
+		$p->setTestLogger($logger);
 		$nonexistent = sys_get_temp_dir() . '/does_not_exist_' . uniqid() . '.php';
 		$prev        = set_error_handler(static function () {
 			return true;
@@ -362,7 +419,89 @@ final class ConfigAbstractProtectedTest extends RanTestCase {
 			} else {
 				restore_error_handler();
 			}
+			$this->expectLog('warning', array('::_read_header_content', 'Failed to read header content'), 1);
 		}
+	}
+
+	/**
+	 * @covers ::is_dev_environment
+	 */
+	public function test_is_dev_environment_logs_callback_decision(): void {
+		$p                 = new ConfigAbstractProbe();
+		$logger            = new \Ran\PluginLib\Util\CollectingLogger();
+		$this->logger_mock = $logger;
+		$p->setTestLogger($logger);
+		$p->set_is_dev_callback(function () {
+			return true;
+		});
+		$p->is_dev_environment();
+		$this->expectLog('debug', array('::is_dev_environment', 'Decision via callback'), 1);
+	}
+
+	/**
+		* @covers ::is_dev_environment
+		*/
+	public function test_is_dev_environment_uses_script_debug_constant(): void {
+		$p                 = new ConfigAbstractProbe();
+		$logger            = new \Ran\PluginLib\Util\CollectingLogger();
+		$this->logger_mock = $logger;
+		$p->setTestLogger($logger);
+		// Make sure SCRIPT_DEBUG drives decision in this test
+		if (\defined('SCRIPT_DEBUG')) {
+			$this->markTestSkipped('SCRIPT_DEBUG already defined in this process.');
+		}
+		// Use seam instead of global define to avoid cross-test contamination
+		$p->setSeamConstant('SCRIPT_DEBUG', true);
+		if (false) {
+			// no-op (covered by seam)
+		}
+		$this->assertTrue($p->is_dev_environment());
+		$this->expectLog('debug', array('::is_dev_environment', 'Decision via SCRIPT_DEBUG'), 1);
+	}
+
+	/**
+		* @covers ::is_dev_environment
+		*/
+	public function test_is_dev_environment_uses_wp_debug_constant(): void {
+		$p                 = new ConfigAbstractProbe();
+		$logger            = new \Ran\PluginLib\Util\CollectingLogger();
+		$this->logger_mock = $logger;
+		$p->setTestLogger($logger);
+		// Ensure constants state allows exercising WP_DEBUG branch only
+		if (\defined('SCRIPT_DEBUG')) {
+			$this->markTestSkipped('SCRIPT_DEBUG defined; cannot reach WP_DEBUG branch.');
+		}
+		if (\defined('WP_DEBUG')) {
+			$this->markTestSkipped('WP_DEBUG already defined in this process.');
+		}
+		// Use seam instead of global define to avoid cross-test contamination
+		$p->setSeamConstant('WP_DEBUG', true);
+		if (false) {
+			// no-op (covered by seam)
+		}
+		$this->assertTrue($p->is_dev_environment());
+		$this->expectLog('debug', array('::is_dev_environment', 'Decision via WP_DEBUG'), 1);
+	}
+
+	/**
+		* @covers ::is_dev_environment
+		*/
+	public function test_is_dev_environment_uses_cached_value_on_second_call(): void {
+		$p                 = new ConfigAbstractProbe();
+		$logger            = new \Ran\PluginLib\Util\CollectingLogger();
+		$this->logger_mock = $logger;
+		$p->setTestLogger($logger);
+		// First call computes and logs default decision (false)
+		$first = $p->is_dev_environment();
+		// Ensure neither SCRIPT_DEBUG nor WP_DEBUG are defined so default path triggers
+		if (\defined('SCRIPT_DEBUG') || \defined('WP_DEBUG')) {
+			$this->markTestSkipped('Debug constants present; cannot assert default path.');
+		}
+		// Second call should hit early return without logging again
+		$second = $p->is_dev_environment();
+		$this->assertSame($first, $second);
+		// Only one default log should exist regardless of how many calls
+		$this->expectLog('debug', array('::is_dev_environment', 'Decision default'), 1);
 	}
 
 	/**

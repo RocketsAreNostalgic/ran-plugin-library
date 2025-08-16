@@ -219,6 +219,10 @@ PHP;
 		WP_Mock::userFunction('sanitize_key')->andReturnUsing(fn($v) => strtolower(preg_replace('/[^a-z0-9_\-]/i', '_', (string)$v)));
 
 		$config = $this->configFromPluginFileWithLogger($this->pluginFile);
+		// Ensure constants do not interfere
+		if (\defined('SCRIPT_DEBUG') || \defined('WP_DEBUG')) {
+			$this->markTestSkipped('Debug constants defined by process; cannot assert GET param ignored path.');
+		}
 		$this->assertFalse($config->is_dev_environment());
 		unset($_GET['dev']);
 	}
