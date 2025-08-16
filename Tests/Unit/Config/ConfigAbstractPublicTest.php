@@ -50,7 +50,7 @@ final class ConfigAbstractPublicTest extends PluginLibTestCase {
 		// Now set unified_cache to include RAN.AppOption and assert non-empty
 		$withRan        = $this->config_mock->get_config();
 		$withRan['RAN'] = array('AppOption' => 'my_app_option') + ($withRan['RAN'] ?? array());
-		$this->_set_protected_property_value($this->config_mock, 'unified_cache', $withRan);
+		$this->_set_protected_property_value($this->config_mock, '_unified_cache', $withRan);
 		$key2 = $this->config_mock->get_options_key();
 		$this->assertNotSame('', $key2);
 	}
@@ -98,7 +98,7 @@ final class ConfigAbstractPublicTest extends PluginLibTestCase {
 				'LogRequestParam' => 'unit_log',
 			),
 		);
-		$this->_set_protected_property_value($inst, 'unified_cache', $cfg);
+		$this->_set_protected_property_value($inst, '_unified_cache', $cfg);
 		$logger = $inst->get_logger();
 		$this->assertInstanceOf(\Ran\PluginLib\Util\Logger::class, $logger);
 		$this->assertNotInstanceOf(\Ran\PluginLib\Util\CollectingLogger::class, $logger);

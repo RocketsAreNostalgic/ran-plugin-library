@@ -147,7 +147,7 @@ CSS;
 		$cb = static function (): bool {
 			return true;
 		};
-		// Inject is_dev_callback into normalized config via filter so it lands in unified_cache
+		// Inject is_dev_callback into normalized config via filter so it lands in _unified_cache
 		WP_Mock::userFunction('apply_filters')->andReturnUsing(function($tag, $value, $context = null) use ($cb) {
 			if ($tag === 'ran/plugin_lib/config' && is_array($value)) {
 				$value['is_dev_callback'] = $cb;
@@ -162,12 +162,12 @@ CSS;
 		$cfg->hydrateFromPluginPublic($this->tmpPlugin);
 		$loaded = $cfg->get_is_dev_callback();
 		if (!is_callable($loaded)) {
-			// Fallback: directly seed unified_cache to ensure coverage attribution for get_is_dev_callback
+			// Fallback: directly seed _unified_cache to ensure coverage attribution for get_is_dev_callback
 			$cb2 = static function (): bool {
 				return true;
 			};
 			$ref  = new \ReflectionClass($cfg);
-			$prop = $ref->getParentClass()->getProperty('unified_cache');
+			$prop = $ref->getParentClass()->getProperty('_unified_cache');
 			$prop->setAccessible(true);
 			$uc = $prop->getValue($cfg);
 			if (!is_array($uc)) {

@@ -66,29 +66,43 @@ abstract class ConfigAbstract implements ConfigInterface {
 	 *
 	 * @var ?Logger The logger instance.
 	 */
-	private ?Logger $logger = null;
+	private ?Logger $_logger = null;
 
 	/**
 	 * Unified normalized config cache (theme or plugin).
 	 *
 	 * @var array<string,mixed>|null
 	 */
-	private ?array $unified_cache = null;
+	private ?array $_unified_cache = null;
 
 	/**
 	 * Memoized dev-environment decision per request.
 	 *
 	 * @var bool|null
 	 */
-	private ?bool $is_dev_cache = null;
+	private ?bool $_is_dev_cache = null;
 
 	/**
 	 * Optional developer-provided callback to determine dev environment.
 	 * If set, this takes precedence over all other detection mechanisms.
 	 *
+	 * @example
+	 * ```php
+	 * $config->set_is_dev_callback(function() {
+	 *     return true;
+	 * });
+	 * ```
+	 *
+	 * @example using a filter:
+	 * ```php
+	 * add_filter('ran/plugin_lib/config/is_dev_environment', function() {
+	 *     return true;
+	 * });
+	 * ```
+	 *
 	 * @var callable|null
 	 */
-	protected $dev_callback = null;
+	protected $_dev_callback = null;
 
 	/**
 	 * Request-level memoization buffer for header file reads.
@@ -101,6 +115,256 @@ abstract class ConfigAbstract implements ConfigInterface {
 	 * @var array<string,string>
 	 */
 	private static array $_header_buffer_cache = array();
+
+	/**
+		* Returns an instance of the Logger.
+	 * Lazily instantiates the logger if it hasn't been already.
+	 *
+	 * @return Logger The logger instance.
+	 */
+	public function get_logger(): Logger {
+		if ( $this->_logger instanceof Logger ) {
+			return $this->_logger;
+		}
+		$cfg           = $this->get_config();
+		$const         = (string)(($cfg['RAN']['LogConstantName'] ?? null) ?: 'RAN_LOG');
+		$param         = (string)(($cfg['RAN']['LogRequestParam'] ?? null) ?: 'ran_log');
+		$this->_logger = new Logger( array(
+		    'custom_debug_constant_name' => $const,
+		    'debug_request_param'        => $param,
+		) );
+		return $this->_logger;
+	}
+
+	/**
+	 * Override the logger instance to use for all logging.
+	 * Useful for testing and advanced integration scenarios.
+	 *
+	 * @param Logger $logger
+	 * @return self
+	 */
+	public function set_logger(Logger $logger): self {
+		$this->_logger = $logger;
+		return $this;
+	}
+
+	/**
+	 * Checks if the current environment is considered a 'development' environment.
+	 *
+	 * @return bool True if it's a development environment, false otherwise.
+	 */
+	public function is_dev_environment(): bool {
+		$logger  = $this->get_logger();
+		$context = get_class($this) . '::is_dev_environment';
+		$cfg     = $this->get_config();
+		$type    = $cfg['Type'] ?? '';
+		$slug    = $cfg['Slug'] ?? '';
+		if ( null !== $this->_is_dev_cache ) {
+			return $this->_is_dev_cache;
+		}
+		$callback = $this->get_is_dev_callback();
+		if ( is_callable( $callback ) ) {
+			$result = (bool) $callback();
+			if ( $logger->is_active() ) {
+				$logger->debug("{$context} - Decision via callback.", array('type' => $type, 'slug' => $slug, 'result' => $result));
+			}
+			return $this->_is_dev_cache = $result;
+		}
+		$const = (string)(($cfg['RAN']['LogConstantName'] ?? null) ?: 'RAN_LOG');
+		if ( $const && $this->_defined( $const ) && (bool) $this->_constant( $const ) ) {
+			if ( $logger->is_active() ) {
+				$logger->debug("{$context} - Decision via const.", array('type' => $type, 'slug' => $slug, 'const' => $const, 'result' => true));
+			}
+			return $this->_is_dev_cache = true;
+		}
+		if ( $this->_defined( 'SCRIPT_DEBUG' ) && (bool) $this->_constant('SCRIPT_DEBUG') ) {
+			if ( $logger->is_active() ) {
+				$logger->debug("{$context} - Decision via SCRIPT_DEBUG.", array('type' => $type, 'slug' => $slug, 'result' => true));
+			}
+			return $this->_is_dev_cache = true;
+		}
+		if ( $this->_defined( 'WP_DEBUG' ) && (bool) $this->_constant('WP_DEBUG') ) {
+			if ( $logger->is_active() ) {
+				$logger->debug("{$context} - Decision via WP_DEBUG.", array('type' => $type, 'slug' => $slug, 'result' => true));
+			}
+			return $this->_is_dev_cache = true;
+		}
+		if ( $logger->is_active() ) {
+			$logger->debug("{$context} - Decision default.", array('type' => $type, 'slug' => $slug, 'result' => false));
+		}
+		return $this->_is_dev_cache = false;
+	}
+
+	/**
+	 * Programmatically set the developer callback for dev environment detection.
+	 *
+	 * @param callable $callback
+	 * @return self
+	 */
+	public function set_is_dev_callback(callable $callback): self {
+		$this->_dev_callback = $callback;
+		$this->_is_dev_cache = null; // reset memoized decision
+		return $this;
+	}
+
+	/**
+	 * Returns the developer-defined callback for checking if the environment is 'dev'.
+	 *
+	 * @return callable|null The callback function, or null if not set.
+	 */
+	public function get_is_dev_callback(): ?callable {
+		// Explicitly set programmatic callback takes precedence
+		if (is_callable($this->_dev_callback)) {
+			return $this->_dev_callback;
+		}
+
+		$callback = $this->_unified_cache['is_dev_callback'] ?? null;
+
+		if (is_callable($callback)) {
+			return $callback;
+		}
+
+		return null;
+	}
+
+	/**
+	 * Return the current configuration type. For now this implementation
+	 * represents plugin-backed configuration. Theme support is added by
+	 * dedicated factory methods in the concrete class.
+	 */
+	public function get_type(): ConfigType {
+		$cfgType = $this->get_config()['Type'] ?? ConfigType::Plugin->value;
+		return ($cfgType === ConfigType::Theme->value) ? ConfigType::Theme : ConfigType::Plugin;
+	}
+
+	/**
+	 * Returns normalized configuration; derives from plugin_array when needed.
+	 *
+	 * @return array<string,mixed>
+	 */
+	public function get_config(): array {
+		if ( null !== $this->_unified_cache ) {
+			return $this->_unified_cache;
+		}
+		// Derive normalized structure from whatever minimal state is available (defensive fallback)
+		$p                    = $this->_unified_cache ?? array();
+		$text_domain          = (string) ( $p['TextDomain'] ?? '' );
+		$name                 = (string) ( $p['Name'] ?? '' );
+		$slug_src             = $text_domain !== '' ? $text_domain : $name;
+		$slug                 = function_exists( 'sanitize_key' ) ? sanitize_key( $slug_src ) : strtolower( preg_replace( '/[^a-z0-9_\-]/i', '_', $slug_src ) );
+		$logger_default_name  = 'RAN_LOG';
+		$logger_default_req   = 'ran_log';
+		$this->_unified_cache = array(
+		    'Name'       => $p['Name']    ?? '',
+		    'Version'    => $p['Version'] ?? '',
+		    'TextDomain' => $text_domain,
+		    'PATH'       => $p['PATH'] ?? '',
+		    'URL'        => $p['URL']  ?? '',
+		    'Slug'       => $slug,
+		    'Type'       => ConfigType::Plugin->value,
+		    'RAN'        => array(
+		        'AppOption'       => $p['RAN']['AppOption']       ?? $slug,
+		        'LogConstantName' => $p['RAN']['LogConstantName'] ?? $logger_default_name,
+		        'LogRequestParam' => $p['RAN']['LogRequestParam'] ?? $logger_default_req,
+		    ),
+		    'Basename' => $p['Basename'] ?? '',
+		    'File'     => $p['File']     ?? '',
+		);
+		return $this->_unified_cache;
+	}
+
+	/**
+	 * Validate that the root config array has the required fields set.
+	 * These are gathered from the plugin docblock using the WP get_plugin_array().
+	 *
+	 * @param  array<string, mixed> $config The plugin data array.
+	 *
+	 * @return array<string, mixed>|Exception Returns the validated array provided, or throws an exception.
+	 * @throws \Exception Throws if the minimum headers have not been set.
+	 */
+	public function validate_config( array $unified_cache ): array|Exception {
+		$logger  = $this->get_logger();
+		$context = get_class($this) . '::validate_config';
+		// Common normalized keys required across both environments
+		$common_required = array(
+		    'Name',
+		    'Version',
+		    'TextDomain',
+		    'PATH',
+		    'URL',
+		    'Slug',
+		    'Type',
+		);
+
+		foreach ( $common_required as $key ) {
+			if ( ! array_key_exists( $key, $unified_cache ) || $unified_cache[$key] === '' ) {
+				throw new \Exception( sprintf('RanPluginLib: Missing required config key: "%s".', $key) );
+			}
+		}
+
+		// Environment-specific sanity checks
+		if ( ($unified_cache['Type'] ?? '') === ConfigType::Plugin->value ) {
+			foreach ( array('Basename', 'File') as $key ) {
+				if ( ! isset($unified_cache[$key]) || $unified_cache[$key] === '' ) {
+					throw new \Exception( sprintf('RanPluginLib: Missing required plugin config key: "%s".', $key) );
+				}
+			}
+		} elseif ( ($unified_cache['Type'] ?? '') === ConfigType::Theme->value ) {
+			foreach ( array('StylesheetDir', 'StylesheetURL') as $key ) {
+				if ( ! isset($unified_cache[$key]) || $unified_cache[$key] === '' ) {
+					throw new \Exception( sprintf('RanPluginLib: Missing required theme config key: "%s".', $key) );
+				}
+			}
+		}
+		if ( $logger->is_active() ) {
+			$logger->debug("{$context} - Validation OK.", array('type' => ($unified_cache['Type'] ?? 'unknown'), 'slug' => ($unified_cache['Slug'] ?? '')));
+		}
+
+		return $unified_cache;
+	}
+
+	/**
+	 * Returns the generic WordPress option key for the plugin or theme.
+	 *
+	 * Preference order:
+	 * 1) Namespaced RAN.AppOption
+	 * 2) Slug
+	 *
+	 * @return string
+	 */
+	public function get_options_key(): string {
+		$logger  = $this->get_logger();
+		$context = get_class($this) . '::get_options_key';
+		$cfg     = $this->get_config();
+		$ran     = (array)($cfg['RAN'] ?? array());
+		$used    = 'slug';
+		$key     = (string) ($cfg['Slug'] ?? '');
+		if (!empty($ran['AppOption'])) {
+			$key  = (string) $ran['AppOption'];
+			$used = 'RAN.AppOption';
+		}
+		if ( $logger->is_active() ) {
+			$logger->debug("{$context} - Resolved options key.", array(
+			    'type' => $cfg['Type'] ?? '',
+			    'slug' => $cfg['Slug'] ?? '',
+			    'via'  => $used,
+			    'key'  => $key,
+			));
+		}
+		return $key;
+	}
+
+	/**
+	 * Returns the WordPress option value for the plugin or theme.
+	 * If no option is set, the default name is derived from the plugin or theme slug.
+	 *
+	 * @param mixed $default Default setting value if option is not set. Value does not persist.
+	 * @return mixed
+	 */
+	public function get_options(mixed $default = false): mixed {
+		$key = $this->get_options_key();
+		return function_exists('get_option') ? get_option( $key, $default ) : $default;
+	}
 
 	/**
 	 * Explicitly hydrate plugin metadata from a plugin root file.
@@ -307,7 +571,7 @@ abstract class ConfigAbstract implements ConfigInterface {
 				'slug' => $normalized['Slug'] ?? '',
 			));
 		}
-		$this->unified_cache = $normalized;
+		$this->_unified_cache = $normalized;
 	}
 
 	/**
@@ -611,256 +875,6 @@ abstract class ConfigAbstract implements ConfigInterface {
 			}
 		}
 		return array_filter($headers, static fn($v) => $v !== '');
-	}
-
-	/**
-		* Returns an instance of the Logger.
-	 * Lazily instantiates the logger if it hasn't been already.
-	 *
-	 * @return Logger The logger instance.
-	 */
-	public function get_logger(): Logger {
-		if ( $this->logger instanceof Logger ) {
-			return $this->logger;
-		}
-		$cfg          = $this->get_config();
-		$const        = (string)(($cfg['RAN']['LogConstantName'] ?? null) ?: 'RAN_LOG');
-		$param        = (string)(($cfg['RAN']['LogRequestParam'] ?? null) ?: 'ran_log');
-		$this->logger = new Logger( array(
-		    'custom_debug_constant_name' => $const,
-		    'debug_request_param'        => $param,
-		) );
-		return $this->logger;
-	}
-
-	/**
-	 * Override the logger instance to use for all logging.
-	 * Useful for testing and advanced integration scenarios.
-	 *
-	 * @param Logger $logger
-	 * @return self
-	 */
-	public function set_logger(Logger $logger): self {
-		$this->logger = $logger;
-		return $this;
-	}
-
-	/**
-	 * Checks if the current environment is considered a 'development' environment.
-	 *
-	 * @return bool True if it's a development environment, false otherwise.
-	 */
-	public function is_dev_environment(): bool {
-		$logger  = $this->get_logger();
-		$context = get_class($this) . '::is_dev_environment';
-		$cfg     = $this->get_config();
-		$type    = $cfg['Type'] ?? '';
-		$slug    = $cfg['Slug'] ?? '';
-		if ( null !== $this->is_dev_cache ) {
-			return $this->is_dev_cache;
-		}
-		$callback = $this->get_is_dev_callback();
-		if ( is_callable( $callback ) ) {
-			$result = (bool) $callback();
-			if ( $logger->is_active() ) {
-				$logger->debug("{$context} - Decision via callback.", array('type' => $type, 'slug' => $slug, 'result' => $result));
-			}
-			return $this->is_dev_cache = $result;
-		}
-		$const = (string)(($cfg['RAN']['LogConstantName'] ?? null) ?: 'RAN_LOG');
-		if ( $const && $this->_defined( $const ) && (bool) $this->_constant( $const ) ) {
-			if ( $logger->is_active() ) {
-				$logger->debug("{$context} - Decision via const.", array('type' => $type, 'slug' => $slug, 'const' => $const, 'result' => true));
-			}
-			return $this->is_dev_cache = true;
-		}
-		if ( $this->_defined( 'SCRIPT_DEBUG' ) && (bool) $this->_constant('SCRIPT_DEBUG') ) {
-			if ( $logger->is_active() ) {
-				$logger->debug("{$context} - Decision via SCRIPT_DEBUG.", array('type' => $type, 'slug' => $slug, 'result' => true));
-			}
-			return $this->is_dev_cache = true;
-		}
-		if ( $this->_defined( 'WP_DEBUG' ) && (bool) $this->_constant('WP_DEBUG') ) {
-			if ( $logger->is_active() ) {
-				$logger->debug("{$context} - Decision via WP_DEBUG.", array('type' => $type, 'slug' => $slug, 'result' => true));
-			}
-			return $this->is_dev_cache = true;
-		}
-		if ( $logger->is_active() ) {
-			$logger->debug("{$context} - Decision default.", array('type' => $type, 'slug' => $slug, 'result' => false));
-		}
-		return $this->is_dev_cache = false;
-	}
-
-	/**
-	 * Returns the developer-defined callback for checking if the environment is 'dev'.
-	 *
-	 * @return callable|null The callback function, or null if not set.
-	 */
-	public function get_is_dev_callback(): ?callable {
-		// Explicitly set programmatic callback takes precedence
-		if (is_callable($this->dev_callback)) {
-			return $this->dev_callback;
-		}
-
-		$callback = $this->unified_cache['is_dev_callback'] ?? null;
-
-		if (is_callable($callback)) {
-			return $callback;
-		}
-
-		return null;
-	}
-
-	/**
-	 * Programmatically set the developer callback for dev environment detection.
-	 *
-	 * @param callable $callback
-	 * @return self
-	 */
-	public function set_is_dev_callback(callable $callback): self {
-		$this->dev_callback = $callback;
-		$this->is_dev_cache = null; // reset memoized decision
-		return $this;
-	}
-
-	/**
-	 * Return the current configuration type. For now this implementation
-	 * represents plugin-backed configuration. Theme support is added by
-	 * dedicated factory methods in the concrete class.
-	 */
-	public function get_type(): ConfigType {
-		$cfgType = $this->get_config()['Type'] ?? ConfigType::Plugin->value;
-		return ($cfgType === ConfigType::Theme->value) ? ConfigType::Theme : ConfigType::Plugin;
-	}
-
-	/**
-	 * Returns normalized configuration; derives from plugin_array when needed.
-	 *
-	 * @return array<string,mixed>
-	 */
-	public function get_config(): array {
-		if ( null !== $this->unified_cache ) {
-			return $this->unified_cache;
-		}
-		// Derive normalized structure from whatever minimal state is available (defensive fallback)
-		$p                   = $this->unified_cache ?? array();
-		$text_domain         = (string) ( $p['TextDomain'] ?? '' );
-		$name                = (string) ( $p['Name'] ?? '' );
-		$slug_src            = $text_domain !== '' ? $text_domain : $name;
-		$slug                = function_exists( 'sanitize_key' ) ? sanitize_key( $slug_src ) : strtolower( preg_replace( '/[^a-z0-9_\-]/i', '_', $slug_src ) );
-		$logger_default_name = 'RAN_LOG';
-		$logger_default_req  = 'ran_log';
-		$this->unified_cache = array(
-		    'Name'       => $p['Name']    ?? '',
-		    'Version'    => $p['Version'] ?? '',
-		    'TextDomain' => $text_domain,
-		    'PATH'       => $p['PATH'] ?? '',
-		    'URL'        => $p['URL']  ?? '',
-		    'Slug'       => $slug,
-		    'Type'       => ConfigType::Plugin->value,
-		    'RAN'        => array(
-		        'AppOption'       => $p['RAN']['AppOption']       ?? $slug,
-		        'LogConstantName' => $p['RAN']['LogConstantName'] ?? $logger_default_name,
-		        'LogRequestParam' => $p['RAN']['LogRequestParam'] ?? $logger_default_req,
-		    ),
-		    'Basename' => $p['Basename'] ?? '',
-		    'File'     => $p['File']     ?? '',
-		);
-		return $this->unified_cache;
-	}
-
-	/**
-	 * Validate that the root config array has the required fields set.
-	 * These are gathered from the plugin docblock using the WP get_plugin_array().
-	 *
-	 * @param  array<string, mixed> $config The plugin data array.
-	 *
-	 * @return array<string, mixed>|Exception Returns the validated array provided, or throws an exception.
-	 * @throws \Exception Throws if the minimum headers have not been set.
-	 */
-	public function validate_config( array $unified_cache ): array|Exception {
-		$logger  = $this->get_logger();
-		$context = get_class($this) . '::validate_config';
-		// Common normalized keys required across both environments
-		$common_required = array(
-		    'Name',
-		    'Version',
-		    'TextDomain',
-		    'PATH',
-		    'URL',
-		    'Slug',
-		    'Type',
-		);
-
-		foreach ( $common_required as $key ) {
-			if ( ! array_key_exists( $key, $unified_cache ) || $unified_cache[$key] === '' ) {
-				throw new \Exception( sprintf('RanPluginLib: Missing required config key: "%s".', $key) );
-			}
-		}
-
-		// Environment-specific sanity checks
-		if ( ($unified_cache['Type'] ?? '') === ConfigType::Plugin->value ) {
-			foreach ( array('Basename', 'File') as $key ) {
-				if ( ! isset($unified_cache[$key]) || $unified_cache[$key] === '' ) {
-					throw new \Exception( sprintf('RanPluginLib: Missing required plugin config key: "%s".', $key) );
-				}
-			}
-		} elseif ( ($unified_cache['Type'] ?? '') === ConfigType::Theme->value ) {
-			foreach ( array('StylesheetDir', 'StylesheetURL') as $key ) {
-				if ( ! isset($unified_cache[$key]) || $unified_cache[$key] === '' ) {
-					throw new \Exception( sprintf('RanPluginLib: Missing required theme config key: "%s".', $key) );
-				}
-			}
-		}
-		if ( $logger->is_active() ) {
-			$logger->debug("{$context} - Validation OK.", array('type' => ($unified_cache['Type'] ?? 'unknown'), 'slug' => ($unified_cache['Slug'] ?? '')));
-		}
-
-		return $unified_cache;
-	}
-
-	/**
-	 * Returns the generic WordPress option key for the plugin or theme.
-	 *
-	 * Preference order:
-	 * 1) Namespaced RAN.AppOption
-	 * 2) Slug
-	 *
-	 * @return string
-	 */
-	public function get_options_key(): string {
-		$logger  = $this->get_logger();
-		$context = get_class($this) . '::get_options_key';
-		$cfg     = $this->get_config();
-		$ran     = (array)($cfg['RAN'] ?? array());
-		$used    = 'slug';
-		$key     = (string) ($cfg['Slug'] ?? '');
-		if (!empty($ran['AppOption'])) {
-			$key  = (string) $ran['AppOption'];
-			$used = 'RAN.AppOption';
-		}
-		if ( $logger->is_active() ) {
-			$logger->debug("{$context} - Resolved options key.", array(
-			    'type' => $cfg['Type'] ?? '',
-			    'slug' => $cfg['Slug'] ?? '',
-			    'via'  => $used,
-			    'key'  => $key,
-			));
-		}
-		return $key;
-	}
-
-	/**
-	 * Returns the WordPress option value for the plugin or theme.
-	 * If no option is set, the default name is derived from the plugin or theme slug.
-	 *
-	 * @param mixed $default Default setting value if option is not set. Value does not persist.
-	 * @return mixed
-	 */
-	public function get_options(mixed $default = false): mixed {
-		$key = $this->get_options_key();
-		return function_exists('get_option') ? get_option( $key, $default ) : $default;
 	}
 
 	// Code coverage seams are covered by tests in ConfigAbstractTest
