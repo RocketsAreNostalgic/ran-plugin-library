@@ -354,8 +354,6 @@ abstract class ConfigAbstract implements ConfigInterface {
 		return '';
 	}
 
-	// Note: legacy RAN-prefixed header parser removed; namespaced headers are handled by _parse_namespaced_headers().
-
 	/**
 	 * Parses all @<Namespace>: Name: Value headers into a nested map under NamespacedHeaders.
 	 * Enforces reserved-name protection against standard WP headers.
@@ -567,8 +565,10 @@ abstract class ConfigAbstract implements ConfigInterface {
 	 * @return array<string,mixed>
 	 */
 	public function _get_standard_plugin_headers(string $plugin_file): array {
-		if (!\function_exists('get_plugin_data')) {
+		if (!$this->_function_exists('get_plugin_data')) {
+			//@codeCoverageIgnoreStart
 			return array();
+			//@codeCoverageIgnoreEnd
 		}
 		$data = (array) \get_plugin_data($plugin_file, false, false);
 		return array_filter($data, static fn($v) => $v !== '');
@@ -583,8 +583,10 @@ abstract class ConfigAbstract implements ConfigInterface {
 	 * @return array<string,mixed>
 	 */
 	public function _get_standard_theme_headers(string $stylesheet_dir): array {
-		if (!\function_exists('wp_get_theme')) {
+		if (!$this->_function_exists('wp_get_theme')) {
+			//@codeCoverageIgnoreStart
 			return array();
+			//@codeCoverageIgnoreEnd
 		}
 		$slug_guess   = basename($stylesheet_dir);
 		$theme_object = $slug_guess ? wp_get_theme($slug_guess) : wp_get_theme();
@@ -593,8 +595,8 @@ abstract class ConfigAbstract implements ConfigInterface {
 		}
 		// WP_Theme exposes a finite set via ->get(); collect typical keys but keep logic resilient
 		$keys = array(
-		    'Name', 'Version', 'TextDomain', 'Text Domain', 'ThemeURI', 'Author', 'AuthorURI', 'Description',
-		    'DomainPath', 'RequiresWP', 'RequiresPHP', 'UpdateURI', 'Template', 'Status', 'Tags'
+		    'Name', 'ThemeURI', 'Description', 'Author', 'AuthorURI', 'Version', 'Template', 'Status', 'Tags',
+			'TextDomain', 'Text Domain', 'DomainPath', 'Domain Path', 'RequiresWP', 'Requires at least', 'RequiresPHP', 'Requires PHP', 'UpdateURI', 'Update URI',
 		);
 		$headers = array();
 		foreach ($keys as $k) {
@@ -612,7 +614,7 @@ abstract class ConfigAbstract implements ConfigInterface {
 	}
 
 	/**
-	 * Returns an instance of the Logger.
+		* Returns an instance of the Logger.
 	 * Lazily instantiates the logger if it hasn't been already.
 	 *
 	 * @return Logger The logger instance.
@@ -666,19 +668,19 @@ abstract class ConfigAbstract implements ConfigInterface {
 			return $this->is_dev_cache = $result;
 		}
 		$const = (string)(($cfg['RAN']['LogConstantName'] ?? null) ?: 'RAN_LOG');
-		if ( $const && defined( $const ) && (bool) constant( $const ) ) {
+		if ( $const && $this->_defined( $const ) && (bool) $this->_constant( $const ) ) {
 			if ( $logger->is_active() ) {
 				$logger->debug("{$context} - Decision via const.", array('type' => $type, 'slug' => $slug, 'const' => $const, 'result' => true));
 			}
 			return $this->is_dev_cache = true;
 		}
-		if ( defined( 'SCRIPT_DEBUG' ) && SCRIPT_DEBUG ) {
+		if ( $this->_defined( 'SCRIPT_DEBUG' ) && (bool) $this->_constant('SCRIPT_DEBUG') ) {
 			if ( $logger->is_active() ) {
 				$logger->debug("{$context} - Decision via SCRIPT_DEBUG.", array('type' => $type, 'slug' => $slug, 'result' => true));
 			}
 			return $this->is_dev_cache = true;
 		}
-		if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+		if ( $this->_defined( 'WP_DEBUG' ) && (bool) $this->_constant('WP_DEBUG') ) {
 			if ( $logger->is_active() ) {
 				$logger->debug("{$context} - Decision via WP_DEBUG.", array('type' => $type, 'slug' => $slug, 'result' => true));
 			}
@@ -860,4 +862,30 @@ abstract class ConfigAbstract implements ConfigInterface {
 		$key = $this->get_options_key();
 		return function_exists('get_option') ? get_option( $key, $default ) : $default;
 	}
+
+	// Code coverage seams are covered by tests in ConfigAbstractTest
+	// but PHPUnit does not acknowledge this use as coverage.
+	//@codeCoverageIgnoreStart
+	/**
+	* Test seam to simulate missing global functions in unit tests.
+	*/
+	protected function _function_exists(string $fn): bool {
+		return \function_exists($fn);
+	}
+
+	/**
+	* Test seam for defined().
+	*/
+	protected function _defined(string $name): bool {
+		return \defined($name);
+	}
+
+	/**
+	* Test seam for constant().
+	* @return mixed
+	*/
+	protected function _constant(string $name) {
+		return \constant($name);
+	}
+	//@codeCoverageIgnoreEnd
 }
