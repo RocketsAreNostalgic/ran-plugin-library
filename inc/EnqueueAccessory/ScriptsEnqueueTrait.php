@@ -492,7 +492,7 @@ trait ScriptsEnqueueTrait {
 		// Check for malformed tags - either no opening tag or opening tag without closing bracket
 		if ( false === $el_open_pos || false === $closing_bracket_pos ) {
 			if ($logger->is_active()) {
-				$logger->warning("{$context} - Malformed {$asset_type->value} tag for '{$handle_to_match}'. Original tag: " . esc_html($tag) . '. Skipping attribute modification.');
+				$logger->warning("{$context} - Malformed {$asset_type->value} tag for '{$handle_to_match}'. Original tag: {$tag}. Skipping attribute modification.");
 			}
 			return $tag;
 		}
@@ -516,7 +516,7 @@ trait ScriptsEnqueueTrait {
 		$modified_tag = substr_replace( $tag, $attr_str, $closing_bracket_pos, 0 );
 
 		if ($logger->is_active()) {
-			$logger->debug("{$context} - Successfully modified tag for '{$handle_to_match}'. New tag: " . esc_html($modified_tag));
+			$logger->debug("{$context} - Successfully modified tag for '{$handle_to_match}'. New tag: {$modified_tag}");
 		}
 		return $modified_tag;
 	}

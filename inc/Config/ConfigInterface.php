@@ -1,61 +1,50 @@
 <?php
 /**
- * An interface for the Config class.
+ * Unified Config interface for plugins and themes.
  *
- * @package  RanPlugin
+ * @package  RanPluginLib
  */
 
-declare(strict_types = 1);
+declare(strict_types=1);
 
 namespace Ran\PluginLib\Config;
 
 use Ran\PluginLib\Util\Logger;
 
 /**
- * Interface for the Config class which holds key information about the plugin.
+	* Public contract for configuration objects exposed to library consumers.
  *
- * @package  RanPluginLib
+	* The config object MUST return a normalized array that uses neutral keys
+	* across environments (plugin or theme). See PRD for normalized keys.
  */
 interface ConfigInterface {
 	/**
-	 * Returns the value of an active option, or false.
-	 *
-	 * @param  string $key The key of the option.
-	 *
-	 * @param  string $option_string The option name.
-	 *
-	 * @return array<string>|string|false the value of the option key (string or array), or false
-	 */
-	public function get_plugin_options( string $key, string $option_string = '' ): mixed;
+		* Get the normalized configuration array.
+		*
+		* @return array<string,mixed>
+		*/
+	public function get_config(): array;
 
 	/**
-	 * Returns an array of plugin config properties.
-	 *
-	 * @return array<string> config array
-	 */
-	public function get_plugin_config(): array;
+		* Get the full WordPress option payload for this app (stored under the app option key).
+		*
+		* @param mixed $default Default to return when the option is not set.
+		* @return mixed
+		*/
+	public function get_options(mixed $default = false): mixed;
 
 	/**
-	 * Returns an instance of the Logger.
-	 *
-	 * @return Logger The logger instance.
-	 */
+	* Get a logger instance configured for this app.
+	*/
 	public function get_logger(): Logger;
 
 	/**
-	 * Returns the developer-defined callback for checking if the environment is 'dev'.
-	 *
-	 * @return callable|null The callback function, or null if not set.
-	 */
-	public function get_is_dev_callback(): ?callable;
+	* Whether the current environment should be treated as development.
+	*/
+	public function is_dev_environment(): bool;
 
 	/**
-	 * Checks if the current environment is considered a 'development' environment.
-	 *
-	 * This method should encapsulate the logic for determining the environment status,
-	 * such as checking for a specific callback or a WordPress constant.
-	 *
-	 * @return bool True if it's a development environment, false otherwise.
-	 */
-	public function is_dev_environment(): bool;
+	* The environment type backing this configuration (plugin or theme).
+	*/
+	public function get_type(): ConfigType;
 }

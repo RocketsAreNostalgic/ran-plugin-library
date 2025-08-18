@@ -396,7 +396,7 @@ abstract class PluginLibTestCase extends RanTestCase {
 		    ->with($this->mock_plugin_data['TextDomain'])
 		    ->andReturn($this->mock_plugin_data['TextDomain']); // Simple mock
 
-		ConcreteConfigForTesting::init($this->mock_plugin_file_path);
+		// NOTE: Legacy ::init() no longer exists on Config; we create a mock instance directly.
 
 		// Define mock header content for _read_plugin_file_header_content
 		$mock_file_header_content = "<?php\n/**\n";
@@ -410,13 +410,13 @@ abstract class PluginLibTestCase extends RanTestCase {
 		$mock_file_header_content .= ' */';
 
 		$concreteInstance = $this->getMockBuilder(ConcreteConfigForTesting::class)
-			->onlyMethods(array('_read_plugin_file_header_content', 'get_logger', 'get_plugin_data'))
+			->onlyMethods(array('_read_header_content', 'get_logger', 'get_plugin_data', 'get_config'))
 			->addMethods(array('get_enqueue_public_config'))
 			->disableOriginalConstructor()
 			->getMock();
 
 		$concreteInstance->expects($this->any())
-		    ->method('_read_plugin_file_header_content')
+		    ->method('_read_header_content')
 		    ->with($this->mock_plugin_file_path)
 		    ->willReturn($mock_file_header_content);
 
@@ -428,23 +428,32 @@ abstract class PluginLibTestCase extends RanTestCase {
 			->method('get_plugin_data')
 			->willReturn($this->mock_plugin_data);
 
-		// Manually invoke the ConfigAbstract constructor
-		$reflection  = new \ReflectionObject($concreteInstance);
-		$constructor = $reflection->getParentClass()->getConstructor(); // ConfigAbstract constructor
-		$constructor->invoke($concreteInstance);
+		// Provide a minimal normalized config payload expected by tests
+		$slug = strtolower(preg_replace('/[^a-z0-9_\-]/i', '_', (string)($this->mock_plugin_data['TextDomain'] ?? 'mock-plugin')));
+		$concreteInstance->method('get_config')->willReturn(array(
+			'Name'       => $this->mock_plugin_data['Name']       ?? 'Mock Plugin',
+			'Version'    => $this->mock_plugin_data['Version']    ?? '0.0.0',
+			'TextDomain' => $this->mock_plugin_data['TextDomain'] ?? 'mock-plugin',
+			'PATH'       => $this->mock_plugin_dir_path,
+			'URL'        => $this->mock_plugin_dir_url,
+			'Basename'   => $this->mock_plugin_basename,
+			'File'       => $this->mock_plugin_file_path,
+			'Slug'       => $slug,
+			'Type'       => 'plugin',
+		));
 
-		// Register this fully constructed instance in SingletonAbstract
-		$reflectionSingleton = new \ReflectionClass(SingletonAbstract::class);
-		$instancesProperty   = $reflectionSingleton->getProperty('instances');
-		$instancesProperty->setAccessible(true);
-		$currentInstances = $instancesProperty->getValue();
-
-		// Store under its own class name
-		$currentInstances[ConcreteConfigForTesting::class] = $concreteInstance;
-		// AND under ConfigAbstract::class for compatibility with RegisterOptions::get_logger()
-		$currentInstances[ConfigAbstract::class] = $concreteInstance;
-
-		$instancesProperty->setValue(null, $currentInstances);
+		// Register in SingletonAbstract for codepaths that call ConfigAbstract::get_instance()
+		try {
+			$reflectionSingleton = new \ReflectionClass(SingletonAbstract::class);
+			$instancesProperty   = $reflectionSingleton->getProperty('instances');
+			$instancesProperty->setAccessible(true);
+			$currentInstances                                  = $instancesProperty->getValue();
+			$currentInstances[ConcreteConfigForTesting::class] = $concreteInstance;
+			$currentInstances[ConfigAbstract::class]           = $concreteInstance;
+			$instancesProperty->setValue(null, $currentInstances);
+		} catch (\ReflectionException $e) {
+			// If singleton scaffolding changes, tests that depend on it will surface failures.
+		}
 
 		return $concreteInstance;
 	}

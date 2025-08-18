@@ -9,8 +9,6 @@ declare(strict_types = 1);
 
 namespace Ran\PluginLib\Users;
 
-use Ran\PluginLib\Config\ConfigAbstract; // Added this line
-
 /**
  * A helper class for inserting users into the database, which doesn't fail silently with an WP_Error failure.
  */
@@ -26,15 +24,7 @@ abstract class InsertUserDataAbstract {
 	 * @return int The user ID on success.
 	 */
 	public static function insert_user( string $email, string $first_name, string $last_name ): int {
-		$logger = null;
-		try {
-			$config_instance = ConfigAbstract::get_instance();
-			if ($config_instance instanceof ConfigAbstract) {
-				$logger = $config_instance->get_logger();
-			}
-		} catch (\Exception $e) {
-			// Config not initialized or other error, $logger remains null.
-		}
+		$logger = null; // Optional logger; obtain from application context if available
 
 		if ( $logger && $logger->is_active() ) {
 			$logger->debug( "InsertUserDataAbstract: Attempting to insert user. Email: {$email}, First Name: {$first_name}, Last Name: {$last_name}" );
@@ -63,7 +53,7 @@ abstract class InsertUserDataAbstract {
 			if ( $logger && $logger->is_active() ) {
 				$logger->error( "InsertUserDataAbstract: Failed to insert user {$email}. Error: {$error_message}" );
 			}
-			throw new \Exception( \sprintf( 'Could not insert user %s. WordPress Error: %s', esc_html( $email ), esc_html( $error_message ) ) );
+			throw new \Exception( \sprintf( 'Could not insert user %s. WordPress Error: %s', $email, $error_message ) );
 		}
 
 		if ( $logger && $logger->is_active() ) {
@@ -84,15 +74,7 @@ abstract class InsertUserDataAbstract {
 	 * @throws \Exception Throws if 'update_user_meta' is unavailable, or if the result is a WP_Error object.
 	 */
 	public static function insert_user_metta( int $user_id, string $meta_key, mixed $meta_value ): int|false {
-		$logger = null;
-		try {
-			$config_instance = ConfigAbstract::get_instance();
-			if ($config_instance instanceof ConfigAbstract) {
-				$logger = $config_instance->get_logger();
-			}
-		} catch (\Exception $e) {
-			// Config not initialized or other error, $logger remains null.
-		}
+		$logger = null; // Optional logger; obtain from application context if available
 
 		if ( $logger && $logger->is_active() ) {
 			$log_value = is_scalar($meta_value) ? (string) $meta_value : (is_array($meta_value) ? json_encode($meta_value) : gettype($meta_value));
@@ -112,12 +94,12 @@ abstract class InsertUserDataAbstract {
 
 		$results = update_user_meta( $user_id, $meta_key, $meta_value );
 
-		if ( is_wp_error( $results ) ) { // WordPress update_user_meta can return WP_Error on failure with certain filters/actions.
+		if ( is_object($results) && function_exists('is_wp_error') && is_wp_error( $results ) ) { // Guarded check for WP_Error
 			$error_message = $results->get_error_message();
 			if ( $logger && $logger->is_active() ) {
 				$logger->error( "InsertUserDataAbstract: Failed to update user meta for User ID {$user_id}, Key: {$meta_key}. Error: {$error_message}" );
 			}
-			throw new \Exception( esc_html( $error_message ) );
+			throw new \Exception( $error_message );
 		}
 
 		// update_user_meta returns true on success, false on failure, or meta_id if key was new.

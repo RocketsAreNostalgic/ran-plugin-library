@@ -126,9 +126,10 @@ trait AssetEnqueueBaseTrait {
 	/**
 	 * Resolves the asset source URL based on the environment.
 	 *
-	 * Uses the Config's is_dev_environment() method to determine environment:
-	 * - First checks for a developer-defined callback (if provided)
-	 * - Falls back to SCRIPT_DEBUG constant if no callback is set
+     * Uses the Config's is_dev_environment() method to determine environment:
+     * - First checks for a developer-defined callback (if provided)
+     * - Then checks a configurable debug constant and request flag
+     * - Falls back to SCRIPT_DEBUG/WP_DEBUG when no overrides are set
 	 *
 	 * If development environment: prefers the 'dev' URL
 	 * If production environment: prefers the 'prod' URL
@@ -151,7 +152,7 @@ trait AssetEnqueueBaseTrait {
 		$cache_key = 'env_src_' . md5(serialize($src));
 		return $this->_cache_for_request($cache_key, function() use ($src) {
 			$is_dev = $this->_cache_for_request('is_dev_environment', function() {
-				return $this->get_config()->is_dev_environment();
+				return $this->is_dev_environment();
 			});
 
 			if ($is_dev && !empty($src['dev'])) {

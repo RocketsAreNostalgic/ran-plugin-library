@@ -240,11 +240,11 @@ final class RegisterOptionsApiTest extends PluginLibTestCase {
 	/**
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::from_config
 	 */
-	public function test_from_config_uses_RANPluginOption(): void {
+	public function test_from_config_uses_RAN_AppOption(): void {
 		// ConfigAbstract uses sanitize_title() internally; stub it
 		WP_Mock::userFunction('sanitize_title')->andReturn('test-plugin');
 		$cfg  = new TestableConfig();
-		$main = $cfg->get_plugin_config()['RANPluginOption'];
+		$main = $cfg->get_config()['RAN']['AppOption'];
 		WP_Mock::userFunction('get_option')->with($main, array())->once()->andReturn(array());
 		$opts = RegisterOptions::from_config($cfg);
 		$this->assertInstanceOf(RegisterOptions::class, $opts);
@@ -587,24 +587,24 @@ final class RegisterOptionsApiTest extends PluginLibTestCase {
 	/**
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::from_config
 	 */
-	public function test_from_config_missing_RANPluginOption_throws(): void {
+	public function test_from_config_missing_RAN_AppOption_throws(): void {
 		$missingCfg = new class($this->logger_mock) implements \Ran\PluginLib\Config\ConfigInterface {
 			public function __construct(private $logger) {
 			}
-			public function get_plugin_options(string $key, string $option_string = ''): mixed {
-				return false;
-			}
-			public function get_plugin_config(): array {
+			public function get_config(): array {
 				return array();
+			}
+			public function get_options(mixed $default = false): mixed {
+				return $default;
 			}
 			public function get_logger(): \Ran\PluginLib\Util\Logger {
 				return $this->logger;
 			}
-			public function get_is_dev_callback(): ?callable {
-				return null;
-			}
 			public function is_dev_environment(): bool {
 				return false;
+			}
+			public function get_type(): \Ran\PluginLib\Config\ConfigType {
+				return \Ran\PluginLib\Config\ConfigType::Plugin;
 			}
 		};
 		$this->expectException(\InvalidArgumentException::class);
@@ -633,7 +633,7 @@ final class RegisterOptionsApiTest extends PluginLibTestCase {
 		// Use from_config to pass a config; default callable inspects cfg
 		WP_Mock::userFunction('sanitize_title')->andReturn('test-plugin');
 		$cfg  = new \Ran\PluginLib\Tests\Unit\TestClasses\TestableConfig();
-		$main = $cfg->get_plugin_config()['RANPluginOption'];
+		$main = $cfg->get_config()['RAN']['AppOption'];
 		WP_Mock::userFunction('get_option')->with($main, array())->once()->andReturn(array());
 		// Expect defaults seeded with value 'yes'
 		WP_Mock::userFunction('update_option')->with($main, array(

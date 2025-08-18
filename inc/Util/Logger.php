@@ -454,7 +454,8 @@ class Logger implements LoggerInterface {
 		);
 
 		if ( ! empty( $context ) ) {
-			$formatted_message .= ' Context: ' . wp_json_encode( $context );
+			$json = function_exists('wp_json_encode') ? \wp_json_encode( $context ) : \json_encode( $context );
+			$formatted_message .= ' Context: ' . $json;
 		}
 
 		if (null !== $this->error_log_handler) {

@@ -103,6 +103,13 @@ abstract class AssetEnqueueBaseAbstract {
 	}
 
 	/**
+	 * Proxy environment detection to the underlying Config instance.
+	 */
+	public function is_dev_environment(): bool {
+		return $this->config->is_dev_environment();
+	}
+
+	/**
 	 * Basic implementation.
 	 * Processes a single asset definition, fullly implimented by Styles/ScriptsEnqueueTrait
 	 * MediaEnqueueTrait uses a different processing model.

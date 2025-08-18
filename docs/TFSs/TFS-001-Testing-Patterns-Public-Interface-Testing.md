@@ -1,8 +1,6 @@
-<<<<<<<< HEAD:docs/TFS-001-Testing-Patterns-Public-Interface-Testing.md
 # TFS-001: Public Interface Testing Patterns for WordPress Plugin Development
+
 ========
-# ADR-002: Public Interface Testing Patterns for WordPress Plugin Development
->>>>>>>> feat/improve-options-smoke:docs/ARDs/ARD-002-Testing-Patterns-Public-Interface-Testing.md
 
 ## Status
 
@@ -379,6 +377,7 @@ $this->expectLog('warning', [
 3. **Cover edge cases and error conditions**
 4. **Verify WordPress API integration**
 5. **Test logging and error handling**
+6. **Use PHPUnit `@covers` annotations to singnal what internal methods are being tested**
 
 ## Benefits
 
