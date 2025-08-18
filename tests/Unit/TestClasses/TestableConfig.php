@@ -170,12 +170,12 @@ class TestableConfig extends ConfigAbstract {
 	}
 
 	/**
-		* Override validate_plugin_array to always return the mock plugin data.
+		* Override validate_config_array to always return the mock plugin data.
 		*
-		* @param array<string, mixed> $plugin_array The plugin data array.
+		* @param array<string, mixed> $config_array The plugin data array.
 		* @return array<string, mixed> Returns the mock plugin data.
 		*/
-	public function validate_plugin_array(array $plugin_array): array {
+	public function validate_config_array(array $config_array): array {
 		return $this->mock_plugin_data;
 	}
 

@@ -20,18 +20,18 @@ use Ran\PluginLib\Config\ConfigInterface;
  */
 abstract class FeatureControllerAbstract implements RegistrableFeatureInterface {
 	/**
-	 * Plugin object.
+	 * Config object.
 	 *
-	 * @var mixed
+	 * @var ConfigInterface
 	 */
-	protected ConfigInterface $plugin;
+	protected ConfigInterface $config;
 
 	/**
-	 * Array of plugin data returned from the Plugin object.
+	 * Array of config data returned from the Config object.
 	 *
 	 * @var array<string, mixed>
 	 */
-	protected array $plugin_array = array();
+	protected array $config_array = array();
 
 	/**
 	 * Array of feature 'managers' or admin settings screens.
@@ -43,11 +43,11 @@ abstract class FeatureControllerAbstract implements RegistrableFeatureInterface 
 	/**
 	 * Constructor.
 	 *
-	 * @param  ConfigInterface $plugin Plugin instance that conforms to the interface.
+	 * @param  ConfigInterface $config Config instance that conforms to the interface.
 	 */
-	public function __construct( ConfigInterface $plugin ) {
-		$this->plugin       = $plugin;
-		$this->plugin_array = $plugin->plugin_array;
+	public function __construct( ConfigInterface $config ) {
+		$this->config       = $config;
+		$this->config_array = $config->get_config();
 	}
 	/**
 	 * Base initialization method for FeatureControllers.
@@ -71,7 +71,9 @@ abstract class FeatureControllerAbstract implements RegistrableFeatureInterface 
 	 */
 	public function is_activated( string $key, string $option_name = '' ): mixed {
 		if ( empty( $option_name ) ) {
-			$option_name = $this->plugin_array['PluginOption'];
+			// Derive option key from normalized config (RAN.AppOption preferred, else Slug)
+			$ran         = (array) ( $this->config_array['RAN'] ?? array() );
+			$option_name = (string) ( ! empty( $ran['AppOption'] ) ? $ran['AppOption'] : ( $this->config_array['Slug'] ?? '' ) );
 		}
 
 		$option = get_option( $option_name );

@@ -3,6 +3,7 @@
 - Area: `plugin-lib/inc/Config/*`
 - Related: `inc/FeaturesAPI/*`, `inc/EnqueueAccessory/*`, `inc/Config/readme.md`
 - Date: 2025-08-11
+- Status: Completed
 
 ## Overview
 
@@ -15,7 +16,7 @@
 - Provide a single `ConfigInterface` and one concrete `Config` supporting both plugin and theme sources.
 - Offer simple, explicit initialization for each environment.
 - Return a normalized config array (`get_config()`) with consistent keys regardless of environment.
-- Provide neutral naming (no “plugin-only” terms) since this must work in themes as well.
+- Provide neutral naming (no "plugin-only" terms) since this must work in themes as well.
 - OK to rename methods/keys (alpha, no BC constraints).
 
 ## Non-goals
@@ -28,7 +29,7 @@
 - `ConfigInterface`
 
   - `public function get_config(): array<string,mixed>`
-  - `public function get_option(?string $optionKey = null, mixed $default = false): mixed`
+  - `public function get_options(mixed $default = false): mixed`
   - `public function get_logger(): Ran\PluginLib\Util\Logger`
   - `public function is_dev_environment(): bool`
   - `public function get_type(): Ran\PluginLib\Config\ConfigType`
@@ -50,11 +51,9 @@
   - `PATH` (string) absolute base path
   - `URL` (string) base URL
   - `Slug` (string) normalized identifier (typically sanitized `TextDomain`)
-  - `RANAppOption` (string) app-wide option name derived from `TextDomain`/slug
+  - `RAN.AppOption` (string) app-wide option name derived from `TextDomain`/slug
   - `Type` (string: `plugin`|`theme`) for diagnostics
   - Logging: `RANLogConstantName`, `RANLogRequestParam`
-
-(NOTE: RANAppOption is now namespaced to `[RAN][AppOption]` )
 
 - Plugin-specific additions
 
@@ -97,9 +96,9 @@ Rationale:
 ## Method Renames (no BC required)
 
 - `get_plugin_config()` → `get_config()`
-- `get_plugin_options()` → `get_option()`
+- `get_plugin_options()` → `get_options()`
 - Internal property on consumer base classes: `$plugin_array` → `$config_array`
-- Option key: `RANPluginOption` → `RANAppOption`
+- Option key: `RAN.PluginOption` → `RAN.AppOption`
 
 ## Consumer Impact
 
@@ -121,7 +120,7 @@ use Ran\PluginLib\Config\Config;
 
 $config = Config::fromPluginFile(__FILE__);
 $data   = $config->get_config();
-$value  = $config->get_option();
+$value  = $config->get_options();
 ```
 
 - Theme
@@ -139,7 +138,7 @@ $data   = $config->get_config();
 2. Implement `Config` class with:
    - Factories: `fromPluginFile()`, `fromThemeDir()`
    - Hydrators: `hydratePlugin()`, `hydrateTheme()`
-   - API: `get_config()`, `get_option()`, `get_logger()`, `is_dev_environment()`, `get_type()`
+   - API: `get_config()`, `get_options()`, `get_logger()`, `is_dev_environment()`, `get_type()`
 3. Rename internal arrays and references in `FeaturesAPI` and `EnqueueAccessory` to `$config_array`
 4. Update docs:
    - `inc/Config/readme.md` to reflect unified approach
@@ -154,14 +153,14 @@ $data   = $config->get_config();
 ## Risks & Mitigations
 
 - Theme metadata parity: Some plugin headers do not exist for themes. Normalize best-effort and document which keys may be absent. Tests must cover both paths.
-- Option key derivation: Ensure `RANAppOption` derivation is deterministic; prefer sanitized `TextDomain` fallback.
+- Option key derivation: Ensure `RAN.AppOption` derivation is deterministic; prefer sanitized `TextDomain` fallback.
 - Trait/base references in Enqueue: Add a single accessor or consistently use `$this->config` to avoid ambiguity.
 
 ## Acceptance Criteria
 
 - One `Config` class supports plugin/theme via explicit factory methods.
 - `get_config()` returns normalized keys listed above for both environments.
-- `get_option()` works using `RANAppOption` by default and respects `$default`.
+- `get_options()` works using `RAN.AppOption` by default and respects `$default`.
 - `get_type()` returns the correct `ConfigType`.
 - `FeaturesAPI` and `EnqueueAccessory` compile and run with the renamed `$config_array` and new method names.
 - Documentation:

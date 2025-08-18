@@ -60,7 +60,7 @@ Adopt a single-row, schema-aware options manager (`RegisterOptions`) that:
 ### Integration Points
 
 - WordPress Options API: `get_option`, `update_option`, `add_option`, `delete_option`.
-- `ConfigInterface#get_plugin_config()['RANPluginOption']` to derive the main option name.
+- `ConfigInterface#get_config()['RAN']['AppOption']` to derive the main option name.
 
 ### Data Flow
 
@@ -122,7 +122,7 @@ public static function sanitize_option_key(string $key): string
 
 ### Configuration Options
 
-- Main option name derived from `ConfigInterface` via `RANPluginOption`.
+- Main option name derived from `ConfigInterface` via `RAN.AppOption`, with a fallback to `Slug`.
 - `main_option_autoload` controls grouped row autoload on creation.
 - Per-key `autoload_hint` is metadata only (does not affect WP autoload), useful for audits/migrations.
 
