@@ -4,9 +4,6 @@
 
 - **Status**: Implemented
 - **Date**: 2025-08-14
-- **Updated**: 2025-08-14
-- **Implementation Priority**: High
-- **Technical Complexity**: Medium
 - **Dependencies**: Logger system
 
 ## Context
@@ -61,9 +58,11 @@ interface ConfigInterface {
 #### Config Factory Class
 
 ```php
-final class Config implements ConfigInterface {
+final class Config extends ConfigAbstract implements ConfigInterface {
     public static function fromPluginFile(string $pluginFile): self;
+    public static function fromPluginFileWithLogger(string $pluginFile, \Ran\PluginLib\Util\Logger $logger): self;
     public static function fromThemeDir(?string $stylesheetDir = null): self;
+    public static function fromThemeDirWithLogger(?string $stylesheetDir, \Ran\PluginLib\Util\Logger $logger): self;
 }
 ```
 
@@ -98,9 +97,15 @@ final class Config implements ConfigInterface {
 // Plugin initialization
 $config = Config::fromPluginFile(__FILE__);
 
+// Plugin initialization with a custom logger used during hydration
+$config = Config::fromPluginFileWithLogger(__FILE__, new \Ran\PluginLib\Util\Logger());
+
 // Theme initialization
 $config = Config::fromThemeDir();
 $config = Config::fromThemeDir(get_stylesheet_directory());
+
+// Theme initialization with a custom logger used during hydration
+$config = Config::fromThemeDirWithLogger(get_stylesheet_directory(), new \Ran\PluginLib\Util\Logger());
 ```
 
 #### Core Methods
@@ -120,6 +125,9 @@ $isDev = $config->is_dev_environment();
 
 // Get environment type
 $type = $config->get_type(); // ConfigType::Plugin or ConfigType::Theme
+
+// Resolve main WP option key (prefers RAN.AppOption; falls back to Slug)
+$key = $config->get_options_key();
 ```
 
 ### Usage Examples
@@ -260,13 +268,13 @@ Multiple mechanisms for development environment detection:
 ### Compatibility Requirements
 
 - **WordPress**: 5.0+ (uses modern WordPress APIs)
-- **PHP**: 8.1+ (uses modern PHP features like enums, readonly properties)
+- **PHP**: 8.1+ (uses enums and strict types)
 - **Themes**: Compatible with both classic and block themes
 - **Plugins**: Works with standard WordPress plugin structure
 
 ### Security Considerations
 
-- **Input Validation**: All header data validated and sanitized
+- **Input Validation**: Header data validated and normalized; reserved-name collisions prevented for namespaced headers. Extra header values are not sanitized by the Config system.
 - **File Access**: Only reads from WordPress-approved locations
 - **Option Security**: WordPress options API used for data persistence
 - **Debug Protection**: Development detection doesn't expose sensitive data
@@ -304,6 +312,7 @@ Multiple mechanisms for development environment detection:
 ### Phase 5: Options Integration (PRD-002)
 
 - [ ] Options integration, to provide a batteries-included experience for managing theme & plugin options
+- [ ] Implemented via RegisterOptions (schema, sanitize/validate, autoload)
 - [ ] Updated test coverage
 - [ ] Updated documentation & examples
 
@@ -335,7 +344,7 @@ Multiple mechanisms for development environment detection:
 
 - Plugin & theme options integration
 - Migrations and update handling and examples
-- Multi-site support and network-wide configuration
+- Multi-site support and **network**-wide configuration
 - Configuration validation schemas
 - Hot-reloading for development environments
 - Configuration export/import functionality
@@ -351,16 +360,10 @@ Multiple mechanisms for development environment detection:
 
 ### Related Documentation
 
-- [PRD-001: Unified Config for Themes & Plugins](PRD-001-Unified-Config-for-themes-plugins.md)
-- [PRD-002: Config Options Integration](PRD-002-Config-Options-Integration.md)
 - [Config System README](../readme.md)
+- [PRD-002: Config Options Integration](PRD-002-Config-Options-Integration.md)
+- [examples](examples/)
 
 ### Code Examples
 
 See the `examples/` directory for comprehensive usage examples and integration patterns.
-
-### Performance Benchmarks
-
-- Configuration loading: < 1ms for typical plugin/theme
-- Memory usage: < 50KB for cached configuration data
-- File I/O: Single read per configuration source

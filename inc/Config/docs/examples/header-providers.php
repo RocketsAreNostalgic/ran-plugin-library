@@ -8,7 +8,6 @@
 declare(strict_types=1);
 
 use Ran\PluginLib\Config\Config;
-use Ran\PluginLib\Config\ConfigType;
 
 // Plugin mode (default)
 $cfgPlugin = Config::fromPluginFile(__FILE__)->get_config();

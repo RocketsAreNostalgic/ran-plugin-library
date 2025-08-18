@@ -12,6 +12,10 @@ use Ran\PluginLib\Config\Config;
 // Initialize using factory (e.g., in functions.php)
 $config = Config::fromThemeDir(get_stylesheet_directory());
 
+// Optional: initialize with a custom logger during hydration
+// $logger = new \Ran\PluginLib\Util\Logger(array('custom_debug_constant_name' => 'MY_DEBUG', 'debug_request_param' => 'debug'));
+// $config = Config::fromThemeDirWithLogger(get_stylesheet_directory(), $logger);
+
 $cfg = $config->get_config();
 
 $themeName = $cfg['Name'];

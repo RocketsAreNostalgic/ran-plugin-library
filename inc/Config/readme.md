@@ -9,7 +9,7 @@ It builds on WordPress' own APIs for “blessed” headers and augments them wit
 - Use WordPress to resolve standard header fields (robust and future‑proof).
 - Normalize common fields (PATH, URL, Slug, Type) across plugins and themes.
 - Support custom headers via namespaced annotations in file comments.
-- Provide a single API for options, logging, and environment detection.
+- Provide a single API for options, logging, and dev environment detection.
 
 ## Quick start
 
@@ -53,8 +53,12 @@ $isDev  = $config->is_dev_environment();
 
 - `Config::fromPluginFile(string $pluginFile): Config`
   - Hydrates from the plugin root file (typically `__FILE__` from your main plugin).
+- `Config::fromPluginFileWithLogger(string $pluginFile, \Ran\PluginLib\Util\Logger $logger): Config`
+  - Same as above, but uses the provided logger during hydration.
 - `Config::fromThemeDir(?string $stylesheetDir = null): Config`
   - Hydrates from a theme stylesheet directory. If omitted, it attempts runtime detection (requires WP loaded).
+- `Config::fromThemeDirWithLogger(?string $stylesheetDir, \Ran\PluginLib\Util\Logger $logger): Config`
+  - Same as above, but uses the provided logger during hydration.
 
 ## Normalized structure
 
@@ -130,6 +134,9 @@ Notes:
 ```php
 // Read the full options payload for the app's option key
 $value = $config->get_options([]); // Returns [] if the option row is missing
+
+// Resolve the app's main option key (prefers RAN.AppOption; else Slug)
+$key = $config->get_options_key();
 ```
 
 App option key resolution:
