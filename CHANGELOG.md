@@ -8,14 +8,12 @@ Breaking: Unified, environment‑agnostic Config system with namespaced custom h
 - Breaking change: Option key resolution now explicitly prefers `RAN.AppOption` and otherwise uses `Slug` via `get_options_key()`; the top‑level options key is no longer required in the normalized array.
 - New: Theme and plugin hydration via header providers (`PluginHeaderProvider`, `ThemeHeaderProvider`) with validation and memoized header‑buffer reads.
 - New: Namespaced custom header parsing using `@<Namespace>:` lines (e.g., `@RAN: Log Constant Name: RAN_LOG`) surfaced as `$cfg['RAN']['LogConstantName']`.
-- New: Batteries‑included Options ergonomics planned in PRD — `get_app_option_key()`, `options()` on `Config`, and `RegisterOptions::fromConfig()` with seeding/migration helpers; `get_options()` remains as a convenience to read the stored payload.
-- Docs: Added PRD/TFS and examples for custom headers, logger integration, options lookup, and quick starts for plugins and themes. Updated `inc/Config/readme.md` with full API and usage details.
+- New: Batteries‑included Options ergonomics planned in PRD — `get_options_key()`, `options()` on `Config`, and `RegisterOptions::fromConfig()` with seeding/migration helpers; `get_options()` remains as a convenience to read the stored payload.
+- Docs: Added TFS and examples for custom headers, logger integration, options lookup, and quick starts for plugins and themes. Updated `inc/Config/readme.md` with full API and usage details.
 - Tests: Comprehensive test suite for plugin/theme hydration, header providers, option key resolution, logging, and validation.
 
-Migration notes:
-
 - Use `Config::fromPluginFile(__FILE__)` (plugins) or `Config::fromThemeDir(get_stylesheet_directory())` (themes) to hydrate.
-- Read options via `$config->get_options($default)` or adopt the options manager pattern once available: `$config->options()->get_option($config->get_app_option_key(), [])`.
+- Read options via `$config->get_options($default)` or adopt the options manager pattern once available: `$config->options()->get_option($config->get_options_key(), [])`.
 - For custom headers, declare `@RAN:` or other namespaces in the first comment block of your root file; avoid redefining reserved WP headers.
 
 ## 0.0.13 - 2025-08-11

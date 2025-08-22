@@ -24,9 +24,6 @@ $config = Config::fromPluginFile(__FILE__);
 $cfg = $config->get_config();
 // $cfg['Name'], $cfg['Version'], $cfg['PATH'], $cfg['URL'], $cfg['Slug'], $cfg['Type'] === 'plugin'
 
-// Options from WordPress database (entire payload for the app's option key)
-$options = $config->get_options();
-
 // Logger (uses RAN.LogConstantName / RAN.LogRequestParam or sane defaults)
 $logger  = $config->get_logger();
 
@@ -132,9 +129,6 @@ Notes:
 ## Options API
 
 ```php
-// Read the full options payload for the app's option key
-$value = $config->get_options([]); // Returns [] if the option row is missing
-
 // Resolve the app's main option key (prefers RAN.AppOption; else Slug)
 $key = $config->get_options_key();
 ```
@@ -258,7 +252,7 @@ $cfg['RAN']['AppOption'];       // my_plugin
 $cfg['RAN']['LogConstantName']; // MY_DEBUG
 $cfg['Acme']['ApiBase'];        // https://api.example.com
 
-$options = $config->get_options();
+$options_key = $config->get_options_key();
 $logger  = $config->get_logger();
 ```
 
