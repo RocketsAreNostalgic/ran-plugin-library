@@ -2,13 +2,14 @@
 
 RAN PluginLib is a (work in progress) library designed to accelerate WordPress plugin development by providing a robust foundation for common plugin tasks, including configuration management, asset enqueuing, and feature organization.
 
-**BETA - THIS IS A CONCEPTUAL AND IS NOT INTENDED FOR PRODUCTION USE.**
+**BETA - THIS IS CONCEPTUAL AND NOT INTENDED FOR PRODUCTION USE.**
 
 An example implementation is available at <https://github.com/RocketsAreNostalgic/ran-starter-plugin>
 
 ## Features
 
 - **Configuration Management:** Easily load plugin metadata and custom configuration from your main plugin file's docblock.
+- **Options Management:** A system to register plugin 'options', with comprehensive schema management, and dynamic default seeding.
 - **Asset Enqueuing Accessory:** A flexible system for adding and managing CSS and JavaScript files for both admin and public-facing pages, with support for conditions, dependencies, inline scripts, and deferred loading.
 
 - **Hooks Accessory:** A system to organize plugin filter and action hooks.
@@ -18,9 +19,6 @@ An example implementation is available at <https://github.com/RocketsAreNostalgi
 ## Utilities
 
 - **Logging:** Built-in PSR-3 compatible logger, configurable via plugin headers or constants, to aid in development and debugging.
-- **Options Management:** A system to register plugin 'options', with comprehensive schema management, and dynamic default seeding.
-
-- **WordPress Coding Standards Compliant:** Developed with WordPress coding standards in mind.
 
 ## Getting Started
 
@@ -301,6 +299,44 @@ $public_assets->add_scripts([
     ]
 ]);
 ```
+
+## Options Management (Quick Start)
+
+Use `Config::options(array $args = [])` to access your plugin’s registered options. Defaults to site scope.
+
+```php
+// Get the singleton Config (after your plugin calls ::init(__FILE__))
+$config = MyAwesomePlugin\Base\Config::get_instance();
+
+// Default (site) scope
+$opts   = $config->options(); // same as ['scope' => 'site']
+
+// Read values
+$values  = $opts->get_values();                 // values-only array
+$enabled = $opts->get_option('enabled', false); // single field with default
+
+```
+
+Scopes:
+
+```php
+// Network-wide options
+$networkOpts = $config->options(['scope' => 'network']);
+
+// Specific blog/site options (multisite)
+$blogOpts = $config->options([
+  'scope'   => 'blog',
+  'blog_id' => 123, // required for 'blog'
+]);
+```
+
+Notes:
+
+- Autoload applies to the site scope only.
+- Flipping autoload outside site scope is a no-op (with notice).
+- See detailed design and examples in:
+  - inc/Config/docs/PRD-002-Config-Options-Integration.md
+  - inc/Config/docs/PRD-003-Options-Scope-and-Multisite.md
 
 ## Advanced Usage
 
