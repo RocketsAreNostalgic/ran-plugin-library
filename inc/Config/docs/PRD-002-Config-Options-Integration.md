@@ -247,7 +247,7 @@ $enabled = $opts->get_option('enabled', false);
 
 Non-breaking expansion to add explicit option scope support. See PRD-003: [PRD-003-Options-Scope-and-Multisite.md](./PRD-003-Options-Scope-and-Multisite.md).
 
-\*\*\*\*- Extend `Config::options(array $args = [])` to accept `scope` (default `'site'`) and optional `blog_id` (required for `'blog'`).
+- Extend `Config::options(array $args = [])` to accept `scope` (default `'site'`) and optional `blog_id` (required for `'blog'`).
 
 - Provide `RegisterOptions::fromConfig(\Ran\PluginLib\Config\ConfigInterface $cfg, string $scope = 'site', ?int $blog_id = null)`.
 - Implement internal adapters mapping to `get_option` / `get_site_option` / `get_blog_option`.
