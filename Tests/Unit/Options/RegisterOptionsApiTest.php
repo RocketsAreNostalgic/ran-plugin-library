@@ -36,6 +36,17 @@ use WP_Mock;
 final class RegisterOptionsApiTest extends PluginLibTestCase {
 	private string $mainOption = 'ran_plugin_options_test';
 
+	public function setUp(): void {
+		parent::setUp();
+		// Ensure sanitize_key is consistently available during tests
+		WP_Mock::userFunction('sanitize_key')
+			->andReturnUsing(function ($v) {
+				$s = strtolower(preg_replace('/[^a-z0-9_\-]/i', '', (string) $v));
+				return trim($s, '_');
+			})
+			->byDefault();
+	}
+
 	/**
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::__construct
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::get_option
@@ -46,7 +57,7 @@ final class RegisterOptionsApiTest extends PluginLibTestCase {
 			->with($this->mainOption, array(
 				'enabled' => array('value' => true, 'autoload_hint' => null),
 				'timeout' => array('value' => 30, 'autoload_hint' => null),
-			), true)
+			), 'yes')
 			->once()
 			->andReturn(true);
 
@@ -71,7 +82,7 @@ final class RegisterOptionsApiTest extends PluginLibTestCase {
 		WP_Mock::userFunction('update_option')
 			->with($this->mainOption, array(
 				'foo' => array('value' => 'new', 'autoload_hint' => null),
-			), true)
+			), 'yes')
 			->once()
 			->andReturn(true);
 
@@ -102,7 +113,7 @@ final class RegisterOptionsApiTest extends PluginLibTestCase {
 		WP_Mock::userFunction('update_option')
 			->with($this->mainOption, array(
 				'k' => array('value' => 124, 'autoload_hint' => null),
-			), true)
+			), 'yes')
 			->once()->andReturn(true);
 
 		$opts = new RegisterOptions($this->mainOption);
@@ -119,7 +130,7 @@ final class RegisterOptionsApiTest extends PluginLibTestCase {
 			->with($this->mainOption, array(
 				'a' => array('value' => 'x', 'autoload_hint' => null),
 				'b' => array('value' => true, 'autoload_hint' => null),
-			), true)
+			), 'yes')
 			->once()->andReturn(true);
 
 		$opts = new RegisterOptions($this->mainOption);
@@ -144,7 +155,7 @@ final class RegisterOptionsApiTest extends PluginLibTestCase {
 		// Expect update_option to be called with the same structure, returning true
 		WP_Mock::userFunction('update_option')->with($this->mainOption, array(
 		    'a' => array('value' => 'x', 'autoload_hint' => null),
-		), true)->once()->andReturn(true);
+		), 'yes')->once()->andReturn(true);
 		$this->assertTrue($opts->flush());
 	}
 
@@ -156,7 +167,7 @@ final class RegisterOptionsApiTest extends PluginLibTestCase {
 		WP_Mock::userFunction('update_option')
 			->with($this->mainOption, array(
 				'flag' => array('value' => false, 'autoload_hint' => null),
-			), true)
+			), 'yes')
 			->once()->andReturn(true);
 
 		$opts    = new RegisterOptions($this->mainOption);
@@ -184,8 +195,17 @@ final class RegisterOptionsApiTest extends PluginLibTestCase {
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::set_main_autoload
 	 */
 	public function test_set_main_autoload_flips_flag_preserving_data(): void {
-		// get_option is called twice: constructor + inside set_main_autoload
-		WP_Mock::userFunction('get_option')->with($this->mainOption, array())->times(2)->andReturn(array(
+		// get_option is called three times:
+		// 1) constructor (default array())
+		// 2) inside get_main_autoload() with a sentinel default (stdClass)
+		// 3) snapshot read before re-adding (default array())
+		WP_Mock::userFunction('get_option')->with($this->mainOption, array())->once()->andReturn(array(
+		    'k' => array('value' => 'v', 'autoload_hint' => null),
+		));
+		WP_Mock::userFunction('get_option')->with($this->mainOption, \Mockery::type('object'))->once()->andReturn(array(
+		    'k' => array('value' => 'v', 'autoload_hint' => null),
+		));
+		WP_Mock::userFunction('get_option')->with($this->mainOption, array())->once()->andReturn(array(
 		    'k' => array('value' => 'v', 'autoload_hint' => null),
 		));
 		WP_Mock::userFunction('delete_option')->with($this->mainOption)->once()->andReturn(true);
@@ -213,7 +233,7 @@ final class RegisterOptionsApiTest extends PluginLibTestCase {
 		WP_Mock::userFunction('update_option')
 		    ->with($this->mainOption, array(
 		        'email' => array('value' => 'user@example.com', 'autoload_hint' => null),
-		    ), true)
+		    ), 'yes')
 		    ->once()->andReturn(true);
 		$opts = new RegisterOptions($this->mainOption, array(), true, null, null, $schema);
 		$this->assertTrue($opts->set_option('email', ' user@example.com '));
@@ -259,7 +279,7 @@ final class RegisterOptionsApiTest extends PluginLibTestCase {
 		WP_Mock::userFunction('update_option')
 		    ->with($this->mainOption, array(
 		        'flag' => array('value' => true, 'autoload_hint' => null),
-		    ), true)
+		    ), 'yes')
 		    ->once()->andReturn(true);
 
 		$opts = new RegisterOptions($this->mainOption);
@@ -278,7 +298,7 @@ final class RegisterOptionsApiTest extends PluginLibTestCase {
 		WP_Mock::userFunction('update_option')
 		    ->with($this->mainOption, array(
 		        'v' => array('value' => 1, 'autoload_hint' => null),
-		    ), true)
+		    ), 'yes')
 		    ->once()->andReturn(true);
 		$opts = new RegisterOptions($this->mainOption);
 		$this->assertTrue($opts->update_option('v', 1));
@@ -307,7 +327,7 @@ final class RegisterOptionsApiTest extends PluginLibTestCase {
 		WP_Mock::userFunction('update_option')
 		    ->with($this->mainOption, array(
 		        'b' => array('value' => 2, 'autoload_hint' => null),
-		    ), true)
+		    ), 'yes')
 		    ->once()->andReturn(true);
 		$opts = new RegisterOptions($this->mainOption);
 		$this->assertTrue($opts->delete_option('a'));
@@ -332,7 +352,7 @@ final class RegisterOptionsApiTest extends PluginLibTestCase {
 		    'x' => array('value' => 1, 'autoload_hint' => null),
 		));
 		WP_Mock::userFunction('update_option')
-		    ->with($this->mainOption, array(), true)
+		    ->with($this->mainOption, array(), 'yes')
 		    ->once()->andReturn(true);
 		$opts = new RegisterOptions($this->mainOption);
 		$this->assertTrue($opts->clear());
@@ -534,7 +554,7 @@ final class RegisterOptionsApiTest extends PluginLibTestCase {
 		WP_Mock::userFunction('update_option')
 		    ->with($this->mainOption, array(
 		        'flag' => array('value' => false, 'autoload_hint' => true),
-		    ), true)
+		    ), 'yes')
 		    ->once()->andReturn(true);
 		$opts = new RegisterOptions($this->mainOption);
 		$this->assertTrue($opts->register_schema(array(
@@ -577,11 +597,14 @@ final class RegisterOptionsApiTest extends PluginLibTestCase {
 	}
 
 	/**
-	 * @covers \Ran\PluginLib\Options\RegisterOptions::sanitize_key
+	 * @covers \Ran\PluginLib\Util\WPWrappersTrait::_do_sanitize_key
 	 */
 	public function test_sanitize_key_strips_and_trims_and_lowercases(): void {
-		$this->assertSame('abc_123', \Ran\PluginLib\Options\RegisterOptions::sanitize_key('AbC-123!!'));
-		$this->assertSame('abc', \Ran\PluginLib\Options\RegisterOptions::sanitize_key('__ABC__'));
+		// Constructor will call get_option; stub it once for this test
+		WP_Mock::userFunction('get_option')->with($this->mainOption, array())->once()->andReturn(array());
+		$opts = new RegisterOptions($this->mainOption);
+		$this->assertSame('abc-123', $opts->_do_sanitize_key('AbC-123!!'));
+		$this->assertSame('abc', $opts->_do_sanitize_key('__ABC__'));
 	}
 
 	/**
@@ -620,7 +643,7 @@ final class RegisterOptionsApiTest extends PluginLibTestCase {
 		WP_Mock::userFunction('get_option')->with($this->mainOption, array())->once()->andReturn(array());
 		WP_Mock::userFunction('update_option')->with($this->mainOption, array(
 		    'x' => array('value' => 1, 'autoload_hint' => null),
-		), true)->once()->andReturn(false);
+		), 'yes')->once()->andReturn(false);
 		$opts = new RegisterOptions($this->mainOption);
 		$opts->add_options(array('x' => 1));
 		$this->assertFalse($opts->flush());
@@ -638,7 +661,7 @@ final class RegisterOptionsApiTest extends PluginLibTestCase {
 		// Expect defaults seeded with value 'yes'
 		WP_Mock::userFunction('update_option')->with($main, array(
 		    'env' => array('value' => 'yes', 'autoload_hint' => null),
-		), true)->once()->andReturn(true);
+		), 'yes')->once()->andReturn(true);
 		$schema = array(
 		    'env' => array('default' => function ($cfgArg) {
 		    	return $cfgArg ? 'yes' : 'no';
@@ -660,7 +683,7 @@ final class RegisterOptionsApiTest extends PluginLibTestCase {
 		WP_Mock::userFunction('update_option')
 			->with($this->mainOption, array(
 				'same' => array('value' => 'v', 'autoload_hint' => true),
-			), true)
+			), 'yes')
 			->once()->andReturn(true);
 
 		$opts = new RegisterOptions($this->mainOption);
@@ -669,5 +692,23 @@ final class RegisterOptionsApiTest extends PluginLibTestCase {
 		$this->assertSame($opts, $ret, 'add_option should return $this for fluent chaining');
 		$this->assertSame(array('same' => array('value' => 'v', 'autoload_hint' => true)), $opts->get_options());
 		$this->assertTrue($opts->flush());
+	}
+
+	/**
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::__construct
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::_save_all_options
+	 */
+	public function test_initial_creation_with_autoload_false_uses_no(): void {
+		// No existing option row
+		WP_Mock::userFunction('get_option')->with($this->mainOption, array())->once()->andReturn(array());
+		// Expect initial save to use 'no' for autoload when main_option_autoload is false
+		WP_Mock::userFunction('update_option')
+			->with($this->mainOption, array(
+				'foo' => array('value' => 'bar', 'autoload_hint' => null),
+			), 'no')
+			->once()->andReturn(true);
+
+		$opts = new RegisterOptions($this->mainOption, array('foo' => 'bar'), false);
+		$this->assertSame('bar', $opts->get_option('foo'));
 	}
 }

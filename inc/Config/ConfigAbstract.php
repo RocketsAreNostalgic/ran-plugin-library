@@ -355,18 +355,6 @@ abstract class ConfigAbstract implements ConfigInterface {
 	}
 
 	/**
-	 * Returns the WordPress option value for the plugin or theme.
-	 * If no option is set, the default name is derived from the plugin or theme slug.
-	 *
-	 * @param mixed $default Default setting value if option is not set. Value does not persist.
-	 * @return mixed
-	 */
-	public function get_options(mixed $default = false): mixed {
-		$key = $this->get_options_key();
-		return function_exists('get_option') ? get_option( $key, $default ) : $default;
-	}
-
-	/**
 	 * Explicitly hydrate plugin metadata from a plugin root file.
 	 *
 	 * @param string $plugin_file Path to the plugin's root file.

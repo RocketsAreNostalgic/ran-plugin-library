@@ -56,14 +56,8 @@ final class ConfigAbstractPublicTest extends PluginLibTestCase {
 	}
 
 	/**
-		* @covers ::get_options
+		* (Removed) get_options was deprecated and removed from Config.
 		*/
-	public function test_get_options_returns_array_from_wp_option_when_present(): void {
-		$slug = $this->config_mock->get_config()['Slug'];
-		\WP_Mock::userFunction('get_option')->with($slug, false)->andReturn(array('a' => 1));
-		$opts = $this->config_mock->get_options();
-		$this->assertSame(array('a' => 1), $opts);
-	}
 
 	/**
 		* @covers ::set_logger

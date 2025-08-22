@@ -16,6 +16,13 @@ final class RegisterOptionsMergeTest extends PluginLibTestCase {
 
 	public function setUp(): void {
 		parent::setUp();
+		// Ensure sanitize_key is defined consistently for these tests
+		WP_Mock::userFunction('sanitize_key')
+		    ->andReturnUsing(function ($v) {
+		    	$s = strtolower(preg_replace('/[^a-z0-9_\-]/i', '', (string) $v));
+		    	return trim($s, '_');
+		    })
+		    ->byDefault();
 		// Provide a config mock that returns a real CollectingLogger
 		$config = Mockery::mock(ConfigInterface::class);
 		$config->shouldReceive('get_logger')->andReturn(new CollectingLogger())->byDefault();
@@ -45,7 +52,7 @@ final class RegisterOptionsMergeTest extends PluginLibTestCase {
 		    	return is_array($val)
 		    	    && isset($val['alpha']['value']) && $val['alpha']['value'] === 'A'
 		    	    && isset($val['beta']['value']) && $val['beta']['value']   === 'B';
-		    }), true)
+		    }), 'yes')
 		    ->andReturn(true)
 		    ->once();
 
@@ -75,7 +82,7 @@ final class RegisterOptionsMergeTest extends PluginLibTestCase {
 		    	return is_array($val)
 		    	    && isset($val['db_only']['value']) && $val['db_only']['value']   === 1
 		    	    && isset($val['mem_only']['value']) && $val['mem_only']['value'] === 2;
-		    }), true)
+		    }), 'yes')
 		    ->andReturn(true)
 		    ->once();
 
@@ -111,7 +118,7 @@ final class RegisterOptionsMergeTest extends PluginLibTestCase {
 		    	return is_array($val)
 		    	    && isset($val['only_mem']['value'])
 		    	    && $val['only_mem']['value'] === 'val';
-		    }), true)
+		    }), 'yes')
 		    ->andReturn(true)
 		    ->once();
 

@@ -156,40 +156,6 @@ PHP;
 		Config::fromPluginFileWithLogger($this->pluginFile, $this->logger_mock)->get_config();
 	}
 
-	public function test_get_options_uses_slug_when_no_app_option(): void {
-		$header = <<<PHP
-<?php
-/**
- * Plugin Name: Options Fallback
- * Version: 1.0.0
- * Text Domain: opts-fallback
- */
-PHP;
-		file_put_contents($this->pluginFile, $header);
-
-		$pluginData = array(
-		    'Name'       => 'Options Fallback',
-		    'Version'    => '1.0.0',
-		    'PluginURI'  => 'http://example.com',
-		    'TextDomain' => 'opts-fallback',
-		);
-
-		WP_Mock::setUp();
-		WP_Mock::userFunction('plugin_dir_path')->with($this->pluginFile)->andReturn($this->pluginDir . '/');
-		WP_Mock::userFunction('plugin_dir_url')->with($this->pluginFile)->andReturn($this->pluginUrl);
-		WP_Mock::userFunction('plugin_basename')->with($this->pluginFile)->andReturn($this->pluginBasename);
-		WP_Mock::userFunction('get_plugin_data')->with($this->pluginFile, false, false)->andReturn($pluginData);
-		WP_Mock::userFunction('sanitize_key')->andReturnUsing(fn($v) => strtolower(preg_replace('/[^a-z0-9_\-]/i', '_', (string)$v)));
-
-		$config      = $this->configFromPluginFileWithLogger($this->pluginFile);
-		$cfg         = $config->get_config();
-		$expectedKey = $cfg['RAN']['AppOption'] ?? $cfg['Slug'];
-
-		$default = array('d' => 1);
-		WP_Mock::userFunction('get_option')->with($expectedKey, $default)->andReturn(array('ok' => true))->once();
-		$this->assertSame(array('ok' => true), $config->get_options($default));
-	}
-
 	public function test_get_param_does_not_enable_dev_mode(): void {
 		$header = <<<PHP
 <?php
