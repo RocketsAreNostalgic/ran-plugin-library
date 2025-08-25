@@ -847,6 +847,27 @@ final class RegisterOptionsApiTest extends PluginLibTestCase {
 			public function get_type(): \Ran\PluginLib\Config\ConfigType {
 				return \Ran\PluginLib\Config\ConfigType::Plugin;
 			}
+			/**
+			 * Satisfy ConfigInterface: return a RegisterOptions instance without writes.
+			 * @param array{autoload?: bool, schema?: array<string,mixed>} $args
+			 */
+			public function options(array $args = array()): \Ran\PluginLib\Options\RegisterOptions {
+				$defaults = array('autoload' => true, 'schema' => array());
+				$args     = is_array($args) ? array_merge($defaults, $args) : $defaults;
+				$autoload = (bool) ($args['autoload'] ?? true);
+				$schema   = is_array($args['schema'] ?? null) ? $args['schema'] : array();
+				$opts     = \Ran\PluginLib\Options\RegisterOptions::from_config(
+					$this,
+					array(),
+					$autoload,
+					$this->get_logger(),
+					array()
+				);
+				if (!empty($schema)) {
+					$opts->register_schema($schema, false, false);
+				}
+				return $opts;
+			}
 		};
 		$this->expectException(\InvalidArgumentException::class);
 		\Ran\PluginLib\Options\RegisterOptions::from_config($missingCfg);

@@ -122,6 +122,33 @@ final class ConfigAbstractProbe extends ConfigAbstract {
 		    ),
 		);
 	}
+
+	/**
+	 * Provide options accessor required by ConfigInterface for this probe.
+	 * Mirrors production semantics: no writes; optional schema registration without seed/flush.
+	 *
+	 * @param array{autoload?: bool, schema?: array<string, mixed>} $args
+	 * @return \Ran\PluginLib\Options\RegisterOptions
+	 */
+	public function options(array $args = array()): \Ran\PluginLib\Options\RegisterOptions {
+		$defaults = array('autoload' => true, 'schema' => array());
+		$args     = is_array($args) ? array_merge($defaults, $args) : $defaults;
+
+		$autoload = (bool) ($args['autoload'] ?? true);
+		$schema   = is_array($args['schema'] ?? null) ? $args['schema'] : array();
+
+		$opts = \Ran\PluginLib\Options\RegisterOptions::from_config(
+			$this,
+			array(),           // initial (none)
+			$autoload,
+			$this->get_logger(),
+			array()            // schema (none at construction)
+		);
+		if (!empty($schema)) {
+			$opts->register_schema($schema, false, false);
+		}
+		return $opts;
+	}
 }
 
 /**
