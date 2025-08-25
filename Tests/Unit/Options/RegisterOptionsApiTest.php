@@ -258,6 +258,221 @@ final class RegisterOptionsApiTest extends PluginLibTestCase {
 	}
 
 	/**
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::seed_if_missing
+	 */
+	public function test_seed_if_missing_creates_with_autoload_yes(): void {
+		// Missing row: get_option should return the provided sentinel (default)
+		WP_Mock::userFunction('get_option')
+			->with($this->mainOption, \Mockery::type('object'))
+			->once()
+			->andReturnUsing(function ($name, $default) {
+				return $default;
+			});
+		// Expect add_option with normalized defaults and autoload 'yes'
+		WP_Mock::userFunction('add_option')
+			->with($this->mainOption, array(
+				'alpha' => array('value' => 1, 'autoload_hint' => null),
+				'beta'  => array('value' => 'x', 'autoload_hint' => null),
+			), '', 'yes')
+			->once()->andReturn(true);
+
+		// Constructor load (separate from seed_if_missing())
+		WP_Mock::userFunction('get_option')->with($this->mainOption, array())->once()->andReturn(array());
+		$opts = new RegisterOptions($this->mainOption, array(), true);
+		$opts->seed_if_missing(array('alpha' => 1, 'beta' => 'x'));
+		$this->assertSame(array(
+			'alpha' => array('value' => 1, 'autoload_hint' => null),
+			'beta'  => array('value' => 'x', 'autoload_hint' => null),
+		), $opts->get_options());
+	}
+
+	/**
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::seed_if_missing
+	 */
+	public function test_seed_if_missing_creates_with_autoload_no(): void {
+		// Missing row: sentinel return
+		WP_Mock::userFunction('get_option')
+			->with($this->mainOption, \Mockery::type('object'))
+			->once()
+			->andReturnUsing(function ($name, $default) {
+				return $default;
+			});
+		// Expect add_option with autoload 'no'
+		WP_Mock::userFunction('add_option')
+			->with($this->mainOption, array(
+				'a' => array('value' => 1, 'autoload_hint' => null),
+			), '', 'no')
+			->once()->andReturn(true);
+		// Constructor load
+		WP_Mock::userFunction('get_option')->with($this->mainOption, array())->once()->andReturn(array());
+		$opts = new RegisterOptions($this->mainOption, array(), false);
+		$opts->seed_if_missing(array('a' => 1));
+		$this->assertSame(array(
+			'a' => array('value' => 1, 'autoload_hint' => null),
+		), $opts->get_options());
+	}
+
+	/**
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::seed_if_missing
+	 */
+	public function test_seed_if_missing_noop_when_exists(): void {
+		// Existing row detected (not returning the sentinel)
+		WP_Mock::userFunction('get_option')
+			->with($this->mainOption, \Mockery::type('object'))
+			->once()
+			->andReturn(array('k' => array('value' => 'v', 'autoload_hint' => null)));
+		// No add_option expected
+		// Constructor load
+		WP_Mock::userFunction('get_option')->with($this->mainOption, array())->once()->andReturn(array());
+		$opts = new RegisterOptions($this->mainOption);
+		$opts->seed_if_missing(array('alpha' => 1));
+		$this->assertTrue(true); // reached without writes
+	}
+
+	/**
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::migrate
+	 */
+	public function test_migrate_noop_when_missing(): void {
+		// Missing row during migrate()
+		WP_Mock::userFunction('get_option')
+			->with($this->mainOption, \Mockery::type('object'))
+			->once()
+			->andReturnUsing(function ($name, $default) {
+				return $default;
+			});
+		// Constructor load
+		WP_Mock::userFunction('get_option')->with($this->mainOption, array())->once()->andReturn(array());
+		$opts = new RegisterOptions($this->mainOption);
+		$opts->migrate(function ($current) {
+			return $current;
+		});
+		$this->assertTrue(true);
+	}
+
+	/**
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::migrate
+	 */
+	public function test_migrate_updates_when_changed_preserving_autoload(): void {
+		// Constructor initial load with existing structure + hint to preserve
+		WP_Mock::userFunction('get_option')->with($this->mainOption, array())->once()->andReturn(array(
+			'a' => array('value' => 1, 'autoload_hint' => true),
+		));
+		$opts = new RegisterOptions($this->mainOption);
+
+		// migrate() DB read (sentinel variant) returns current stored structure
+		WP_Mock::userFunction('get_option')
+			->with($this->mainOption, \Mockery::type('object'))
+			->once()
+			->andReturn(array(
+				'a' => array('value' => 1, 'autoload_hint' => true),
+			));
+		// Expect core update_option called WITHOUT autoload param (preserve autoload)
+		WP_Mock::userFunction('update_option')
+			->with($this->mainOption, array(
+				'a' => array('value' => 2, 'autoload_hint' => true),
+				'b' => array('value' => 'new', 'autoload_hint' => null),
+			))
+			->once()->andReturn(true);
+
+		$opts->migrate(function ($current) {
+			// Return values-only map to exercise normalization
+			return array('a' => 2, 'b' => 'new');
+		});
+		$this->assertSame(2, $opts->get_option('a'));
+		$this->assertSame('new', $opts->get_option('b'));
+		$this->assertTrue($opts->get_autoload_hint('a'));
+	}
+
+	/**
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::migrate
+	 */
+	public function test_migrate_no_write_when_unchanged(): void {
+		// Constructor initial load
+		WP_Mock::userFunction('get_option')->with($this->mainOption, array())->once()->andReturn(array(
+			'k' => array('value' => 'v', 'autoload_hint' => null),
+		));
+		$opts = new RegisterOptions($this->mainOption);
+		// migrate() reads current structure
+		WP_Mock::userFunction('get_option')
+			->with($this->mainOption, \Mockery::type('object'))
+			->once()
+			->andReturn(array(
+				'k' => array('value' => 'v', 'autoload_hint' => null),
+			));
+		// No update_option expected when unchanged
+		$opts->migrate(function ($current) {
+			return $current;
+		});
+		$this->assertSame('v', $opts->get_option('k'));
+	}
+
+	/**
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::migrate
+	 */
+	public function test_migrate_idempotent_on_second_run(): void {
+		// Initial constructor load (pre-migration state)
+		WP_Mock::userFunction('get_option')->with($this->mainOption, array())->once()->andReturn(array(
+			'a' => array('value' => 1, 'autoload_hint' => null),
+		));
+		$opts = new RegisterOptions($this->mainOption);
+
+		// First migrate(): read current -> migrate to changed -> update_option called once
+		WP_Mock::userFunction('get_option')
+			->with($this->mainOption, \Mockery::type('object'))
+			->once()
+			->andReturn(array(
+				'a' => array('value' => 1, 'autoload_hint' => null),
+			));
+		WP_Mock::userFunction('update_option')
+			->with($this->mainOption, array(
+				'a' => array('value' => 2, 'autoload_hint' => null),
+			))
+			->once()->andReturn(true);
+		$opts->migrate(function () {
+			return array('a' => 2);
+		});
+		$this->assertSame(2, $opts->get_option('a'));
+
+		// Second migrate(): DB read returns already-migrated value; no update_option should be called
+		WP_Mock::userFunction('get_option')
+			->with($this->mainOption, \Mockery::type('object'))
+			->once()
+			->andReturn(array(
+				'a' => array('value' => 2, 'autoload_hint' => null),
+			));
+		$opts->migrate(function ($current) {
+			return $current;
+		});
+		$this->assertSame(2, $opts->get_option('a'));
+	}
+
+	/**
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::migrate
+	 */
+	public function test_migrate_exception_propagates_without_write(): void {
+		// Constructor initial load
+		WP_Mock::userFunction('get_option')->with($this->mainOption, array())->once()->andReturn(array(
+			'x' => array('value' => 1, 'autoload_hint' => null),
+		));
+		$opts = new RegisterOptions($this->mainOption);
+		// migrate() read returns current
+		WP_Mock::userFunction('get_option')
+			->with($this->mainOption, \Mockery::type('object'))
+			->once()
+			->andReturn(array(
+				'x' => array('value' => 1, 'autoload_hint' => null),
+			));
+		try {
+			$opts->migrate(function () {
+				throw new \RuntimeException('boom');
+			});
+			$this->fail('Expected exception not thrown');
+		} catch (\RuntimeException $e) {
+			$this->assertStringContainsString('boom', $e->getMessage());
+		}
+	}
+
+	/**
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::from_config
 	 */
 	public function test_from_config_uses_RAN_AppOption(): void {
@@ -616,6 +831,9 @@ final class RegisterOptionsApiTest extends PluginLibTestCase {
 			}
 			public function get_config(): array {
 				return array();
+			}
+			public function get_options_key(): string {
+				return '';
 			}
 			public function get_options(mixed $default = false): mixed {
 				return $default;

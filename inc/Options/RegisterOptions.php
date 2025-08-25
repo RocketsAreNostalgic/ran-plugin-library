@@ -492,6 +492,121 @@ class RegisterOptions {
 	}
 
 	/**
+	 * Seed the main option row with provided defaults if it does not already exist (idempotent).
+	 *
+	 * - No write occurs if the main option row already exists.
+	 * - Defaults are normalized and passed through schema sanitize/validate if present.
+	 * - Autoload follows this instance's `$main_option_autoload` flag.
+	 *
+	 * @param array<string, mixed> $defaults Map of sub-option => value
+	 * @return self
+	 */
+	public function seed_if_missing(array $defaults): self {
+		// Distinguish truly missing from other falsy values via sentinel
+		$sentinel = new \stdClass();
+		$existing = $this->_do_get_option($this->main_wp_option_name, $sentinel);
+		if ($existing !== $sentinel) {
+			// Already present; do not modify DB or in-memory state
+			// @codeCoverageIgnoreStart
+			if ($this->_get_logger()->is_active()) {
+				$this->_get_logger()->debug("RegisterOptions: seed_if_missing no-op; option '{$this->main_wp_option_name}' already exists.");
+			}
+			// @codeCoverageIgnoreEnd
+			return $this;
+		}
+
+		// Normalize defaults into internal structure and apply schema rules
+		$normalized = array();
+		foreach ($defaults as $key => $value) {
+			$nk              = $this->_do_sanitize_key((string) $key);
+			$vv              = $this->_sanitize_and_validate_option($nk, $value);
+			$hint            = $this->options[$nk]['autoload_hint'] ?? null;
+			$normalized[$nk] = array('value' => $vv, 'autoload_hint' => $hint);
+		}
+
+		// Persist atomically; add_option is a no-op if row is concurrently created
+		$autoload = $this->main_option_autoload ? 'yes' : 'no';
+		$this->_do_add_option($this->main_wp_option_name, $normalized, '', $autoload);
+
+		// Sync in-memory cache
+		$this->options = $normalized;
+
+		// @codeCoverageIgnoreStart
+		if ($this->_get_logger()->is_active()) {
+			$this->_get_logger()->debug("RegisterOptions: seed_if_missing created '{$this->main_wp_option_name}' with " . count($normalized) . ' defaults.');
+		}
+		// @codeCoverageIgnoreEnd
+
+		return $this;
+	}
+
+	/**
+	 * Apply a migration function to the stored option value, if present.
+	 *
+	 * Callable signature: function (mixed $current, RegisterOptions $self): mixed
+	 * Behavior:
+	 * - Reads current stored value using a sentinel to detect true absence
+	 * - If missing, no-op and returns $this
+	 * - Invokes $migration($current, $this) without try/catch (exceptions propagate)
+	 * - Strict change detection (!==). If changed, normalizes and updates the stored value
+	 * - Preserves autoload by invoking core update_option() without autoload parameter
+	 * - Synchronizes in-memory cache when a write occurs
+	 */
+	public function migrate(callable $migration): self {
+		// Detect missing row
+		$sentinel = new \stdClass();
+		$current  = $this->_do_get_option($this->main_wp_option_name, $sentinel);
+		if ($current === $sentinel) {
+			// No-op when option row is absent
+			// @codeCoverageIgnoreStart
+			if ($this->_get_logger()->is_active()) {
+				$this->_get_logger()->debug("RegisterOptions: migrate no-op; option '{$this->main_wp_option_name}' missing.");
+			}
+			// @codeCoverageIgnoreEnd
+			return $this;
+		}
+
+		// Compute new value (may throw; do not catch)
+		$new = $migration($current, $this);
+
+		// Strict change detection
+		if ($new === $current) {
+			return $this;
+		}
+
+		// Normalize to internal structure (values-only map -> entries with metadata)
+		$normalized = array();
+		if (is_array($new)) {
+			foreach ($new as $key => $value) {
+				$nk              = $this->_do_sanitize_key((string) $key);
+				$vv              = $this->_sanitize_and_validate_option($nk, $value);
+				$hint            = $this->options[$nk]['autoload_hint'] ?? null;
+				$normalized[$nk] = array('value' => $vv, 'autoload_hint' => $hint);
+			}
+		} else {
+			// If migration returns a scalar/object, wrap under a reserved key 'value'
+			$nk              = $this->_do_sanitize_key('value');
+			$vv              = $this->_sanitize_and_validate_option($nk, $new);
+			$hint            = $this->options[$nk]['autoload_hint'] ?? null;
+			$normalized[$nk] = array('value' => $vv, 'autoload_hint' => $hint);
+		}
+
+		// Preserve autoload: call core update_option with two parameters
+		\update_option($this->main_wp_option_name, $normalized);
+
+		// Sync in-memory cache
+		$this->options = $normalized;
+
+		// @codeCoverageIgnoreStart
+		if ($this->_get_logger()->is_active()) {
+			$this->_get_logger()->debug("RegisterOptions: migrate updated '{$this->main_wp_option_name}' with migrated data.");
+		}
+		// @codeCoverageIgnoreEnd
+
+		return $this;
+	}
+
+	/**
 	 * Get the autoload preset value for an option if one has been set in the schema.
 	 * Utility for debugging, introspection, migration, etc.
 	 *
@@ -573,14 +688,11 @@ class RegisterOptions {
 	/**
 	 * Factory: create a RegisterOptions instance using the option name derived from Config.
 	 *
-	 * Uses the library's convention of storing the primary option name in
-     * `$config->get_config()['RAN']['AppOption']`.
-	 *
-	 * @param ConfigInterface $config        Initialized config instance.
-	 * @param array           $initial       Optional initial options (same structure as constructor).
-	 * @param bool            $autoload      Whether the grouped option should autoload.
-	 * @param Logger|null     $logger        Optional logger instance (fallbacks to Config when null).
-	 *
+	 * @param ConfigInterface $config Initialized config instance.
+	 * @param array           $initial Initial options to seed (values or ['value'=>..., 'autoload_hint'=>...]).
+	 * @param bool            $autoload Whether the main option should be autoloaded.
+	 * @param Logger|null     $logger Optional logger to bind; defaults to logger from Config.
+	 * @param array           $schema Optional schema map.
 	 * @return self
 	 */
 	public static function from_config(
@@ -590,22 +702,13 @@ class RegisterOptions {
         ?Logger $logger = null,
         array $schema = array()
     ): self {
-		$plugin_config = method_exists($config, 'get_plugin_config') ? $config->get_config() : $config->get_config();
-		$ran           = (array)($plugin_config['RAN'] ?? array());
-		$main_option   = (string)($ran['AppOption'] ?? '');
-
-		if ($main_option === '' || !is_string($main_option)) {
-			throw new \InvalidArgumentException(static::class . ': Missing or invalid RAN.AppOption in Config config (expected RAN.AppOption).');
+		$main_option = (string) $config->get_options_key();
+		if ($main_option === '') {
+			throw new \InvalidArgumentException(static::class . ': Missing or invalid options key from Config (expected non-empty get_options_key()).');
 		}
-
 		return new self($main_option, $initial, $autoload, $logger, $config, $schema);
 	}
 
-	/**
-	 * Retrieves the logger instance.
-	 *
-	 * @return Logger The logger instance.
-	 */
 	protected function _get_logger(): Logger {
 		// @codeCoverageIgnoreStart
 		if (null === $this->logger) {

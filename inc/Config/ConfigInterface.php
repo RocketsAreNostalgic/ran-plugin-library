@@ -26,6 +26,12 @@ interface ConfigInterface {
 	public function get_config(): array;
 
 	/**
+	 * Get the generic WordPress options key for this app.
+	 * Prefer the namespaced RAN.AppOption header if present; otherwise, fallback to the normalized Slug.
+	 */
+	public function get_options_key(): string;
+
+	/**
 	 * Get a logger instance configured for this app.
 	 */
 	public function get_logger(): Logger;
