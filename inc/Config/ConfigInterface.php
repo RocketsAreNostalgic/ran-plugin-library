@@ -40,13 +40,17 @@ interface ConfigInterface {
 	/**
 	 * Accessor: get a pre-wired RegisterOptions instance for this app's options key.
 	 *
-	 * Semantics:
+	 * Semantics (no-write accessor):
 	 * - Returns a RegisterOptions instance bound to `get_options_key()` and this Config's logger.
-	 * - If a schema is provided, it will be registered on the instance only.
-	 * - This method should not perform any DB writes, seeding, or flushing.
-	 * - Any persistent changes should be made through the RegisterOptions instance eg `$opts->register_schema($schema, true, true);`.
+	 * - Recognized args (all optional):
+	 *   - `autoload` (bool, default: true) — default autoload policy hint for future writes.
+	 *   - `initial` (array<string,mixed>, default: []) — values merged in-memory on the instance.
+	 *   - `schema` (array<string,mixed>, default: []) — schema merged in-memory on the instance.
+	 * - This method performs no DB writes, seeding, or flushing.
+	 * - Unknown args are ignored and a warning is emitted via the configured logger.
+	 * - Persistent changes are performed on the returned RegisterOptions instance, e.g. `$opts->add_options([...]); $opts->flush();` or `$opts->register_schema($schema, true, true);`.
 	 *
-	 * @param array{autoload?: bool, schema?: array<string, mixed>} $args
+	 * @param array{autoload?: bool, initial?: array<string, mixed>, schema?: array<string, mixed>} $args Recognized args only; unknown keys are ignored with a warning.
 	 * @return \Ran\PluginLib\Options\RegisterOptions
 	 */
 	public function options(array $args = array()): RegisterOptions;

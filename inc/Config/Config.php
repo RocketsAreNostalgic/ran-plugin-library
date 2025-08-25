@@ -9,6 +9,10 @@ declare(strict_types = 1);
 
 namespace Ran\PluginLib\Config;
 
+use Ran\PluginLib\Config\ConfigAbstract;
+use Ran\PluginLib\Config\ConfigInterface;
+use Ran\PluginLib\Options\RegisterOptions;
+
 /**
  * Final Config class which holds key information about the plugin.
  */
@@ -60,38 +64,51 @@ class Config extends ConfigAbstract implements ConfigInterface {
 	}
 
 	/**
-	 * Accessor: get a pre-wired RegisterOptions instance for this app's options key.
-	 *
-	 * Semantics:
-	 * - Returns a RegisterOptions instance bound to `get_options_key()` and this Config's logger.
-	 * - If a schema is provided, it will be registered on the instance only.
-	 * - This method does not perform any DB writes, seeding, or flushing.
-	 * - Persistent data changes can be made through the RegisterOptions instance eg `$opts->register_schema($schema, true, true);`.
-	 *
-	 * @param array{autoload?: bool, schema?: array<string, mixed>} $args
-	 * @return \Ran\PluginLib\Options\RegisterOptions
-	 */
+     * Accessor: get a pre-wired RegisterOptions instance for this app's options key.
+     *
+     * Semantics (no-write accessor):
+     * - Returns a RegisterOptions instance bound to `get_options_key()` and this Config's logger.
+     * - Recognized args (all optional):
+     *   - `autoload` (bool, default: true) — default autoload policy to apply on future writes.
+     *   - `initial` (array<string,mixed>, default: []) — values merged in-memory on the instance.
+     *   - `schema` (array<string,mixed>, default: []) — schema merged in-memory on the instance.
+     * - This method itself performs no DB writes, seeding, or flushing.
+     * - Unknown args are ignored and a warning is emitted via this Config's logger.
+     *
+     * Persistence:
+     * - Use the returned RegisterOptions instance to perform explicit write operations when desired,
+     *   e.g. `$opts->add_options([...]); $opts->flush();` or `$opts->register_schema($schema, seedDefaults: true, flush: true);`.
+     *
+     * @param array{autoload?: bool, initial?: array<string, mixed>, schema?: array<string, mixed>} $args Recognized args only; unknown keys are ignored with a warning.
+     * @return \Ran\PluginLib\Options\RegisterOptions
+     */
 	public function options(array $args = array()): \Ran\PluginLib\Options\RegisterOptions {
-		// Normalize args with defaults
-		$defaults = array('autoload' => true, 'schema' => array());
+		// Normalize args with defaults (recognized keys only)
+		$defaults = array('autoload' => true, 'initial' => array(), 'schema' => array());
 		$args     = is_array($args) ? array_merge($defaults, $args) : $defaults;
 
 		$autoload = (bool) ($args['autoload'] ?? true);
+		$initial  = is_array($args['initial'] ?? null) ? $args['initial'] : array();
 		$schema   = is_array($args['schema'] ?? null) ? $args['schema'] : array();
 
+		// Warn on unknown/operational args (no behavior change; no writes)
+		$recognized = array('autoload', 'initial', 'schema');
+		$unknown    = array_diff(array_keys($args), $recognized);
+		if (!empty($unknown)) {
+			$logger = $this->get_logger();
+			if ($logger && method_exists($logger, 'warning')) {
+				$logger->warning('Config::options(): Ignored args: ' . implode(',', $unknown));
+			}
+		}
+
 		// Build instance via factory; pass empty initial and empty schema to avoid constructor-side writes
-		$opts = \Ran\PluginLib\Options\RegisterOptions::from_config(
+		$opts = RegisterOptions::from_config(
 			$this,
-			array(),           // initial (none)
+			$initial,
 			$autoload,
 			$this->get_logger(),
-			array()            // schema (none at construction)
+			$schema
 		);
-
-		// Optional schema registration without seeding or flushing (no writes)
-		if (!empty($schema)) {
-			$opts->register_schema($schema, false, false);
-		}
 
 		return $opts;
 	}
