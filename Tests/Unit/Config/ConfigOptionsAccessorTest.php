@@ -109,4 +109,46 @@ final class ConfigOptionsAccessorTest extends ConfigTestCase {
 
 		$this->assertTrue($opts->set_option('x', 1));
 	}
+
+	public function test_options_with_unknown_args_emits_warning(): void {
+		// Arrange
+		$config  = $this->configFromPluginFileWithLogger($this->plugin_file);
+		$mainKey = $config->get_options_key();
+		WP_Mock::userFunction('get_option')->with($mainKey, array())->once()->andReturn(array());
+
+		// Act
+		$config->options(array('foo' => 'bar'));
+
+		// Assert: warning was collected
+		$logs = $this->logger_mock?->get_logs() ?? array();
+		$this->assertNotEmpty($logs, 'Expected at least one log entry for unknown args.');
+		$found = null;
+		foreach ($logs as $entry) {
+			if ($entry['message'] === 'Config::options(): Ignored args: foo') {
+				$found = $entry;
+				break;
+			}
+		}
+		$this->assertNotNull($found, 'Expected a warning log for ignored args.');
+		$this->assertSame('warning', $found['level']);
+	}
+
+	public function test_options_passes_initial_and_schema_without_writes(): void {
+		$config  = $this->configFromPluginFileWithLogger($this->plugin_file);
+		$mainKey = $config->get_options_key();
+
+		// One constructor-time read; forbid writes
+		WP_Mock::userFunction('get_option')->with($mainKey, array())->once()->andReturn(array());
+		WP_Mock::userFunction('update_option')->never();
+		WP_Mock::userFunction('add_option')->never();
+		WP_Mock::userFunction('delete_option')->never();
+
+		$opts = $config->options(array(
+			'initial' => array('a' => 2),
+			'schema'  => array('b' => array('default' => 3)),
+		));
+
+		$this->assertSame(2, $opts->get_option('a'));
+		$this->assertSame(3, $opts->get_option('b'));
+	}
 }

@@ -460,6 +460,76 @@ final class RegisterOptionsApiTest extends PluginLibTestCase {
 	}
 
 	/**
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::migrate
+	 */
+	public function test_migrate_scalar_result_wraps_under_value_key_and_updates(): void {
+		// Constructor initial load
+		WP_Mock::userFunction('get_option')->with($this->mainOption, array())->once()->andReturn(array(
+			'existing' => array('value' => 10, 'autoload_hint' => null),
+		));
+		$opts = new RegisterOptions($this->mainOption);
+
+		// migrate() read returns current stored structure
+		WP_Mock::userFunction('get_option')
+			->with($this->mainOption, \Mockery::type('object'))
+			->once()
+			->andReturn(array(
+				'existing' => array('value' => 10, 'autoload_hint' => null),
+			));
+		// Expect core update_option WITHOUT autoload param, wrapping under reserved 'value' key
+		WP_Mock::userFunction('update_option')
+			->with($this->mainOption, array(
+				'value' => array('value' => 'migrated', 'autoload_hint' => null),
+			))
+			->once()->andReturn(true);
+
+		$opts->migrate(function ($current) {
+			// Return a scalar to exercise wrap-under-'value' normalization path
+			return 'migrated';
+		});
+
+		$this->assertSame('migrated', $opts->get_option('value'));
+	}
+
+	/**
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::get_main_autoload
+	 */
+	public function test_get_main_autoload_returns_null_when_row_missing(): void {
+		// Constructor load
+		WP_Mock::userFunction('get_option')->with($this->mainOption, array())->once()->andReturn(array());
+		$opts = new RegisterOptions($this->mainOption);
+
+		// Existence check: return sentinel to simulate missing row
+		WP_Mock::userFunction('get_option')
+			->with($this->mainOption, \Mockery::type('object'))
+			->once()
+			->andReturnUsing(function ($name, $default) {
+				return $default;
+			});
+
+		$this->assertNull($opts->get_main_autoload());
+	}
+
+	/**
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::get_main_autoload
+	 */
+	public function test_get_main_autoload_returns_null_when_cannot_determine(): void {
+		// Constructor initial load with existing row
+		WP_Mock::userFunction('get_option')->with($this->mainOption, array())->once()->andReturn(array(
+			'k' => array('value' => 'v', 'autoload_hint' => null),
+		));
+		$opts = new RegisterOptions($this->mainOption);
+
+		// Existence check shows row exists
+		WP_Mock::userFunction('get_option')
+			->with($this->mainOption, \Mockery::type('object'))
+			->once()
+			->andReturn(array('k' => array('value' => 'v', 'autoload_hint' => null)));
+
+		$this->assertNull($opts->get_main_autoload());
+	}
+
+	/**
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::from_config
 	 */
 	public function test_from_config_uses_RAN_AppOption(): void {
@@ -504,6 +574,29 @@ final class RegisterOptionsApiTest extends PluginLibTestCase {
 		    ->once()->andReturn(true);
 		$opts = new RegisterOptions($this->mainOption);
 		$this->assertTrue($opts->update_option('v', 1));
+	}
+
+	/**
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::set_main_autoload
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::get_main_autoload
+	 */
+	public function test_set_main_autoload_noop_guard_when_state_matches(): void {
+		// Constructor load (any structure)
+		WP_Mock::userFunction('get_option')->with($this->mainOption, array())->once()->andReturn(array());
+		$opts = new RegisterOptions($this->mainOption);
+
+		// get_main_autoload(): indicate row exists
+		WP_Mock::userFunction('get_option')
+			->with($this->mainOption, \Mockery::type('object'))
+			->once()
+			->andReturn(array());
+		// get_main_autoload(): autoload map contains our option -> true
+		WP_Mock::userFunction('wp_load_alloptions')->once()->andReturn(array(
+			$this->mainOption => '1',
+		));
+
+		// No delete_option/add_option expected due to no-op guard
+		$this->assertTrue($opts->set_main_autoload(true));
 	}
 
 	/**
