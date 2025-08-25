@@ -28,7 +28,7 @@ abstract class FeatureContainerAbstract implements FeatureContainerInterface {
 	 *
 	 * @param  string        $qualified_classname The string representation of a fully qualified feature class.
 	 * @param  string        $slug A unique string slug used as key in the registry and as page id slugs in any admin screens. Should be passed through WordPress sanitize_title().
-	 * @param  array<string> $deps An array of named dependancies required by the feature.
+	 * @param  array<int, array<string, mixed>> $deps An array of named dependencies required by the feature.
 	 *
 	 * @return void
 	 */
@@ -45,7 +45,7 @@ abstract class FeatureContainerAbstract implements FeatureContainerInterface {
 	 *
 	 * @param  RegistrableFeatureInterface $instance The stored instance must be Registrable.
 	 *
-	 * @return bool
+	 * @return RegistrableFeatureInterface|false Returns the instance on success, or false if already set.
 	 */
 	public function set_instance( RegistrableFeatureInterface $instance ): RegistrableFeatureInterface|false {
 		if ( $this->instance ) {

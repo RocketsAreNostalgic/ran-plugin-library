@@ -1,6 +1,6 @@
 <?php
 /**
- * A feature cacheing class.
+ * A feature caching class.
  *
  * @package  RanPluginLib
  */
@@ -36,16 +36,16 @@ final class FeatureRegistry {
 	 *
 	 * @param   string $slug_id  An identifier to store the object.
 	 *
-	 * @return  FeatureContainer|null The stored object, or null if that object is not in the cache.
+	 * @return  FeatureContainerInterface|null The stored object, or null if not in the cache.
 	 */
 	public function get_feature( string $slug_id ): FeatureContainerInterface|null {
 		return $this->features[ $slug_id ] ?? null;
 	}
 
 	/**
-	 * Returns an array of manager services with key and description.
+	 * Returns all registered FeatureContainers indexed by slug.
 	 *
-	 * @return array<string, FeatureContainerInterface> Array of registered FeatureContainer objects indexed by slug.
+	 * @return array<string, FeatureContainerInterface> Array of registered FeatureContainerInterface instances indexed by slug.
 	 */
 	public function get_registery(): array {
 		return $this->features;
