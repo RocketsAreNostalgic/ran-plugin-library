@@ -53,13 +53,6 @@ final class RegisterOptionsApiTest extends PluginLibTestCase {
 	 */
 	public function test_constructor_seeds_schema_defaults_and_saves(): void {
 		WP_Mock::userFunction('get_option')->with($this->mainOption, array())->once()->andReturn(array());
-		WP_Mock::userFunction('update_option')
-			->with($this->mainOption, array(
-				'enabled' => array('value' => true, 'autoload_hint' => null),
-				'timeout' => array('value' => 30, 'autoload_hint' => null),
-			), 'yes')
-			->once()
-			->andReturn(true);
 
 		$schema = array(
 			'enabled' => array('default' => true,  'validate' => fn($v) => is_bool($v)),
@@ -79,12 +72,6 @@ final class RegisterOptionsApiTest extends PluginLibTestCase {
 		WP_Mock::userFunction('get_option')->with($this->mainOption, array())->once()->andReturn(array(
 			'foo' => array('value' => 'old', 'autoload_hint' => null),
 		));
-		WP_Mock::userFunction('update_option')
-			->with($this->mainOption, array(
-				'foo' => array('value' => 'new', 'autoload_hint' => null),
-			), 'yes')
-			->once()
-			->andReturn(true);
 
 		$opts = new RegisterOptions($this->mainOption, array('foo' => 'new'));
 		$this->assertSame('new', $opts->get_option('foo'));
@@ -278,7 +265,7 @@ final class RegisterOptionsApiTest extends PluginLibTestCase {
 
 		// Constructor load (separate from seed_if_missing())
 		WP_Mock::userFunction('get_option')->with($this->mainOption, array())->once()->andReturn(array());
-		$opts = new RegisterOptions($this->mainOption, array(), true);
+		$opts = new RegisterOptions($this->mainOption);
 		$opts->seed_if_missing(array('alpha' => 1, 'beta' => 'x'));
 		$this->assertSame(array(
 			'alpha' => array('value' => 1, 'autoload_hint' => null),
@@ -897,10 +884,6 @@ final class RegisterOptionsApiTest extends PluginLibTestCase {
 		$cfg  = new \Ran\PluginLib\Tests\Unit\TestClasses\TestableConfig();
 		$main = $cfg->get_config()['RAN']['AppOption'];
 		WP_Mock::userFunction('get_option')->with($main, array())->once()->andReturn(array());
-		// Expect defaults seeded with value 'yes'
-		WP_Mock::userFunction('update_option')->with($main, array(
-		    'env' => array('value' => 'yes', 'autoload_hint' => null),
-		), 'yes')->once()->andReturn(true);
 		$schema = array(
 		    'env' => array('default' => function ($cfgArg) {
 		    	return $cfgArg ? 'yes' : 'no';
@@ -949,5 +932,7 @@ final class RegisterOptionsApiTest extends PluginLibTestCase {
 
 		$opts = new RegisterOptions($this->mainOption, array('foo' => 'bar'), false);
 		$this->assertSame('bar', $opts->get_option('foo'));
+		// Persist explicitly to verify autoload 'no' is honored
+		$this->assertTrue($opts->flush());
 	}
 }

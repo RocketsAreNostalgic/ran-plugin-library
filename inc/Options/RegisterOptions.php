@@ -154,7 +154,7 @@ class RegisterOptions {
 			}
 		}
 
-		// If initial/default options are provided, merge and save them.
+		// If initial/default options are provided, merge into in-memory store ONLY (no writes here).
 		if (!empty($initial_options)) {
 			$options_changed = $options_changed || false;
 			foreach ($initial_options as $option_name => $definition) {
@@ -172,30 +172,14 @@ class RegisterOptions {
 					$options_changed                   = true;
 					// @codeCoverageIgnoreStart
 					if ($this->_get_logger()->is_active()) {
-						$this->_get_logger()->debug("RegisterOptions: Initial option '{$option_name_clean}' set/updated.");
+						$this->_get_logger()->debug("RegisterOptions: Initial option '{$option_name_clean}' set/updated (in-memory only; persistence requires explicit flush or set/update methods).");
 					}
 					// @codeCoverageIgnoreEnd
 				}
 			}
-
-			if ($options_changed) {
-				$this->_save_all_options();
-				// @codeCoverageIgnoreStart
-				if ($this->_get_logger()->is_active()) {
-					$this->_get_logger()->debug("RegisterOptions: Options (schema defaults and/or initial) processed and saved to '{$this->main_wp_option_name}'.");
-				}
-				// @codeCoverageIgnoreEnd
-			}
 		}
-		// Persist defaults even when no initial options provided
-		if ($options_changed && empty($initial_options)) {
-			$this->_save_all_options();
-			// @codeCoverageIgnoreStart
-			if ($this->_get_logger()->is_active()) {
-				$this->_get_logger()->debug("RegisterOptions: Schema defaults seeded and saved to '{$this->main_wp_option_name}'.");
-			}
-			// @codeCoverageIgnoreEnd
-		}
+		// Note: Any schema-default seeding or initial merges performed above update ONLY in-memory state.
+		// Persistence is now the caller's responsibility via flush()/set_option()/update_option().
 	}
 
 	/**

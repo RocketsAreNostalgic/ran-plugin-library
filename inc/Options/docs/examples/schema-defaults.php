@@ -12,11 +12,11 @@
  * - Site-specific optimizations (multisite, performance)
  *
  * BENEFITS OF CONSTRUCTOR SCHEMA:
- * - Defaults are set immediately when RegisterOptions is created
- * - Single database write for all missing defaults (efficient)
+ * - Defaults are resolved immediately when RegisterOptions is created (in-memory)
+ * - Persist all missing defaults efficiently with a single flush() call
  * - Environment-aware defaults using Config context
  * - Validation ensures defaults are always valid
- * - No need for separate initialization routines
+ * - Simple activation flow: seed in-memory at construction, then flush once
  *
  * DYNAMIC DEFAULTS:
  * Use callable defaults when values depend on runtime conditions:
@@ -110,14 +110,17 @@ $schema = array(
     ),
 );
 
-// Create RegisterOptions with schema - defaults will be seeded automatically
+// Create RegisterOptions with schema - defaults will be seeded in-memory automatically
 $options = RegisterOptions::from_config($config, /* initial */ array(), /* autoload */ true, /* logger */ null, $schema);
+
+// Persist seeded defaults explicitly (single write)
+$options->flush();
 
 // At this point, all missing options have been:
 // 1. Resolved from their default values (including callable defaults)
 // 2. Sanitized (if sanitizers were defined)
 // 3. Validated (ensuring they meet requirements)
-// 4. Saved to database in a single write operation
+// 4. Persisted to the database via a single flush() call
 
 // VERIFY THE SEEDED VALUES:
 echo "Seeded values:\n";
@@ -153,8 +156,10 @@ echo '- Network mode: ' . ($options->get_option('network_mode') ? 'Multisite' : 
 //         ],
 //     ];
 //
-//     // This will seed all defaults and save them in one database write
+//     // This will seed all defaults in-memory
 //     $options = RegisterOptions::from_config($config, [], true, null, $activation_schema);
+//     // Persist in one database write
+//     $options->flush();
 //
 //     // Plugin is now properly initialized with environment-appropriate defaults
 // });

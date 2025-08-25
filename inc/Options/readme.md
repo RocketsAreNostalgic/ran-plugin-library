@@ -56,6 +56,12 @@ $schema = [
 $options = RegisterOptions::from_config($config, [], true, null, $schema);
 ```
 
+Note: Construction seeds defaults in-memory only. To persist seeded defaults, call `flush()` explicitly:
+
+```php
+$options->flush(); // single DB write for seeded defaults
+```
+
 You can also register schema after construction:
 
 ```php
