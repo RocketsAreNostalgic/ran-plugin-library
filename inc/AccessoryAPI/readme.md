@@ -1,32 +1,43 @@
 # Accessory API
 
-The Accessory API is an elegant way for Features to implement functionality that might otherwise require a lot of boilerplate and or are otherwise confusing to implement (think the WordPress Plugin's API, adding Admin Pages, sub-pages and more).
+The Accessory API is an elegant way for Features to implement functionality that might otherwise require a lot of boilerplate and/or are otherwise confusing to implement (think the WordPress Plugin's API, adding Admin Pages, sub-pages and more).
+
+## What is an Accessory?
+
+An Accessory is a capability contract expressed as an interface that extends `AccessoryBaseInterface`. When a `FeatureController` implements an Accessory interface, the library locates the adjacent Manager class and calls its `init($feature)` to perform the heavy lifting. In practice, accessories act like flags that opt your feature into specific capabilities.
 
 ## How to use
 
-To use an Accessory, your FeatureController must implement an interface belonging to one or more Accessories. Each Accessory's interface requires your FeatureController to implement any combination of public functions and variables it may require. You can find full instructions for each Accessory within the comments of its interface.
+To use an Accessory, your `FeatureController` implements one or more Accessory interfaces (they all extend `AccessoryBaseInterface`). Each Accessory interface specifies the public methods and/or properties you must provide. See the interface docblocks for exact requirements.
 
-When the `FeatureManager->load_all()` method is called, each `FeatureController` is scanned for compatible Accessory interfaces, and when they are found, that Accessory's `Manager` is called to carry out the work. You may of course inspect the manager, but knowledge about its inner workings isn't required, so long as you implement the interface as required and your `FeatureController` passes back the data that the Accessory requires.
+When features are loaded, the system scans each `FeatureController` for implemented Accessory interfaces and invokes the adjacent Manager for each one. You may inspect a Manager’s implementation, but it isn’t required—implementing the interface contract should be sufficient.
 
-Another way to think of Accessory are as flags. If your `FeatureController` wants to access the goodness of any Accessory, simply add the Accessory's flag to the `implements` section on the class, implement the required functions that it will call, and profit.
+Another way to think of Accessories is as flags. If your `FeatureController` wants to access the goodness of any Accessory, simply add the Accessory's flag to the `implements` section on the class, implement the required functions that it will call, and profit.
 
-### Examples
+### HooksAccessory example
 
-Currently, we have a `HooksAccessory` that provides the interfaces `ActionHookInterface` and `FilterHookInterface`.
+Currently, we have a `HooksAccessory` that provides the interfaces `ActionHooksInterface` and `FilterHooksInterface` (see `inc/HooksAccessory/ActionHooksInterface.php` and `inc/HooksAccessory/FilterHooksInterface.php`).
 
-The `ActionHookInterface` requires your `FeatureController` to implement a `get_actions()` method, which returns a nested array of actions with parameters. The `get_actions()` method is called by the `FeatureManager` for the `ActionHookInterface` automatically when the feature is loaded in your bootstrapping file. The `FeatureManager` does all the heavy lifting of registering all the action hooks you might send.
+- Hooks are declared statically via `ActionHooksInterface::declare_action_hooks()` and `FilterHooksInterface::declare_filter_hooks()`.
+- Declarative hooks are registered automatically by the Hooks accessory Manager.
+- Advanced hook management is provided by `HooksManager` and the `HooksManagementTrait` for programmatic registration, conditional hooks, groups, deduplication, logging, and stats.
+
+See:
+
+- `inc/HooksAccessory/docs/TFS-001-HooksManager-and-Trait-Usage.md`
+- `inc/HooksAccessory/docs/FPD-001-HooksManager-and-Trait.md`
 
 ## Implementation Details
 
 In the `AccessoryAPI/` directory are two base interfaces: `AccessoryBaseInterface` and `AccessoryManagerBaseInterface`.
 
--   `AccessoryBaseInterface`
+- `AccessoryBaseInterface`
 
-    -   must be implemented by any Accessory class to be valid. Is a "marker" interface and should not be implemented by FeatureControllers directly.
+  - must be implemented by any Accessory class to be valid. Is a "marker" interface and should not be implemented by FeatureControllers directly.
 
--   `AccessoryManagerBaseInterface`
-    -   must also be extended by any AccessoryManager to be a valid Accessory Manager.
-    -   requires your FeatureController to have an `init()` method.
+- `AccessoryManagerBaseInterface`
+  - must be implemented by any Accessory Manager.
+  - defines `init(AccessoryBaseInterface $feature)` that performs per-feature initialization for the accessory before the feature’s own `init()` is called.
 
 ### Naming & file locations
 
@@ -47,8 +58,26 @@ However `AccessoryManagers` must be suffixed with the string "Manager" and may n
  PSR-4: Ran\PluginLib\MySomethingAccessory\MySomethingAccessoryManager
 ```
 
-This is because we need to predict where the Manger class will be found.
+This is because we need to predict where the Manager class will be found.
 `MySomethingAccessoryManager` must be co-located in the same directory and namespace as its flag, `MySomethingAccessoryInterface`. No warning is issued for features without a manager.
+
+Manager resolution algorithm (as implemented by `FeaturesManagerAbstract::_enable_instance_accessiories()`): given an Accessory interface FQCN (Fully Qualified Class Name), remove the suffix `Interface` and append `Manager` in the same namespace. The resolved class must implement `AccessoryManagerBaseInterface`.
+
+## Lifecycle
+
+The current lifecycle when loading features (`FeaturesManagerAbstract`) is:
+
+1. Create the `FeatureController` instance (`_create_new_feature_class()`).
+2. Inject dependencies (`_set_instance_dependencies()`).
+3. Enable accessories by locating each adjacent `<Accessory>Manager` and calling `init($feature)` (`_enable_instance_accessiories()`).
+4. Call the feature's `init()` method (`_load_feature_container()`).
+5. Store the instance on its `FeatureContainer`.
+
+Other useful references:
+
+- Managers: `inc/HooksAccessory/HooksManager.php`
+- Trait: `inc/HooksAccessory/HooksManagementTrait.php`
+- Other accessories: `inc/SmokeTestAccessory/readme.md`, `inc/EnqueueAccessory/` and `inc/EnqueueAccessory/docs/`
 
 ## Design Decisions
 
@@ -68,22 +97,22 @@ The design challenge with `Accessories` is that we would like to fashion a 'simp
 Using `Reflection` is exactly how arbitrary `Attributes` are managed on classes, so why not use them instead? This is a fair question, and it might be possible, but it has some drawbacks for our use case. Consider this quote from Brent Roose, Dev Advocate for PHPStorm:
 
 > Keep in mind the goal of attributes: they are meant to add metadata to classes and methods, nothing more. They shouldn't — and can't — be used for, for example, argument input validation. In other words, you wouldn't have access to the parameters passed to a method within its attributes.
-> \> [Brent Roose, PHP 8: Attributes](https://stitcher.io/blog/attributes-in-php-8)
+> [Brent Roose, PHP 8: Attributes](https://stitcher.io/blog/attributes-in-php-8)
 
 While we do use our Interfaces as a flag (metadata) as an `Attribute`, our Accessory Interfaces also enforce implementation details and guidance for developers on what is expected directly within the `FeatureController` they are authoring. This is good, as we don't know the complexity or shape of the data that future `Accessories` may require or the logic a developer might want to carry out when preparing them. Further, as Brent points out, Attributes were not designed to be used in this way, so passing complex programmatically derived data to them can become difficult and convoluted.
 
 ### Inheritance
 
-The final point on Interface inheritance (subtyping) cannot be avoided, and this could become problematic as any descendant `FeatureControllers` will be required to implement methods they might not need. This said, it would be quite unusual to extend a `FeatureController` to the point where this would be an issue, and in the vast majority of cases, each new `FeatureController` should be considered `final` if not declared as such. If this did become an issue, then composition becomes a better approach, and the Dependency array enables soft dependencies to be set on a `FeatureController` during registration (as key-value pairs, where the key is the name of a public property declared on the `FeatureControler`). This approach would likely mean you would roll your own implementation of the WordPress APIs and so lose some of the connivance of `Accessories`, though it may be possible to extend an `AttributeManager`.
+The final point on Interface inheritance (subtyping) cannot be avoided, and this could become problematic as any descendant `FeatureControllers` will be required to implement methods they might not need. This said, it would be quite unusual to extend a `FeatureController` to the point where this would be an issue, and in the vast majority of cases, each new `FeatureController` should be considered `final` if not declared as such. If this did become an issue, then composition becomes a better approach, and the Dependency array enables soft dependencies to be set on a `FeatureController` during registration (as key-value pairs, where the key is the name of a public property declared on the `FeatureController`). This approach would likely mean you would roll your own implementation of the WordPress APIs and so lose some of the convenience of `Accessories`, though it may be preferable in this case to extend the relevant `AccessoryManager` instead.
 
 ### Conclusion
 
-So, as we have seen, yes, we are using a `marker interface`, but its use is internal and not user-facing. The 'magic' of this, if any, is that child Accessories are automatically evaluated almost identical to `Attributes` using `Reflection` in our `FeatureManager`. We have chosen to stick with an `Interface` implementation of our `Accessory API` as it seems to offer the most flexibility while also providing guidance for developers with a straightforward implementation.
+So, as we have seen, yes, we are using a `marker interface`, but its use is internal and not user-facing. The 'magic' of this, if any, is that child Accessories are automatically evaluated almost identical to `Attributes` using `Reflection` in our `FeaturesManager`. We have chosen to stick with an `Interface` implementation of our `Accessory API` as it seems to offer the most flexibility while also providing guidance for developers with a straightforward implementation.
 
 Sources:
 
--   [Wikipedia: Marker Interface Pattern](https://en.wikipedia.org/wiki/Marker_interface_pattern)
--   [Stack Overflow: What's the Good of Marker Interface](https://stackoverflow.com/questions/56862117/whats-the-good-of-marker-interface)
--   [Marker Interface Isn't a Pattern or a Good Idea](https://dzone.com/articles/marker-interface-isnt-a-pattern-or-a-good-idea)
--   [Principle of least astonishment](https://en.wikipedia.org/wiki/Principle_of_least_astonishment)
--   [Brent Roose, PHP 8: Attributes](https://stitcher.io/blog/attributes-in-php-8)
+- [Wikipedia: Marker Interface Pattern](https://en.wikipedia.org/wiki/Marker_interface_pattern)
+- [Stack Overflow: What's the Good of Marker Interface](https://stackoverflow.com/questions/56862117/whats-the-good-of-marker-interface)
+- [Marker Interface Isn't a Pattern or a Good Idea](https://dzone.com/articles/marker-interface-isnt-a-pattern-or-a-good-idea)
+- [Principle of least astonishment](https://en.wikipedia.org/wiki/Principle_of_least_astonishment)
+- [Brent Roose, PHP 8: Attributes](https://stitcher.io/blog/attributes-in-php-8)
