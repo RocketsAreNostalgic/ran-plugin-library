@@ -62,7 +62,7 @@ public function options(): \Ran\PluginLib\Options\RegisterOptions;
 Add to `RegisterOptions`:
 
 ```php
-public static function fromConfig(\Ran\PluginLib\Config\ConfigInterface $cfg): self;
+public static function from_config(\Ran\PluginLib\Config\ConfigInterface $cfg): self;
 ```
 
 - Initializes a `RegisterOptions` bound to `$cfg->get_options_key()`.
@@ -91,28 +91,21 @@ public function migrate(callable $migration): self;
 
 ### 6) Optional Arguments (non-breaking)
 
-Extend `Config::options()` to accept optional arguments while preserving current defaults and behavior (no implicit writes).
+Extend `Config::options()` to accept a minimal set of optional arguments (no implicit writes).
 
 ```php
 public function options(array $args = []): \Ran\PluginLib\Options\RegisterOptions;
 ```
 
-- **`autoload: bool`** — default `true`. Hint used when creating a new row; does not write by itself.
-- **`flip_autoload: bool`** — default `false`. If `true`, explicitly flip autoload via `RegisterOptions::set_main_autoload()` (delete+add).
-  - Guarded: no-op when unchanged; uses latest DB snapshot by default. Until PRD‑003, this operates on the current blog (`wp_options`) only.
-- **`scope: string`** — Available in 0.1.3 (see PRD‑003). Default `'site'`. One of `'site' | 'network' | 'blog'`.
-- **`blog_id: ?int`** — Available in 0.1.3 (see PRD‑003). Required when `scope='blog'`; in 0.1.3 defaults to current blog when omitted.
-- **`schema: array`** — default `[]`. Register schema on the manager; no write unless seeding/flush is requested.
-- **`seed_defaults: bool`** — default `false`. When `true` and `schema` present, seed missing values from schema.
-- **`flush: bool`** — default `false`. Persist once if changes occurred (seeding or providing `initial`).
-- **`initial: array`** — default `[]`. Initial key/value(s) to add to the in-memory payload; only saved if `flush=true`.
-- **`logger: ?Logger`** — optional override; defaults to `Config::get_logger()`.
+- **`autoload: bool`** — default `true`. Policy hint used for new-row creation; does not write by itself.
+- **`initial: array<string,mixed>`** — default `[]`. Values merged in-memory on the returned manager; no write.
+- **`schema: array<string,mixed>`** — default `[]`. Registers schema on the returned manager; no write.
 
 Notes:
 
-- **No implicit writes** unless `flip_autoload=true` or `flush=true` (with `seed_defaults` and/or `initial`).
-- Autoload flip uses the documented safe pattern; see `inc/Options/docs/examples/autoload-flip.php`.
-- Until PRD‑003 is implemented, autoload flipping operates on the current blog (site scope). Scope semantics and autoload limits for network/blog are introduced in 0.1.3 per PRD‑003.
+- **No implicit writes** occur in `Config::options()`.
+- Unknown arguments are ignored and a warning is emitted via the configured logger.
+- Operational helpers (e.g., flipping autoload, seeding defaults, providing initial values, flushing) are performed on the returned `RegisterOptions` instance.
 
 Autoload implementation details:
 
@@ -133,37 +126,37 @@ Set autoload policy for new row only (no writes):
 $opts = $config->options(['autoload' => false]);
 ```
 
-Explicitly flip autoload (delete + add):
+Flip autoload on the returned manager (guarded delete + add):
 
 ```php
-$opts = $config->options(['flip_autoload' => true]);
+$opts = $config->options();
+$opts->set_main_autoload(false); // guarded; may write if row exists and differs
 ```
 
-Note: `set_main_autoload()` is guarded (no-op when unchanged) and re-adds using the latest DB snapshot. To include staged in-memory changes before flipping, call `$opts->flush(true)` first. Until PRD‑003, flipping applies to the current blog only.
-
-Register schema, seed, and persist once:
+Register schema (no writes), then seed and persist explicitly:
 
 ```php
 $opts = $config->options([
-  'schema'        => [
+  'schema' => [
     'enabled' => ['default' => true],
     'timeout' => ['default' => 30],
   ],
-  'seed_defaults' => true,
-  'flush'         => true,
 ]);
+$opts->register_schema([
+  'enabled' => ['default' => true],
+  'timeout' => ['default' => 30],
+], true, true); // seed defaults and flush once
 ```
 
-Provide initial values and persist with a single flush:
+Provide initial values on the manager, then persist:
 
 ```php
-$opts = $config->options([
-  'initial' => [
-    'enabled' => true,
-    'mode'    => 'fast',
-  ],
-  'flush' => true,
+$opts = $config->options(['initial' => ['enabled' => true, 'mode' => 'fast']]); // staged only; still no write
+$opts->add_options([
+  'enabled' => true,
+  'mode'    => 'fast',
 ]);
+$opts->flush();
 ```
 
 Network scope (multisite) — Available in 0.1.3 (see PRD‑003):
@@ -239,7 +232,7 @@ $enabled = $opts->get_option('enabled', false);
 ## Acceptance Criteria
 
 - Config exposes `get_options_key()` and `options()`.
-- `RegisterOptions` exposes `fromConfig()`, `seed_if_missing()`, and `migrate()`.
+- `RegisterOptions` exposes `from_config()`, `seed_if_missing()`, and `migrate()`.
 - README updated with examples for plugins and themes.
 - No implicit DB writes during hydration; all writes occur via Options helpers.
 

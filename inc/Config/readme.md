@@ -138,6 +138,28 @@ App option key resolution:
 - Prefer `RAN.AppOption` if present.
 - Otherwise default to `Slug`.
 
+### Options accessor (no‑write)
+
+```php
+// Pre‑wired options manager for this app
+$opts = $config->options([
+  // recognized optional args — all staged in‑memory only
+  'autoload' => true,                    // policy hint for future writes
+  'initial'  => ['enabled' => true],     // values merged on the instance
+  'schema'   => ['enabled' => ['default' => false]],
+]);
+
+// No writes occur until you call explicit persistence methods
+$opts->add_options(['enabled' => true]);
+$opts->flush();
+```
+
+- Recognized args: `autoload` (bool, default `true`), `initial` (array<string,mixed>, default `[]`), `schema` (array<string,mixed>, default `[]`).
+- This accessor performs no DB writes, seeding, or flushing by itself.
+- Unknown args are ignored and a warning is emitted via the configured logger.
+
+See the root `README.md` “Options Management” section for a detailed overview and persistence patterns.
+
 ## Logger & environment
 
 ```php

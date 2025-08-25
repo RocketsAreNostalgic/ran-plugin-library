@@ -1,0 +1,107 @@
+# TFS-002 — Using Schemas with RegisterOptions
+
+## Purpose
+
+Explain how to use schemas with `RegisterOptions` safely and predictably, with no implicit writes. This complements `inc/Options/readme.md` and the Config integration in `inc/Config/docs/PRD-002-Config-Options-Integration.md`.
+
+## Key Principles
+
+- **No implicit writes**: Registering a schema does not write to the DB by itself.
+- **Separation of concerns**: `Config::options()` returns a pre-wired manager; persistence is always explicit on `RegisterOptions`.
+- **Single source of truth**: Autoload policy and option key come from `Config` unless you intentionally construct options directly.
+
+## Passing a schema via Config::options()
+
+```php
+$schema = [
+  'enabled' => ['default' => true,  'validate' => fn($v) => is_bool($v)],
+  'timeout' => ['default' => 30,    'validate' => fn($v) => is_int($v) && $v >= 0],
+];
+
+$opts = $config->options(['schema' => $schema]);
+```
+
+- This is equivalent to:
+
+```php
+$opts = $config->options();
+$opts->register_schema($schema, false, false); // register only; no seed, no flush
+```
+
+- Rationale: Developers can wire validation early (read-only boot), then choose if/when to persist via explicit helpers.
+
+## Common Flows
+
+- **Read-only setup (boot/init; no DB writes)**
+
+```php
+$opts = $config->options(['schema' => $schema]);
+$values = $opts->get_values(); // validated reads; still no writes
+```
+
+- **Activation-time seeding (first install)**
+
+```php
+$opts = $config->options(['schema' => $schema]);
+$opts->register_schema($schema, /* seed */ true, /* flush */ true); // backfill defaults and persist once
+```
+
+- **Guarded first-write (idempotent)**
+
+```php
+$opts = $config->options(['schema' => $schema]);
+$opts->seed_if_missing(['enabled' => true, 'timeout' => 30])->flush();
+```
+
+- **Update/expansion of schema**
+
+```php
+$opts = $config->options(['schema' => $schema]);
+$opts->register_schema($schema, /* seed */ true, /* flush */ true); // safely backfill new fields
+```
+
+- **Batch updates (recommended)**
+
+```php
+$opts = $config->options(['schema' => $schema]);
+$opts
+  ->add_options([
+    'enabled' => ['value' => true],
+    'timeout' => 45,
+  ])
+  ->flush(); // single DB write
+```
+
+## Why pass a schema without seeding?
+
+- **Validation without persistence**: Ensure shape and sanitization for reads and future writes.
+- **Safe bootstrap**: Avoid accidental writes in early boot stages or on front-end requests.
+- **Tooling**: Drive admin UIs, docs, and type expectations from a single schema.
+- **Future scope reuse**: The same schema can apply to multiple scopes without redefinition.
+
+## Autoload semantics
+
+- Autoload is applied on first persistence (e.g., `seed_if_missing(...)->flush()` or `register_schema(..., true, true)`).
+- Flipping autoload is an explicit operation via `set_main_autoload(bool)`; it may write only if a row exists and autoload differs.
+
+## Scope note (forward-looking)
+
+- For scope-aware options (site/network/blog), see `inc/Config/docs/PRD-003-Options-Scope-and-Multisite.md`.
+- In PRD‑002, scope args are deferred; schema behavior remains the same.
+
+## FAQ
+
+- **Does passing `schema` to `Config::options()` write to the DB?** No. It only registers schema for validation.
+- **Do I still need `register_schema()`?** Yes, if you want to seed or persist: call `register_schema($schema, true, true)` or use `seed_if_missing(...)->flush()`.
+- **Can I define schema after construction?** Yes:
+
+  ```php
+  $opts = $config->options();
+  $opts->register_schema($schema, seedDefaults: true, flush: true);
+  ```
+
+## Testing Tips
+
+- Use `seed_if_missing()` for idempotent first-writes; assert autoload state via `$wpdb->options` when needed.
+- Verify “no implicit writes” by asserting no row exists after `options(['schema'=>...])` and after `register_schema($schema, false, false)`.
+- For migrations, test with the `migrate()` helper and ensure second runs are no-ops when no changes occur.

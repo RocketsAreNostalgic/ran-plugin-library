@@ -22,6 +22,46 @@ Introduce explicit option scope support (site, network, blog) while keeping toda
 - Automatic data migrations at runtime.
 - Changing option key resolution (`get_options_key()` remains unchanged).
 
+## Architecture Decision: Option A — Enum + Storage Adapters (Strategy)
+
+We will implement scope routing using a small, injected storage adapter selected by an enum. `RegisterOptions` composes this adapter and delegates all persistence to it. This keeps the public API stable while isolating WP API differences per scope.
+
+- OptionScope enum (library‑internal, may be referenced in docs/examples)
+
+```php
+namespace Ran\PluginLib\Options;
+
+enum OptionScope: string { case Site = 'site'; case Network = 'network'; case Blog = 'blog'; }
+```
+
+- OptionStorageInterface (private API) implemented by concrete adapters
+
+```php
+namespace Ran\PluginLib\Options\Storage;
+
+use Ran\PluginLib\Options\OptionScope;
+
+interface OptionStorageInterface {
+    public function scope(): OptionScope;
+    public function blogId(): ?int;               // null unless scope=Blog
+    public function supportsAutoload(): bool;     // Site and Blog(current) only
+
+    public function read(string $key, mixed $default = false): mixed;
+    public function update(string $key, mixed $value, ?string $autoloadYesNo = null): bool; // autoload hint only honored when supportsAutoload()
+    public function add(string $key, mixed $value, ?string $autoloadYesNo = null): bool;
+    public function delete(string $key): bool;
+
+    public function loadAllAutoloaded(): ?array;  // array for current site/blog; null otherwise
+}
+```
+
+- Concrete adapters (private):
+  - SiteOptionStorage → `get_option` / `update_option` / `add_option` / `delete_option` + `wp_load_alloptions()`; supports autoload
+  - NetworkOptionStorage → `get_site_option` / `update_site_option` / `add_site_option` / `delete_site_option`; autoload N/A
+  - BlogOptionStorage → `get_blog_option` / `update_blog_option` / `add_blog_option` / `delete_blog_option`; requires `blog_id`; autoload only when targeting current blog
+
+A small factory selects the adapter from `(scope, blog_id)` and is used by both `Config::options()` and `RegisterOptions::fromConfig()`.
+
 ## Proposed Additions
 
 ### 1) Config options accessor with scope params
@@ -32,8 +72,14 @@ Extend `Config::options(array $args = [])`:
 public function options(array $args = []): \Ran\PluginLib\Options\RegisterOptions;
 ```
 
-- Supported args: `scope` (`'site'|'network'|'blog'`, default `'site'`), `blog_id` (`?int`, optional for `'blog'`; defaults to current blog when omitted).
+- Supported args:
+  - `scope` (`'site'|'network'|'blog'`, default `'site'`)
+  - `blog_id` (`?int`, optional for `'blog'`; defaults to current blog when omitted)
+  - `autoload` (`bool`, default `true`) — policy hint for future writes; no write by itself
+  - `initial` (`array<string,mixed>`, default `[]`) — staged values merged in‑memory on the manager
+  - `schema` (`array<string,mixed>`, default `[]`) — staged schema merged in‑memory on the manager
 - Side‑effect free; returns a pre‑wired `RegisterOptions`.
+- Unknown args are ignored and a warning is emitted via the configured logger.
 
 ### 2) Scope‑aware factory on RegisterOptions
 
@@ -43,13 +89,17 @@ Extend `RegisterOptions`:
 public static function fromConfig(\Ran\PluginLib\Config\ConfigInterface $cfg, string $scope = 'site', ?int $blog_id = null): self;
 ```
 
-- Binds to `$cfg->get_options_key()` with the requested scope.
+- Accepts scope as `'site'|'network'|'blog'` (string). Internally normalized to `OptionScope`.
+- Wires an appropriate `OptionStorageInterface` via the internal factory.
+- Binds to `$cfg->get_options_key()` with the requested scope and blog context.
+- For `scope='blog'`, `blog_id` is optional; omitted means current blog.
 
 ### 3) Internal storage adapters (private)
 
-- SiteOptionStorage → `get_option` / `update_option` / `delete_option` (supports autoload)
-- NetworkOptionStorage → `get_site_option` / `update_site_option` / `delete_site_option`
-- BlogOptionStorage → `get_blog_option` / `update_blog_option` / `delete_blog_option`
+- Adapters implement `OptionStorageInterface` (see Architecture Decision above).
+- SiteOptionStorage → `get_option` / `update_option` / `add_option` / `delete_option` + `wp_load_alloptions()`; supports autoload.
+- NetworkOptionStorage → `get_site_option` / `update_site_option` / `add_site_option` / `delete_site_option`; autoload not applicable.
+- BlogOptionStorage → `get_blog_option` / `update_blog_option` / `add_blog_option` / `delete_blog_option`; requires `blog_id`; autoload only when targeting current blog.
 
 These are internal implementation details; not part of the public API.
 
@@ -59,7 +109,7 @@ These are internal implementation details; not part of the public API.
   - Returns `true` when the main option is autoloaded (preloaded via `wp_load_alloptions()`).
   - Returns `false` when the main option row exists but is not autoloaded.
   - Returns `null` when the main option row does not exist or autoload is not applicable in the current scope.
-- `RegisterOptions::set_main_autoload(bool $autoload)`
+- `RegisterOptions::set_main_autoload(bool)`
   - MUST short‑circuit (no delete+add) when the current autoload already matches the requested value.
   - Otherwise forces the flip via delete+add (WordPress only applies autoload on creation).
 - Content source policy during flip
@@ -103,6 +153,20 @@ if (is_multisite() && current_user_can('manage_network_options')) {
   $opts = $config->options(['scope' => 'network']);
   $global = $opts->get_values();
 }
+```
+
+### Scope with initial and schema (no write until explicit)
+
+```php
+// Stage values and schema for network scope; this does not persist yet
+$opts = $config->options([
+  'scope'   => 'network',
+  'initial' => ['enabled' => true],
+  'schema'  => ['enabled' => ['default' => false]],
+]);
+
+// Persist explicitly (seed defaults and flush once)
+$opts->register_schema(['enabled' => ['default' => false]], true, true);
 ```
 
 ### Blog‑specific lookup (by blog ID)
@@ -245,26 +309,93 @@ $network->update_option($target_key, $aggregate);
 
 - Keep `Config` read‑only with respect to options (no implicit writes).
 - Default remains `'site'`; no behavioral change for existing consumers.
-- Explicit scoping reduces ambiguity and improves testability.
-- Internal adapters isolate WordPress API differences.
-- Persisted payload shape remains unchanged; scope and autoload are access‑layer concerns and are not stored in the option row.
+  292→- Explicit scoping reduces ambiguity and improves testability.
+  293→- Internal adapters isolate WordPress API differences.
+  294→- Persisted payload shape remains unchanged; scope and autoload are access‑layer concerns and are not stored in the option row.
+
+## Synchronization & Instance Lifecycle
+
+- **Single instance per key**
+
+  - Prefer a single `RegisterOptions` instance per `(scope, blog_id, main_option_key)` per request.
+  - Library does not maintain a global registry; callers should manage sharing when needed.
+
+- **Freshness rules**
+
+  - Before must‑be‑fresh reads, call `refresh_options()` to reload from storage.
+  - After external writes (other processes/plugins), call `refresh_options()` to avoid stale caches.
+
+- **Write batching**
+
+  - Stage multiple changes via `add_option(s)` and persist once with `flush(true)` to merge with the latest DB snapshot (shallow, top‑level), preserving disjoint keys.
+  - For deep/nested merges, callers should prepare the merged payload and use `flush(false)` to replace without DB merge.
+
+- **Multiple instances in same request**
+
+  - If multiple instances target the same `(scope, blog_id, key)`, their internal caches can diverge. Either share one instance or call `refresh_options()` before reads/writes.
+
+- **Blog scope and runtime context**
+
+  - For `scope='blog'` with `blog_id` omitted, the adapter targets the current runtime blog. If `switch_to_blog()` is used later, obtain a new instance for that blog.
+  - For explicit `blog_id`, autoload semantics only apply when the runtime blog equals the target blog. To flip autoload, `switch_to_blog($blog_id)` first.
+
+- **Autoload flips**
+
+  - See “Autoload semantics”. Setter is guarded; when flipping, content comes from the latest DB snapshot unless the caller `flush(true)` beforehand.
+
+- **Write gating**
+  - Use the documented filters (e.g., `ran/plugin_lib/options/allow_persist`) to gate writes per scope, operation, and execution context (admin/CLI/cron).
+
+## Testing Plan
+
+- **Adapters (unit, isolated)**
+
+  - Verify each adapter routes to the correct WP wrapper (`get_option`, `get_site_option`, `get_blog_option`, etc.).
+  - `supportsAutoload()` truth table: Site=true; Blog=true when current blog equals target; Network=false; Blog(other)=false.
+  - `loadAllAutoloaded()` returns array only when supported; otherwise null.
+
+- **RegisterOptions integration**
+
+  - `fromConfig()` and `Config::options()` return instances that read/write through the correct adapter for `(scope, blog_id)`.
+  - `flush(true)` performs shallow, top‑level merge with current DB snapshot; `flush(false)` replaces without merge.
+  - `get_main_autoload()` tri‑state: true/false/null per scope and row existence.
+  - `set_main_autoload()` guard when unchanged; delete+add path when flipping; creates missing row; no‑op + developer notice for Network and Blog(other).
+
+- **Multisite nuances**
+
+  - Blog(current) vs Blog(other): ensure autoload behavior differences and adapter selection are respected.
+  - Switching blogs: demonstrate that a new instance is needed after `switch_to_blog()` when using implicit blog scope.
+
+- **Filters and capability gates**
+
+  - Tests where `ran/plugin_lib/options/allow_persist` returns false: verify no writes occur and appropriate logs are emitted.
+
+- **Logging**
+  - Verify developer notices for no‑op autoload flips and blocked writes. Match exact message patterns used in implementation.
+
+Notes:
+
+- Use WP_Mock for WordPress function expectations and Mockery for logger expectations.
+- Keep tests non‑breaking with current public API; adapters and interface remain private to the library.
 
 ## Risks & Mitigations
 
 - Hidden behavior via header default → Document clearly; explicit params always override.
 - Autoload confusion on non‑site scopes → No‑op + logger notice; emphasize in docs.
-- Migration complexity → Provide WP‑CLI recipe with dry‑run and rollback notes.
+  {{ ... }}
 
 ## Acceptance Criteria
 
 - `Config::options(array $args = [])` accepts `scope` (default `'site'`) and optional `blog_id` for `'blog'` scope (defaults to current blog when omitted) without breaking existing call sites.
-- `RegisterOptions::fromConfig($cfg, string $scope = 'site', ?int $blog_id = null)` available.
-- Internal storage adapters route calls to correct WP APIs.
+- `RegisterOptions::fromConfig($cfg, string $scope = 'site', ?int $blog_id = null)` available and uses the storage factory internally.
+- `OptionScope` enum defined with values `site`, `network`, `blog` (library‑internal, referenced in docs/examples).
+- `OptionStorageInterface` defined and implemented by `SiteOptionStorage`, `NetworkOptionStorage`, `BlogOptionStorage`.
+- Internal storage adapters route calls to correct WP APIs, honoring autoload only when `supportsAutoload()` is true.
 - Autoload behavior:
   - `get_main_autoload(): ?bool` returns tri‑state (true/false/null) per scope and existence rules documented above.
   - `set_main_autoload(bool)` implements a no‑op guard when unchanged; when flipping, it re‑adds the latest DB snapshot; when missing, it creates the row with the requested autoload.
   - Applies to `'site'` and `'blog'`(current blog); no‑op + developer notice for `'network'` and `'blog'`(other blog).
-- Documentation includes an “Option Scope” section and examples above.
+- Documentation includes an “Architecture Decision” section and examples above.
 - Capability checks are the caller's responsibility, per-scope validation hooks are provided.
 - Migration recipe documented.
 - Unit tests cover scope routing and autoload behavior, including tri‑state getter and the setter’s no‑op guard.

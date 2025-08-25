@@ -338,6 +338,26 @@ Notes:
   - inc/Config/docs/PRD-002-Config-Options-Integration.md
   - inc/Config/docs/PRD-003-Options-Scope-and-Multisite.md
 
+### Config::options() semantics (no-write accessor)
+
+- Recognized args (all optional):
+  - `autoload` (bool, default: true) — default autoload policy for future writes.
+  - `initial` (array<string,mixed>, default: []) — merged in-memory only.
+  - `schema` (array<string,mixed>, default: []) — merged in-memory only.
+- This accessor performs no writes, seeding, or flushes.
+- Unknown args are ignored and a warning is logged via the Config’s logger.
+
+Persisting changes:
+
+```php
+$opts = $config->options(['autoload' => true]);
+$opts->add_options(['enabled' => true]);
+$opts->flush(); // explicit write
+
+// or seed schema defaults and persist immediately
+$opts->register_schema(['enabled' => ['default' => true]], seedDefaults: true, flush: true);
+```
+
 ## Advanced Usage
 
 ### Deferred Script Loading
