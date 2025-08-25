@@ -58,4 +58,41 @@ class Config extends ConfigAbstract implements ConfigInterface {
 		$instance->_hydrateFromTheme($stylesheetDir ?? '');
 		return $instance;
 	}
+
+	/**
+	 * Accessor: get a pre-wired RegisterOptions instance for this app's options key.
+	 *
+	 * Semantics:
+	 * - Returns a RegisterOptions instance bound to `get_options_key()` and this Config's logger.
+	 * - If a schema is provided, it will be registered on the instance only.
+	 * - This method does not perform any DB writes, seeding, or flushing.
+	 * - Persistent data changes can be made through the RegisterOptions instance eg `$opts->register_schema($schema, true, true);`.
+	 *
+	 * @param array{autoload?: bool, schema?: array<string, mixed>} $args
+	 * @return \Ran\PluginLib\Options\RegisterOptions
+	 */
+	public function options(array $args = array()): \Ran\PluginLib\Options\RegisterOptions {
+		// Normalize args with defaults
+		$defaults = array('autoload' => true, 'schema' => array());
+		$args     = is_array($args) ? array_merge($defaults, $args) : $defaults;
+
+		$autoload = (bool) ($args['autoload'] ?? true);
+		$schema   = is_array($args['schema'] ?? null) ? $args['schema'] : array();
+
+		// Build instance via factory; pass empty initial and empty schema to avoid constructor-side writes
+		$opts = \Ran\PluginLib\Options\RegisterOptions::from_config(
+			$this,
+			array(),           // initial (none)
+			$autoload,
+			$this->get_logger(),
+			array()            // schema (none at construction)
+		);
+
+		// Optional schema registration without seeding or flushing (no writes)
+		if (!empty($schema)) {
+			$opts->register_schema($schema, false, false);
+		}
+
+		return $opts;
+	}
 }
