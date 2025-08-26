@@ -28,7 +28,7 @@ declare(strict_types=1);
 use Ran\PluginLib\Config\Config;
 use Ran\PluginLib\Options\RegisterOptions;
 
-$config  = Config::get_instance();
+$config  = Config::fromPluginFile(__FILE__);
 $options = RegisterOptions::from_config($config);
 
 // BATCH PATTERN: Stage multiple changes in memory first, then flush once
@@ -41,32 +41,53 @@ $options->add_options(array(
 ))->flush(); // Single DB write for all changes
 
 // REAL-WORLD EXAMPLE: Plugin activation with many defaults
-// $activation_defaults = [
-//     'version' => '1.0.0',
-//     'activation_date' => current_time('mysql'),
-//     'features_enabled' => ['analytics', 'caching'],
-//     'api_endpoints' => [
-//         'primary' => 'https://api.example.com/v1',
-//         'fallback' => 'https://backup-api.example.com/v1'
-//     ],
-//     'performance_settings' => [
-//         'cache_timeout' => 3600,
-//         'max_retries' => 3,
-//         'batch_size' => 100
-//     ]
-// ];
-//
-// $options->add_options($activation_defaults)->flush(); // Single write for all
+$activation_defaults = array(
+    'version'          => '1.0.0',
+    'activation_date'  => current_time('mysql'),
+    'features_enabled' => array('analytics', 'caching'),
+    'api_endpoints'    => array(
+        'primary'  => 'https://api.example.com/v1',
+        'fallback' => 'https://backup-api.example.com/v1'
+    ),
+    'performance_settings' => array(
+        'cache_timeout' => 3600,
+        'max_retries'   => 3,
+        'batch_size'    => 100
+    )
+);
+
+$options->add_options($activation_defaults)->flush(); // Single write for all
 
 // FORM PROCESSING EXAMPLE: Handle admin settings form
-// if ($_POST['save_settings']) {
-//     $form_data = [
-//         'notification_email' => sanitize_email($_POST['email']),
-//         'enable_notifications' => !empty($_POST['notifications']),
-//         'notification_frequency' => sanitize_text_field($_POST['frequency']),
-//         'last_updated' => current_time('mysql')
-//     ];
-//
-//     $options->add_options($form_data)->flush();
-//     wp_redirect(add_query_arg('updated', '1', wp_get_referer()));
-// }
+if ($_POST['save_settings']) {
+	$form_data = array(
+	    'notification_email'     => sanitize_email($_POST['email']),
+	    'enable_notifications'   => !empty($_POST['notifications']),
+	    'notification_frequency' => sanitize_text_field($_POST['frequency']),
+	    'last_updated'           => current_time('mysql')
+	);
+
+	$options->add_options($form_data)->flush();
+	wp_redirect(add_query_arg('updated', '1', wp_get_referer()));
+}
+
+// ------------------------------------------------------------
+// Scoped instance (advanced): obtain $options for a specific scope
+// ------------------------------------------------------------
+// Example: per-user batch update
+$userOptions = $config->options(array(
+  'scope'       => 'user',
+  'user_id'     => get_current_user_id(),
+  'user_global' => false,
+));
+$userOptions->add_options(array(
+  'shortcuts' => array('s' => 'search', 'n' => 'new'),
+  'theme'     => 'dark'
+))->flush();
+
+// Example: specific blog in multisite
+$blogOptions = $config->options(array(
+  'scope'   => 'blog',
+  'blog_id' => 2,
+));
+$blogOptions->add_options(array('feature_flags' => array('beta_ui' => true)))->flush();

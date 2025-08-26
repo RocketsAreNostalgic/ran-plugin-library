@@ -24,8 +24,8 @@ declare(strict_types=1);
 use Ran\PluginLib\Config\Config;
 use Ran\PluginLib\Options\RegisterOptions;
 
-// Acquire config (assumes Config has been initialized elsewhere)
-$config = Config::get_instance();
+// Acquire config for this plugin file
+$config = Config::fromPluginFile(__FILE__);
 
 // Create options group using plugin's primary option name
 // RATIONALE: from_config() uses your plugin's configured option name from Config,
@@ -49,8 +49,47 @@ $apiKey  = $options->get_option('api_key', '');     // Default to empty string, 
 $values = $options->get_values(); // ['api_key' => 'abc123', 'enabled' => true]
 
 // REAL-WORLD EXAMPLE: Plugin activation
-// if (!$options->has_option('version')) {
-//     $options->set_option('version', '1.0.0');
-//     $options->set_option('activation_date', current_time('mysql'));
-//     $options->set_option('initial_setup_complete', false);
-// }
+if (!$options->has_option('version')) {
+	$options->set_option('version', '1.0.0');
+	$options->set_option('activation_date', current_time('mysql'));
+	$options->set_option('initial_setup_complete', false);
+}
+
+// ------------------------------------------------------------
+// Scoped storage examples (advanced)
+// ------------------------------------------------------------
+// You can target different storage scopes without changing call sites.
+// Preferred: use Config accessor with explicit scope and arguments.
+
+// User scope
+// Note: user_id is required. user_global is optional (defaults false).
+// Autoload is not supported for user scope (supports_autoload() => false).
+$userOptions = $config->options(array(
+    'scope'       => 'user',
+    'user_id'     => get_current_user_id(),
+    'user_global' => false,
+));
+$userOptions->set_option('dashboard_prefs', array('layout' => 'compact'));
+$prefs = $userOptions->get_option('dashboard_prefs', array());
+
+// Blog scope (multisite)
+// Autoload is supported only when blog_id equals the current blog.
+$blogOptions = $config->options(array(
+    'scope'   => 'blog',
+    'blog_id' => 2,
+));
+if ($blogOptions->supports_autoload()) {
+	// safe to rely on autoload
+}
+
+// Alternate construction via RegisterOptions::from_config() (explicit logger/args)
+// This is useful when you need to pass a specific logger or storage args directly.
+$explicit = RegisterOptions::from_config(
+	$config,
+	/* initial */ array(),
+	/* autoload */ true,
+	/* logger */ $config->get_logger(),
+	/* schema */ array(),
+	/* scope */ 'user',
+	/* storage args */ array('user_id' => get_current_user_id(), 'user_global' => true)
+);

@@ -34,7 +34,7 @@ declare(strict_types=1);
 use Ran\PluginLib\Config\Config;
 use Ran\PluginLib\Options\RegisterOptions;
 
-$config  = Config::get_instance();
+$config  = Config::fromPluginFile(__FILE__);
 $options = RegisterOptions::from_config($config);
 
 // SCENARIO: Plugin activation while admin is changing settings
@@ -55,48 +55,68 @@ $options->add_options(array(
 $options->flush(mergeFromDb: true);
 
 // REAL-WORLD EXAMPLE: Cron job updating cache while user modifies settings
-// register_activation_hook(__FILE__, function() {
-//     $options = RegisterOptions::from_config(Config::get_instance());
-//
-//     // Set activation defaults without losing existing user settings
-//     $options->add_options([
-//         'version' => '1.0.0',
-//         'installed_date' => current_time('mysql'),
-//         'needs_welcome_screen' => true,
-//     ], false);
-//
-//     $options->flush(mergeFromDb: true); // Safe concurrent save
-// });
+register_activation_hook(__FILE__, function() {
+	$options = RegisterOptions::from_config(Config::fromPluginFile(__FILE__));
+
+	// Set activation defaults without losing existing user settings
+	$options->add_options(array(
+	    'version'              => '1.0.0',
+	    'installed_date'       => current_time('mysql'),
+	    'needs_welcome_screen' => true,
+	), false);
+
+	$options->flush(mergeFromDb: true); // Safe concurrent save
+});
 
 // CRON JOB EXAMPLE: Update analytics data without losing user settings
-// add_action('my_plugin_daily_stats', function() {
-//     $options = RegisterOptions::from_config(Config::get_instance());
-//
-//     $options->add_options([
-//         'daily_stats' => calculate_daily_stats(),
-//         'last_stats_update' => current_time('mysql'),
-//         'cache_status' => 'updated',
-//     ], false);
-//
-//     // Merge with DB in case admin changed settings during cron run
-//     $options->flush(mergeFromDb: true);
-// });
+add_action('my_plugin_daily_stats', function() {
+	$options = RegisterOptions::from_config(Config::fromPluginFile(__FILE__));
+	// Define config in this scope for scoped storage operations below
+	$config = Config::fromPluginFile(__FILE__);
+
+	$options->add_options(array(
+	    'daily_stats'       => calculate_daily_stats(),
+	    'last_stats_update' => current_time('mysql'),
+	    'cache_status'      => 'updated',
+	), false);
+
+	// ------------------------------------------------------------
+	// Scoped instance (advanced)
+	// ------------------------------------------------------------
+	// If you need to merge writes in a different scope, obtain a scoped instance:
+	$userOptions = $config->options(array(
+	  'scope'       => 'user',
+	  'user_id'     => get_current_user_id(),
+	  'user_global' => false,
+	));
+	$userOptions->add_options(array('wizard_step' => 'done'));
+	$userOptions->flush(mergeFromDb: true);
+
+	$blogOptions = $config->options(array(
+	  'scope'   => 'blog',
+	  'blog_id' => 2,
+	));
+	$blogOptions->add_options(array('feature_flags' => array('beta' => true)));
+	$blogOptions->flush(mergeFromDb: true);
+	// Merge with DB in case admin changed settings during cron run
+	$options->flush(mergeFromDb: true);
+});
 
 // AJAX FORM EXAMPLE: Handle overlapping form submissions
-// add_action('wp_ajax_save_plugin_settings', function() {
-//     $options = RegisterOptions::from_config(Config::get_instance());
-//
-//     // User submitted form data
-//     $options->set_options([
-//         'user_email' => sanitize_email($_POST['email']),
-//         'notifications_enabled' => !empty($_POST['notifications']),
-//         'last_user_update' => current_time('mysql'),
-//     ], false);
-//
-//     // Protect against overlapping AJAX requests
-//     if ($options->flush(mergeFromDb: true)) {
-//         wp_send_json_success('Settings saved');
-//     } else {
-//         wp_send_json_error('Save failed');
-//     }
-// });
+add_action('wp_ajax_save_plugin_settings', function() {
+	$options = RegisterOptions::from_config(Config::fromPluginFile(__FILE__));
+
+	// User submitted form data
+	$options->add_options(array(
+	    'user_email'            => sanitize_email($_POST['email']),
+	    'notifications_enabled' => !empty($_POST['notifications']),
+	    'last_user_update'      => current_time('mysql'),
+	));
+
+	// Protect against overlapping AJAX requests
+	if ($options->flush(mergeFromDb: true)) {
+		wp_send_json_success('Settings saved');
+	} else {
+		wp_send_json_error('Save failed');
+	}
+});

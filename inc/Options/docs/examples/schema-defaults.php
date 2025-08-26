@@ -28,10 +28,10 @@
 
 declare(strict_types=1);
 
-use Ran\PluginLib\Options\RegisterOptions;
 use Ran\PluginLib\Config\Config;
+use Ran\PluginLib\Options\RegisterOptions;
 
-$config = Config::get_instance();
+$config = Config::fromPluginFile(__FILE__);
 
 // COMPREHENSIVE SCHEMA WITH ENVIRONMENT-AWARE DEFAULTS:
 $schema = array(
@@ -40,13 +40,13 @@ $schema = array(
         'default'  => false, // Default to disabled for privacy
         'validate' => fn($v) => is_bool($v),
     ),
-    
+
     // Environment-specific timeout - shorter for development
     'api_timeout' => array(
         'default'  => fn($cfg) => $cfg && $cfg->is_dev_environment() ? 5 : 30,
         'validate' => fn($v) => is_int($v) && $v > 0 && $v <= 300,
     ),
-    
+
     // Cache duration based on environment
     'cache_duration' => array(
         'default' => function($cfg) {
@@ -63,7 +63,7 @@ $schema = array(
         },
         'validate' => fn($v) => is_int($v) && $v >= 0,
     ),
-    
+
     // Debug level based on environment
     'debug_level' => array(
         'default' => function($cfg) {
@@ -80,13 +80,13 @@ $schema = array(
         },
         'validate' => fn($v) => in_array($v, array('debug', 'info', 'warning', 'error')),
     ),
-    
+
     // Feature availability based on server capabilities
     'image_processing_enabled' => array(
         'default'  => fn($cfg) => extension_loaded('gd') || extension_loaded('imagick'),
         'validate' => fn($v) => is_bool($v),
     ),
-    
+
     // Upload directory with site-specific path
     'upload_directory' => array(
         'default' => function($cfg) {
@@ -96,13 +96,13 @@ $schema = array(
         },
         'validate' => fn($v) => is_string($v) && !empty($v),
     ),
-    
+
     // User role-based default permissions
     'admin_features_enabled' => array(
         'default'  => fn($cfg) => current_user_can('manage_options'),
         'validate' => fn($v) => is_bool($v),
     ),
-    
+
     // Multisite-aware defaults
     'network_mode' => array(
         'default'  => fn($cfg) => is_multisite(),
@@ -134,32 +134,59 @@ echo '- Admin features: ' . ($options->get_option('admin_features_enabled') ? 'E
 echo '- Network mode: ' . ($options->get_option('network_mode') ? 'Multisite' : 'Single site') . "\n";
 
 // REAL-WORLD PLUGIN ACTIVATION EXAMPLE:
-// register_activation_hook(__FILE__, function() {
-//     $config = Config::get_instance();
-//
-//     $activation_schema = [
-//         'version' => [
-//             'default' => '1.0.0',
-//             'validate' => fn($v) => is_string($v) && !empty($v),
-//         ],
-//         'installed_date' => [
-//             'default' => fn($cfg) => current_time('mysql'),
-//             'validate' => fn($v) => is_string($v),
-//         ],
-//         'needs_welcome_screen' => [
-//             'default' => true,
-//             'validate' => fn($v) => is_bool($v),
-//         ],
-//         'performance_mode' => [
-//             'default' => fn($cfg) => wp_get_environment_type() === 'production' ? 'optimized' : 'standard',
-//             'validate' => fn($v) => in_array($v, ['standard', 'optimized']),
-//         ],
-//     ];
-//
-//     // This will seed all defaults in-memory
-//     $options = RegisterOptions::from_config($config, [], true, null, $activation_schema);
-//     // Persist in one database write
-//     $options->flush();
-//
-//     // Plugin is now properly initialized with environment-appropriate defaults
-// });
+register_activation_hook(__FILE__, function() {
+	$config = Config::fromPluginFile(__FILE__);
+
+	$activation_schema = array(
+	    'version' => array(
+	        'default'  => '1.0.0',
+	        'validate' => fn($v) => is_string($v) && !empty($v),
+	    ),
+	    'installed_date' => array(
+	        'default'  => fn($cfg) => current_time('mysql'),
+	        'validate' => fn($v) => is_string($v),
+	    ),
+	    'needs_welcome_screen' => array(
+	        'default'  => true,
+	        'validate' => fn($v) => is_bool($v),
+	    ),
+	    'performance_mode' => array(
+	        'default'  => fn($cfg) => wp_get_environment_type() === 'production' ? 'optimized' : 'standard',
+	        'validate' => fn($v) => in_array($v, array('standard', 'optimized')),
+	    ),
+	);
+
+	// This will seed all defaults in-memory
+	$options = RegisterOptions::from_config($config, array(), true, null, $activation_schema);
+	// Persist in one database write
+	$options->flush();
+
+	// Plugin is now properly initialized with environment-appropriate defaults
+});
+
+// ------------------------------------------------------------
+// Scoped usage with schema (advanced)
+// ------------------------------------------------------------
+// When you need to seed defaults for a different storage scope, pass scope and
+// storage args directly to RegisterOptions::from_config along with your schema.
+// Example: per-user defaults
+$userOptions = RegisterOptions::from_config(
+	$config,
+	/* initial */ array(),
+	/* autoload */ false, // user scope does not support autoload
+	/* logger */ $config->get_logger(),
+	/* schema */ $schema,
+	/* scope */ 'user',
+	/* storage args */ array('user_id' => get_current_user_id(), 'user_global' => false)
+);
+
+// Example: blog-scoped defaults (multisite)
+$blogOptions = RegisterOptions::from_config(
+	$config,
+	array(),
+	true,
+	$config->get_logger(),
+	$schema,
+	'blog',
+	array('blog_id' => 2)
+);

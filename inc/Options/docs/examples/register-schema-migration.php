@@ -30,7 +30,7 @@ declare(strict_types=1);
 use Ran\PluginLib\Config\Config;
 use Ran\PluginLib\Options\RegisterOptions;
 
-$config  = Config::get_instance();
+$config  = Config::fromPluginFile(__FILE__);
 $options = RegisterOptions::from_config($config);
 
 // EXAMPLE 1: Plugin version upgrade - add new feature with safe defaults
@@ -101,27 +101,27 @@ $options->register_schema(array(
 $options->flush();
 
 // REAL-WORLD MIGRATION EXAMPLE:
-// add_action('plugins_loaded', function() {
-//     $options = RegisterOptions::from_config(Config::get_instance());
-//     $db_version = $options->get_option('db_version', '1.0');
-//
-//     // Migration for version 1.1 - add caching options
-//     if (version_compare($db_version, '1.1', '<')) {
-//         $options->register_schema([
-//             'cache_enabled' => ['default' => true, 'validate' => fn($v) => is_bool($v)],
-//             'cache_duration' => ['default' => 3600, 'validate' => fn($v) => is_int($v) && $v > 0],
-//             'db_version' => ['default' => '1.1'],
-//         ], seedDefaults: true, flush: false);
-//     }
-//
-//     // Migration for version 1.2 - add API settings
-//     if (version_compare($db_version, '1.2', '<')) {
-//         $options->register_schema([
-//             'api_endpoint' => ['default' => 'https://api.example.com/v1'],
-//             'api_timeout' => ['default' => 30, 'validate' => fn($v) => is_int($v) && $v > 0],
-//             'db_version' => ['default' => '1.2'],
-//         ], seedDefaults: true, flush: false);
-//     }
-//
-//     $options->flush(); // Single write for all migrations
-// });
+add_action('plugins_loaded', function() {
+	$options    = RegisterOptions::from_config(Config::fromPluginFile(__FILE__));
+	$db_version = $options->get_option('db_version', '1.0');
+
+	// Migration for version 1.1 - add caching options
+	if (version_compare($db_version, '1.1', '<')) {
+		$options->register_schema(array(
+		    'cache_enabled'  => array('default' => true, 'validate' => fn($v) => is_bool($v)),
+		    'cache_duration' => array('default' => 3600, 'validate' => fn($v) => is_int($v) && $v > 0),
+		    'db_version'     => array('default' => '1.1'),
+		), seedDefaults: true, flush: false);
+	}
+
+	// Migration for version 1.2 - add API settings
+	if (version_compare($db_version, '1.2', '<')) {
+		$options->register_schema(array(
+		    'api_endpoint' => array('default' => 'https://api.example.com/v1'),
+		    'api_timeout'  => array('default' => 30, 'validate' => fn($v) => is_int($v) && $v > 0),
+		    'db_version'   => array('default' => '1.2'),
+		), seedDefaults: true, flush: false);
+	}
+
+	$options->flush(); // Single write for all migrations
+});

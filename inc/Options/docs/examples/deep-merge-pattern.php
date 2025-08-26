@@ -28,7 +28,7 @@ declare(strict_types=1);
 use Ran\PluginLib\Config\Config;
 use Ran\PluginLib\Options\RegisterOptions;
 
-$config  = Config::get_instance();
+$config  = Config::fromPluginFile(__FILE__);
 $options = RegisterOptions::from_config($config);
 
 // EXAMPLE 1: Theme customization - update colors without losing typography

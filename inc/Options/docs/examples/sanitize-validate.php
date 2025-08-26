@@ -31,7 +31,7 @@ declare(strict_types=1);
 use Ran\PluginLib\Config\Config;
 use Ran\PluginLib\Options\RegisterOptions;
 
-$config = Config::get_instance();
+$config = Config::fromPluginFile(__FILE__);
 
 // COMPREHENSIVE SCHEMA EXAMPLES:
 $schema = array(
@@ -123,18 +123,18 @@ try {
 }
 
 // REAL-WORLD FORM PROCESSING EXAMPLE:
-// if ($_POST['save_settings']) {
-//     try {
-//         $options->set_options([
-//             'stripe_api_key' => $_POST['api_key'],
-//             'notification_email' => $_POST['admin_email'],
-//             'webhook_url' => $_POST['webhook'],
-//             'api_timeout' => $_POST['timeout'],
-//             'enabled_features' => $_POST['features'] ?? [],
-//         ], true);
-//
-//         wp_redirect(add_query_arg('updated', '1', wp_get_referer()));
-//     } catch (InvalidArgumentException $e) {
-//         wp_redirect(add_query_arg('error', urlencode($e->getMessage()), wp_get_referer()));
-//     }
-// }
+if ($_POST['save_settings']) {
+	try {
+		$options->add_options(array(
+		    'stripe_api_key'     => $_POST['api_key'],
+		    'notification_email' => $_POST['admin_email'],
+		    'webhook_url'        => $_POST['webhook'],
+		    'api_timeout'        => $_POST['timeout'],
+		    'enabled_features'   => $_POST['features'] ?? array(),
+		))->flush();
+
+		wp_redirect(add_query_arg('updated', '1', wp_get_referer()));
+	} catch (InvalidArgumentException $e) {
+		wp_redirect(add_query_arg('error', urlencode($e->getMessage()), wp_get_referer()));
+	}
+}
