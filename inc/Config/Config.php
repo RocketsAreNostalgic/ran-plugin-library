@@ -72,6 +72,10 @@ class Config extends ConfigAbstract implements ConfigInterface {
      *   - `autoload` (bool, default: true) — default autoload policy to apply on future writes.
      *   - `initial` (array<string,mixed>, default: []) — values merged in-memory on the instance.
      *   - `schema` (array<string,mixed>, default: []) — schema merged in-memory on the instance.
+     *   - `scope` ('site'|'network'|'blog'|'user' or OptionScope), default: 'site'.
+     *   - `blog_id` (int|null) — used when scope='blog'.
+     *   - `user_id` (int) — required when scope='user'.
+     *   - `user_global` (bool, default: false) — forwarded for user scope.
      * - This method itself performs no DB writes, seeding, or flushing.
      * - Unknown args are ignored and a warning is emitted via this Config's logger.
      *
@@ -79,20 +83,49 @@ class Config extends ConfigAbstract implements ConfigInterface {
      * - Use the returned RegisterOptions instance to perform explicit write operations when desired,
      *   e.g. `$opts->add_options([...]); $opts->flush();` or `$opts->register_schema($schema, seedDefaults: true, flush: true);`.
      *
-     * @param array{autoload?: bool, initial?: array<string, mixed>, schema?: array<string, mixed>} $args Recognized args only; unknown keys are ignored with a warning.
+     * @param array $args Recognized args only; unknown keys are ignored with a warning.
      * @return \Ran\PluginLib\Options\RegisterOptions
      */
 	public function options(array $args = array()): \Ran\PluginLib\Options\RegisterOptions {
 		// Normalize args with defaults (recognized keys only)
-		$defaults = array('autoload' => true, 'initial' => array(), 'schema' => array());
-		$args     = is_array($args) ? array_merge($defaults, $args) : $defaults;
+		$defaults = array(
+		    'autoload'     => true,
+		    'initial'      => array(),
+		    'schema'       => array(),
+		    'scope'        => null,
+		    'blog_id'      => null,
+		    'user_id'      => null,
+		    'user_global'  => false,
+		    'user_storage' => null,
+		);
+		$args = is_array($args) ? array_merge($defaults, $args) : $defaults;
 
-		$autoload = (bool) ($args['autoload'] ?? true);
-		$initial  = is_array($args['initial'] ?? null) ? $args['initial'] : array();
-		$schema   = is_array($args['schema'] ?? null) ? $args['schema'] : array();
+		$autoload    = (bool) ($args['autoload'] ?? true);
+		$initial     = is_array($args['initial'] ?? null) ? $args['initial'] : array();
+		$schema      = is_array($args['schema'] ?? null) ? $args['schema'] : array();
+		$scope       = $args['scope'] ?? null; // string|OptionScope|null
+		$storageArgs = array();
+		// Only forward args relevant to the selected scope to avoid unintended effects.
+		$isUserScope = ($scope === 'user') || ($scope instanceof \Ran\PluginLib\Options\OptionScope && $scope === \Ran\PluginLib\Options\OptionScope::User);
+		$isBlogScope = ($scope === 'blog') || ($scope instanceof \Ran\PluginLib\Options\OptionScope && $scope === \Ran\PluginLib\Options\OptionScope::Blog);
+		if ($isBlogScope && array_key_exists('blog_id', $args) && null !== $args['blog_id']) {
+			$storageArgs['blog_id'] = (int) $args['blog_id'];
+		}
+		if ($isUserScope && array_key_exists('user_id', $args) && null !== $args['user_id']) {
+			$storageArgs['user_id'] = (int) $args['user_id'];
+		}
+		if ($isUserScope && array_key_exists('user_global', $args)) {
+			$storageArgs['user_global'] = (bool) $args['user_global'];
+		}
+		if ($isUserScope && array_key_exists('user_storage', $args) && is_string($args['user_storage'])) {
+			$storageArgs['user_storage'] = $args['user_storage'];
+		} elseif ($isUserScope && !array_key_exists('user_storage', $args)) {
+			// Default to meta for user scope when not provided
+			$storageArgs['user_storage'] = 'meta';
+		}
 
 		// Warn on unknown/operational args (no behavior change; no writes)
-		$recognized = array('autoload', 'initial', 'schema');
+		$recognized = array('autoload', 'initial', 'schema', 'scope', 'blog_id', 'user_id', 'user_global', 'user_storage');
 		$unknown    = array_diff(array_keys($args), $recognized);
 		if (!empty($unknown)) {
 			$logger = $this->get_logger();
@@ -101,13 +134,15 @@ class Config extends ConfigAbstract implements ConfigInterface {
 			}
 		}
 
-		// Build instance via factory; pass empty initial and empty schema to avoid constructor-side writes
+		// Build instance via factory (no writes performed here)
 		$opts = RegisterOptions::from_config(
 			$this,
 			$initial,
 			$autoload,
 			$this->get_logger(),
-			$schema
+			$schema,
+			$scope,
+			$storageArgs
 		);
 
 		return $opts;

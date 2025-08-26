@@ -175,7 +175,8 @@ trait WPWrappersTrait {
 	 * @codeCoverageIgnore
 	 */
 	public function _do_add_option(string $option, mixed $value = '', string $deprecated = '', mixed $autoload = 'yes'): bool {
-		return \add_option($option, $value, $deprecated, $autoload);
+		// Some test shims may return null; always normalize to strict bool.
+		return (bool) \add_option($option, $value, $deprecated, $autoload);
 	}
 
 	/**
@@ -183,7 +184,200 @@ trait WPWrappersTrait {
 	 * @codeCoverageIgnore
 	 */
 	public function _do_delete_option(string $option): bool {
-		return \delete_option($option);
+		// Some test shims may return null; always normalize to strict bool.
+		return (bool) \delete_option($option);
+	}
+
+	/**
+	 * Public wrapper for WordPress get_site_option function (Network scope)
+	 *
+	 * @param  string $option
+	 * @param  mixed  $default
+	 * @return mixed
+	 */
+	public function _do_get_site_option(string $option, mixed $default = false): mixed {
+		return \get_site_option($option, $default);
+	}
+
+	/**
+	 * Public wrapper for WordPress update_site_option function (Network scope)
+	 *
+	 * @param  string $option
+	 * @param  mixed  $value
+	 * @return bool
+	 */
+	public function _do_update_site_option(string $option, mixed $value): bool {
+		return \update_site_option($option, $value);
+	}
+
+	/**
+	 * Public wrapper for WordPress add_site_option function (Network scope)
+	 *
+	 * Some test shims may return null; always normalize to strict bool.
+	 *
+	 * @param  string $option
+	 * @param  mixed  $value
+	 * @return bool
+	 */
+	public function _do_add_site_option(string $option, mixed $value = ''): bool {
+		return (bool) \add_site_option($option, $value);
+	}
+
+	/**
+	 * Public wrapper for WordPress delete_site_option function (Network scope)
+	 *
+	 * Some test shims may return null; always normalize to strict bool.
+	 *
+	 * @param  string $option
+	 * @return bool
+	 */
+	public function _do_delete_site_option(string $option): bool {
+		return (bool) \delete_site_option($option);
+	}
+
+	/**
+	 * Public wrapper for WordPress get_blog_option function (Blog scope)
+	 *
+	 * @param  int    $blog_id
+	 * @param  string $option
+	 * @param  mixed  $default
+	 * @return mixed
+	 */
+	public function _do_get_blog_option(int $blog_id, string $option, mixed $default = false): mixed {
+		return \get_blog_option($blog_id, $option, $default);
+	}
+
+	/**
+	 * Public wrapper for WordPress update_blog_option function (Blog scope)
+	 *
+	 * @param  int    $blog_id
+	 * @param  string $option
+	 * @param  mixed  $value
+	 * @return bool
+	 */
+	public function _do_update_blog_option(int $blog_id, string $option, mixed $value): bool {
+		return \update_blog_option($blog_id, $option, $value);
+	}
+
+	/**
+	 * Public wrapper for WordPress add_blog_option function (Blog scope)
+	 *
+	 * Some test shims may return null; always normalize to strict bool.
+	 *
+	 * @param  int    $blog_id
+	 * @param  string $option
+	 * @param  mixed  $value
+	 * @return bool
+	 */
+	public function _do_add_blog_option(int $blog_id, string $option, mixed $value = ''): bool {
+		return (bool) \add_blog_option($blog_id, $option, $value);
+	}
+
+	/**
+	 * Public wrapper for WordPress delete_blog_option function (Blog scope)
+	 *
+	 * Some test shims may return null; always normalize to strict bool.
+	 *
+	 * @param  int    $blog_id
+	 * @param  string $option
+	 * @return bool
+	 */
+	public function _do_delete_blog_option(int $blog_id, string $option): bool {
+		return (bool) \delete_blog_option($blog_id, $option);
+	}
+
+	/**
+	 * Public wrapper for WordPress get_user_option function (User scope)
+	 *
+	 * Note: WP signature is get_user_option($option, $user, $deprecated=''). We flip
+	 * the first two arguments for consistency with other wrappers.
+	 *
+	 * @param  int    $user_id
+	 * @param  string $option
+	 * @param  mixed  $deprecated
+	 * @return mixed
+	 */
+	public function _do_get_user_option(int $user_id, string $option, mixed $deprecated = ''): mixed {
+		return \get_user_option($option, $user_id, $deprecated);
+	}
+
+	/**
+	 * Public wrapper for WordPress update_user_option function (User scope)
+	 *
+	 * @param  int    $user_id
+	 * @param  string $option
+	 * @param  mixed  $value
+	 * @param  bool   $global
+	 * @return bool
+	 */
+	public function _do_update_user_option(int $user_id, string $option, mixed $value, bool $global = false): bool {
+		return (bool) \update_user_option($user_id, $option, $value, $global);
+	}
+
+	/**
+	 * Public wrapper for WordPress delete_user_option function (User scope)
+	 *
+	 * @param  int    $user_id
+	 * @param  string $option
+	 * @param  bool   $global
+	 * @return bool
+	 */
+	public function _do_delete_user_option(int $user_id, string $option, bool $global = false): bool {
+		return (bool) \delete_user_option($user_id, $option, $global);
+	}
+
+	/**
+	 * Public wrapper for WordPress get_user_meta function (User meta)
+	 *
+	 * @param int    $user_id User ID
+	 * @param string $key     Meta key
+	 * @param bool   $single  Whether to return a single value. Default true.
+	 * @return mixed          Meta value(s)
+	 */
+	public function _do_get_user_meta(int $user_id, string $key, bool $single = true): mixed {
+		return \get_user_meta($user_id, $key, $single);
+	}
+
+	/**
+	 * Public wrapper for WordPress update_user_meta function (User meta)
+	 *
+	 * Some test shims may return null; always normalize to strict bool.
+	 *
+	 * @param int    $user_id User ID
+	 * @param string $key     Meta key
+	 * @param mixed  $value   Meta value
+	 * @return bool           True on success
+	 */
+	public function _do_update_user_meta(int $user_id, string $key, mixed $value): bool {
+		return (bool) \update_user_meta($user_id, $key, $value);
+	}
+
+	/**
+	 * Public wrapper for WordPress add_user_meta function (User meta)
+	 *
+	 * Some test shims may return null; always normalize to strict bool.
+	 *
+	 * @param int    $user_id User ID
+	 * @param string $key     Meta key
+	 * @param mixed  $value   Meta value
+	 * @param bool   $unique  Whether the meta key should be unique. Default false.
+	 * @return bool           True on success
+	 */
+	public function _do_add_user_meta(int $user_id, string $key, mixed $value, bool $unique = false): bool {
+		return (bool) \add_user_meta($user_id, $key, $value, $unique);
+	}
+
+	/**
+	 * Public wrapper for WordPress delete_user_meta function (User meta)
+	 *
+	 * Some test shims may return null; always normalize to strict bool.
+	 *
+	 * @param int    $user_id User ID
+	 * @param string $key     Meta key
+	 * @return bool           True on success
+	 */
+	public function _do_delete_user_meta(int $user_id, string $key): bool {
+		return (bool) \delete_user_meta($user_id, $key);
 	}
 
 	/**
@@ -196,9 +390,22 @@ trait WPWrappersTrait {
 	public function _do_wp_load_alloptions($force_cache = false): ?array {
 		if (\function_exists('wp_load_alloptions')) {
 			$all = \wp_load_alloptions($force_cache);
-			return is_array($all) ? $all : array();
+			// If WP returns a non-array here, treat as undeterminable
+			return is_array($all) ? $all : null;
 		}
 		return null;
+	}
+
+	/**
+	 * Public wrapper for WordPress get_current_blog_id()
+	 * Returns current blog ID; when function missing, defaults to 0.
+	 * @return int
+	 */
+	public function _do_get_current_blog_id(): int {
+		if (\function_exists('get_current_blog_id')) {
+			return (int) \get_current_blog_id();
+		}
+		return 0;
 	}
 
 	/**
