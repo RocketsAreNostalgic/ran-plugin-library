@@ -137,6 +137,14 @@ class RegisterOptions {
 	private array $schema = array();
 
 	/**
+	 * Internal: origin op for persistence gating when _save_all_options() is called
+	 * from another operation (e.g., 'set_option'). Null means default 'save_all'.
+	 *
+	 * @var string|null
+	 */
+	private ?string $__persist_origin = null;
+
+	/**
      * Creates a new RegisterOptions instance.
 	 *
 	 * Initializes options by loading them from the database under `$main_wp_option_name`.
@@ -331,6 +339,41 @@ class RegisterOptions {
 
 		$new_autoload_hint = $autoload_hint ?? ($this->options[$option_name_clean]['autoload_hint'] ?? null);
 
+		// Early gate (global and scope when known) before any storage interaction
+		$scopeStr = '';
+		if ($this->storage_scope instanceof OptionScope) {
+			$scopeStr = $this->storage_scope->value;
+		} elseif (is_string($this->storage_scope) && $this->storage_scope !== '') {
+			$scopeStr = strtolower($this->storage_scope);
+		}
+		$ctx0 = array(
+		    'op'          => 'set_option',
+		    'main_option' => $this->main_wp_option_name,
+		    'key'         => $option_name_clean,
+		    'config'      => null,
+		    'scope'       => $scopeStr,
+		);
+		// @codeCoverageIgnoreStart
+		if ($this->_get_logger()->is_active()) {
+			$this->_get_logger()->debug(
+				'RegisterOptions: Early write-gate check for set_option.',
+				array('key' => $option_name_clean, 'scope' => $scopeStr)
+			);
+		}
+		// @codeCoverageIgnoreEnd
+		$__early_allowed = $this->_apply_write_gate('set_option', $ctx0);
+		if (!$__early_allowed) {
+			// @codeCoverageIgnoreStart
+			if ($this->_get_logger()->is_active()) {
+				$this->_get_logger()->debug(
+					'RegisterOptions: Early write-gate veto; aborting set_option.',
+					array('key' => $option_name_clean, 'scope' => $scopeStr)
+				);
+			}
+			// @codeCoverageIgnoreEnd
+			return false; // veto: protect in-memory state
+		}
+
 		// Avoid DB churn: if nothing changed, short-circuit
 		if (isset($this->options[$option_name_clean])) {
 			$existing      = $this->options[$option_name_clean];
@@ -353,15 +396,31 @@ class RegisterOptions {
 			'user_storage'  => $this->storage_args['user_storage'] ?? 'meta',
 			'user_global'   => (bool) ($this->storage_args['user_global'] ?? false),
 		);
-		if (!$this->_apply_write_gate('set_option', $ctx)) {
+		$__pre_mut_allowed = $this->_apply_write_gate('set_option', $ctx);
+		if (!$__pre_mut_allowed) {
 			return false; // veto: protect in-memory state
 		}
 
+		// Stage mutation and rollback if persistence is vetoed/fails to avoid in-memory drift
+		$__prev_options                    = $this->options;
 		$this->options[$option_name_clean] = array(
 		    'value'         => $value,
 		    'autoload_hint' => $new_autoload_hint,
 		);
-		return $this->_save_all_options();
+		// Defensive: re-check write gate just prior to persistence in case policies changed
+		$__pre_persist_allowed = $this->_apply_write_gate('set_option', $ctx);
+		if (!$__pre_persist_allowed) {
+			$this->options = $__prev_options; // rollback staged change
+			return false;
+		}
+		// Persist with origin-aware gating so a set_option veto blocks its persistence
+		$this->__persist_origin = 'set_option';
+		$__ok                   = $this->_save_all_options();
+		$this->__persist_origin = null;
+		if (!$__ok) {
+			$this->options = $__prev_options; // rollback on veto/failure
+		}
+		return $__ok;
 	}
 
 	/**
@@ -904,6 +963,8 @@ class RegisterOptions {
 	/**
 	 * Factory: create a RegisterOptions instance using the option name derived from Config.
 	 *
+	 * Uses late static binding (new static) so subclasses receive instances when calling ::from_config().
+	 *
 	 * @param ConfigInterface $config Initialized config instance.
 	 * @param array           $initial Initial options to seed (values or ['value'=>..., 'autoload_hint'=>...]).
 	 * @param bool            $autoload Whether the main option should be autoloaded.
@@ -911,7 +972,7 @@ class RegisterOptions {
 	 * @param array           $schema Optional schema map.
 	 * @param OptionScope|string|null $scope Optional storage scope override for this instance (defaults to Site when null).
 	 * @param array           $storage_args Optional storage argument map forwarded to the factory (e.g., ['blog_id'=>..., 'user_id'=>..., 'user_global'=>...]).
-	 * @return self
+	 * @return static
 	 */
 	public static function from_config(
         ConfigInterface $config,
@@ -921,12 +982,12 @@ class RegisterOptions {
         array $schema = array(),
         OptionScope|string|null $scope = null,
         array $storage_args = array()
-    ): self {
+    ): static {
 		$main_option = (string) $config->get_options_key();
 		if ($main_option === '') {
 			throw new \InvalidArgumentException(static::class . ': Missing or invalid options key from Config (expected non-empty get_options_key()).');
 		}
-		$instance = new self($main_option, $initial, $autoload, $logger, $config, $schema);
+		$instance = new static($main_option, $initial, $autoload, $logger, $config, $schema);
 		// Store scope/args for storage creation; normalization is handled by OptionStorageFactory::make
 		if ($scope !== null) {
 			$instance->storage_scope = $scope;
@@ -1002,7 +1063,6 @@ class RegisterOptions {
 		}
 
 		if ($allowed === false) {
-			// Developer notice for veto
 			$this->_get_logger()->notice(
 				'RegisterOptions: Write vetoed by allow_persist filter.',
 				array(
@@ -1065,8 +1125,9 @@ class RegisterOptions {
 
 		// Apply write-gating before persistence
 		$scopeEnum = $this->_get_storage()->scope();
+		$__op      = $this->__persist_origin ?? 'save_all';
 		$ctx       = array(
-			'op'           => 'save_all',
+			'op'           => $__op,
 			'main_option'  => $this->main_wp_option_name,
 			'options'      => $to_save,
 			'autoload'     => $this->main_option_autoload,
@@ -1078,14 +1139,52 @@ class RegisterOptions {
 			'mergeFromDb'  => $mergeFromDb,
 			'config'       => null,
 		);
-		if (!$this->_apply_write_gate('save_all', $ctx)) {
+		// @codeCoverageIgnoreStart
+		if ($this->_get_logger()->is_active()) {
+			$this->_get_logger()->debug(
+				"RegisterOptions: Applying write-gate for {$__op}.",
+				array('scope' => $scopeEnum->value, 'mergeFromDb' => $mergeFromDb)
+			);
+		}
+		// @codeCoverageIgnoreEnd
+		if (!$this->_apply_write_gate($__op, $ctx)) {
 			return false; // vetoed by filter
 		}
 
-		// Persist via storage adapter (site scope currently)
+		// Persist via storage adapter (site/user/blog/network depending on scope)
+		// @codeCoverageIgnoreStart
+		if ($this->_get_logger()->is_active()) {
+			$this->_get_logger()->debug(
+				'RegisterOptions: Persisting via storage->update().',
+				array('scope' => $scopeEnum->value, 'count' => count($to_save))
+			);
+		}
+		// @codeCoverageIgnoreEnd
 		$result = $this->_get_storage()->update($this->main_wp_option_name, $to_save, $this->main_option_autoload);
 		// Mirror what we just saved to keep local cache consistent
 		$this->options = $to_save;
+		// @codeCoverageIgnoreStart
+		if ($this->_get_logger()->is_active()) {
+			$this->_get_logger()->debug(
+				'RegisterOptions: storage->update() completed.',
+				array('result' => (bool) $result)
+			);
+		}
+		// @codeCoverageIgnoreEnd
+		return $result;
+	}
+
+	/**
+	 * Apply write-gating filters with rich context. Returns true when allowed.
+	 *
+	 * Filters applied (in order):
+	 * - ran/plugin_lib/options/allow_persist
+			$this->_get_logger()->debug(
+				"RegisterOptions: storage->update() completed.",
+				array('result' => (bool) $result)
+			);
+		}
+		// @codeCoverageIgnoreEnd
 		return $result;
 	}
 

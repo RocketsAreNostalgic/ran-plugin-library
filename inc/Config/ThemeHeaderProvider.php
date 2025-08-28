@@ -21,7 +21,7 @@ final class ThemeHeaderProvider implements HeaderProviderInterface {
 	}
 
 	public function get_base_identifiers(): array {
-		$base_url  = function_exists('get_stylesheet_directory_uri') ? get_stylesheet_directory_uri() : '';
+		$base_url  = $this->cfg->_do_get_stylesheet_directory_uri();
 		$dir       = $this->stylesheet_dir;
 		$base_path = $dir;
 		$base_name = basename($dir);

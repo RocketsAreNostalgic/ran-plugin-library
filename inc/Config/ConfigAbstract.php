@@ -11,6 +11,7 @@ namespace Ran\PluginLib\Config;
 
 use Exception;
 use Ran\PluginLib\Util\Logger;
+use Ran\PluginLib\Util\WPWrappersTrait;
 use Ran\PluginLib\Config\ConfigInterface;
 
 /**
@@ -61,6 +62,8 @@ use Ran\PluginLib\Config\ConfigInterface;
  * @throws \Exception If an attempt is made to define a standard WordPress header using the `@RAN:` prefix (e.g., `@RAN: Version: ...`).
  */
 abstract class ConfigAbstract implements ConfigInterface {
+	use WPWrappersTrait;
+
 	/**
 	 * Holds the logger instance.
 	 *
@@ -251,7 +254,7 @@ abstract class ConfigAbstract implements ConfigInterface {
 		$text_domain          = (string) ( $p['TextDomain'] ?? '' );
 		$name                 = (string) ( $p['Name'] ?? '' );
 		$slug_src             = $text_domain !== '' ? $text_domain : $name;
-		$slug                 = function_exists( 'sanitize_key' ) ? sanitize_key( $slug_src ) : strtolower( preg_replace( '/[^a-z0-9_\-]/i', '_', $slug_src ) );
+		$slug                 = $this->_do_sanitize_key( $slug_src );
 		$logger_default_name  = 'RAN_LOG';
 		$logger_default_req   = 'ran_log';
 		$this->_unified_cache = array(
@@ -392,7 +395,7 @@ abstract class ConfigAbstract implements ConfigInterface {
 	protected function _hydrateFromTheme( string $stylesheet_dir ): void {
 		$logger  = $this->get_logger();
 		$context = get_class($this) . '::_hydrateFromTheme';
-		$dir     = $stylesheet_dir ?: (function_exists('get_stylesheet_directory') ? get_stylesheet_directory() : '');
+		$dir     = $stylesheet_dir ?: ($this->_do_get_stylesheet_directory());
 		if ($dir === '') {
 			if ( $logger->is_active() ) {
 				$logger->warning("{$context} - Missing stylesheet directory or unavailable WordPress runtime.", array(
@@ -506,12 +509,12 @@ abstract class ConfigAbstract implements ConfigInterface {
 		// Namespace remaining generic extras to avoid polluting top-level
 		if (!empty($filtered_extra)) {
 			$normalized['ExtraHeaders'] = $filtered_extra;
-			if ( $logger->is_active() ) {
-				$logger->debug("{$context} - Extra headers kept.", array(
-					'type'  => $provider->get_type()->value,
-					'count' => count($filtered_extra),
-				));
-			}
+			// if ( $logger->is_active() ) {
+			$logger->debug("{$context} - Extra headers kept.", array(
+				'type'  => $provider->get_type()->value,
+				'count' => count($filtered_extra),
+			));
+			// }
 		}
 
 		// Add each namespace directly at the top level
@@ -520,35 +523,39 @@ abstract class ConfigAbstract implements ConfigInterface {
 		}
 
 		// Allow final adjustments via WordPress filter
-		if (function_exists('apply_filters')) {
+		if ( $logger->is_active() ) {
+			$logger->debug("{$context} - Applying filter 'ran/plugin_lib/config'.", array(
+				'type' => $provider->get_type()->value,
+			));
+		}
+		$filter_context = array(
+			'environment'      => $provider->get_type()->value,
+			'standard_headers' => $standard_headers,
+			'namespaces'       => $namespaced_headers,
+			'extra_headers'    => $filtered_extra,
+			'base_path'        => $base_path,
+			'base_url'         => $base_url,
+			'base_name'        => $base_name,
+			'comment_source'   => $comment_source_path,
+		);
+
+		/**
+		 * Filter: ran/plugin_lib/config
+		 *
+		 * Gives theme/plugin authors a final opportunity to adjust the
+		 * normalized configuration. Return the full normalized array.
+		 *
+		 * @param array $normalized Final normalized config array
+		 * @param array $context    Context details (environment, sources)
+		 */
+		$normalized = $this->_do_apply_filter('ran/plugin_lib/config', $normalized, $filter_context);
+		if (!is_array($normalized)) {
 			if ( $logger->is_active() ) {
-				$logger->debug("{$context} - Applying filter 'ran/plugin_lib/config'.", array(
+				$logger->debug("{$context} - Filter returned non-array, casting.", array(
 					'type' => $provider->get_type()->value,
 				));
 			}
-			$filter_context = array(
-			    'environment'      => $provider->get_type()->value,
-			    'standard_headers' => $standard_headers,
-			    'namespaces'       => $namespaced_headers,
-			    'extra_headers'    => $filtered_extra,
-			    'base_path'        => $base_path,
-			    'base_url'         => $base_url,
-			    'base_name'        => $base_name,
-			    'comment_source'   => $comment_source_path,
-			);
-			/**
-			 * Filter: ran/plugin_lib/config
-			 *
-			 * Gives theme/plugin authors a final opportunity to adjust the
-			 * normalized configuration. Return the full normalized array.
-			 *
-			 * @param array $normalized Final normalized config array
-			 * @param array $context    Context details (environment, sources)
-			 */
-			$normalized = apply_filters('ran/plugin_lib/config', $normalized, $filter_context);
-			if (!is_array($normalized)) {
-				$normalized = (array) $normalized;
-			}
+			$normalized = (array) $normalized;
 		}
 
 		// 6) Validate & set to unified_cache
@@ -741,7 +748,7 @@ abstract class ConfigAbstract implements ConfigInterface {
 	 */
 	protected function _derive_slug(string $name, string $text_domain): string {
 		$src = $text_domain !== '' ? $text_domain : $name;
-		return function_exists('sanitize_key') ? sanitize_key($src) : strtolower(preg_replace('/[^a-z0-9_\-]/i', '_', $src));
+		return $this->_do_sanitize_key($src);
 	}
 
 	/**
@@ -817,12 +824,7 @@ abstract class ConfigAbstract implements ConfigInterface {
 	 * @return array<string,mixed>
 	 */
 	public function _get_standard_plugin_headers(string $plugin_file): array {
-		if (!$this->_function_exists('get_plugin_data')) {
-			//@codeCoverageIgnoreStart
-			return array();
-			//@codeCoverageIgnoreEnd
-		}
-		$data = (array) \get_plugin_data($plugin_file, false, false);
+		$data = (array) $this->_do_get_plugin_data($plugin_file, false, false);
 		return array_filter($data, static fn($v) => $v !== '');
 	}
 
@@ -841,7 +843,7 @@ abstract class ConfigAbstract implements ConfigInterface {
 			//@codeCoverageIgnoreEnd
 		}
 		$slug_guess   = basename($stylesheet_dir);
-		$theme_object = $slug_guess ? wp_get_theme($slug_guess) : wp_get_theme();
+		$theme_object = $slug_guess ? $this->_do_wp_get_theme($slug_guess) : $this->_do_wp_get_theme();
 		if (!$theme_object) {
 			return array();
 		}
@@ -891,3 +893,4 @@ abstract class ConfigAbstract implements ConfigInterface {
 	}
 	//@codeCoverageIgnoreEnd
 }
+

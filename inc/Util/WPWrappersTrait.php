@@ -28,6 +28,8 @@ trait WPWrappersTrait {
 	 * prefer using the HooksManager API (via HooksManagementTrait::register_action) which provides
 	 * deduplication, grouping, conditional registration, and richer logging.
 	 *
+	 * Direct-forward: Yes (requires WP loaded)
+	 *
 	 * @param string $hook The WordPress hook to add the action to.
 	 * @param mixed $callback The callback function or method to be executed.
 	 * @param int $priority Optional. The priority of the action. Default 10.
@@ -46,6 +48,8 @@ trait WPWrappersTrait {
 	 *
 	 * This wrapper makes the code more testable by allowing the did_action
 	 * function to be mocked in tests.
+	 *
+	 * Direct-forward: No (normalizes null->0 for WP_Mock in tests)
 	 *
 	 * @param string $hook_name The hook name to check.
 	 * @return int Number of times the hook has been executed.
@@ -66,6 +70,8 @@ trait WPWrappersTrait {
 	 * Note: For anything beyond simple, one-off registrations or when a hooks manager is already available,
 	 * prefer using the HooksManager API (via HooksManagementTrait::register_filter) which provides
 	 * deduplication, grouping, conditional registration, and richer logging.
+	 *
+	 * Direct-forward: Yes (requires WP loaded)
 	 *
 	 * @param string $hook The WordPress hook to add the filter to.
 	 * @param mixed $callback The callback function or method to be executed.
@@ -89,6 +95,8 @@ trait WPWrappersTrait {
 	 * `$this->_get_hooks_manager()->remove_hook('action', $hook_name, $callback, $priority)`.
 	 * This wrapper remains valid for one-off direct removals.
 	 *
+	 * Direct-forward: Yes (requires WP loaded)
+	 *
 	 * @param string $hook_name The name of the action
 	 * @param callable $callback The callback function
 	 * @param int $priority The priority (default: 10)
@@ -106,6 +114,8 @@ trait WPWrappersTrait {
 	 * `$this->_get_hooks_manager()->remove_hook('filter', $hook_name, $callback, $priority)`.
 	 * This wrapper remains valid for one-off direct removals.
 	 *
+	 * Direct-forward: Yes (requires WP loaded)
+	 *
 	 * @param string $hook_name The name of the filter
 	 * @param callable $callback The callback function
 	 * @param int $priority The priority (default: 10)
@@ -121,9 +131,12 @@ trait WPWrappersTrait {
 	* Invocation guidance: Registration should go through HooksManager, but
 	* dispatching an action is unaffected; calling WordPress `do_action` directly
 	* via this wrapper is appropriate.
+	*
+	* Direct-forward: Yes (requires WP loaded)
 	 *
 	 * @param string $hook_name The name of the action
 	 * @param mixed ...$args Arguments to pass to the callbacks
+	 * @return void
 	 */
 	public function _do_execute_action(string $hook_name, ...$args): void {
 		\do_action($hook_name, ...$args);
@@ -135,6 +148,8 @@ trait WPWrappersTrait {
 	 * Invocation guidance: Registration should go through HooksManager, but
 	 * applying filters to a value can use this wrapper (or
 	 * `$this->_get_hooks_manager()->apply_filters(...)`, which forwards here).
+	 *
+	 * Direct-forward: Yes (requires WP loaded)
 	 *
 	 * @param string $hook_name The name of the filter
 	 * @param mixed $value The value to filter
@@ -148,6 +163,8 @@ trait WPWrappersTrait {
 	/**
 	 * Public wrapper for WordPress get_option function
 	 *
+	 * Direct-forward: Yes (requires WP loaded)
+	 *
 	 * @param  string $option
 	 * @param  mixed  $default
 	 *
@@ -159,6 +176,8 @@ trait WPWrappersTrait {
 
 	/**
 	 * Public wrapper for WordPress update_option function
+	 *
+	 * Direct-forward: Yes (requires WP loaded)
 	 *
 	 * @param  string $option
 	 * @param  mixed  $value
@@ -172,6 +191,13 @@ trait WPWrappersTrait {
 
 	/**
 	 * Public wrapper for WordPress add_option function
+	 *
+	 * Direct-forward: Yes (requires WP loaded)
+	 * @param string $option
+	 * @param mixed $value
+	 * @param string $deprecated
+	 * @param mixed $autoload
+	 * @return bool
 	 * @codeCoverageIgnore
 	 */
 	public function _do_add_option(string $option, mixed $value = '', string $deprecated = '', mixed $autoload = 'yes'): bool {
@@ -181,6 +207,10 @@ trait WPWrappersTrait {
 
 	/**
 	 * Public wrapper for WordPress delete_option function
+	 *
+	 * Direct-forward: Yes (requires WP loaded)
+	 * @param string $option
+	 * @return bool
 	 * @codeCoverageIgnore
 	 */
 	public function _do_delete_option(string $option): bool {
@@ -190,6 +220,8 @@ trait WPWrappersTrait {
 
 	/**
 	 * Public wrapper for WordPress get_site_option function (Network scope)
+	 *
+	 * Direct-forward: Yes (requires WP loaded)
 	 *
 	 * @param  string $option
 	 * @param  mixed  $default
@@ -201,6 +233,8 @@ trait WPWrappersTrait {
 
 	/**
 	 * Public wrapper for WordPress update_site_option function (Network scope)
+	 *
+	 * Direct-forward: Yes (requires WP loaded)
 	 *
 	 * @param  string $option
 	 * @param  mixed  $value
@@ -214,6 +248,7 @@ trait WPWrappersTrait {
 	 * Public wrapper for WordPress add_site_option function (Network scope)
 	 *
 	 * Some test shims may return null; always normalize to strict bool.
+	 * Direct-forward: Yes (requires WP loaded)
 	 *
 	 * @param  string $option
 	 * @param  mixed  $value
@@ -227,6 +262,7 @@ trait WPWrappersTrait {
 	 * Public wrapper for WordPress delete_site_option function (Network scope)
 	 *
 	 * Some test shims may return null; always normalize to strict bool.
+	 * Direct-forward: Yes (requires WP loaded)
 	 *
 	 * @param  string $option
 	 * @return bool
@@ -237,6 +273,8 @@ trait WPWrappersTrait {
 
 	/**
 	 * Public wrapper for WordPress get_blog_option function (Blog scope)
+	 *
+	 * Direct-forward: Yes (requires WP loaded)
 	 *
 	 * @param  int    $blog_id
 	 * @param  string $option
@@ -249,6 +287,8 @@ trait WPWrappersTrait {
 
 	/**
 	 * Public wrapper for WordPress update_blog_option function (Blog scope)
+	 *
+	 * Direct-forward: Yes (requires WP loaded)
 	 *
 	 * @param  int    $blog_id
 	 * @param  string $option
@@ -263,6 +303,7 @@ trait WPWrappersTrait {
 	 * Public wrapper for WordPress add_blog_option function (Blog scope)
 	 *
 	 * Some test shims may return null; always normalize to strict bool.
+	 * Direct-forward: Yes (requires WP loaded)
 	 *
 	 * @param  int    $blog_id
 	 * @param  string $option
@@ -277,6 +318,7 @@ trait WPWrappersTrait {
 	 * Public wrapper for WordPress delete_blog_option function (Blog scope)
 	 *
 	 * Some test shims may return null; always normalize to strict bool.
+	 * Direct-forward: Yes (requires WP loaded)
 	 *
 	 * @param  int    $blog_id
 	 * @param  string $option
@@ -291,6 +333,7 @@ trait WPWrappersTrait {
 	 *
 	 * Note: WP signature is get_user_option($option, $user, $deprecated=''). We flip
 	 * the first two arguments for consistency with other wrappers.
+	 * Direct-forward: Yes (requires WP loaded; parameter order flipped for convenience)
 	 *
 	 * @param  int    $user_id
 	 * @param  string $option
@@ -304,6 +347,7 @@ trait WPWrappersTrait {
 	/**
 	 * Public wrapper for WordPress update_user_option function (User scope)
 	 *
+	 * Direct-forward: Yes (requires WP loaded)
 	 * @param  int    $user_id
 	 * @param  string $option
 	 * @param  mixed  $value
@@ -317,18 +361,20 @@ trait WPWrappersTrait {
 	/**
 	 * Public wrapper for WordPress delete_user_option function (User scope)
 	 *
+	 * Direct-forward: Yes (requires WP loaded)
 	 * @param  int    $user_id
-	 * @param  string $option
-	 * @param  bool   $global
+	 * @param  string $option_name
+	 * @param  bool   $is_global
 	 * @return bool
 	 */
-	public function _do_delete_user_option(int $user_id, string $option, bool $global = false): bool {
-		return (bool) \delete_user_option($user_id, $option, $global);
+	public function _do_delete_user_option(int $user_id, string $option_name, bool $is_global = false): bool {
+		return (bool) \delete_user_option($user_id, $option_name, $is_global);
 	}
 
 	/**
 	 * Public wrapper for WordPress get_user_meta function (User meta)
 	 *
+	 * Direct-forward: Yes (requires WP loaded)
 	 * @param int    $user_id User ID
 	 * @param string $key     Meta key
 	 * @param bool   $single  Whether to return a single value. Default true.
@@ -340,37 +386,36 @@ trait WPWrappersTrait {
 
 	/**
 	 * Public wrapper for WordPress update_user_meta function (User meta)
-	 *
-	 * Some test shims may return null; always normalize to strict bool.
-	 *
+	 * Direct-forward: Yes (requires WP loaded)
 	 * @param int    $user_id User ID
 	 * @param string $key     Meta key
 	 * @param mixed  $value   Meta value
-	 * @return bool           True on success
+	 * @param string $prev_value Previous meta value
+	 * @return int|bool           True on success
 	 */
-	public function _do_update_user_meta(int $user_id, string $key, mixed $value): bool {
-		return (bool) \update_user_meta($user_id, $key, $value);
+	public function _do_update_user_meta(int $user_id, string $key, mixed $value, string $prev_value = ''): int|bool {
+		return \update_user_meta($user_id, $key, $value, $prev_value);
 	}
 
 	/**
 	 * Public wrapper for WordPress add_user_meta function (User meta)
-	 *
-	 * Some test shims may return null; always normalize to strict bool.
+	 * Direct-forward: Yes (requires WP loaded)
 	 *
 	 * @param int    $user_id User ID
 	 * @param string $key     Meta key
 	 * @param mixed  $value   Meta value
 	 * @param bool   $unique  Whether the meta key should be unique. Default false.
-	 * @return bool           True on success
+	 * @return int|false           Meta ID on success, false on failure.
 	 */
-	public function _do_add_user_meta(int $user_id, string $key, mixed $value, bool $unique = false): bool {
-		return (bool) \add_user_meta($user_id, $key, $value, $unique);
+	public function _do_add_user_meta(int $user_id, string $key, mixed $value, bool $unique = false): int|false {
+		return \add_user_meta($user_id, $key, $value, $unique);
 	}
 
 	/**
 	 * Public wrapper for WordPress delete_user_meta function (User meta)
 	 *
 	 * Some test shims may return null; always normalize to strict bool.
+	 * Direct-forward: Yes (requires WP loaded)
 	 *
 	 * @param int    $user_id User ID
 	 * @param string $key     Meta key
@@ -383,6 +428,11 @@ trait WPWrappersTrait {
 	/**
 	 * Public wrapper for WordPress wp_load_alloptions() with availability guard
 	 * Returns autoloaded options map when available; null when WP function is unavailable.
+	 *
+	 * Availability-guarded: Yes
+	 * Rationale: In CLI/tests without full WP bootstrap, wp_load_alloptions() may be undefined.
+	 * Returning null lets callers feature-detect autoload cache without fatals.
+	 *
 	 * @param bool $force_cache Optional. Whether to force an update of the local cache from the persistent cache. Default false.
 	 * @return array|null
 	 * @codeCoverageIgnore
@@ -399,6 +449,11 @@ trait WPWrappersTrait {
 	/**
 	 * Public wrapper for WordPress get_current_blog_id()
 	 * Returns current blog ID; when function missing, defaults to 0.
+	 *
+	 * Availability-guarded: Yes
+	 * Rationale: In non-multisite/early contexts get_current_blog_id() may be unavailable.
+	 * Returning 0 provides a neutral default for tests/CLI.
+	 *
 	 * @return int
 	 */
 	public function _do_get_current_blog_id(): int {
@@ -410,14 +465,139 @@ trait WPWrappersTrait {
 
 	/**
 	 * Public wrapper for WordPress sanitize_key with fallback when WP not loaded
+	 *
+	 * Availability-guarded: Yes
+	 * Rationale: Provide stable key normalization when sanitize_key() is missing
+	 * (e.g., early CLI/tests). Also guards against unexpected empty returns by
+	 * falling back to internal normalization mirroring WP behavior.
+	 *
+	 * @param ?string $key
+	 * @return string
 	 * @codeCoverageIgnore
 	 */
-	public function _do_sanitize_key(string $key): string {
+	public function _do_sanitize_key(?string $key): string {
+		$key = (string) $key;
 		if (\function_exists('sanitize_key')) {
-			return \sanitize_key($key);
+			$res = (string) \sanitize_key($key);
+			if ($res !== '' || $key === '') {
+				return $res;
+			}
+			// fall through to internal logic when sanitize_key returns empty unexpectedly
 		}
-		$key = strtolower($key);
-		$key = preg_replace( '/[^a-z0-9_\-]/', '', $key );
-		return trim($key, '_');
+		$key = \strtolower($key);
+		// Replace any run of non [a-z0-9_\-] with a single underscore (preserve hyphens)
+		$key = \preg_replace('/[^a-z0-9_\-]+/i', '_', $key) ?? '';
+		// Trim underscores at edges (preserve leading/trailing hyphens if present)
+		return \trim($key, '_');
+	}
+
+	/**
+	 * Public wrapper for WordPress get_stylesheet_directory
+	 *
+	 * Availability-guarded: Yes
+	 * Rationale: get_stylesheet_directory() may be unavailable in early contexts;
+	 * empty string allows callers to detect and short-circuit filesystem ops.
+	 *
+	 * @return string
+	 */
+	public function _do_get_stylesheet_directory(): string {
+		return \function_exists('get_stylesheet_directory') ? (string) \get_stylesheet_directory() : '';
+	}
+
+	/**
+	 * Public wrapper for WordPress get_plugin_data
+	 *
+	 * Availability-guarded: Yes
+	 * Rationale: get_plugin_data() lives in wp-admin includes and may be unavailable
+	 * unless explicitly loaded. Returning an empty array avoids fatals in tests/CLI.
+	 *
+	 * @param string $plugin_file
+	 * @param bool $markup
+	 * @param bool $translate
+	 * @return array
+	 */
+	public function _do_get_plugin_data(string $plugin_file, bool $markup = false, bool $translate = false): array {
+		if (!\function_exists('get_plugin_data')) {
+			return array();
+		}
+		/** @var array $data */
+		$data = \get_plugin_data($plugin_file, $markup, $translate);
+		return (array) $data;
+	}
+
+	/**
+	 * Public wrapper for WordPress wp_get_theme
+	 *
+	 * Availability-guarded: Yes
+	 * Rationale: Theme API may be unavailable without full WP bootstrap; return null
+	 * to allow feature-detection in tests/CLI.
+	 *
+	 * @param ?string $stylesheet_dir Optional slug. Defaults to active theme.
+	 * @param ?string $theme_root     Optional absolute theme root.
+	 * @return object|null            Theme-like object or null if WP unavailable.
+	 */
+	public function _do_wp_get_theme(?string $stylesheet_dir = null, ?string $theme_root = ''): ?object {
+		if (!\function_exists('wp_get_theme')) {
+			return null;
+		}
+		return \wp_get_theme($stylesheet_dir, $theme_root);
+	}
+
+	/**
+	 * Public wrapper for WordPress plugin_dir_url
+	 *
+	 * Availability-guarded: Yes
+	 * Rationale: plugin_dir_url() may be undefined early; empty string is a safe sentinel
+	 * that callers can check to avoid building invalid URLs.
+	 *
+	 * @param string $plugin_file
+	 * @return string
+	 */
+	public function _do_plugin_dir_url(string $plugin_file): string {
+		return \function_exists('plugin_dir_url') ? (string) \plugin_dir_url($plugin_file) : '';
+	}
+
+	/**
+	 * Public wrapper for WordPress plugin_dir_path
+	 *
+	 * Availability-guarded: Yes
+	 * Rationale: plugin_dir_path() may be undefined early; empty string lets callers
+	 * short-circuit path-dependent operations safely
+	 *
+	 * @param string $plugin_file
+	 * @return string
+	 */
+	public function _do_plugin_dir_path(string $plugin_file): string {
+		return \function_exists('plugin_dir_path') ? (string) \plugin_dir_path($plugin_file) : '';
+	}
+
+	/**
+	 * Public wrapper for WordPress plugin_basename with basename fallback
+	 *
+	 * Availability-guarded: Yes
+	 * Rationale: plugin_basename() may be unavailable; basename() provides a reasonable
+	 * approximation for identifiers/labels in tests/CLI.
+	 *
+	 * @param string $plugin_file
+	 * @return string
+	 */
+	public function _do_plugin_basename(string $plugin_file): string {
+		if (\function_exists('plugin_basename')) {
+			return (string) \plugin_basename($plugin_file);
+		}
+		return \basename($plugin_file);
+	}
+
+	/**
+	 * Public wrapper for WordPress get_stylesheet_directory_uri
+	 *
+	 * Availability-guarded: Yes
+	 * Rationale: get_stylesheet_directory_uri() may be unavailable; empty string is a safe
+	 * sentinel for front-end URL composition.
+	 *
+	 * @return string
+	 */
+	public function _do_get_stylesheet_directory_uri(): string {
+		return \function_exists('get_stylesheet_directory_uri') ? (string) \get_stylesheet_directory_uri() : '';
 	}
 }

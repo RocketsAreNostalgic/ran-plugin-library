@@ -119,7 +119,7 @@ class Config extends ConfigAbstract implements ConfigInterface {
 		}
 		if ($isUserScope && array_key_exists('user_storage', $args) && is_string($args['user_storage'])) {
 			$storageArgs['user_storage'] = $args['user_storage'];
-		} elseif ($isUserScope && !array_key_exists('user_storage', $args)) {
+		} elseif ($isUserScope && null === $args['user_storage']) {
 			// Default to meta for user scope when not provided
 			$storageArgs['user_storage'] = 'meta';
 		}
