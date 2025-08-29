@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\Tests\Unit\Config;
 
-use RanTestCase; // Declared in test_bootstrap.php
-
 use Ran\PluginLib\Config\ConfigType;
+
 use Ran\PluginLib\Config\ConfigAbstract;
+use RanTestCase; // Declared in test_bootstrap.php
 
 /**
  * Probe subclass to expose protected utilities for testing.
@@ -243,12 +243,46 @@ final class ConfigAbstractProtectedTest extends RanTestCase {
 	public function test_parse_namespaced_headers_skips_incomplete_entries(): void {
 		$p        = new ConfigAbstractProbe();
 		$reserved = $p->callReservedPlugin();
-		$block    = "@Acme: Feature: on\n@Acme: EmptyVal:    \n@Foo:   : value\n@Bar: NameOnly:\n"; // lines with empty value/name should be skipped
+		$block    = "@Acme: Feature: on\n@Acme: EmptyVal:    \n@Foo:   : value\n@Bar: NameOnly:\n@ : MissingNs: value\n"; // lines with empty value/name/namespace should be skipped
 		$parsed   = $p->callParseNamespacedHeaders($block, $reserved);
 		$this->assertSame('on', $parsed['Acme']['Feature'] ?? null);
 		$this->assertTrue(!isset($parsed['Acme']['EmptyVal']));
 		$this->assertTrue(!isset($parsed['Foo']));
 		$this->assertTrue(!isset($parsed['Bar']['NameOnly']));
+		$this->assertTrue(!isset($parsed['']));
+	}
+
+	/**
+	 * @covers ::_parse_namespaced_headers
+	 */
+	public function test_parse_namespaced_headers_skips_when_namespace_empty_only(): void {
+		$p        = new ConfigAbstractProbe();
+		$reserved = $p->callReservedPlugin();
+		$block    = "@ : Name: value\n"; // empty namespace
+		$parsed   = $p->callParseNamespacedHeaders($block, $reserved);
+		$this->assertSame(array(), $parsed);
+	}
+
+	/**
+	 * @covers ::_parse_namespaced_headers
+	 */
+	public function test_parse_namespaced_headers_skips_when_name_empty_only(): void {
+		$p        = new ConfigAbstractProbe();
+		$reserved = $p->callReservedPlugin();
+		$block    = "@Acme:   : value\n"; // empty name
+		$parsed   = $p->callParseNamespacedHeaders($block, $reserved);
+		$this->assertSame(array(), $parsed);
+	}
+
+	/**
+	 * @covers ::_parse_namespaced_headers
+	 */
+	public function test_parse_namespaced_headers_skips_when_value_empty_only(): void {
+		$p        = new ConfigAbstractProbe();
+		$reserved = $p->callReservedPlugin();
+		$block    = "@Acme: Feature:    \n"; // empty value
+		$parsed   = $p->callParseNamespacedHeaders($block, $reserved);
+		$this->assertSame(array(), $parsed);
 	}
 
 	// _parse_ran_headers removed with namespaced headers refactor. No tests needed.

@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace Ran\PluginLib\Tests\Unit\Config;
 
 use Mockery;
+use WP_Mock;
 use Ran\PluginLib\Config\Config;
 use Ran\PluginLib\Tests\Unit\PluginLibTestCase;
-use WP_Mock;
 
 /**
  * @covers \Ran\PluginLib\Config\Config::options

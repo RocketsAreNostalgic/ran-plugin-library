@@ -13,6 +13,7 @@ class ConfigAbstractHydrator extends ConfigAbstract {
 	public function hydrateFromPluginPublic(string $file): void {
 		$this->_hydrateFromPlugin($file);
 	}
+
 	public function hydrateFromThemePublic(string $dir): void {
 		$this->_hydrateFromTheme($dir);
 	}
@@ -52,6 +53,17 @@ final class ConfigAbstractHydratorWithEmptyGeneric extends ConfigAbstractHydrato
 		    'EmptyOne' => '',
 		    'KeepMe'   => 'kept',
 		);
+	}
+}
+
+// Test double to force non-array return from the internal wrapper when applying the target filter
+final class ConfigAbstractHydratorFilterNonArray extends ConfigAbstractHydrator {
+	public function _do_apply_filter(string $hook_name, $value, ...$args) {
+		if ($hook_name === 'ran/plugin_lib/config') {
+			// Return a non-array that can still be safely cast back to array
+			return new \ArrayObject((array) $value, \ArrayObject::ARRAY_AS_PROPS);
+		}
+		return parent::_do_apply_filter($hook_name, $value, ...$args);
 	}
 }
 
@@ -106,6 +118,32 @@ CSS;
 		}
 		WP_Mock::tearDown();
 		parent::tearDown();
+	}
+
+
+	/**
+	 * @covers ::_hydrateFromPlugin
+	 * @covers ::_hydrate_generic
+	 */
+	public function test_hydrate_generic_handles_null_filter_result_with_cast_and_then_throws(): void {
+		// Minimal WP env shims for plugin identifiers and headers
+		WP_Mock::userFunction('plugin_dir_url')->with($this->tmpPlugin)->andReturn('https://example.test/wp-content/plugins/probe/');
+		WP_Mock::userFunction('plugin_dir_path')->with($this->tmpPlugin)->andReturn('/var/www/plugins/probe/');
+		WP_Mock::userFunction('plugin_basename')->with($this->tmpPlugin)->andReturn('probe/probe.php');
+		WP_Mock::userFunction('get_plugin_data')->with($this->tmpPlugin, false, false)->andReturn(array(
+		    'Name'       => 'Hydration Probe',
+		    'Version'    => '1.2.3',
+		    'TextDomain' => 'hydration-probe',
+		));
+
+		$logger            = new \Ran\PluginLib\Util\CollectingLogger();
+		$this->logger_mock = $logger;
+		// Use test double that returns non-array for the ran/plugin_lib/config hook
+		$cfg = new ConfigAbstractHydratorFilterNonArray();
+		$cfg->set_logger($logger);
+		$cfg->hydrateFromPluginPublic($this->tmpPlugin);
+		// Assert that we logged the non-array cast path after SUT
+		$this->expectLog('debug', array('::_hydrate_generic', 'Filter returned non-array, casting.'), 1);
 	}
 
 	/**
@@ -334,6 +372,189 @@ CSS;
 			$this->expectLog('warning', array('::_hydrateFromTheme', 'Missing stylesheet directory'), 1);
 		}
 	}
+
+	/**
+	 * @covers ::_hydrateFromPlugin
+	 * @covers ::_hydrate_generic
+	 */
+	public function test_hydrate_generic_casts_arrayobject_filter_result_and_validates(): void {
+		// Minimal WP env shims for plugin identifiers and headers
+		WP_Mock::userFunction('plugin_dir_url')->with($this->tmpPlugin)->andReturn('https://example.test/wp-content/plugins/probe/');
+		WP_Mock::userFunction('plugin_dir_path')->with($this->tmpPlugin)->andReturn('/var/www/plugins/probe/');
+		WP_Mock::userFunction('plugin_basename')->with($this->tmpPlugin)->andReturn('probe/probe.php');
+		WP_Mock::userFunction('get_plugin_data')->with($this->tmpPlugin, false, false)->andReturn(array(
+		    'Name'       => 'Hydration Probe',
+		    'Version'    => '1.2.3',
+		    'TextDomain' => 'hydration-probe',
+		));
+
+		// Return an ArrayObject (non-array) to trigger cast branch
+		WP_Mock::userFunction('apply_filters')->andReturnUsing(function($tag, $value, $ctx) {
+			$arr = array(
+				'Name'       => 'Hydration Probe',
+				'Version'    => '1.2.3',
+				'TextDomain' => 'hydration-probe',
+				'PATH'       => '/var/www/plugins/probe/',
+				'URL'        => 'https://example.test/wp-content/plugins/probe/',
+				'Slug'       => 'hydration-probe',
+				'Type'       => ConfigType::Plugin->value,
+				'Basename'   => 'probe/probe.php',
+				'File'       => $ctx['comment_source'] ?? 'probe/probe.php',
+			);
+			return new \ArrayObject($arr, \ArrayObject::ARRAY_AS_PROPS);
+		});
+
+		$logger            = new \Ran\PluginLib\Util\CollectingLogger();
+		$this->logger_mock = $logger;
+		$cfg               = new ConfigAbstractHydrator();
+		$cfg->set_logger($logger);
+		$cfg->hydrateFromPluginPublic($this->tmpPlugin);
+		$normalized = $cfg->get_config();
+
+		$this->assertSame('Hydration Probe', $normalized['Name']);
+		$this->assertSame('probe/probe.php', $normalized['Basename']);
+		$this->assertSame('hydration-probe', $normalized['Slug']);
+		$this->assertSame(\Ran\PluginLib\Config\ConfigType::Plugin->value, $normalized['Type']);
+	}
+
+	/**
+	 * @covers ::_hydrate_generic
+	 */
+	public function test_hydrate_generic_skips_incomplete_namespaced_header(): void {
+		// Overwrite tmp plugin file to include a malformed namespaced header with empty value
+		$pluginHeader = <<<'PHP'
+<?php
+/**
+ * Plugin Name: Hydration Probe
+ * Version: 1.2.3
+ * Text Domain: hydration-probe
+ * @RAN: App Option: hydration_probe_opts
+ * @RAN: BadEmpty:
+ */
+PHP;
+		file_put_contents($this->tmpPlugin, $pluginHeader);
+
+		// Minimal WP env shims for plugin identifiers and headers
+		WP_Mock::userFunction('plugin_dir_url')->with($this->tmpPlugin)->andReturn('https://example.test/wp-content/plugins/probe/');
+		WP_Mock::userFunction('plugin_dir_path')->with($this->tmpPlugin)->andReturn('/var/www/plugins/probe/');
+		WP_Mock::userFunction('plugin_basename')->with($this->tmpPlugin)->andReturn('probe/probe.php');
+		WP_Mock::userFunction('get_plugin_data')->with($this->tmpPlugin, false, false)->andReturn(array(
+		    'Name'       => 'Hydration Probe',
+		    'Version'    => '1.2.3',
+		    'TextDomain' => 'hydration-probe',
+		));
+		WP_Mock::userFunction('apply_filters')->andReturnArg(0);
+
+		$logger            = new \Ran\PluginLib\Util\CollectingLogger();
+		$this->logger_mock = $logger;
+		$cfg               = new ConfigAbstractHydrator();
+		$cfg->set_logger($logger);
+		$cfg->hydrateFromPluginPublic($this->tmpPlugin);
+		$normalized = $cfg->get_config();
+
+		// Ensure incomplete namespaced header was skipped
+		$this->assertSame('Hydration Probe', $normalized['Name']);
+		$this->assertSame('probe/probe.php', $normalized['Basename']);
+		$this->assertSame('hydration-probe', $normalized['Slug']);
+		$this->assertSame(\Ran\PluginLib\Config\ConfigType::Plugin->value, $normalized['Type']);
+		$this->assertArrayNotHasKey('BadEmpty', $normalized['RAN'] ?? array());
+	}
+
+
+	/**
+	 * @covers ::_hydrate_generic
+	 */
+	public function test_hydrate_generic_casts_non_array_filter_result_custom_object(): void {
+		// Minimal WP env shims for plugin identifiers and headers
+		WP_Mock::userFunction('plugin_dir_url')->with($this->tmpPlugin)->andReturn('https://example.test/wp-content/plugins/probe/');
+		WP_Mock::userFunction('plugin_dir_path')->with($this->tmpPlugin)->andReturn('/var/www/plugins/probe/');
+		WP_Mock::userFunction('plugin_basename')->with($this->tmpPlugin)->andReturn('probe/probe.php');
+		WP_Mock::userFunction('get_plugin_data')->with($this->tmpPlugin, false, false)->andReturn(array(
+		    'Name'       => 'Hydration Probe',
+		    'Version'    => '1.2.3',
+		    'TextDomain' => 'hydration-probe',
+		));
+
+		// Return a plain custom object (non-array) with the minimal required normalized shape
+		WP_Mock::userFunction('apply_filters')->andReturnUsing(function($tag, $value, $ctx) {
+			$o = new class {
+				public string $Name       = 'Hydration Probe';
+				public string $Version    = '1.2.3';
+				public string $TextDomain = 'hydration-probe';
+				public string $PATH       = '/var/www/plugins/probe/';
+				public string $URL        = 'https://example.test/wp-content/plugins/probe/';
+				public string $Slug       = 'hydration-probe';
+				public string $Type;
+				public string $Basename = 'probe/probe.php';
+				public string $File;
+				public function __construct() {
+					$this->Type = \Ran\PluginLib\Config\ConfigType::Plugin->value;
+					$this->File = 'probe/probe.php';
+				}
+			};
+			return $o; // not an array -> triggers cast
+		});
+
+		$logger            = new \Ran\PluginLib\Util\CollectingLogger();
+		$this->logger_mock = $logger;
+		$cfg               = new ConfigAbstractHydrator();
+		$cfg->set_logger($logger);
+		$cfg->hydrateFromPluginPublic($this->tmpPlugin);
+		$normalized = $cfg->get_config();
+
+		$this->assertSame('Hydration Probe', $normalized['Name']);
+		$this->assertSame('probe/probe.php', $normalized['Basename']);
+		$this->assertSame('hydration-probe', $normalized['Slug']);
+		$this->assertSame(\Ran\PluginLib\Config\ConfigType::Plugin->value, $normalized['Type']);
+	}
+
+	/**
+	 * @covers ::_hydrate_generic
+	 */
+	public function test_hydrate_from_theme_casts_non_array_filter_result_and_validates(): void {
+		// Prevent ensure_wp_loaded() from requiring core by providing the directory accessor
+		WP_Mock::userFunction('get_stylesheet_directory')->with()->andReturn($this->tmpThemeDir);
+		WP_Mock::userFunction('get_stylesheet_directory_uri')->with()->andReturn('https://example.test/wp-content/themes/hydration');
+		// Mock wp_get_theme() object for standard headers
+		$theme = new class {
+			public function get($key) {
+				return match ($key) {
+					'Name'        => 'Hydration Theme',
+					'Version'     => '9.9.9',
+					'Text Domain' => 'hydration-theme',
+					default       => ''
+				};
+			}
+		};
+		WP_Mock::userFunction('wp_get_theme')->andReturn($theme);
+
+		// Return an ArrayObject (non-array) to trigger cast branch in _hydrate_generic
+		WP_Mock::userFunction('apply_filters')->andReturnUsing(function($tag, $value, $ctx) {
+			$arr = array(
+				'Name'          => 'Hydration Theme',
+				'Version'       => '9.9.9',
+				'TextDomain'    => 'hydration-theme',
+				'PATH'          => $ctx['base_path'] ?? ($ctx['comment_source'] ?? ''),
+				'URL'           => $ctx['base_url']  ?? 'https://example.test/wp-content/themes/hydration',
+				'Slug'          => 'hydration-theme',
+				'Type'          => \Ran\PluginLib\Config\ConfigType::Theme->value,
+				'StylesheetDir' => $ctx['base_path'] ?? ($ctx['comment_source'] ?? ''),
+				'StylesheetURL' => $ctx['base_url']  ?? 'https://example.test/wp-content/themes/hydration',
+			);
+			return new \ArrayObject($arr, \ArrayObject::ARRAY_AS_PROPS);
+		});
+
+		$logger            = new \Ran\PluginLib\Util\CollectingLogger();
+		$this->logger_mock = $logger;
+		$cfg               = new ConfigAbstractHydrator();
+		$cfg->set_logger($logger);
+		$cfg->hydrateFromThemePublic($this->tmpThemeDir);
+
+		$normalized = $cfg->get_config();
+		$this->assertSame(\Ran\PluginLib\Config\ConfigType::Theme->value, $normalized['Type']);
+
+		// Basic sanity: normalized contains expected theme identifiers
+		$this->assertSame('Hydration Theme', $normalized['Name']);
+		$this->assertSame('hydration-theme', $normalized['Slug']);
+	}
 }
-
-

@@ -245,6 +245,24 @@ final class RegisterOptionsApiTest extends PluginLibTestCase {
 	}
 
 	/**
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::refresh_options
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::get_options
+	 * Ensures _read_main_option() returns [] when storage read returns a non-array value.
+	 */
+	public function test_refresh_options_handles_non_array_storage_value(): void {
+		// Initial constructor load returns empty array
+		WP_Mock::userFunction('get_option')->with($this->mainOption, array())->once()->andReturn(array());
+		$opts = new RegisterOptions($this->mainOption);
+
+		// Storage read during refresh returns a scalar; guard should coerce to []
+		WP_Mock::userFunction('get_option')->with($this->mainOption, array())->once()->andReturn('not-an-array');
+
+		// Trigger reload and assert options reset to empty array
+		$opts->refresh_options();
+		$this->assertSame(array(), $opts->get_options());
+	}
+
+	/**
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::seed_if_missing
 	 */
 	public function test_seed_if_missing_creates_with_autoload_yes(): void {
