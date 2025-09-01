@@ -26,17 +26,64 @@ $values = $options->get_values();
 Alternative constructor:
 
 ```php
-$options = new RegisterOptions('my_plugin_option_name', /* initial */ [], /* autoload */ true, $logger, $config, /* schema */ []);
+$options = new RegisterOptions(
+  'my_plugin_option_name',
+  /* initial */ [],
+  /* autoload */ true,
+  $logger,
+  $config,
+  /* schema */ [],
+  $customPolicy // optional WritePolicyInterface
+);
+```
+
+### Constructor vs factory parity
+
+- **Parity**: `RegisterOptions::from_config($config, $initial, $autoload, $logger, $schema)` behaves the same as direct construction for logger wiring and schema handling.
+  - No implicit writes: construction (either path) seeds in-memory only; call `flush()` to persist.
+  - Logger: if `$logger` is null, a logger is resolved from `Config` on first use.
+  - Schema: defaults are evaluated/sanitized/validated when used (e.g., when seeding), never auto-persisted.
+  - Policy: both constructor and factory accept an optional `WritePolicyInterface`. When omitted, a default policy is applied lazily.
+- **Scope and storage args**: The factory supports optional scope/args that influence storage selection without changing API semantics.
+
+  ```php
+  $opts = RegisterOptions::from_config($config, [], true, null, $schema, /* scope */ null, /* storage_args */ []);
+  ```
+
+Inject a custom (optional) immutable write policy via the factory:
+
+```php
+use Ran\PluginLib\Options\WritePolicyInterface;
+
+$opts = RegisterOptions::from_config(
+  $config,
+  [],       // initial
+  true,     // autoload
+  null,     // logger
+  [],       // schema
+  null,     // scope
+  [],       // storage_args
+  $customPolicy // WritePolicyInterface or null
+);
 ```
 
 ### What this class assumes
 
 - All plugin settings live under one grouped option row (one DB row), keyed by normalized sub-option names.
 - Option key normalization uses WordPress `sanitize_key()` when available; otherwise a safe lowercase/underscore fallback.
+- External callers who need to normalize keys themselves should use WordPress `sanitize_key()` directly. Internal normalization here exists primarily for testing seams and consistency.
 - Stored shape is an associative array: `sub_key => { value: mixed, autoload_hint: bool|null }`.
   - `autoload_hint` is metadata only (for audits/migrations); it does NOT affect WordPress autoload.
 - Autoload behavior for the grouped row is set at creation time by WordPress. Flipping later requires delete+add.
 - Writes replace the entire grouped array (standard WordPress behavior). Use batching and careful merge patterns for nested structures.
+
+### Autoload and performance
+
+- **`load_all_autoloaded()` is optional and potentially heavy**:
+  - Storage adapters expose `load_all_autoloaded()` (see `OptionStorageInterface::load_all_autoloaded()`), which typically delegates to WordPress `wp_load_alloptions()`, where autoloading is supported.
+  - On large sites this can return a large array and be relatively heavy.
+  - The library does not call this implicitly; use it only when you explicitly need the full autoload map.
+  - Prefer targeted `read()` calls when you know specific keys, and cache results at your call site if you must load all.
 
 ### Minimal schema (optional)
 

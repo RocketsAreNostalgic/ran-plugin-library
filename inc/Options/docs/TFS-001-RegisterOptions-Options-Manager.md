@@ -50,6 +50,14 @@ Adopt a single-row, schema-aware options manager (`RegisterOptions`) that:
 - Keep coupling low; DI `ConfigInterface` for option name and `Logger` resolution, with a guarded fallback.
 - Document WordPress-specific semantics (autoload creation-time behavior).
 
+### Schema Key Principles
+
+- **No implicit writes**: Registering a schema does not write to the DB by itself.
+- **Separation of concerns**: `Config::options()` returns a pre-wired manager; persistence is always explicit on `RegisterOptions`.
+- **Single source of truth**: Autoload policy and option key come from `Config` unless you intentionally construct options directly.
+
+See also: `inc/Options/docs/TFS-002-Using-Schemas.md` for detailed schema usage guidance.
+
 ## Implementation Strategy
 
 ### Core Components
@@ -108,7 +116,6 @@ public function get_autoload_hint(string $key): ?bool
 public function set_main_autoload(bool $autoload): bool
 public function register_schema(array $schema, bool $seedDefaults = false, bool $flush = false): bool
 public function with_schema(array $schema, bool $seedDefaults = false, bool $flush = false): self
-public static function sanitize_option_key(string $key): string
 ```
 
 ### Usage Examples

@@ -10,6 +10,8 @@ Explain how to use schemas with `RegisterOptions` safely and predictably, with n
 - **Separation of concerns**: `Config::options()` returns a pre-wired manager; persistence is always explicit on `RegisterOptions`.
 - **Single source of truth**: Autoload policy and option key come from `Config` unless you intentionally construct options directly.
 
+These principles also inform method behavior in `RegisterOptions` (see method-level notes and TFS‑001).
+
 ## Passing a schema via Config::options()
 
 ```php
@@ -72,6 +74,45 @@ $opts
   ->flush(); // single DB write
 ```
 
+## Schema callbacks contract
+
+- Sanitization
+
+  - Signature: `callable(mixed $value): mixed`
+  - Purpose: return a cleaned value; may throw on unrecoverable input
+  - Behavior: If present and callable, it is invoked before validation
+
+- Validation
+
+  - Signature: `callable(mixed $value): bool`
+  - Return: must return `true` for success. Any non-true result triggers an `InvalidArgumentException`
+  - May throw: Exceptions thrown by validators bubble to the caller (not caught internally)
+
+- Exception behavior and partial-state notes
+
+  - The library does not catch exceptions from `sanitize`/`validate`; they bubble to the caller
+  - Atomic flows (no partial in-memory state on failure):
+    - `seed_if_missing([...])`
+    - `migrate($fn)`
+    - These first build a normalized snapshot; on any exception, nothing is mutated or persisted
+  - Per-key seeding flow:
+    - `register_schema($schema, seedDefaults: true, flush: <bool>)` seeds each missing key in a loop
+    - If a callback throws mid-loop, some prior keys may already be staged in memory (no DB write unless `flush: true`)
+    - Best practice: either use `seed_if_missing()` for first-writes, or wrap the call site in try/catch if you need to handle errors centrally
+
+- Return type expectations
+  - Sanitizers should return the exact type you expect to store
+  - Validators should strictly enforce type/range and return `true` only on success
+  - Example:
+
+```php
+'enabled' => [
+  'default'  => false,
+  'sanitize' => fn($v) => is_bool($v) ? $v : (bool) $v,
+  'validate' => fn($v) => is_bool($v),
+],
+```
+
 ## Why pass a schema without seeding?
 
 - **Validation without persistence**: Ensure shape and sanitization for reads and future writes.
@@ -83,6 +124,7 @@ $opts
 
 - Autoload is applied on first persistence (e.g., `seed_if_missing(...)->flush()` or `register_schema(..., true, true)`).
 - Flipping autoload is an explicit operation via `set_main_autoload(bool)`; it may write only if a row exists and autoload differs.
+- Performance note: storage adapters expose `load_all_autoloaded()` (see `OptionStorageInterface::load_all_autoloaded()`), which typically delegates to WordPress `wp_load_alloptions()` where autoloading is supported. On large sites this can return a large array and be heavy. The library never calls this implicitly; prefer targeted reads and cache results at your call site if you must load all.
 
 ## Scope note (forward-looking)
 
