@@ -185,8 +185,9 @@ trait WPWrappersTrait {
 	 *
 	 * @return bool
 	 */
-	public function _do_update_option(string $option, mixed $value, mixed $autoload = 'yes'): bool {
-		return \update_option($option, $value, $autoload);
+	public function _do_update_option(string $option, mixed $value, mixed $autoload = null): bool {
+		// For updates, we don't pass the autoload parameter since it can't be changed
+		return \update_option($option, $value);
 	}
 
 	/**
@@ -196,11 +197,12 @@ trait WPWrappersTrait {
 	 * @param string $option
 	 * @param mixed $value
 	 * @param string $deprecated
-	 * @param mixed $autoload
+	 * @param bool|null $autoload Whether to autoload; null defers to WordPress heuristics (WP 6.6+).
 	 * @return bool
 	 * @codeCoverageIgnore
 	 */
-	public function _do_add_option(string $option, mixed $value = '', string $deprecated = '', mixed $autoload = 'yes'): bool {
+	public function _do_add_option(string $option, mixed $value = '', string $deprecated = '', mixed $autoload = null): bool {
+		// Pass through to WP. In 6.6+, null triggers wp_determine_option_autoload_value() heuristics.
 		// Some test shims may return null; always normalize to strict bool.
 		return (bool) \add_option($option, $value, $deprecated, $autoload);
 	}

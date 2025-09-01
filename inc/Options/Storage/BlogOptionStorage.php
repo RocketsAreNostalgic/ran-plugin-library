@@ -63,7 +63,7 @@ final class BlogOptionStorage implements OptionStorageInterface {
 	/**
 	 * {@inheritdoc}
 	 */
-	public function add(string $key, mixed $value, bool $autoload = false): bool {
+	public function add(string $key, mixed $value, ?bool $autoload = null): bool {
 		// Blog options do not support autoload; ignore flag.
 		return (bool) $this->_do_add_blog_option($this->blog_id, $key, $value);
 	}

@@ -47,14 +47,14 @@ final class UserOptionStorage implements OptionStorageInterface {
 	}
 
 	/** {@inheritdoc} */
-	public function update(string $key, mixed $value, bool $autoload = false): bool {
+	public function update(string $key, mixed $value, ?bool $autoload = null): bool {
 		// Autoload not supported. $this->global controls global vs site-specific user option.
 		return (bool) $this->_do_update_user_option($this->user_id, $key, $value, $this->global);
 	}
 
 	/** {@inheritdoc} */
-	public function add(string $key, mixed $value, bool $autoload = false): bool {
-		// No native add API; act as upsert via update.
+	public function add(string $key, mixed $value, ?bool $autoload = null): bool {
+		// No native add API; act as upsert via update. Autoload is not supported.
 		return $this->update($key, $value, false);
 	}
 

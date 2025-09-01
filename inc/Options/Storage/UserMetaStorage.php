@@ -53,7 +53,7 @@ final class UserMetaStorage implements OptionStorageInterface {
 	}
 
 	/** {@inheritdoc} */
-	public function add(string $key, mixed $value, bool $autoload = false): bool {
+	public function add(string $key, mixed $value, ?bool $autoload = null): bool {
 		// Keep semantics consistent with UserOptionStorage: upsert via update.
 		return $this->update($key, $value, false);
 	}

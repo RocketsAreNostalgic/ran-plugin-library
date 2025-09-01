@@ -47,7 +47,7 @@ final class NetworkOptionStorage implements OptionStorageInterface {
 	/**
 	 * {@inheritdoc}
 	 */
-	public function update(string $key, mixed $value, bool $autoload = false): bool {
+	public function update(string $key, mixed $value, ?bool $autoload = null): bool {
 		// Network options do not support autoload; ignore flag.
 		return (bool) $this->_do_update_site_option($key, $value);
 	}
@@ -55,7 +55,7 @@ final class NetworkOptionStorage implements OptionStorageInterface {
 	/**
 	 * {@inheritdoc}
 	 */
-	public function add(string $key, mixed $value, bool $autoload = false): bool {
+	public function add(string $key, mixed $value, ?bool $autoload = null): bool {
 		// Network options do not support autoload; ignore flag.
 		return (bool) $this->_do_add_site_option($key, $value);
 	}

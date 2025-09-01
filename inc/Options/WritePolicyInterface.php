@@ -13,7 +13,7 @@ interface WritePolicyInterface {
 	/**
 	 * Decide whether to allow the given operation.
 	 *
-	 * @param string $op  Operation name (e.g., 'flush', 'clear', 'delete_option', 'set_option', 'add_options', 'seed_if_missing', 'migrate', 'set_main_autoload')
+	 * @param string $op  Operation name (e.g., 'flush', 'clear', 'delete_option', 'set_option', 'add_options', 'seed_if_missing', 'migrate')
 	 * @param array  $ctx Context map describing the operation (scope, main_option, keys, user_id, blog_id, etc.)
 	 * @return bool True to allow, false to deny.
 	 */
