@@ -355,7 +355,7 @@ $opts->add_options(['enabled' => true]);
 $opts->flush(); // explicit write
 
 // or seed schema defaults and persist immediately
-$opts->register_schema(['enabled' => ['default' => true]], seedDefaults: true, flush: true);
+$opts->register_schema(['enabled' => ['default' => true]], seed_defaults: true, flush: true);
 ```
 
 ## Advanced Usage

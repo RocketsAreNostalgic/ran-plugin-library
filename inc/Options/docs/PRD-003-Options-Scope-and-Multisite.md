@@ -61,8 +61,6 @@ interface OptionStorageInterface {
     public function update(string $key, mixed $value, ?bool $autoload = null): bool; // WP does not change autoload on update
     public function add(string $key, mixed $value, ?bool $autoload = null): bool;   // null defers to WP heuristics (6.6+)
     public function delete(string $key): bool;
-
-    public function load_all_autoloaded(): ?array;  // array for current site/blog; null otherwise
 }
 ```
 
@@ -338,7 +336,6 @@ $network->update_option($target_key, $aggregate);
 
   - Verify each adapter routes to the correct WP wrapper (`get_option`, `get_site_option`, `get_blog_option`, etc.).
   - `supports_autoload()` truth table: Site=true; Blog=true when current blog equals target; Network=false; Blog(other)=false.
-  - `load_all_autoloaded()` returns array only when supported; otherwise null.
 
 - **RegisterOptions integration**
 

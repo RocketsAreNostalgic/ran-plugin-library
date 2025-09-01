@@ -22,7 +22,7 @@ use Ran\PluginLib\Config\Config;
 use Ran\PluginLib\Options\RegisterOptions;
 
 // Initialize config and options
-$config = Config::fromPluginFile(__FILE__);
+$config  = Config::fromPluginFile(__FILE__);
 $options = RegisterOptions::from_config($config); // site scope by default
 
 // Guard: ensure we're in a scope that supports autoload.
@@ -39,7 +39,7 @@ if (!$options->supports_autoload()) {
 }
 
 // Get the option name and current values
-$option_name = $config->get_options_key();
+$option_name    = $config->get_options_key();
 $current_values = $options->get_options();
 
 // Example: Holiday-specific settings that need quick access during December

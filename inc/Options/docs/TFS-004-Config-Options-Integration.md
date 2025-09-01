@@ -88,7 +88,10 @@ interface OptionStorageInterface {
 ```php
 // Generic gate
 add_filter('ran/plugin_lib/options/allow_persist', function(bool $allowed, array $ctx) {
-    // Context includes: op, main_option, scope, blog_id, user_id, etc.
+    // Context includes standardized keys:
+    // - Common: op, main_option, scope, blog_id?, user_id?, user_storage?, user_global?
+    // - Per-op: key|keys|changed_keys
+    // - Save-time only: options, merge_from_db
     return $security_check($ctx) ? $allowed : false;
 }, 10, 2);
 

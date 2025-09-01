@@ -53,11 +53,32 @@ Common `ctx` fields (subset varies by op):
 
 - `op`: operation name (e.g., `set_option`, `save_all`, `add_option`, `delete_option`, etc.)
 - `main_option`: the main WP option name grouping all sub-options
-- `key` | `keys`: single key or list of keys affected (when applicable)
-- `scope`: storage scope enum value
-- `blog_id`, `user_id`, `user_storage`, `user_global`: scope args (when applicable)
-- `options`: when persisting, the full to-save value appears in context
-- `mergeFromDb`: only for `_save_all_options(true)`
+- `scope`: storage scope value (`site`, `network`, `blog`, `user`)
+- `blog_id?`, `user_id?`, `user_storage?`, `user_global?`: scope args (when applicable)
+
+Per-operation specifics:
+
+- `set_option`:
+  - `key: string`
+- `add_option`:
+  - `key: string`
+- `add_options`:
+  - `keys: array<int,string>`
+- `delete_option`:
+  - `key: string`
+- `clear`:
+  - no additional keys beyond common
+- `seed_if_missing`:
+  - `keys: array<int,string>`
+- `migrate`:
+  - `changed_keys: array<int,string>`
+- `save_all` (final persistence gate):
+  - `options: array<string,mixed>` (full to-save payload)
+  - `merge_from_db: bool` (only when `_save_all_options(true)`)
+
+Notes:
+
+- The presence of `options` in `$ctx` distinguishes the final save gate from pre-mutation/pre-persist gates.
 
 ## `set_option()` Control Flow
 
@@ -158,7 +179,7 @@ sequenceDiagram
   - Gate before writing; veto returns without DB or memory effects
 - `migrate()`
   - Gate before applying migration; veto returns without write/mutate
-- `flush($mergeFromDb)` and `_save_all_options($mergeFromDb)`
+- `flush($merge_from_db)` and `_save_all_options($merge_from_db)`
   - Always gate before persistence; origin-op is `'save_all'` unless invoked from another operation (e.g., `'set_option'`)
 
 ## Implementation Pointers

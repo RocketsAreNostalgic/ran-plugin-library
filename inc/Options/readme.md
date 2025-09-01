@@ -78,11 +78,10 @@ $opts = RegisterOptions::from_config(
 
 ### Autoload and performance
 
-- **`load_all_autoloaded()` is optional and potentially heavy**:
-  - Storage adapters expose `load_all_autoloaded()` (see `OptionStorageInterface::load_all_autoloaded()`), which typically delegates to WordPress `wp_load_alloptions()` where autoloading is supported.
-  - On large sites this can return a large array and be relatively heavy.
-  - The library does not call this implicitly; use it only when you explicitly need the full autoload map.
-  - Prefer targeted `read()` calls when you know specific keys, and cache results at your call site if you must load all.
+- **Autoload capability varies by scope**:
+  - Use `supports_autoload()` on `RegisterOptions` to check whether the current storage adapter supports autoload semantics for the grouped option.
+  - Implementations may leverage WordPress internals (e.g., `wp_load_alloptions()`) where applicable.
+  - On large sites, preloading large option rows can be heavy; prefer targeted reads and cache results at your call site.
 
 ### Minimal schema (optional)
 
@@ -113,7 +112,7 @@ You can also register schema after construction:
 ```php
 $options->register_schema([
   'new_feature' => ['default' => false, 'validate' => fn($v) => is_bool($v)],
-], seedDefaults: true, flush: true);
+], seed_defaults: true, flush: true);
 ```
 
 ### Batch updates (recommended for bulk operations)

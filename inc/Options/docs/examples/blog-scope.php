@@ -10,7 +10,7 @@
  * - Autoload support depends on whether blog_id equals the current blog:
  *   - When blog_id == get_current_blog_id(): supports_autoload() may be true for purposes of
  *     wp_load_alloptions() only; creation-time autoload control is not available via Blog APIs.
- *   - Otherwise, supports_autoload() is false and load_all_autoloaded() returns null.
+ *   - Otherwise, supports_autoload() is false.
  */
 
 declare(strict_types=1);
@@ -28,8 +28,8 @@ $options = $config->options(array(
 
 // Check autoload support; only meaningful for the current blog
 if ($options->supports_autoload()) {
-    // Autoload relevance here is limited to wp_load_alloptions() for the current blog.
-    // Blog add/update APIs do not accept an autoload parameter.
+	// Autoload relevance here is limited to wp_load_alloptions() for the current blog.
+	// Blog add/update APIs do not accept an autoload parameter.
 }
 
 // Example writes
@@ -42,12 +42,6 @@ $home = $options->get_option('homepage_layout', 'standard');
 
 // Values-only view
 $values = $options->get_values();
-
-// Attempt to load all autoloaded options
-$autoloaded = $options->load_all_autoloaded(); // may be array or null depending on blog_id
-if ($autoloaded === null) {
-    // Not supported when targeting a different blog
-}
 
 // Batch update pattern
 $options->add_options(array(

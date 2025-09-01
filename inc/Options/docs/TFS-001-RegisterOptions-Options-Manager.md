@@ -111,8 +111,8 @@ public function delete_option(string $option_name): bool
 public function clear(): bool
 public function flush(): bool
 public function refresh_options(): void
-public function register_schema(array $schema, bool $seedDefaults = false, bool $flush = false): bool
-public function with_schema(array $schema, bool $seedDefaults = false, bool $flush = false): self
+public function register_schema(array $schema, bool $seed_defaults = false, bool $flush = false): bool
+public function with_schema(array $schema, bool $seed_defaults = false, bool $flush = false): self
 ```
 
 ### Usage Examples

@@ -82,7 +82,7 @@ class Config extends ConfigAbstract implements ConfigInterface {
      *
      * Persistence:
      * - Use the returned RegisterOptions instance to perform explicit write operations when desired,
-     *   e.g. `$opts->add_options([...]); $opts->flush();` or `$opts->register_schema($schema, seedDefaults: true, flush: true);`.
+     *   e.g. `$opts->add_options([...]); $opts->flush();` or `$opts->register_schema($schema, seed_defaults: true, flush: true);`.
      *
      * @param array $args Recognized args only; unknown keys are ignored with a warning.
      * @return \Ran\PluginLib\Options\RegisterOptions

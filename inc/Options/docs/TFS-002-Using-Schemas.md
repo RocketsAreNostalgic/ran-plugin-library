@@ -96,7 +96,7 @@ $opts
     - `migrate($fn)`
     - These first build a normalized snapshot; on any exception, nothing is mutated or persisted
   - Per-key seeding flow:
-    - `register_schema($schema, seedDefaults: true, flush: <bool>)` seeds each missing key in a loop
+    - `register_schema($schema, seed_defaults: true, flush: <bool>)` seeds each missing key in a loop
     - If a callback throws mid-loop, some prior keys may already be staged in memory (no DB write unless `flush: true`)
     - Best practice: either use `seed_if_missing()` for first-writes, or wrap the call site in try/catch if you need to handle errors centrally
 
@@ -125,7 +125,7 @@ $opts
 - Autoload is applied only on creation by WordPress (e.g., via `seed_if_missing(...)->flush()` or `register_schema(..., true, true)`).
 - WP 6.6+: when adding an option, a nullable autoload hint (`?bool`) is accepted; passing `null` defers to WordPress heuristics. Updates do not change autoload.
 - For manual autoload flipping, use WordPress core functions directly (delete + add with a bool|null autoload where supported).
-- Performance note: storage adapters expose `load_all_autoloaded()` (see `OptionStorageInterface::load_all_autoloaded()`), which typically delegates to WordPress `wp_load_alloptions()` where autoloading is supported. On large sites this can return a large array and be heavy. The library never calls this implicitly; prefer targeted reads and cache results at your call site if you must load all.
+- Performance note: when autoload is supported, WordPress may preload options globally (e.g., via `wp_load_alloptions()`). On large sites this can be heavy. The library does not implicitly load all options; prefer targeted reads and cache results at your call site. Use `supports_autoload()` to detect capability.
 
 ## Scope note (forward-looking)
 
@@ -140,7 +140,7 @@ $opts
 
   ```php
   $opts = $config->options();
-  $opts->register_schema($schema, seedDefaults: true, flush: true);
+  $opts->register_schema($schema, seed_defaults: true, flush: true);
   ```
 
 ## Testing Tips
