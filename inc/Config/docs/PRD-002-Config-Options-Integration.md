@@ -100,12 +100,21 @@ public function options(array $args = []): \Ran\PluginLib\Options\RegisterOption
 - **`autoload: bool`** — default `true`. Policy hint used for new-row creation; does not write by itself.
 - **`initial: array<string,mixed>`** — default `[]`. Values merged in-memory on the returned manager; no write.
 - **`schema: array<string,mixed>`** — default `[]`. Registers schema on the returned manager; no write.
+- **`policy: \Ran\PluginLib\Options\WritePolicyInterface|null`** — optional immutable write policy injected into the returned `RegisterOptions`. If omitted, the default policy is applied lazily.
 
 Notes:
 
 - **No implicit writes** occur in `Config::options()`.
 - Unknown arguments are ignored and a warning is emitted via the configured logger.
 - Operational helpers (e.g., flipping autoload, seeding defaults, providing initial values, flushing) are performed on the returned `RegisterOptions` instance.
+
+Example (inject a custom write policy):
+
+```php
+$opts = $config->options([
+  'policy' => $customPolicy, // implements \Ran\PluginLib\Options\WritePolicyInterface
+]);
+```
 
 Autoload implementation details:
 
