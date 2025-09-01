@@ -62,9 +62,4 @@ final class UserMetaStorage implements OptionStorageInterface {
 	public function delete(string $key): bool {
 		return (bool) $this->_do_delete_user_meta($this->user_id, $key);
 	}
-
-	/** {@inheritdoc} */
-	public function load_all_autoloaded(): ?array {
-		return null;
-	}
 }

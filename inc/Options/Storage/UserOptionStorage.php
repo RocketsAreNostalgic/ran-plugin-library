@@ -62,9 +62,4 @@ final class UserOptionStorage implements OptionStorageInterface {
 	public function delete(string $key): bool {
 		return (bool) $this->_do_delete_user_option($this->user_id, $key, $this->global);
 	}
-
-	/** {@inheritdoc} */
-	public function load_all_autoloaded(): ?array {
-		return null;
-	}
 }

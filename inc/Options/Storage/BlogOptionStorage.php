@@ -74,15 +74,4 @@ final class BlogOptionStorage implements OptionStorageInterface {
 	public function delete(string $key): bool {
 		return (bool) $this->_do_delete_blog_option($this->blog_id, $key);
 	}
-
-	/**
-	 * {@inheritdoc}
-	 */
-	public function load_all_autoloaded(): ?array {
-		// Only meaningful for the current blog; otherwise unsupported.
-		if ($this->supports_autoload()) {
-			return $this->_do_wp_load_alloptions(false);
-		}
-		return null;
-	}
 }

@@ -43,18 +43,14 @@ final class SiteOptionStorage implements OptionStorageInterface {
 
 	/** {@inheritdoc} */
 	public function add(string $key, mixed $value, ?bool $autoload = null): bool {
-        // Pass nullable autoload through; WP 6.6+ will apply heuristics when null.
-        // Autoload is only applicable on creation; updates cannot change it.
-        return (bool) $this->_do_add_option($key, $value, '', $autoload);
-    }
+		// Pass nullable autoload through; WP 6.6+ will apply heuristics when null.
+		// Autoload is only applicable on creation; updates cannot change it.
+		return (bool) $this->_do_add_option($key, $value, '', $autoload);
+	}
 
 	/** {@inheritdoc} */
 	public function delete(string $key): bool {
 		return (bool) $this->_do_delete_option($key);
 	}
-
-	/** {@inheritdoc} */
-	public function load_all_autoloaded(): ?array {
-		return $this->_do_wp_load_alloptions();
-	}
 }
+

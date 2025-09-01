@@ -47,7 +47,6 @@ use Ran\PluginLib\Options\RestrictedDefaultWritePolicy;
  * - Uses a scope-aware storage adapter (Site/Blog/Network/User) via `OptionStorageFactory`.
  * - Public passthroughs on this class:
  *   - `supports_autoload(): bool` — whether current storage supports autoload
- *   - `load_all_autoloaded(): ?array` — autoloaded options for supported scopes (null if unsupported)
  *
  * In-memory vs persistence:
  * - Constructor/registration may seed in-memory state (schema defaults, initial merges)
@@ -222,7 +221,7 @@ class RegisterOptions {
 				// Set if new, or if existing value is different (for complex types, this is a simple check).
 				if (!$current_value_exists || ($current_value_exists && $this->options[$option_name_clean] !== $value_to_set)) {
 					$this->options[$option_name_clean] = $value_to_set;
-					$options_changed                  = true;
+					$options_changed                   = true;
 					// @codeCoverageIgnoreStart
 					if ($this->_get_logger()->is_active()) {
 						$this->_get_logger()->debug("RegisterOptions: Initial option '{$option_name_clean}' set/updated (in-memory only; persistence requires explicit flush or set/update methods).");
@@ -294,28 +293,16 @@ class RegisterOptions {
 	}
 
 	/**
-	 * Load all autoloaded options for this scope if supported.
-	 *
-	 * Passthrough to the storage adapter. Returns an associative array of
-	 * options or null when unsupported for the current scope.
-	 *
-	 * @return array<string, mixed>|null
-	 */
-	public function load_all_autoloaded(): ?array {
-		return $this->_get_storage()->load_all_autoloaded();
-	}
-
-	/**
 	 * Sets or updates a specific option's value within the main options array and saves any added options to the DB.
 	      *
-     * @param string     $option_name The name of the sub-option to set. Key is sanitized via sanitize_key().
+	 * @param string     $option_name The name of the sub-option to set. Key is sanitized via sanitize_key().
 	 * @param mixed      $value       The value for the sub-option.
 	 * @return bool True if any added options were successfully saved, false otherwise.
-     *
-     * Note:
-     * - No-op guard uses strict (===) comparison for the value.
-     * - Arrays must match exactly (keys/order/values) to be considered unchanged.
-     * - Objects must be the same instance to avoid a write; identical state in different instances will trigger a save.
+	 *
+	 * Note:
+	 * - No-op guard uses strict (===) comparison for the value.
+	 * - Arrays must match exactly (keys/order/values) to be considered unchanged.
+	 * - Objects must be the same instance to avoid a write; identical state in different instances will trigger a save.
 	 */
 	public function set_option(string $option_name, mixed $value): bool {
 		$option_name_clean = $this->_do_sanitize_key($option_name);
@@ -334,33 +321,6 @@ class RegisterOptions {
 		} elseif (is_string($this->storage_scope) && $this->storage_scope !== '') {
 			$scopeStr = strtolower($this->storage_scope);
 		}
-		$ctx0 = array(
-		    'op'          => 'set_option',
-		    'main_option' => $this->main_wp_option_name,
-		    'key'         => $option_name_clean,
-		    'config'      => null,
-		    'scope'       => $scopeStr,
-		);
-		// @codeCoverageIgnoreStart
-		if ($this->_get_logger()->is_active()) {
-			$this->_get_logger()->debug(
-				'RegisterOptions: Early write-gate check for set_option.',
-				array('key' => $option_name_clean, 'scope' => $scopeStr)
-			);
-		}
-		// @codeCoverageIgnoreEnd
-		$__early_allowed = $this->_apply_write_gate('set_option', $ctx0);
-		if (!$__early_allowed) {
-			// @codeCoverageIgnoreStart
-			if ($this->_get_logger()->is_active()) {
-				$this->_get_logger()->debug(
-					'RegisterOptions: Early write-gate veto; aborting set_option.',
-					array('key' => $option_name_clean, 'scope' => $scopeStr)
-				);
-			}
-			// @codeCoverageIgnoreEnd
-			return false; // veto: protect in-memory state
-		}
 
 		// Avoid DB churn: if nothing changed, short-circuit
 		if (isset($this->options[$option_name_clean])) {
@@ -372,15 +332,25 @@ class RegisterOptions {
 
 		// Write gate just before mutating in-memory state
 		$scopeEnum = $this->_get_storage()->scope();
-		$ctx       = array(
-			'op'           => 'set_option',
-			'main_option'  => $this->main_wp_option_name,
-			'key'          => $option_name_clean,
-			'scope'        => $scopeEnum->value,
-			'blog_id'      => $this->storage_args['blog_id']      ?? null,
-			'user_id'      => $this->storage_args['user_id']      ?? null,
-			'user_storage' => $this->storage_args['user_storage'] ?? 'meta',
-			'user_global'  => (bool) ($this->storage_args['user_global'] ?? false),
+		/** @var array{
+		  op: 'set_option',
+		  main_option: string,
+		  key: string,
+		  scope: string,
+		  blog_id?: int|null,
+		  user_id?: int|null,
+		  user_storage?: string,
+		  user_global?: bool
+		} $ctx */
+		$ctx = array(
+		    'op'           => 'set_option',
+		    'main_option'  => $this->main_wp_option_name,
+		    'key'          => $option_name_clean,
+		    'scope'        => $scopeEnum->value,
+		    'blog_id'      => $this->storage_args['blog_id']      ?? null,
+		    'user_id'      => $this->storage_args['user_id']      ?? null,
+		    'user_storage' => $this->storage_args['user_storage'] ?? 'meta',
+		    'user_global'  => (bool) ($this->storage_args['user_global'] ?? false),
 		);
 		$__pre_mut_allowed = $this->_apply_write_gate('set_option', $ctx);
 		if (!$__pre_mut_allowed) {
@@ -418,7 +388,17 @@ class RegisterOptions {
 		// Gate batch addition before mutating memory
 		$keys      = array_map(static fn($k) => (string) $k, array_keys($keyToValue));
 		$scopeEnum = $this->_get_storage()->scope();
-		$ctx       = array(
+		/** @var array{
+		  op: 'add_options',
+		  main_option: string,
+		  keys: array<int, string>,
+		  scope: string,
+		  blog_id?: int|null,
+		  user_id?: int|null,
+		  user_storage?: string,
+		  user_global?: bool
+		} $ctx */
+		$ctx = array(
 			'op'           => 'add_options',
 			'main_option'  => $this->main_wp_option_name,
 			'keys'         => $keys,
@@ -444,7 +424,7 @@ class RegisterOptions {
 			}
 
 			$this->options[$key] = $value;
-			$changed = true;
+			$changed             = true;
 		}
 
 		// Return self for fluent chaining (flush separately)
@@ -472,7 +452,17 @@ class RegisterOptions {
 
 		// Gate before mutating memory (after no-op guard)
 		$scopeEnum = $this->_get_storage()->scope();
-		$ctx       = array(
+		/** @var array{
+		  op: 'add_option',
+		  main_option: string,
+		  key: string,
+		  scope: string,
+		  blog_id?: int|null,
+		  user_id?: int|null,
+		  user_storage?: string,
+		  user_global?: bool
+		} $ctx */
+		$ctx = array(
 			'op'           => 'add_option',
 			'main_option'  => $this->main_wp_option_name,
 			'key'          => $key,
@@ -494,7 +484,7 @@ class RegisterOptions {
 	 * Persist current in-memory options to the database.
      * Explicit persistence point: complements the "No implicit writes" principle.
 	 *
-	 * @param bool $mergeFromDb When true, reads current DB value and performs a
+	 * @param bool $merge_from_db When true, reads current DB value and performs a
 	 *                          shallow, top-level merge before saving:
 	 *                          - Existing DB keys are preserved
 	 *                          - In-memory keys overwrite on collision
@@ -506,8 +496,8 @@ class RegisterOptions {
 	 *
 	 * @return bool Whether the save succeeded.
 	 */
-	public function flush(bool $mergeFromDb = false): bool {
-		return $this->_save_all_options($mergeFromDb);
+	public function flush(bool $merge_from_db = false): bool {
+		return $this->_save_all_options($merge_from_db);
 	}
 
 	/**
@@ -518,11 +508,11 @@ class RegisterOptions {
 	 * - Optionally flushes once after seeding
 	 *
 	 * @param array $schema  Schema map: ['key' => ['default' => mixed|callable(ConfigInterface|null): mixed, 'sanitize' => callable|null, 'validate' => callable|null]]
-	 * @param bool  $seedDefaults If true, set missing option values from 'default' (after sanitize/validate)
+	 * @param bool  $seed_defaults If true, set missing option values from 'default' (after sanitize/validate)
 	 * @param bool  $flush If true, persist after seeding (single write)
 	 * @return bool When flush=false: whether any values were seeded; when flush=true: whether the save succeeded
 	 */
-	public function register_schema(array $schema, bool $seedDefaults = false, bool $flush = false): bool {
+	public function register_schema(array $schema, bool $seed_defaults = false, bool $flush = false): bool {
 		if (empty($schema)) {
 			return false;
 		}
@@ -544,11 +534,11 @@ class RegisterOptions {
 		}
 
 		$changed = false;
-		if ($seedDefaults) {
+		if ($seed_defaults) {
 			// Note: Seeding defaults is an in-memory operation; do not gate with allow_persist.
 
 			// Build a temporary map to avoid partial in-memory state on failure
-			if ($seedDefaults) {
+			if ($seed_defaults) {
 				$toSeed = array();
 				try {
 					foreach ($normalized as $key => $rules) {
@@ -562,18 +552,18 @@ class RegisterOptions {
 				} catch (\Throwable $e) {
 					// Log and abort seeding without mutating in-memory state
 					$this->_get_logger()->error(
-						'RegisterOptions: register_schema seedDefaults failed; aborting seeding.',
+						'RegisterOptions: register_schema seed_defaults failed; aborting seeding.',
 						array(
 							'main_option' => $this->main_wp_option_name,
 							'error'       => $e->getMessage(),
 						)
 					);
-					$toSeed       = array();
-					$seedDefaults = false;
+					$toSeed        = array();
+					$seed_defaults = false;
 				}
 
 				// Apply staged seeds atomically
-				if ($seedDefaults && !empty($toSeed)) {
+				if ($seed_defaults && !empty($toSeed)) {
 					foreach ($toSeed as $k => $entry) {
 						$this->options[$k] = $entry;
 					}
@@ -596,12 +586,12 @@ class RegisterOptions {
 	 * Config as source for main option name and autoload policy.
 	 *
 	 * @param array $schema  Schema map: ['key' => ['default' => mixed|callable(ConfigInterface|null): mixed, 'sanitize' => callable|null, 'validate' => callable|null]]
-	 * @param bool  $seedDefaults If true, set missing option values from 'default' (after sanitize/validate)
+	 * @param bool  $seed_defaults If true, set missing option values from 'default' (after sanitize/validate)
 	 * @param bool  $flush If true, persist after seeding (single write)
 	 * @return self
 	 */
-	public function with_schema(array $schema, bool $seedDefaults = false, bool $flush = false): self {
-		$this->register_schema($schema, $seedDefaults, $flush);
+	public function with_schema(array $schema, bool $seed_defaults = false, bool $flush = false): self {
+		$this->register_schema($schema, $seed_defaults, $flush);
 		return $this;
 	}
 
@@ -651,7 +641,17 @@ class RegisterOptions {
 		}
 		// Gate delete before mutating
 		$scopeEnum = $this->_get_storage()->scope();
-		$ctx       = array(
+		/** @var array{
+		  op: 'delete_option',
+		  main_option: string,
+		  key: string,
+		  scope: string,
+		  blog_id?: int|null,
+		  user_id?: int|null,
+		  user_storage?: string,
+		  user_global?: bool
+		} $ctx */
+		$ctx = array(
 			'op'           => 'delete_option',
 			'main_option'  => $this->main_wp_option_name,
 			'key'          => $key,
@@ -674,7 +674,16 @@ class RegisterOptions {
 	public function clear(): bool {
 		// Gate clear before mutating
 		$scopeEnum = $this->_get_storage()->scope();
-		$ctx       = array(
+		/** @var array{
+		  op: 'clear',
+		  main_option: string,
+		  scope: string,
+		  blog_id?: int|null,
+		  user_id?: int|null,
+		  user_storage?: string,
+		  user_global?: bool
+		} $ctx */
+		$ctx = array(
 			'op'           => 'clear',
 			'main_option'  => $this->main_wp_option_name,
 			'scope'        => $scopeEnum->value,
@@ -724,7 +733,17 @@ class RegisterOptions {
 
 		// Gate seeding before writing or mutating
 		$scopeEnum = $this->_get_storage()->scope();
-		$ctx       = array(
+		/** @var array{
+		  op: 'seed_if_missing',
+		  main_option: string,
+		  keys: array<int, string>,
+		  scope: string,
+		  blog_id?: int|null,
+		  user_id?: int|null,
+		  user_storage?: string,
+		  user_global?: bool
+		} $ctx */
+		$ctx = array(
 			'op'           => 'seed_if_missing',
 			'main_option'  => $this->main_wp_option_name,
 			'keys'         => array_keys($normalized),
@@ -803,7 +822,17 @@ class RegisterOptions {
 
 		// Gate migration write before updating DB / mutating memory
 		$scopeEnum = $this->_get_storage()->scope();
-		$ctx       = array(
+		/** @var array{
+		  op: 'migrate',
+		  main_option: string,
+		  scope: string,
+		  blog_id?: int|null,
+		  user_id?: int|null,
+		  user_storage?: string,
+		  user_global?: bool,
+		  changed_keys: array<int, string>
+		} $ctx */
+		$ctx = array(
 			'op'           => 'migrate',
 			'main_option'  => $this->main_wp_option_name,
 			'scope'        => $scopeEnum->value,
@@ -926,7 +955,17 @@ class RegisterOptions {
 	 * - ran/plugin_lib/options/allow_persist/scope/{scope}
 	 *
 	 * @param string $op  Operation name (e.g., 'save_all', 'set_option', 'add_options')
-	 * @param array  $ctx Context map passed to filters
+	 * @param array{
+	 *   op: string,
+	 *   main_option: string,
+	 *   scope: string,
+	 *   blog_id?: int|null,
+	 *   user_id?: int|null,
+	 *   user_storage?: string,
+	 *   user_global?: bool,
+	 *   options?: array<string, mixed>,
+	 *   merge_from_db?: bool
+	 * } $ctx Context passed to filters and policy. At minimum includes 'scope' and 'main_option'.
 	 * @return bool
 	 */
 	private function _apply_write_gate(string $op, array $ctx): bool {
@@ -987,26 +1026,26 @@ class RegisterOptions {
 	/**
 	 * Saves all currently held options to the database under the main option name.
 	 *
-	 * @param bool $mergeFromDb Optional. If true, applies a shallow, top-level
+	 * @param bool $merge_from_db Optional. If true, applies a shallow, top-level
 	 *                          merge with the current DB value (keeps DB keys, overwrites with in-memory on collision)
 	 *                          and does not perform deep/nested merges.
 	 * @return bool True if the option was successfully updated or added, false otherwise.
 	 */
-	private function _save_all_options(bool $mergeFromDb = false): bool {
+	private function _save_all_options(bool $merge_from_db = false): bool {
 		// @codeCoverageIgnoreStart
 		if ($this->_get_logger()->is_active()) {
 			$this->_get_logger()->debug(
-				"RegisterOptions: _save_all_options starting...",
+				'RegisterOptions: _save_all_options starting...',
 				array(
-					'origin'      => $this->__persist_origin ?? 'save_all',
-					'mergeFromDb' => $mergeFromDb,
+					'origin'        => $this->__persist_origin ?? 'save_all',
+					'merge_from_db' => $merge_from_db,
 				)
 			);
 		}
 		// @codeCoverageIgnoreEnd
 
 		$to_save = $this->options;
-		if ($mergeFromDb) {
+		if ($merge_from_db) {
 			// Load DB snapshot and merge top-level keys (no deep merge)
 			$dbCurrent = $this->_get_storage()->read($this->main_wp_option_name);
 			if (!is_array($dbCurrent)) {
@@ -1021,16 +1060,27 @@ class RegisterOptions {
 
 		// Apply final gate before persistence with full context
 		$scopeEnum = $this->_get_storage()->scope();
-		$ctx       = array(
-			'op'           => $this->__persist_origin ?? 'save_all',
-			'main_option'  => $this->main_wp_option_name,
-			'scope'        => $scopeEnum->value,
-			'blog_id'      => $this->storage_args['blog_id']      ?? null,
-			'user_id'      => $this->storage_args['user_id']      ?? null,
-			'user_storage' => $this->storage_args['user_storage'] ?? 'meta',
-			'user_global'  => (bool) ($this->storage_args['user_global'] ?? false),
-			'options'      => $to_save,
-			'mergeFromDb'  => $mergeFromDb,
+		/** @var array{
+		  op: string,
+		  main_option: string,
+		  scope: string,
+		  blog_id?: int|null,
+		  user_id?: int|null,
+		  user_storage?: string,
+		  user_global?: bool,
+		  options: array<string, mixed>,
+		  merge_from_db: bool
+		} $ctx */
+		$ctx = array(
+			'op'            => $this->__persist_origin ?? 'save_all',
+			'main_option'   => $this->main_wp_option_name,
+			'scope'         => $scopeEnum->value,
+			'blog_id'       => $this->storage_args['blog_id']      ?? null,
+			'user_id'       => $this->storage_args['user_id']      ?? null,
+			'user_storage'  => $this->storage_args['user_storage'] ?? 'meta',
+			'user_global'   => (bool) ($this->storage_args['user_global'] ?? false),
+			'options'       => $to_save,
+			'merge_from_db' => $merge_from_db,
 		);
 		$allowed = $this->_apply_write_gate($this->__persist_origin ?? 'save_all', $ctx);
 		if (!$allowed) {
@@ -1044,7 +1094,7 @@ class RegisterOptions {
 
 		// Honor initial autoload preference only on creation.
 		// If the row does not exist, use add(..., $this->main_option_autoload); otherwise, update().
-		$sentinel = new \stdClass();
+		$sentinel     = new \stdClass();
 		$raw_existing = $this->_do_get_option($this->main_wp_option_name, $sentinel);
 		if ($raw_existing === $sentinel) {
 			// Option doesn't exist, use add() with autoload
@@ -1059,7 +1109,7 @@ class RegisterOptions {
 		// @codeCoverageIgnoreStart
 		if ($this->_get_logger()->is_active()) {
 			$this->_get_logger()->debug(
-				"RegisterOptions: storage->update() completed.",
+				'RegisterOptions: storage->update() completed.',
 				array('result' => (bool) $result)
 			);
 		}

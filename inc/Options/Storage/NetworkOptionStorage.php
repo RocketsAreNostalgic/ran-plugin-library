@@ -66,12 +66,4 @@ final class NetworkOptionStorage implements OptionStorageInterface {
 	public function delete(string $key): bool {
 		return (bool) $this->_do_delete_site_option($key);
 	}
-
-	/**
-	 * {@inheritdoc}
-	 */
-	public function load_all_autoloaded(): ?array {
-		// No network-wide autoload map in WP core.
-		return null;
-	}
 }
