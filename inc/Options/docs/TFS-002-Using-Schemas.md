@@ -120,10 +120,11 @@ $opts
 - **Tooling**: Drive admin UIs, docs, and type expectations from a single schema.
 - **Future scope reuse**: The same schema can apply to multiple scopes without redefinition.
 
-## Autoload semantics
+## Autoload behavior
 
-- Autoload is applied on first persistence (e.g., `seed_if_missing(...)->flush()` or `register_schema(..., true, true)`).
-- Flipping autoload is an explicit operation via `set_main_autoload(bool)`; it may write only if a row exists and autoload differs.
+- Autoload is applied only on creation by WordPress (e.g., via `seed_if_missing(...)->flush()` or `register_schema(..., true, true)`).
+- WP 6.6+: when adding an option, a nullable autoload hint (`?bool`) is accepted; passing `null` defers to WordPress heuristics. Updates do not change autoload.
+- For manual autoload flipping, use WordPress core functions directly (delete + add with a bool|null autoload where supported).
 - Performance note: storage adapters expose `load_all_autoloaded()` (see `OptionStorageInterface::load_all_autoloaded()`), which typically delegates to WordPress `wp_load_alloptions()` where autoloading is supported. On large sites this can return a large array and be heavy. The library never calls this implicitly; prefer targeted reads and cache results at your call site if you must load all.
 
 ## Scope note (forward-looking)

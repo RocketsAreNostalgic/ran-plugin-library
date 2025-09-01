@@ -30,15 +30,14 @@ WordPress plugins frequently scatter settings across multiple `wp_options` rows,
 Adopt a single-row, schema-aware options manager (`RegisterOptions`) that:
 
 - Groups all sub-options under one main option name.
-- Wraps each sub-option as `{ value, autoload_hint }` for metadata introspection.
+- Stores values directly as an associative array: `key => value`.
 - Supports callable defaults, sanitization, and validation per key.
 - Avoids no-op writes and supports batch updates with an explicit `flush()`.
-- Provides an explicit `set_main_autoload()` escape hatch to flip autoload safely.
 - Keeps the API surface tight while allowing advanced patterns (deep merges, post-construction schema registration).
 
 ### Core Architecture
 
-- One main `wp_options` row stores an associative array: `key => { value, autoload_hint }`.
+- One main `wp_options` row stores an associative array: `key => value`.
 - In-memory cache refreshed via `refresh_options()`; persisted via `_save_all_options()`.
 - Schema map enables per-key lifecycle: default seeding, sanitization, and validation.
 - Logging via `Logger` with concise debug messages.
@@ -101,19 +100,17 @@ static from_config(
 ): self
 
 public function get_option(string $option_name, mixed $default = false): mixed
-public function get_options(): array // values with metadata
+public function get_options(): array // values only
 public function get_values(): array  // values only
 public function has_option(string $option_name): bool
-public function set_option(string $option_name, mixed $value, ?bool $autoload_hint = null): bool
-public function add_option(string $option_name, mixed $value, ?bool $autoload_hint = null): self
+public function set_option(string $option_name, mixed $value): bool
+public function add_option(string $option_name, mixed $value): self
 public function add_options(array $keyToValue): self
-public function update_option(string $option_name, mixed $value, ?bool $autoload_hint = null): bool
+public function update_option(string $option_name, mixed $value): bool
 public function delete_option(string $option_name): bool
 public function clear(): bool
 public function flush(): bool
 public function refresh_options(): void
-public function get_autoload_hint(string $key): ?bool
-public function set_main_autoload(bool $autoload): bool
 public function register_schema(array $schema, bool $seedDefaults = false, bool $flush = false): bool
 public function with_schema(array $schema, bool $seedDefaults = false, bool $flush = false): self
 ```
@@ -131,7 +128,6 @@ public function with_schema(array $schema, bool $seedDefaults = false, bool $flu
 
 - Main option name derived from `ConfigInterface` via `RAN.AppOption`, with a fallback to `Slug`.
 - `main_option_autoload` controls grouped row autoload on creation.
-- Per-key `autoload_hint` is metadata only (does not affect WP autoload), useful for audits/migrations.
 
 ## Technical Constraints
 
@@ -163,7 +159,6 @@ public function with_schema(array $schema, bool $seedDefaults = false, bool $flu
 
 ### Phase 3: Escape Hatches & Docs
 
-- Implement `set_main_autoload()` and `get_autoload_hint()`.
 - Provide examples and developer documentation.
 
 ## Alternatives Considered
@@ -201,12 +196,12 @@ public function with_schema(array $schema, bool $seedDefaults = false, bool $flu
 - No-op write guard: unchanged values skip persistence.
 - Batch via `add_option(s)` and `flush()`.
 - Schema default seeding; callable defaults; sanitize/validate flows.
-- `set_main_autoload` preserves data and flips autoload.
+
 - Error messages include truncated value and callable descriptor.
 
 ### Integration Tests
 
-- Interaction with WordPress Options API (creation vs. update semantics for autoload).
+- Interaction with WordPress Options API.
 - Concurrent write scenarios simulated to confirm batching patterns.
 
 ### Performance Tests
@@ -231,7 +226,7 @@ public function with_schema(array $schema, bool $seedDefaults = false, bool $flu
 
 ### From Previous Implementation
 
-- When migrating from scattered keys, map each previous key to a grouped sub-key, optionally recording `autoload_hint` to support future splits.
+- When migrating from scattered keys, map each previous key to a grouped sub-key.
 
 ### Backward Compatibility
 
@@ -257,9 +252,6 @@ public function with_schema(array $schema, bool $seedDefaults = false, bool $flu
 - Document validator intent; provide actionable messages.
 
 ### Common Pitfalls
-
-- Expecting per-key `autoload_hint` to affect WordPress autoload behavior.
-- Forgetting delete+add when flipping autoload for the grouped row.
 
 ### Troubleshooting
 

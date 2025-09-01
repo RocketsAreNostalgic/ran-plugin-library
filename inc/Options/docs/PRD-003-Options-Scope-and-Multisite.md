@@ -58,8 +58,8 @@ interface OptionStorageInterface {
     public function supports_autoload(): bool;     // Site and Blog(current) only
 
     public function read(string $key, mixed $default = false): mixed;
-    public function update(string $key, mixed $value, ?string $autoloadYesNo = null): bool; // autoload hint only honored when supports_autoloaddd()
-    public function add(string $key, mixed $value, ?string $autoloadYesNo = null): bool;
+    public function update(string $key, mixed $value, ?bool $autoload = null): bool; // WP does not change autoload on update
+    public function add(string $key, mixed $value, ?bool $autoload = null): bool;   // null defers to WP heuristics (6.6+)
     public function delete(string $key): bool;
 
     public function load_all_autoloaded(): ?array;  // array for current site/blog; null otherwise
@@ -114,25 +114,28 @@ public static function fromConfig(\Ran\PluginLib\Config\ConfigInterface $cfg, st
 
 These are internal implementation details; not part of the public API.
 
-### 4) Autoload semantics (implemented in prep work for PRD-002)
+### 4) Autoload behavior
 
-- `RegisterOptions::get_main_autoload(): ?bool`
-  - Returns `true` when the main option is autoloaded (preloaded via `wp_load_alloptions()`).
-  - Returns `false` when the main option row exists but is not autoloaded.
-  - Returns `null` when the main option row does not exist or autoload is not applicable in the current scope.
-- `RegisterOptions::set_main_autoload(bool)`
-  - MUST short‑circuit (no delete+add) when the current autoload already matches the requested value.
-  - Otherwise forces the flip via delete+add (WordPress only applies autoload on creation).
-- Content source policy during flip
-  - The library re‑adds the latest DB snapshot of the option row (default). This preserves external writers’ changes.
-  - If callers need to include staged in‑memory changes, they should call `$options->flush(true)` first, then `set_main_autoload(...)`.
-- Missing‑row behavior
-  - If the main option row does not exist, `set_main_autoload(...)` will create it (empty array) with the requested autoload value.
-- Scope applicability
-  - Applies to `'site'` and to `'blog'` when targeting the current blog (i.e., `blog_id` omitted or equals the current blog).
-  - For `'network'` and for `'blog'` targeting a different blog than current, autoload is not applicable: `get_main_autoload()` returns `null` and `set_main_autoload(...)` is a no‑op that logs a developer notice via the configured logger.
+Autoload behavior is determined by WordPress core and the storage scope:
 
-> Rationale: Network options live in `wp_sitemeta` (no autoload). Blog autoload preloading occurs only for the current runtime blog. Therefore autoload flips are meaningful for `'site'` and for `'blog'` only when targeting the current blog.
+- **Site scope**: Options can be autoloaded (configurable during option creation; pass bool or null where null defers to WP 6.6+ heuristics)
+- **Blog scope**: Options can be autoloaded only when targeting the current blog
+- **Network scope**: Options are never autoloaded (stored in wp_sitemeta)
+- **User scope**: Options are never autoloaded
+
+For manual autoload flipping when needed:
+
+```php
+// Manual autoload flip
+$current = get_option($option_name);
+delete_option($option_name);
+
+// WP 6.6+: prefer bool|null (null defers to heuristics)
+add_option($option_name, $current, '', $newAutoload); // true|false|null
+
+// Pre-6.6 fallback
+// add_option($option_name, $current, '', $newAutoload ? 'yes' : 'no');
+```
 
 ### 5) Optional header default (opt‑in)
 
@@ -204,16 +207,16 @@ Example filter names:
 - `ran/plugin_lib/options/allow_persist` (generic gate)
 - `ran/plugin_lib/options/allow_persist/scope/{site|network|blog}` (scope aliases)
 
-The filter receives (2nd arg) context: `op`, `main_option`, `options`, `autoload`, `scope`, `blog_id`, `mergeFromDb?`, `config?`. Return false to veto the write.
+The filter receives (2nd arg) context: `op`, `main_option`, `options`, `scope`, `blog_id`, `user_id`, `mergeFromDb?`, `config?`. Return false to veto the write.
 
 Context fields:
 
-- **op (string)** — operation attempted: `save_all` | `set_main_autoload`.
+- **op (string)** — operation attempted: `save_all`, `set_option`, `add_options`, etc.
 - **main_option (string)** — main WordPress option key this manager writes to.
 - **options (array)** — associative values to be persisted (treat as read‑only).
-- **autoload (bool)** — autoload state that will result if the write proceeds.
-- **scope ('site'|'network'|'blog')** — target storage context for the operation.
+- **scope ('site'|'network'|'blog'|'user')** — target storage context for the operation.
 - **blog_id (?int)** — when `scope='blog'`: defaults to current blog if omitted; otherwise set to the target blog ID. Null otherwise.
+- **user_id (?int)** — when `scope='user'`: the target user ID.
 - **mergeFromDb (bool)** — only for `op='save_all'`; whether values will merge with DB vs replace.
 - **config (array|null)** — optional library config snapshot for policy decisions.
 
@@ -245,56 +248,28 @@ add_filter('ran/plugin_lib/options/allow_persist/scope/blog', function (bool $al
 ```
 
 ```php
-// Operation-specific: disallow autoload flips outside admin screens
-add_filter('ran/plugin_lib/options/allow_persist', function (bool $allowed, array $ctx) {
-    if (($ctx['op'] ?? '') === 'set_main_autoload') {
-        if (!is_admin()) {
-            return false;
-        }
-    }
-    return $allowed;
-}, 10, 2);
-```
-
-```php
 // CLI/cron guidance: allow specific operations only when running via WP-CLI or cron
 add_filter('ran/plugin_lib/options/allow_persist', function (bool $allowed, array $ctx) {
     $isCli  = defined('WP_CLI') && WP_CLI;
     $isCron = defined('DOING_CRON') && DOING_CRON;
     if ($isCli || $isCron) {
-        // e.g., allow save_all but not set_main_autoload
-        return ($ctx['op'] ?? '') === 'save_all' ? $allowed : false;
+        // Allow all operations in CLI/cron context
+        return $allowed;
     }
     return $allowed;
 }, 10, 2);
 ```
 
-### Autoload semantics
+### Manual autoload flipping
+
+For manual autoload flipping when needed:
 
 ```php
-// Guarded flip using tri‑state getter (site scope, current blog)
-$opts = $config->options(['scope' => 'site']);
-$status = $opts->get_main_autoload(); // true | false | null
-if ($status !== true) {
-    $opts->set_main_autoload(true); // no-op if already true; otherwise delete+add using DB snapshot
-}
-
-// Blog scope targeting current blog (blog_id omitted)
-$blogOpts = $config->options(['scope' => 'blog']);
-if ($blogOpts->get_main_autoload() !== true) {
-    $blogOpts->set_main_autoload(true);
-}
-
-// Include staged in‑memory changes before flipping (optional)
-$opts->flush(true); // shallow top-level merge with DB to preserve disjoint keys
-if ($opts->get_main_autoload() !== false) {
-    $opts->set_main_autoload(false);
-}
-
-// Different blog (requires switching runtime); autoload only applies when the runtime is the target blog
-switch_to_blog($blog_id);
-$config->options(['scope' => 'blog'])->set_main_autoload(true);
-restore_current_blog();
+// Manual autoload flip for site scope
+$option_name = $config->get_options_key();
+$current = get_option($option_name);
+delete_option($option_name);
+add_option($option_name, $current, '', $new_autoload ? 'yes' : 'no');
 ```
 
 ### Migration recipe (WP‑CLI sketch)
@@ -362,19 +337,17 @@ $network->update_option($target_key, $aggregate);
 - **Adapters (unit, isolated)**
 
   - Verify each adapter routes to the correct WP wrapper (`get_option`, `get_site_option`, `get_blog_option`, etc.).
-  - `supports_autoloadddd()` truth table: Site=true; Blog=true when current blog equals target; Network=false; Blog(other)=false.
+  - `supports_autoload()` truth table: Site=true; Blog=true when current blog equals target; Network=false; Blog(other)=false.
   - `load_all_autoloaded()` returns array only when supported; otherwise null.
 
 - **RegisterOptions integration**
 
   - `fromConfig()` and `Config::options()` return instances that read/write through the correct adapter for `(scope, blog_id)`.
   - `flush(true)` performs shallow, top‑level merge with current DB snapshot; `flush(false)` replaces without merge.
-  - `get_main_autoload()` tri‑state: true/false/null per scope and row existence.
-  - `set_main_autoload()` guard when unchanged; delete+add path when flipping; creates missing row; no‑op + developer notice for Network and Blog(other).
 
 - **Multisite nuances**
 
-  - Blog(current) vs Blog(other): ensure autoload behavior differences and adapter selection are respected.
+  - Blog(current) vs Blog(other): ensure scope behavior differences and adapter selection are respected.
   - Switching blogs: demonstrate that a new instance is needed after `switch_to_blog()` when using implicit blog scope.
 
 - **Filters and capability gates**
@@ -401,12 +374,9 @@ Notes:
 - `RegisterOptions::fromConfig($cfg, string $scope = 'site', ?int $blog_id = null)` available and uses the storage factory internally.
 - `OptionScope` enum defined with values `site`, `network`, `blog` (library‑internal, referenced in docs/examples).
 - `OptionStorageInterface` defined and implemented by `SiteOptionStorage`, `NetworkOptionStorage`, `BlogOptionStorage`.
-- Internal storage adapters route calls to correct WP APIs, honoring autoload only when `supports_autoloadd()` is true.
-- Autoload behavior:
-  - `get_main_autoload(): ?bool` returns tri‑state (true/false/null) per scope and existence rules documented above.
-  - `set_main_autoload(bool)` implements a no‑op guard when unchanged; when flipping, it re‑adds the latest DB snapshot; when missing, it creates the row with the requested autoload.
-  - Applies to `'site'` and `'blog'`(current blog); no‑op + developer notice for `'network'` and `'blog'`(other blog).
+  - Internal storage adapters route calls to correct WP APIs, honoring autoload only when `supports_autoload()` is true.
+- Autoload behavior: Determined by WordPress core and storage scope as documented above.
 - Documentation includes an “Architecture Decision” section and examples above.
 - Capability checks are the caller's responsibility, per-scope validation hooks are provided.
 - Migration recipe documented.
-- Unit tests cover scope routing and autoload behavior, including tri‑state getter and the setter’s no‑op guard.
+- Unit tests cover scope routing and storage adapter behavior.

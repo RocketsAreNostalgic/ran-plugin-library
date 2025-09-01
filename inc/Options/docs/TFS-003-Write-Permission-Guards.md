@@ -54,7 +54,6 @@ Common `ctx` fields (subset varies by op):
 - `op`: operation name (e.g., `set_option`, `save_all`, `add_option`, `delete_option`, etc.)
 - `main_option`: the main WP option name grouping all sub-options
 - `key` | `keys`: single key or list of keys affected (when applicable)
-- `autoload_hint` | `autoload`: metadata about autoload
 - `scope`: storage scope enum value
 - `blog_id`, `user_id`, `user_storage`, `user_global`: scope args (when applicable)
 - `options`: when persisting, the full to-save value appears in context
@@ -65,11 +64,11 @@ Common `ctx` fields (subset varies by op):
 Relevant code: `RegisterOptions::set_option()` around lines 340–424.
 
 - Early gate (pre-storage interaction):
-  - `op: 'set_option'`, context without `autoload_hint`
+  - `op: 'set_option'`, context without autoload metadata
   - Veto here returns `false` with no mutation
 - No-op check (strict comparison) prevents unnecessary writes
-- Pre-mutation gate (with full context inc. `autoload_hint`):
-  - Veto here returns `false` with no mutation (covers line ~401)
+- Pre-mutation gate (with full context including scope args):
+  - Veto here returns `false` with no mutation
 - Stage mutation + snapshot `$__prev_options`
 - Pre-persist gate (same full context):
   - Veto here rolls back and returns `false` (covers lines ~413–414)
@@ -164,8 +163,8 @@ sequenceDiagram
 
 ## Implementation Pointers
 
-- Early gate context (no `autoload_hint`): helps block writes before any storage interaction
-- Full-context gates (`autoload_hint`, scope args present): used pre-mutation and pre-persist
+- Early gate context: helps block writes before any storage interaction
+- Full-context gates (with scope args): used pre-mutation and pre-persist
 - Save gate context includes `'options'`: distinguishes persistence pass from pre-gates
 - Two-level filters fire in order: base then scoped. Implementers should consider both.
 
