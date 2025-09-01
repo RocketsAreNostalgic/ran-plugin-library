@@ -1,6 +1,6 @@
 # RegisterOptions
 
-A small, pragmatic options manager that stores all of your plugin settings in a single WordPress `wp_options` row. It provides schema-driven defaults, sanitization/validation, batching, and escape hatches for WordPress autoload semantics.
+A small, pragmatic options manager that stores all of your plugin settings in a single WordPress `wp_options` row. It provides schema-driven defaults, sanitization/validation, batching, and safe escape hatches for WordPress autoload semantics (including WP 6.6+ nullable autoload heuristics on creation).
 
 ## Quick start
 
@@ -72,15 +72,14 @@ $opts = RegisterOptions::from_config(
 - All plugin settings live under one grouped option row (one DB row), keyed by normalized sub-option names.
 - Option key normalization uses WordPress `sanitize_key()` when available; otherwise a safe lowercase/underscore fallback.
 - External callers who need to normalize keys themselves should use WordPress `sanitize_key()` directly. Internal normalization here exists primarily for testing seams and consistency.
-- Stored shape is an associative array: `sub_key => { value: mixed, autoload_hint: bool|null }`.
-  - `autoload_hint` is metadata only (for audits/migrations); it does NOT affect WordPress autoload.
-- Autoload behavior for the grouped row is set at creation time by WordPress. Flipping later requires delete+add.
+- Stored shape is an associative array: `sub_key => mixed`.
+- Autoload behavior for the grouped row is applied only at creation time by WordPress. In WP 6.6+, passing `null` for autoload lets core apply heuristics; updates never change autoload. Manual flipping still requires delete+add.
 - Writes replace the entire grouped array (standard WordPress behavior). Use batching and careful merge patterns for nested structures.
 
 ### Autoload and performance
 
 - **`load_all_autoloaded()` is optional and potentially heavy**:
-  - Storage adapters expose `load_all_autoloaded()` (see `OptionStorageInterface::load_all_autoloaded()`), which typically delegates to WordPress `wp_load_alloptions()`, where autoloading is supported.
+  - Storage adapters expose `load_all_autoloaded()` (see `OptionStorageInterface::load_all_autoloaded()`), which typically delegates to WordPress `wp_load_alloptions()` where autoloading is supported.
   - On large sites this can return a large array and be relatively heavy.
   - The library does not call this implicitly; use it only when you explicitly need the full autoload map.
   - Prefer targeted `read()` calls when you know specific keys, and cache results at your call site if you must load all.
@@ -132,13 +131,13 @@ $options
 
 ### Autoload semantics (WordPress)
 
-What “autoload” means: WordPress can preload certain options into memory on every request. Options with autoload=yes are loaded on every page load; options with autoload=no are only loaded when you call `get_option()`.
+What “autoload” means: WordPress can preload certain options into memory on every request. Options with autoload=true are loaded on every page load; options with autoload=false are only loaded when you call `get_option()`.
 
 Why you should care:
 
 - Performance: Large auto-loaded rows increase memory usage and slow down every request, frontend and admin.
 - Access patterns: Frequently-read, small settings benefit from autoload. Large or rarely used data should not autoload.
-- Creation-time rule: WordPress applies the autoload flag when an option row is created. Changing the flag later requires delete+add.
+- Creation-time rule: WordPress applies the autoload flag when an option row is created. In WP 6.6+, you may pass `null` to defer to core heuristics. Changing the flag later requires delete+add.
 
 When it matters (guidelines):
 
@@ -149,8 +148,15 @@ When it matters (guidelines):
 How to flip safely (escape hatch):
 
 ```php
-// Flip the grouped row's autoload flag (data preserved)
-$options->set_main_autoload(false); // delete + add under the hood
+// Manual autoload flip if needed:
+// $current = get_option($option_name);
+// delete_option($option_name);
+//
+// WP 6.6+: prefer bool|null (null defers to heuristics)
+// add_option($option_name, $current, '', $newAutoload); // $newAutoload: true|false|null
+//
+// Pre‑6.6 fallback:
+// add_option($option_name, $current, '', $newAutoload ? 'yes' : 'no');
 ```
 
 ### Merging and nested structures
@@ -176,10 +182,8 @@ $options->set_option('complex_map', $merged);
 
 ### API highlights
 
-- `get_option($key, $default)` / `set_option($key, $value, ?$hint)`
-- `get_values()` returns values only; `get_options()` includes metadata
+- `get_option($key, $default)` / `set_option($key, $value)`
+- `get_values()` returns values only; `get_options()` returns values only
 - Fluent batching: `add_option($k,$v)->add_option($k2,$v2)->flush()` or `add_options([...])->flush()`
 - `flush(bool $mergeFromDb = false)` supports optional shallow merge-from-DB
 - `register_schema(...)` / `with_schema(...)` for post-construction schema
-- `get_autoload_hint($key)` reads stored hints
-- `set_main_autoload($bool)` performs a safe autoload flip for the grouped row

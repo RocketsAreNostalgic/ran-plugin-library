@@ -45,7 +45,6 @@ $enabled = $options->get_option('enabled', false);  // Default to disabled for s
 $apiKey  = $options->get_option('api_key', '');     // Default to empty string, not null
 
 // Values-only view - useful for exports, debugging, or API responses
-// RATIONALE: Strips internal metadata (autoload_hint) for clean data access
 $values = $options->get_values(); // ['api_key' => 'abc123', 'enabled' => true]
 
 // REAL-WORLD EXAMPLE: Plugin activation

@@ -48,7 +48,7 @@ $options->set_option('feature_x_enabled', true);
 $prefs     = $options->get_option('dashboard_prefs', array());
 $isEnabled = $options->get_option('feature_x_enabled', false);
 
-// Values-only view (no autoload_hint metadata)
+// Values-only view
 $values = $options->get_values();
 
 // Batch update pattern (for multiple writes)

@@ -8,7 +8,8 @@
  * NOTES:
  * - Provide 'blog_id' to target a specific blog.
  * - Autoload support depends on whether blog_id equals the current blog:
- *   - When blog_id == get_current_blog_id(): supports_autoload() may be true.
+ *   - When blog_id == get_current_blog_id(): supports_autoload() may be true for purposes of
+ *     wp_load_alloptions() only; creation-time autoload control is not available via Blog APIs.
  *   - Otherwise, supports_autoload() is false and load_all_autoloaded() returns null.
  */
 
@@ -27,7 +28,8 @@ $options = $config->options(array(
 
 // Check autoload support; only meaningful for the current blog
 if ($options->supports_autoload()) {
-	// Autoload hints can have effect when working with the current blog
+    // Autoload relevance here is limited to wp_load_alloptions() for the current blog.
+    // Blog add/update APIs do not accept an autoload parameter.
 }
 
 // Example writes
@@ -38,13 +40,13 @@ $options->set_option('homepage_layout', 'magazine');
 $mm   = $options->get_option('maintenance_mode', false);
 $home = $options->get_option('homepage_layout', 'standard');
 
-// Values-only view (no autoload_hint)
+// Values-only view
 $values = $options->get_values();
 
 // Attempt to load all autoloaded options
 $autoloaded = $options->load_all_autoloaded(); // may be array or null depending on blog_id
 if ($autoloaded === null) {
-	// Not supported when targeting a different blog
+    // Not supported when targeting a different blog
 }
 
 // Batch update pattern
