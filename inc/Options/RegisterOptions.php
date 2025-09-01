@@ -30,9 +30,6 @@ use Ran\PluginLib\Options\RestrictedDefaultWritePolicy;
  * the number of individual rows added to the wp_options table.
  *
  * Important semantics and recommendations:
- * - Autoload flag: WordPress applies the autoload value primarily on option creation.
- *   Changing $main_option_autoload later will not flip the stored autoload flag for an
- *   existing row. Use set_main_autoload(true|false) to force a flip (delete + add).
  * - Schema merges are shallow: register_schema() performs a per-key shallow merge of
  *   rules, and default seeding replaces the entire value when seeding a missing key.
  *   For nested structures that require deep/conditional merging, perform an explicit
@@ -48,11 +45,6 @@ use Ran\PluginLib\Options\RestrictedDefaultWritePolicy;
  *
  * Storage and scope:
  * - Uses a scope-aware storage adapter (Site/Blog/Network/User) via `OptionStorageFactory`.
- * - Autoload capability is storage/scope-dependent:
- *   - Site scope: supported
- *   - Blog scope: supported only when targeting the current blog (blog_id == get_current_blog_id())
- *   - Network scope: not autoloaded in the per-site sense
- *   - User scope: not supported
  * - Public passthroughs on this class:
  *   - `supports_autoload(): bool` — whether current storage supports autoload
  *   - `load_all_autoloaded(): ?array` — autoloaded options for supported scopes (null if unsupported)
@@ -62,20 +54,15 @@ use Ran\PluginLib\Options\RestrictedDefaultWritePolicy;
  * - Persistence is explicit (set/update/add + `flush()`)
  * - `flush(true)` performs a top-level shallow merge with DB to reduce lost updates for disjoint keys.
  *   Nested structures are replaced wholesale; for deep merges, use read–modify–write then `flush(false)`.
- *
- * Autoload behavior:
- * - WordPress applies autoload primarily on row creation
- * - Use `set_main_autoload(true|false)` to flip autoload (delete + add) for the main option row
- * - Per-key `autoload_hint` is metadata; enforcement depends on storage support
  */
 class RegisterOptions {
 	use WPWrappersTrait;
 
 	/**
 	 * The in-memory store for all plugin options.
-	 * Structure: ['option_key' => ['value' => mixed, 'autoload_hint' => bool|null]]
+	 * Structure: ['option_key' => mixed]
 	 *
-	 * @var array<string, array{"value": mixed, "autoload_hint": bool|null}>
+	 * @var array<string, mixed>
 	 */
 	private array $options = array();
 
@@ -167,8 +154,7 @@ class RegisterOptions {
      * - Single source of truth: By default, Config provides the main option name and autoload policy.
 	 *
 	 * @param string $main_wp_option_name The primary key in wp_options where all settings for this instance are stored.
-	 * @param array<string, array{"value": mixed, "autoload_hint": bool|null}|mixed> $initial_options Optional. An array of default options to set if not already present or to merge.
-     *                                   Each key is the option name. Value can be the direct value or an array ['value' => mixed, 'autoload_hint' => bool].
+	 * @param array<string, mixed> $initial_options Optional. An array of default options to set if not already present or to merge.
      * @param bool $main_option_autoload  Whether the entire group of options should be autoloaded by WordPress. Defaults to true.
      * @param Logger|null $logger         Optional logger to use. If null, a logger is resolved from Config.
      * @param ConfigInterface|null $config Optional config used to resolve logger and metadata (favored over concrete Config).
@@ -212,15 +198,12 @@ class RegisterOptions {
 		// Seed defaults from schema for any missing values
 		if (!empty($this->schema)) {
 			foreach ($this->schema as $normalized_key => $rules) {
-				$has_value = isset($this->options[$normalized_key]) && array_key_exists('value', $this->options[$normalized_key]);
+				$has_value = isset($this->options[$normalized_key]);
 				if (!$has_value && array_key_exists('default', $rules)) {
 					$resolved_default               = $this->_resolve_default_value($rules['default'] ?? null);
 					$resolved_default               = $this->_sanitize_and_validate_option($normalized_key, $resolved_default);
-					$this->options[$normalized_key] = array(
-					    'value'         => $resolved_default,
-					    'autoload_hint' => $this->options[$normalized_key]['autoload_hint'] ?? null,
-					);
-					$options_changed = true;
+					$this->options[$normalized_key] = $resolved_default;
+					$options_changed                = true;
 				}
 			}
 		}
@@ -234,13 +217,12 @@ class RegisterOptions {
 
 				$value_to_set = is_array($definition) && isset($definition['value']) ? $definition['value'] : $definition;
 				// Apply schema sanitization/validation if defined
-				$value_to_set  = $this->_sanitize_and_validate_option($option_name_clean, $value_to_set);
-				$autoload_hint = is_array($definition) && isset($definition['autoload_hint']) ? $definition['autoload_hint'] : ($this->options[$option_name_clean]['autoload_hint'] ?? null);
+				$value_to_set = $this->_sanitize_and_validate_option($option_name_clean, $value_to_set);
 
 				// Set if new, or if existing value is different (for complex types, this is a simple check).
-				if (!$current_value_exists || ($current_value_exists && $this->options[$option_name_clean]['value'] !== $value_to_set)) {
-					$this->options[$option_name_clean] = array('value' => $value_to_set, 'autoload_hint' => $autoload_hint);
-					$options_changed                   = true;
+				if (!$current_value_exists || ($current_value_exists && $this->options[$option_name_clean] !== $value_to_set)) {
+					$this->options[$option_name_clean] = $value_to_set;
+					$options_changed                  = true;
 					// @codeCoverageIgnoreStart
 					if ($this->_get_logger()->is_active()) {
 						$this->_get_logger()->debug("RegisterOptions: Initial option '{$option_name_clean}' set/updated (in-memory only; persistence requires explicit flush or set/update methods).");
@@ -262,7 +244,7 @@ class RegisterOptions {
 	 */
 	public function get_option(string $option_name, mixed $default = false): mixed {
 		$option_name_clean = $this->_do_sanitize_key($option_name);
-		$value             = $this->options[$option_name_clean]['value'] ?? $default;
+		$value             = $this->options[$option_name_clean] ?? $default;
 
 		// @codeCoverageIgnoreStart
 		if ($this->_get_logger()->is_active()) {
@@ -270,7 +252,7 @@ class RegisterOptions {
 			if (strlen($log_value) > 100) {
 				$log_value = substr($log_value, 0, 97) . '...';
 			}
-			$found_status = isset($this->options[$option_name_clean]['value']) ? 'Found' : 'Not found, using default';
+			$found_status = isset($this->options[$option_name_clean]) ? 'Found' : 'Not found, using default';
 			$this->_get_logger()->debug("RegisterOptions: Getting option '{$option_name_clean}' from '{$this->main_wp_option_name}'. Status: {$found_status}. Value: {$log_value}");
 		}
 		// @codeCoverageIgnoreEnd
@@ -280,7 +262,7 @@ class RegisterOptions {
 	/**
 	 * Returns the entire array of options currently held by this instance.
 	 *
-	 * @return array<string, array{"value": mixed, "autoload_hint": bool|null}> The array of all sub-options.
+	 * @return array<string, mixed> The array of all sub-options.
 	 */
 	public function get_options(): array {
 		// @codeCoverageIgnoreStart
@@ -293,18 +275,11 @@ class RegisterOptions {
 
 	/**
 	 * Convenience: returns values-only view of options.
-	 * Does not include metadata like autoload_hint.
 	 *
 	 * @return array<string, mixed>
 	 */
 	public function get_values(): array {
-		$values = array();
-		foreach ($this->options as $key => $entry) {
-			if (is_array($entry) && array_key_exists('value', $entry)) {
-				$values[$key] = $entry['value'];
-			}
-		}
-		return $values;
+		return $this->options;
 	}
 
 	/**
@@ -332,20 +307,17 @@ class RegisterOptions {
 
 	/**
 	 * Sets or updates a specific option's value within the main options array and saves any added options to the DB.
-	 *
+	      *
      * @param string     $option_name The name of the sub-option to set. Key is sanitized via sanitize_key().
 	 * @param mixed      $value       The value for the sub-option.
-	 * @param bool|null  $autoload_hint Optional. A hint for whether this specific sub-option might have been intended for autoloading (for metadata purposes only).
 	 * @return bool True if any added options were successfully saved, false otherwise.
      *
      * Note:
-     * - No-op guard uses strict (===) comparison for both value and autoload_hint.
+     * - No-op guard uses strict (===) comparison for the value.
      * - Arrays must match exactly (keys/order/values) to be considered unchanged.
      * - Objects must be the same instance to avoid a write; identical state in different instances will trigger a save.
-     * - autoload_hint is metadata only; any enforcement is performed by the storage adapter and only
-     *   when autoload is supported for the current storage scope.
 	 */
-	public function set_option(string $option_name, mixed $value, ?bool $autoload_hint = null): bool {
+	public function set_option(string $option_name, mixed $value): bool {
 		$option_name_clean = $this->_do_sanitize_key($option_name);
 		$value             = $this->_sanitize_and_validate_option($option_name_clean, $value);
 
@@ -354,8 +326,6 @@ class RegisterOptions {
 			$this->_get_logger()->debug("RegisterOptions: Setting option '{$option_name_clean}' in '{$this->main_wp_option_name}'.");
 		}
 		// @codeCoverageIgnoreEnd
-
-		$new_autoload_hint = $autoload_hint ?? ($this->options[$option_name_clean]['autoload_hint'] ?? null);
 
 		// Early gate (global and scope when known) before any storage interaction
 		$scopeStr = '';
@@ -394,9 +364,8 @@ class RegisterOptions {
 
 		// Avoid DB churn: if nothing changed, short-circuit
 		if (isset($this->options[$option_name_clean])) {
-			$existing      = $this->options[$option_name_clean];
-			$existing_hint = $existing['autoload_hint'] ?? null;
-			if (($existing['value'] ?? null) === $value && $existing_hint === $new_autoload_hint) {
+			$existing = $this->options[$option_name_clean];
+			if ($existing === $value) {
 				return true; // No-op change
 			}
 		}
@@ -404,15 +373,14 @@ class RegisterOptions {
 		// Write gate just before mutating in-memory state
 		$scopeEnum = $this->_get_storage()->scope();
 		$ctx       = array(
-			'op'            => 'set_option',
-			'main_option'   => $this->main_wp_option_name,
-			'key'           => $option_name_clean,
-			'autoload_hint' => $new_autoload_hint,
-			'scope'         => $scopeEnum->value,
-			'blog_id'       => $this->storage_args['blog_id']      ?? null,
-			'user_id'       => $this->storage_args['user_id']      ?? null,
-			'user_storage'  => $this->storage_args['user_storage'] ?? 'meta',
-			'user_global'   => (bool) ($this->storage_args['user_global'] ?? false),
+			'op'           => 'set_option',
+			'main_option'  => $this->main_wp_option_name,
+			'key'          => $option_name_clean,
+			'scope'        => $scopeEnum->value,
+			'blog_id'      => $this->storage_args['blog_id']      ?? null,
+			'user_id'      => $this->storage_args['user_id']      ?? null,
+			'user_storage' => $this->storage_args['user_storage'] ?? 'meta',
+			'user_global'  => (bool) ($this->storage_args['user_global'] ?? false),
 		);
 		$__pre_mut_allowed = $this->_apply_write_gate('set_option', $ctx);
 		if (!$__pre_mut_allowed) {
@@ -421,10 +389,7 @@ class RegisterOptions {
 
 		// Stage mutation and rollback if persistence is vetoed/fails to avoid in-memory drift
 		$__prev_options                    = $this->options;
-		$this->options[$option_name_clean] = array(
-		    'value'         => $value,
-		    'autoload_hint' => $new_autoload_hint,
-		);
+		$this->options[$option_name_clean] = $value;
 		// Defensive: re-check write gate just prior to persistence in case policies changed
 		$__pre_persist_allowed = $this->_apply_write_gate('set_option', $ctx);
 		if (!$__pre_persist_allowed) {
@@ -444,12 +409,7 @@ class RegisterOptions {
 	/**
 	 * Batch add multiple options to the in-memory store (fluent). Call flush() to persist.
 	 *
-	 * @param array<string, mixed|array{value:mixed, autoload_hint?:bool|null}> $keyToValue Map of option name => value or ['value'=>..., 'autoload_hint'=>...]
-	 *
-	 * Notes:
-	 * - autoload_hint is metadata stored with the in-memory entry
-	 * - Actual autoload enforcement occurs in the storage adapter and only when the
-	 *   current storage scope supports autoload semantics
+	 * @param array<string, mixed> $keyToValue Map of option name => value
 	 * @return self
 	 */
 	public function add_options(array $keyToValue): self {
@@ -472,27 +432,18 @@ class RegisterOptions {
 			return $this; // veto: no mutation
 		}
 
-		foreach ($keyToValue as $option_name => $definition) {
-			$key = $this->_do_sanitize_key((string) $option_name);
-
-			$value    = is_array($definition) && array_key_exists('value', $definition) ? $definition['value'] : $definition;
-			$value    = $this->_sanitize_and_validate_option($key, $value);
-			$new_hint = is_array($definition) && array_key_exists('autoload_hint', $definition)
-			    ? $definition['autoload_hint']
-			    : ($this->options[$key]['autoload_hint'] ?? null);
+		foreach ($keyToValue as $option_name => $value) {
+			$key   = $this->_do_sanitize_key((string) $option_name);
+			$value = $this->_sanitize_and_validate_option($key, $value);
 
 			if (isset($this->options[$key])) {
-				$existing      = $this->options[$key];
-				$existing_hint = $existing['autoload_hint'] ?? null;
-				if (($existing['value'] ?? null) === $value && $existing_hint === $new_hint) {
+				$existing = $this->options[$key];
+				if ($existing === $value) {
 					continue; // no change
 				}
 			}
 
-			$this->options[$key] = array(
-			    'value'         => $value,
-			    'autoload_hint' => $new_hint,
-			);
+			$this->options[$key] = $value;
 			$changed = true;
 		}
 
@@ -505,18 +456,16 @@ class RegisterOptions {
 	 *
 	 * @param string $option_name The name of the sub-option to add.
 	 * @param mixed $value The value for the sub-option.
-	 * @param bool|null $autoload_hint Optional. A hint for whether this specific sub-option might have been intended for autoloading (metadata only; enforcement depends on storage support).
 	 * @return self
 	 */
-	public function add_option(string $option_name, mixed $value, ?bool $autoload_hint = null): self {
+	public function add_option(string $option_name, mixed $value): self {
 		$key   = $this->_do_sanitize_key($option_name);
 		$value = $this->_sanitize_and_validate_option($key, $value);
 
 		// No-op guard
 		if (isset($this->options[$key])) {
-			$existing      = $this->options[$key];
-			$existing_hint = $existing['autoload_hint'] ?? null;
-			if (($existing['value'] ?? null) === $value && $existing_hint === ($autoload_hint ?? $existing_hint)) {
+			$existing = $this->options[$key];
+			if ($existing === $value) {
 				return $this;
 			}
 		}
@@ -524,24 +473,20 @@ class RegisterOptions {
 		// Gate before mutating memory (after no-op guard)
 		$scopeEnum = $this->_get_storage()->scope();
 		$ctx       = array(
-			'op'            => 'add_option',
-			'main_option'   => $this->main_wp_option_name,
-			'key'           => $key,
-			'autoload_hint' => $autoload_hint,
-			'scope'         => $scopeEnum->value,
-			'blog_id'       => $this->storage_args['blog_id']      ?? null,
-			'user_id'       => $this->storage_args['user_id']      ?? null,
-			'user_storage'  => $this->storage_args['user_storage'] ?? 'meta',
-			'user_global'   => (bool) ($this->storage_args['user_global'] ?? false),
+			'op'           => 'add_option',
+			'main_option'  => $this->main_wp_option_name,
+			'key'          => $key,
+			'scope'        => $scopeEnum->value,
+			'blog_id'      => $this->storage_args['blog_id']      ?? null,
+			'user_id'      => $this->storage_args['user_id']      ?? null,
+			'user_storage' => $this->storage_args['user_storage'] ?? 'meta',
+			'user_global'  => (bool) ($this->storage_args['user_global'] ?? false),
 		);
 		if (!$this->_apply_write_gate('add_option', $ctx)) {
 			return $this; // veto: no mutation
 		}
 
-		$this->options[$key] = array(
-		    'value'         => $value,
-		    'autoload_hint' => $autoload_hint ?? ($this->options[$key]['autoload_hint'] ?? null),
-		);
+		$this->options[$key] = $value;
 		return $this;
 	}
 
@@ -607,12 +552,11 @@ class RegisterOptions {
 				$toSeed = array();
 				try {
 					foreach ($normalized as $key => $rules) {
-						$has_value = isset($this->options[$key]) && array_key_exists('value', $this->options[$key]);
+						$has_value = isset($this->options[$key]);
 						if (!$has_value && array_key_exists('default', $rules)) {
 							$resolved     = $this->_resolve_default_value($rules['default']);
 							$resolved     = $this->_sanitize_and_validate_option($key, $resolved);
-							$hint         = $this->options[$key]['autoload_hint'] ?? null;
-							$toSeed[$key] = array('value' => $resolved, 'autoload_hint' => $hint);
+							$toSeed[$key] = $resolved;
 						}
 					}
 				} catch (\Throwable $e) {
@@ -650,6 +594,11 @@ class RegisterOptions {
 	 * Schema key principles: no implicit writes (unless $flush is true),
 	 * separation of concerns (schema can be pre-wired via Config), and
 	 * Config as source for main option name and autoload policy.
+	 *
+	 * @param array $schema  Schema map: ['key' => ['default' => mixed|callable(ConfigInterface|null): mixed, 'sanitize' => callable|null, 'validate' => callable|null]]
+	 * @param bool  $seedDefaults If true, set missing option values from 'default' (after sanitize/validate)
+	 * @param bool  $flush If true, persist after seeding (single write)
+	 * @return self
 	 */
 	public function with_schema(array $schema, bool $seedDefaults = false, bool $flush = false): self {
 		$this->register_schema($schema, $seedDefaults, $flush);
@@ -661,23 +610,27 @@ class RegisterOptions {
 	 *
 	 * @param string     $option_name The name of the sub-option to update.
 	 * @param mixed      $value       The new value for the sub-option.
-	 * @param bool|null  $autoload_hint Optional. Autoload hint for the sub-option.
 	 * @return bool True if options were saved successfully, false otherwise.
 	 */
-	public function update_option(string $option_name, mixed $value, ?bool $autoload_hint = null): bool {
-		return $this->set_option($option_name, $value, $autoload_hint);
+	public function update_option(string $option_name, mixed $value): bool {
+		return $this->set_option($option_name, $value);
 	}
 
 	/**
 	 * Determine if an option exists (by normalized key) in the in-memory store.
+	 *
+	 * @param string $option_name The name of the sub-option to check.
+	 * @return bool True if the option exists, false otherwise.
 	 */
 	public function has_option(string $option_name): bool {
 		$key = $this->_do_sanitize_key($option_name);
-		return array_key_exists($key, $this->options) && array_key_exists('value', $this->options[$key]);
+		return array_key_exists($key, $this->options);
 	}
 
 	/**
 	 * Refreshes the local options cache by reloading them from the database.
+	 *
+	 * @return void
 	 */
 	public function refresh_options(): void {
 		// @codeCoverageIgnoreStart
@@ -762,13 +715,11 @@ class RegisterOptions {
 			return $this;
 		}
 
-		// Normalize defaults into internal structure and apply schema rules
+		// Normalize defaults and apply schema rules
 		$normalized = array();
 		foreach ($defaults as $key => $value) {
 			$nk              = $this->_do_sanitize_key((string) $key);
-			$vv              = $this->_sanitize_and_validate_option($nk, $value);
-			$hint            = $this->options[$nk]['autoload_hint'] ?? null;
-			$normalized[$nk] = array('value' => $vv, 'autoload_hint' => $hint);
+			$normalized[$nk] = $this->_sanitize_and_validate_option($nk, $value);
 		}
 
 		// Gate seeding before writing or mutating
@@ -837,21 +788,17 @@ class RegisterOptions {
 			return $this;
 		}
 
-		// Normalize to internal structure (values-only map -> entries with metadata)
+		// Normalize to internal structure
 		$normalized = array();
 		if (is_array($new)) {
 			foreach ($new as $key => $value) {
 				$nk              = $this->_do_sanitize_key((string) $key);
-				$vv              = $this->_sanitize_and_validate_option($nk, $value);
-				$hint            = $this->options[$nk]['autoload_hint'] ?? null;
-				$normalized[$nk] = array('value' => $vv, 'autoload_hint' => $hint);
+				$normalized[$nk] = $this->_sanitize_and_validate_option($nk, $value);
 			}
 		} else {
 			// If migration returns a scalar/object, wrap under a reserved key 'value'
 			$nk              = $this->_do_sanitize_key('value');
-			$vv              = $this->_sanitize_and_validate_option($nk, $new);
-			$hint            = $this->options[$nk]['autoload_hint'] ?? null;
-			$normalized[$nk] = array('value' => $vv, 'autoload_hint' => $hint);
+			$normalized[$nk] = $this->_sanitize_and_validate_option($nk, $new);
 		}
 
 		// Gate migration write before updating DB / mutating memory
@@ -885,113 +832,7 @@ class RegisterOptions {
 		return $this;
 	}
 
-	/**
-	 * Get the autoload preset value for an option if one has been set in the schema.
-	 * Utility for debugging, introspection, migration, etc.
-	 *
-	 * @param string $key
-	 * @return bool|null
-	 */
-	public function get_autoload_hint(string $key): ?bool {
-		$k = $this->_do_sanitize_key($key);
-		return $this->options[$k]['autoload_hint'] ?? null;
-	}
 
-	/**
-	 * Tri-state getter for the main option's autoload status (current blog/site scope).
-	 *
-	 * Returns:
-	 * - true  => option row exists AND is autoloaded (present in wp_load_alloptions())
-	 * - false => option row exists BUT is not autoloaded
-	 * - null  => option row missing OR autoload cannot be determined in this context
-	 *
-	 * Note: Determination is scope-aware via the storage adapter. For blog scope,
-	 * autoload is only meaningful for the current blog. For user or network scopes,
-	 * autoload may be unsupported and this method may return null even when the row exists.
-	 *
-	 * @return bool|null
-	 */
-	public function get_main_autoload(): ?bool {
-		// Determine if the option row exists (independent of autoload status)
-		$sentinel = new \stdClass();
-		$val      = $this->_do_get_option($this->main_wp_option_name, $sentinel);
-		$exists   = ($val !== $sentinel);
-		if (!$exists) {
-			return null; // Missing row
-		}
-
-		// Determine autoload using WP wrapper only; if unavailable, we cannot determine
-		$all = $this->_do_wp_load_alloptions();
-		if ($all === null) {
-			return null;
-		}
-		return array_key_exists($this->main_wp_option_name, $all) ? true : false;
-	}
-
-	/**
-	 * Set the autoload behavior for the main option group explicitly.
-	 *
-	 * WordPress only guarantees autoload is applied on creation.
-	 * This method forces the desired autoload by deleting and re-adding the option row.
-	 *
-	 * @param bool $autoload
-	 * @return bool
-	 */
-	public function set_main_autoload(bool $autoload): bool {
-		// Gate first (always gate, even if resulting operation is a no-op)
-		$scopeEnum = $this->_get_storage()->scope();
-		$ctx       = array(
-			'op'           => 'set_main_autoload',
-			'main_option'  => $this->main_wp_option_name,
-			'options'      => $this->options,
-			'autoload'     => $autoload,
-			'scope'        => $scopeEnum->value,
-			'blog_id'      => $this->storage_args['blog_id']      ?? null,
-			'user_id'      => $this->storage_args['user_id']      ?? null,
-			'user_storage' => $this->storage_args['user_storage'] ?? 'meta',
-			'user_global'  => (bool) ($this->storage_args['user_global'] ?? false),
-			'mergeFromDb'  => false,
-			'config'       => null,
-		);
-		if (!$this->_apply_write_gate('set_main_autoload', $ctx)) {
-			return false; // vetoed
-		}
-
-		// No-op guard: avoid churn if current autoload already matches requested
-		$currentState = $this->get_main_autoload();
-		if ($currentState === $autoload) {
-			$this->main_option_autoload = $autoload; // mirror desired state locally
-			return true;
-		}
-
-		// If autoload unsupported for this storage (e.g., user, network), log and no-op successfully
-		if (!$this->_get_storage()->supports_autoload()) {
-			if ($scopeEnum === OptionScope::User) {
-				$this->_get_logger()->notice('RegisterOptions: set_main_autoload no-op; autoload unsupported for user scope.');
-			} else {
-				$this->_get_logger()->notice('RegisterOptions: set_main_autoload no-op; autoload unsupported for current scope.');
-			}
-			$this->main_option_autoload = $autoload; // keep desired state cached
-			return true;
-		}
-
-		// Read latest DB snapshot to preserve external writers' changes
-		$current = $this->_do_get_option($this->main_wp_option_name, array());
-		// Delete existing row (safe even if missing) and re-add with requested autoload
-		$this->_do_delete_option($this->main_wp_option_name);
-		$result = $this->_do_add_option(
-			$this->main_wp_option_name,
-			$current,
-			'',
-			$autoload ? 'yes' : 'no'
-		);
-
-		// Keep in-memory state consistent with the change
-		$this->main_option_autoload = $autoload;
-		$this->options              = is_array($current) ? $current : array();
-
-		return $result;
-	}
 
 	/**
 	 * Factory: create a RegisterOptions instance using the option name derived from Config.
@@ -1002,7 +843,7 @@ class RegisterOptions {
 	 * schema behavior matches constructor; optional scope/storage args override storage selection.
 	 *
 	 * @param ConfigInterface $config Initialized config instance.
-	 * @param array           $initial Initial options to seed (values or ['value'=>..., 'autoload_hint'=>...]).
+	 * @param array           $initial Initial options to seed.
 	 * @param bool            $autoload Whether the main option should be autoloaded.
 	 * @param Logger|null     $logger Optional logger to bind; defaults to logger from Config.
 	 * @param array           $schema Optional schema map.
@@ -1084,7 +925,7 @@ class RegisterOptions {
 	 * - ran/plugin_lib/options/allow_persist
 	 * - ran/plugin_lib/options/allow_persist/scope/{scope}
 	 *
-	 * @param string $op  Operation name (e.g., 'save_all', 'set_main_autoload')
+	 * @param string $op  Operation name (e.g., 'save_all', 'set_option', 'add_options')
 	 * @param array  $ctx Context map passed to filters
 	 * @return bool
 	 */
@@ -1133,7 +974,7 @@ class RegisterOptions {
 	/**
 	 * Read the main option payload through the storage adapter with safe fallbacks.
 	 *
-	 * @return array<string, array{"value": mixed, "autoload_hint": bool|null}>
+	 * @return array<string, mixed>
 	 */
 	private function _read_main_option(): array {
 		$raw = $this->_get_storage()->read($this->main_wp_option_name);
@@ -1147,9 +988,7 @@ class RegisterOptions {
 	 * Saves all currently held options to the database under the main option name.
 	 *
 	 * @param bool $mergeFromDb Optional. If true, applies a shallow, top-level
-	 *                          merge with the current DB value (DB + in-memory),
-	 *                          where in-memory values win on collisions. This is
-	 *                          intended to reduce lost updates for disjoint keys
+	 *                          merge with the current DB value (keeps DB keys, overwrites with in-memory on collision)
 	 *                          and does not perform deep/nested merges.
 	 * @return bool True if the option was successfully updated or added, false otherwise.
 	 */
@@ -1157,83 +996,68 @@ class RegisterOptions {
 		// @codeCoverageIgnoreStart
 		if ($this->_get_logger()->is_active()) {
 			$this->_get_logger()->debug(
-				"RegisterOptions: Saving all options to '{$this->main_wp_option_name}'. Total sub-options: "
-				. count($this->options) . '. Autoload: ' . ($this->main_option_autoload ? 'true' : 'false')
-				. ($mergeFromDb ? ' (mergeFromDb)' : '')
+				"RegisterOptions: _save_all_options starting...",
+				array(
+					'origin'      => $this->__persist_origin ?? 'save_all',
+					'mergeFromDb' => $mergeFromDb,
+				)
 			);
 		}
 		// @codeCoverageIgnoreEnd
 
 		$to_save = $this->options;
-
 		if ($mergeFromDb) {
+			// Load DB snapshot and merge top-level keys (no deep merge)
 			$dbCurrent = $this->_get_storage()->read($this->main_wp_option_name);
 			if (!is_array($dbCurrent)) {
 				$dbCurrent = array();
 			}
 			// Shallow top-level merge: keep DB keys, overwrite with in-memory on collision
-			foreach ($this->options as $k => $entry) {
-				$dbCurrent[$k] = $entry;
+			foreach ($this->options as $k => $value) {
+				$dbCurrent[$k] = $value;
 			}
 			$to_save = $dbCurrent;
 		}
 
-		// Apply write-gating before persistence
+		// Apply final gate before persistence with full context
 		$scopeEnum = $this->_get_storage()->scope();
-		$__op      = $this->__persist_origin ?? 'save_all';
 		$ctx       = array(
-			'op'           => $__op,
+			'op'           => $this->__persist_origin ?? 'save_all',
 			'main_option'  => $this->main_wp_option_name,
-			'options'      => $to_save,
-			'autoload'     => $this->main_option_autoload,
 			'scope'        => $scopeEnum->value,
 			'blog_id'      => $this->storage_args['blog_id']      ?? null,
 			'user_id'      => $this->storage_args['user_id']      ?? null,
 			'user_storage' => $this->storage_args['user_storage'] ?? 'meta',
 			'user_global'  => (bool) ($this->storage_args['user_global'] ?? false),
+			'options'      => $to_save,
 			'mergeFromDb'  => $mergeFromDb,
-			'config'       => null,
 		);
-		// @codeCoverageIgnoreStart
-		if ($this->_get_logger()->is_active()) {
-			$this->_get_logger()->debug(
-				"RegisterOptions: Applying write-gate for {$__op}.",
-				array('scope' => $scopeEnum->value, 'mergeFromDb' => $mergeFromDb)
-			);
-		}
-		// @codeCoverageIgnoreEnd
-		if (!$this->_apply_write_gate($__op, $ctx)) {
-			return false; // vetoed by filter
+		$allowed = $this->_apply_write_gate($this->__persist_origin ?? 'save_all', $ctx);
+		if (!$allowed) {
+			// @codeCoverageIgnoreStart
+			if ($this->_get_logger()->is_active()) {
+				$this->_get_logger()->debug('RegisterOptions: _save_all_options vetoed by policy.');
+			}
+			// @codeCoverageIgnoreEnd
+			return false;
 		}
 
-		// Persist via storage adapter (site/user/blog/network depending on scope)
-		// @codeCoverageIgnoreStart
-		if ($this->_get_logger()->is_active()) {
-			$this->_get_logger()->debug(
-				'RegisterOptions: Persisting via storage->update().',
-				array('scope' => $scopeEnum->value, 'count' => count($to_save))
-			);
+		// Honor initial autoload preference only on creation.
+		// If the row does not exist, use add(..., $this->main_option_autoload); otherwise, update().
+		$sentinel = new \stdClass();
+		$raw_existing = $this->_do_get_option($this->main_wp_option_name, $sentinel);
+		if ($raw_existing === $sentinel) {
+			// Option doesn't exist, use add() with autoload
+			$result = $this->_get_storage()->add($this->main_wp_option_name, $to_save, $this->main_option_autoload);
+		} else {
+			// Option exists, use update() without autoload
+			$result = $this->_get_storage()->update($this->main_wp_option_name, $to_save);
 		}
-		// @codeCoverageIgnoreEnd
-		$result = $this->_get_storage()->update($this->main_wp_option_name, $to_save, $this->main_option_autoload);
+
 		// Mirror what we just saved to keep local cache consistent
 		$this->options = $to_save;
 		// @codeCoverageIgnoreStart
 		if ($this->_get_logger()->is_active()) {
-			$this->_get_logger()->debug(
-				'RegisterOptions: storage->update() completed.',
-				array('result' => (bool) $result)
-			);
-		}
-		// @codeCoverageIgnoreEnd
-		return $result;
-	}
-
-	/**
-	 * Apply write-gating filters with rich context. Returns true when allowed.
-	 *
-	 * Filters applied (in order):
-	 * - ran/plugin_lib/options/allow_persist
 			$this->_get_logger()->debug(
 				"RegisterOptions: storage->update() completed.",
 				array('result' => (bool) $result)
