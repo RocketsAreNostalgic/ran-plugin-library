@@ -76,6 +76,7 @@ class Config extends ConfigAbstract implements ConfigInterface {
      *   - `blog_id` (int|null) — used when scope='blog'.
      *   - `user_id` (int) — required when scope='user'.
      *   - `user_global` (bool, default: false) — forwarded for user scope.
+     *   - `policy` (\Ran\PluginLib\Options\WritePolicyInterface|null) — custom immutable write policy.
      * - This method itself performs no DB writes, seeding, or flushing.
      * - Unknown args are ignored and a warning is emitted via this Config's logger.
      *
@@ -97,13 +98,23 @@ class Config extends ConfigAbstract implements ConfigInterface {
 		    'user_id'      => null,
 		    'user_global'  => false,
 		    'user_storage' => null,
+		    'policy'       => null,
 		);
 		$args = is_array($args) ? array_merge($defaults, $args) : $defaults;
 
-		$autoload    = (bool) ($args['autoload'] ?? true);
-		$initial     = is_array($args['initial'] ?? null) ? $args['initial'] : array();
-		$schema      = is_array($args['schema'] ?? null) ? $args['schema'] : array();
-		$scope       = $args['scope'] ?? null; // string|OptionScope|null
+		$autoload = (bool) ($args['autoload'] ?? true);
+		$initial  = is_array($args['initial'] ?? null) ? $args['initial'] : array();
+		$schema   = is_array($args['schema'] ?? null) ? $args['schema'] : array();
+		$scope    = $args['scope']  ?? null; // string|OptionScope|null
+		$policy   = $args['policy'] ?? null; // WritePolicyInterface|null
+		if (null !== $policy && !($policy instanceof \Ran\PluginLib\Options\WritePolicyInterface)) {
+			// Unknown type; ignore and warn
+			$policy = null;
+			$logger = $this->get_logger();
+			if ($logger && method_exists($logger, 'warning')) {
+				$logger->warning('Config::options(): Ignored policy (must implement WritePolicyInterface).');
+			}
+		}
 		$storageArgs = array();
 		// Only forward args relevant to the selected scope to avoid unintended effects.
 		$isUserScope = ($scope === 'user') || ($scope instanceof \Ran\PluginLib\Options\OptionScope && $scope === \Ran\PluginLib\Options\OptionScope::User);
@@ -125,7 +136,7 @@ class Config extends ConfigAbstract implements ConfigInterface {
 		}
 
 		// Warn on unknown/operational args (no behavior change; no writes)
-		$recognized = array('autoload', 'initial', 'schema', 'scope', 'blog_id', 'user_id', 'user_global', 'user_storage');
+		$recognized = array('autoload', 'initial', 'schema', 'scope', 'blog_id', 'user_id', 'user_global', 'user_storage', 'policy');
 		$unknown    = array_diff(array_keys($args), $recognized);
 		if (!empty($unknown)) {
 			$logger = $this->get_logger();
@@ -142,7 +153,8 @@ class Config extends ConfigAbstract implements ConfigInterface {
 			$this->get_logger(),
 			$schema,
 			$scope,
-			$storageArgs
+			$storageArgs,
+			$policy
 		);
 
 		return $opts;

@@ -464,6 +464,31 @@ trait WPWrappersTrait {
 	}
 
 	/**
+	 * Public wrapper for WordPress current_user_can
+	 *
+	 * Availability-guarded: Yes
+	 * Rationale: In tests/CLI or early boot, capability APIs may be unavailable; returning true
+	 * preserves existing library behavior in non-WP contexts while allowing strict checks in WP.
+	 *
+	 * @param string $capability Capability name
+	 * @param mixed  ...$args    Optional capability args (e.g., user ID for edit_user)
+	 * @return bool
+	 * @codeCoverageIgnore
+	 */
+	public function _do_current_user_can(string $capability, ...$args): bool {
+		// In WP_Mock-powered unit tests, treat caps as allowed-by-default to preserve
+		// historical behavior where caps APIs were considered unavailable.
+		if (\defined('WP_MOCK')) {
+			return true;
+		}
+
+		if (\function_exists('current_user_can')) {
+			return (bool) \current_user_can($capability, ...$args);
+		}
+		return true;
+	}
+
+	/**
 	 * Public wrapper for WordPress sanitize_key with fallback when WP not loaded
 	 *
 	 * Availability-guarded: Yes

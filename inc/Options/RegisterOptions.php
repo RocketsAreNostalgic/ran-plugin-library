@@ -19,6 +19,8 @@ use Ran\PluginLib\Util\WPWrappersTrait;
 use Ran\PluginLib\Options\Storage\OptionStorageInterface;
 use Ran\PluginLib\Options\Storage\OptionStorageFactory;
 use Ran\PluginLib\Options\OptionScope;
+use Ran\PluginLib\Options\WritePolicyInterface;
+use Ran\PluginLib\Options\RestrictedDefaultWritePolicy;
 
 /**
  * Manages plugin options by storing them as a single array in the wp_options table.
@@ -145,11 +147,24 @@ class RegisterOptions {
 	private ?string $__persist_origin = null;
 
 	/**
-     * Creates a new RegisterOptions instance.
+	 * Immutable write policy used to gate persistence before filters.
+	 * Initialized lazily to a RestrictedDefaultWritePolicy.
 	 *
-	 * Initializes options by loading them from the database under `$main_wp_option_name`.
-	 * If initial `$default_options` are provided, they are merged with existing options
-	 * and the entire set is saved back to the database.
+	 * @var WritePolicyInterface|null
+	 */
+	private ?WritePolicyInterface $write_policy = null;
+
+	/**
+     * Creates a new RegisterOptions instance.
+ 	 *
+ 	 * Initializes options by loading them from the database under `$main_wp_option_name`.
+ 	 * If initial `$default_options` are provided, they are merged with existing options
+ 	 * and update in-memory state only; persistence is explicit via `flush()` or mutating methods.
+ 	 *
+     * Schema key principles:
+     * - No implicit writes: constructor/schema registration only updates in-memory state; persistence is explicit.
+     * - Separation of concerns: `Config::options()` may pre-wire schema without performing any writes.
+     * - Single source of truth: By default, Config provides the main option name and autoload policy.
 	 *
 	 * @param string $main_wp_option_name The primary key in wp_options where all settings for this instance are stored.
 	 * @param array<string, array{"value": mixed, "autoload_hint": bool|null}|mixed> $initial_options Optional. An array of default options to set if not already present or to merge.
@@ -161,6 +176,7 @@ class RegisterOptions {
      *                                    - default: value or callable(ConfigInterface|null): mixed used when the option is missing
      *                                    - sanitize: callable(value): mixed
      *                                    - validate: callable(value): true|throws/false
+	 * @param WritePolicyInterface|null $policy Optional write policy; when null, a default RestrictedDefaultWritePolicy is used lazily.
 	 */
 	public function __construct(
         string $main_wp_option_name,
@@ -168,12 +184,14 @@ class RegisterOptions {
         bool $main_option_autoload = true,
         ?Logger $logger = null,
         ?ConfigInterface $config = null,
-        array $schema = array()
+        array $schema = array(),
+        ?WritePolicyInterface $policy = null
     ) {
 		$this->main_wp_option_name  = $main_wp_option_name;
 		$this->main_option_autoload = $main_option_autoload;
 		$this->logger               = $logger ?? $this->logger;
 		$this->config               = $config ?? $this->config;
+		$this->write_policy         = $policy ?? $this->write_policy;
 
 		// Load all existing options from the single database entry (via storage adapter).
 		$this->options = $this->_read_main_option();
@@ -529,6 +547,7 @@ class RegisterOptions {
 
 	/**
 	 * Persist current in-memory options to the database.
+     * Explicit persistence point: complements the "No implicit writes" principle.
 	 *
 	 * @param bool $mergeFromDb When true, reads current DB value and performs a
 	 *                          shallow, top-level merge before saving:
@@ -539,6 +558,7 @@ class RegisterOptions {
 	 *                          as a whole; for complex merges, callers should
 	 *                          read–modify–write and then flush(false).
 	 *                          See header notes for details.
+	 *
 	 * @return bool Whether the save succeeded.
 	 */
 	public function flush(bool $mergeFromDb = false): bool {
@@ -580,30 +600,39 @@ class RegisterOptions {
 
 		$changed = false;
 		if ($seedDefaults) {
-			// Gate default seeding (schema merge still allowed)
-			$scopeEnum = $this->_get_storage()->scope();
-			$ctx       = array(
-				'op'           => 'register_schema_seed',
-				'main_option'  => $this->main_wp_option_name,
-				'schema_keys'  => array_keys($normalized),
-				'scope'        => $scopeEnum->value,
-				'blog_id'      => $this->storage_args['blog_id']      ?? null,
-				'user_id'      => $this->storage_args['user_id']      ?? null,
-				'user_storage' => $this->storage_args['user_storage'] ?? 'meta',
-				'user_global'  => (bool) ($this->storage_args['user_global'] ?? false),
-			);
-			if (!$this->_apply_write_gate('register_schema_seed', $ctx)) {
-				$seedDefaults = false; // veto seeding, proceed with schema merge only
-			}
-			foreach ($normalized as $key => $rules) {
-				$has_value = isset($this->options[$key]) && array_key_exists('value', $this->options[$key]);
-				if (!$has_value && array_key_exists('default', $rules)) {
-					$resolved            = $this->_resolve_default_value($rules['default']);
-					$resolved            = $this->_sanitize_and_validate_option($key, $resolved);
-					$this->options[$key] = array(
-					    'value'         => $resolved,
-					    'autoload_hint' => $this->options[$key]['autoload_hint'] ?? null,
+			// Note: Seeding defaults is an in-memory operation; do not gate with allow_persist.
+
+			// Build a temporary map to avoid partial in-memory state on failure
+			if ($seedDefaults) {
+				$toSeed = array();
+				try {
+					foreach ($normalized as $key => $rules) {
+						$has_value = isset($this->options[$key]) && array_key_exists('value', $this->options[$key]);
+						if (!$has_value && array_key_exists('default', $rules)) {
+							$resolved     = $this->_resolve_default_value($rules['default']);
+							$resolved     = $this->_sanitize_and_validate_option($key, $resolved);
+							$hint         = $this->options[$key]['autoload_hint'] ?? null;
+							$toSeed[$key] = array('value' => $resolved, 'autoload_hint' => $hint);
+						}
+					}
+				} catch (\Throwable $e) {
+					// Log and abort seeding without mutating in-memory state
+					$this->_get_logger()->error(
+						'RegisterOptions: register_schema seedDefaults failed; aborting seeding.',
+						array(
+							'main_option' => $this->main_wp_option_name,
+							'error'       => $e->getMessage(),
+						)
 					);
+					$toSeed       = array();
+					$seedDefaults = false;
+				}
+
+				// Apply staged seeds atomically
+				if ($seedDefaults && !empty($toSeed)) {
+					foreach ($toSeed as $k => $entry) {
+						$this->options[$k] = $entry;
+					}
 					$changed = true;
 				}
 			}
@@ -617,6 +646,10 @@ class RegisterOptions {
 
 	/**
 	 * Fluent alias of register_schema(); returns $this for chaining.
+	 *
+	 * Schema key principles: no implicit writes (unless $flush is true),
+	 * separation of concerns (schema can be pre-wired via Config), and
+	 * Config as source for main option name and autoload policy.
 	 */
 	public function with_schema(array $schema, bool $seedDefaults = false, bool $flush = false): self {
 		$this->register_schema($schema, $seedDefaults, $flush);
@@ -965,6 +998,9 @@ class RegisterOptions {
 	 *
 	 * Uses late static binding (new static) so subclasses receive instances when calling ::from_config().
 	 *
+	 * Parity with constructor: no implicit writes; logger comes from the argument or Config;
+	 * schema behavior matches constructor; optional scope/storage args override storage selection.
+	 *
 	 * @param ConfigInterface $config Initialized config instance.
 	 * @param array           $initial Initial options to seed (values or ['value'=>..., 'autoload_hint'=>...]).
 	 * @param bool            $autoload Whether the main option should be autoloaded.
@@ -972,6 +1008,7 @@ class RegisterOptions {
 	 * @param array           $schema Optional schema map.
 	 * @param OptionScope|string|null $scope Optional storage scope override for this instance (defaults to Site when null).
 	 * @param array           $storage_args Optional storage argument map forwarded to the factory (e.g., ['blog_id'=>..., 'user_id'=>..., 'user_global'=>...]).
+	 * @param WritePolicyInterface|null $policy Optional write policy; when null, a default is used lazily.
 	 * @return static
 	 */
 	public static function from_config(
@@ -981,13 +1018,14 @@ class RegisterOptions {
         ?Logger $logger = null,
         array $schema = array(),
         OptionScope|string|null $scope = null,
-        array $storage_args = array()
+        array $storage_args = array(),
+        ?WritePolicyInterface $policy = null
     ): static {
 		$main_option = (string) $config->get_options_key();
 		if ($main_option === '') {
 			throw new \InvalidArgumentException(static::class . ': Missing or invalid options key from Config (expected non-empty get_options_key()).');
 		}
-		$instance = new static($main_option, $initial, $autoload, $logger, $config, $schema);
+		$instance = new static($main_option, $initial, $autoload, $logger, $config, $schema, $policy);
 		// Store scope/args for storage creation; normalization is handled by OptionStorageFactory::make
 		if ($scope !== null) {
 			$instance->storage_scope = $scope;
@@ -1053,6 +1091,23 @@ class RegisterOptions {
 	private function _apply_write_gate(string $op, array $ctx): bool {
 		// Ensure op in context
 		$ctx['op'] = $op;
+
+		// First, consult immutable, non-filterable write policy.
+		if (!($this->write_policy instanceof WritePolicyInterface)) {
+			$this->write_policy = new RestrictedDefaultWritePolicy();
+		}
+		$policyAllowed = $this->write_policy->allow($op, $ctx);
+		if ($policyAllowed === false) {
+			$this->_get_logger()->notice(
+				'RegisterOptions: Write vetoed by immutable policy.',
+				array(
+				    'op'          => $op,
+				    'main_option' => $ctx['main_option'] ?? '',
+				    'scope'       => isset($ctx['scope']) ? (string) $ctx['scope'] : '',
+				)
+			);
+			return false;
+		}
 
 		$allowed = true;
 		$allowed = (bool) $this->_do_apply_filter('ran/plugin_lib/options/allow_persist', $allowed, $ctx);
