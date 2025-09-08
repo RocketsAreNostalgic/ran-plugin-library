@@ -76,7 +76,7 @@ final class ConfigOptionsBlogScopeTest extends ConfigTestCase {
 		parent::tearDown();
 	}
 
-	public function test_blog_scope_forwards_blog_id_and_no_writes_on_autoload_unsupported(): void {
+	public function test_blog_scope_forwards_blog_id(): void {
 		$config = $this->configFromPluginFileWithLogger($this->plugin_file);
 
 		// Acquire accessor with explicit blog scope and blog_id (exercises line 112)
@@ -87,7 +87,7 @@ final class ConfigOptionsBlogScopeTest extends ConfigTestCase {
 
 		$this->assertInstanceOf(\Ran\PluginLib\Options\RegisterOptions::class, $opts);
 
-		// When autoload is unsupported for non-current blog, set_main_autoload(false) is a no-op with true
-		$this->assertTrue($opts->set_main_autoload(false));
+		// Verify blog scope is properly configured
+		$this->assertFalse($opts->supports_autoload()); // Blog scope with non-current blog doesn't support autoload
 	}
 }

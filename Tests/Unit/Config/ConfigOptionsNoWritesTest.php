@@ -84,9 +84,9 @@ final class ConfigOptionsNoWritesTest extends PluginLibTestCase {
 	}
 
 	/**
-	 * Schema + Initial + autoload=false → schema default in-memory; 'initial' ignored; no writes.
+	 * Schema + Initial → schema default in-memory; 'initial' ignored; no writes.
 	 */
-	public function test_options_with_schema_and_initial_and_autoload_false_no_writes(): void {
+	public function test_options_with_schema_and_initial_no_writes(): void {
 		WP_Mock::userFunction('sanitize_title')->andReturn('test-plugin');
 		$cfg  = new TestableConfig();
 		$main = $cfg->get_config()['RAN']['AppOption'];
@@ -117,17 +117,27 @@ final class ConfigOptionsNoWritesTest extends PluginLibTestCase {
 		$cfg  = new TestableConfig();
 		$main = $cfg->get_config()['RAN']['AppOption'];
 
-		// Accessor construction read
-		WP_Mock::userFunction('get_option')->with($main, array())->once()->andReturn(array());
-		// One write on flush after seeding
-		WP_Mock::userFunction('update_option')->with($main, array(
-			'flag' => array('value' => true, 'autoload_hint' => null),
-		), 'yes')->once()->andReturn(true);
+		// Comprehensive mock setup for get_option calls
+		WP_Mock::userFunction('get_option')
+			->andReturnUsing(function ($name, $default = false) use ($main) {
+				if ($name === $main && $default === array()) {
+					return array(); // Main option doesn't exist
+				}
+				if (is_object($default)) {
+					return $default; // Sentinel case - option doesn't exist
+				}
+				return false; // Default for other cases
+			});
+
+		// One write on flush after seeding - direct values now (option doesn't exist, so add_option)
+		WP_Mock::userFunction('add_option')->with($main, array(
+			'flag' => true,
+		), '', 'yes')->once()->andReturn(true);
 
 		$opts = $cfg->options();
 		$this->assertTrue($opts->register_schema(array(
 			'flag' => array('default' => true, 'validate' => fn($v) => is_bool($v)),
-		), seedDefaults: true, flush: true));
+		), seed_defaults: true, flush: true));
 		$this->assertTrue($opts->get_option('flag'));
 	}
 
@@ -139,38 +149,29 @@ final class ConfigOptionsNoWritesTest extends PluginLibTestCase {
 		$cfg  = new TestableConfig();
 		$main = $cfg->get_config()['RAN']['AppOption'];
 
-		WP_Mock::userFunction('get_option')->with($main, array())->once()->andReturn(array());
-		WP_Mock::userFunction('update_option')->with($main, array(
-			'a' => array('value' => 1, 'autoload_hint' => null),
-			'b' => array('value' => 'x', 'autoload_hint' => null),
-		), 'yes')->once()->andReturn(true);
+		// Comprehensive mock setup for get_option calls
+		WP_Mock::userFunction('get_option')
+			->andReturnUsing(function ($name, $default = false) use ($main) {
+				if ($name === $main && $default === array()) {
+					return array(); // Main option doesn't exist
+				}
+				if (is_object($default)) {
+					return $default; // Sentinel case - option doesn't exist
+				}
+				return false; // Default for other cases
+			});
+		// One write on flush - direct values now (option doesn't exist, so add_option)
+		WP_Mock::userFunction('add_option')->with($main, array(
+			'a' => 1,
+			'b' => 'x',
+		), '', 'yes')->once()->andReturn(true);
 
 		$opts = $cfg->options();
 		$opts->add_options(array('a' => 1, 'b' => 'x'));
 		$this->assertTrue($opts->flush());
 	}
 
-	/**
-	 * Explicit operations: set_main_autoload(false) flips via delete+add.
-	 */
-	public function test_explicit_set_main_autoload_false_flips_via_delete_add(): void {
-		WP_Mock::userFunction('sanitize_title')->andReturn('test-plugin');
-		$cfg  = new TestableConfig();
-		$main = $cfg->get_config()['RAN']['AppOption'];
 
-		// Constructor read
-		WP_Mock::userFunction('get_option')->with($main, array())->once()->andReturn(array('k' => array('value' => 'v', 'autoload_hint' => null)));
-		// get_main_autoload() read with sentinel
-		WP_Mock::userFunction('get_option')->with($main, \Mockery::type('object'))->once()->andReturn(array('k' => array('value' => 'v', 'autoload_hint' => null)));
-		// Snapshot read before re-add
-		WP_Mock::userFunction('get_option')->with($main, array())->once()->andReturn(array('k' => array('value' => 'v', 'autoload_hint' => null)));
-		// Flip path
-		WP_Mock::userFunction('delete_option')->with($main)->once()->andReturn(true);
-		WP_Mock::userFunction('add_option')->with($main, array('k' => array('value' => 'v', 'autoload_hint' => null)), '', 'no')->once()->andReturn(true);
-
-		$opts = $cfg->options();
-		$this->assertTrue($opts->set_main_autoload(false));
-	}
 
 	/**
 	 * Explicit operations: set_option changed value → writes once.
@@ -180,8 +181,18 @@ final class ConfigOptionsNoWritesTest extends PluginLibTestCase {
 		$cfg  = new TestableConfig();
 		$main = $cfg->get_config()['RAN']['AppOption'];
 
-		WP_Mock::userFunction('get_option')->with($main, array())->once()->andReturn(array('k' => array('value' => 1, 'autoload_hint' => null)));
-		WP_Mock::userFunction('update_option')->with($main, array('k' => array('value' => 2, 'autoload_hint' => null)), 'yes')->once()->andReturn(true);
+		// Comprehensive mock setup for get_option calls
+		WP_Mock::userFunction('get_option')
+			->andReturnUsing(function ($name, $default = false) use ($main) {
+				if ($name === $main && $default === array()) {
+					return array('k' => 1); // Main option exists with existing value
+				}
+				if (is_object($default)) {
+					return array('k' => 1); // Sentinel case - return existing value (option exists)
+				}
+				return false; // Default for other cases
+			});
+		WP_Mock::userFunction('update_option')->with($main, array('k' => 2))->once()->andReturn(true);
 
 		$opts = $cfg->options();
 		$this->assertTrue($opts->set_option('k', 2));

@@ -237,13 +237,12 @@ class TestableConfig extends ConfigAbstract {
 
 		$opts = \Ran\PluginLib\Options\RegisterOptions::from_config(
 			$this,
-			array(),           // initial (none)
-			$autoload,
-			$this->get_logger(),
-			array()            // schema (none at construction)
+			$autoload
 		);
+		// Use fluent methods for configuration
+		$opts = $opts->with_logger($this->get_logger());
 		if (!empty($schema)) {
-			$opts->register_schema($schema, false, false);
+			$opts = $opts->with_schema($schema, false, false);
 		}
 		return $opts;
 	}
