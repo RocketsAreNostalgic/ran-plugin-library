@@ -186,8 +186,13 @@ trait WPWrappersTrait {
 	 * @return bool
 	 */
 	public function _do_update_option(string $option, mixed $value, mixed $autoload = null): bool {
-		// For updates, we don't pass the autoload parameter since it can't be changed
-		return \update_option($option, $value);
+		// Preserve legacy two-argument behavior when $autoload is null so callers/tests
+		// expecting the 2-arg signature still match. When explicitly provided, forward
+		// the third parameter.
+		if ($autoload === null) {
+			return (bool) \update_option($option, $value);
+		}
+		return (bool) \update_option($option, $value, $autoload);
 	}
 
 	/**
