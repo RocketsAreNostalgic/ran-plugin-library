@@ -190,6 +190,10 @@ class RegisterOptions {
 
 		// Normalize and set schema
 		if (!empty($schema)) {
+			// Note: This constructor-time schema path is exercised in tests via
+			// a test-only subclass (TestableRegisterOptions) that forwards a non-empty
+			// $schema to the protected constructor. Production factories pass an empty
+			// schema and instead use register_schema()/with_schema() post-construction.
 			$this->schema = $this->_normalize_schema_keys($schema);
 		}
 
@@ -211,6 +215,10 @@ class RegisterOptions {
 
 		// If initial/default options are provided, merge into in-memory store ONLY (no writes here).
 		if (!empty($initial_options)) {
+			// Note: This branch is covered in tests using the TestableRegisterOptions
+			// helper that calls the protected constructor with a non-empty $initial_options
+			// map. Production entry points do not provide constructor-time initial values;
+			// callers use fluent methods after construction when needed.
 			$options_changed = $options_changed || false;
 			foreach ($initial_options as $option_name => $definition) {
 				$option_name_clean    = $this->_do_sanitize_key((string) $option_name);
@@ -333,34 +341,34 @@ class RegisterOptions {
 	 *
 	 * Uses late static binding (new static) so subclasses receive instances when calling ::from_config().
 	 *
-	 * Parity with constructor: no implicit writes; logger comes from the argument or Config;
-	 * schema behavior matches constructor; optional scope/storage args override storage selection.
+	 * Simplified factory for construction-time concerns only. Use fluent methods for configuration:
+	 * - .with_logger() for logger binding
+	 * - .with_schema() for schema registration
+	 * - .with_policy() for write policy
+	 * - .with_defaults() for initial values
 	 *
 	 * @param ConfigInterface $config Initialized config instance.
-	 * @param array           $initial Initial options to seed.
 	 * @param bool            $autoload Whether the main option should be autoloaded.
-	 * @param Logger|null     $logger Optional logger to bind; defaults to logger from Config.
-	 * @param array           $schema Optional schema map.
 	 * @param OptionScope|string|null $scope Optional storage scope override for this instance (defaults to Site when null).
 	 * @param array           $storage_args Optional storage argument map forwarded to the factory (e.g., ['blog_id'=>..., 'user_id'=>..., 'user_global'=>...]).
-	 * @param WritePolicyInterface|null $policy Optional write policy; when null, a default is used lazily.
 	 * @return static
 	 */
 	public static function from_config(
-        ConfigInterface $config,
-        array $initial = array(),
-        bool $autoload = true,
-        ?Logger $logger = null,
-        array $schema = array(),
-        OptionScope|string|null $scope = null,
-        array $storage_args = array(),
-        ?WritePolicyInterface $policy = null
-    ): static {
+		ConfigInterface $config,
+		bool $autoload = true,
+		OptionScope|string|null $scope = null,
+		array $storage_args = array()
+	): static {
 		$main_option = (string) $config->get_options_key();
 		if ($main_option === '') {
 			throw new \InvalidArgumentException(static::class . ': Missing or invalid options key from Config (expected non-empty get_options_key()).');
 		}
-		$instance = new static($main_option, $initial, $autoload, $logger, $config, $schema, $policy);
+		// Bind logger from Config (if available) so constructor-time logs are captured
+		$ctor_logger = null;
+		if (method_exists($config, 'get_logger')) {
+			$ctor_logger = $config->get_logger();
+		}
+		$instance = new static($main_option, array(), $autoload, $ctor_logger, $config, array(), null);
 		// Store scope/args for storage creation; normalization is handled by OptionStorageFactory::make
 		if ($scope !== null) {
 			$instance->storage_scope = $scope;
@@ -1253,6 +1261,13 @@ class RegisterOptions {
 			// Load DB snapshot and merge top-level keys (no deep merge)
 			$dbCurrent = $this->_get_storage()->read($this->main_wp_option_name);
 			if (!is_array($dbCurrent)) {
+				if ($this->_get_logger()->is_active()) {
+					$this->_get_logger()->debug(
+						'RegisterOptions: _save_all_options merge_from_db snapshot not array; normalizing to empty array',
+						array('snapshot_type' => gettype($dbCurrent))
+					);
+				}
+
 				$dbCurrent = array();
 			}
 			// Shallow top-level merge: keep DB keys, overwrite with in-memory on collision
@@ -1301,6 +1316,12 @@ class RegisterOptions {
 		$raw_existing = $this->_do_get_option($this->main_wp_option_name, $sentinel);
 		if ($raw_existing === $sentinel) {
 			// Option doesn't exist, use add() with autoload
+			if ($this->_get_logger()->is_active()) {
+				$this->_get_logger()->debug(
+					'RegisterOptions: storage->add() selected',
+					array('autoload' => (bool) $this->main_option_autoload)
+				);
+			}
 			$result = $this->_get_storage()->add($this->main_wp_option_name, $to_save, $this->main_option_autoload);
 		} else {
 			// Option exists, use update() without autoload
