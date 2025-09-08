@@ -46,7 +46,7 @@ final class OptionStorageFactory {
 	 */
 	public function make(string|OptionScope $scope, array $args = array()): OptionStorageInterface {
 		$logger = $this->get_logger();
-		$enum   = \is_string($scope) ? self::normalizeScope($scope) : $scope;
+		$enum   = \is_string($scope) ? self::normalize_scope($scope) : $scope;
 
 		if ($logger->is_active()) {
 			$logger->debug('OptionStorageFactory::make - normalized scope.', array(
@@ -71,7 +71,7 @@ final class OptionStorageFactory {
 				return new BlogOptionStorage($blogId);
 			})(),
 			OptionScope::User => (function () use ($args, $logger) {
-				$userId      = self::requireInt($args, 'user_id');
+				$userId      = self::require_int($args, 'user_id');
 				$userGlobal  = (bool) ($args['user_global'] ?? false);
 				$userStorage = isset($args['user_storage']) ? strtolower((string) $args['user_storage']) : 'meta';
 				if ($userStorage === 'meta') {
@@ -97,7 +97,7 @@ final class OptionStorageFactory {
 	/**
 	 * Normalize a string to OptionScope enum.
 	 */
-	private static function normalizeScope(string $scope): OptionScope {
+	private static function normalize_scope(string $scope): OptionScope {
 		$s = strtolower(trim($scope));
 		return match ($s) {
 			'site'    => OptionScope::Site,
@@ -114,7 +114,7 @@ final class OptionStorageFactory {
 	 * @param string $key
 	 * @return int
 	 */
-	private static function requireInt(array $args, string $key): int {
+	private static function require_int(array $args, string $key): int {
 		if (!array_key_exists($key, $args)) {
 			throw new \InvalidArgumentException("Missing required argument: $key");
 		}
