@@ -90,23 +90,27 @@ class Config extends ConfigAbstract implements ConfigInterface {
 	public function options(array $args = array()): \Ran\PluginLib\Options\RegisterOptions {
 		// Normalize args with defaults (recognized keys only)
 		$defaults = array(
-		    'autoload'     => true,
-		    'initial'      => array(),
-		    'schema'       => array(),
-		    'scope'        => null,
-		    'blog_id'      => null,
-		    'user_id'      => null,
-		    'user_global'  => false,
-		    'user_storage' => null,
-		    'policy'       => null,
+		    'autoload'      => true,
+		    'initial'       => array(),
+		    'schema'        => array(),
+		    'seed_defaults' => false,
+		    'flush'         => false,
+		    'scope'         => null,
+		    'blog_id'       => null,
+		    'user_id'       => null,
+		    'user_global'   => false,
+		    'user_storage'  => null,
+		    'policy'        => null,
 		);
 		$args = is_array($args) ? array_merge($defaults, $args) : $defaults;
 
-		$autoload = (bool) ($args['autoload'] ?? true);
-		$initial  = is_array($args['initial'] ?? null) ? $args['initial'] : array();
-		$schema   = is_array($args['schema'] ?? null) ? $args['schema'] : array();
-		$scope    = $args['scope']  ?? null; // string|OptionScope|null
-		$policy   = $args['policy'] ?? null; // WritePolicyInterface|null
+		$autoload      = (bool) ($args['autoload'] ?? true);
+		$initial       = is_array($args['initial'] ?? null) ? $args['initial'] : array();
+		$schema        = is_array($args['schema'] ?? null) ? $args['schema'] : array();
+		$seed_defaults = (bool) ($args['seed_defaults'] ?? false);
+		$flush         = (bool) ($args['flush'] ?? false);
+		$scope         = $args['scope']  ?? null; // string|OptionScope|null
+		$policy        = $args['policy'] ?? null; // WritePolicyInterface|null
 		if (null !== $policy && !($policy instanceof \Ran\PluginLib\Options\WritePolicyInterface)) {
 			// Unknown type; ignore and warn
 			$policy = null;
@@ -115,28 +119,28 @@ class Config extends ConfigAbstract implements ConfigInterface {
 				$logger->warning('Config::options(): Ignored policy (must implement WritePolicyInterface).');
 			}
 		}
-		$storageArgs = array();
+		$storage_args = array();
 		// Only forward args relevant to the selected scope to avoid unintended effects.
-		$isUserScope = ($scope === 'user') || ($scope instanceof \Ran\PluginLib\Options\OptionScope && $scope === \Ran\PluginLib\Options\OptionScope::User);
-		$isBlogScope = ($scope === 'blog') || ($scope instanceof \Ran\PluginLib\Options\OptionScope && $scope === \Ran\PluginLib\Options\OptionScope::Blog);
-		if ($isBlogScope && array_key_exists('blog_id', $args) && null !== $args['blog_id']) {
-			$storageArgs['blog_id'] = (int) $args['blog_id'];
+		$is_user_scope = ($scope === 'user') || ($scope instanceof \Ran\PluginLib\Options\OptionScope && $scope === \Ran\PluginLib\Options\OptionScope::User);
+		$is_blog_scope = ($scope === 'blog') || ($scope instanceof \Ran\PluginLib\Options\OptionScope && $scope === \Ran\PluginLib\Options\OptionScope::Blog);
+		if ($is_blog_scope && array_key_exists('blog_id', $args) && null !== $args['blog_id']) {
+			$storage_args['blog_id'] = (int) $args['blog_id'];
 		}
-		if ($isUserScope && array_key_exists('user_id', $args) && null !== $args['user_id']) {
-			$storageArgs['user_id'] = (int) $args['user_id'];
+		if ($is_user_scope && array_key_exists('user_id', $args) && null !== $args['user_id']) {
+			$storage_args['user_id'] = (int) $args['user_id'];
 		}
-		if ($isUserScope && array_key_exists('user_global', $args)) {
-			$storageArgs['user_global'] = (bool) $args['user_global'];
+		if ($is_user_scope && array_key_exists('user_global', $args)) {
+			$storage_args['user_global'] = (bool) $args['user_global'];
 		}
-		if ($isUserScope && array_key_exists('user_storage', $args) && is_string($args['user_storage'])) {
-			$storageArgs['user_storage'] = $args['user_storage'];
-		} elseif ($isUserScope && null === $args['user_storage']) {
+		if ($is_user_scope && array_key_exists('user_storage', $args) && is_string($args['user_storage'])) {
+			$storage_args['user_storage'] = $args['user_storage'];
+		} elseif ($is_user_scope && null === $args['user_storage']) {
 			// Default to meta for user scope when not provided
-			$storageArgs['user_storage'] = 'meta';
+			$storage_args['user_storage'] = 'meta';
 		}
 
 		// Warn on unknown/operational args (no behavior change; no writes)
-		$recognized = array('autoload', 'initial', 'schema', 'scope', 'blog_id', 'user_id', 'user_global', 'user_storage', 'policy');
+		$recognized = array('autoload', 'initial', 'schema', 'seed_defaults', 'flush', 'scope', 'blog_id', 'user_id', 'user_global', 'user_storage', 'policy');
 		$unknown    = array_diff(array_keys($args), $recognized);
 		if (!empty($unknown)) {
 			$logger = $this->get_logger();
@@ -145,17 +149,22 @@ class Config extends ConfigAbstract implements ConfigInterface {
 			}
 		}
 
-		// Build instance via factory (no writes performed here)
-		$opts = RegisterOptions::from_config(
-			$this,
-			$initial,
-			$autoload,
-			$this->get_logger(),
-			$schema,
-			$scope,
-			$storageArgs,
-			$policy
-		);
+		// Build instance via slimmed from_config + fluent chaining
+		$opts = RegisterOptions::from_config($this, $autoload, $scope, $storage_args);
+
+		// Chain fluents for configuration (80/20 pattern)
+		$opts = $opts->with_logger($this->get_logger());
+
+		// Chain additional configuration via fluents
+		if (!empty($initial)) {
+			$opts = $opts->with_defaults($initial);
+		}
+		if (!empty($schema)) {
+			$opts = $opts->with_schema($schema, $seed_defaults, $flush);
+		}
+		if ($policy !== null) {
+			$opts = $opts->with_policy($policy);
+		}
 
 		return $opts;
 	}
