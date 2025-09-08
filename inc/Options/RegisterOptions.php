@@ -1029,9 +1029,7 @@ class RegisterOptions {
 	}
 
 	/**
-	 * Factory: create a RegisterOptions instance using the option name derived from Config.
-	 *
-	 * Uses late static binding (new static) so subclasses receive instances when calling ::from_config().
+	 * Whether the underlying storage supports autoload semantics.
 	 *
 	 * This is a passthrough to the scope-aware storage adapter to allow
 	 * examples and callers to check autoload capability without reaching
@@ -1067,13 +1065,21 @@ class RegisterOptions {
 	 */
 	protected function _get_storage(): OptionStorageInterface {
 		if ($this->storage instanceof OptionStorageInterface) {
-			return $this->storage;
+			$st = $this->storage;
+			if ($this->_get_logger()->is_active()) {
+				$this->_get_logger()->debug('RegisterOptions: _get_storage resolved (cached)', array('scope' => $st->scope()->value));
+			}
+			return $st;
 		}
 		$factory       = new OptionStorageFactory($this->_get_logger());
 		$scope         = $this->storage_scope ?? OptionScope::Site;
 		$args          = $this->storage_args  ?? array();
 		$this->storage = $factory->make($scope, $args);
-		return $this->storage;
+		$st            = $this->storage;
+		if ($this->_get_logger()->is_active()) {
+			$this->_get_logger()->debug('RegisterOptions: _get_storage resolved (new)', array('scope' => $st->scope()->value));
+		}
+		return $st;
 	}
 
 	/**
@@ -1106,33 +1112,97 @@ class RegisterOptions {
 			$this->write_policy = new RestrictedDefaultWritePolicy();
 		}
 		$policyAllowed = $this->write_policy->allow($op, $ctx);
+		// Debug: trace policy decision
+		if ($this->_get_logger()->is_active()) {
+			$this->_get_logger()->debug(
+				'RegisterOptions: _apply_write_gate policy decision',
+				array(
+					'op'          => $op,
+					'main_option' => $ctx['main_option'] ?? '',
+					'scope'       => isset($ctx['scope']) ? (string) $ctx['scope'] : '',
+					'policy'      => 'RestrictedDefaultWritePolicy',
+					'allowed'     => (bool) $policyAllowed,
+				)
+			);
+		}
 		if ($policyAllowed === false) {
 			$this->_get_logger()->notice(
 				'RegisterOptions: Write vetoed by immutable policy.',
 				array(
-				    'op'          => $op,
-				    'main_option' => $ctx['main_option'] ?? '',
-				    'scope'       => isset($ctx['scope']) ? (string) $ctx['scope'] : '',
+					'op'          => $op,
+					'main_option' => $ctx['main_option'] ?? '',
+					'scope'       => isset($ctx['scope']) ? (string) $ctx['scope'] : '',
 				)
 			);
 			return false;
 		}
 
 		$allowed = true;
+		// Debug: before general filter
+		if ($this->_get_logger()->is_active()) {
+			$this->_get_logger()->debug(
+				'RegisterOptions: _apply_write_gate applying general allow_persist filter',
+				array(
+					'hook' => 'ran/plugin_lib/options/allow_persist',
+					'op'   => $op,
+				)
+			);
+		}
 		$allowed = (bool) $this->_do_apply_filter('ran/plugin_lib/options/allow_persist', $allowed, $ctx);
+		if ($this->_get_logger()->is_active()) {
+			$this->_get_logger()->debug(
+				'RegisterOptions: _apply_write_gate general filter result',
+				array(
+					'hook'    => 'ran/plugin_lib/options/allow_persist',
+					'allowed' => $allowed,
+				)
+			);
+		}
 
 		$scope = isset($ctx['scope']) ? (string) $ctx['scope'] : '';
 		if ($scope !== '') {
-			$allowed = (bool) $this->_do_apply_filter('ran/plugin_lib/options/allow_persist/scope/' . $scope, $allowed, $ctx);
+			$hook = 'ran/plugin_lib/options/allow_persist/scope/' . $scope;
+			if ($this->_get_logger()->is_active()) {
+				$this->_get_logger()->debug(
+					'RegisterOptions: _apply_write_gate applying scoped allow_persist filter',
+					array(
+						'hook'  => $hook,
+						'op'    => $op,
+						'scope' => $scope,
+					)
+				);
+			}
+			$allowed = (bool) $this->_do_apply_filter($hook, $allowed, $ctx);
+			if ($this->_get_logger()->is_active()) {
+				$this->_get_logger()->debug(
+					'RegisterOptions: _apply_write_gate scoped filter result',
+					array(
+						'hook'    => $hook,
+						'allowed' => $allowed,
+					)
+				);
+			}
 		}
 
 		if ($allowed === false) {
 			$this->_get_logger()->notice(
 				'RegisterOptions: Write vetoed by allow_persist filter.',
 				array(
-				    'op'          => $op,
-				    'main_option' => $ctx['main_option'] ?? '',
-				    'scope'       => $scope,
+					'op'          => $op,
+					'main_option' => $ctx['main_option'] ?? '',
+					'scope'       => $scope,
+				)
+			);
+		}
+		// Debug: final decision
+		if ($this->_get_logger()->is_active()) {
+			$this->_get_logger()->debug(
+				'RegisterOptions: _apply_write_gate final decision',
+				array(
+					'op'          => $op,
+					'main_option' => $ctx['main_option'] ?? '',
+					'scope'       => $scope,
+					'allowed'     => $allowed,
 				)
 			);
 		}
@@ -1147,7 +1217,13 @@ class RegisterOptions {
 	protected function _read_main_option(): array {
 		$raw = $this->_get_storage()->read($this->main_wp_option_name);
 		if (!is_array($raw)) {
+			if ($this->_get_logger()->is_active()) {
+				$this->_get_logger()->debug('RegisterOptions: _read_main_option completed', array('count' => 0));
+			}
 			return array();
+		}
+		if ($this->_get_logger()->is_active()) {
+			$this->_get_logger()->debug('RegisterOptions: _read_main_option completed', array('count' => count($raw)));
 		}
 		return $raw;
 	}
@@ -1170,7 +1246,7 @@ class RegisterOptions {
 				)
 			);
 		}
-		// @codeCoverageIgnoreEnd
+
 
 		$to_save = $this->options;
 		if ($merge_from_db) {
@@ -1212,11 +1288,10 @@ class RegisterOptions {
 		);
 		$allowed = $this->_apply_write_gate($this->__persist_origin ?? 'save_all', $ctx);
 		if (!$allowed) {
-			// @codeCoverageIgnoreStart
 			if ($this->_get_logger()->is_active()) {
 				$this->_get_logger()->debug('RegisterOptions: _save_all_options vetoed by policy.');
 			}
-			// @codeCoverageIgnoreEnd
+
 			return false;
 		}
 
@@ -1234,14 +1309,17 @@ class RegisterOptions {
 
 		// Mirror what we just saved to keep local cache consistent
 		$this->options = $to_save;
-		// @codeCoverageIgnoreStart
+
 		if ($this->_get_logger()->is_active()) {
 			$this->_get_logger()->debug(
 				'RegisterOptions: storage->update() completed.',
 				array('result' => (bool) $result)
 			);
 		}
-		// @codeCoverageIgnoreEnd
+
+		if ($this->_get_logger()->is_active()) {
+			$this->_get_logger()->debug('RegisterOptions: _save_all_options completed', array('result' => (bool) $result));
+		}
 		return $result;
 	}
 
@@ -1256,6 +1334,9 @@ class RegisterOptions {
 	 */
 	protected function _sanitize_and_validate_option(string $normalized_key, mixed $value): mixed {
 		if (!isset($this->schema[$normalized_key])) {
+			if ($this->_get_logger()->is_active()) {
+				$this->_get_logger()->debug('RegisterOptions: _sanitize_and_validate_option no-schema', array('key' => $normalized_key));
+			}
 			return $value;
 		}
 
@@ -1276,6 +1357,9 @@ class RegisterOptions {
 			}
 		}
 
+		if ($this->_get_logger()->is_active()) {
+			$this->_get_logger()->debug('RegisterOptions: _sanitize_and_validate_option completed', array('key' => $normalized_key));
+		}
 		return $value;
 	}
 
@@ -1288,7 +1372,14 @@ class RegisterOptions {
 	 */
 	protected function _resolve_default_value(mixed $default): mixed {
 		if (\is_callable($default)) {
-			return $default($this->config);
+			$val = $default($this->config);
+			if ($this->_get_logger()->is_active()) {
+				$this->_get_logger()->debug('RegisterOptions: _resolve_default_value resolved callable');
+			}
+			return $val;
+		}
+		if ($this->_get_logger()->is_active()) {
+			$this->_get_logger()->debug('RegisterOptions: _resolve_default_value returned literal');
 		}
 		return $default;
 	}
@@ -1353,6 +1444,9 @@ class RegisterOptions {
 		if (strlen($s) > 120) {
 			$s = substr($s, 0, 117) . '...';
 		}
+		if ($this->_get_logger()->is_active()) {
+			$this->_get_logger()->debug('RegisterOptions: _stringify_value_for_error completed');
+		}
 		return $s;
 	}
 
@@ -1364,14 +1458,27 @@ class RegisterOptions {
 	 */
 	protected function _describe_callable(mixed $callable): string {
 		if (is_string($callable)) {
+			if ($this->_get_logger()->is_active()) {
+				$this->_get_logger()->debug('RegisterOptions: _describe_callable completed (string)');
+			}
 			return $callable;
 		}
 		if (is_array($callable) && isset($callable[0], $callable[1])) {
 			$class = is_object($callable[0]) ? get_class($callable[0]) : (string) $callable[0];
-			return $class . '::' . (string) $callable[1];
+			$desc  = $class . '::' . (string) $callable[1];
+			if ($this->_get_logger()->is_active()) {
+				$this->_get_logger()->debug('RegisterOptions: _describe_callable completed (array)');
+			}
+			return $desc;
 		}
 		if ($callable instanceof \Closure) {
+			if ($this->_get_logger()->is_active()) {
+				$this->_get_logger()->debug('RegisterOptions: _describe_callable completed (closure)');
+			}
 			return 'Closure';
+		}
+		if ($this->_get_logger()->is_active()) {
+			$this->_get_logger()->debug('RegisterOptions: _describe_callable completed (other)');
 		}
 		return 'callable';
 	}
