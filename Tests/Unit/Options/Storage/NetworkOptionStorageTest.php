@@ -5,10 +5,15 @@ namespace Ran\PluginLib\Tests\Unit\Options\Storage;
 
 use WP_Mock;
 use Ran\PluginLib\Options\OptionScope;
-use Ran\PluginLib\Options\Storage\NetworkOptionStorage;
 use Ran\PluginLib\Tests\Unit\PluginLibTestCase;
+use Ran\PluginLib\Options\Storage\NetworkOptionStorage;
 
 final class NetworkOptionStorageTest extends PluginLibTestCase {
+	/**
+	 * @covers \Ran\PluginLib\Options\Storage\NetworkOptionStorage::scope
+	 * @covers \Ran\PluginLib\Options\Storage\NetworkOptionStorage::blogId
+	 * @covers \Ran\PluginLib\Options\Storage\NetworkOptionStorage::supports_autoload
+	 */
 	public function test_meta_methods(): void {
 		$s = new NetworkOptionStorage();
 		$this->assertSame(OptionScope::Network, $s->scope());
@@ -16,6 +21,12 @@ final class NetworkOptionStorageTest extends PluginLibTestCase {
 		$this->assertFalse($s->supports_autoload());
 	}
 
+	/**
+	 * @covers \Ran\PluginLib\Options\Storage\NetworkOptionStorage::add
+	 * @covers \Ran\PluginLib\Options\Storage\NetworkOptionStorage::read
+	 * @covers \Ran\PluginLib\Options\Storage\NetworkOptionStorage::update
+	 * @covers \Ran\PluginLib\Options\Storage\NetworkOptionStorage::delete
+	 */
 	public function test_read_and_add_update_delete_flow(): void {
 		$s = new NetworkOptionStorage();
 
@@ -46,10 +57,5 @@ final class NetworkOptionStorageTest extends PluginLibTestCase {
 		    ->with('foo')
 		    ->andReturn(true);
 		$this->assertTrue($s->delete('foo'));
-	}
-
-	public function test_load_all_autoloaded_is_null(): void {
-		$s = new NetworkOptionStorage();
-		$this->assertNull($s->load_all_autoloaded());
 	}
 }

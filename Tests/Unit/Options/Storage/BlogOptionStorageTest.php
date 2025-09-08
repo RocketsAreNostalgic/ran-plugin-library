@@ -5,10 +5,15 @@ namespace Ran\PluginLib\Tests\Unit\Options\Storage;
 
 use WP_Mock;
 use Ran\PluginLib\Options\OptionScope;
-use Ran\PluginLib\Options\Storage\BlogOptionStorage;
 use Ran\PluginLib\Tests\Unit\PluginLibTestCase;
+use Ran\PluginLib\Options\Storage\BlogOptionStorage;
 
 final class BlogOptionStorageTest extends PluginLibTestCase {
+	/**
+	 * @covers \Ran\PluginLib\Options\Storage\BlogOptionStorage::scope
+	 * @covers \Ran\PluginLib\Options\Storage\BlogOptionStorage::blogId
+	 * @covers \Ran\PluginLib\Options\Storage\BlogOptionStorage::supports_autoload
+	 */
 	public function test_meta_methods(): void {
 		// Make current blog different so supports_autoload() is false deterministically
 		WP_Mock::userFunction('get_current_blog_id')->once()->andReturn(999);
@@ -18,6 +23,12 @@ final class BlogOptionStorageTest extends PluginLibTestCase {
 		$this->assertFalse($s->supports_autoload());
 	}
 
+	/**
+	 * @covers \Ran\PluginLib\Options\Storage\BlogOptionStorage::add
+	 * @covers \Ran\PluginLib\Options\Storage\BlogOptionStorage::read
+	 * @covers \Ran\PluginLib\Options\Storage\BlogOptionStorage::update
+	 * @covers \Ran\PluginLib\Options\Storage\BlogOptionStorage::delete
+	 */
 	public function test_read_and_add_update_delete_flow(): void {
 		$blog_id = 5;
 		$s       = new BlogOptionStorage($blog_id);
@@ -51,13 +62,9 @@ final class BlogOptionStorageTest extends PluginLibTestCase {
 		$this->assertTrue($s->delete('foo'));
 	}
 
-	public function test_load_all_autoloaded_is_null(): void {
-		// Other blog than current -> null
-		WP_Mock::userFunction('get_current_blog_id')->once()->andReturn(8);
-		$s = new BlogOptionStorage(7);
-		$this->assertNull($s->load_all_autoloaded());
-	}
-
+	/**
+	 * @covers \Ran\PluginLib\Options\Storage\BlogOptionStorage::supports_autoload
+	 */
 	public function test_supports_autoload_true_for_current_blog(): void {
 		$blog_id = 12;
 		WP_Mock::userFunction('get_current_blog_id')->once()->andReturn($blog_id);
@@ -65,11 +72,13 @@ final class BlogOptionStorageTest extends PluginLibTestCase {
 		$this->assertTrue($s->supports_autoload());
 	}
 
-	public function test_load_all_autoloaded_returns_array_for_current_blog(): void {
-		$blog_id = 15;
-		WP_Mock::userFunction('get_current_blog_id')->once()->andReturn($blog_id);
-		WP_Mock::userFunction('wp_load_alloptions')->once()->with(false)->andReturn(array('a' => '1'));
-		$s = new BlogOptionStorage($blog_id);
-		$this->assertSame(array('a' => '1'), $s->load_all_autoloaded());
+	/**
+	 * @covers \Ran\PluginLib\Options\Storage\BlogOptionStorage::__construct
+	 */
+	public function test_constructor_sets_blog_id_for_coverage(): void {
+		$blog_id = 321;
+		$s       = new BlogOptionStorage($blog_id);
+		// Intentionally only asserting via public API while restricting coverage to __construct
+		$this->assertSame($blog_id, $s->blogId());
 	}
 }

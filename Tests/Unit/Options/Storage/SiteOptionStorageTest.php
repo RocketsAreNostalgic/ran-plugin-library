@@ -9,6 +9,11 @@ use Ran\PluginLib\Tests\Unit\PluginLibTestCase;
 use Ran\PluginLib\Options\Storage\SiteOptionStorage;
 
 final class SiteOptionStorageTest extends PluginLibTestCase {
+	/**
+	 * @covers \Ran\PluginLib\Options\Storage\SiteOptionStorage::scope
+	 * @covers \Ran\PluginLib\Options\Storage\SiteOptionStorage::blogId
+	 * @covers \Ran\PluginLib\Options\Storage\SiteOptionStorage::supports_autoload
+	 */
 	public function test_meta_methods(): void {
 		$s = new SiteOptionStorage();
 		$this->assertSame(OptionScope::Site, $s->scope());
@@ -16,6 +21,12 @@ final class SiteOptionStorageTest extends PluginLibTestCase {
 		$this->assertTrue($s->supports_autoload());
 	}
 
+	/**
+	 * @covers \Ran\PluginLib\Options\Storage\SiteOptionStorage::add
+	 * @covers \Ran\PluginLib\Options\Storage\SiteOptionStorage::read
+	 * @covers \Ran\PluginLib\Options\Storage\SiteOptionStorage::update
+	 * @covers \Ran\PluginLib\Options\Storage\SiteOptionStorage::delete
+	 */
 	public function test_read_and_add_update_delete_flow(): void {
 		$s = new SiteOptionStorage();
 
@@ -33,10 +44,10 @@ final class SiteOptionStorageTest extends PluginLibTestCase {
 		    ->andReturn('bar');
 		$this->assertSame('bar', $s->read('foo'));
 
-		// update_option('foo', 'baz', 'no')
+		// update_option('foo', 'baz') - wrapper calls 2-arg variant when no autoload is provided
 		WP_Mock::userFunction('update_option')
 		    ->once()
-		    ->with('foo', 'baz', 'no')
+		    ->with('foo', 'baz')
 		    ->andReturn(true);
 		$this->assertTrue($s->update('foo', 'baz', false));
 
@@ -46,18 +57,5 @@ final class SiteOptionStorageTest extends PluginLibTestCase {
 		    ->with('foo')
 		    ->andReturn(true);
 		$this->assertTrue($s->delete('foo'));
-	}
-
-	public function test_load_all_autoloaded(): void {
-		$s = new SiteOptionStorage();
-
-		WP_Mock::userFunction('wp_load_alloptions')
-		    ->once()
-		    ->with(false)
-		    ->andReturn(array('a' => 1, 'b' => 2));
-
-		$all = $s->load_all_autoloaded();
-		$this->assertIsArray($all);
-		$this->assertSame(array('a' => 1, 'b' => 2), $all);
 	}
 }

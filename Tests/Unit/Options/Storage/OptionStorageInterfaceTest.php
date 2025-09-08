@@ -8,10 +8,16 @@ use PHPUnit\Framework\TestCase;
 use Ran\PluginLib\Options\Storage\OptionStorageInterface;
 
 final class OptionStorageInterfaceTest extends TestCase {
+	/**
+	 * @coversNothing
+	 */
 	public function test_interface_exists(): void {
 		$this->assertTrue(interface_exists(OptionStorageInterface::class), 'OptionStorageInterface should exist');
 	}
 
+	/**
+	 * @coversNothing
+	 */
 	public function test_interface_methods_signature(): void {
 		$rc       = new ReflectionClass(OptionStorageInterface::class);
 		$expected = array(
@@ -22,7 +28,6 @@ final class OptionStorageInterfaceTest extends TestCase {
 		    'update',
 		    'add',
 		    'delete',
-		    'load_all_autoloaded',
 		);
 		foreach ($expected as $name) {
 			$this->assertTrue($rc->hasMethod($name), "Missing method: {$name}");
