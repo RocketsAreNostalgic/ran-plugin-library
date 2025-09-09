@@ -142,106 +142,37 @@ class RegisterOptions {
 
 	/**
      * Creates a new RegisterOptions instance.
- 	 *
- 	 * Initializes options by loading them from the database under `$main_wp_option_name`.
- 	 * If initial `$default_options` are provided, they are merged with existing options
- 	 * and update in-memory state only; persistence is explicit via `flush()` or mutating methods.
- 	 *
-     * Schema key principles:
-     * - No implicit writes: constructor/schema registration only updates in-memory state; persistence is explicit.
-     * - Separation of concerns: `Config::options()` may pre-wire schema without performing any writes.
-     * - Single source of truth: By default, Config provides the main option name and autoload policy.
-	 *
-	 * @internal
-	 * @param string $main_wp_option_name The primary key in wp_options where all settings for this instance are stored.
-	 * @param array<string, mixed> $initial_options Optional. An array of default options to set if not already present or to merge.
+     *
+     * Initializes options by loading them from the database under `$main_wp_option_name`.
+     * No implicit writes occur in the constructor.
+     *
+     * @internal
+     * @param string $main_wp_option_name The primary key in wp_options where all settings for this instance are stored.
      * @param bool $main_option_autoload  Whether the entire group of options should be autoloaded by WordPress. Defaults to true.
-     * @param Logger|null $logger         Optional logger to use. If null, a logger is resolved from Config.
-     * @param ConfigInterface|null $config Optional config used to resolve logger and metadata (favored over concrete Config).
-     * @param array $schema               Optional schema map: ['key' => ['default' => mixed|callable(ConfigInterface|null): mixed, 'sanitize' => callable|null, 'validate' => callable|null]].
-     *                                    - default: value or callable(ConfigInterface|null): mixed used when the option is missing
-     *                                    - sanitize: callable(value): mixed
-     *                                    - validate: callable(value): true|throws/false
-	 * @param WritePolicyInterface|null $policy Optional write policy; when null, a default RestrictedDefaultWritePolicy is used lazily.
-	 * @return mixed
-	 */
-	protected function __construct(
+     * @param ConfigInterface|null $config Optional Config used for metadata, default resolvers, and logger binding.
+     * @return mixed
+     */
+    protected function __construct(
         string $main_wp_option_name,
-        array $initial_options = array(),
         bool $main_option_autoload = true,
-        ?Logger $logger = null,
-        ?ConfigInterface $config = null,
-        array $schema = array(),
-        ?WritePolicyInterface $policy = null
+        ?ConfigInterface $config = null
     ) {
-		$this->main_wp_option_name  = $main_wp_option_name;
-		$this->main_option_autoload = $main_option_autoload;
-		$this->logger               = $logger ?? $this->logger;
-		$this->config               = $config ?? $this->config;
-		$this->write_policy         = $policy ?? $this->write_policy;
+        $this->main_wp_option_name  = $main_wp_option_name;
+        $this->main_option_autoload = $main_option_autoload;
+        $this->config               = $config ?? $this->config;
 
-		// Load all existing options from the single database entry (via storage adapter).
-		$this->options = $this->_read_main_option();
+        // If a Config is provided and exposes a logger, bind it immediately
+        if ($this->logger === null && $this->config instanceof ConfigInterface && method_exists($this->config, 'get_logger')) {
+            $this->logger = $this->config->get_logger();
+        }
 
-		if ($this->_get_logger()->is_active()) {
-			$this->_get_logger()->debug("RegisterOptions: Initialized with main option '{$this->main_wp_option_name}'. Loaded " . count($this->options) . ' existing sub-options.');
-		}
+        // Load all existing options from the single database entry (via storage adapter).
+        $this->options = $this->_read_main_option();
 
-
-		// Normalize and set schema
-		if (!empty($schema)) {
-			// Note: This constructor-time schema path is exercised in tests via
-			// a test-only subclass (TestableRegisterOptions) that forwards a non-empty
-			// $schema to the protected constructor. Production factories pass an empty
-			// schema and instead use register_schema()/with_schema() post-construction.
-			$this->schema = $this->_normalize_schema_keys($schema);
-		}
-
-		// Track whether defaults or initial options cause persistence
-		$options_changed = false;
-
-		// Seed defaults from schema for any missing values
-		if (!empty($this->schema)) {
-			foreach ($this->schema as $normalized_key => $rules) {
-				$has_value = isset($this->options[$normalized_key]);
-				if (!$has_value && array_key_exists('default', $rules)) {
-					$resolved_default               = $this->_resolve_default_value($rules['default'] ?? null);
-					$resolved_default               = $this->_sanitize_and_validate_option($normalized_key, $resolved_default);
-					$this->options[$normalized_key] = $resolved_default;
-					$options_changed                = true;
-				}
-			}
-		}
-
-		// If initial/default options are provided, merge into in-memory store ONLY (no writes here).
-		if (!empty($initial_options)) {
-			// Note: This branch is covered in tests using the TestableRegisterOptions
-			// helper that calls the protected constructor with a non-empty $initial_options
-			// map. Production entry points do not provide constructor-time initial values;
-			// callers use fluent methods after construction when needed.
-			$options_changed = $options_changed || false;
-			foreach ($initial_options as $option_name => $definition) {
-				$option_name_clean    = $this->_do_sanitize_key((string) $option_name);
-				$current_value_exists = isset($this->options[$option_name_clean]);
-
-				$value_to_set = is_array($definition) && isset($definition['value']) ? $definition['value'] : $definition;
-				// Apply schema sanitization/validation if defined
-				$value_to_set = $this->_sanitize_and_validate_option($option_name_clean, $value_to_set);
-
-				// Set if new, or if existing value is different (for complex types, this is a simple check).
-				if (!$current_value_exists || ($current_value_exists && $this->options[$option_name_clean] !== $value_to_set)) {
-					$this->options[$option_name_clean] = $value_to_set;
-					$options_changed                   = true;
-
-					if ($this->_get_logger()->is_active()) {
-						$this->_get_logger()->debug("RegisterOptions: Initial option '{$option_name_clean}' set/updated (in-memory only; persistence requires explicit flush or set/update methods).");
-					}
-				}
-			}
-		}
-		// Note: Any schema-default seeding or initial merges performed above update ONLY in-memory state.
-		// Persistence is the caller's responsibility via flush()/set_option()/update_option().
-	}
+        if ($this->_get_logger()->is_active()) {
+            $this->_get_logger()->debug("RegisterOptions: Initialized with main option '{$this->main_wp_option_name}'. Loaded " . count($this->options) . ' existing sub-options.');
+        }
+    }
 
 	/**
 	 * Named factory: Site scope instance.
@@ -251,14 +182,14 @@ class RegisterOptions {
 	 * @return static
 	 */
 	public static function site(string $option_name, bool $autoload_on_create = true): static {
-		$instance                = new static($option_name, array(), $autoload_on_create);
-		$instance->storage_scope = OptionScope::Site;
-		$instance->storage_args  = array();
-		// Ensure storage is rebuilt for this scope and payload is read from correct storage
-		$instance->storage = null;
-		$instance->options = $instance->_read_main_option();
-		return $instance;
-	}
+        $instance                = new static($option_name, $autoload_on_create);
+        $instance->storage_scope = OptionScope::Site;
+        $instance->storage_args  = array();
+        // Ensure storage is rebuilt for this scope and payload is read from correct storage
+        $instance->storage = null;
+        $instance->options = $instance->_read_main_option();
+        return $instance;
+    }
 
 	/**
 	 * Named factory: Network scope instance.
@@ -269,13 +200,13 @@ class RegisterOptions {
 	 * @return static
 	 */
 	public static function network(string $option_name): static {
-		$instance                = new static($option_name, array(), false);
-		$instance->storage_scope = OptionScope::Network;
-		$instance->storage_args  = array();
-		$instance->storage       = null;
-		$instance->options       = $instance->_read_main_option();
-		return $instance;
-	}
+        $instance                = new static($option_name, false);
+        $instance->storage_scope = OptionScope::Network;
+        $instance->storage_args  = array();
+        $instance->storage       = null;
+        $instance->options       = $instance->_read_main_option();
+        return $instance;
+    }
 
 	/**
 	 * Named factory: Blog scope instance.
@@ -290,26 +221,26 @@ class RegisterOptions {
 	 * @return static
 	 */
 	public static function blog(string $option_name, int $blog_id, ?bool $autoload_on_create = null): static {
-		// Decide autoload preference (constructor requires bool). For non-current blog, force false.
-		$current_blog = (int) (new class {
-			use WPWrappersTrait;
-			public function id() {
-				return $this->_do_get_current_blog_id();
-			}
-		})->id();
-		$effective_autoload = ($autoload_on_create === true || $autoload_on_create === false)
-			? (bool) $autoload_on_create
-			: false;
-		if ($blog_id !== $current_blog) {
-			$effective_autoload = false;
-		}
-		$instance                = new static($option_name, array(), $effective_autoload);
-		$instance->storage_scope = OptionScope::Blog;
-		$instance->storage_args  = array('blog_id' => $blog_id);
-		$instance->storage       = null;
-		$instance->options       = $instance->_read_main_option();
-		return $instance;
-	}
+        // Decide autoload preference (constructor requires bool). For non-current blog, force false.
+        $current_blog = (int) (new class {
+            use WPWrappersTrait;
+            public function id() {
+                return $this->_do_get_current_blog_id();
+            }
+        })->id();
+        $effective_autoload = ($autoload_on_create === true || $autoload_on_create === false)
+            ? (bool) $autoload_on_create
+            : false;
+        if ($blog_id !== $current_blog) {
+            $effective_autoload = false;
+        }
+        $instance                = new static($option_name, $effective_autoload);
+        $instance->storage_scope = OptionScope::Blog;
+        $instance->storage_args  = array('blog_id' => $blog_id);
+        $instance->storage       = null;
+        $instance->options       = $instance->_read_main_option();
+        return $instance;
+    }
 
 	/**
 	 * Named factory: User scope instance.
@@ -324,17 +255,17 @@ class RegisterOptions {
 	 * @return static
 	 */
 	public static function user(string $option_name, int $user_id, bool $global = false): static {
-		$instance                = new static($option_name, array(), false);
-		$instance->storage_scope = OptionScope::User;
-		$instance->storage_args  = array(
-			'user_id'      => $user_id,
-			'user_global'  => $global,
-			'user_storage' => 'meta',
-		);
-		$instance->storage = null;
-		$instance->options = $instance->_read_main_option();
-		return $instance;
-	}
+        $instance                = new static($option_name, false);
+        $instance->storage_scope = OptionScope::User;
+        $instance->storage_args  = array(
+            'user_id'      => $user_id,
+            'user_global'  => $global,
+            'user_storage' => 'meta',
+        );
+        $instance->storage = null;
+        $instance->options = $instance->_read_main_option();
+        return $instance;
+    }
 
 	/**
 	 * Factory: create a RegisterOptions instance using the option name derived from Config.
@@ -354,46 +285,49 @@ class RegisterOptions {
 	 * @return static
 	 */
 	public static function from_config(
-		ConfigInterface $config,
-		bool $autoload = true,
-		OptionScope|string|null $scope = null,
-		array $storage_args = array()
-	): static {
-		$main_option = (string) $config->get_options_key();
-		if ($main_option === '') {
-			throw new \InvalidArgumentException(static::class . ': Missing or invalid options key from Config (expected non-empty get_options_key()).');
-		}
-		// Bind logger from Config (if available) so constructor-time logs are captured
-		$ctor_logger = null;
-		if (method_exists($config, 'get_logger')) {
-			$ctor_logger = $config->get_logger();
-		}
-		$instance = new static($main_option, array(), $autoload, $ctor_logger, $config, array(), null);
-		// Store scope/args for storage creation; normalization is handled by OptionStorageFactory::make
-		if ($scope !== null) {
-			$instance->storage_scope = $scope;
-		}
-		if (is_array($storage_args)) {
-			$instance->storage_args = $storage_args;
-		}
-		// If a scope/args override was provided, ensure subsequent storage access uses it.
-		// Clear any memoized storage adapter and re-read the main option using the new scope.
-		if ($scope !== null || !empty($storage_args)) {
-			$instance->storage = null;
-			$instance->options = $instance->_read_main_option();
-		}
-		return $instance;
-	}
+        ConfigInterface $config,
+        bool $autoload = true,
+        OptionScope|string|null $scope = null,
+        array $storage_args = array()
+    ): static {
+        $main_option = (string) $config->get_options_key();
+        if ($main_option === '') {
+            throw new \InvalidArgumentException(static::class . ': Missing or invalid options key from Config (expected non-empty get_options_key()).');
+        }
+
+        // Construct with config so constructor-time logging uses the config-derived logger
+        $instance = new static($main_option, $autoload, $config);
+
+        // Store scope/args for storage creation; normalization is handled by caller (Config::options())
+        if ($scope !== null) {
+            $instance->storage_scope = $scope;
+        }
+        if (is_array($storage_args)) {
+            $instance->storage_args = $storage_args;
+        }
+        // If a scope/args override was provided, ensure subsequent storage access uses it.
+        // Clear any memoized storage adapter and re-read the main option using the new scope.
+        if ($scope !== null || !empty($storage_args)) {
+            $instance->storage = null;
+            $instance->options = $instance->_read_main_option();
+        }
+        return $instance;
+    }
 
 	/**
-	 * Fluent setter: Set initial default values.
+	 * Fluent setter: Set initial default values (in-memory only).
+	 *
+	 * This bypasses write gates and does NOT persist. Values are sanitized/validated
+	 * if schema exists. Use add_options()->flush() to persist later if desired.
 	 *
 	 * @param array $defaults Default values to set
 	 * @return static
 	 */
 	public function with_defaults(array $defaults): static {
 		foreach ($defaults as $key => $value) {
-			$this->set_option($key, $value);
+			$k = $this->_do_sanitize_key((string) $key);
+			$v = $this->_sanitize_and_validate_option($k, $value);
+			$this->options[$k] = $v;
 		}
 		return $this;
 	}
