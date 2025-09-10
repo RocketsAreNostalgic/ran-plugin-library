@@ -60,7 +60,6 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 	 */
 	public function tearDown(): void {
 		parent::tearDown();
-		Mockery::close();
 	}
 
 	// ------------------------------------------------------------------------

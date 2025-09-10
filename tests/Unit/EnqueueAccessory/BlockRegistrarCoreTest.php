@@ -83,7 +83,6 @@ class BlockRegistrarCoreTest extends PluginLibTestCase {
 	 * @return void
 	 */
 	public function tearDown(): void {
-		Mockery::close();
 		parent::tearDown();
 	}
 

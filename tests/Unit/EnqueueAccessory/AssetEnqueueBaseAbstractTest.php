@@ -120,7 +120,6 @@ class AssetEnqueueBaseAbstractTest extends PluginLibTestCase {
 	 */
 	public function tearDown(): void {
 		parent::tearDown();
-		Mockery::close();
 	}
 
 	// ------------------------------------------------------------------------

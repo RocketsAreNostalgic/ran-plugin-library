@@ -8,10 +8,10 @@ use WP_Mock;
 use Ran\PluginLib\Util\ExpectLogTrait;
 use Ran\PluginLib\Util\CollectingLogger;
 use Ran\PluginLib\Config\ConfigInterface;
+use Ran\PluginLib\EnqueueAccessory\AssetType;
 use Ran\PluginLib\Tests\Unit\PluginLibTestCase;
 use Ran\PluginLib\EnqueueAccessory\MediaEnqueueTrait;
 use Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseAbstract;
-use Ran\PluginLib\EnqueueAccessory\AssetType;
 
 /**
  * Concrete implementation of MediaEnqueueTrait for testing media-related methods.
@@ -74,7 +74,6 @@ class MediaEnqueueTraitTest extends PluginLibTestCase {
 	 */
 	public function tearDown(): void {
 		parent::tearDown();
-		Mockery::close();
 	}
 
 	// ------------------------------------------------------------------------

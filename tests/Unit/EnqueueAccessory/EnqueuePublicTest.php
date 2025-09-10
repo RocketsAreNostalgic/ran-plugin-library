@@ -52,7 +52,6 @@ class EnqueuePublicTest extends PluginLibTestCase {
 	 */
 	public function tearDown(): void {
 		parent::tearDown();
-		Mockery::close();
 	}
 
 	/**

@@ -4,10 +4,10 @@ declare(strict_types=1);
 namespace Ran\PluginLib\Tests\Unit\EnqueueAccessory;
 
 use Mockery;
+use Ran\PluginLib\Util\CollectingLogger;
 use Ran\PluginLib\Config\ConfigInterface;
 use Ran\PluginLib\Tests\Unit\PluginLibTestCase;
 use Ran\PluginLib\EnqueueAccessory\StylesHandler;
-use Ran\PluginLib\Util\CollectingLogger;
 
 /**
  * Class StylesHandlerTest
@@ -42,7 +42,6 @@ class StylesHandlerTest extends PluginLibTestCase {
 	 */
 	public function tearDown(): void {
 		parent::tearDown();
-		Mockery::close();
 	}
 
 	/**
