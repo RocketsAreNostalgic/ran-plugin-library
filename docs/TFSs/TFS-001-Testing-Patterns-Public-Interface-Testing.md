@@ -73,19 +73,65 @@ Our testing framework provides a hierarchical structure of base test classes to 
 
 **Usage**: Extend this class when your tests need a configured WordPress environment with plugin context.
 
-#### EnqueueTraitTestCase
+#### Case Specific base test classes
 
-**Purpose**: Specialized base class for testing enqueue-related traits (Scripts and Styles).
+**Purpose**: Specialized base class for testing specific features of the SUT, eg `EnqueueTraitTestCase` for enqueue-related traits (Scripts and Styles).
 
 **Key Features**:
 
-- Extends `PluginLibTestCase` with enqueue-specific setup
+- Extends `PluginLibTestCase` with SUT-specific setup
 - Provides abstract methods for concrete class and asset type specification
 - Sets up common WordPress enqueue function mocks
 - Configures asset URL resolution mocking
 - Handles config and logger mock injection
 
-**Usage**: Extend this class when testing asset enqueueing functionality.
+**Usage**: Extend this class when testing targeted functionality covered by this class.
+
+### Selecting the Appropriate Base Test Class
+
+Use the lightest base that satisfies your test’s needs. This keeps tests fast, focused, and consistent with our patterns.
+
+#### PHPUnit\TestCase (vanilla)
+
+- Use when the subject under test is pure PHP logic with no WordPress interaction and no need for our helpers.
+- Appropriate when:
+  - No calls to WordPress APIs (no `WP_Mock::userFunction()` / `onFilter()` / `apply_filters()` / `do_action()` etc.)
+  - No need to assert logs via `CollectingLogger` / `ExpectLogTrait`
+  - No need for protected/private access helpers from our base cases
+- Examples: value objects, simple transformers, formatters, small utility classes.
+
+#### RanTestCase (framework-level)
+
+- Use when you need only WP_Mock lifecycle scaffolding without plugin configuration or logger utilities.
+- Appropriate when:
+  - You need balanced WP_Mock setup/teardown
+  - You don’t need `CollectingLogger`, config scaffolding, or plugin file structure
+  - You don’t need domain helpers provided by `PluginLibTestCase`
+
+#### PluginLibTestCase (library-level)
+
+- Use when tests involve WordPress integration and/or our library’s standard fixtures.
+- Appropriate when:
+  - You call or stub WordPress functions (e.g., `get_option`, `add_action`, `wp_enqueue_*`, capabilities)
+  - You assert logs using `CollectingLogger` and `ExpectLogTrait`
+  - You need helpers for protected/private access provided by our base classes
+  - You need a configured plugin context (mock plugin files/paths, `ConfigAbstract` environment)
+- Typical for: options/register tests, storage adapters, policy classes that consult capabilities/filters, enqueue handlers.
+
+#### Targeted SUT Base (e.g., EnqueueTraitTestCase)
+
+- Use when a feature area has a dedicated base case that sets up realistic, repeatable fixtures and mocks.
+- Appropriate when:
+  - The SUT belongs to a domain with standardized test scaffolding (e.g., enqueue traits)
+  - You benefit from preconfigured WordPress mocks, URL resolution, asset handlers, and abstract SUT hooks
+- Prefer these over ad-hoc setup to ensure consistency and reduce boilerplate.
+
+**Decision checklist:**
+
+- Are there any WordPress function calls to mock? → Prefer `PluginLibTestCase` (or `RanTestCase` if config/logger/helpers aren’t needed)
+- Do you need `CollectingLogger` or `ExpectLogTrait`? → Prefer `PluginLibTestCase`
+- Does a domain-specific base exist for your SUT? → Prefer the targeted base (e.g., `EnqueueTraitTestCase`)
+- Is the code pure without WP or logger needs? → Use `PHPUnit\TestCase`
 
 ### CollectingLogger and Log Verification
 
@@ -475,5 +521,5 @@ public function test_enqueue_handles_failure_gracefully(): void {
 
 **Decision Made By**: Development Team
 **Date**: 2025-01-28
-**Review Date**: 2025-07-28 (6 months)
+**Last Reviewed**: 2025-09-10 (6 months)
 **Status**: Active Implementation

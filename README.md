@@ -255,21 +255,21 @@ The `EnqueueAbstract` class and its children (`EnqueuePublic`, `EnqueueAdmin`) p
 - **`EnqueuePublic`:** Use for assets loaded on the public-facing side of your site. Hooks into `wp_enqueue_scripts`.
 - **`EnqueueAdmin`:** Use for assets loaded in the WordPress admin area. Hooks into `admin_stage_scripts`.
 
-#### Key Methods
+##### Key Methods
 
-##### `add_scripts(array $scripts_to_add)`
+- `add_scripts(array $scripts_to_add)`
 
 Adds one or more script definitions to the enqueuer instance's internal list. Each script definition is an associative array detailing the script's properties (e.g., handle, source URL, dependencies, version, and whether to load in the footer).
 
-##### `add_styles(array $styles_to_add)`
+- `add_styles(array $styles_to_add)`
 
 Adds one or more style definitions to the enqueuer instance's internal list. Each style definition is an associative array detailing the style's properties (e.g., handle, source URL, dependencies, version, and media type).
 
-##### `add_inline_scripts(array $inline_scripts_to_add)`
+- `add_inline_scripts(array $inline_scripts_to_add)`
 
 Adds one or more inline script definitions to the enqueuer instance's internal list. This is useful for adding small JavaScript snippets or localizing data for a registered script. Each inline script definition is an associative array.
 
-##### `load()`
+- `load()`
 
 This is a crucial method that finalizes the asset registration process. It iterates through all script, style, and inline script definitions that have been added to the enqueuer instance and registers the appropriate WordPress action hooks (e.g., `wp_enqueue_scripts` for public assets or `admin_stage_scripts` for admin assets). These hooks ensure that WordPress enqueues the assets at the correct time during page load.
 
@@ -300,67 +300,9 @@ $public_assets->add_scripts([
 ]);
 ```
 
-## Options Management (Quick Start)
+##### Advanced Usage
 
-Use `Config::options(array $args = [])` to access your plugin’s registered options. Defaults to site scope.
-
-```php
-// Get the singleton Config (after your plugin calls ::init(__FILE__))
-$config = MyAwesomePlugin\Base\Config::get_instance();
-
-// Default (site) scope
-$opts   = $config->options(); // same as ['scope' => 'site']
-
-// Read values
-$values  = $opts->get_values();                 // values-only array
-$enabled = $opts->get_option('enabled', false); // single field with default
-
-```
-
-Scopes:
-
-```php
-// Network-wide options
-$networkOpts = $config->options(['scope' => 'network']);
-
-// Specific blog/site options (multisite)
-$blogOpts = $config->options([
-  'scope'   => 'blog',
-  'blog_id' => 123, // required for 'blog'
-]);
-```
-
-Notes:
-
-- Autoload applies to the site scope only.
-- Flipping autoload outside site scope is a no-op (with notice).
-- See detailed design and examples in:
-  - inc/Config/docs/PRD-002-Config-Options-Integration.md
-  - inc/Config/docs/PRD-003-Options-Scope-and-Multisite.md
-
-### Config::options() semantics (no-write accessor)
-
-- Recognized args (all optional):
-  - `autoload` (bool, default: true) — default autoload policy for future writes.
-  - `initial` (array<string,mixed>, default: []) — merged in-memory only.
-  - `schema` (array<string,mixed>, default: []) — merged in-memory only.
-- This accessor performs no writes, seeding, or flushes.
-- Unknown args are ignored and a warning is logged via the Config’s logger.
-
-Persisting changes:
-
-```php
-$opts = $config->options(['autoload' => true]);
-$opts->add_options(['enabled' => true]);
-$opts->flush(); // explicit write
-
-// or seed schema defaults and persist immediately
-$opts->register_schema(['enabled' => ['default' => true]], seed_defaults: true, flush: true);
-```
-
-## Advanced Usage
-
-### Deferred Script Loading
+##### Deferred Script Loading
 
 You can defer loading of non-critical scripts until a specific action hook fires.
 When adding a script, include the `'hook'` key:
@@ -378,7 +320,7 @@ $public_assets->add_scripts([
 
 The `EnqueueAbstract::load()` method will automatically set up the necessary `add_action` calls.
 
-### Inline Scripts & Data (`wp_localize_script` alternative)
+##### Inline Scripts & Data (`wp_localize_script` alternative)
 
 Use `add_inline_scripts()` to add JavaScript data directly or to attach data to an existing script handle (similar to `wp_localize_script` but more flexible).
 
@@ -402,6 +344,80 @@ $public_assets->add_inline_scripts([
     ]
 ]);
 ```
+
+### 4. Options Management (Quick Start)
+
+Use `Config::options(array $args = [])` to access your plugin’s registered options. Defaults to site scope.
+
+```php
+// Get the singleton Config (after your plugin calls ::init(__FILE__))
+$config = MyAwesomePlugin\Base\Config::get_instance();
+
+// Default (site) scope
+$opts   = $config->options(); // same as ['scope' => 'site']
+
+// Read values
+$values  = $opts->get_values();                 // values-only array
+$enabled = $opts->get_option('enabled', false); // single field with default
+
+```
+
+Scopes:
+
+```php
+use Ran\PluginLib\Options\Entity\ScopeEntity;
+
+// Network-wide options
+$networkOpts = $config->options(['scope' => 'network']);
+
+// Specific blog/site options (multisite)
+$blogEntity = ScopeEntity::forBlog(123);
+$blogOpts = $config->options([
+  'scope'  => 'blog',
+  'entity' => $blogEntity, // required for 'blog'
+]);
+
+// Specific user options
+$userEntity = ScopeEntity::forUser(456);
+$userOpts = $config->options([
+  'scope'  => 'user',
+  'entity' => $userEntity, // required for 'user'
+]);
+```
+
+Notes:
+
+- Autoload applies to the site scope only.
+- Flipping autoload outside site scope is a no-op (with notice).
+- See detailed design and examples in:
+  - inc/Config/docs/PRD-002-Config-Options-Integration.md
+  - inc/Config/docs/PRD-003-Options-Scope-and-Multisite.md
+
+#### Config::options() semantics (no-write accessor)
+
+- Recognized args (all optional):
+  - `autoload` (bool, default: true) — default autoload policy for future writes.
+  - `scope` ('site'|'network'|'blog'|'user' or OptionScope enum), default: 'site'.
+  - `entity` (ScopeEntity|null) — required when scope is 'blog' or 'user'.
+- For scopes 'blog' and 'user', an `entity` (a `ScopeEntity`) is required.
+- This accessor performs no writes, seeding, or flushes.
+- Unknown args are ignored and a warning is logged via the Config’s logger.
+
+Persisting changes:
+
+```php
+$opts = $config->options(['autoload' => true]);
+$opts->add_options(['enabled' => true]);
+$opts->flush(); // explicit write
+
+// or seed schema defaults and persist immediately (use fluent API on RegisterOptions)
+$opts->register_schema(['enabled' => ['default' => true]], seed_defaults: true, flush: true);
+```
+
+Examples:
+
+- Plugin options (basic writes): `inc/Config/docs/examples/plugin-options-basic.php`
+- Theme options (basic writes): `inc/Config/docs/examples/theme-options-basic.php`
 
 ## Work in Progress (WIP)
 
@@ -428,11 +444,13 @@ Basic testing infrastructure is in place, but comprehensive test coverage is an 
 
 Below is a brief overview of some core components. Documentation and functionality for these are still being refined.
 
+- **`Config` (`inc/Config/`)**: This component provides a structured way to manage configuration options for your plugin or theme. It includes a `Config` class that handles the registration and management of configuration options, as well as a `ConfigManager` class that provides a way to access and modify configuration options.
+- **`Options` (`inc/Options/`)**: This component provides a structured way to manage options for your plugin or theme. It includes a `Options` class that handles the registration and management of options, as well as a `OptionsManager` class that provides a way to access and modify options.
 - **`AccessoryAPI` (`inc/AccessoryAPI/`)**: This API aims to simplify interactions with complex or boilerplate-heavy WordPress functionalities. "Features" (see `FeaturesAPI` below) can opt-in to use an "Accessory" by implementing its corresponding interface. The system then automatically handles much of the setup. For example, an accessory might make it easier to register custom post types or manage admin notices.
 - **`FeaturesAPI` (`inc/FeaturesAPI/`)**: This is a foundational part of the library designed to help organize your plugin's code into modular, manageable "Features." Each distinct piece of functionality (like a shortcode, an admin settings page, or a custom REST endpoint) can be encapsulated in its own `FeatureController` class. The `FeaturesManager` handles registering these features, injecting dependencies, and loading them at the appropriate time. It also integrates with the `AccessoryAPI`.
 - **`HooksAccessory` (`inc/HooksAccessory/`)**: This is an example of an "Accessory" built on the `AccessoryAPI`. It provides a comprehensive hook management system that supports both declarative and dynamic hook registration patterns. The system includes specialized registrars (`ActionHooksRegistrar`, `FilterHooksRegistrar`) and an advanced `HooksManager` for complex hook scenarios including conditional registration, deduplication, and comprehensive logging.
-- **`Util` (`inc/Util/`)**: Core utility components used throughout the library. This includes the `Logger` class for PSR-3 compatible logging, `WPWrappersTrait` for wrapping WordPress functions to enable easier testing and potential future modifications, and other shared utilities that provide common functionality across different library components.
 - **`Users` (`inc/Users/`)**: This component provides utility functions related to WordPress user management. For instance, it includes methods for inserting new users and adding user metadata, with a focus on robust error handling (e.g., throwing exceptions instead of WordPress's typical `WP_Error` returns, which can sometimes be missed).
+- **`Util` (`inc/Util/`)**: Core utility components used throughout the library. This includes the `Logger` class for PSR-3 compatible logging, `WPWrappersTrait` for wrapping WordPress functions to enable easier testing and potential future modifications, and other shared utilities that provide common functionality across different library components.
 
 Further details on these and other components will be added as the library matures.
 
