@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Ran\PluginLib\Tests\Unit\Options;
 
 use WP_Mock;
-use Ran\PluginLib\Options\RegisterOptions;
 use Ran\PluginLib\Options\OptionScope;
+use Ran\PluginLib\Options\RegisterOptions;
 use Ran\PluginLib\Tests\Unit\PluginLibTestCase;
 
 /**
@@ -317,24 +317,5 @@ final class RegisterOptionsWriteTest extends PluginLibTestCase {
 		$this->assertSame($opts, $result);
 		$this->assertEquals('existing_value', $opts->get_option('existing_key'));
 		$this->assertEquals('new_value', $opts->get_option('new_key'));
-	}
-
-	/**
-	 * @covers \Ran\PluginLib\Options\RegisterOptions::update_option
-	 */
-	public function test_update_option_alias(): void {
-		$opts = RegisterOptions::site('test_options');
-
-		// Mock write guards to allow writes
-		WP_Mock::userFunction('apply_filters')->andReturn(true);
-
-		// Mock storage to return success
-		WP_Mock::userFunction('update_option')->andReturn(true);
-
-		// update_option should work exactly like set_option
-		$result = $opts->update_option('update_key', 'update_value');
-
-		$this->assertTrue($result);
-		$this->assertEquals('update_value', $opts->get_option('update_key'));
 	}
 }

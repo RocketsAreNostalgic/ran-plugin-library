@@ -35,8 +35,8 @@ class RegisterOptionsGateNoticeTest extends PluginLibTestCase {
 	 */
 	public function test_apply_write_gate_emits_notice_on_filter_veto(): void {
 		// Ensure core WP lookups used during construction are stubbed
-		WP_Mock::userFunction('get_option')->andReturn(array());
-		WP_Mock::userFunction('wp_load_alloptions')->andReturn(array());
+		WP_Mock::userFunction('get_option')->andReturn(array())->byDefault();
+		WP_Mock::userFunction('wp_load_alloptions')->andReturn(array())->byDefault();
 
 		$config = $this->getMockBuilder(ConfigInterface::class)->getMock();
 		$config->method('get_options_key')->willReturn('gate_notice_opts');
@@ -50,13 +50,9 @@ class RegisterOptionsGateNoticeTest extends PluginLibTestCase {
 		$storage->method('scope')->willReturn(OptionScope::Site);
 		$this->_set_protected_property_value($opts, 'storage', $storage);
 
-		$ctx = array(
-			'op'          => 'save_all',
-			'main_option' => 'gate_notice_opts',
-			'scope'       => OptionScope::Site->value,
-		);
+		$wc = \Ran\PluginLib\Options\WriteContext::for_clear('gate_notice_opts', OptionScope::Site->value, null, null, 'meta', false);
 
-		$result = $this->_invoke_protected_method($opts, '_apply_write_gate', array('save_all', $ctx));
+		$result = $this->_invoke_protected_method($opts, '_apply_write_gate', array('save_all', $wc));
 		$this->assertFalse($result);
 		$this->expectLog('notice', 'RegisterOptions: Write vetoed by allow_persist filter.', 1);
 		$this->expectLog('debug', 'RegisterOptions: _apply_write_gate final decision', 1);

@@ -9,7 +9,7 @@ use Ran\PluginLib\Util\Logger;
 use Ran\PluginLib\Options\OptionScope;
 use Ran\PluginLib\Util\ExpectLogTrait;
 use Ran\PluginLib\Options\RegisterOptions;
-use Ran\PluginLib\Options\WritePolicyInterface;
+use Ran\PluginLib\Options\Policy\WritePolicyInterface;
 use Ran\PluginLib\Tests\Unit\PluginLibTestCase;
 
 /**
@@ -21,12 +21,12 @@ final class RegisterOptionsUtilityTest extends PluginLibTestCase {
 		parent::setUp();
 
 		// Mock basic WordPress functions that WPWrappersTrait calls
-		WP_Mock::userFunction('get_option')->andReturn(array());
-		WP_Mock::userFunction('get_site_option')->andReturn(array());
-		WP_Mock::userFunction('get_blog_option')->andReturn(array());
-		WP_Mock::userFunction('get_user_option')->andReturn(array());
-		WP_Mock::userFunction('get_user_meta')->andReturn(array());
-		WP_Mock::userFunction('wp_load_alloptions')->andReturn(array());
+		WP_Mock::userFunction('get_option')->andReturn(array())->byDefault();
+		WP_Mock::userFunction('get_site_option')->andReturn(array())->byDefault();
+		WP_Mock::userFunction('get_blog_option')->andReturn(array())->byDefault();
+		WP_Mock::userFunction('get_user_option')->andReturn(array())->byDefault();
+		WP_Mock::userFunction('get_user_meta')->andReturn(array())->byDefault();
+		WP_Mock::userFunction('wp_load_alloptions')->andReturn(array())->byDefault();
 
 		// Mock sanitize_key to properly handle key normalization
 		WP_Mock::userFunction('sanitize_key')->andReturnUsing(function($key) {
@@ -75,7 +75,7 @@ final class RegisterOptionsUtilityTest extends PluginLibTestCase {
 		$opts = RegisterOptions::site('test_options');
 
 		// Create a mock write policy
-		$mockPolicy = $this->getMockBuilder(\Ran\PluginLib\Options\WritePolicyInterface::class)
+		$mockPolicy = $this->getMockBuilder(\Ran\PluginLib\Options\Policy\WritePolicyInterface::class)
 			->getMock();
 
 		$result = $opts->with_policy($mockPolicy);
@@ -118,7 +118,7 @@ final class RegisterOptionsUtilityTest extends PluginLibTestCase {
 		$opts = RegisterOptions::site('test_options');
 
 		// Create mock objects
-		$mockPolicy = $this->getMockBuilder(\Ran\PluginLib\Options\WritePolicyInterface::class)
+		$mockPolicy = $this->getMockBuilder(\Ran\PluginLib\Options\Policy\WritePolicyInterface::class)
 			->getMock();
 		$mockLogger = $this->getMockBuilder(\Ran\PluginLib\Util\Logger::class)
 			->disableOriginalConstructor()
@@ -168,7 +168,7 @@ final class RegisterOptionsUtilityTest extends PluginLibTestCase {
 		// Should return self for fluent interface
 		$this->assertSame($opts, $result);
 		$this->assertEquals('new_value', $opts->get_option('new_key'));
-		$this->assertEquals('migrated_', $opts->get_option('old_key'));
+		$this->assertEquals('migrated_old_value', $opts->get_option('old_key'));
 	}
 
 	/**
@@ -220,7 +220,7 @@ final class RegisterOptionsUtilityTest extends PluginLibTestCase {
 			return $default;
 		});
 		// Veto writes defensively in case migration attempts to persist
-		$policy = $this->getMockBuilder(\Ran\PluginLib\Options\WritePolicyInterface::class)->getMock();
+		$policy = $this->getMockBuilder(\Ran\PluginLib\Options\Policy\WritePolicyInterface::class)->getMock();
 		$policy->method('allow')->willReturn(false);
 		$opts->with_policy($policy);
 		WP_Mock::userFunction('apply_filters')->andReturn(false);

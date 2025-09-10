@@ -28,7 +28,7 @@ final class RegisterOptionsAdditionalCoverageTest extends PluginLibTestCase {
         ?\Ran\PluginLib\Util\Logger $logger = null,
         ?\Ran\PluginLib\Config\ConfigInterface $config = null,
         array $schema = array(),
-        ?\Ran\PluginLib\Options\WritePolicyInterface $policy = null
+        ?\Ran\PluginLib\Options\Policy\WritePolicyInterface $policy = null
     ): \Ran\PluginLib\Options\RegisterOptions {
 		return new class($name, $initial, $autoload, $logger, $config, $schema, $policy) extends \Ran\PluginLib\Options\RegisterOptions {
 			public function __construct(
@@ -38,7 +38,7 @@ final class RegisterOptionsAdditionalCoverageTest extends PluginLibTestCase {
                 ?\Ran\PluginLib\Util\Logger $logger = null,
                 ?\Ran\PluginLib\Config\ConfigInterface $config = null,
                 array $schema = array(),
-                ?\Ran\PluginLib\Options\WritePolicyInterface $policy = null
+                ?\Ran\PluginLib\Options\Policy\WritePolicyInterface $policy = null
             ) {
 				parent::__construct($main_wp_option_name, $initial_options, $main_option_autoload, $logger, $config, $schema, $policy);
 			}
@@ -50,12 +50,12 @@ final class RegisterOptionsAdditionalCoverageTest extends PluginLibTestCase {
 		parent::setUp();
 
 		// Common WP wrappers used by SUT
-		WP_Mock::userFunction('get_option')->andReturn(array());
-		WP_Mock::userFunction('get_site_option')->andReturn(array());
-		WP_Mock::userFunction('get_blog_option')->andReturn(array());
-		WP_Mock::userFunction('get_user_option')->andReturn(array());
-		WP_Mock::userFunction('get_user_meta')->andReturn(array());
-		WP_Mock::userFunction('wp_load_alloptions')->andReturn(array());
+		WP_Mock::userFunction('get_option')->andReturn(array())->byDefault();
+		WP_Mock::userFunction('get_site_option')->andReturn(array())->byDefault();
+		WP_Mock::userFunction('get_blog_option')->andReturn(array())->byDefault();
+		WP_Mock::userFunction('get_user_option')->andReturn(array())->byDefault();
+		WP_Mock::userFunction('get_user_meta')->andReturn(array())->byDefault();
+		WP_Mock::userFunction('wp_load_alloptions')->andReturn(array())->byDefault();
 
 		// Key normalization
 		WP_Mock::userFunction('sanitize_key')->andReturnUsing(function ($key) {

@@ -27,12 +27,12 @@ final class RegisterOptionsInternalsCoverageTest extends PluginLibTestCase {
 		parent::setUp();
 
 		// Common WP functions used by wrappers
-		WP_Mock::userFunction('get_option')->andReturn(array());
-		WP_Mock::userFunction('get_site_option')->andReturn(array());
-		WP_Mock::userFunction('get_blog_option')->andReturn(array());
-		WP_Mock::userFunction('get_user_option')->andReturn(array());
-		WP_Mock::userFunction('get_user_meta')->andReturn(array());
-		WP_Mock::userFunction('wp_load_alloptions')->andReturn(array());
+		WP_Mock::userFunction('get_option')->andReturn(array())->byDefault();
+		WP_Mock::userFunction('get_site_option')->andReturn(array())->byDefault();
+		WP_Mock::userFunction('get_blog_option')->andReturn(array())->byDefault();
+		WP_Mock::userFunction('get_user_option')->andReturn(array())->byDefault();
+		WP_Mock::userFunction('get_user_meta')->andReturn(array())->byDefault();
+		WP_Mock::userFunction('wp_load_alloptions')->andReturn(array())->byDefault();
 
 		// Key normalization consistent with other tests
 		WP_Mock::userFunction('sanitize_key')->andReturnUsing(function ($key) {

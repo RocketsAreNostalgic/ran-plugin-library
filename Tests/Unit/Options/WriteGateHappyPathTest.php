@@ -22,12 +22,12 @@ final class WriteGateHappyPathTest extends PluginLibTestCase {
 		parent::setUp();
 
 		// Basic WP wrappers used by SUT
-		WP_Mock::userFunction('get_option')->andReturn(array());
-		WP_Mock::userFunction('get_site_option')->andReturn(array());
-		WP_Mock::userFunction('get_blog_option')->andReturn(array());
-		WP_Mock::userFunction('get_user_option')->andReturn(array());
-		WP_Mock::userFunction('get_user_meta')->andReturn(array());
-		WP_Mock::userFunction('wp_load_alloptions')->andReturn(array());
+		WP_Mock::userFunction('get_option')->andReturn(array())->byDefault();
+		WP_Mock::userFunction('get_site_option')->andReturn(array())->byDefault();
+		WP_Mock::userFunction('get_blog_option')->andReturn(array())->byDefault();
+		WP_Mock::userFunction('get_user_option')->andReturn(array())->byDefault();
+		WP_Mock::userFunction('get_user_meta')->andReturn(array())->byDefault();
+		WP_Mock::userFunction('wp_load_alloptions')->andReturn(array())->byDefault();
 
 		// Key normalization as in other tests
 		WP_Mock::userFunction('sanitize_key')->andReturnUsing(function ($key) {
@@ -49,6 +49,9 @@ final class WriteGateHappyPathTest extends PluginLibTestCase {
 
 	private function allow_all_persist_filters_for_site(): void {
 		// Allow both general and site-scoped gates
+		WP_Mock::userFunction('current_user_can')
+			->with('manage_options')
+			->andReturn(true);
 		WP_Mock::onFilter('ran/plugin_lib/options/allow_persist')
 			->with(WP_Mock\Functions::type('bool'), WP_Mock\Functions::type('array'))
 			->reply(true);

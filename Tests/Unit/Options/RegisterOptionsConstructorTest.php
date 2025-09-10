@@ -113,12 +113,12 @@ final class RegisterOptionsConstructorTest extends PluginLibTestCase {
 		parent::setUp();
 
 		// Mock basic WordPress functions that WPWrappersTrait calls
-		WP_Mock::userFunction('get_option')->andReturn(array());
-		WP_Mock::userFunction('get_site_option')->andReturn(array());
-		WP_Mock::userFunction('get_blog_option')->andReturn(array());
-		WP_Mock::userFunction('get_user_option')->andReturn(array());
-		WP_Mock::userFunction('get_user_meta')->andReturn(array());
-		WP_Mock::userFunction('wp_load_alloptions')->andReturn(array());
+		WP_Mock::userFunction('get_option')->andReturn(array())->byDefault();
+		WP_Mock::userFunction('get_site_option')->andReturn(array())->byDefault();
+		WP_Mock::userFunction('get_blog_option')->andReturn(array())->byDefault();
+		WP_Mock::userFunction('get_user_option')->andReturn(array())->byDefault();
+		WP_Mock::userFunction('get_user_meta')->andReturn(array())->byDefault();
+		WP_Mock::userFunction('wp_load_alloptions')->andReturn(array())->byDefault();
 
 		// Mock sanitize_key to properly handle key normalization
 		WP_Mock::userFunction('sanitize_key')->andReturnUsing(function($key) {

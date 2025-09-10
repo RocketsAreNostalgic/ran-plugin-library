@@ -16,12 +16,12 @@ final class RegisterOptionsReadTest extends PluginLibTestCase {
 		parent::setUp();
 
 		// Mock basic WordPress functions that WPWrappersTrait calls
-		WP_Mock::userFunction('get_option')->andReturn(array());
-		WP_Mock::userFunction('get_site_option')->andReturn(array());
-		WP_Mock::userFunction('get_blog_option')->andReturn(array());
-		WP_Mock::userFunction('get_user_option')->andReturn(array());
-		WP_Mock::userFunction('get_user_meta')->andReturn(array());
-		WP_Mock::userFunction('wp_load_alloptions')->andReturn(array());
+		WP_Mock::userFunction('get_option')->andReturn(array())->byDefault();
+		WP_Mock::userFunction('get_site_option')->andReturn(array())->byDefault();
+		WP_Mock::userFunction('get_blog_option')->andReturn(array())->byDefault();
+		WP_Mock::userFunction('get_user_option')->andReturn(array())->byDefault();
+		WP_Mock::userFunction('get_user_meta')->andReturn(array())->byDefault();
+		WP_Mock::userFunction('wp_load_alloptions')->andReturn(array())->byDefault();
 
 		// Mock sanitize_key to properly handle key normalization
 		WP_Mock::userFunction('sanitize_key')->andReturnUsing(function($key) {
@@ -76,21 +76,6 @@ final class RegisterOptionsReadTest extends PluginLibTestCase {
 		$result = $opts->get_options();
 		$this->assertEquals($testData, $result);
 		$this->assertIsArray($result);
-	}
-
-	/**
-	 * @covers \Ran\PluginLib\Options\RegisterOptions::get_values
-	 */
-	public function test_get_values_returns_same_as_get_options(): void {
-		$opts     = RegisterOptions::site('test_options');
-		$testData = array('a' => 1, 'b' => 'test', 'c' => array('nested' => 'value'));
-		$this->_set_protected_property_value($opts, 'options', $testData);
-
-		$optionsResult = $opts->get_options();
-		$valuesResult  = $opts->get_values();
-
-		$this->assertEquals($optionsResult, $valuesResult);
-		$this->assertEquals($testData, $valuesResult);
 	}
 
 	/**
