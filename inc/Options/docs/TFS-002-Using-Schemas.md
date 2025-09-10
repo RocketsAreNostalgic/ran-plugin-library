@@ -12,7 +12,7 @@ Explain how to use schemas with `RegisterOptions` safely and predictably, with n
 
 These principles also inform method behavior in `RegisterOptions` (see method-level notes and TFS‑001).
 
-## Passing a schema via Config::options()
+## Applying a schema via RegisterOptions (fluent)
 
 ```php
 $schema = [
@@ -20,13 +20,7 @@ $schema = [
   'timeout' => ['default' => 30,    'validate' => fn($v) => is_int($v) && $v >= 0],
 ];
 
-$opts = $config->options(['schema' => $schema]);
-```
-
-- This is equivalent to:
-
-```php
-$opts = $config->options();
+$opts = $config->options(); // no writes
 $opts->register_schema($schema, false, false); // register only; no seed, no flush
 ```
 
@@ -37,35 +31,36 @@ $opts->register_schema($schema, false, false); // register only; no seed, no flu
 - **Read-only setup (boot/init; no DB writes)**
 
 ```php
-$opts = $config->options(['schema' => $schema]);
+$opts = $config->options();
+$opts->register_schema($schema, false, false);
 $values = $opts->get_values(); // validated reads; still no writes
 ```
 
 - **Activation-time seeding (first install)**
 
 ```php
-$opts = $config->options(['schema' => $schema]);
+$opts = $config->options();
 $opts->register_schema($schema, /* seed */ true, /* flush */ true); // backfill defaults and persist once
 ```
 
 - **Guarded first-write (idempotent)**
 
 ```php
-$opts = $config->options(['schema' => $schema]);
+$opts = $config->options();
 $opts->seed_if_missing(['enabled' => true, 'timeout' => 30])->flush();
 ```
 
 - **Update/expansion of schema**
 
 ```php
-$opts = $config->options(['schema' => $schema]);
+$opts = $config->options();
 $opts->register_schema($schema, /* seed */ true, /* flush */ true); // safely backfill new fields
 ```
 
 - **Batch updates (recommended)**
 
 ```php
-$opts = $config->options(['schema' => $schema]);
+$opts = $config->options();
 $opts
   ->add_options([
     'enabled' => ['value' => true],
@@ -134,17 +129,16 @@ $opts
 
 ## FAQ
 
-- **Does passing `schema` to `Config::options()` write to the DB?** No. It only registers schema for validation.
+- **Does `Config::options()` write to the DB?** No. It is a no-write accessor; use the fluent API on the returned `RegisterOptions` to register schema, seed defaults, and flush.
 - **Do I still need `register_schema()`?** Yes, if you want to seed or persist: call `register_schema($schema, true, true)` or use `seed_if_missing(...)->flush()`.
 - **Can I define schema after construction?** Yes:
 
-  ```php
-  $opts = $config->options();
-  $opts->register_schema($schema, seed_defaults: true, flush: true);
-  ```
+```php
+$opts = $config->options();
+$opts->register_schema($schema, seed_defaults: true, flush: true);
+```
 
 ## Testing Tips
 
 - Use `seed_if_missing()` for idempotent first-writes; assert autoload state via `$wpdb->options` when needed.
 - Verify “no implicit writes” by asserting no row exists after `options(['schema'=>...])` and after `register_schema($schema, false, false)`.
-- For migrations, test with the `migrate()` helper and ensure second runs are no-ops when no changes occur.

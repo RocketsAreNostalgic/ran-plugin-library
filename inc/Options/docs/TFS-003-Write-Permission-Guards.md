@@ -18,12 +18,13 @@ It covers control flow, filters, rollback guarantees, and extension points. Diag
 
 ## Core Ideas
 
-- **Layered gates**: Early, pre-mutation, and pre-persist checks ensure no unauthorized state changes occur.
+- **Layered gates**: Pre-mutation, pre-persist, and final save-time checks ensure no unauthorized state changes occur.
 - **Two-level filters**: For every gate, both a base hook and a scope-specific hook are applied:
   - Base: `ran/plugin_lib/options/allow_persist`
   - Scope: `ran/plugin_lib/options/allow_persist/scope/{scope}`
 - **Fail-fast with rollback**: Any veto at or after staging triggers rollback to the previous in-memory snapshot.
 - **Origin-aware persistence**: `_save_all_options()` runs with an operation origin (e.g., `'set_option'`) so policy can consistently veto at the final boundary too.
+- **Immutable policy first**: An immutable `WritePolicyInterface` (defaults to `RestrictedDefaultWritePolicy`) is consulted before filters at each gate.
 
 ## Policy Injection
 
@@ -31,25 +32,25 @@ It covers control flow, filters, rollback guarantees, and extension points. Diag
 - **Injection points**:
   - Constructor: `new RegisterOptions(..., ?WritePolicyInterface $policy = null)`
   - Factory: `RegisterOptions::from_config(..., array $storage_args = [], ?WritePolicyInterface $policy = null)`
-  - Config accessor: `$config->options(['policy' => $customPolicy])`
+  - Fluent on the returned manager: `$config->options([...])->with_policy($customPolicy)`
 
-Example via Config accessor:
+Example via fluent API on the returned manager:
 
 ```php
-$opts = $config->options([
-  'scope'  => 'site',
-  'policy' => $customPolicy, // implements WritePolicyInterface
-]);
+$opts = $config->options(['scope' => 'site']); // no writes
+$opts->with_policy($customPolicy); // implements WritePolicyInterface
 ```
 
 ## Gate Hooks and Context
 
-All gates call `_apply_write_gate($op, $ctx)` with the following standardized filter hooks:
+All gates call `_apply_write_gate($op, $wc)` where `$wc` is a typed `WriteContext`. The immutable policy is evaluated using this `WriteContext`.
+
+For filter hooks, a derived array payload (referred to below as `context`) is constructed from the `WriteContext` and passed to WordPress filters. The following standardized filter hooks are applied:
 
 - `ran/plugin_lib/options/allow_persist`
 - `ran/plugin_lib/options/allow_persist/scope/{scope}`
 
-Common `ctx` fields (subset varies by op):
+Common filter `context` fields (subset varies by op):
 
 - `op`: operation name (e.g., `set_option`, `save_all`, `add_option`, `delete_option`, etc.)
 - `main_option`: the main WP option name grouping all sub-options
@@ -78,23 +79,67 @@ Per-operation specifics:
 
 Notes:
 
-- The presence of `options` in `$ctx` distinguishes the final save gate from pre-mutation/pre-persist gates.
+- The presence of `options` in the filter `context` distinguishes the final save gate from pre-mutation/pre-persist gates.
+- The immutable write policy is evaluated before either filter hook and can veto immediately.
+
+## About WriteContext (reference)
+
+WriteContext is a typed, immutable description of a write operation used by the internal, immutable policy prior to any WordPress filters. It centralizes validation and ensures consistent gate inputs across operations.
+
+Key aspects:
+
+- Purpose: provide strongly-typed gate inputs for policy decisions.
+- Construction: via static factories per operation (e.g., `WriteContext::for_set_option(...)`, `::for_save_all(...)`).
+- Validation: factories normalize scope and enforce required IDs for blog/user scopes.
+
+Core fields (getter methods):
+
+- `op(): string` — operation name (e.g., `set_option`, `add_options`, `save_all`).
+- `main_option(): string` — main WordPress option key.
+- `scope(): string` — one of `site|network|blog|user`.
+- `blogId(): ?int`, `userId(): ?int` — scope-specific identifiers.
+- `user_storage(): ?string`, `user_global(): bool` — user-scope storage details.
+- `merge_from_db(): bool` — save-time merge hint (when applicable).
+- `key(): ?string`, `keys(): ?array<int,string>`, `options(): ?array<string,mixed>`, `changed_keys(): ?array<int,string>` — op-specific metadata.
+
+Further reading:
+
+- Implementation: `inc/Options/WriteContext.php`
+- Design TFS: `inc/Options/docs/TFS-00X-WriteContext-Policy-Typing.md`
+
+### Examples
+
+- Wiring a user-scope self-service whitelist policy (ExampleUserSelfServiceWhitelistPolicy): `inc/Options/docs/examples/policy-example-subscriber.php`
+
+Related building blocks:
+
+- Abstract base for policy helpers: `inc/Options/Policy/AbstractWritePolicy.php`
+- AND-composite to stack multiple policies: `inc/Options/Policy/WritePolicy.php`
+
+### Choose your path
+
+- Basic (recommended default):
+  - Use `RestrictedDefaultWritePolicy` only (no composition). Aligns with WordPress capabilities by scope.
+  - Example wiring: `inc/Options/docs/examples/policy-example-subscriber.php`
+
+- Advanced (optional, application rules):
+  - Compose policies with `WritePolicy` (AND semantics) for stricter control.
+  - Common pattern: `new WritePolicy(new RestrictedDefaultWritePolicy(), new ExampleUserSelfServiceWhitelistPolicy())`
+  - Single-policy example: `inc/Options/docs/examples/policy-example-subscriber.php`
+  - Composite example: `inc/Options/docs/examples/policy-example-composite.php`
 
 ## `set_option()` Control Flow
 
-Relevant code: `RegisterOptions::set_option()` around lines 340–424.
+Relevant code: method `RegisterOptions::set_option()`.
 
-- Early gate (pre-storage interaction):
-  - `op: 'set_option'`, context without autoload metadata
-  - Veto here returns `false` with no mutation
 - No-op check (strict comparison) prevents unnecessary writes
 - Pre-mutation gate (with full context including scope args):
   - Veto here returns `false` with no mutation
 - Stage mutation + snapshot `$__prev_options`
 - Pre-persist gate (same full context):
-  - Veto here rolls back and returns `false` (covers lines ~413–414)
+  - Veto here rolls back and returns `false`
 - Persist via `_save_all_options()` with origin `'set_option'`:
-  - If vetoed or storage update fails, roll back to snapshot and return `false` (covers line ~421)
+  - If vetoed or storage update fails, roll back to snapshot and return `false`
 
 ### Sequence: Success Path
 
@@ -106,13 +151,11 @@ sequenceDiagram
     participant Store as StorageAdapter
 
     Caller->>RO: set_option(key, value, hint)
-    RO->>Gate: op=set_option (early)
-    Gate-->>RO: allow
     RO->>RO: no-op check
-    RO->>Gate: op=set_option (pre-mutation, full ctx)
+    RO->>Gate: op=set_option (pre-mutation, full context)
     Gate-->>RO: allow
     RO->>RO: stage mutation (snapshot prev)
-    RO->>Gate: op=set_option (pre-persist, full ctx)
+    RO->>Gate: op=set_option (pre-persist, full context)
     Gate-->>RO: allow
     RO->>RO: __persist_origin='set_option'
     RO->>Gate: op=set_option (save_all with options)
@@ -127,9 +170,7 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
     Caller->>RO: set_option(key, value)
-    RO->>Gate: op=set_option (early)
-    Gate-->>RO: allow
-    RO->>Gate: op=set_option (pre-mutation, full ctx)
+    RO->>Gate: op=set_option (pre-mutation, full context)
     Gate-->>RO: veto
     RO-->>Caller: false (no mutation)
 ```
@@ -139,12 +180,10 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
     Caller->>RO: set_option(key, value)
-    RO->>Gate: op=set_option (early)
-    Gate-->>RO: allow
-    RO->>Gate: op=set_option (pre-mutation, full ctx)
+    RO->>Gate: op=set_option (pre-mutation, full context)
     Gate-->>RO: allow
     RO->>RO: stage mutation + snapshot
-    RO->>Gate: op=set_option (pre-persist, full ctx)
+    RO->>Gate: op=set_option (pre-persist, full context)
     Gate-->>RO: veto
     RO->>RO: rollback to snapshot
     RO-->>Caller: false
@@ -155,12 +194,10 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
     Caller->>RO: set_option(key, value)
-    RO->>Gate: op=set_option (early)
-    Gate-->>RO: allow
-    RO->>Gate: op=set_option (pre-mutation, full ctx)
+    RO->>Gate: op=set_option (pre-mutation, full context)
     Gate-->>RO: allow
     RO->>RO: stage mutation + snapshot
-    RO->>Gate: op=set_option (pre-persist, full ctx)
+    RO->>Gate: op=set_option (pre-persist, full context)
     Gate-->>RO: allow
     RO->>RO: __persist_origin='set_option'
     RO->>Gate: op=set_option (save_all with options)
@@ -184,18 +221,19 @@ sequenceDiagram
 
 ## Implementation Pointers
 
-- Early gate context: helps block writes before any storage interaction
-- Full-context gates (with scope args): used pre-mutation and pre-persist
+- Pre-mutation gate (with full context): used before any in-memory mutation
+- Pre-persist gate (same full context): used after staging to allow rollback on veto
 - Save gate context includes `'options'`: distinguishes persistence pass from pre-gates
 - Two-level filters fire in order: base then scoped. Implementers should consider both.
+- An immutable policy is evaluated before filters at each gate.
 
 ## Extension Examples
 
 ### Veto all writes for user scope (both in-memory mutation and persistent)
 
 ```php
-add_filter('ran/plugin_lib/options/allow_persist', function ($allowed, $ctx) {
-    if (($ctx['scope'] ?? '') === 'user') {
+add_filter('ran/plugin_lib/options/allow_persist', function ($allowed, $context) {
+    if (($context['scope'] ?? '') === 'user') {
         return false; // veto all user-scope operations
     }
     return $allowed;
@@ -205,22 +243,20 @@ add_filter('ran/plugin_lib/options/allow_persist', function ($allowed, $ctx) {
 ### Allow pre-mutation but veto at pre-persist for a specific key
 
 ```php
-add_filter('ran/plugin_lib/options/allow_persist', function ($allowed, $ctx) {
-    if (($ctx['op'] ?? '') === 'set_option' && ($ctx['key'] ?? '') === 'dangerous_key') {
+add_filter('ran/plugin_lib/options/allow_persist', function ($allowed, $context) {
+    if (($context['op'] ?? '') === 'set_option' && ($context['key'] ?? '') === 'dangerous_key') {
         // Count only the base filter to distinguish gates if needed externally
-        return ($ctx['__phase'] ?? 'pre-persist') !== 'pre-persist' ? true : false;
+        return ($context['__phase'] ?? 'pre-persist') !== 'pre-persist' ? true : false;
     }
     return $allowed;
 }, 10, 2);
 ```
 
-Note: Internally we do not pass `__phase`; the above illustrates how a higher-level wrapper could tag calls if desired. In core, the pre-persist call is simply the second full-context gate invocation.
-
 ### Veto only at save-time for set_option
 
 ```php
-add_filter('ran/plugin_lib/options/allow_persist', function ($allowed, $ctx) {
-    if (($ctx['op'] ?? '') === 'set_option' && array_key_exists('options', $ctx)) {
+add_filter('ran/plugin_lib/options/allow_persist', function ($allowed, $context) {
+    if (($context['op'] ?? '') === 'set_option' && array_key_exists('options', $context)) {
         return false; // save-time veto
     }
     return $allowed;
@@ -237,16 +273,16 @@ add_filter('ran/plugin_lib/options/allow_persist', function ($allowed, $ctx) {
 
 See `Tests/Unit/Options/RegisterOptionsWriteGateTest.php` for focused tests that:
 
-- Veto at pre-mutation (covers ~401)
-- Veto at pre-persist with rollback (covers ~413–414)
-- Veto at save with rollback (covers ~421)
+- Veto at pre-mutation
+- Veto at pre-persist with rollback
+- Veto at save with rollback
 
-These tests demonstrate how to allow the early gate and target specific later gates, accounting for the base+scope filter invocations.
+These tests demonstrate how to allow the pre-mutation gate and target specific later gates, accounting for the base+scope filter invocations.
 
 ## References
 
 - File: `inc/Options/RegisterOptions.php`
-  - `set_option()` early/pre-mutation/pre-persist/save sequences
-  - `_apply_write_gate()` filter application and scope hook
+  - `set_option()` pre-mutation/pre-persist/save sequences
+  - `_apply_write_gate()` policy + filter application and scope hook
   - `_save_all_options()` origin-aware persistence and gate
 - Storage adapters under `inc/Options/Storage/` (scope-dependent persistence)

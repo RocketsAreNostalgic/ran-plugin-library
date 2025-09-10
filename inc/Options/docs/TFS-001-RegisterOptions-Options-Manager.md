@@ -66,7 +66,7 @@ See also: `inc/Options/docs/TFS-002-Using-Schemas.md` for detailed schema usage 
 
 ### Integration Points
 
-- WordPress Options API: `get_option`, `update_option`, `add_option`, `delete_option`.
+- WordPress Options API: `get_option`, `set_option`, `add_option`, `delete_option`.
 - `ConfigInterface#get_config()['RAN']['AppOption']` to derive the main option name.
 
 ### Data Flow
@@ -82,35 +82,46 @@ See also: `inc/Options/docs/TFS-002-Using-Schemas.md` for detailed schema usage 
 ### Public Interface
 
 ```php
-__construct(
+// Construction is via named/static factories; constructor is protected.
+
+// Protected constructor (internal)
+protected function __construct(
   string $main_wp_option_name,
-  array $initial_options = [],
   bool $main_option_autoload = true,
-  ?Logger $logger = null,
-  ?ConfigInterface $config = null,
-  array $schema = []
+  ?ConfigInterface $config = null
 )
 
-static from_config(
-  ConfigInterface $config,
-  array $initial = [],
-  bool $autoload = true,
-  ?Logger $logger = null,
-  array $schema = []
-): self
+// Named factories
+public static function site(string $option_name, bool $autoload_on_create = true): static
+public static function network(string $option_name): static
+public static function blog(string $option_name, int $blog_id, ?bool $autoload_on_create = null): static
+public static function user(string $option_name, int $user_id, bool $global = false): static
 
+// Factory from Config (scope and storage args optional)
+public static function from_config(
+  ConfigInterface $config,
+  bool $autoload = true,
+  OptionScope|string|null $scope = null,
+  array $storage_args = []
+): static
+
+// Reads
 public function get_option(string $option_name, mixed $default = false): mixed
-public function get_options(): array // values only
-public function get_values(): array  // values only
+public function get_options(): array
+public function get_values(): array
 public function has_option(string $option_name): bool
+
+// Writes
 public function set_option(string $option_name, mixed $value): bool
 public function add_option(string $option_name, mixed $value): self
 public function add_options(array $keyToValue): self
-public function update_option(string $option_name, mixed $value): bool
+public function set_option(string $option_name, mixed $value): bool
 public function delete_option(string $option_name): bool
 public function clear(): bool
-public function flush(): bool
+public function flush(bool $merge_from_db = false): bool
 public function refresh_options(): void
+
+// Schema
 public function register_schema(array $schema, bool $seed_defaults = false, bool $flush = false): bool
 public function with_schema(array $schema, bool $seed_defaults = false, bool $flush = false): self
 ```
@@ -122,7 +133,7 @@ public function with_schema(array $schema, bool $seed_defaults = false, bool $fl
 - Sanitization and validation: `plugin-lib/inc/Options/docs/examples/sanitize-validate.php`
 - Batch and flush: `plugin-lib/inc/Options/docs/examples/batch-and-flush.php`
 - Deep merge pattern (caller-defined): `plugin-lib/inc/Options/docs/examples/deep-merge-pattern.php`
-- Flip autoload safely: `plugin-lib/inc/Options/docs/examples/autoload-flip.php`
+- Flip autoload safely: `plugin-lib/inc/Options/docs/examples/autoload-flip-example.php`
 
 ### Configuration Options
 
@@ -134,7 +145,7 @@ public function with_schema(array $schema, bool $seed_defaults = false, bool $fl
 ### Performance Requirements
 
 - No-op guard in `set_option()` avoids unnecessary DB writes.
-- Batch updates via `set_options()` + `flush()` minimize write frequency.
+- Batch updates via `add_option(s)` + `flush()` minimize write frequency.
 
 ### Compatibility Requirements
 
@@ -267,4 +278,4 @@ public function with_schema(array $schema, bool $seed_defaults = false, bool $fl
 ### References
 
 - Template: `plugin-lib/docs/Templates/TFS-Template.md`
-- WordPress Options API (`get_option`, `update_option`, `add_option`, `delete_option`)
+- WordPress Options API (`get_option`, `set_option`, `add_option`, `delete_option`)

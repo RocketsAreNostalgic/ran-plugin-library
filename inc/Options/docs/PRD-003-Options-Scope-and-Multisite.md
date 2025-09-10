@@ -205,7 +205,7 @@ Example filter names:
 - `ran/plugin_lib/options/allow_persist` (generic gate)
 - `ran/plugin_lib/options/allow_persist/scope/{site|network|blog}` (scope aliases)
 
-The filter receives (2nd arg) context: `op`, `main_option`, `options`, `scope`, `blog_id`, `user_id`, `mergeFromDb?`, `config?`. Return false to veto the write.
+The filter receives (2nd arg) context: `op`, `main_option`, `options`, `scope`, `blog_id`, `user_id`, `merge_from_db?`, `config?`. Return false to veto the write.
 
 Context fields:
 
@@ -215,16 +215,16 @@ Context fields:
 - **scope ('site'|'network'|'blog'|'user')** — target storage context for the operation.
 - **blog_id (?int)** — when `scope='blog'`: defaults to current blog if omitted; otherwise set to the target blog ID. Null otherwise.
 - **user_id (?int)** — when `scope='user'`: the target user ID.
-- **mergeFromDb (bool)** — only for `op='save_all'`; whether values will merge with DB vs replace.
+- **merge_from_db (bool)** — only for `op='save_all'`; whether values will merge with DB vs replace.
 - **config (array|null)** — optional library config snapshot for policy decisions.
 
 ```php
 // Generic gate: allow network writes only to admins with manage_network_options
-add_filter('ran/plugin_lib/options/allow_persist', function (bool $allowed, array $ctx) {
+add_filter('ran/plugin_lib/options/allow_persist', function (bool $allowed, array $context) {
     if (!is_multisite()) {
         return $allowed;
     }
-    if (($ctx['scope'] ?? 'site') === 'network') {
+    if (($context['scope'] ?? 'site') === 'network') {
         if (!is_network_admin() || !current_user_can('manage_network_options')) {
             return false;
         }
@@ -235,8 +235,8 @@ add_filter('ran/plugin_lib/options/allow_persist', function (bool $allowed, arra
 
 ```php
 // Scope alias: block all blog-scoped writes except for a specific blog ID
-add_filter('ran/plugin_lib/options/allow_persist/scope/blog', function (bool $allowed, array $ctx) {
-    $blogId = (int) ($ctx['blog_id'] ?? 0);
+add_filter('ran/plugin_lib/options/allow_persist/scope/blog', function (bool $allowed, array $context) {
+    $blogId = (int) ($context['blog_id'] ?? 0);
     if ($blogId !== 123) {
         return false;
     }
@@ -247,7 +247,7 @@ add_filter('ran/plugin_lib/options/allow_persist/scope/blog', function (bool $al
 
 ```php
 // CLI/cron guidance: allow specific operations only when running via WP-CLI or cron
-add_filter('ran/plugin_lib/options/allow_persist', function (bool $allowed, array $ctx) {
+add_filter('ran/plugin_lib/options/allow_persist', function (bool $allowed, array $context) {
     $isCli  = defined('WP_CLI') && WP_CLI;
     $isCron = defined('DOING_CRON') && DOING_CRON;
     if ($isCli || $isCron) {

@@ -18,7 +18,7 @@ This TFS documents the completion of a comprehensive Config + Options integratio
 
 - `Config::get_options_key()` - deterministic option key from `RAN.AppOption` header or slug fallback
 - `Config::options(array $args = [])` - one-liner to get pre-wired `RegisterOptions` instance
-- Support for optional arguments: `autoload`, `initial`, `schema`, `scope`, `blog_id`, `user_id`, `user_storage`, `user_global`, `policy`
+- Supported optional arguments (no writes): `autoload`, `scope`, `entity` (for blog/user scopes)
 - No implicit writes during Config hydration - all persistence explicit via Options helpers
 
 **RegisterOptions Enhancement:**
@@ -40,7 +40,7 @@ This TFS documents the completion of a comprehensive Config + Options integratio
 
 **Storage Adapters:**
 
-- **SiteOptionStorage**: `get_option`/`update_option`/`add_option`/`delete_option` + autoload support
+- **SiteOptionStorage**: `get_option`/`set_option`/`add_option`/`delete_option` + autoload support
 - **NetworkOptionStorage**: `get_site_option`/`update_site_option`/`add_site_option`/`delete_site_option` (no autoload)
 - **BlogOptionStorage**: `get_blog_option`/`update_blog_option`/`add_blog_option`/`delete_blog_option` + conditional autoload
 - **UserOptionStorage**: `get_user_meta`/`update_user_meta`/`add_user_meta`/`delete_user_meta` with global user option support
@@ -77,9 +77,10 @@ This TFS documents the completion of a comprehensive Config + Options integratio
 interface OptionStorageInterface {
     public function scope(): OptionScope;
     public function supports_autoload(): bool;
-    public function read(string $key, mixed $default = false): mixed;
-    public function update(string $key, mixed $value, ?string $autoload = null): bool;
-    // ... additional methods
+    public function read(string $key): mixed;
+    public function update(string $key, mixed $value, bool $autoload = false): bool; // autoload ignored on update
+    public function add(string $key, mixed $value, ?bool $autoload = null): bool;    // null defers to WP 6.6+ heuristics where supported
+    public function delete(string $key): bool;
 }
 ```
 
@@ -87,12 +88,12 @@ interface OptionStorageInterface {
 
 ```php
 // Generic gate
-add_filter('ran/plugin_lib/options/allow_persist', function(bool $allowed, array $ctx) {
+add_filter('ran/plugin_lib/options/allow_persist', function(bool $allowed, array $context) {
     // Context includes standardized keys:
     // - Common: op, main_option, scope, blog_id?, user_id?, user_storage?, user_global?
     // - Per-op: key|keys|changed_keys
     // - Save-time only: options, merge_from_db
-    return $security_check($ctx) ? $allowed : false;
+    return $security_check($context) ? $allowed : false;
 }, 10, 2);
 
 // Scope-specific gates
@@ -109,23 +110,20 @@ $opts = $config->options();
 // Network scope (multisite)
 $opts = $config->options(['scope' => 'network']);
 
-// Blog-specific
-$opts = $config->options(['scope' => 'blog', 'blog_id' => 123]);
+// Blog-specific (use entity)
+use Ran\PluginLib\Options\Entity\BlogEntity;
+$opts = $config->options(['scope' => 'blog', 'entity' => new BlogEntity(123)]);
 
-// User-specific (late addition)
-$opts = $config->options(['scope' => 'user', 'user_id' => 456]);
+// User-specific (use entity)
+use Ran\PluginLib\Options\Entity\UserEntity;
+$opts = $config->options(['scope' => 'user', 'entity' => new UserEntity(456)]);
 
-// User global options
-$opts = $config->options([
-    'scope' => 'user',
-    'user_id' => 456,
-    'user_global' => true
-]);
+// User global options (via entity flags)
+$opts = $config->options(['scope' => 'user', 'entity' => new UserEntity(456, true /* global */)]);
 
-// Inject a custom immutable write policy (optional)
-$opts = $config->options([
-    'policy' => $customPolicy, // implements \Ran\PluginLib\Options\WritePolicyInterface
-]);
+// Inject a custom immutable write policy (fluent on RegisterOptions)
+$opts = $config->options();
+$opts->with_policy($customPolicy); // implements \Ran\PluginLib\Options\Policy\WritePolicyInterface
 ```
 
 ## Implementation Highlights
@@ -168,12 +166,11 @@ register_activation_hook(__FILE__, function() use ($config) {
 ### Schema & Migration
 
 ```php
-$opts = $config->options([
-    'schema' => [
-        'enabled' => ['default' => true],
-        'timeout' => ['default' => 30, 'validate' => 'is_numeric']
-    ]
-]);
+$opts = $config->options();
+$opts->with_schema([
+    'enabled' => ['default' => true],
+    'timeout' => ['default' => 30, 'validate' => 'is_numeric']
+], false, false);
 
 $opts->migrate(function($current, $manager) {
     if (version_compare($current['version'] ?? '0.0.0', '2.0.0', '<')) {

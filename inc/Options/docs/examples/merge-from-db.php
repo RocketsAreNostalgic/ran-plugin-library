@@ -18,7 +18,7 @@
  * Process B saves -> 'feature_x' changes are lost!
  *
  * THE SOLUTION:
- * mergeFromDb: true performs a shallow merge at save time:
+ * merge_from_db: true performs a shallow merge at save time:
  * 1. Read current DB state
  * 2. Merge your in-memory changes on top
  * 3. Save the combined result
@@ -50,9 +50,9 @@ $options->add_options(array(
 // 'enable_features' => ['analytics', 'caching']
 // 'api_timeout' => 30
 
-// Persist with mergeFromDb to avoid overwriting concurrent admin changes
+// Persist with merge_from_db to avoid overwriting concurrent admin changes
 // RESULT: Both your activation data AND admin changes are preserved
-$options->flush(mergeFromDb: true);
+$options->flush(merge_from_db: true);
 
 // REAL-WORLD EXAMPLE: Cron job updating cache while user modifies settings
 register_activation_hook(__FILE__, function() {
@@ -65,7 +65,7 @@ register_activation_hook(__FILE__, function() {
 	    'needs_welcome_screen' => true,
 	), false);
 
-	$options->flush(mergeFromDb: true); // Safe concurrent save
+	$options->flush(merge_from_db: true); // Safe concurrent save
 });
 
 // CRON JOB EXAMPLE: Update analytics data without losing user settings
@@ -90,16 +90,16 @@ add_action('my_plugin_daily_stats', function() {
 	  'user_global' => false,
 	));
 	$userOptions->add_options(array('wizard_step' => 'done'));
-	$userOptions->flush(mergeFromDb: true);
+	$userOptions->flush(merge_from_db: true);
 
 	$blogOptions = $config->options(array(
 	  'scope'   => 'blog',
 	  'blog_id' => 2,
 	));
 	$blogOptions->add_options(array('feature_flags' => array('beta' => true)));
-	$blogOptions->flush(mergeFromDb: true);
+	$blogOptions->flush(merge_from_db: true);
 	// Merge with DB in case admin changed settings during cron run
-	$options->flush(mergeFromDb: true);
+	$options->flush(merge_from_db: true);
 });
 
 // AJAX FORM EXAMPLE: Handle overlapping form submissions
@@ -114,7 +114,7 @@ add_action('wp_ajax_save_plugin_settings', function() {
 	));
 
 	// Protect against overlapping AJAX requests
-	if ($options->flush(mergeFromDb: true)) {
+	if ($options->flush(merge_from_db: true)) {
 		wp_send_json_success('Settings saved');
 	} else {
 		wp_send_json_error('Save failed');

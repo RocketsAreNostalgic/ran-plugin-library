@@ -53,7 +53,7 @@ $options = new RegisterOptions(
 Inject a custom (optional) immutable write policy via the factory:
 
 ```php
-use Ran\PluginLib\Options\WritePolicyInterface;
+use Ran\PluginLib\Options\Policy\WritePolicyInterface;
 
 $opts = RegisterOptions::from_config(
   $config,
@@ -184,5 +184,5 @@ $options->set_option('complex_map', $merged);
 - `get_option($key, $default)` / `set_option($key, $value)`
 - `get_values()` returns values only; `get_options()` returns values only
 - Fluent batching: `add_option($k,$v)->add_option($k2,$v2)->flush()` or `add_options([...])->flush()`
-- `flush(bool $mergeFromDb = false)` supports optional shallow merge-from-DB
+- `flush(bool $merge_from_db = false)` supports optional shallow merge-from-DB
 - `register_schema(...)` / `with_schema(...)` for post-construction schema

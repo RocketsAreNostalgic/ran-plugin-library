@@ -91,34 +91,25 @@ public function migrate(callable $migration): self;
 
 ### 6) Optional Arguments (non-breaking)
 
-Extend `Config::options()` to accept a minimal set of optional arguments (no implicit writes).
+`Config::options()` accepts a minimal set of optional arguments (no implicit writes).
 
 ```php
 public function options(array $args = []): \Ran\PluginLib\Options\RegisterOptions;
 ```
 
 - **`autoload: bool`** — default `true`. Policy hint used for new-row creation; does not write by itself.
-- **`initial: array<string,mixed>`** — default `[]`. Values merged in-memory on the returned manager; no write.
-- **`schema: array<string,mixed>`** — default `[]`. Registers schema on the returned manager; no write.
-- **`policy: \Ran\PluginLib\Options\WritePolicyInterface|null`** — optional immutable write policy injected into the returned `RegisterOptions`. If omitted, the default policy is applied lazily.
+- **`scope: 'site'|'network'|'blog'|'user'|OptionScope`** — default `'site'`.
+- **`entity: ScopeEntity|null`** — required when `scope` is `blog` or `user` (e.g., `new BlogEntity($blog_id)` or `new UserEntity($user_id[, $global])`).
 
 Notes:
 
 - **No implicit writes** occur in `Config::options()`.
 - Unknown arguments are ignored and a warning is emitted via the configured logger.
-- Operational helpers (e.g., flipping autoload, seeding defaults, providing initial values, flushing) are performed on the returned `RegisterOptions` instance.
-
-Example (inject a custom write policy):
-
-```php
-$opts = $config->options([
-  'policy' => $customPolicy, // implements \Ran\PluginLib\Options\WritePolicyInterface
-]);
-```
+- Operational helpers (e.g., flipping autoload, schema registration, defaults, flushing) are performed on the returned `RegisterOptions` instance via its fluent API.
 
 Autoload implementation details:
 
-- WordPress option APIs expect autoload as strings `'yes'` or `'no'` (not booleans). The library adheres to this when calling `update_option()` and `add_option()`.
+- WordPress option APIs expect autoload as strings `'yes'` or `'no'` (not booleans). The library adheres to this when calling `set_option()` and `add_option()`.
 - Initial creation respects the configured autoload policy: when constructing `RegisterOptions` with `$main_option_autoload = false` and persisting (via defaults/initials + flush), the stored row is created with autoload `'no'`.
 
 ### Examples
@@ -142,29 +133,21 @@ $opts = $config->options();
 $opts->set_main_autoload(false); // guarded; may write if row exists and differs
 ```
 
-Register schema (no writes), then seed and persist explicitly:
+### Schema & Migration
 
 ```php
-$opts = $config->options([
-  'schema' => [
+$opts = $config->options();
+$opts->with_schema([
     'enabled' => ['default' => true],
-    'timeout' => ['default' => 30],
-  ],
-]);
-$opts->register_schema([
-  'enabled' => ['default' => true],
-  'timeout' => ['default' => 30],
-], true, true); // seed defaults and flush once
-```
+    'timeout' => ['default' => 30, 'validate' => 'is_numeric']
+], false, false);
 
-Provide initial values on the manager, then persist:
-
-```php
-$opts = $config->options(['initial' => ['enabled' => true, 'mode' => 'fast']]); // staged only; still no write
-$opts->add_options([
-  'enabled' => true,
-  'mode'    => 'fast',
-]);
+$opts->migrate(function($current, $manager) {
+    if (version_compare($current['version'] ?? '0.0.0', '2.0.0', '<')) {
+        $current['new_field'] = 'default_value';
+    }
+    return $current;
+});
 $opts->flush();
 ```
 
