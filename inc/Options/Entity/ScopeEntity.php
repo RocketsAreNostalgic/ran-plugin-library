@@ -24,7 +24,7 @@ abstract class ScopeEntity {
 	abstract public function getScope(): OptionScope;
 
 	/**
-	 * Convert entity to storage args array used by OptionStorageFactory.
+	 * Convert entity to storage args array consumed by RegisterOptions::_make_storage().
 	 *
 	 * @return array<string, mixed>
 	 */

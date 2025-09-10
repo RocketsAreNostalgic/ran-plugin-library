@@ -32,7 +32,7 @@ enum OptionScope: string {
 	case Network = 'network';
 
 	/**
-	 * Represents a user-level option. (Not currently implemented)
+	 * Represents a user-level option.
 	 */
 	case User = 'user';
 }

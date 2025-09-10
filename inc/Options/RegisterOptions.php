@@ -17,10 +17,15 @@ use Ran\PluginLib\Config\ConfigInterface;
 use Ran\PluginLib\Util\Logger;
 use Ran\PluginLib\Util\WPWrappersTrait;
 use Ran\PluginLib\Options\Storage\OptionStorageInterface;
-use Ran\PluginLib\Options\Storage\OptionStorageFactory;
+use Ran\PluginLib\Options\Storage\SiteOptionStorage;
+use Ran\PluginLib\Options\Storage\NetworkOptionStorage;
+use Ran\PluginLib\Options\Storage\BlogOptionStorage;
+use Ran\PluginLib\Options\Storage\UserMetaStorage;
+use Ran\PluginLib\Options\Storage\UserOptionStorage;
 use Ran\PluginLib\Options\OptionScope;
-use Ran\PluginLib\Options\WritePolicyInterface;
-use Ran\PluginLib\Options\RestrictedDefaultWritePolicy;
+use Ran\PluginLib\Options\Policy\WritePolicyInterface;
+use Ran\PluginLib\Options\WriteContext;
+use Ran\PluginLib\Options\Policy\RestrictedDefaultWritePolicy;
 
 /**
  * Manages plugin options by storing them as a single array in the wp_options table.
@@ -44,7 +49,7 @@ use Ran\PluginLib\Options\RestrictedDefaultWritePolicy;
  *   `$options->add_options([...])` then `$options->flush(true)` to reduce churn.
  *
  * Storage and scope:
- * - Uses a scope-aware storage adapter (Site/Blog/Network/User) via `OptionStorageFactory`.
+ * - Uses a scope-aware storage adapter (Site/Blog/Network/User) created internally via `_make_storage()`.
  * - Public passthroughs on this class:
  *   - `supports_autoload(): bool` — whether current storage supports autoload
  *
@@ -152,27 +157,27 @@ class RegisterOptions {
      * @param ConfigInterface|null $config Optional Config used for metadata, default resolvers, and logger binding.
      * @return mixed
      */
-    protected function __construct(
+	protected function __construct(
         string $main_wp_option_name,
         bool $main_option_autoload = true,
         ?ConfigInterface $config = null
     ) {
-        $this->main_wp_option_name  = $main_wp_option_name;
-        $this->main_option_autoload = $main_option_autoload;
-        $this->config               = $config ?? $this->config;
+		$this->main_wp_option_name  = $main_wp_option_name;
+		$this->main_option_autoload = $main_option_autoload;
+		$this->config               = $config ?? $this->config;
 
-        // If a Config is provided and exposes a logger, bind it immediately
-        if ($this->logger === null && $this->config instanceof ConfigInterface && method_exists($this->config, 'get_logger')) {
-            $this->logger = $this->config->get_logger();
-        }
+		// If a Config is provided and exposes a logger, bind it immediately
+		if ($this->logger === null && $this->config instanceof ConfigInterface && method_exists($this->config, 'get_logger')) {
+			$this->logger = $this->config->get_logger();
+		}
 
-        // Load all existing options from the single database entry (via storage adapter).
-        $this->options = $this->_read_main_option();
+		// Load all existing options from the single database entry (via storage adapter).
+		$this->options = $this->_read_main_option();
 
-        if ($this->_get_logger()->is_active()) {
-            $this->_get_logger()->debug("RegisterOptions: Initialized with main option '{$this->main_wp_option_name}'. Loaded " . count($this->options) . ' existing sub-options.');
-        }
-    }
+		if ($this->_get_logger()->is_active()) {
+			$this->_get_logger()->debug("RegisterOptions: Initialized with main option '{$this->main_wp_option_name}'. Loaded " . count($this->options) . ' existing sub-options.');
+		}
+	}
 
 	/**
 	 * Named factory: Site scope instance.
@@ -182,14 +187,14 @@ class RegisterOptions {
 	 * @return static
 	 */
 	public static function site(string $option_name, bool $autoload_on_create = true): static {
-        $instance                = new static($option_name, $autoload_on_create);
-        $instance->storage_scope = OptionScope::Site;
-        $instance->storage_args  = array();
-        // Ensure storage is rebuilt for this scope and payload is read from correct storage
-        $instance->storage = null;
-        $instance->options = $instance->_read_main_option();
-        return $instance;
-    }
+		$instance                = new static($option_name, $autoload_on_create);
+		$instance->storage_scope = OptionScope::Site;
+		$instance->storage_args  = array();
+		// Ensure storage is rebuilt for this scope and payload is read from correct storage
+		$instance->storage = null;
+		$instance->options = $instance->_read_main_option();
+		return $instance;
+	}
 
 	/**
 	 * Named factory: Network scope instance.
@@ -200,13 +205,13 @@ class RegisterOptions {
 	 * @return static
 	 */
 	public static function network(string $option_name): static {
-        $instance                = new static($option_name, false);
-        $instance->storage_scope = OptionScope::Network;
-        $instance->storage_args  = array();
-        $instance->storage       = null;
-        $instance->options       = $instance->_read_main_option();
-        return $instance;
-    }
+		$instance                = new static($option_name, false);
+		$instance->storage_scope = OptionScope::Network;
+		$instance->storage_args  = array();
+		$instance->storage       = null;
+		$instance->options       = $instance->_read_main_option();
+		return $instance;
+	}
 
 	/**
 	 * Named factory: Blog scope instance.
@@ -221,26 +226,26 @@ class RegisterOptions {
 	 * @return static
 	 */
 	public static function blog(string $option_name, int $blog_id, ?bool $autoload_on_create = null): static {
-        // Decide autoload preference (constructor requires bool). For non-current blog, force false.
-        $current_blog = (int) (new class {
-            use WPWrappersTrait;
-            public function id() {
-                return $this->_do_get_current_blog_id();
-            }
-        })->id();
-        $effective_autoload = ($autoload_on_create === true || $autoload_on_create === false)
-            ? (bool) $autoload_on_create
-            : false;
-        if ($blog_id !== $current_blog) {
-            $effective_autoload = false;
-        }
-        $instance                = new static($option_name, $effective_autoload);
-        $instance->storage_scope = OptionScope::Blog;
-        $instance->storage_args  = array('blog_id' => $blog_id);
-        $instance->storage       = null;
-        $instance->options       = $instance->_read_main_option();
-        return $instance;
-    }
+		// Decide autoload preference (constructor requires bool). For non-current blog, force false.
+		$current_blog = (int) (new class {
+			use WPWrappersTrait;
+			public function id() {
+				return $this->_do_get_current_blog_id();
+			}
+		})->id();
+		$effective_autoload = ($autoload_on_create === true || $autoload_on_create === false)
+		    ? (bool) $autoload_on_create
+		    : false;
+		if ($blog_id !== $current_blog) {
+			$effective_autoload = false;
+		}
+		$instance                = new static($option_name, $effective_autoload);
+		$instance->storage_scope = OptionScope::Blog;
+		$instance->storage_args  = array('blog_id' => $blog_id);
+		$instance->storage       = null;
+		$instance->options       = $instance->_read_main_option();
+		return $instance;
+	}
 
 	/**
 	 * Named factory: User scope instance.
@@ -255,17 +260,17 @@ class RegisterOptions {
 	 * @return static
 	 */
 	public static function user(string $option_name, int $user_id, bool $global = false): static {
-        $instance                = new static($option_name, false);
-        $instance->storage_scope = OptionScope::User;
-        $instance->storage_args  = array(
-            'user_id'      => $user_id,
-            'user_global'  => $global,
-            'user_storage' => 'meta',
-        );
-        $instance->storage = null;
-        $instance->options = $instance->_read_main_option();
-        return $instance;
-    }
+		$instance                = new static($option_name, false);
+		$instance->storage_scope = OptionScope::User;
+		$instance->storage_args  = array(
+		    'user_id'      => $user_id,
+		    'user_global'  => $global,
+		    'user_storage' => 'meta',
+		);
+		$instance->storage = null;
+		$instance->options = $instance->_read_main_option();
+		return $instance;
+	}
 
 	/**
 	 * Factory: create a RegisterOptions instance using the option name derived from Config.
@@ -290,29 +295,29 @@ class RegisterOptions {
         OptionScope|string|null $scope = null,
         array $storage_args = array()
     ): static {
-        $main_option = (string) $config->get_options_key();
-        if ($main_option === '') {
-            throw new \InvalidArgumentException(static::class . ': Missing or invalid options key from Config (expected non-empty get_options_key()).');
-        }
+		$main_option = (string) $config->get_options_key();
+		if ($main_option === '') {
+			throw new \InvalidArgumentException(static::class . ': Missing or invalid options key from Config (expected non-empty get_options_key()).');
+		}
 
-        // Construct with config so constructor-time logging uses the config-derived logger
-        $instance = new static($main_option, $autoload, $config);
+		// Construct with config so constructor-time logging uses the config-derived logger
+		$instance = new static($main_option, $autoload, $config);
 
-        // Store scope/args for storage creation; normalization is handled by caller (Config::options())
-        if ($scope !== null) {
-            $instance->storage_scope = $scope;
-        }
-        if (is_array($storage_args)) {
-            $instance->storage_args = $storage_args;
-        }
-        // If a scope/args override was provided, ensure subsequent storage access uses it.
-        // Clear any memoized storage adapter and re-read the main option using the new scope.
-        if ($scope !== null || !empty($storage_args)) {
-            $instance->storage = null;
-            $instance->options = $instance->_read_main_option();
-        }
-        return $instance;
-    }
+		// Store scope/args for storage creation; normalization is handled by caller (Config::options())
+		if ($scope !== null) {
+			$instance->storage_scope = $scope;
+		}
+		if (is_array($storage_args)) {
+			$instance->storage_args = $storage_args;
+		}
+		// If a scope/args override was provided, ensure subsequent storage access uses it.
+		// Clear any memoized storage adapter and re-read the main option using the new scope.
+		if ($scope !== null || !empty($storage_args)) {
+			$instance->storage = null;
+			$instance->options = $instance->_read_main_option();
+		}
+		return $instance;
+	}
 
 	/**
 	 * Fluent setter: Set initial default values (in-memory only).
@@ -325,8 +330,8 @@ class RegisterOptions {
 	 */
 	public function with_defaults(array $defaults): static {
 		foreach ($defaults as $key => $value) {
-			$k = $this->_do_sanitize_key((string) $key);
-			$v = $this->_sanitize_and_validate_option($k, $value);
+			$k                 = $this->_do_sanitize_key((string) $key);
+			$v                 = $this->_sanitize_and_validate_option($k, $value);
 			$this->options[$k] = $v;
 		}
 		return $this;
@@ -480,20 +485,6 @@ class RegisterOptions {
 	 * @return array<string, mixed> The array of all sub-options.
 	 */
 	public function get_options(): array {
-		// @codeCoverageIgnoreStart
-		if ($this->_get_logger()->is_active()) {
-			$this->_get_logger()->debug("RegisterOptions: Getting all options from '{$this->main_wp_option_name}'. Count: " . count($this->options));
-		}
-		// @codeCoverageIgnoreEnd
-		return $this->options;
-	}
-
-	/**
-	 * Convenience: returns values-only view of options.
-	 *
-	 * @return array<string, mixed>
-	 */
-	public function get_values(): array {
 		return $this->options;
 	}
 
@@ -537,27 +528,16 @@ class RegisterOptions {
 
 		// Write gate just before mutating in-memory state
 		$scopeEnum = $this->_get_storage()->scope();
-		/** @var array{
-		  op: 'set_option',
-		  main_option: string,
-		  key: string,
-		  scope: string,
-		  blog_id?: int|null,
-		  user_id?: int|null,
-		  user_storage?: string,
-		  user_global?: bool
-		} $ctx */
-		$ctx = array(
-		    'op'           => 'set_option',
-		    'main_option'  => $this->main_wp_option_name,
-		    'key'          => $option_name_clean,
-		    'scope'        => $scopeEnum->value,
-		    'blog_id'      => $this->storage_args['blog_id']      ?? null,
-		    'user_id'      => $this->storage_args['user_id']      ?? null,
-		    'user_storage' => $this->storage_args['user_storage'] ?? 'meta',
-		    'user_global'  => (bool) ($this->storage_args['user_global'] ?? false),
+		$wc        = WriteContext::for_set_option(
+			$this->main_wp_option_name,
+			$scopeEnum->value,
+			$this->storage_args['blog_id'] ?? null,
+			$this->storage_args['user_id'] ?? null,
+			(string)($this->storage_args['user_storage'] ?? 'meta'),
+			(bool)($this->storage_args['user_global'] ?? false),
+			$option_name_clean
 		);
-		$__pre_mut_allowed = $this->_apply_write_gate('set_option', $ctx);
+		$__pre_mut_allowed = $this->_apply_write_gate('set_option', $wc);
 		if (!$__pre_mut_allowed) {
 			return false; // veto: protect in-memory state
 		}
@@ -566,7 +546,7 @@ class RegisterOptions {
 		$__prev_options                    = $this->options;
 		$this->options[$option_name_clean] = $value;
 		// Defensive: re-check write gate just prior to persistence in case policies changed
-		$__pre_persist_allowed = $this->_apply_write_gate('set_option', $ctx);
+		$__pre_persist_allowed = $this->_apply_write_gate('set_option', $wc);
 		if (!$__pre_persist_allowed) {
 			$this->options = $__prev_options; // rollback staged change
 			return false;
@@ -593,27 +573,8 @@ class RegisterOptions {
 		// Gate batch addition before mutating memory
 		$keys      = array_map(static fn($k) => (string) $k, array_keys($keyToValue));
 		$scopeEnum = $this->_get_storage()->scope();
-		/** @var array{
-		  op: 'add_options',
-		  main_option: string,
-		  keys: array<int, string>,
-		  scope: string,
-		  blog_id?: int|null,
-		  user_id?: int|null,
-		  user_storage?: string,
-		  user_global?: bool
-		} $ctx */
-		$ctx = array(
-			'op'           => 'add_options',
-			'main_option'  => $this->main_wp_option_name,
-			'keys'         => $keys,
-			'scope'        => $scopeEnum->value,
-			'blog_id'      => $this->storage_args['blog_id']      ?? null,
-			'user_id'      => $this->storage_args['user_id']      ?? null,
-			'user_storage' => $this->storage_args['user_storage'] ?? 'meta',
-			'user_global'  => (bool) ($this->storage_args['user_global'] ?? false),
-		);
-		if (!$this->_apply_write_gate('add_options', $ctx)) {
+		$wc2       = WriteContext::for_add_options($this->main_wp_option_name, $scopeEnum->value, $this->storage_args['blog_id'] ?? null, $this->storage_args['user_id'] ?? null, (string)($this->storage_args['user_storage'] ?? 'meta'), (bool)($this->storage_args['user_global'] ?? false), $keys);
+		if (!$this->_apply_write_gate('add_options', $wc2)) {
 			return $this; // veto: no mutation
 		}
 
@@ -657,43 +618,21 @@ class RegisterOptions {
 
 		// Gate before mutating memory (after no-op guard)
 		$scopeEnum = $this->_get_storage()->scope();
-		/** @var array{
-		  op: 'add_option',
-		  main_option: string,
-		  key: string,
-		  scope: string,
-		  blog_id?: int|null,
-		  user_id?: int|null,
-		  user_storage?: string,
-		  user_global?: bool
-		} $ctx */
-		$ctx = array(
-			'op'           => 'add_option',
-			'main_option'  => $this->main_wp_option_name,
-			'key'          => $key,
-			'scope'        => $scopeEnum->value,
-			'blog_id'      => $this->storage_args['blog_id']      ?? null,
-			'user_id'      => $this->storage_args['user_id']      ?? null,
-			'user_storage' => $this->storage_args['user_storage'] ?? 'meta',
-			'user_global'  => (bool) ($this->storage_args['user_global'] ?? false),
+		$wc        = WriteContext::for_add_option(
+			$this->main_wp_option_name,
+			$scopeEnum->value,
+			$this->storage_args['blog_id'] ?? null,
+			$this->storage_args['user_id'] ?? null,
+			(string)($this->storage_args['user_storage'] ?? 'meta'),
+			(bool)($this->storage_args['user_global'] ?? false),
+			$key
 		);
-		if (!$this->_apply_write_gate('add_option', $ctx)) {
+		if (!$this->_apply_write_gate('add_option', $wc)) {
 			return $this; // veto: no mutation
 		}
 
 		$this->options[$key] = $value;
 		return $this;
-	}
-
-	/**
-	 * Updates a specific option's value. Alias for set.
-	 *
-	 * @param string     $option_name The name of the sub-option to update.
-	 * @param mixed      $value       The new value for the sub-option.
-	 * @return bool True if options were saved successfully, false otherwise.
-	 */
-	public function update_option(string $option_name, mixed $value): bool {
-		return $this->set_option($option_name, $value);
 	}
 
 	/**
@@ -731,29 +670,19 @@ class RegisterOptions {
 		}
 		// Gate delete before mutating
 		$scopeEnum = $this->_get_storage()->scope();
-		/** @var array{
-		  op: 'delete_option',
-		  main_option: string,
-		  key: string,
-		  scope: string,
-		  blog_id?: int|null,
-		  user_id?: int|null,
-		  user_storage?: string,
-		  user_global?: bool
-		} $ctx */
-		$ctx = array(
-			'op'           => 'delete_option',
-			'main_option'  => $this->main_wp_option_name,
-			'key'          => $key,
-			'scope'        => $scopeEnum->value,
-			'blog_id'      => $this->storage_args['blog_id']      ?? null,
-			'user_id'      => $this->storage_args['user_id']      ?? null,
-			'user_storage' => $this->storage_args['user_storage'] ?? 'meta',
-			'user_global'  => (bool) ($this->storage_args['user_global'] ?? false),
+		$wc        = WriteContext::for_delete_option(
+			$this->main_wp_option_name,
+			$scopeEnum->value,
+			$this->storage_args['blog_id'] ?? null,
+			$this->storage_args['user_id'] ?? null,
+			(string)($this->storage_args['user_storage'] ?? 'meta'),
+			(bool)($this->storage_args['user_global'] ?? false),
+			$key
 		);
-		if (!$this->_apply_write_gate('delete_option', $ctx)) {
+		if (!$this->_apply_write_gate('delete_option', $wc)) {
 			return false; // veto: no mutation
 		}
+
 		unset($this->options[$key]);
 		return $this->_save_all_options();
 	}
@@ -764,27 +693,18 @@ class RegisterOptions {
 	public function clear(): bool {
 		// Gate clear before mutating
 		$scopeEnum = $this->_get_storage()->scope();
-		/** @var array{
-		  op: 'clear',
-		  main_option: string,
-		  scope: string,
-		  blog_id?: int|null,
-		  user_id?: int|null,
-		  user_storage?: string,
-		  user_global?: bool
-		} $ctx */
-		$ctx = array(
-			'op'           => 'clear',
-			'main_option'  => $this->main_wp_option_name,
-			'scope'        => $scopeEnum->value,
-			'blog_id'      => $this->storage_args['blog_id']      ?? null,
-			'user_id'      => $this->storage_args['user_id']      ?? null,
-			'user_storage' => $this->storage_args['user_storage'] ?? 'meta',
-			'user_global'  => (bool) ($this->storage_args['user_global'] ?? false),
+		$wc        = WriteContext::for_clear(
+			$this->main_wp_option_name,
+			$scopeEnum->value,
+			$this->storage_args['blog_id'] ?? null,
+			$this->storage_args['user_id'] ?? null,
+			(string)($this->storage_args['user_storage'] ?? 'meta'),
+			(bool)($this->storage_args['user_global'] ?? false)
 		);
-		if (!$this->_apply_write_gate('clear', $ctx)) {
+		if (!$this->_apply_write_gate('clear', $wc)) {
 			return false; // veto
 		}
+
 		$this->options = array();
 		return $this->_save_all_options();
 	}
@@ -839,27 +759,16 @@ class RegisterOptions {
 
 		// Gate seeding before writing or mutating
 		$scopeEnum = $this->_get_storage()->scope();
-		/** @var array{
-		  op: 'seed_if_missing',
-		  main_option: string,
-		  keys: array<int, string>,
-		  scope: string,
-		  blog_id?: int|null,
-		  user_id?: int|null,
-		  user_storage?: string,
-		  user_global?: bool
-		} $ctx */
-		$ctx = array(
-			'op'           => 'seed_if_missing',
-			'main_option'  => $this->main_wp_option_name,
-			'keys'         => array_keys($normalized),
-			'scope'        => $scopeEnum->value,
-			'blog_id'      => $this->storage_args['blog_id']      ?? null,
-			'user_id'      => $this->storage_args['user_id']      ?? null,
-			'user_storage' => $this->storage_args['user_storage'] ?? 'meta',
-			'user_global'  => (bool) ($this->storage_args['user_global'] ?? false),
+		$wc        = WriteContext::for_seed_if_missing(
+			$this->main_wp_option_name,
+			$scopeEnum->value,
+			$this->storage_args['blog_id'] ?? null,
+			$this->storage_args['user_id'] ?? null,
+			(string)($this->storage_args['user_storage'] ?? 'meta'),
+			(bool)($this->storage_args['user_global'] ?? false),
+			array_keys($normalized)
 		);
-		if (!$this->_apply_write_gate('seed_if_missing', $ctx)) {
+		if (!$this->_apply_write_gate('seed_if_missing', $wc)) {
 			if ($this->_get_logger()->is_active()) {
 				$this->_get_logger()->debug('RegisterOptions: seed_if_missing vetoed by write gate');
 			}
@@ -891,7 +800,7 @@ class RegisterOptions {
 	 * - If missing, no-op and returns $this
 	 * - Invokes $migration($current, $this) without try/catch (exceptions propagate)
 	 * - Strict change detection (!==). If changed, normalizes and updates the stored value
-	 * - Preserves autoload by invoking core update_option() without autoload parameter
+	 * - Preserves autoload by invoking core set_option() without autoload parameter
 	 * - Synchronizes in-memory cache when a write occurs
 	 */
 	public function migrate(callable $migration): self {
@@ -931,32 +840,21 @@ class RegisterOptions {
 
 		// Gate migration write before updating DB / mutating memory
 		$scopeEnum = $this->_get_storage()->scope();
-		/** @var array{
-		  op: 'migrate',
-		  main_option: string,
-		  scope: string,
-		  blog_id?: int|null,
-		  user_id?: int|null,
-		  user_storage?: string,
-		  user_global?: bool,
-		  changed_keys: array<int, string>
-		} $ctx */
-		$ctx = array(
-			'op'           => 'migrate',
-			'main_option'  => $this->main_wp_option_name,
-			'scope'        => $scopeEnum->value,
-			'blog_id'      => $this->storage_args['blog_id']      ?? null,
-			'user_id'      => $this->storage_args['user_id']      ?? null,
-			'user_storage' => $this->storage_args['user_storage'] ?? 'meta',
-			'user_global'  => (bool) ($this->storage_args['user_global'] ?? false),
-			'changed_keys' => array_keys($normalized),
+		$wc        = WriteContext::for_migrate(
+			$this->main_wp_option_name,
+			$scopeEnum->value,
+			$this->storage_args['blog_id'] ?? null,
+			$this->storage_args['user_id'] ?? null,
+			(string)($this->storage_args['user_storage'] ?? 'meta'),
+			(bool)($this->storage_args['user_global'] ?? false),
+			array_keys($normalized)
 		);
-		if (!$this->_apply_write_gate('migrate', $ctx)) {
+		if (!$this->_apply_write_gate('migrate', $wc)) {
 			return $this; // veto: do not write/mutate
 		}
 
-		// Preserve autoload: call core update_option with two parameters
-		$this->_do_update_option($this->main_wp_option_name, $normalized);
+		// Preserve autoload: call core set_option with two parameters
+		$this->_do_set_option($this->main_wp_option_name, $normalized);
 
 		// Sync in-memory cache
 		$this->options = $normalized;
@@ -981,6 +879,11 @@ class RegisterOptions {
 		return $this->_get_storage()->supports_autoload();
 	}
 
+	/**
+	 * Returns the logger instance. Initializes a default logger if none is provided.
+	 *
+	 * @return Logger The logger instance.
+	 */
 	protected function _get_logger(): Logger {
 		// @codeCoverageIgnoreStart
 		if (null === $this->logger) {
@@ -1004,6 +907,8 @@ class RegisterOptions {
 	/**
 	 * Returns the composed storage adapter. Defaults to current site scope.
 	 * Memoized per instance. No public API changes.
+	 *
+	 * @return OptionStorageInterface The storage adapter.
 	 */
 	protected function _get_storage(): OptionStorageInterface {
 		if ($this->storage instanceof OptionStorageInterface) {
@@ -1013,15 +918,58 @@ class RegisterOptions {
 			}
 			return $st;
 		}
-		$factory       = new OptionStorageFactory($this->_get_logger());
-		$scope         = $this->storage_scope ?? OptionScope::Site;
-		$args          = $this->storage_args  ?? array();
-		$this->storage = $factory->make($scope, $args);
+		// Create storage via internal factory to reduce indirection
+		$this->storage = $this->_make_storage();
 		$st            = $this->storage;
 		if ($this->_get_logger()->is_active()) {
 			$this->_get_logger()->debug('RegisterOptions: _get_storage resolved (new)', array('scope' => $st->scope()->value));
 		}
 		return $st;
+	}
+
+	/**
+	 * Instantiate the scope-aware storage adapter from current scope/args.
+	 *
+	 * Rules:
+	 * - site: SiteOptionStorage (supports autoload on create)
+	 * - network: NetworkOptionStorage (no autoload)
+	 * - blog: requires integer blog_id → BlogOptionStorage(blog_id)
+	 * - user: requires integer user_id; user_storage 'meta' (default) or 'option'
+	 *         when 'option', honor user_global (bool) flag
+	 */
+	private function _make_storage(): OptionStorageInterface {
+		// Normalize scope name
+		$scopeName = 'site';
+		if ($this->storage_scope instanceof OptionScope) {
+			$scopeName = strtolower($this->storage_scope->name);
+		} elseif (is_string($this->storage_scope) && $this->storage_scope !== '') {
+			$scopeName = strtolower($this->storage_scope);
+		}
+
+		$args = is_array($this->storage_args) ? $this->storage_args : array();
+
+		if ($scopeName === 'network') {
+			return new NetworkOptionStorage();
+		} elseif ($scopeName === 'blog') {
+			$blog_id = $args['blog_id'] ?? null;
+			if (!is_int($blog_id)) {
+				throw new \InvalidArgumentException(static::class . '::_make_storage: blog scope requires integer blog_id');
+			}
+			return new BlogOptionStorage($blog_id);
+		} elseif ($scopeName === 'user') {
+			$user_id = $args['user_id'] ?? null;
+			if (!is_int($user_id)) {
+				throw new \InvalidArgumentException(static::class . '::_make_storage: user scope requires integer user_id');
+			}
+			$user_storage = strtolower((string) ($args['user_storage'] ?? 'meta'));
+			if ($user_storage === 'option') {
+				$global = (bool) ($args['user_global'] ?? false);
+				return new UserOptionStorage($user_id, $global);
+			}
+			return new UserMetaStorage($user_id);
+		}
+		// Default to site scope
+		return new SiteOptionStorage();
 	}
 
 	/**
@@ -1032,28 +980,38 @@ class RegisterOptions {
 	 * - ran/plugin_lib/options/allow_persist/scope/{scope}
 	 *
 	 * @param string $op  Operation name (e.g., 'save_all', 'set_option', 'add_options')
-	 * @param array{
-	 *   op: string,
-	 *   main_option: string,
-	 *   scope: string,
-	 *   blog_id?: int|null,
-	 *   user_id?: int|null,
-	 *   user_storage?: string,
-	 *   user_global?: bool,
-	 *   options?: array<string, mixed>,
-	 *   merge_from_db?: bool
-	 * } $ctx Context passed to filters and policy. At minimum includes 'scope' and 'main_option'.
+	 * @param WriteContext $wc
 	 * @return bool
 	 */
-	protected function _apply_write_gate(string $op, array $ctx): bool {
-		// Ensure op in context
-		$ctx['op'] = $op;
+	protected function _apply_write_gate(string $op, WriteContext $wc): bool {
+		// Derive array ctx for filters/logging from WriteContext
+		$ctx = array(
+		    'op'           => $op,
+		    'main_option'  => $wc->main_option(),
+		    'scope'        => $wc->scope(),
+		    'blog_id'      => $wc->blogId(),
+		    'user_id'      => $wc->userId(),
+		    'user_storage' => $wc->user_storage() ?? 'meta',
+		    'user_global'  => (bool) $wc->user_global(),
+		);
+		if ($wc->key() !== null) {
+			$ctx['key'] = $wc->key();
+		}
+		if ($wc->keys() !== null) {
+			$ctx['keys'] = $wc->keys();
+		}
+		if ($wc->options() !== null) {
+			$ctx['options'] = $wc->options();
+		}
+		if ($wc->merge_from_db()) {
+			$ctx['merge_from_db'] = true;
+		}
 
 		// First, consult immutable, non-filterable write policy.
 		if (!($this->write_policy instanceof WritePolicyInterface)) {
 			$this->write_policy = new RestrictedDefaultWritePolicy();
 		}
-		$policyAllowed = $this->write_policy->allow($op, $ctx);
+		$policyAllowed = $this->write_policy->allow($op, $wc);
 		// Debug: trace policy decision
 		if ($this->_get_logger()->is_active()) {
 			$this->_get_logger()->debug(
@@ -1213,29 +1171,17 @@ class RegisterOptions {
 
 		// Apply final gate before persistence with full context
 		$scopeEnum = $this->_get_storage()->scope();
-		/** @var array{
-		  op: string,
-		  main_option: string,
-		  scope: string,
-		  blog_id?: int|null,
-		  user_id?: int|null,
-		  user_storage?: string,
-		  user_global?: bool,
-		  options: array<string, mixed>,
-		  merge_from_db: bool
-		} $ctx */
-		$ctx = array(
-			'op'            => $this->__persist_origin ?? 'save_all',
-			'main_option'   => $this->main_wp_option_name,
-			'scope'         => $scopeEnum->value,
-			'blog_id'       => $this->storage_args['blog_id']      ?? null,
-			'user_id'       => $this->storage_args['user_id']      ?? null,
-			'user_storage'  => $this->storage_args['user_storage'] ?? 'meta',
-			'user_global'   => (bool) ($this->storage_args['user_global'] ?? false),
-			'options'       => $to_save,
-			'merge_from_db' => $merge_from_db,
+		$wc        = WriteContext::for_save_all(
+			$this->main_wp_option_name,
+			$scopeEnum->value,
+			$this->storage_args['blog_id'] ?? null,
+			$this->storage_args['user_id'] ?? null,
+			(string)($this->storage_args['user_storage'] ?? 'meta'),
+			(bool)($this->storage_args['user_global'] ?? false),
+			$to_save,
+			$merge_from_db
 		);
-		$allowed = $this->_apply_write_gate($this->__persist_origin ?? 'save_all', $ctx);
+		$allowed = $this->_apply_write_gate($this->__persist_origin ?? 'save_all', $wc);
 		if (!$allowed) {
 			if ($this->_get_logger()->is_active()) {
 				$this->_get_logger()->debug('RegisterOptions: _save_all_options vetoed by policy.');
