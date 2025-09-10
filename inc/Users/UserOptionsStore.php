@@ -69,7 +69,7 @@ final class UserOptionsStore implements UserOptionsStoreInterface {
 	 */
 	public function values(): array {
 		$this->ensure_opts();
-		return $this->opts->get_values();
+		return $this->opts->get_options();
 	}
 
 	private function ensure_opts(): void {
