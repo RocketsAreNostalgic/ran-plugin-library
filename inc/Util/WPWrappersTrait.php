@@ -86,7 +86,6 @@ trait WPWrappersTrait {
 		\add_filter($hook, $callback, $priority, $accepted_args);
 	}
 
-
 	/**
 	 * public wrapper for WordPress remove_action function
 	 *
@@ -175,7 +174,7 @@ trait WPWrappersTrait {
 	}
 
 	/**
-	 * Public wrapper for WordPress update_option function
+	 * Public wrapper for WordPress set_option function
 	 *
 	 * Direct-forward: Yes (requires WP loaded)
 	 *
@@ -333,6 +332,23 @@ trait WPWrappersTrait {
 	 */
 	public function _do_delete_blog_option(int $blog_id, string $option): bool {
 		return (bool) \delete_blog_option($blog_id, $option);
+	}
+
+	/**
+	 * Public wrapper for WordPress get_current_user_id()
+	 * Returns current user ID; when function missing, defaults to 0.
+	 *
+	 * Availability-guarded: Yes
+	 * Rationale: In early boot or tests, get_current_user_id() may be unavailable.
+	 * Returning 0 provides a neutral default.
+	 *
+	 * @return int
+	 */
+	public function _do_get_current_user_id(): int {
+		if (\function_exists('get_current_user_id')) {
+			return (int) \get_current_user_id();
+		}
+		return 0;
 	}
 
 	/**
