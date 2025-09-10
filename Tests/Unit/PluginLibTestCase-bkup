@@ -12,6 +12,7 @@ use Ran\PluginLib\Config\ConfigAbstract;
 use Ran\PluginLib\Util\CollectingLogger;
 use PHPUnit\Framework\MockObject\MockObject;
 use Ran\PluginLib\EnqueueAccessory\AssetType;
+use Ran\PluginLib\Singleton\SingletonAbstract;
 
 /**
  * Minimal concrete class for testing ConfigAbstract initialization.
@@ -60,8 +61,10 @@ class ConcreteConfigForTesting extends ConfigAbstract {
  * This abstract class provides a standardized setup for tests that depend on
  * a properly initialized ConfigAbstract instance (or its derivatives).
  * It handles the mocking of necessary WordPress functions, creation of a dummy plugin file,
- * and the construction of a `ConcreteConfigForTesting` instance. Tests should inject this
- * instance explicitly into systems under test. No global/singleton registration is performed.
+ * and the initialization and registration of a `ConcreteConfigForTesting` instance
+ * within the SingletonAbstract manager. This ensures that classes under test which
+ * rely on `ConfigAbstract::get_instance()` or `ConfigAbstract::init()` can function
+ * correctly in a controlled test environment.
  */
 abstract class PluginLibTestCase extends RanTestCase {
 	/**
@@ -163,8 +166,8 @@ abstract class PluginLibTestCase extends RanTestCase {
 		// Define the debug constant to make the real is_active() method return true.
 		$this->define_constant($this->mock_plugin_data['LogConstantName'], true);
 
-		// Initialize the concrete config instance.
-		$this->config_mock = $this->get_concrete_config_instance();
+		// Initialize and register the concrete config instance.
+		$this->config_mock = $this->get_and_register_concrete_config_instance();
 
 		// Instantiate the real CollectingLogger. This allows tests to inspect all
 		// logs after execution without Mockery interfering.
@@ -177,9 +180,9 @@ abstract class PluginLibTestCase extends RanTestCase {
 	/**
 	 * Cleans up the test environment after each test.
 	 *
-	 * Removes the mock plugin file and resets mocks. This method should be
-	 * called via `parent::tearDown()` in child test classes.
-	 *
+	 * Removes the mock plugin file and cleans up singleton instances managed by
+	 * SingletonAbstract to prevent test pollution. This method should be called
+	 * via `parent::tearDown()` in child test classes.
 	 * @return void
 	 */
 	public function tearDown(): void {
@@ -209,6 +212,10 @@ abstract class PluginLibTestCase extends RanTestCase {
 		Mockery::close();
 		WP_Mock::tearDown();
 
+		// Clean up singleton instances
+		$this->_removeSingletonInstance(ConcreteConfigForTesting::class);
+		$this->_removeSingletonInstance(ConfigAbstract::class);
+
 		parent::tearDown();
 	}
 
@@ -216,7 +223,6 @@ abstract class PluginLibTestCase extends RanTestCase {
 	 * Defines a constant if it's not already defined and tracks its name.
 	 *
 	 * @param string $name The name of the constant.
-	 *
 	 * @param mixed $value The value of the constant.
 	 * @return void
 	 */
@@ -338,6 +344,33 @@ abstract class PluginLibTestCase extends RanTestCase {
 	}
 
 	/**
+	 * Removes a specific singleton instance from SingletonAbstract::$instances.
+	 *
+	 * Uses reflection to access and modify the private static $instances property
+	 * of SingletonAbstract. This is primarily used in tearDown() to ensure a clean
+	 * state between tests.
+	 *
+	 * @param string $className The fully qualified class name of the singleton to remove.
+	 * @return void
+	 */
+	protected function _removeSingletonInstance(string $className): void {
+		try {
+			$reflectionSingleton = new \ReflectionClass(SingletonAbstract::class);
+			$instancesProperty   = $reflectionSingleton->getProperty('instances');
+			$instancesProperty->setAccessible(true);
+			$currentInstances = $instancesProperty->getValue();
+
+			if (isset($currentInstances[$className])) {
+				unset($currentInstances[$className]);
+				$instancesProperty->setValue(null, $currentInstances);
+			}
+		} catch (\ReflectionException $e) {
+			// Fail silently if the property doesn't exist, as it means no cleanup is needed.
+		}
+	}
+
+
+	/**
 	 * Sets up the logger mock for the test.
 	 *
 	 * This method creates a mock of the CollectingLogger and sets it on the test case.
@@ -353,21 +386,27 @@ abstract class PluginLibTestCase extends RanTestCase {
 		return $this->logger_mock;
 	}
 
+
 	/**
-	 * Creates and configures a `ConcreteConfigForTesting` instance.
+	 * Creates, configures, and registers a `ConcreteConfigForTesting` instance.
 	 *
 	 * This is the core helper method provided by `PluginLibTestCase`. It performs the following steps:
 	 * 1. Mocks essential WordPress functions (`plugin_dir_path`, `get_plugin_data`, etc.)
 	 *    to provide a controlled environment.
-	 * 2. Mocks the `_read_plugin_file_header_content()` method on a `ConcreteConfigForTesting` instance to return controlled header data.
-	 * 3. Manually invokes the `ConfigAbstract` constructor on this mock instance.
+	 * 2. Initializes the `ConcreteConfigForTesting` class via `::init()`.
+	 * 3. Mocks the `_read_plugin_file_header_content()` method on a `ConcreteConfigForTesting` instance to return controlled header data.
+	 * 4. Manually invokes the `ConfigAbstract` constructor on this mock instance.
+	 * 5. Registers the fully constructed and configured `ConcreteConfigForTesting` instance in `SingletonAbstract::$instances` under two keys:
+	 *    - `ConcreteConfigForTesting::class`: For direct access if needed.
+	 *    - `ConfigAbstract::class`: Crucially, this allows classes under test which
+	 *      call `ConfigAbstract::get_instance()` (e.g., indirectly via `RegisterOptions::get_logger()`) to receive this test-specific, fully configured instance.
 	 *
 	 * Child test classes should call this method in their `setUp()` (after `parent::setUp()`) to ensure the
 	 * configuration system is ready before instantiating the class under test.
 	 *
-	 * @return \PHPUnit\Framework\MockObject\MockObject|ConcreteConfigForTesting The fully initialized concrete config instance.
+	 * @return \PHPUnit\Framework\MockObject\MockObject|ConcreteConfigForTesting The fully initialized and registered concrete config instance.
 	 */
-	protected function get_concrete_config_instance() {
+	protected function get_and_register_concrete_config_instance() {
 		WP_Mock::userFunction('plugin_dir_path')
 		    ->with($this->mock_plugin_file_path)
 		    ->andReturn($this->mock_plugin_dir_path);
@@ -384,7 +423,7 @@ abstract class PluginLibTestCase extends RanTestCase {
 		    ->with($this->mock_plugin_data['TextDomain'])
 		    ->andReturn($this->mock_plugin_data['TextDomain']); // Simple mock
 
-		// Build a mock instance directly; no global registration.
+		// NOTE: Legacy ::init() no longer exists on Config; we create a mock instance directly.
 
 		// Define mock header content for _read_plugin_file_header_content
 		$mock_file_header_content = "<?php\n/**\n";
@@ -429,6 +468,19 @@ abstract class PluginLibTestCase extends RanTestCase {
 			'Slug'       => $slug,
 			'Type'       => 'plugin',
 		));
+
+		// Register in SingletonAbstract for codepaths that call ConfigAbstract::get_instance()
+		try {
+			$reflectionSingleton = new \ReflectionClass(SingletonAbstract::class);
+			$instancesProperty   = $reflectionSingleton->getProperty('instances');
+			$instancesProperty->setAccessible(true);
+			$currentInstances                                  = $instancesProperty->getValue();
+			$currentInstances[ConcreteConfigForTesting::class] = $concreteInstance;
+			$currentInstances[ConfigAbstract::class]           = $concreteInstance;
+			$instancesProperty->setValue(null, $currentInstances);
+		} catch (\ReflectionException $e) {
+			// If singleton scaffolding changes, tests that depend on it will surface failures.
+		}
 
 		return $concreteInstance;
 	}

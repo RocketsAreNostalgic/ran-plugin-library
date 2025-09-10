@@ -81,17 +81,17 @@ if ( file_exists( __DIR__ . '/vendor/autoload.php' ) ) {
     require_once __DIR__ . '/vendor/autoload.php';
 }
 
-// 1. Initialize PluginLib Config
+// 1. Initialize PluginLib Config (factory-based)
 // Replace `MyAwesomePlugin\Base\Config` with your plugin's class that extends `Ran\PluginLib\Config\ConfigAbstract`
-$plugin_config = MyAwesomePlugin\Base\Config::init( __FILE__ );
+$plugin_config = MyAwesomePlugin\Base\Config::fromPluginFile( __FILE__ );
 
 // 2. Bootstrap your plugin
 // `MyAwesomePlugin\Base\Bootstrap` would implement `Ran\PluginLib\BootstrapInterface`
 add_action(
     'plugins_loaded', // Or another appropriate hook
-    function (): void {
-        // Pass the singleton Config instance to your Bootstrap class
-        $bootstrap = new MyAwesomePlugin\Base\Bootstrap( MyAwesomePlugin\Base\Config::get_instance() );
+    function () use ( $plugin_config ): void {
+        // Pass the Config instance to your Bootstrap class
+        $bootstrap = new MyAwesomePlugin\Base\Bootstrap( $plugin_config );
         $bootstrap->init();
     },
     0 // Adjust priority as needed
@@ -101,12 +101,14 @@ add_action(
 register_activation_hook( __FILE__, __NAMESPACE__ . '\activate_plugin' );
 register_deactivation_hook( __FILE__, __NAMESPACE__ . '\deactivate_plugin' );
 
-function activate_plugin(): void {
-    // MyAwesomePlugin\Base\Activate::activate( MyAwesomePlugin\Base\Config::get_instance() );
+function activate_plugin() : void {
+    // $config = MyAwesomePlugin\Base\Config::fromPluginFile( __FILE__ );
+    // MyAwesomePlugin\Base\Activate::activate( $config );
 }
 
-function deactivate_plugin(): void {
-    // MyAwesomePlugin\Base\Deactivate::deactivate( MyAwesomePlugin\Base\Config::get_instance() );
+function deactivate_plugin() : void {
+    // $config = MyAwesomePlugin\Base\Config::fromPluginFile( __FILE__ );
+    // MyAwesomePlugin\Base\Deactivate::deactivate( $config );
 }
 ```
 
@@ -133,18 +135,17 @@ final class Config extends ConfigAbstract implements ConfigInterface {
 
 **Accessing Configuration:**
 
-Once `MyAwesomePlugin\Base\Config::init(__FILE__)` is called, you can access the configuration:
+Once you’ve constructed a `Config` instance (e.g., via `fromPluginFile(__FILE__)`), access it through the object you already hold:
 
 ```php
-// In your Bootstrap or other classes, after injecting/retrieving the Config instance:
-$config_instance = MyAwesomePlugin\Base\Config::get_instance();
-$plugin_data = $config_instance->get_plugin_config();
+// In your Bootstrap or other classes, after receiving the Config instance via DI:
+$plugin_data = $this->config->get_plugin_config();
 
-$plugin_name = $plugin_data['Name']; // "My Awesome Plugin"
+$plugin_name    = $plugin_data['Name']; // "My Awesome Plugin"
 $custom_setting = $plugin_data['CustomConfigValue']; // "Some setting specific to my plugin"
 
 // Accessing the logger
-$logger = $config_instance->get_logger();
+$logger = $this->config->get_logger();
 $logger->info('Plugin initialized.');
 ```
 
@@ -350,11 +351,11 @@ $public_assets->add_inline_scripts([
 Use `Config::options(array $args = [])` to access your plugin’s registered options. Defaults to site scope.
 
 ```php
-// Get the singleton Config (after your plugin calls ::init(__FILE__))
-$config = MyAwesomePlugin\Base\Config::get_instance();
+// Assume you already have a Config instance (e.g., from your bootstrap):
+// $config = MyAwesomePlugin\Base\Config::fromPluginFile( __FILE__ );
 
 // Default (site) scope
-$opts   = $config->options(); // same as ['scope' => 'site']
+$opts = $config->options(); // same as ['scope' => 'site']
 
 // Read values
 $values  = $opts->get_values();                 // values-only array

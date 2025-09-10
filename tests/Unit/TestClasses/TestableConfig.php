@@ -212,14 +212,10 @@ class TestableConfig extends ConfigAbstract {
 	}
 
 	/**
-		* Override init to return the current instance without requiring a plugin file.
-		*
-		* @param string $plugin_file Ignored in this implementation.
-		* @return self The current instance.
+		* (Removed) Legacy static init() method was deleted as part of eliminating
+		* singleton-style access in tests. Construct instances directly or use
+		* factory methods on concrete Config implementations where applicable.
 		*/
-	public static function init(string $plugin_file = ''): self {
-		return self::get_instance();
-	}
 
 	/**
 	 * Provide options accessor required by ConfigInterface for this test class.

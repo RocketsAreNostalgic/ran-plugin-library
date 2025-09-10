@@ -8,7 +8,8 @@ A small, pragmatic options manager that stores all of your plugin settings in a 
 use Ran\PluginLib\Config\Config;
 use Ran\PluginLib\Options\RegisterOptions;
 
-$config  = Config::get_instance();
+// Assume you already have a Config instance (e.g., from your plugin bootstrap):
+// $config = Config::fromPluginFile( __FILE__ );
 $options = RegisterOptions::from_config($config, /* initial */ [], /* autoload */ true);
 
 // Set

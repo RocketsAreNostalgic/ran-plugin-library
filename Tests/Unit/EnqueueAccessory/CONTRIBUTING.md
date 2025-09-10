@@ -14,12 +14,11 @@ explains Enqueue-specific patterns so new tests are consistent and reliable.
 
   - Provides powerful helpers required by Enqueue tests:
     - `_set_protected_property_value()` / `_invoke_protected_method()`
-    - `_removeSingletonInstance()`
     - `define_constant()`
-    - A pre-registered `ConcreteConfigForTesting` via `SingletonAbstract`
+    - A ready-to-use `ConcreteConfigForTesting` instance for DI
   - Centralizes `WP_Mock` lifecycle and a shared `CollectingLogger`.
-  - Ensures consistent config/Singleton scaffolding for systems that call
-    `ConfigAbstract::get_instance()`
+  - Ensures consistent config scaffolding; tests should inject the config
+    instance into the SUT (no singleton access).
 
 - **When to use `PluginLibTestCase` directly**
   - Orchestrator/handler tests like `EnqueueAdminTest.php` and

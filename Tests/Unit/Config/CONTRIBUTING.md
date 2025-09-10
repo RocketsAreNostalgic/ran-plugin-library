@@ -45,15 +45,15 @@ Add a short note at the top of a new test explaining the choice if it’s not ob
 
 - PluginLibTestCase
 
-  - Provides: `_set_protected_property_value()`, `_invoke_protected_method()`, `_removeSingletonInstance()`, `define_constant()`, and a fully registered `ConcreteConfigForTesting` via `SingletonAbstract`.
+  - Provides: `_set_protected_property_value()`, `_invoke_protected_method()`, `define_constant()`, and a ready `ConcreteConfigForTesting` instance for dependency injection (no global/singleton registration).
   - Logger: `CollectingLogger` tied to the config mock; offers `set_logger_mock()` when strict partial logging behavior is needed.
-  - Best for: tests that require deeper config scaffolding, protected/private access, or code paths that call `ConfigAbstract::get_instance()`.
+  - Best for: tests that require deeper config scaffolding, protected/private access, or DI into SUTs that need a `ConfigInterface`.
 
 - RanTestCase
   - Minimal bootstrap for WP_Mock integration and common assertions such as `expectLog()`.
   - Best for: isolated units (e.g., header providers, narrow probes) where additional scaffolding is unnecessary.
 
-Why some Config tests use PluginLibTestCase: even within `Tests/Unit/Config/`, certain tests intentionally rely on `PluginLibTestCase` for its powerful helpers (protected property access, singleton registration) rather than `ConfigTestCase`. This is a scope choice, not an inheritance one.
+Why some Config tests use PluginLibTestCase: even within `Tests/Unit/Config/`, certain tests intentionally rely on `PluginLibTestCase` for its powerful helpers (protected property access, DI-ready config instance) rather than `ConfigTestCase`. This is a scope choice, not an inheritance one.
 
 ## WP_Mock lifecycle and structure
 

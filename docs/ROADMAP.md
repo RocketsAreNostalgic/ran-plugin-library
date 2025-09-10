@@ -10,7 +10,16 @@ The library is **approximately 75% complete** with core infrastructure in place.
 
 ---
 
-## 🎯 High Priority - Project rename to `orbital`
+## 🎯 High Priority - Deep project linting
+
+**Status**: 🟡 In Progress
+**Priority**: High
+
+We have been using `composer cs` for regular linting, however the more indepth and correct approach would be to apply `standards:fix` which will adjust the codebase to align with the WordPress coding standards.
+
+This will be a major change that will touch all files in the reopo, so should be done at as a last step before next major release. All active issues should be completed before this step.
+
+## 🎯 High Priority - Project rename to `orbital` or `kepler`?
 
 **Status**: 🟡 In Progress
 **Priority**: High
@@ -230,31 +239,21 @@ This needs to be reviewed agains our `RegisterOptions` class. Maybe we should pr
 - **Enhance**: Add more user management utilities
 - **Remove**: If it's too specific for a general library
 
-### Singleton Pattern Enhancement
+### Dependency Injection as a First-Class Pattern
 
-**Status**: 🟡 Basic Implementation
-**Priority**: Low
+**Status**: 🟢 Adopted
+**Priority**: Ongoing
 
 **Current State:**
 
-- ✅ `SingletonAbstract` and `Singleton` classes implemented
-- ✅ Basic singleton pattern working
-- ❌ Comprehensive testing missing
-- ❌ Documentation incomplete
-- ❌ Modern PHP patterns not fully utilized
+- ✅ DI-first approach across `Config`, Enqueue, and Options systems
+- ✅ Factory methods for constructing configuration and related objects
+- ✅ Documentation and examples updated to reflect DI usage
 
 **Tasks:**
 
-- [ ] **Testing**: Comprehensive unit test suite
-  - [ ] Singleton instance management
-  - [ ] Inheritance scenarios
-  - [ ] Thread safety considerations
-- [ ] **Documentation**: Usage patterns and best practices
-  - [ ] When to use vs. dependency injection
-  - [ ] Integration with other library components
-- [ ] **Enhancement**: Modern PHP features
-  - [ ] PHP 8+ attribute support
-  - [ ] Better type safety
+- [ ] Continue refining DI examples and guidance across all components
+- [ ] Ensure new features expose clear injection points for configuration and logging
 
 ---
 
