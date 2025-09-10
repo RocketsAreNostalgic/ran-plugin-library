@@ -88,14 +88,15 @@ See also: `inc/Options/docs/TFS-002-Using-Schemas.md` for detailed schema usage 
 protected function __construct(
   string $main_wp_option_name,
   bool $main_option_autoload = true,
-  ?ConfigInterface $config = null
+  ?ConfigInterface $config = null,
+  ?Logger $logger = null
 )
 
 // Named factories
-public static function site(string $option_name, bool $autoload_on_create = true): static
-public static function network(string $option_name): static
-public static function blog(string $option_name, int $blog_id, ?bool $autoload_on_create = null): static
-public static function user(string $option_name, int $user_id, bool $global = false): static
+public static function site(string $option_name, bool $autoload_on_create = true, ?Logger $logger = null): static
+public static function network(string $option_name, ?Logger $logger = null): static
+public static function blog(string $option_name, int $blog_id, ?bool $autoload_on_create = null, ?Logger $logger = null): static
+public static function user(string $option_name, int $user_id, bool $global = false, ?Logger $logger = null): static
 
 // Factory from Config (scope and storage args optional)
 public static function from_config(
@@ -278,3 +279,51 @@ public function with_schema(array $schema, bool $seed_defaults = false, bool $fl
 
 - Template: `plugin-lib/docs/Templates/TFS-Template.md`
 - WordPress Options API (`get_option`, `set_option`, `add_option`, `delete_option`)
+
+## Logger binding: DI vs `with_logger()`
+
+`RegisterOptions` supports two ways to bind a logger:
+
+- Constructor/factory DI (earliest binding)
+
+  - Factories accept an optional `Logger` instance.
+    - `RegisterOptions::site($option, $autoload = true, ?Logger $logger = null)`
+    - `RegisterOptions::network($option, ?Logger $logger = null)`
+    - `RegisterOptions::blog($option, $blogId, ?bool $autoloadOnCreate = null, ?Logger $logger = null)`
+    - `RegisterOptions::user($option, $userId, $global = false, ?Logger $logger = null)`
+  - `from_config()` binds logger via `ConfigInterface::get_logger()` when provided.
+  - Benefits: constructor-time reads/logs are captured by your logger.
+
+- Post‑construction fluent: `with_logger(Logger $logger): static`
+  - Rebinds the logger on an already constructed instance.
+  - Useful for runtime overrides (e.g., temporarily attach a `CollectingLogger` during a diagnostic flow) or when the creation site cannot be changed to pass DI.
+  - Note: constructor-time logs are not captured if you rebind later.
+
+Preferred usage:
+
+- Use factory/constructor DI whenever possible to ensure earliest logging and consistent test capture.
+- Use `with_logger()` when you need to swap/override the logger mid‑lifecycle or when testing the fluent itself (e.g., chaining semantics).
+
+### Examples: Logger DI
+
+```php
+use Ran\PluginLib\Options\RegisterOptions;
+use Ran\PluginLib\Util\Logger;
+
+// 1) Factory DI — ensure earliest logging
+$logger = new Logger([ /* config */ ]);
+$opts   = RegisterOptions::site('my_option', true, $logger);
+
+// 2) From Config — provide get_logger() on your Config
+$configWithGetLogger = new class($logger) implements \Ran\PluginLib\Config\ConfigInterface {
+    public function __construct(private Logger $logger) {}
+    public function get_logger(): Logger { return $this->logger; }
+    public function get_options_key(): string { return 'my_option'; }
+    // ...other required ConfigInterface methods...
+};
+
+$optsFromConfig = RegisterOptions::from_config($configWithGetLogger, [
+    'autoload' => true,
+    'scope'    => 'site',
+]);
+```
