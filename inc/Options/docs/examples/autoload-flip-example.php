@@ -29,21 +29,21 @@ $options = RegisterOptions::from_config($config); // site scope by default
 
 // Guard: ensure we're in a scope that supports autoload.
 if (!$options->supports_autoload()) {
-    echo "Current scope does not support autoload. Skipping flip.\n";
-    // Example: show that user/blog scopes are not eligible
-    $userOpts = $config->options(array(
-        'scope'  => 'user',
-        'entity' => new UserEntity(123, false, 'meta'),
-    ));
-    assert($userOpts->supports_autoload() === false);
+	echo "Current scope does not support autoload. Skipping flip.\n";
+	// Example: show that user/blog scopes are not eligible
+	$userOpts = $config->options(array(
+	    'scope'  => 'user',
+	    'entity' => new UserEntity(123, false, 'meta'),
+	));
+	assert($userOpts->supports_autoload() === false);
 
-    $blogOpts = $config->options(array(
-        'scope'  => 'blog',
-        'entity' => new BlogEntity(2),
-    ));
-    // Will only be true when blog_id == current blog id
-    echo 'Blog scope supports autoload? ' . ($blogOpts->supports_autoload() ? 'yes' : 'no') . "\n";
-    exit;
+	$blogOpts = $config->options(array(
+	    'scope'  => 'blog',
+	    'entity' => new BlogEntity(2),
+	));
+	// Will only be true when blog_id == current blog id
+	echo 'Blog scope supports autoload? ' . ($blogOpts->supports_autoload() ? 'yes' : 'no') . "\n";
+	exit;
 }
 
 // Get the option name and current values
