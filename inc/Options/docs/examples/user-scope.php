@@ -20,16 +20,17 @@ declare(strict_types=1);
 
 use Ran\PluginLib\Config\Config;
 use Ran\PluginLib\Options\RegisterOptions;
+use Ran\PluginLib\Options\Entity\UserEntity;
 
 // Initialize config (adapt as needed for your plugin bootstrap)
 $config = Config::fromPluginFile(__FILE__);
 
 $userId = get_current_user_id(); // Or any specific user ID
 
-// Default: user meta storage (stores entire options array in usermeta)
+// Default: user meta storage via typed entity (stores entire options array in usermeta)
 $options = $config->options(array(
-    'scope'   => 'user',
-    'user_id' => (int) $userId,
+    'scope'  => 'user',
+    'entity' => new UserEntity((int) $userId, false, 'meta'),
 ));
 
 // Autoload is not supported for user scope
@@ -49,7 +50,7 @@ $prefs     = $options->get_option('dashboard_prefs', array());
 $isEnabled = $options->get_option('feature_x_enabled', false);
 
 // Values-only view
-$values = $options->get_values();
+$values = $options->get_options();
 
 // Batch update pattern (for multiple writes)
 $options->add_options(array(
@@ -58,24 +59,17 @@ $options->add_options(array(
 ));
 $options->flush(true); // single DB write
 
-// Optional: When using a custom logger, you can create options via RegisterOptions::from_config()
-// to pass an explicit logger and storage args directly.
-$explicit = RegisterOptions::from_config(
-	$config,
-	/* initial */ array(),
-	/* autoload */ false,
-	/* logger */ $config->get_logger(),
-	/* schema */ array(),
-	/* scope */ 'user',
-	/* storage args */ array('user_id' => $userId, 'user_global' => true)
-);
+// Optional: Explicit construction via RegisterOptions::from_config() (array args)
+$explicit = RegisterOptions::from_config($config, array(
+    'autoload' => false, // user scope does not support autoload
+    'scope'    => 'user',
+    'entity'   => new UserEntity((int) $userId, true, 'meta'), // network-wide user meta
+));
 
 // Alternate backend: user option storage (per-user option key)
 $optionsOption = $config->options(array(
-    'scope'        => 'user',
-    'user_id'      => (int) $userId,
-    'user_storage' => 'option', // select WP user option storage
-    'user_global'  => false,    // set true for network-wide user option
+    'scope'  => 'user',
+    'entity' => new UserEntity((int) $userId, false, 'option'), // select WP user option storage
 ));
 
 // Usage is identical regardless of backend:

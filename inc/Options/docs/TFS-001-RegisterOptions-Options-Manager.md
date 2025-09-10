@@ -74,7 +74,7 @@ See also: `inc/Options/docs/TFS-002-Using-Schemas.md` for detailed schema usage 
 1. Construct instance (from config or directly).
 2. Load existing grouped options from DB.
 3. Normalize schema; seed defaults for missing keys if provided.
-4. Callers read via `get_option()`/`get_values()` and write via `set_option()` for single writes or `add_option(s)` + `flush()` for batching.
+4. Callers read via `get_option()`/`get_options()` and write via `set_option()` for single writes or `add_option(s)` + `flush()` for batching.
 5. Persist explicitly via `flush()` (or implicitly via `set_option`).
 
 ## API Design
@@ -108,7 +108,6 @@ public static function from_config(
 // Reads
 public function get_option(string $option_name, mixed $default = false): mixed
 public function get_options(): array
-public function get_values(): array
 public function has_option(string $option_name): bool
 
 // Writes

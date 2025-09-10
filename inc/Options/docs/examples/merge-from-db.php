@@ -33,6 +33,8 @@ declare(strict_types=1);
 
 use Ran\PluginLib\Config\Config;
 use Ran\PluginLib\Options\RegisterOptions;
+use Ran\PluginLib\Options\Entity\UserEntity;
+use Ran\PluginLib\Options\Entity\BlogEntity;
 
 $config  = Config::fromPluginFile(__FILE__);
 $options = RegisterOptions::from_config($config);
@@ -85,16 +87,15 @@ add_action('my_plugin_daily_stats', function() {
 	// ------------------------------------------------------------
 	// If you need to merge writes in a different scope, obtain a scoped instance:
 	$userOptions = $config->options(array(
-	  'scope'       => 'user',
-	  'user_id'     => get_current_user_id(),
-	  'user_global' => false,
+	  'scope'  => 'user',
+	  'entity' => new UserEntity((int) get_current_user_id(), false, 'meta'),
 	));
 	$userOptions->add_options(array('wizard_step' => 'done'));
 	$userOptions->flush(merge_from_db: true);
 
 	$blogOptions = $config->options(array(
-	  'scope'   => 'blog',
-	  'blog_id' => 2,
+	  'scope'  => 'blog',
+	  'entity' => new BlogEntity(2),
 	));
 	$blogOptions->add_options(array('feature_flags' => array('beta' => true)));
 	$blogOptions->flush(merge_from_db: true);

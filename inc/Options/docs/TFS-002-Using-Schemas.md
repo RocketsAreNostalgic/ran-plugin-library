@@ -33,7 +33,7 @@ $opts->register_schema($schema, false, false); // register only; no seed, no flu
 ```php
 $opts = $config->options();
 $opts->register_schema($schema, false, false);
-$values = $opts->get_values(); // validated reads; still no writes
+$options = $opts->get_options(); // validated reads; still no writes
 ```
 
 - **Activation-time seeding (first install)**

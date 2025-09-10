@@ -155,7 +155,7 @@ use Ran\PluginLib\Config\Config;
 $config = Config::fromPluginFile(__FILE__);
 $opts   = $config->options(); // defaults to 'site'
 
-$current = $opts->get_values();
+$current = $opts->get_options();
 ```
 
 ### Network‑wide options (multisite)
@@ -163,7 +163,7 @@ $current = $opts->get_values();
 ```php
 if (is_multisite() && current_user_can('manage_network_options')) {
   $opts = $config->options(['scope' => 'network']);
-  $global = $opts->get_values();
+  $global = $opts->get_options();
 }
 ```
 
@@ -186,10 +186,10 @@ $opts->register_schema(['enabled' => ['default' => false]], true, true);
 ```php
 $blog_id = 123; // known site ID
 $opts = $config->options(['scope' => 'blog', 'blog_id' => $blog_id]);
-$blog_settings = $opts->get_values();
+$blog_settings = $opts->get_options();
 // Alternatively:
 // $opts = \Ran\PluginLib\Options\RegisterOptions::fromConfig($config, 'blog', $blog_id);
-// $blog_settings = $opts->get_values();
+// $blog_settings = $opts->get_options();
 ```
 
 > Security note: `Config::options()` and related accessors do not perform capability checks.
@@ -280,7 +280,7 @@ $network    = $config->options(['scope' => 'network']);
 $aggregate = [];
 foreach (get_sites(['number' => 0]) as $site) {
   $blog_opts = $config->options(['scope' => 'blog', 'blog_id' => (int) $site->blog_id]);
-  $data = $blog_opts->get_values();
+  $data = $blog_opts->get_options();
   // Merge policy up to the product: union/override/etc.
   $aggregate = array_replace_recursive($aggregate, (array) $data);
 }

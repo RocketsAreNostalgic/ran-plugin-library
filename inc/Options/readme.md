@@ -10,63 +10,95 @@ use Ran\PluginLib\Options\RegisterOptions;
 
 // Assume you already have a Config instance (e.g., from your plugin bootstrap):
 // $config = Config::fromPluginFile( __FILE__ );
-$options = RegisterOptions::from_config($config, /* initial */ [], /* autoload */ true);
+$opts = $config->options([
+  'autoload' => true, // default
+  'scope'    => 'site', // default
+]);
 
 // Set
-$options->set_option('enabled', true);
-$options->set_option('api_key', 'abc123');
+$opts->set_option('enabled', true);
+$opts->set_option('api_key', 'abc123');
 
 // Get (with safe defaults)
-$enabled = $options->get_option('enabled', false);
-$apiKey  = $options->get_option('api_key', '');
+$enabled = $opts->get_option('enabled', false);
+$apiKey  = $opts->get_option('api_key', '');
 
 // Values-only view (strips metadata)
-$values = $options->get_values();
+$values = $opts->get_options();
 ```
 
-Alternative constructor:
+### Construction options
+
+Use the minimal `Config::options()` accessor for the common case (no writes), then configure extras via fluent methods:
 
 ```php
-$options = new RegisterOptions(
-  'my_plugin_option_name',
-  /* initial */ [],
-  /* autoload */ true,
-  $logger,
-  $config,
-  /* schema */ [],
-  $customPolicy // optional WritePolicyInterface
-);
+$opts = $config->options();
+$opts
+  ->with_schema(['enabled' => ['default' => true]], seed_defaults: true, flush: true)
+  ->with_policy($customPolicy)
+  ->with_defaults(['api_timeout' => 30]);
 ```
 
-### Constructor vs factory parity
+You can also construct instances for specific scopes using named factories, or via the public `from_config()` for construction-time concerns only:
 
-- **Parity**: `RegisterOptions::from_config($config, $initial, $autoload, $logger, $schema)` behaves the same as direct construction for logger wiring and schema handling.
-  - No implicit writes: construction (either path) seeds in-memory only; call `flush()` to persist.
-  - Logger: if `$logger` is null, a logger is resolved from `Config` on first use.
-  - Schema: defaults are evaluated/sanitized/validated when used (e.g., when seeding), never auto-persisted.
-  - Policy: both constructor and factory accept an optional `WritePolicyInterface`. When omitted, a default policy is applied lazily.
-- **Scope and storage args**: The factory supports optional scope/args that influence storage selection without changing API semantics.
+````php
+use Ran\PluginLib\Options\OptionScope;
 
-  ```php
-  $opts = RegisterOptions::from_config($config, [], true, null, $schema, /* scope */ null, /* storage_args */ []);
-  ```
+// Named factories
+$siteOpts    = RegisterOptions::site('my_plugin_option');
+$networkOpts = RegisterOptions::network('my_plugin_network_option');
+$blogOpts    = RegisterOptions::blog('my_plugin_blog_option', 123 /* blog_id */);
+$userOpts    = RegisterOptions::user('my_plugin_user_option', 456 /* user_id */, true /* global? */);
 
-Inject a custom (optional) immutable write policy via the factory:
-
-```php
-use Ran\PluginLib\Options\Policy\WritePolicyInterface;
-
+// Factory from Config (construction-only args)
+// Note: prefer the typed path (Config::options with ScopeEntity) for scope handling; see below.
 $opts = RegisterOptions::from_config(
   $config,
-  [],       // initial
-  true,     // autoload
-  null,     // logger
-  [],       // schema
-  null,     // scope
-  [],       // storage_args
-  $customPolicy // WritePolicyInterface or null
+  [
+    'autoload' => true,
+    'scope'    => OptionScope::Site, // or 'network'|'blog'|'user'
+    // For blog/user scopes provide an entity, e.g.:
+    // 'entity' => new \Ran\PluginLib\Options\Entity\BlogEntity(123),
+    // 'entity' => new \Ran\PluginLib\Options\Entity\UserEntity(5, true, 'option'),
+  ]
 );
-```
+
+#### Typed scope + entity (recommended)
+
+For earlier validation and clearer intent, prefer the typed path via `Config::options()` with a `ScopeEntity`:
+
+```php
+use Ran\PluginLib\Options\Entity\BlogEntity;
+
+$opts = $config->options([
+  'scope'  => 'blog',
+  'entity' => new BlogEntity(123),
+]);
+````
+
+This approach avoids stringly `storage_args` and ensures consistent scope resolution.
+
+````
+
+### Factory vs. fluents
+
+```php
+// Construction-only via factory; no writes happen here
+$opts = $config->options(['scope' => 'site']);
+
+// Configuration and persistence via fluents (20% use-cases)
+$opts
+  ->with_schema(['feature_flag' => ['default' => false]], seed_defaults: true)
+  ->with_policy($customPolicy)
+  ->with_defaults(['another_key' => 'val'])
+  ->flush();
+
+> from_config() notes
+>
+> - `from_config()` is intended for construction-time concerns (e.g., autoload, basic scope selection).
+> - Prefer `Config::options()` + fluents for most cases; it’s a no-write accessor that binds the logger and supports a typed `ScopeEntity`.
+> - Passing raw `storage_args` to `from_config()` is supported for backward-compatibility, but new code should favor the typed entity pathway.
+````
 
 ### What this class assumes
 
@@ -99,19 +131,20 @@ $schema = [
     'validate' => fn($v) => is_int($v) && $v > 0 && $v <= 300,
   ],
 ];
-$options = RegisterOptions::from_config($config, [], true, null, $schema);
+$opts = $config->options();
+$opts->with_schema($schema); // seed/defaults/flush are explicit flags
 ```
 
-Note: Construction seeds defaults in-memory only. To persist seeded defaults, call `flush()` explicitly:
+Note: Registration seeds defaults in-memory only when `seed_defaults` is true. To persist, call `flush()` explicitly:
 
 ```php
-$options->flush(); // single DB write for seeded defaults
+$opts->flush(); // single DB write for seeded defaults
 ```
 
 You can also register schema after construction:
 
 ```php
-$options->register_schema([
+$opts->register_schema([
   'new_feature' => ['default' => false, 'validate' => fn($v) => is_bool($v)],
 ], seed_defaults: true, flush: true);
 ```
@@ -121,7 +154,7 @@ $options->register_schema([
 Stage changes in memory and persist once:
 
 ```php
-$options
+$opts
   ->add_options([
     'enabled' => ['value' => true],
     'timeout' => 30,
@@ -165,10 +198,10 @@ How to flip safely (escape hatch):
 - For nested arrays, use a read–modify–write pattern and your chosen merge function, then write back. See example below.
 
 ```php
-$current = $options->get_option('complex_map', []);
+$current = $opts->get_option('complex_map', []);
 $patch   = ['level1' => ['added' => 'x']];
 $merged  = array_replace_recursive(is_array($current) ? $current : [], $patch);
-$options->set_option('complex_map', $merged);
+$opts->set_option('complex_map', $merged);
 ```
 
 ### Examples
@@ -183,7 +216,7 @@ $options->set_option('complex_map', $merged);
 ### API highlights
 
 - `get_option($key, $default)` / `set_option($key, $value)`
-- `get_values()` returns values only; `get_options()` returns values only
+- `get_options()` returns values only
 - Fluent batching: `add_option($k,$v)->add_option($k2,$v2)->flush()` or `add_options([...])->flush()`
 - `flush(bool $merge_from_db = false)` supports optional shallow merge-from-DB
 - `register_schema(...)` / `with_schema(...)` for post-construction schema

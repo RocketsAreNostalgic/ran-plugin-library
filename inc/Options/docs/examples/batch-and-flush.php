@@ -27,6 +27,8 @@ declare(strict_types=1);
 
 use Ran\PluginLib\Config\Config;
 use Ran\PluginLib\Options\RegisterOptions;
+use Ran\PluginLib\Options\Entity\UserEntity;
+use Ran\PluginLib\Options\Entity\BlogEntity;
 
 $config  = Config::fromPluginFile(__FILE__);
 $options = RegisterOptions::from_config($config);
@@ -76,9 +78,8 @@ if ($_POST['save_settings']) {
 // ------------------------------------------------------------
 // Example: per-user batch update
 $userOptions = $config->options(array(
-  'scope'       => 'user',
-  'user_id'     => get_current_user_id(),
-  'user_global' => false,
+  'scope'  => 'user',
+  'entity' => new UserEntity((int) get_current_user_id(), false, 'meta'),
 ));
 $userOptions->add_options(array(
   'shortcuts' => array('s' => 'search', 'n' => 'new'),
@@ -87,7 +88,7 @@ $userOptions->add_options(array(
 
 // Example: specific blog in multisite
 $blogOptions = $config->options(array(
-  'scope'   => 'blog',
-  'blog_id' => 2,
+  'scope'  => 'blog',
+  'entity' => new BlogEntity(2),
 ));
 $blogOptions->add_options(array('feature_flags' => array('beta_ui' => true)))->flush();

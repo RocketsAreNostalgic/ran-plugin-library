@@ -11,6 +11,7 @@ declare(strict_types=1);
 
 use Ran\PluginLib\Config\Config;
 use Ran\PluginLib\Util\CollectingLogger;
+use Ran\PluginLib\Options\Entity\UserEntity;
 
 // Create a logger (swap with your PSR-3 logger if desired)
 $logger = new CollectingLogger();
@@ -24,23 +25,21 @@ $siteOptions->set_option('feature_enabled', true);
 
 // User-scoped options using the same logger
 $userOptions = $config->options(array(
-    'scope'       => 'user',
-    'user_id'     => get_current_user_id(),
-    'user_global' => false,
+    'scope'  => 'user',
+    'entity' => new UserEntity((int) get_current_user_id(), false, 'meta'),
 ));
 $userOptions->set_option('dashboard_prefs', array('layout' => 'compact'));
 
 // Later (e.g., in tests), inspect logs
 var_dump($logger->collected_logs);
 
-// Alternate: construct explicitly passing logger and storage args
+// Alternate: construct explicitly with array args (logger comes from Config)
 use Ran\PluginLib\Options\RegisterOptions;
 $explicit = RegisterOptions::from_config(
 	$config,
-	/* initial */ array(),
-	/* autoload */ true,
-	/* logger */ $config->get_logger(),
-	/* schema */ array(),
-	/* scope */ 'user',
-	/* storage args */ array('user_id' => get_current_user_id(), 'user_global' => true)
+	array(
+	    'autoload' => true,
+	    'scope'    => 'user',
+	    'entity'   => new UserEntity((int) get_current_user_id(), true, 'meta'),
+	)
 );

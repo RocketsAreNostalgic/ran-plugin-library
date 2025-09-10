@@ -157,10 +157,18 @@ Network scope (multisite) — Available in 0.1.3 (see PRD‑003):
 $opts = $config->options(['scope' => 'network']);
 ```
 
-Blog scope (by blog ID) — Available in 0.1.3 (see PRD‑003):
+Blog scope (with typed entity) — Available in 0.1.3 (see PRD‑003):
 
 ```php
-$opts = $config->options(['scope' => 'blog', 'blog_id' => 123]);
+use Ran\PluginLib\Options\Entity\BlogEntity;
+$opts = $config->options(['scope' => 'blog', 'entity' => new BlogEntity(123)]);
+```
+
+User scope (with typed entity):
+
+```php
+use Ran\PluginLib\Options\Entity\UserEntity;
+$opts = $config->options(['scope' => 'user', 'entity' => new UserEntity(123)]);
 ```
 
 ## Usage Examples
@@ -185,7 +193,7 @@ register_activation_hook(__FILE__, function () use ($opts, $config) {
 });
 
 // Runtime
-$current = $opts->get_values();
+$current = $opts->get_options();
 ```
 
 ### Theme
@@ -194,7 +202,7 @@ $current = $opts->get_values();
 $config = Config::fromThemeDir(get_stylesheet_directory());
 $opts   = $config->options();
 $slug   = $config->get_options_key();
-$current = $opts->get_values();
+$current = $opts->get_options();
 ```
 
 ### Reading values and a single field
@@ -203,7 +211,7 @@ $current = $opts->get_values();
 $opts = $config->options();
 
 // Full values array (recommended to read all current values)
-$values = $opts->get_values();
+$values = $opts->get_options();
 
 // Read a single field with a default
 $enabled = $opts->get_option('enabled', false);
@@ -234,7 +242,7 @@ Non-breaking expansion to add explicit option scope support. See PRD-003: [PRD-0
 
 - Extend `Config::options(array $args = [])` to accept `scope` (default `'site'`) and optional `blog_id` (required for `'blog'`).
 
-- Provide `RegisterOptions::fromConfig(\Ran\PluginLib\Config\ConfigInterface $cfg, string $scope = 'site', ?int $blog_id = null)`.
+- Provide `RegisterOptions::from_config(\Ran\PluginLib\Config\ConfigInterface $cfg, array $args = [])`.
 - Implement internal adapters mapping to `get_option` / `get_site_option` / `get_blog_option`.
 - Documentation: add an “Option Scope” section (scopes, permissions, autoload limits). Explicitly discourage implicit detection; optionally allow header default (`RAN.OptionScope`) as opt-in.
 - Migration: document a WP-CLI recipe for site→network migration (dry-run, progress, rollback notes).

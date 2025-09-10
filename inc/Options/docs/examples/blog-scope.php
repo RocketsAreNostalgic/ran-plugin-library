@@ -16,14 +16,15 @@
 declare(strict_types=1);
 
 use Ran\PluginLib\Config\Config;
+use Ran\PluginLib\Options\Entity\BlogEntity;
 
 $config = Config::fromPluginFile(__FILE__);
 
 // Target blog #2 explicitly
 $blogId  = 2;
 $options = $config->options(array(
-    'scope'   => 'blog',
-    'blog_id' => $blogId,
+    'scope'  => 'blog',
+    'entity' => new BlogEntity($blogId),
 ));
 
 // Check autoload support; only meaningful for the current blog
@@ -41,7 +42,7 @@ $mm   = $options->get_option('maintenance_mode', false);
 $home = $options->get_option('homepage_layout', 'standard');
 
 // Values-only view
-$values = $options->get_values();
+$values = $options->get_options();
 
 // Batch update pattern
 $options->add_options(array(

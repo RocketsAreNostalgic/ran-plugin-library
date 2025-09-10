@@ -86,7 +86,9 @@ $schema = array(
     ),
 );
 
-$options = RegisterOptions::from_config($config, array(), true, null, $schema);
+// Construct with autoload preference and attach schema via fluent
+$options = RegisterOptions::from_config($config, array('autoload' => true))
+    ->with_schema($schema);
 
 // EXAMPLES OF SANITIZATION AND VALIDATION IN ACTION:
 

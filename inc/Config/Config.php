@@ -113,7 +113,7 @@ class Config extends ConfigAbstract implements ConfigInterface {
 		}
 
 		// Build instance via slimmed from_config + fluent chaining
-		$opts = RegisterOptions::from_config($this, $autoload, $scope, $storage_args);
+		$opts = RegisterOptions::_from_config($this, $autoload, $scope, $storage_args);
 
 		// Chain fluents for configuration (80/20 pattern)
 		$opts = $opts->with_logger($this->get_logger());

@@ -358,28 +358,29 @@ Use `Config::options(array $args = [])` to access your plugin’s registered opt
 $opts = $config->options(); // same as ['scope' => 'site']
 
 // Read values
-$values  = $opts->get_values();                 // values-only array
+$values  = $opts->get_options();                // values-only array
 $enabled = $opts->get_option('enabled', false); // single field with default
 
 ```
 
-Scopes:
+Scopes (typed entities recommended):
 
 ```php
-use Ran\PluginLib\Options\Entity\ScopeEntity;
+use Ran\PluginLib\Options\Entity\BlogEntity;
+use Ran\PluginLib\Options\Entity\UserEntity;
 
 // Network-wide options
 $networkOpts = $config->options(['scope' => 'network']);
 
 // Specific blog/site options (multisite)
-$blogEntity = ScopeEntity::forBlog(123);
+$blogEntity = new BlogEntity(123); // 123 is the blog/site ID; null means current blog
 $blogOpts = $config->options([
   'scope'  => 'blog',
   'entity' => $blogEntity, // required for 'blog'
 ]);
 
 // Specific user options
-$userEntity = ScopeEntity::forUser(456);
+$userEntity = new UserEntity(456, /* global */ false, /* storage */ 'meta');
 $userOpts = $config->options([
   'scope'  => 'user',
   'entity' => $userEntity, // required for 'user'
@@ -399,12 +400,12 @@ Notes:
 - Recognized args (all optional):
   - `autoload` (bool, default: true) — default autoload policy for future writes.
   - `scope` ('site'|'network'|'blog'|'user' or OptionScope enum), default: 'site'.
-  - `entity` (ScopeEntity|null) — required when scope is 'blog' or 'user'.
-- For scopes 'blog' and 'user', an `entity` (a `ScopeEntity`) is required.
+  - `entity` (typed entity: `BlogEntity` or `UserEntity` | null) — required when scope is 'blog' or 'user'.
+- For scopes 'blog' and 'user', a typed entity is required.
 - This accessor performs no writes, seeding, or flushes.
 - Unknown args are ignored and a warning is logged via the Config’s logger.
 
-Persisting changes:
+Recommended pattern & persisting changes:
 
 ```php
 $opts = $config->options(['autoload' => true]);
@@ -413,6 +414,8 @@ $opts->flush(); // explicit write
 
 // or seed schema defaults and persist immediately (use fluent API on RegisterOptions)
 $opts->register_schema(['enabled' => ['default' => true]], seed_defaults: true, flush: true);
+
+> Note: For construction-only scenarios, `RegisterOptions::from_config($config, ['autoload' => ..., 'scope' => ..., 'entity' => ...])` is available. Prefer `Config::options()`. Both use typed entities for scope handling. Customization can be applied via fluent methods (schema/defaults/policy). These accessors perform no writes.
 ```
 
 Examples:

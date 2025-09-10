@@ -30,6 +30,8 @@ declare(strict_types=1);
 
 use Ran\PluginLib\Config\Config;
 use Ran\PluginLib\Options\RegisterOptions;
+use Ran\PluginLib\Options\Entity\UserEntity;
+use Ran\PluginLib\Options\Entity\BlogEntity;
 
 $config = Config::fromPluginFile(__FILE__);
 
@@ -111,7 +113,9 @@ $schema = array(
 );
 
 // Create RegisterOptions with schema - defaults will be seeded in-memory automatically
-$options = RegisterOptions::from_config($config, /* initial */ array(), /* autoload */ true, /* logger */ null, $schema);
+// Construct with autoload preference; bind schema via fluent
+$options = RegisterOptions::from_config($config, array('autoload' => true))
+    ->with_schema($schema);
 
 // Persist seeded defaults explicitly (single write)
 $options->flush();
@@ -156,9 +160,9 @@ register_activation_hook(__FILE__, function() {
 	    ),
 	);
 
-	// This will seed all defaults in-memory
-	$options = RegisterOptions::from_config($config, array(), true, null, $activation_schema);
-	// Persist in one database write
+	// Seed defaults in-memory via fluent, then persist in one write
+	$options = RegisterOptions::from_config($config, array('autoload' => true))
+	    ->with_schema($activation_schema);
 	$options->flush();
 
 	// Plugin is now properly initialized with environment-appropriate defaults
@@ -167,26 +171,15 @@ register_activation_hook(__FILE__, function() {
 // ------------------------------------------------------------
 // Scoped usage with schema (advanced)
 // ------------------------------------------------------------
-// When you need to seed defaults for a different storage scope, pass scope and
-// storage args directly to RegisterOptions::from_config along with your schema.
+// When you need to seed defaults for a different storage scope, prefer Config::options()
 // Example: per-user defaults
-$userOptions = RegisterOptions::from_config(
-	$config,
-	/* initial */ array(),
-	/* autoload */ false, // user scope does not support autoload
-	/* logger */ $config->get_logger(),
-	/* schema */ $schema,
-	/* scope */ 'user',
-	/* storage args */ array('user_id' => get_current_user_id(), 'user_global' => false)
-);
+$userOptions = $config->options(array(
+	'scope'  => 'user',
+	'entity' => new UserEntity((int) get_current_user_id(), false, 'meta'),
+))->with_schema($schema);
 
 // Example: blog-scoped defaults (multisite)
-$blogOptions = RegisterOptions::from_config(
-	$config,
-	array(),
-	true,
-	$config->get_logger(),
-	$schema,
-	'blog',
-	array('blog_id' => 2)
-);
+$blogOptions = $config->options(array(
+	'scope'  => 'blog',
+	'entity' => new BlogEntity(2),
+))->with_schema($schema);
