@@ -100,6 +100,30 @@ $opts
 > - Passing raw `storage_args` to `from_config()` is supported for backward-compatibility, but new code should favor the typed entity pathway.
 ````
 
+### Logger binding: DI vs `with_logger()`
+
+`RegisterOptions` supports two ways to bind a logger:
+
+- Constructor/factory DI (earliest binding)
+
+  - Factories accept an optional `Logger` instance:
+    - `RegisterOptions::site($option, $autoload = true, ?Logger $logger = null)`
+    - `RegisterOptions::network($option, ?Logger $logger = null)`
+    - `RegisterOptions::blog($option, $blogId, ?bool $autoloadOnCreate = null, ?Logger $logger = null)`
+    - `RegisterOptions::user($option, $userId, $global = false, ?Logger $logger = null)`
+  - `from_config()` binds a logger via `ConfigInterface::get_logger()` when available.
+  - Benefit: constructor-time reads/logs are captured by your logger.
+
+- Post‑construction fluent: `with_logger(Logger $logger): static`
+  - Rebinds the logger on an already constructed instance.
+  - Useful for runtime overrides (e.g., temporarily attach a `CollectingLogger` during a diagnostic flow) or when you cannot change the creation site to pass DI.
+  - Note: constructor-time logs will not be captured if you rebind later.
+
+Recommended usage:
+
+- Prefer factory/constructor DI for earliest logging and consistent test capture.
+- Use `with_logger()` when you need to swap/override the logger mid‑lifecycle or when testing the fluent itself (e.g., chaining semantics).
+
 ### What this class assumes
 
 - All plugin settings live under one grouped option row (one DB row), keyed by normalized sub-option names.

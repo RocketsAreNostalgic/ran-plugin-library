@@ -154,22 +154,27 @@ class RegisterOptions {
      * No implicit writes occur in the constructor.
      *
      * @internal
-     * @param string $main_wp_option_name The primary key in wp_options where all settings for this instance are stored.
-     * @param bool $main_option_autoload  Whether the entire group of options should be autoloaded by WordPress. Defaults to true.
-     * @param ConfigInterface|null $config Optional Config used for metadata, default resolvers, and logger binding.
+     * @param string                 $main_wp_option_name The primary key in wp_options where all settings for this instance are stored.
+     * @param bool                   $main_option_autoload  Whether the entire group of options should be autoloaded by WordPress. Defaults to true.
+     * @param ConfigInterface|null   $config Optional Config used for metadata, default resolvers, and logger binding.
+     * @param Logger|null            $logger Optional Logger for dependency injection; when provided, it is bound before the first read.
      * @return mixed
      */
 	protected function __construct(
         string $main_wp_option_name,
         bool $main_option_autoload = true,
-        ?ConfigInterface $config = null
+        ?ConfigInterface $config = null,
+        ?Logger $logger = null
     ) {
 		$this->main_wp_option_name  = $main_wp_option_name;
 		$this->main_option_autoload = $main_option_autoload;
 		$this->config               = $config ?? $this->config;
 
-		// If a Config is provided and exposes a logger, bind it immediately
-		if ($this->logger === null && $this->config instanceof ConfigInterface && method_exists($this->config, 'get_logger')) {
+		// Bind provided logger first (DI), otherwise fall back to config-derived logger
+		if ($logger instanceof Logger) {
+			$this->logger = $logger;
+		} elseif ($this->logger === null && $this->config instanceof ConfigInterface && method_exists($this->config, 'get_logger')) {
+			// If a Config is provided and exposes a logger, bind it immediately
 			$this->logger = $this->config->get_logger();
 		}
 
@@ -184,12 +189,13 @@ class RegisterOptions {
 	/**
 	 * Named factory: Site scope instance.
 	 *
-	 * @param string $option_name Main option key
-	 * @param bool   $autoload_on_create Whether to autoload on first create (site scope supports autoload)
+	 * @param string      $option_name        Main option key
+	 * @param bool        $autoload_on_create Whether to autoload on first create (site scope supports autoload)
+	 * @param Logger|null $logger             Optional logger to bind before first read
 	 * @return static
 	 */
-	public static function site(string $option_name, bool $autoload_on_create = true): static {
-		$instance                = new static($option_name, $autoload_on_create);
+	public static function site(string $option_name, bool $autoload_on_create = true, ?Logger $logger = null): static {
+		$instance                = new static($option_name, $autoload_on_create, null, $logger);
 		$instance->storage_scope = OptionScope::Site;
 		$instance->storage_args  = array();
 		// Ensure storage is rebuilt for this scope and payload is read from correct storage
@@ -203,11 +209,12 @@ class RegisterOptions {
 	 *
 	 * Network options do not support autoload semantics; flag is ignored at storage.
 	 *
-	 * @param string $option_name Main option key
+	 * @param string      $option_name Main option key
+	 * @param Logger|null $logger      Optional logger to bind before first read
 	 * @return static
 	 */
-	public static function network(string $option_name): static {
-		$instance                = new static($option_name, false);
+	public static function network(string $option_name, ?Logger $logger = null): static {
+		$instance                = new static($option_name, false, null, $logger);
 		$instance->storage_scope = OptionScope::Network;
 		$instance->storage_args  = array();
 		$instance->storage       = null;
@@ -222,12 +229,13 @@ class RegisterOptions {
 	 * Blog storage adapter currently ignores the autoload flag; we still accept it for
 	 * API parity and potential future support.
 	 *
-	 * @param string   $option_name Main option key
-	 * @param int      $blog_id     Target blog/site ID
-	 * @param bool|null $autoload_on_create Autoload preference for current blog; null to leave default
+	 * @param string     $option_name         Main option key
+	 * @param int        $blog_id             Target blog/site ID
+	 * @param bool|null  $autoload_on_create  Autoload preference for current blog; null to leave default
+	 * @param Logger|null $logger             Optional logger to bind before first read
 	 * @return static
 	 */
-	public static function blog(string $option_name, int $blog_id, ?bool $autoload_on_create = null): static {
+	public static function blog(string $option_name, int $blog_id, ?bool $autoload_on_create = null, ?Logger $logger = null): static {
 		// Decide autoload preference (constructor requires bool). For non-current blog, force false.
 		$current_blog = (int) (new class {
 			use WPWrappersTrait;
@@ -236,12 +244,12 @@ class RegisterOptions {
 			}
 		})->id();
 		$effective_autoload = ($autoload_on_create === true || $autoload_on_create === false)
-		    ? (bool) $autoload_on_create
-		    : false;
+			? (bool) $autoload_on_create
+			: false;
 		if ($blog_id !== $current_blog) {
 			$effective_autoload = false;
 		}
-		$instance                = new static($option_name, $effective_autoload);
+		$instance                = new static($option_name, $effective_autoload, null, $logger);
 		$instance->storage_scope = OptionScope::Blog;
 		$instance->storage_args  = array('blog_id' => $blog_id);
 		$instance->storage       = null;
@@ -256,18 +264,19 @@ class RegisterOptions {
 	 * To opt into user option (per-site or global), callers can later specify args via Config
 	 * or future fluent methods; for now, we default to meta with optional global option retained in args.
 	 *
-	 * @param string $option_name Main option key
-	 * @param int    $user_id     Target user ID
-	 * @param bool   $global      When using user option storage, whether to use user_settings (network-wide)
+	 * @param string      $option_name Main option key
+	 * @param int         $user_id     Target user ID
+	 * @param bool        $global      When using user option storage, whether to use user_settings (network-wide)
+	 * @param Logger|null $logger      Optional logger to bind before first read
 	 * @return static
 	 */
-	public static function user(string $option_name, int $user_id, bool $global = false): static {
-		$instance                = new static($option_name, false);
+	public static function user(string $option_name, int $user_id, bool $global = false, ?Logger $logger = null): static {
+		$instance                = new static($option_name, false, null, $logger);
 		$instance->storage_scope = OptionScope::User;
 		$instance->storage_args  = array(
-		    'user_id'      => $user_id,
-		    'user_global'  => $global,
-		    'user_storage' => 'meta',
+			'user_id'      => $user_id,
+			'user_global'  => $global,
+			'user_storage' => 'meta',
 		);
 		$instance->storage = null;
 		$instance->options = $instance->_read_main_option();
