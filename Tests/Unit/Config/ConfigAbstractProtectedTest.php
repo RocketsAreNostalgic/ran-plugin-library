@@ -137,7 +137,7 @@ final class ConfigAbstractProbe extends ConfigAbstract {
 		$autoload = (bool) ($args['autoload'] ?? true);
 		$schema   = is_array($args['schema'] ?? null) ? $args['schema'] : array();
 
-		$opts = \Ran\PluginLib\Options\RegisterOptions::from_config(
+		$opts = \Ran\PluginLib\Options\RegisterOptions::_from_config(
 			$this,
 			array(),           // initial (none)
 			$autoload,

@@ -9,7 +9,7 @@ use WP_Mock;
  * Covers blog scope forwarding of blog_id in Config::options() (line 112).
  *
  * @covers \Ran\PluginLib\Config\Config::options
- * @covers \Ran\PluginLib\Options\RegisterOptions::from_config
+ * @covers \Ran\PluginLib\Options\RegisterOptions::_from_config
  */
 final class ConfigOptionsBlogScopeTest extends ConfigTestCase {
 	private string $plugin_dir;
