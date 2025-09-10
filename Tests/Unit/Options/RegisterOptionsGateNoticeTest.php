@@ -42,8 +42,7 @@ class RegisterOptionsGateNoticeTest extends PluginLibTestCase {
 		$config->method('get_options_key')->willReturn('gate_notice_opts');
 		$config->method('get_logger')->willReturn($this->logger_mock);
 
-		$opts = TestableGateRegisterOptions::_from_config($config, true, OptionScope::Site)
-			->with_logger($this->logger_mock);
+		$opts = TestableGateRegisterOptions::_from_config($config, true, OptionScope::Site);
 
 		// Provide a storage mock so scope resolves to 'site'.
 		$storage = $this->createMock(\Ran\PluginLib\Options\Storage\OptionStorageInterface::class);

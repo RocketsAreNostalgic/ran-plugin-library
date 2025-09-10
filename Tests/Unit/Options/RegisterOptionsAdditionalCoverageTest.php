@@ -190,9 +190,8 @@ final class RegisterOptionsAdditionalCoverageTest extends PluginLibTestCase {
 		);
 		$config = $this->getMockBuilder(\Ran\PluginLib\Config\ConfigInterface::class)->getMock();
 		$config->method('get_options_key')->willReturn('ctor_initial');
-		$sut = RegisterOptions::_from_config($config, true)->with_logger($this->logger_mock)->with_defaults($initial);
-		// Ensure logger is active for message capture
-		$sut->with_logger($this->logger_mock);
+		$config->method('get_logger')->willReturn($this->logger_mock);
+		$sut = RegisterOptions::_from_config($config, true)->with_defaults($initial);
 		// Keys are normalized and values set in-memory only
 		$this->assertSame('val1', $sut->get_option('mixed-case_key'));
 		// Without schema, complex array remains as provided
@@ -221,7 +220,8 @@ final class RegisterOptionsAdditionalCoverageTest extends PluginLibTestCase {
 		);
 		$config = $this->getMockBuilder(\Ran\PluginLib\Config\ConfigInterface::class)->getMock();
 		$config->method('get_options_key')->willReturn('ctor_schema');
-		$sut = RegisterOptions::_from_config($config, true)->with_logger($this->logger_mock)->with_schema($schema, true, false);
+		$config->method('get_logger')->willReturn($this->logger_mock);
+		$sut = RegisterOptions::_from_config($config, true)->with_schema($schema, true, false);
 		// Normalized key should be present with sanitized/validated default value
 		$this->assertSame('ABC', $sut->get_option('mixed_key'));
 		$this->expectLog('debug', '_resolve_default_value');

@@ -9,8 +9,8 @@ use Ran\PluginLib\Util\Logger;
 use Ran\PluginLib\Options\OptionScope;
 use Ran\PluginLib\Util\ExpectLogTrait;
 use Ran\PluginLib\Options\RegisterOptions;
-use Ran\PluginLib\Options\Policy\WritePolicyInterface;
 use Ran\PluginLib\Tests\Unit\PluginLibTestCase;
+use Ran\PluginLib\Options\Policy\WritePolicyInterface;
 
 /**
  * Tests for RegisterOptions utility and edge case functionality.
@@ -92,13 +92,13 @@ final class RegisterOptionsUtilityTest extends PluginLibTestCase {
 		* @covers \Ran\PluginLib\Options\RegisterOptions::with_logger
 		*/
 	public function test_with_logger_sets_logger_instance(): void {
-		$opts = RegisterOptions::site('test_options');
-
 		// Create a mock logger
 		$mockLogger = $this->getMockBuilder(\Ran\PluginLib\Util\Logger::class)
 			->disableOriginalConstructor()
 			->getMock();
 
+		// Construct without DI to exercise with_logger() behavior explicitly
+		$opts   = RegisterOptions::site('test_options');
 		$result = $opts->with_logger($mockLogger);
 
 		// Should return self for fluent interface
@@ -206,8 +206,7 @@ final class RegisterOptionsUtilityTest extends PluginLibTestCase {
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::migrate
 	 */
 	public function test_migrate_no_op_when_option_missing(): void {
-		$opts = RegisterOptions::site('test_options');
-		$opts->with_logger($this->logger_mock);
+		$opts = RegisterOptions::site('test_options', true, $this->logger_mock);
 
 		// Mock storage to return null (option doesn't exist)
 		$mockStorage = $this->createMock(\Ran\PluginLib\Options\Storage\OptionStorageInterface::class);
@@ -278,8 +277,7 @@ final class RegisterOptionsUtilityTest extends PluginLibTestCase {
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::flush
 	 */
 	public function test_flush_with_merge_from_db(): void {
-		$opts = RegisterOptions::site('test_options');
-		$opts->with_logger($this->logger_mock);
+		$opts = RegisterOptions::site('test_options', true, $this->logger_mock);
 
 		// Add some options in memory
 		$opts->add_option('memory_key', 'memory_value');
@@ -312,11 +310,9 @@ final class RegisterOptionsUtilityTest extends PluginLibTestCase {
 	}
 
 	/**
-
-	/**
 		* @covers \Ran\PluginLib\Options\RegisterOptions::__construct
-		* @covers \Ran\PluginLib\Options\RegisterOptions::flush
 		* @covers \Ran\PluginLib\Options\RegisterOptions::refresh_options
+		* @covers \Ran\PluginLib\Options\RegisterOptions::_read_main_option
 		*/
 	public function test_refresh_options_reloads_from_storage(): void {
 		$opts = RegisterOptions::site('test_options');
@@ -355,8 +351,7 @@ final class RegisterOptionsUtilityTest extends PluginLibTestCase {
 		* @covers \Ran\PluginLib\Options\RegisterOptions::set_option
 		*/
 	public function test_set_option_with_string_scope_override(): void {
-		$opts = RegisterOptions::site('test_options');
-		$opts->with_logger($this->logger_mock);
+		$opts = RegisterOptions::site('test_options', true, $this->logger_mock);
 
 		// Exercise alternate scope path
 		$this->_set_protected_property_value($opts, 'storage_scope', 'blog');
@@ -379,8 +374,7 @@ final class RegisterOptionsUtilityTest extends PluginLibTestCase {
 		* @covers \Ran\PluginLib\Options\RegisterOptions::_read_main_option
 		*/
 	public function test_read_main_option_non_array_returns_empty_and_logs(): void {
-		$opts = RegisterOptions::site('test_options');
-		$opts->with_logger($this->logger_mock);
+		$opts = RegisterOptions::site('test_options', true, $this->logger_mock);
 
 		$mockStorage = $this->createMock(\Ran\PluginLib\Options\Storage\OptionStorageInterface::class);
 		$mockStorage->method('read')->willReturn(null); // non-array path
@@ -391,6 +385,8 @@ final class RegisterOptionsUtilityTest extends PluginLibTestCase {
 		// Options should be empty; validate via public API
 		$this->assertFalse($opts->has_option('any_key'));
 		$this->assertFalse($opts->get_option('any_key'));
-		$this->expectLog('debug', 'RegisterOptions: _read_main_option completed', 1);
+		// With logger injected at construction, _read_main_option runs during:
+		// 1) constructor, 2) factory re-read in ::site(), 3) explicit refresh() below
+		$this->expectLog('debug', 'RegisterOptions: _read_main_option completed', 3);
 	}
 }

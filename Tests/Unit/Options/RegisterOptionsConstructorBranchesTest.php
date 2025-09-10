@@ -34,9 +34,9 @@ final class TestableRegisterOptions extends RegisterOptions {
         array $schema = array(),
         ?WritePolicyInterface $policy = null,
     ): static {
-		// Call the protected constructor in the parent via late static binding (slimmed signature)
-		// Do not pass logger here; bind it via with_logger() after construction.
-		$instance = new static($main, $autoload, null);
+		// Call the protected constructor in the parent via late static binding,
+		// passing logger via DI so constructor-time logs are captured when provided.
+		$instance = new static($main, $autoload, null, $logger);
 		if (!empty($schema)) {
 			// Register schema and seed defaults (no flush for this constructor-branches coverage)
 			$instance->with_schema($schema, true, false);
@@ -51,9 +51,6 @@ final class TestableRegisterOptions extends RegisterOptions {
 		}
 		if ($policy instanceof WritePolicyInterface) {
 			$instance->with_policy($policy);
-		}
-		if ($logger instanceof \Ran\PluginLib\Util\Logger) {
-			$instance->with_logger($logger);
 		}
 		return $instance;
 	}

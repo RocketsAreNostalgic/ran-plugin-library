@@ -71,8 +71,7 @@ final class WriteGateHappyPathTest extends PluginLibTestCase {
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::_get_storage
 	 */
 	public function test_set_option_persists_when_allowed(): void {
-		$opts = RegisterOptions::site('test_options');
-		$opts->with_logger($this->logger_mock);
+		$opts = RegisterOptions::site('test_options', true, $this->logger_mock);
 		$this->allow_all_persist_filters_for_site();
 
 		// update_option returns true by default from setUp
@@ -98,8 +97,7 @@ final class WriteGateHappyPathTest extends PluginLibTestCase {
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::_get_storage
 	 */
 	public function test_add_options_and_flush_merge_from_db_allowed(): void {
-		$opts = RegisterOptions::site('test_options');
-		$opts->with_logger($this->logger_mock);
+		$opts = RegisterOptions::site('test_options', true, $this->logger_mock);
 		$this->allow_all_persist_filters_for_site();
 
 		// Stage two new options in memory
@@ -139,8 +137,7 @@ final class WriteGateHappyPathTest extends PluginLibTestCase {
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::_get_storage
 	 */
 	public function test_delete_option_persists_when_allowed(): void {
-		$opts = RegisterOptions::site('test_options');
-		$opts->with_logger($this->logger_mock);
+		$opts = RegisterOptions::site('test_options', true, $this->logger_mock);
 		$this->allow_all_persist_filters_for_site();
 
 		// Seed an option (allowed path)

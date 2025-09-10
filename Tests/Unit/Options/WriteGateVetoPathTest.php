@@ -65,8 +65,6 @@ final class WriteGateVetoPathTest extends PluginLibTestCase {
 		$config->method('get_options_key')->willReturn('test_options');
 		$config->method('get_logger')->willReturn($this->logger_mock);
 		$opts = RegisterOptions::_from_config($config, true, OptionScope::Site);
-		// Attach collecting logger explicitly to ensure logs are captured by our test double
-		$opts->with_logger($this->logger_mock);
 		// Policy-level veto ensures deny regardless of filters
 		$policy = $this->getMockBuilder(\Ran\PluginLib\Options\Policy\WritePolicyInterface::class)->getMock();
 		$policy->method('allow')->willReturn(false);
@@ -132,8 +130,6 @@ final class WriteGateVetoPathTest extends PluginLibTestCase {
 		$policy = $this->getMockBuilder(\Ran\PluginLib\Options\Policy\WritePolicyInterface::class)->getMock();
 		$policy->method('allow')->willReturn(false);
 		$opts->with_policy($policy);
-		// Attach collecting logger to capture debug logs from SUT
-		$opts->with_logger($this->logger_mock);
 		$this->veto_all_persist_filters_for_site();
 
 		// Ensure pre-state empty
@@ -303,7 +299,7 @@ final class WriteGateVetoPathTest extends PluginLibTestCase {
 			return true;
 		});
 
-		$opts = RegisterOptions::_from_config($config, true, OptionScope::Site)->with_logger($this->logger_mock);
+		$opts = RegisterOptions::_from_config($config, true, OptionScope::Site);
 
 		// Sanity: existing in-memory state
 		$this->assertTrue($opts->has_option('a'));
