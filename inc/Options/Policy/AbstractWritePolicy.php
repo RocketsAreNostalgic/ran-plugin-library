@@ -65,34 +65,38 @@ abstract class AbstractWritePolicy implements WritePolicyInterface {
 	 */
 	protected function keysWhitelisted(string $op, WriteContext $wc, array $whitelist): bool {
 		$whitelist = array_map('strval', $whitelist);
-		switch ($op) {
-			case 'set_option':
-			case 'add_option':
-			case 'delete_option':
-				$k = (string) ($wc->key() ?? '');
-				return $k !== '' && in_array($k, $whitelist, true);
 
-			case 'add_options':
-				$keys = $wc->keys() ?? array();
-				if ($keys === array()) {
+		// set/add/delete: checks key()
+		if ($op === 'set_option' || $op === 'add_option' || $op === 'delete_option') {
+			$k = (string) ($wc->key() ?? '');
+			return $k !== '' && in_array($k, $whitelist, true);
+		}
+
+		// add_options: checks keys()
+		if ($op === 'add_options') {
+			$keys = $wc->keys() ?? array();
+			if ($keys === array()) {
+				return false;
+			}
+			foreach ($keys as $k) {
+				if (!in_array((string) $k, $whitelist, true)) {
 					return false;
 				}
-				foreach ($keys as $k) {
-					if (!in_array((string) $k, $whitelist, true)) {
-						return false;
-					}
-				}
-				return true;
-
-			case 'save_all':
-				$opts = $wc->options() ?? array();
-				foreach (array_keys($opts) as $k) {
-					if (!in_array((string) $k, $whitelist, true)) {
-						return false;
-					}
-				}
-				return true;
+			}
+			return true;
 		}
+
+		// save_all: checks options() keys
+		if ($op === 'save_all') {
+			$opts = $wc->options() ?? array();
+			foreach (array_keys($opts) as $k) {
+				if (!in_array((string) $k, $whitelist, true)) {
+					return false;
+				}
+			}
+			return true;
+		}
+
 		// Other ops not covered by whitelist helper
 		return false;
 	}

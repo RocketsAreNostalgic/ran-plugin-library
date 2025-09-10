@@ -25,6 +25,8 @@ use Ran\PluginLib\Options\Storage\UserOptionStorage;
 use Ran\PluginLib\Options\OptionScope;
 use Ran\PluginLib\Options\Policy\WritePolicyInterface;
 use Ran\PluginLib\Options\WriteContext;
+use Ran\PluginLib\Options\Scope\ScopeResolver;
+use Ran\PluginLib\Options\Entity\ScopeEntity;
 use Ran\PluginLib\Options\Policy\RestrictedDefaultWritePolicy;
 
 /**
@@ -273,23 +275,22 @@ class RegisterOptions {
 	}
 
 	/**
-	 * Factory: create a RegisterOptions instance using the option name derived from Config.
+	 * Internal factory: to create a RegisterOptions instance using the option name derived from Config.
+	 * Uses late static binding (new static) so subclasses receive instances when calling.
 	 *
-	 * Uses late static binding (new static) so subclasses receive instances when calling ::from_config().
+	 * Use Config::options() for public API, or RegisterOptions::from_config() for factory-style construction.
 	 *
-	 * Simplified factory for construction-time concerns only. Use fluent methods for configuration:
-	 * - .with_logger() for logger binding
-	 * - .with_schema() for schema registration
-	 * - .with_policy() for write policy
-	 * - .with_defaults() for initial values
-	 *
-	 * @param ConfigInterface $config Initialized config instance.
-	 * @param bool            $autoload Whether the main option should be autoloaded.
+	 * @internal
+	 * @param ConfigInterface $config       Source of options key and logger
+	 * @param bool            $autoload     Whether to autoload the main option if created
 	 * @param OptionScope|string|null $scope Optional storage scope override for this instance (defaults to Site when null).
-	 * @param array           $storage_args Optional storage argument map forwarded to the factory (e.g., ['blog_id'=>..., 'user_id'=>..., 'user_global'=>...]).
-	 * @return static
+	 * @param array { blog_id?: int,
+	 * 				  user_id?: int,
+	 * 				  user_storage?: string,
+	 * 				  user_global?: bool } $storage_args Optional storage argument map forwarded to the factory.
+	 * @return static The created instance, configured with the logger from the provided Config.
 	 */
-	public static function from_config(
+	public static function _from_config(
         ConfigInterface $config,
         bool $autoload = true,
         OptionScope|string|null $scope = null,
@@ -317,6 +318,42 @@ class RegisterOptions {
 			$instance->options = $instance->_read_main_option();
 		}
 		return $instance;
+	}
+
+	/**
+	 * Factory: create a RegisterOptions instance using the option name derived from Config.
+	 * Uses late static binding (new static) so subclasses receive instances when calling ::from_config().
+	 *
+	 * Simplified factory for construction-time concerns only. Use fluent methods for configuration:
+	 * - .with_logger() for logger binding
+	 * - .with_schema() for schema registration
+	 * - .with_policy() for write policy
+	 * - .with_defaults() for initial values
+	 *
+	 * @param ConfigInterface $config Initialized config instance.
+	 * @param array{ autoload?: bool,
+	 * 				 scope?: OptionScope|string|null,
+	 * 				 entity?: ScopeEntity|null } $args Optional arguments.
+	 * @return static The created instance, configured with the logger from the provided Config.
+	 */
+	public static function from_config(ConfigInterface $config, array $args = array()): static {
+		$defaults = array(
+			'autoload' => true,
+			'scope'    => 'site',
+			'entity'   => null,
+		);
+		$args = is_array($args) ? array_merge($defaults, $args) : $defaults;
+
+		$autoload = (bool)($args['autoload'] ?? true);
+		$scopeArg = $args['scope']  ?? 'site';
+		$entity   = $args['entity'] ?? null;
+
+		$resolved     = ScopeResolver::resolve($scopeArg, ($entity instanceof ScopeEntity) ? $entity : null);
+		$scope        = $resolved['scope'];
+		$storage_args = $resolved['storage_args'];
+
+		// Logger derived from config
+		return static::_from_config($config, $autoload, $scope, $storage_args);
 	}
 
 	/**
@@ -1191,11 +1228,15 @@ class RegisterOptions {
 		}
 
 		// Honor initial autoload preference only on creation.
-		// If the row does not exist, use add(..., $this->main_option_autoload); otherwise, update().
-		$sentinel     = new \stdClass();
-		$raw_existing = $this->_do_get_option($this->main_wp_option_name, $sentinel);
-		if ($raw_existing === $sentinel) {
-			// Option doesn't exist, use add() with autoload
+		// Determine existence via WordPress get_option sentinel (legacy-compatible, testable via WP_Mock).
+		$__sentinel     = new \stdClass();
+		$__raw_existing = $this->_do_get_option($this->main_wp_option_name, $__sentinel);
+		$__exists       = ($__raw_existing !== $__sentinel);
+		if ($__exists) {
+			// Existing row: use update() without autoload
+			$result = $this->_get_storage()->update($this->main_wp_option_name, $to_save);
+		} else {
+			// Missing row: prefer add() with autoload; if it fails, fall back to update()
 			if ($this->_get_logger()->is_active()) {
 				$this->_get_logger()->debug(
 					'RegisterOptions: storage->add() selected',
@@ -1203,9 +1244,12 @@ class RegisterOptions {
 				);
 			}
 			$result = $this->_get_storage()->add($this->main_wp_option_name, $to_save, $this->main_option_autoload);
-		} else {
-			// Option exists, use update() without autoload
-			$result = $this->_get_storage()->update($this->main_wp_option_name, $to_save);
+			if (!$result) {
+				if ($this->_get_logger()->is_active()) {
+					$this->_get_logger()->debug('RegisterOptions: storage->add() returned false; falling back to storage->update().');
+				}
+				$result = $this->_get_storage()->update($this->main_wp_option_name, $to_save);
+			}
 		}
 
 		// Mirror what we just saved to keep local cache consistent

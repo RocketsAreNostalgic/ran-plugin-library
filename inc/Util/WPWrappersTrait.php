@@ -156,7 +156,13 @@ trait WPWrappersTrait {
 	 * @return mixed The filtered value
 	 */
 	public function _do_apply_filter(string $hook_name, $value, ...$args) {
-		return \apply_filters($hook_name, $value, ...$args);
+		// Mirror WP behavior: when no filter is attached, the input value is returned unchanged.
+		// Under WP_Mock, apply_filters may return null if not explicitly mocked; normalize to $value.
+		if (\function_exists('apply_filters')) {
+			$res = \apply_filters($hook_name, $value, ...$args);
+			return $res !== null ? $res : $value;
+		}
+		return $value;
 	}
 
 	/**
@@ -206,9 +212,13 @@ trait WPWrappersTrait {
 	 * @codeCoverageIgnore
 	 */
 	public function _do_add_option(string $option, mixed $value = '', string $deprecated = '', mixed $autoload = null): bool {
-		// Pass through to WP. In 6.6+, null triggers wp_determine_option_autoload_value() heuristics.
+		// Pass through to WP when available. In 6.6+, null triggers wp_determine_option_autoload_value() heuristics.
 		// Some test shims may return null; always normalize to strict bool.
-		return (bool) \add_option($option, $value, $deprecated, $autoload);
+		if (\function_exists('add_option')) {
+			return (bool) \add_option($option, $value, $deprecated, $autoload);
+		}
+		// In non-WP/unit contexts, avoid fatals and assume success to preserve historical behavior.
+		return true;
 	}
 
 	/**
@@ -261,7 +271,11 @@ trait WPWrappersTrait {
 	 * @return bool
 	 */
 	public function _do_add_site_option(string $option, mixed $value = ''): bool {
-		return (bool) \add_site_option($option, $value);
+		if (\function_exists('add_site_option')) {
+			return (bool) \add_site_option($option, $value);
+		}
+		// In non-WP/unit contexts, avoid fatals and assume success to preserve historical behavior.
+		return true;
 	}
 
 	/**

@@ -13,6 +13,7 @@ use Ran\PluginLib\Config\ConfigAbstract;
 use Ran\PluginLib\Config\ConfigInterface;
 use Ran\PluginLib\Options\RegisterOptions;
 use Ran\PluginLib\Options\Entity\ScopeEntity;
+use Ran\PluginLib\Options\Scope\ScopeResolver;
 
 /**
  * Final Config class which holds key information about the plugin.
@@ -94,42 +95,12 @@ class Config extends ConfigAbstract implements ConfigInterface {
 
 		$autoload = (bool) ($args['autoload'] ?? true);
 		$scopeArg = $args['scope']  ?? 'site'; // string|OptionScope
-		$entity   = $args['entity'] ?? null; // expected ScopeEntity or null
+		$entity   = $args['entity'] ?? null;   // expected ScopeEntity or null
 
-        // Determine final scope and storage args
-		$scope        = null; // \Ran\PluginLib\Options\OptionScope|string|null
-		$storage_args = array();
-
-		// Normalize scope arg to OptionScope|string as used by RegisterOptions
-		if ($scopeArg instanceof \Ran\PluginLib\Options\OptionScope) {
-			$scopeName = strtolower($scopeArg->name);
-		} else {
-			$scopeName = is_string($scopeArg) ? strtolower($scopeArg) : 'site';
-		}
-
-		if ($scopeName === 'site') {
-			// Site: default/null scope, ignore entity if provided
-			$scope = null;
-			// entity is intentionally ignored
-		} elseif ($scopeName === 'network') {
-			$scope = 'network';
-			// entity is intentionally ignored
-		} elseif ($scopeName === 'blog') {
-			$scope = 'blog';
-			if (!($entity instanceof ScopeEntity)) {
-				throw new \InvalidArgumentException('Config::options(): scope="blog" requires an Entity (BlogEntity).');
-			}
-			$storage_args = $entity->toStorageArgs();
-		} elseif ($scopeName === 'user') {
-			$scope = 'user';
-			if (!($entity instanceof ScopeEntity)) {
-				throw new \InvalidArgumentException('Config::options(): scope="user" requires an Entity (UserEntity).');
-			}
-			$storage_args = $entity->toStorageArgs();
-		} else {
-			// Fallback to site
-			$scope = null;
-		}
+		// Normalize final scope and storage args via shared resolver
+		$resolved     = ScopeResolver::resolve($scopeArg, ($entity instanceof ScopeEntity) ? $entity : null);
+		$scope        = $resolved['scope'];
+		$storage_args = $resolved['storage_args'];
 
 		// Warn on unknown/operational args (no behavior change; no writes)
 		$recognized = array('autoload', 'scope', 'entity');
