@@ -38,7 +38,7 @@ final class SiteOptionStorage implements OptionStorageInterface {
 	/** {@inheritdoc} */
 	public function update(string $key, mixed $value, bool $autoload = false): bool {
 		// WordPress accepts 'yes'/'no' for autoload when creating; updates typically don't change autoload.
-		return (bool) $this->_do_set_option($key, $value);
+		return (bool) $this->_do_update_option($key, $value);
 	}
 
 	/** {@inheritdoc} */

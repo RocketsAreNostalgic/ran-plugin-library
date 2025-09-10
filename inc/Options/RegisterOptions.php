@@ -854,7 +854,7 @@ class RegisterOptions {
 		}
 
 		// Preserve autoload: call core set_option with two parameters
-		$this->_do_set_option($this->main_wp_option_name, $normalized);
+		$this->_do_update_option($this->main_wp_option_name, $normalized);
 
 		// Sync in-memory cache
 		$this->options = $normalized;
