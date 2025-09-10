@@ -37,6 +37,24 @@ final class WriteContext {
 	/** @var array<int,string>|null */
 	private ?array $changed_keys;
 
+	/**
+	 * Private constructor. Use the provided static factories to create instances.
+	 *
+	 * @param string                  $op             Operation identifier (e.g., 'save_all').
+	 * @param string                  $main_option    Root option name.
+	 * @param string                  $scope          One of 'site'|'network'|'blog'|'user'.
+	 * @param int|null                $blogId         Blog ID when scope='blog'.
+	 * @param int|null                $userId         User ID when scope='user'.
+	 * @param string|null             $user_storage   'meta'|'option' when scope='user'.
+	 * @param bool                    $user_global    Whether to use global user storage semantics.
+	 * @param bool                    $merge_from_db  Whether to merge from DB before writing.
+	 * @param string|null             $key            Single key for targeted operations.
+	 * @param array<int,string>|null  $keys           Multiple keys for batch operations.
+	 * @param array<string,mixed>|null $options       Full options payload for save-all.
+	 * @param array<int,string>|null  $changed_keys   Changed keys for migration.
+	 *
+	 * @return void
+	 */
 	private function __construct(
 		string $op,
 		string $main_option,
@@ -66,47 +84,118 @@ final class WriteContext {
 	}
 
 	// ---------- Public getters ----------
+	/**
+	 * Get the operation identifier for this write context.
+	 *
+	 * @return string Operation name (e.g., 'save_all', 'set_option', 'add_option').
+	 */
 	public function op(): string {
 		return $this->op;
 	}
+	/**
+	 * Get the main option (root option name) used for persistence.
+	 *
+	 * @return string Main option name.
+	 */
 	public function main_option(): string {
 		return $this->main_option;
 	}
+	/**
+	 * Get the scope for this operation.
+	 *
+	 * @return string One of 'site'|'network'|'blog'|'user'.
+	 */
 	public function scope(): string {
 		return $this->scope;
 	}
+	/**
+	 * Get the target blog ID when scope is 'blog'.
+	 *
+	 * @return int|null Blog ID or null when not applicable.
+	 */
 	public function blogId(): ?int {
 		return $this->blogId;
 	}
+	/**
+	 * Get the target user ID when scope is 'user'.
+	 *
+	 * @return int|null User ID or null when not applicable.
+	 */
 	public function userId(): ?int {
 		return $this->userId;
 	}
+	/**
+	 * Get the user storage backend when scope is 'user'.
+	 *
+	 * @return string|null 'meta'|'option' or null when not applicable.
+	 */
 	public function user_storage(): ?string {
 		return $this->user_storage;
 	}
+	/**
+	 * Whether user writes should be treated as global (implementation specific).
+	 *
+	 * @return bool True when global user write behavior is desired.
+	 */
 	public function user_global(): bool {
 		return $this->user_global;
 	}
+	/**
+	 * Whether to merge with the database before persisting.
+	 *
+	 * @return bool True to merge from DB.
+	 */
 	public function merge_from_db(): bool {
 		return $this->merge_from_db;
 	}
+	/**
+	 * Get a single option key (for single-key operations).
+	 *
+	 * @return string|null Key or null when not applicable.
+	 */
 	public function key(): ?string {
 		return $this->key;
 	}
-	/** @return array<int,string>|null */
+	/**
+	 * Get multiple option keys (for add/multiple operations).
+	 *
+	 * @return array<int,string>|null List of keys or null when not applicable.
+	 */
 	public function keys(): ?array {
 		return $this->keys;
 	}
-	/** @return array<string,mixed>|null */
+	/**
+	 * Get full options payload for save-all operation.
+	 *
+	 * @return array<string,mixed>|null Options map or null when not applicable.
+	 */
 	public function options(): ?array {
 		return $this->options;
 	}
-	/** @return array<int,string>|null */
+	/**
+	 * Get changed keys for migration scenarios.
+	 *
+	 * @return array<int,string>|null List of changed keys or null when not applicable.
+	 */
 	public function changed_keys(): ?array {
 		return $this->changed_keys;
 	}
 
 	// ---------- Factories (with validation) ----------
+	/**
+	 * Create a write context for saving the full options payload.
+	 *
+	 * @param string              $main_option   Root option name.
+	 * @param string              $scope         One of 'site'|'network'|'blog'|'user'.
+	 * @param int|null            $blogId        Target blog ID when scope='blog'.
+	 * @param int|null            $userId        Target user ID when scope='user'.
+	 * @param string              $user_storage  'meta'|'option' when scope='user'.
+	 * @param bool                $user_global   Whether to use global user storage semantics.
+	 * @param array<string,mixed> $options       Options map to persist.
+	 * @param bool                $merge_from_db Whether to merge from DB before writing.
+	 *
+	 * @return self New WriteContext instance.
+	 */
 	public static function for_save_all(
 		string $main_option,
 		string $scope,
@@ -123,6 +212,19 @@ final class WriteContext {
 		return new self('save_all', $main_option, $scope, $blogId, $userId, $user_storage, $user_global, $merge_from_db, null, null, $options, null);
 	}
 
+	/**
+	 * Create a write context for setting a single option key.
+	 *
+	 * @param string $main_option  Root option name.
+	 * @param string $scope        One of 'site'|'network'|'blog'|'user'.
+	 * @param int|null $blogId     Target blog ID when scope='blog'.
+	 * @param int|null $userId     Target user ID when scope='user'.
+	 * @param string $user_storage 'meta'|'option' when scope='user'.
+	 * @param bool   $user_global  Whether to use global user storage semantics.
+	 * @param string $key          Option key to set.
+	 *
+	 * @return self New WriteContext instance.
+	 */
 	public static function for_set_option(
 		string $main_option,
 		string $scope,
@@ -139,7 +241,19 @@ final class WriteContext {
 		return new self('set_option', $main_option, $scope, $blogId, $userId, $user_storage, $user_global, false, $key, null, null, null);
 	}
 
-	/** @param array<int,string> $keys */
+	/**
+	 * Create a write context for adding multiple option keys.
+	 *
+	 * @param string             $main_option  Root option name.
+	 * @param string             $scope        One of 'site'|'network'|'blog'|'user'.
+	 * @param int|null           $blogId       Target blog ID when scope='blog'.
+	 * @param int|null           $userId       Target user ID when scope='user'.
+	 * @param string             $user_storage 'meta'|'option' when scope='user'.
+	 * @param bool               $user_global  Whether to use global user storage semantics.
+	 * @param array<int,string>  $keys         Keys to add.
+	 *
+	 * @return self New WriteContext instance.
+	 */
 	public static function for_add_options(
 		string $main_option,
 		string $scope,
@@ -156,6 +270,19 @@ final class WriteContext {
 		return new self('add_options', $main_option, $scope, $blogId, $userId, $user_storage, $user_global, false, null, array_values(array_map('strval', $keys)), null, null);
 	}
 
+	/**
+	 * Create a write context for adding a single option key.
+	 *
+	 * @param string $main_option  Root option name.
+	 * @param string $scope        One of 'site'|'network'|'blog'|'user'.
+	 * @param int|null $blogId     Target blog ID when scope='blog'.
+	 * @param int|null $userId     Target user ID when scope='user'.
+	 * @param string $user_storage 'meta'|'option' when scope='user'.
+	 * @param bool   $user_global  Whether to use global user storage semantics.
+	 * @param string $key          Key to add.
+	 *
+	 * @return self New WriteContext instance.
+	 */
 	public static function for_add_option(
 		string $main_option,
 		string $scope,
@@ -172,6 +299,19 @@ final class WriteContext {
 		return new self('add_option', $main_option, $scope, $blogId, $userId, $user_storage, $user_global, false, $key, null, null, null);
 	}
 
+	/**
+	 * Create a write context for deleting a single option key.
+	 *
+	 * @param string $main_option  Root option name.
+	 * @param string $scope        One of 'site'|'network'|'blog'|'user'.
+	 * @param int|null $blogId     Target blog ID when scope='blog'.
+	 * @param int|null $userId     Target user ID when scope='user'.
+	 * @param string $user_storage 'meta'|'option' when scope='user'.
+	 * @param bool   $user_global  Whether to use global user storage semantics.
+	 * @param string $key          Key to delete.
+	 *
+	 * @return self New WriteContext instance.
+	 */
 	public static function for_delete_option(
 		string $main_option,
 		string $scope,
@@ -188,6 +328,18 @@ final class WriteContext {
 		return new self('delete_option', $main_option, $scope, $blogId, $userId, $user_storage, $user_global, false, $key, null, null, null);
 	}
 
+	/**
+	 * Create a write context for clearing all options under the root.
+	 *
+	 * @param string   $main_option  Root option name.
+	 * @param string   $scope        One of 'site'|'network'|'blog'|'user'.
+	 * @param int|null $blogId       Target blog ID when scope='blog'.
+	 * @param int|null $userId       Target user ID when scope='user'.
+	 * @param string   $user_storage 'meta'|'option' when scope='user'.
+	 * @param bool     $user_global  Whether to use global user storage semantics.
+	 *
+	 * @return self New WriteContext instance.
+	 */
 	public static function for_clear(
 		string $main_option,
 		string $scope,
@@ -202,6 +354,19 @@ final class WriteContext {
 		return new self('clear', $main_option, $scope, $blogId, $userId, $user_storage, $user_global, false, null, null, null, null);
 	}
 
+	/**
+	 * Create a write context that seeds defaults if options are missing.
+	 *
+	 * @param string            $main_option  Root option name.
+	 * @param string            $scope        One of 'site'|'network'|'blog'|'user'.
+	 * @param int|null          $blogId       Target blog ID when scope='blog'.
+	 * @param int|null          $userId       Target user ID when scope='user'.
+	 * @param string            $user_storage 'meta'|'option' when scope='user'.
+	 * @param bool              $user_global  Whether to use global user storage semantics.
+	 * @param array<int,string> $keys         Default keys snapshot to seed.
+	 *
+	 * @return self New WriteContext instance.
+	 */
 	public static function for_seed_if_missing(
 		string $main_option,
 		string $scope,
@@ -218,7 +383,19 @@ final class WriteContext {
 		return new self('seed_if_missing', $main_option, $scope, $blogId, $userId, $user_storage, $user_global, false, null, array_values(array_map('strval', $keys)), null, null);
 	}
 
-	/** @param array<int,string> $changed_keys */
+	/**
+	 * Create a write context for migrations (keys changed/renamed, etc.).
+	 *
+	 * @param string             $main_option   Root option name.
+	 * @param string             $scope         One of 'site'|'network'|'blog'|'user'.
+	 * @param int|null           $blogId        Target blog ID when scope='blog'.
+	 * @param int|null           $userId        Target user ID when scope='user'.
+	 * @param string             $user_storage  'meta'|'option' when scope='user'.
+	 * @param bool               $user_global   Whether to use global user storage semantics.
+	 * @param array<int,string>  $changed_keys  Keys that changed (for migration logic).
+	 *
+	 * @return self New WriteContext instance.
+	 */
 	public static function for_migrate(
 		string $main_option,
 		string $scope,
@@ -236,19 +413,41 @@ final class WriteContext {
 	}
 
 	// ---------- Validation helpers ----------
+	/**
+	 * Assert a string value is non-empty (helper used by factories).
+	 *
+	 * @param string $value Value to test.
+	 * @param string $field Field name for error context.
+	 *
+	 * @return void
+	 */
 	private static function ssert_non_empty(string $value, string $field): void {
 		if ($value === '') {
 			throw new \InvalidArgumentException('WriteContext: field ' . $field . ' must be non-empty');
 		}
 	}
 
-	/** @param array<mixed> $arr */
+	/**
+	 * Assert an array is non-empty (helper used by factories).
+	 *
+	 * @param array<mixed> $arr   Array to test.
+	 * @param string       $field Field name for error context.
+	 *
+	 * @return void
+	 */
 	private static function ssert_non_emptyArray(array $arr, string $field): void {
 		if ($arr === array()) {
 			throw new \InvalidArgumentException('WriteContext: field ' . $field . ' must be a non-empty array');
 		}
 	}
 
+	/**
+	 * Normalize and validate the provided scope string.
+	 *
+	 * @param string $scope Scope value to normalize.
+	 *
+	 * @return string Normalized scope ('site'|'network'|'blog'|'user').
+	 */
 	private static function normalize_scope(string $scope): string {
 		$scope = strtolower($scope);
 		if ($scope !== 'site' && $scope !== 'network' && $scope !== 'blog' && $scope !== 'user') {
@@ -258,8 +457,14 @@ final class WriteContext {
 	}
 
 	/**
-	 * Validate blogId/userId/user_storage trio based on scope; returns normalized triplet
-	 * @return array{0:?int,1:?int,2:?string}
+	 * Validate blogId/userId/user_storage trio based on scope; returns normalized triplet.
+	 *
+	 * @param string   $scope        One of 'site'|'network'|'blog'|'user'.
+	 * @param int|null $blogId       Blog ID when scope='blog'.
+	 * @param int|null $userId       User ID when scope='user'.
+	 * @param string|null $user_storage 'meta'|'option' when scope='user'.
+	 *
+	 * @return array{0:?int,1:?int,2:?string} Tuple of [blogId|null, userId|null, user_storage|null].
 	 */
 	private static function validate_scope_triplet(string $scope, ?int $blogId, ?int $userId, ?string $user_storage): array {
 		if ($scope === 'blog') {
