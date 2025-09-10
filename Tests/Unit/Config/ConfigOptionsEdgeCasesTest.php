@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\Tests\Unit\Config;
 
+use WP_Mock;
+use Ran\PluginLib\Options\OptionScope;
+use Ran\PluginLib\Util\ExpectLogTrait;
 use Ran\PluginLib\Tests\Unit\PluginLibTestCase;
 use Ran\PluginLib\Tests\Unit\TestClasses\TestableConfig;
-use Ran\PluginLib\Util\ExpectLogTrait;
-use Ran\PluginLib\Options\OptionScope;
-use WP_Mock;
 
 /**
  * Tests for Config::options() edge cases and uncovered lines.
@@ -17,7 +17,7 @@ use WP_Mock;
  */
 final class ConfigOptionsEdgeCasesTest extends PluginLibTestCase {
 	use ExpectLogTrait;
-	
+
 	private array $loggedMessages = array();
 
 	public function setUp(): void {
@@ -33,12 +33,11 @@ final class ConfigOptionsEdgeCasesTest extends PluginLibTestCase {
 
 	/**
 	 * @covers \Ran\PluginLib\Config\Config::options
-	 * Tests lines 114-121: invalid policy handling - forces execution of lines 116-119
+	 * Tests unknown argument handling with warning
 	 */
 	public function test_options_invalid_policy_triggers_warning_path(): void {
-		// Create Config instance using reflection to access parent class property
 		$cfg = new \Ran\PluginLib\Config\Config();
-		
+
 		// Set up minimal config data using reflection on parent class _unified_cache property
 		$reflection    = new \ReflectionClass(\Ran\PluginLib\Config\ConfigAbstract::class);
 		$cacheProperty = $reflection->getProperty('_unified_cache');
@@ -54,12 +53,12 @@ final class ConfigOptionsEdgeCasesTest extends PluginLibTestCase {
 		$logger = $this->createMock(\Ran\PluginLib\Util\Logger::class);
 		$logger->expects($this->once())
 			->method('warning')
-			->with('Config::options(): Ignored policy (must implement WritePolicyInterface).');
-		
+			->with('Config::options(): Ignored args: policy');
+
 		// Set the logger on config to ensure get_logger() returns it
 		$cfg->set_logger($logger);
 
-		// Pass invalid policy (not implementing WritePolicyInterface) - this should trigger lines 114-121
+		// Pass policy as unknown argument - this should trigger unknown args warning
 		$invalidPolicy = new \stdClass();
 		$opts          = $cfg->options(array('policy' => $invalidPolicy));
 
@@ -68,11 +67,158 @@ final class ConfigOptionsEdgeCasesTest extends PluginLibTestCase {
 
 	/**
 	 * @covers \Ran\PluginLib\Config\Config::options
+	 * Covers line 115: network scope sets scope to 'network' and ignores entity
+	 */
+	public function test_options_network_scope_ignores_entity(): void {
+		$cfg = new \Ran\PluginLib\Config\Config();
+
+		// Set up config data via reflection
+		$reflection    = new \ReflectionClass(\Ran\PluginLib\Config\ConfigAbstract::class);
+		$cacheProperty = $reflection->getProperty('_unified_cache');
+		$cacheProperty->setAccessible(true);
+		$cacheProperty->setValue($cfg, array(
+			'RAN' => array('AppOption' => 'test_plugin_options')
+		));
+
+		// Guard potential initial site read during construction, and expect network storage path later
+		\WP_Mock::userFunction('get_option')->andReturn(array());
+		// Expect network storage path: site option is used
+		\WP_Mock::userFunction('get_site_option')->once()->andReturn(array());
+
+		$opts = $cfg->options(array(
+			'scope'  => 'network',
+			'entity' => new \Ran\PluginLib\Options\Entity\BlogEntity(999), // should be ignored
+		));
+
+		$this->assertInstanceOf(\Ran\PluginLib\Options\RegisterOptions::class, $opts);
+		// NetworkOptionStorage::supports_autoload() is false
+		$this->assertFalse($opts->supports_autoload());
+	}
+
+	/**
+	 * @covers \Ran\PluginLib\Config\Config::options
+	 * Also cover line 115 via OptionScope enum input.
+	 */
+	public function test_options_network_scope_enum_ignores_entity(): void {
+		$cfg = new \Ran\PluginLib\Config\Config();
+
+		$reflection    = new \ReflectionClass(\Ran\PluginLib\Config\ConfigAbstract::class);
+		$cacheProperty = $reflection->getProperty('_unified_cache');
+		$cacheProperty->setAccessible(true);
+		$cacheProperty->setValue($cfg, array(
+			'RAN' => array('AppOption' => 'test_plugin_options')
+		));
+
+		\WP_Mock::userFunction('get_option')->andReturn(array());
+		\WP_Mock::userFunction('get_site_option')->andReturn(array());
+
+		$opts = $cfg->options(array(
+			'scope'  => \Ran\PluginLib\Options\OptionScope::Network,
+			'entity' => new \Ran\PluginLib\Options\Entity\BlogEntity(999), // should be ignored
+		));
+
+		$this->assertInstanceOf(\Ran\PluginLib\Options\RegisterOptions::class, $opts);
+		$this->assertFalse($opts->supports_autoload());
+	}
+
+	/**
+	 * @covers \Ran\PluginLib\Config\Config::options
+	 * Covers line 120: blog scope without entity throws
+	 */
+	public function test_options_blog_scope_without_entity_throws(): void {
+		$cfg = new \Ran\PluginLib\Config\Config();
+
+		// Set up config data via reflection
+		$reflection    = new \ReflectionClass(\Ran\PluginLib\Config\ConfigAbstract::class);
+		$cacheProperty = $reflection->getProperty('_unified_cache');
+		$cacheProperty->setAccessible(true);
+		$cacheProperty->setValue($cfg, array(
+			'RAN' => array('AppOption' => 'test_plugin_options')
+		));
+
+		$this->expectException(\InvalidArgumentException::class);
+		$cfg->options(array('scope' => 'blog'));
+	}
+
+	/**
+	 * @covers \Ran\PluginLib\Config\Config::options
+	 * Covers line 126: user scope without entity throws
+	 */
+	public function test_options_user_scope_without_entity_throws(): void {
+		$cfg = new \Ran\PluginLib\Config\Config();
+
+		// Set up config data via reflection
+		$reflection    = new \ReflectionClass(\Ran\PluginLib\Config\ConfigAbstract::class);
+		$cacheProperty = $reflection->getProperty('_unified_cache');
+		$cacheProperty->setAccessible(true);
+		$cacheProperty->setValue($cfg, array(
+			'RAN' => array('AppOption' => 'test_plugin_options')
+		));
+
+		$this->expectException(\InvalidArgumentException::class);
+		$cfg->options(array('scope' => 'user'));
+	}
+
+	/**
+	 * @covers \Ran\PluginLib\Config\Config::options
+	 * Covers line 131: fallback to site on unknown scope (entity ignored)
+	 */
+	public function test_options_unknown_scope_falls_back_to_site_and_ignores_entity(): void {
+		$cfg = new \Ran\PluginLib\Config\Config();
+
+		// Set up config data via reflection
+		$reflection    = new \ReflectionClass(\Ran\PluginLib\Config\ConfigAbstract::class);
+		$cacheProperty = $reflection->getProperty('_unified_cache');
+		$cacheProperty->setAccessible(true);
+		$cacheProperty->setValue($cfg, array(
+			'RAN' => array('AppOption' => 'test_plugin_options')
+		));
+
+		// Site storage path: uses get_option
+		\WP_Mock::userFunction('get_option')->once()->andReturn(array());
+
+		$opts = $cfg->options(array(
+			'scope'  => 'unknown-scope',
+			'entity' => new \Ran\PluginLib\Options\Entity\BlogEntity(123), // ignored
+		));
+
+		$this->assertInstanceOf(\Ran\PluginLib\Options\RegisterOptions::class, $opts);
+		$this->assertTrue($opts->supports_autoload()); // site storage supports autoload
+	}
+
+	/**
+	 * @covers \Ran\PluginLib\Config\Config::options
+	 * Explicit site scope should ignore entity and use site storage.
+	 */
+	public function test_options_site_scope_ignores_entity(): void {
+		$cfg = new \Ran\PluginLib\Config\Config();
+
+		$reflection    = new \ReflectionClass(\Ran\PluginLib\Config\ConfigAbstract::class);
+		$cacheProperty = $reflection->getProperty('_unified_cache');
+		$cacheProperty->setAccessible(true);
+		$cacheProperty->setValue($cfg, array(
+			'RAN' => array('AppOption' => 'test_plugin_options')
+		));
+
+		// Site storage path: uses get_option
+		\WP_Mock::userFunction('get_option')->once()->andReturn(array());
+
+		$opts = $cfg->options(array(
+			'scope'  => 'site',
+			'entity' => new \Ran\PluginLib\Options\Entity\BlogEntity(999), // ignored
+		));
+
+		$this->assertInstanceOf(\Ran\PluginLib\Options\RegisterOptions::class, $opts);
+		$this->assertTrue($opts->supports_autoload());
+	}
+
+	/**
+	 * @covers \Ran\PluginLib\Config\Config::options
 	 * Tests line 130: user_id assignment for user scope
 	 */
 	public function test_options_user_scope_with_user_id(): void {
 		$cfg = new \Ran\PluginLib\Config\Config();
-		
+
 		// Set up config data via reflection
 		$reflection    = new \ReflectionClass(\Ran\PluginLib\Config\ConfigAbstract::class);
 		$cacheProperty = $reflection->getProperty('_unified_cache');
@@ -86,8 +232,8 @@ final class ConfigOptionsEdgeCasesTest extends PluginLibTestCase {
 		WP_Mock::userFunction('get_user_meta')->andReturn(array());
 
 		$opts = $cfg->options(array(
-			'scope'   => 'user',
-			'user_id' => 42
+			'scope'  => 'user',
+			'entity' => new \Ran\PluginLib\Options\Entity\UserEntity(42)
 		));
 
 		$this->assertInstanceOf(\Ran\PluginLib\Options\RegisterOptions::class, $opts);
@@ -99,7 +245,7 @@ final class ConfigOptionsEdgeCasesTest extends PluginLibTestCase {
 	 */
 	public function test_options_user_scope_with_user_storage(): void {
 		$cfg = new \Ran\PluginLib\Config\Config();
-		
+
 		// Set up config data via reflection
 		$reflection    = new \ReflectionClass(\Ran\PluginLib\Config\ConfigAbstract::class);
 		$cacheProperty = $reflection->getProperty('_unified_cache');
@@ -113,9 +259,8 @@ final class ConfigOptionsEdgeCasesTest extends PluginLibTestCase {
 		WP_Mock::userFunction('get_user_option')->andReturn(array());
 
 		$opts = $cfg->options(array(
-			'scope'        => 'user',
-			'user_id'      => 42,
-			'user_storage' => 'option'
+			'scope'  => 'user',
+			'entity' => new \Ran\PluginLib\Options\Entity\UserEntity(42, false, 'option')
 		));
 
 		$this->assertInstanceOf(\Ran\PluginLib\Options\RegisterOptions::class, $opts);
@@ -127,7 +272,7 @@ final class ConfigOptionsEdgeCasesTest extends PluginLibTestCase {
 	 */
 	public function test_options_user_scope_defaults_to_meta_storage(): void {
 		$cfg = new \Ran\PluginLib\Config\Config();
-		
+
 		// Set up config data via reflection
 		$reflection    = new \ReflectionClass(\Ran\PluginLib\Config\ConfigAbstract::class);
 		$cacheProperty = $reflection->getProperty('_unified_cache');
@@ -142,9 +287,8 @@ final class ConfigOptionsEdgeCasesTest extends PluginLibTestCase {
 		WP_Mock::userFunction('get_user_meta')->andReturn(array());
 
 		$opts = $cfg->options(array(
-			'scope'        => 'user',
-			'user_id'      => 42,
-			'user_storage' => null
+			'scope'  => 'user',
+			'entity' => new \Ran\PluginLib\Options\Entity\UserEntity(42)
 		));
 
 		$this->assertInstanceOf(\Ran\PluginLib\Options\RegisterOptions::class, $opts);
@@ -156,7 +300,7 @@ final class ConfigOptionsEdgeCasesTest extends PluginLibTestCase {
 	 */
 	public function test_options_unknown_args_handling(): void {
 		$cfg = new \Ran\PluginLib\Config\Config();
-		
+
 		// Set up config data via reflection
 		$reflection    = new \ReflectionClass(\Ran\PluginLib\Config\ConfigAbstract::class);
 		$cacheProperty = $reflection->getProperty('_unified_cache');
@@ -183,7 +327,7 @@ final class ConfigOptionsEdgeCasesTest extends PluginLibTestCase {
 	 */
 	public function test_options_with_initial_values_calls_with_defaults(): void {
 		$cfg = new \Ran\PluginLib\Config\Config();
-		
+
 		// Set up config data via reflection
 		$reflection    = new \ReflectionClass(\Ran\PluginLib\Config\ConfigAbstract::class);
 		$cacheProperty = $reflection->getProperty('_unified_cache');
@@ -197,7 +341,9 @@ final class ConfigOptionsEdgeCasesTest extends PluginLibTestCase {
 		// Use flexible mock that accepts any parameters
 		WP_Mock::userFunction('get_option')->andReturn(array());
 
-		$opts = $cfg->options(array('initial_values' => $initial_values));
+		$opts = $cfg->options(array(
+			'initial_values' => $initial_values
+		));
 
 		$this->assertInstanceOf(\Ran\PluginLib\Options\RegisterOptions::class, $opts);
 	}
@@ -208,7 +354,7 @@ final class ConfigOptionsEdgeCasesTest extends PluginLibTestCase {
 	 */
 	public function test_options_with_initial_values_calls_with_defaults_2(): void {
 		$cfg = new \Ran\PluginLib\Config\Config();
-		
+
 		// Set up config data via reflection
 		$reflection    = new \ReflectionClass(\Ran\PluginLib\Config\ConfigAbstract::class);
 		$cacheProperty = $reflection->getProperty('_unified_cache');
@@ -221,7 +367,6 @@ final class ConfigOptionsEdgeCasesTest extends PluginLibTestCase {
 		$initial_values = array('key1' => 'value1', 'key2' => 'value2');
 		// Use flexible mock that accepts any parameters
 		WP_Mock::userFunction('get_option')->andReturn(array());
-		WP_Mock::userFunction('update_option')->andReturn(true);
 
 		$opts = $cfg->options(array(
 			'initial' => $initial_values
@@ -236,7 +381,7 @@ final class ConfigOptionsEdgeCasesTest extends PluginLibTestCase {
 	 */
 	public function test_options_with_schema_calls_with_schema(): void {
 		$cfg = new \Ran\PluginLib\Config\Config();
-		
+
 		// Set up config data via reflection
 		$reflection    = new \ReflectionClass(\Ran\PluginLib\Config\ConfigAbstract::class);
 		$cacheProperty = $reflection->getProperty('_unified_cache');
@@ -257,11 +402,9 @@ final class ConfigOptionsEdgeCasesTest extends PluginLibTestCase {
 			)
 		);
 
-		$opts = $cfg->options(array(
-			'schema'        => $schema,
-			'seed_defaults' => true,
-			'flush'         => false
-		));
+		$opts = $cfg->options(array());
+		// Apply schema using fluent API; ensure no writes occur via options() itself
+		$opts->with_schema($schema, true, false);
 
 		$this->assertInstanceOf(\Ran\PluginLib\Options\RegisterOptions::class, $opts);
 	}
@@ -272,7 +415,7 @@ final class ConfigOptionsEdgeCasesTest extends PluginLibTestCase {
 	 */
 	public function test_options_with_valid_policy_calls_with_policy(): void {
 		$cfg = new \Ran\PluginLib\Config\Config();
-		
+
 		// Set up config data via reflection
 		$reflection    = new \ReflectionClass(\Ran\PluginLib\Config\ConfigAbstract::class);
 		$cacheProperty = $reflection->getProperty('_unified_cache');
@@ -284,7 +427,7 @@ final class ConfigOptionsEdgeCasesTest extends PluginLibTestCase {
 		$main = 'test_plugin_options';
 		WP_Mock::userFunction('get_option')->with($main, array())->once()->andReturn(array());
 
-		$policy = $this->createMock(\Ran\PluginLib\Options\WritePolicyInterface::class);
+		$policy = $this->createMock(\Ran\PluginLib\Options\Policy\WritePolicyInterface::class);
 		$opts   = $cfg->options(array('policy' => $policy));
 
 		$this->assertInstanceOf(\Ran\PluginLib\Options\RegisterOptions::class, $opts);
@@ -296,7 +439,7 @@ final class ConfigOptionsEdgeCasesTest extends PluginLibTestCase {
 	 */
 	public function test_options_user_scope_with_enum(): void {
 		$cfg = new \Ran\PluginLib\Config\Config();
-		
+
 		// Set up config data via reflection
 		$reflection    = new \ReflectionClass(\Ran\PluginLib\Config\ConfigAbstract::class);
 		$cacheProperty = $reflection->getProperty('_unified_cache');
@@ -311,9 +454,8 @@ final class ConfigOptionsEdgeCasesTest extends PluginLibTestCase {
 		WP_Mock::userFunction('get_user_meta')->andReturn(array());
 
 		$opts = $cfg->options(array(
-			'scope'       => OptionScope::User,
-			'user_id'     => 42,
-			'user_global' => true
+			'scope'  => OptionScope::User,
+			'entity' => new \Ran\PluginLib\Options\Entity\UserEntity(42, true)
 		));
 
 		$this->assertInstanceOf(\Ran\PluginLib\Options\RegisterOptions::class, $opts);
@@ -325,7 +467,7 @@ final class ConfigOptionsEdgeCasesTest extends PluginLibTestCase {
 	 */
 	public function test_options_blog_scope_with_blog_id(): void {
 		$cfg = new \Ran\PluginLib\Config\Config();
-		
+
 		// Set up config data via reflection
 		$reflection    = new \ReflectionClass(\Ran\PluginLib\Config\ConfigAbstract::class);
 		$cacheProperty = $reflection->getProperty('_unified_cache');
@@ -340,8 +482,8 @@ final class ConfigOptionsEdgeCasesTest extends PluginLibTestCase {
 		WP_Mock::userFunction('get_blog_option')->andReturn(array());
 
 		$opts = $cfg->options(array(
-			'scope'   => 'blog',
-			'blog_id' => 5
+			'scope'  => 'blog',
+			'entity' => new \Ran\PluginLib\Options\Entity\BlogEntity(5)
 		));
 
 		$this->assertInstanceOf(\Ran\PluginLib\Options\RegisterOptions::class, $opts);

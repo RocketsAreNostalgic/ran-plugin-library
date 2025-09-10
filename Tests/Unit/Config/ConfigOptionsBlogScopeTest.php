@@ -79,10 +79,10 @@ final class ConfigOptionsBlogScopeTest extends ConfigTestCase {
 	public function test_blog_scope_forwards_blog_id(): void {
 		$config = $this->configFromPluginFileWithLogger($this->plugin_file);
 
-		// Acquire accessor with explicit blog scope and blog_id (exercises line 112)
+		// Acquire accessor with explicit blog entity (blog_id = 999)
 		$opts = $config->options(array(
-		    'scope'   => 'blog',
-		    'blog_id' => 999,
+		    'scope'  => 'blog',
+		    'entity' => new \Ran\PluginLib\Options\Entity\BlogEntity(999),
 		));
 
 		$this->assertInstanceOf(\Ran\PluginLib\Options\RegisterOptions::class, $opts);

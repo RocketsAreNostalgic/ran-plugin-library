@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\Tests\Unit\Config;
 
+use WP_Mock;
 use Ran\PluginLib\Tests\Unit\PluginLibTestCase;
 use Ran\PluginLib\Tests\Unit\TestClasses\TestableConfig;
-use WP_Mock;
 
 /**
  * Tests for Config::options() no-write semantics (Task 2.3)
@@ -61,7 +61,8 @@ final class ConfigOptionsNoWritesTest extends PluginLibTestCase {
 		$schema = array(
 			'flag' => array('default' => false, 'validate' => fn($v) => is_bool($v)),
 		);
-		$opts = $cfg->options(array('schema' => $schema));
+		$opts = $cfg->options();
+		$opts->with_schema($schema, false, false);
 		$this->assertSame(false, $opts->get_option('flag'));
 	}
 
@@ -101,9 +102,9 @@ final class ConfigOptionsNoWritesTest extends PluginLibTestCase {
 		);
 		$opts = $cfg->options(array(
 			'initial'  => array('foo' => 'bar'),
-			'schema'   => $schema,
 			'autoload' => false,
 		));
+		$opts->with_schema($schema, false, false);
 		// 'initial' ignored by TestableConfig::options(); schema registered without seeding -> default not applied
 		$this->assertFalse($opts->get_option('foo'));
 		$this->assertFalse($opts->get_option('timeout'));
