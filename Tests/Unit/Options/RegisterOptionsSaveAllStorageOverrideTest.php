@@ -50,7 +50,7 @@ final class RegisterOptionsSaveAllStorageOverrideTest extends PluginLibTestCase 
 		$config->method('get_options_key')->willReturn($main);
 		$config->method('get_logger')->willReturn($this->logger_mock);
 
-		$opts = TestableSaveAllRegisterOptions::from_config($config, true, OptionScope::Site)
+		$opts = TestableSaveAllRegisterOptions::_from_config($config, true, OptionScope::Site)
 			->with_logger($this->logger_mock);
 
 		// In-memory options to ensure foreach merge runs
@@ -91,7 +91,7 @@ final class RegisterOptionsSaveAllStorageOverrideTest extends PluginLibTestCase 
 		$config->method('get_options_key')->willReturn($main);
 		$config->method('get_logger')->willReturn($this->logger_mock);
 
-		$opts = TestableSaveAllRegisterOptions::from_config($config, true, OptionScope::Site)
+		$opts = TestableSaveAllRegisterOptions::_from_config($config, true, OptionScope::Site)
 			->with_logger($this->logger_mock);
 
 		// In-memory payload to persist

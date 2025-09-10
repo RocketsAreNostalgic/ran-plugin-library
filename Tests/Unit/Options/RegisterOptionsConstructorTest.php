@@ -216,7 +216,7 @@ final class RegisterOptionsConstructorTest extends PluginLibTestCase {
 	}
 
 	/**
-	 * @covers \Ran\PluginLib\Options\RegisterOptions::from_config
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::_from_config
 	 */
 	public function test_from_config_constructor_with_minimal_config(): void {
 		// Create a minimal Config double with collecting logger supplied via constructor
@@ -310,7 +310,7 @@ final class RegisterOptionsConstructorTest extends PluginLibTestCase {
 			}
 		};
 
-		$opts = TestableRegisterOptions::from_config($config);
+		$opts = TestableRegisterOptions::_from_config($config);
 		// Expect constructor initialization log captured via Config-provided logger
 		$this->expectLog('debug', "RegisterOptions: Initialized with main option 'test_plugin_options'. Loaded 0 existing sub-options.", 1);
 		$this->assertInstanceOf(RegisterOptions::class, $opts);
@@ -318,7 +318,7 @@ final class RegisterOptionsConstructorTest extends PluginLibTestCase {
 	}
 
 	/**
-	 * @covers \Ran\PluginLib\Options\RegisterOptions::from_config
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::_from_config
 	 */
 	public function test_from_config_with_explicit_scope_blog_current(): void {
 		$config = new class($this->logger_mock) implements ConfigInterface {
@@ -415,7 +415,7 @@ final class RegisterOptionsConstructorTest extends PluginLibTestCase {
 		TestableRegisterOptions::$currentBlogId = 456;
 		WP_Mock::userFunction('get_current_blog_id')->andReturn(456);
 
-		$opts = TestableRegisterOptions::from_config(
+		$opts = TestableRegisterOptions::_from_config(
 			$config,
 			scope: OptionScope::Blog,
 			storage_args: array('blog_id' => 456)
@@ -427,7 +427,7 @@ final class RegisterOptionsConstructorTest extends PluginLibTestCase {
 	}
 
 	/**
-	 * @covers \Ran\PluginLib\Options\RegisterOptions::from_config
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::_from_config
 	 */
 	public function test_from_config_with_explicit_scope_blog_non_current(): void {
 		$config = new class($this->logger_mock) implements ConfigInterface {
@@ -523,7 +523,7 @@ final class RegisterOptionsConstructorTest extends PluginLibTestCase {
 		// Set current blog ID to be different from the blog scope
 		TestableRegisterOptions::$currentBlogId = 123;
 
-		$opts = TestableRegisterOptions::from_config(
+		$opts = TestableRegisterOptions::_from_config(
 			$config,
 			scope: OptionScope::Blog,
 			storage_args: array('blog_id' => 456)
@@ -535,7 +535,7 @@ final class RegisterOptionsConstructorTest extends PluginLibTestCase {
 	}
 
 	/**
-	 * @covers \Ran\PluginLib\Options\RegisterOptions::from_config
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::_from_config
 	 */
 	public function test_from_config_throws_exception_for_empty_options_key(): void {
 		$config = new class($this->logger_mock) implements ConfigInterface {
@@ -630,6 +630,6 @@ final class RegisterOptionsConstructorTest extends PluginLibTestCase {
 
 		$this->expectException(\InvalidArgumentException::class);
 		$this->expectExceptionMessage('Missing or invalid options key from Config');
-		TestableRegisterOptions::from_config($config);
+		TestableRegisterOptions::_from_config($config);
 	}
 }

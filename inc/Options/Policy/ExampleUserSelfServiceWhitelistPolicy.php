@@ -43,32 +43,26 @@ final class ExampleUserSelfServiceWhitelistPolicy extends AbstractWritePolicy im
 			return false;
 		}
 
-		// Operation-specific checks
-		switch ($op) {
-			case 'set_option':
-			case 'add_option':
-			case 'delete_option': {
-				return $this->keysWhitelisted($op, $wc, $this->whitelist_keys);
-			}
-
-			case 'add_options': {
-				return $this->keysWhitelisted($op, $wc, $this->whitelist_keys);
-			}
-
-			case 'save_all': {
-				// Ensure save_all payload only contains whitelisted keys.
-				return $this->keysWhitelisted($op, $wc, $this->whitelist_keys);
-			}
-
-			case 'clear':
-			case 'seed_if_missing':
-			case 'migrate':
-				// Out of scope for subscriber self-service in this example.
-				return false;
-
-			default:
-				// Unknown operation → deny
-				return false;
+		// Operation-specific checks (nested conditionals)
+		if ($op === 'set_option' || $op === 'add_option' || $op === 'delete_option') {
+			return $this->keysWhitelisted($op, $wc, $this->whitelist_keys);
 		}
+
+		if ($op === 'add_options') {
+			return $this->keysWhitelisted($op, $wc, $this->whitelist_keys);
+		}
+
+		if ($op === 'save_all') {
+			// Ensure save_all payload only contains whitelisted keys.
+			return $this->keysWhitelisted($op, $wc, $this->whitelist_keys);
+		}
+
+		if ($op === 'clear' || $op === 'seed_if_missing' || $op === 'migrate') {
+			// Out of scope for subscriber self-service in this example.
+			return false;
+		}
+
+		// Unknown operation → deny
+		return false;
 	}
 }

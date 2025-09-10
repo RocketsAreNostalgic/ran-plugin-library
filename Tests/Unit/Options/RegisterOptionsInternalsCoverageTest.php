@@ -66,7 +66,7 @@ final class RegisterOptionsInternalsCoverageTest extends PluginLibTestCase {
 		$config = $this->getMockBuilder(ConfigInterface::class)->getMock();
 		$config->method('get_options_key')->willReturn('test_options');
 		$config->method('get_logger')->willReturn($this->logger_mock);
-		$opts = RegisterOptions::from_config($config, true, OptionScope::Site);
+		$opts = RegisterOptions::_from_config($config, true, OptionScope::Site);
 
 		$schema = array(
 			'num' => array(
@@ -117,7 +117,7 @@ final class RegisterOptionsInternalsCoverageTest extends PluginLibTestCase {
 		$config = $this->getMockBuilder(ConfigInterface::class)->getMock();
 		$config->method('get_options_key')->willReturn('test_options');
 		$config->method('get_logger')->willReturn($this->logger_mock);
-		$opts = RegisterOptions::from_config($config, true, OptionScope::Site);
+		$opts = RegisterOptions::_from_config($config, true, OptionScope::Site);
 
 		$schema = array(
 			'age' => array(
@@ -149,7 +149,7 @@ final class RegisterOptionsInternalsCoverageTest extends PluginLibTestCase {
 		$config = $this->getMockBuilder(ConfigInterface::class)->getMock();
 		$config->method('get_options_key')->willReturn('test_options');
 		$config->method('get_logger')->willReturn($this->logger_mock);
-		$opts = RegisterOptions::from_config($config, true, OptionScope::Site);
+		$opts = RegisterOptions::_from_config($config, true, OptionScope::Site);
 		$this->allow_all_persist_filters_for_site();
 
 		// Stage new value
@@ -188,7 +188,7 @@ final class RegisterOptionsInternalsCoverageTest extends PluginLibTestCase {
 		$config = $this->getMockBuilder(ConfigInterface::class)->getMock();
 		$config->method('get_options_key')->willReturn('test_options');
 		$config->method('get_logger')->willReturn($this->logger_mock);
-		$opts = RegisterOptions::from_config($config, true, OptionScope::Site);
+		$opts = RegisterOptions::_from_config($config, true, OptionScope::Site);
 
 		// In-memory different from storage
 		$this->_set_protected_property_value($opts, 'options', array('foo' => 'mem'));
@@ -221,7 +221,7 @@ final class RegisterOptionsInternalsCoverageTest extends PluginLibTestCase {
 		$config = $this->getMockBuilder(ConfigInterface::class)->getMock();
 		$config->method('get_options_key')->willReturn('test_options');
 		$config->method('get_logger')->willReturn($this->logger_mock);
-		$opts = RegisterOptions::from_config($config, true, OptionScope::Site);
+		$opts = RegisterOptions::_from_config($config, true, OptionScope::Site);
 		WP_Mock::onFilter('ran/plugin_lib/options/allow_persist')
 			->with(WP_Mock\Functions::type('bool'), WP_Mock\Functions::type('array'))
 			->reply(true);
@@ -255,7 +255,7 @@ final class RegisterOptionsInternalsCoverageTest extends PluginLibTestCase {
 		$config = $this->getMockBuilder(ConfigInterface::class)->getMock();
 		$config->method('get_options_key')->willReturn('test_options');
 		$config->method('get_logger')->willReturn($this->logger_mock);
-		$opts   = RegisterOptions::from_config($config, true, OptionScope::Site);
+		$opts   = RegisterOptions::_from_config($config, true, OptionScope::Site);
 		$schema = array(
 			's' => array(
 				'validate' => 'is_numeric',
@@ -277,7 +277,7 @@ final class RegisterOptionsInternalsCoverageTest extends PluginLibTestCase {
 		$config = $this->getMockBuilder(ConfigInterface::class)->getMock();
 		$config->method('get_options_key')->willReturn('test_options');
 		$config->method('get_logger')->willReturn($this->logger_mock);
-		$opts   = RegisterOptions::from_config($config, true, OptionScope::Site);
+		$opts   = RegisterOptions::_from_config($config, true, OptionScope::Site);
 		$schema = array(
 			'a' => array(
 				'validate' => array($this, 'helperReturnsFalse'),
@@ -299,7 +299,7 @@ final class RegisterOptionsInternalsCoverageTest extends PluginLibTestCase {
 		$config = $this->getMockBuilder(ConfigInterface::class)->getMock();
 		$config->method('get_options_key')->willReturn('test_options');
 		$config->method('get_logger')->willReturn($this->logger_mock);
-		$opts      = RegisterOptions::from_config($config, true, OptionScope::Site);
+		$opts      = RegisterOptions::_from_config($config, true, OptionScope::Site);
 		$invokable = new class {
 			public function __invoke($v) {
 				return false;
@@ -331,7 +331,7 @@ final class RegisterOptionsInternalsCoverageTest extends PluginLibTestCase {
 		$config = $this->getMockBuilder(ConfigInterface::class)->getMock();
 		$config->method('get_options_key')->willReturn('test_options');
 		$config->method('get_logger')->willReturn($this->logger_mock);
-		$opts   = RegisterOptions::from_config($config, true, OptionScope::Site);
+		$opts   = RegisterOptions::_from_config($config, true, OptionScope::Site);
 		$schema = array(
 			'arr' => array(
 				'validate' => function ($v) {
@@ -355,7 +355,7 @@ final class RegisterOptionsInternalsCoverageTest extends PluginLibTestCase {
 		$config = $this->getMockBuilder(ConfigInterface::class)->getMock();
 		$config->method('get_options_key')->willReturn('test_options');
 		$config->method('get_logger')->willReturn($this->logger_mock);
-		$opts   = RegisterOptions::from_config($config, true, OptionScope::Site);
+		$opts   = RegisterOptions::_from_config($config, true, OptionScope::Site);
 		$schema = array(
 			'obj' => array(
 				'validate' => function ($v) {
@@ -379,7 +379,7 @@ final class RegisterOptionsInternalsCoverageTest extends PluginLibTestCase {
 		$config = $this->getMockBuilder(ConfigInterface::class)->getMock();
 		$config->method('get_options_key')->willReturn('test_options');
 		$config->method('get_logger')->willReturn($this->logger_mock);
-		$opts   = RegisterOptions::from_config($config, true, OptionScope::Site);
+		$opts   = RegisterOptions::_from_config($config, true, OptionScope::Site);
 		$schema = array(
 			'long' => array(
 				'validate' => function ($v) {
@@ -403,7 +403,7 @@ final class RegisterOptionsInternalsCoverageTest extends PluginLibTestCase {
 		$config = $this->getMockBuilder(ConfigInterface::class)->getMock();
 		$config->method('get_options_key')->willReturn('test_options');
 		$config->method('get_logger')->willReturn($this->logger_mock);
-		$opts = RegisterOptions::from_config($config, true, OptionScope::Site);
+		$opts = RegisterOptions::_from_config($config, true, OptionScope::Site);
 		// Allow persistence to exercise full path
 		WP_Mock::onFilter('ran/plugin_lib/options/allow_persist')
 			->with(WP_Mock\Functions::type('bool'), WP_Mock\Functions::type('array'))

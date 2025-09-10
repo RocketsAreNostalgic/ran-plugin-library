@@ -64,7 +64,7 @@ final class WriteGateVetoPathTest extends PluginLibTestCase {
 		$config = $this->getMockBuilder(ConfigInterface::class)->getMock();
 		$config->method('get_options_key')->willReturn('test_options');
 		$config->method('get_logger')->willReturn($this->logger_mock);
-		$opts = RegisterOptions::from_config($config, true, OptionScope::Site);
+		$opts = RegisterOptions::_from_config($config, true, OptionScope::Site);
 		// Attach collecting logger explicitly to ensure logs are captured by our test double
 		$opts->with_logger($this->logger_mock);
 		// Policy-level veto ensures deny regardless of filters
@@ -106,7 +106,7 @@ final class WriteGateVetoPathTest extends PluginLibTestCase {
 		$config = $this->getMockBuilder(ConfigInterface::class)->getMock();
 		$config->method('get_options_key')->willReturn('test_options');
 		$config->method('get_logger')->willReturn($this->logger_mock);
-		$opts   = RegisterOptions::from_config($config, true, OptionScope::Site);
+		$opts   = RegisterOptions::_from_config($config, true, OptionScope::Site);
 		$policy = $this->getMockBuilder(\Ran\PluginLib\Options\Policy\WritePolicyInterface::class)->getMock();
 		$policy->method('allow')->willReturn(false);
 		$opts->with_policy($policy);
@@ -128,7 +128,7 @@ final class WriteGateVetoPathTest extends PluginLibTestCase {
 		$config = $this->getMockBuilder(ConfigInterface::class)->getMock();
 		$config->method('get_options_key')->willReturn('test_options');
 		$config->method('get_logger')->willReturn($this->logger_mock);
-		$opts   = RegisterOptions::from_config($config, true, OptionScope::Site);
+		$opts   = RegisterOptions::_from_config($config, true, OptionScope::Site);
 		$policy = $this->getMockBuilder(\Ran\PluginLib\Options\Policy\WritePolicyInterface::class)->getMock();
 		$policy->method('allow')->willReturn(false);
 		$opts->with_policy($policy);
@@ -154,7 +154,7 @@ final class WriteGateVetoPathTest extends PluginLibTestCase {
 		$config = $this->getMockBuilder(ConfigInterface::class)->getMock();
 		$config->method('get_options_key')->willReturn('test_options');
 		$config->method('get_logger')->willReturn($this->logger_mock);
-		$opts   = RegisterOptions::from_config($config, true, OptionScope::Site);
+		$opts   = RegisterOptions::_from_config($config, true, OptionScope::Site);
 		$policy = $this->getMockBuilder(\Ran\PluginLib\Options\Policy\WritePolicyInterface::class)->getMock();
 		$policy->method('allow')->willReturn(false);
 		$opts->with_policy($policy);
@@ -175,7 +175,7 @@ final class WriteGateVetoPathTest extends PluginLibTestCase {
 		$config = $this->getMockBuilder(ConfigInterface::class)->getMock();
 		$config->method('get_options_key')->willReturn('test_options');
 		$config->method('get_logger')->willReturn($this->logger_mock);
-		$opts   = RegisterOptions::from_config($config, true, OptionScope::Site);
+		$opts   = RegisterOptions::_from_config($config, true, OptionScope::Site);
 		$policy = $this->getMockBuilder(\Ran\PluginLib\Options\Policy\WritePolicyInterface::class)->getMock();
 		$policy->method('allow')->willReturn(false);
 		$opts->with_policy($policy);
@@ -197,7 +197,7 @@ final class WriteGateVetoPathTest extends PluginLibTestCase {
 		$config = $this->getMockBuilder(ConfigInterface::class)->getMock();
 		$config->method('get_options_key')->willReturn('test_options');
 		$config->method('get_logger')->willReturn($this->logger_mock);
-		$opts = RegisterOptions::from_config($config, true, OptionScope::Site);
+		$opts = RegisterOptions::_from_config($config, true, OptionScope::Site);
 		// seed in-memory
 		$this->_set_protected_property_value($opts, 'options', array('k' => 'v'));
 		$this->assertTrue($opts->has_option('k'));
@@ -222,7 +222,7 @@ final class WriteGateVetoPathTest extends PluginLibTestCase {
 		$config = $this->getMockBuilder(ConfigInterface::class)->getMock();
 		$config->method('get_options_key')->willReturn('test_options');
 		$config->method('get_logger')->willReturn($this->logger_mock);
-		$opts = RegisterOptions::from_config($config, true, OptionScope::Site);
+		$opts = RegisterOptions::_from_config($config, true, OptionScope::Site);
 		// seed in-memory
 		$this->_set_protected_property_value($opts, 'options', array('a' => 1, 'b' => 2));
 		$this->assertTrue($opts->has_option('a'));
@@ -263,7 +263,7 @@ final class WriteGateVetoPathTest extends PluginLibTestCase {
 
 		// Use Site scope so existence checks use get_option
 		$config->method('get_logger')->willReturn($this->logger_mock);
-		$opts   = RegisterOptions::from_config($config, true, OptionScope::Site);
+		$opts   = RegisterOptions::_from_config($config, true, OptionScope::Site);
 		$policy = $this->getMockBuilder(\Ran\PluginLib\Options\Policy\WritePolicyInterface::class)->getMock();
 		$policy->method('allow')->willReturn(false);
 		$opts->with_policy($policy);
@@ -303,7 +303,7 @@ final class WriteGateVetoPathTest extends PluginLibTestCase {
 			return true;
 		});
 
-		$opts = RegisterOptions::from_config($config, true, OptionScope::Site)->with_logger($this->logger_mock);
+		$opts = RegisterOptions::_from_config($config, true, OptionScope::Site)->with_logger($this->logger_mock);
 
 		// Sanity: existing in-memory state
 		$this->assertTrue($opts->has_option('a'));
@@ -340,7 +340,7 @@ final class WriteGateVetoPathTest extends PluginLibTestCase {
 			return true;
 		});
 
-		$opts = RegisterOptions::from_config($config, true, OptionScope::Site)->with_logger($this->logger_mock);
+		$opts = RegisterOptions::_from_config($config, true, OptionScope::Site)->with_logger($this->logger_mock);
 
 		// Migration function should never be invoked; throw if it is
 		$migration = function($current) {
@@ -379,7 +379,7 @@ final class WriteGateVetoPathTest extends PluginLibTestCase {
 			return true;
 		});
 
-		$opts = RegisterOptions::from_config($config, true, OptionScope::Site)->with_logger($this->logger_mock);
+		$opts = RegisterOptions::_from_config($config, true, OptionScope::Site)->with_logger($this->logger_mock);
 
 		// Identity migration returns a strictly equal array
 		$migration = function($current) use ($existing) {
@@ -415,7 +415,7 @@ final class WriteGateVetoPathTest extends PluginLibTestCase {
 
 		// Construct SUT with collecting logger provided via Config
 		$config->method('get_logger')->willReturn($this->logger_mock);
-		$opts = RegisterOptions::from_config($config, true, OptionScope::Site);
+		$opts = RegisterOptions::_from_config($config, true, OptionScope::Site);
 
 		// Force filter veto deterministically
 		WP_Mock::onFilter('ran/plugin_lib/options/allow_persist')
@@ -488,7 +488,7 @@ final class WriteGatePersistPathsTest extends PluginLibTestCase {
 			return array();
 		});
 
-		$opts = RegisterOptions::from_config($config, true, OptionScope::Site)->with_logger($this->logger_mock);
+		$opts = RegisterOptions::_from_config($config, true, OptionScope::Site)->with_logger($this->logger_mock);
 		$this->_set_protected_property_value($opts, 'options', array('x' => 9));
 
 		// Storage: read returns array (for earlier reads), add is expected with autoload=true
@@ -522,7 +522,7 @@ final class WriteGatePersistPathsTest extends PluginLibTestCase {
 			return array();
 		});
 
-		$opts = RegisterOptions::from_config($config, true, OptionScope::Site)->with_logger($this->logger_mock);
+		$opts = RegisterOptions::_from_config($config, true, OptionScope::Site)->with_logger($this->logger_mock);
 		$this->_set_protected_property_value($opts, 'options', array('y' => 7));
 
 		$storage = $this->createMock(\Ran\PluginLib\Options\Storage\OptionStorageInterface::class);
