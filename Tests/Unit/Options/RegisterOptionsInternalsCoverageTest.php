@@ -158,7 +158,7 @@ final class RegisterOptionsInternalsCoverageTest extends PluginLibTestCase {
 		$this->allow_all_persist_filters_for_site();
 
 		// Stage new value
-		$opts->add_option('k', 'v');
+		$opts->stage_option('k', 'v');
 
 		// Storage mock to exercise _get_storage and _save_all_options
 		$mockStorage = $this->createMock(\Ran\PluginLib\Options\Storage\OptionStorageInterface::class);

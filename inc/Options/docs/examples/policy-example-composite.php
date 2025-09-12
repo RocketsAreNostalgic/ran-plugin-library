@@ -34,7 +34,7 @@ $opts->with_policy($policy);
 
 // Allowed (must pass BOTH policies):
 $opts->set_option('preferences', array('theme' => 'dark'));
-$opts->add_options(array('newsletter_opt_in' => true));
+$opts->stage_options(array('newsletter_opt_in' => true));
 
 // Denied by whitelist policy (even if caps might allow):
 $opts->set_option('admin_only', true);

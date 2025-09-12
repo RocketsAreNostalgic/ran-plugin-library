@@ -113,8 +113,8 @@ public function has_option(string $option_name): bool
 
 // Writes
 public function set_option(string $option_name, mixed $value): bool
-public function add_option(string $option_name, mixed $value): self
-public function add_options(array $keyToValue): self
+public function stage_option(string $option_name, mixed $value): self
+public function stage_options(array $keyToValue): self
 public function set_option(string $option_name, mixed $value): bool
 public function delete_option(string $option_name): bool
 public function clear(): bool

@@ -30,7 +30,7 @@ final class SiteOptionStorageTest extends PluginLibTestCase {
 	public function test_read_and_add_update_delete_flow(): void {
 		$s = new SiteOptionStorage();
 
-		// add_option('foo', 'bar', '', 'yes')
+		// stage_option('foo', 'bar', '', 'yes')
 		WP_Mock::userFunction('add_option')
 		    ->once()
 		    ->with('foo', 'bar', '', 'yes')

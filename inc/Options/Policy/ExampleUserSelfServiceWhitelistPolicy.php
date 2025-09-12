@@ -48,7 +48,7 @@ final class ExampleUserSelfServiceWhitelistPolicy extends AbstractWritePolicy im
 			return $this->keysWhitelisted($op, $wc, $this->whitelist_keys);
 		}
 
-		if ($op === 'add_options') {
+		if ($op === 'stage_options') {
 			return $this->keysWhitelisted($op, $wc, $this->whitelist_keys);
 		}
 

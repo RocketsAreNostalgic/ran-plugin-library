@@ -60,7 +60,7 @@ abstract class AbstractWritePolicy implements WritePolicyInterface {
 	/**
 	 * Ensure all keys referenced by the operation are within a whitelist.
 	 * - set/add/delete: checks key()
-	 * - add_options: checks keys()
+	 * - stage_options: checks keys()
 	 * - save_all: checks options() keys
 	 */
 	protected function keysWhitelisted(string $op, WriteContext $wc, array $whitelist): bool {
@@ -72,8 +72,8 @@ abstract class AbstractWritePolicy implements WritePolicyInterface {
 			return $k !== '' && in_array($k, $whitelist, true);
 		}
 
-		// add_options: checks keys()
-		if ($op === 'add_options') {
+		// stage_options: checks keys()
+		if ($op === 'stage_options') {
 			$keys = $wc->keys() ?? array();
 			if ($keys === array()) {
 				return false;

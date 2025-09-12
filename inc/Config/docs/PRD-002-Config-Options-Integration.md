@@ -114,7 +114,7 @@ Notes:
 
 Autoload implementation details:
 
-- WordPress option APIs expect autoload as strings `'yes'` or `'no'` (not booleans). The library adheres to this when calling `set_option()` and `add_option()`.
+- WordPress option APIs expect autoload as strings `'yes'` or `'no'` (not booleans). The library adheres to this when calling `set_option()` and `stage_option()`.
 - Initial creation respects the configured autoload policy: when constructing `RegisterOptions` with `$main_option_autoload = false` and persisting (via defaults/initials + flush), the stored row is created with autoload `'no'`.
 
 ### Examples

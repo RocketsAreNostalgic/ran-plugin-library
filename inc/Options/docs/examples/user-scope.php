@@ -53,7 +53,7 @@ $isEnabled = $options->get_option('feature_x_enabled', false);
 $values = $options->get_options();
 
 // Batch update pattern (for multiple writes)
-$options->add_options(array(
+$options->stage_options(array(
   'theme'     => 'dark',
   'shortcuts' => array('s' => 'search')
 ));

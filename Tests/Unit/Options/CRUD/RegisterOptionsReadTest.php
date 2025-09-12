@@ -103,8 +103,8 @@ final class RegisterOptionsReadTest extends PluginLibTestCase {
 	public function test_has_option_with_existing_key(): void {
 		$opts = RegisterOptions::site('test_options');
 
-		// Add an option using add_option (which doesn't require write gate mocking)
-		$opts->add_option('existing_key', 'value');
+		// Add an option using stage_option (which doesn't require write gate mocking)
+		$opts->stage_option('existing_key', 'value');
 
 		// Test with the exact same key
 		$this->assertTrue($opts->has_option('existing_key'));

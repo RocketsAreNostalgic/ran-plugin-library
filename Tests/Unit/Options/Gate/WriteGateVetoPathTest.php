@@ -139,13 +139,13 @@ final class WriteGateVetoPathTest extends PluginLibTestCase {
 	}
 
 	/**
-	 * @covers \Ran\PluginLib\Options\RegisterOptions::add_options
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::stage_option
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::_apply_write_gate
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::_save_all_options
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::_get_storage
 	 * @uses \Ran\PluginLib\Config\ConfigInterface
 	 */
-	public function test_add_options_vetoed_does_not_mutate(): void {
+	public function test_stage_options_vetoed_does_not_mutate(): void {
 		$config = $this->getMockBuilder(ConfigInterface::class)->getMock();
 		$config->method('get_options_key')->willReturn('test_options');
 		$config->method('get_logger')->willReturn($this->logger_mock);
@@ -155,13 +155,13 @@ final class WriteGateVetoPathTest extends PluginLibTestCase {
 		$opts->with_policy($policy);
 		$this->veto_all_persist_filters_for_site();
 
-		$opts->add_options(array('a' => 1, 'b' => 2));
+		$opts->stage_options(array('a' => 1, 'b' => 2));
 		$this->assertFalse($opts->has_option('a'));
 		$this->assertFalse($opts->has_option('b'));
 	}
 
 	/**
-	 * @covers \Ran\PluginLib\Options\RegisterOptions::add_option
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::stage_option
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::_apply_write_gate
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::_get_storage
 	 * @uses \Ran\PluginLib\Config\ConfigInterface
@@ -177,7 +177,7 @@ final class WriteGateVetoPathTest extends PluginLibTestCase {
 		$this->veto_all_persist_filters_for_site();
 
 		$this->assertFalse($opts->has_option('a'));
-		$opts->add_option('a', 1);
+		$opts->stage_option('a', 1);
 		$this->assertFalse($opts->has_option('a'));
 	}
 

@@ -31,12 +31,14 @@ Key entry points and collaborators:
   - Errors surface late (runtime exceptions), IDE hinting is limited, and it’s easy to pass invalid combinations.
   - Location: `RegisterOptions::_make_storage()` in `inc/Options/RegisterOptions.php` (around lines 955–1000).
 
-- **In-memory vs persistence behavior differs across methods:**
+- **In-memory vs persistence behavior differs across methods: (DONE)**
 
   - `set_option()`/`update_option()` persist immediately.
   - `add_option()`/`add_options()` only mutate memory; require `flush()` to persist.
   - Although documented, this can surprise developers who forget to call `flush()`.
   - Locations: `set_option()` (around 506–576), `add_options()` (around 579–612), `add_option()` (around 615–650), `flush()` (around 737–755).
+
+Solution - we renamed `add_options` to `stage_options` and `add_option` to `stage_option` to make the intent clearer.
 
 - **Shallow merge semantics require careful reading:**
 
@@ -134,8 +136,8 @@ Key entry points and collaborators:
 - `RegisterOptions::_make_storage()` – `inc/Options/RegisterOptions.php` (955–1000)
 - `RegisterOptions::_apply_write_gate()` – `inc/Options/RegisterOptions.php` (1002–1137)
 - `RegisterOptions::set_option()` – `inc/Options/RegisterOptions.php` (506–576)
-- `RegisterOptions::add_options()` – `inc/Options/RegisterOptions.php` (579–612)
-- `RegisterOptions::add_option()` – `inc/Options/RegisterOptions.php` (615–650)
+- `RegisterOptions::stage_options()` – `inc/Options/RegisterOptions.php` (579–612)
+- `RegisterOptions::stage_option()` – `inc/Options/RegisterOptions.php` (615–650)
 - `RegisterOptions::flush()` – `inc/Options/RegisterOptions.php` (737–755)
 - Storage adapters – `inc/Options/Storage/*.php`
 - Scope enum – `inc/Options/OptionScope.php`

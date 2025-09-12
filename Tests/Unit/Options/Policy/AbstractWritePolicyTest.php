@@ -134,13 +134,13 @@ PHP);
 		self::assertFalse($h->_keysWhitelisted('set_option', $wc2, array('good_key')));
 	}
 
-	public function test_keys_whitelisted_for_add_options(): void {
+	public function test_keys_whitelisted_for_stage_options(): void {
 		$h  = $this->makeHarness();
-		$wc = WriteContext::for_add_options('main', 'user', null, 1, 'meta', false, array('a', 'b'));
-		self::assertTrue($h->_keysWhitelisted('add_options', $wc, array('a', 'b', 'c')));
+		$wc = WriteContext::for_stage_options('main', 'user', null, 1, 'meta', false, array('a', 'b'));
+		self::assertTrue($h->_keysWhitelisted('stage_options', $wc, array('a', 'b', 'c')));
 
-		$wc2 = WriteContext::for_add_options('main', 'user', null, 1, 'meta', false, array('a', 'x'));
-		self::assertFalse($h->_keysWhitelisted('add_options', $wc2, array('a', 'b', 'c')));
+		$wc2 = WriteContext::for_stage_options('main', 'user', null, 1, 'meta', false, array('a', 'x'));
+		self::assertFalse($h->_keysWhitelisted('stage_options', $wc2, array('a', 'b', 'c')));
 	}
 
 	public function test_keys_whitelisted_for_save_all(): void {
@@ -156,17 +156,17 @@ PHP);
 		self::assertTrue($h->_keysWhitelisted('save_all', $wc3, array('a')));
 	}
 
-	public function test_keys_whitelisted_add_options_empty_keys_path(): void {
+	public function test_keys_whitelisted_stage_options_empty_keys_path(): void {
 		$h = $this->makeHarness();
 		// Create a valid context first (factory rejects empty arrays)
-		$wc = WriteContext::for_add_options('main', 'user', null, 1, 'meta', false, array('placeholder'));
+		$wc = WriteContext::for_stage_options('main', 'user', null, 1, 'meta', false, array('placeholder'));
 		// Force internal keys to empty via reflection to hit the guard branch
 		$ref  = new \ReflectionClass($wc);
 		$prop = $ref->getProperty('keys');
 		$prop->setAccessible(true);
 		$prop->setValue($wc, array());
 
-		self::assertFalse($h->_keysWhitelisted('add_options', $wc, array('a')));
+		self::assertFalse($h->_keysWhitelisted('stage_options', $wc, array('a')));
 	}
 
 	public function test_keys_whitelisted_default_branch_for_unknown_op(): void {

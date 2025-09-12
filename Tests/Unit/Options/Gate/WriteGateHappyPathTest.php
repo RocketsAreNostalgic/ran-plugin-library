@@ -60,7 +60,7 @@ final class WriteGateHappyPathTest extends PluginLibTestCase {
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::__construct
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::supports_autoload
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::delete_option
-	 * @covers \Ran\PluginLib\Options\RegisterOptions::add_options
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::stage_option
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::set_option
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::_apply_write_gate
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::_save_all_options
@@ -86,18 +86,18 @@ final class WriteGateHappyPathTest extends PluginLibTestCase {
 	}
 
 	/**
-	 * @covers \Ran\PluginLib\Options\RegisterOptions::add_options
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::stage_option
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::flush
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::_apply_write_gate
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::_save_all_options
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::_get_storage
 	 */
-	public function test_add_options_and_flush_merge_from_db_allowed(): void {
+	public function test_stage_options_and_flush_merge_from_db_allowed(): void {
 		$opts = RegisterOptions::site('test_options', true, $this->logger_mock);
 		$this->allow_all_persist_filters_for_site();
 
 		// Stage two new options in memory
-		$opts->add_options(array('x' => 10, 'y' => 20));
+		$opts->stage_options(array('x' => 10, 'y' => 20));
 
 		// Simulate DB state to be merged
 		$mockStorage = $this->createMock(\Ran\PluginLib\Options\Storage\OptionStorageInterface::class);
@@ -115,7 +115,7 @@ final class WriteGateHappyPathTest extends PluginLibTestCase {
 		$this->assertSame(10, $opts->get_option('x'));
 		$this->assertSame(20, $opts->get_option('y'));
 		$this->assertSame('db_value', $opts->get_option('db_key'));
-		// Logs: two write-gate sequences (add_options, save_all on flush)
+		// Logs: two write-gate sequences (stage_options, save_all on flush)
 		$this->expectLog('debug', '_apply_write_gate policy decision', 2);
 		$this->expectLog('debug', '_apply_write_gate applying general allow_persist filter', 2);
 		$this->expectLog('debug', '_apply_write_gate general filter result', 2);

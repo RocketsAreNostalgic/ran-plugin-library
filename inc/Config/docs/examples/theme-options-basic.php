@@ -16,7 +16,7 @@ $config = Config::fromThemeDir(get_stylesheet_directory());
 $opts = $config->options(array('autoload' => true)); // hint autoload for first creation
 
 // 2) Stage some values (no write yet)
-$opts->add_options(array(
+$opts->stage_options(array(
     'enabled'      => true,
     'color_scheme' => 'dark',
 ));

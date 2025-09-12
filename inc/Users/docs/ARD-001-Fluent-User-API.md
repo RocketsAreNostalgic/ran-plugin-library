@@ -133,7 +133,7 @@ final class UserResult {
     - Optionally `with_logger($logger)` if provided
     - Optionally `with_policy($policy)` if provided
     - Optionally `register_schema($schema, $seedDefaults, $flush)` if provided
-    - Apply `add_options($kv)` and `flush(true)` if any options were queued
+    - Apply `stage_options($kv)` and `flush(true)` if any options were queued
 
 - **Logging**
 
@@ -166,7 +166,7 @@ final class UserResult {
      - Instantiate `RegisterOptions` with `UserEntity($id, $global, $storage)` using `Config::options()`.
      - Bind logger and optional write policy.
      - Optionally `register_schema($schema, $seedDefaults, $flush)`.
-     - `add_options($kv)` and `flush(true)` for batch save.
+     - `stage_options($kv)` and `flush(true)` for batch save.
 
 ## Alternatives Considered
 

@@ -16,7 +16,7 @@
  * - Built-in logging for debugging option changes
  *
  * WHEN TO USE: Most WordPress plugins should use this pattern instead of
- * individual add_option()/get_option() calls for each setting.
+ * individual stage_option()/get_option() calls for each setting.
  */
 
 declare(strict_types=1);
@@ -40,7 +40,7 @@ $options = RegisterOptions::from_config($config, array(
 
 // Set individual options - each call writes to database immediately
 // PERFORMANCE NOTE: Each set_option() call triggers a database write.
-// For multiple options, prefer add_option(s) + flush() (see batch-and-flush.php)
+// For multiple options, prefer stage_option(s) + flush() (see batch-and-flush.php)
 $options->set_option('api_key', 'abc123');
 $options->set_option('enabled', true);
 

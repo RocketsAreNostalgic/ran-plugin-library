@@ -29,7 +29,7 @@ $opts->with_policy(new ExampleUserSelfServiceWhitelistPolicy());
 // 3) Safe writes (allowed by ExampleUserSelfServiceWhitelistPolicy):
 $opts->set_option('preferences', array('theme' => 'dark'));
 $opts->set_option('profile_bio', 'Hi! I love this site.');
-$opts->add_options(array(
+$opts->stage_options(array(
     'newsletter_opt_in' => true,
 ));
 

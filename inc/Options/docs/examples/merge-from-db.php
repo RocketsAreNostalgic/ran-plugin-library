@@ -41,7 +41,7 @@ $options = RegisterOptions::from_config($config);
 
 // SCENARIO: Plugin activation while admin is changing settings
 // Your activation script needs to set version info without losing user settings
-$options->add_options(array(
+$options->stage_options(array(
   'plugin_version'       => '2.0.0',    // Your activation script sets this
   'activation_timestamp' => time(),     // Your activation script sets this
   'migration_completed'  => true,       // Your activation script sets this
@@ -61,7 +61,7 @@ register_activation_hook(__FILE__, function() {
 	$options = RegisterOptions::from_config(Config::fromPluginFile(__FILE__));
 
 	// Set activation defaults without losing existing user settings
-	$options->add_options(array(
+	$options->stage_options(array(
 	    'version'              => '1.0.0',
 	    'installed_date'       => current_time('mysql'),
 	    'needs_welcome_screen' => true,
@@ -76,7 +76,7 @@ add_action('my_plugin_daily_stats', function() {
 	// Define config in this scope for scoped storage operations below
 	$config = Config::fromPluginFile(__FILE__);
 
-	$options->add_options(array(
+	$options->stage_options(array(
 	    'daily_stats'       => calculate_daily_stats(),
 	    'last_stats_update' => current_time('mysql'),
 	    'cache_status'      => 'updated',
@@ -90,14 +90,14 @@ add_action('my_plugin_daily_stats', function() {
 	  'scope'  => 'user',
 	  'entity' => new UserEntity((int) get_current_user_id(), false, 'meta'),
 	));
-	$userOptions->add_options(array('wizard_step' => 'done'));
+	$userOptions->stage_options(array('wizard_step' => 'done'));
 	$userOptions->flush(merge_from_db: true);
 
 	$blogOptions = $config->options(array(
 	  'scope'  => 'blog',
 	  'entity' => new BlogEntity(2),
 	));
-	$blogOptions->add_options(array('feature_flags' => array('beta' => true)));
+	$blogOptions->stage_options(array('feature_flags' => array('beta' => true)));
 	$blogOptions->flush(merge_from_db: true);
 	// Merge with DB in case admin changed settings during cron run
 	$options->flush(merge_from_db: true);
@@ -108,7 +108,7 @@ add_action('wp_ajax_save_plugin_settings', function() {
 	$options = RegisterOptions::from_config(Config::fromPluginFile(__FILE__));
 
 	// User submitted form data
-	$options->add_options(array(
+	$options->stage_options(array(
 	    'user_email'            => sanitize_email($_POST['email']),
 	    'notifications_enabled' => !empty($_POST['notifications']),
 	    'last_user_update'      => current_time('mysql'),

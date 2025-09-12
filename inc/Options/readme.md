@@ -166,7 +166,7 @@ Stage changes in memory and persist once:
 
 ```php
 $opts
-  ->add_options([
+  ->stage_options([
     'enabled' => ['value' => true],
     'timeout' => 30,
   ])
@@ -197,10 +197,10 @@ How to flip safely (escape hatch):
 // delete_option($option_name);
 //
 // WP 6.6+: prefer bool|null (null defers to heuristics)
-// add_option($option_name, $current, '', $newAutoload); // $newAutoload: true|false|null
+// stage_option($option_name, $current, '', $newAutoload); // $newAutoload: true|false|null
 //
 // Pre‑6.6 fallback:
-// add_option($option_name, $current, '', $newAutoload ? 'yes' : 'no');
+// stage_option($option_name, $current, '', $newAutoload ? 'yes' : 'no');
 ```
 
 ### Merging and nested structures
@@ -220,7 +220,7 @@ $opts->set_option('complex_map', $merged);
 - set_option/update_option
   - Persists immediately on success (after write-gate policy and filters).
   - Uses the current scope from typed `StorageContext`.
-- add_option/add_options
+- add_option/stage_options
   - Stages changes in memory only; call `flush()` to persist.
 - flush(true)
   - Performs a shallow, top-level merge with the current DB snapshot (keeps DB keys, overwrites collisions with in-memory values). Does not deep-merge nested structures.
@@ -242,7 +242,7 @@ $opts->set_option('complex_map', $merged);
 
 - `get_option($key, $default)` / `set_option($key, $value)`
 - `get_options()` returns values only
-- Fluent batching: `add_option($k,$v)->add_option($k2,$v2)->flush()` or `add_options([...])->flush()`
+- Fluent batching: `stage_option($k,$v)->stage_option($k2,$v2)->flush()` or `stage_options([...])->flush()`
 - `flush(bool $merge_from_db = false)` supports optional shallow merge-from-DB
 - `register_schema(...)` / `with_schema(...)` for post-construction schema
 ````

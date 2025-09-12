@@ -13,7 +13,7 @@ It covers control flow, filters, rollback guarantees, and extension points. Diag
 
 ## Scope
 
-- Applies to: `RegisterOptions::set_option()`, `add_option()`, `add_options()`, `delete_option()`, `clear()`, `seed_if_missing()`, `migrate()`, and `_save_all_options()`.
+- Applies to: `RegisterOptions::set_option()`, `add_option()`, `stage_options()`, `delete_option()`, `clear()`, `seed_if_missing()`, `migrate()`, and `_save_all_options()`.
 - Storage scopes supported via adapter: `Site`, `Blog`, `Network`, `User` (see `OptionScope`). Autoload support depends on scope.
 
 ## Core Ideas
@@ -65,7 +65,7 @@ Per-operation specifics:
   - `key: string`
 - `add_option`:
   - `key: string`
-- `add_options`:
+- `stage_options`:
   - `keys: array<int,string>`
 - `delete_option`:
   - `key: string`
@@ -96,7 +96,7 @@ Key aspects:
 
 Core fields (getter methods):
 
-- `op(): string` — operation name (e.g., `set_option`, `add_options`, `save_all`).
+- `op(): string` — operation name (e.g., `set_option`, `stage_options`, `save_all`).
 - `main_option(): string` — main WordPress option key.
 - `scope(): string` — one of `site|network|blog|user`.
 - `blogId(): ?int`, `userId(): ?int` — scope-specific identifiers.
@@ -211,7 +211,7 @@ sequenceDiagram
 
 ## Other Operations (Summary)
 
-- `add_option()` and `add_options()`
+- `add_option()` and `stage_options()`
   - Gate before in-memory mutation; veto prevents mutation
 - `delete_option()` and `clear()`
   - Gate before mutation; on allow, mutate and then persist via `_save_all_options()`

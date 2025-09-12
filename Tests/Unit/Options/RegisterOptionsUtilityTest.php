@@ -332,7 +332,7 @@ final class RegisterOptionsUtilityTest extends PluginLibTestCase {
 		$opts->with_policy($policy);
 
 		// Add some options in memory
-		$opts->add_option('memory_key', 'memory_value');
+		$opts->stage_option('memory_key', 'memory_value');
 
 		// Mock storage to return existing data and success
 		$mockStorage = $this->createMock(\Ran\PluginLib\Options\Storage\OptionStorageInterface::class);

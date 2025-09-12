@@ -127,7 +127,7 @@ try {
 // REAL-WORLD FORM PROCESSING EXAMPLE:
 if ($_POST['save_settings']) {
 	try {
-		$options->add_options(array(
+		$options->stage_options(array(
 		    'stripe_api_key'     => $_POST['api_key'],
 		    'notification_email' => $_POST['admin_email'],
 		    'webhook_url'        => $_POST['webhook'],

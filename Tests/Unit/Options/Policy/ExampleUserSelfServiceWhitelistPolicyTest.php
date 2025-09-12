@@ -55,18 +55,18 @@ final class ExampleUserSelfServiceWhitelistPolicyTest extends PluginLibTestCase 
 		self::assertFalse($this->policy->allow('set_option', $wc));
 	}
 
-	public function test_allows_add_options_when_all_keys_whitelisted(): void {
+	public function test_allows_stage_options_when_all_keys_whitelisted(): void {
 		$user_id = 9;
 		WP_Mock::userFunction('get_current_user_id')->andReturn($user_id);
-		$wc = WriteContext::for_add_options('dummy', 'user', null, $user_id, 'meta', false, array('profile_bio', 'newsletter_opt_in'));
-		self::assertTrue($this->policy->allow('add_options', $wc));
+		$wc = WriteContext::for_stage_options('dummy', 'user', null, $user_id, 'meta', false, array('profile_bio', 'newsletter_opt_in'));
+		self::assertTrue($this->policy->allow('stage_options', $wc));
 	}
 
-	public function test_denies_add_options_when_any_key_not_whitelisted(): void {
+	public function test_denies_stage_options_when_any_key_not_whitelisted(): void {
 		$user_id = 9;
 		WP_Mock::userFunction('get_current_user_id')->andReturn($user_id);
-		$wc = WriteContext::for_add_options('dummy', 'user', null, $user_id, 'meta', false, array('preferences', 'unknown_key'));
-		self::assertFalse($this->policy->allow('add_options', $wc));
+		$wc = WriteContext::for_stage_options('dummy', 'user', null, $user_id, 'meta', false, array('preferences', 'unknown_key'));
+		self::assertFalse($this->policy->allow('stage_options', $wc));
 	}
 
 	public function test_allows_save_all_when_only_whitelisted_keys_present(): void {
@@ -151,12 +151,12 @@ final class ExampleUserSelfServiceWhitelistPolicyTest extends PluginLibTestCase 
 		self::assertFalse($this->policy->allow('set_option', $wc));
 	}
 
-	public function test_edge_case_add_options_empty_array_denied(): void {
+	public function test_edge_case_stage_options_empty_array_denied(): void {
 		$user_id = 43;
 		WP_Mock::userFunction('get_current_user_id')->andReturn($user_id);
 		// WriteContext forbids empty keys list; assert that factory enforces this.
 		$this->expectException(\InvalidArgumentException::class);
-		WriteContext::for_add_options('dummy_main_option', 'user', null, $user_id, 'meta', false, array());
+		WriteContext::for_stage_options('dummy_main_option', 'user', null, $user_id, 'meta', false, array());
 	}
 
 	public function test_save_all_with_empty_options_allowed_by_helper_semantics(): void {

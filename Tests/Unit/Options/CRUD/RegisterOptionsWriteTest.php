@@ -240,7 +240,7 @@ final class RegisterOptionsWriteTest extends PluginLibTestCase {
 	}
 
 	/**
-	 * @covers \Ran\PluginLib\Options\RegisterOptions::add_option
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::stage_option
 	 */
 	public function test_add_option_fluent_interface(): void {
 		$opts = RegisterOptions::site('test_options');
@@ -249,41 +249,41 @@ final class RegisterOptionsWriteTest extends PluginLibTestCase {
 		WP_Mock::userFunction('apply_filters')->andReturn(true);
 
 		// Test fluent interface - add_option should return $this
-		$result = $opts->add_option('test_key', 'test_value');
+		$result = $opts->stage_option('test_key', 'test_value');
 
 		$this->assertSame($opts, $result, 'add_option should return $this for fluent interface');
 		$this->assertEquals('test_value', $opts->get_option('test_key'));
 	}
 
 	/**
-	 * @covers \Ran\PluginLib\Options\RegisterOptions::add_options
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::stage_option
 	 */
-	public function test_add_options_fluent_interface(): void {
+	public function test_stage_options_fluent_interface(): void {
 		$opts = RegisterOptions::site('test_options');
 
 		// Mock write guards to allow writes
 		WP_Mock::userFunction('apply_filters')->andReturn(true);
 
-		// Test fluent interface - add_options should return $this
+		// Test fluent interface - stage_options should return $this
 		$keyValuePairs = array(
 		    'key1' => 'value1',
 		    'key2' => 'value2',
 		    'key3' => 123
 		);
 
-		$result = $opts->add_options($keyValuePairs);
+		$result = $opts->stage_options($keyValuePairs);
 
-		$this->assertSame($opts, $result, 'add_options should return $this for fluent interface');
+		$this->assertSame($opts, $result, 'stage_options should return $this for fluent interface');
 		$this->assertEquals('value1', $opts->get_option('key1'));
 		$this->assertEquals('value2', $opts->get_option('key2'));
 		$this->assertEquals(123, $opts->get_option('key3'));
 	}
 
 	/**
-	 * @covers \Ran\PluginLib\Options\RegisterOptions::add_option
-	 * @covers \Ran\PluginLib\Options\RegisterOptions::add_options
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::stage_option
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::stage_option
 	 */
-	public function test_add_options_method_chaining(): void {
+	public function test_stage_options_method_chaining(): void {
 		$opts = RegisterOptions::site('test_options');
 
 		// Mock write guards to allow writes
@@ -291,9 +291,9 @@ final class RegisterOptionsWriteTest extends PluginLibTestCase {
 
 		// Test method chaining
 		$result = $opts
-		    ->add_option('first_key', 'first_value')
-		    ->add_option('second_key', 'second_value')
-		    ->add_options(array('third_key' => 'third_value'));
+		    ->stage_option('first_key', 'first_value')
+		    ->stage_option('second_key', 'second_value')
+		    ->stage_options(array('third_key' => 'third_value'));
 
 		$this->assertSame($opts, $result);
 		$this->assertEquals('first_value', $opts->get_option('first_key'));
@@ -302,7 +302,7 @@ final class RegisterOptionsWriteTest extends PluginLibTestCase {
 	}
 
 	/**
-	 * @covers \Ran\PluginLib\Options\RegisterOptions::add_option
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::stage_option
 	 */
 	public function test_add_option_no_op_when_value_unchanged(): void {
 		$opts = RegisterOptions::site('test_options');
@@ -314,15 +314,15 @@ final class RegisterOptionsWriteTest extends PluginLibTestCase {
 		WP_Mock::userFunction('apply_filters')->never();
 
 		// Try to add the same value - should be no-op
-		$result = $opts->add_option('existing_key', 'same_value');
+		$result = $opts->stage_option('existing_key', 'same_value');
 
 		$this->assertSame($opts, $result);
 	}
 
 	/**
-	 * @covers \Ran\PluginLib\Options\RegisterOptions::add_options
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::stage_option
 	 */
-	public function test_add_options_partial_success(): void {
+	public function test_stage_options_partial_success(): void {
 		$opts = RegisterOptions::site('test_options');
 
 		// Pre-populate with one existing key
@@ -337,7 +337,7 @@ final class RegisterOptionsWriteTest extends PluginLibTestCase {
 		    'new_key'      => 'new_value'           // Should be added
 		);
 
-		$result = $opts->add_options($keyValuePairs);
+		$result = $opts->stage_options($keyValuePairs);
 
 		$this->assertSame($opts, $result);
 		$this->assertEquals('existing_value', $opts->get_option('existing_key'));

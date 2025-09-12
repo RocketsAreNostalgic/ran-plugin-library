@@ -170,7 +170,7 @@ class RestrictedDefaultWritePolicyTest extends PluginLibTestCase {
 			->andReturn(true);
 
 		$ctx = \Ran\PluginLib\Options\WriteContext::for_clear('dummy', 'site', null, null, 'meta', false);
-		$this->assertTrue($this->policy->allow('add_options', $ctx));
+		$this->assertTrue($this->policy->allow('stage_options', $ctx));
 	}
 
 	/**
@@ -183,7 +183,7 @@ class RestrictedDefaultWritePolicyTest extends PluginLibTestCase {
 			->andReturn(false);
 
 		$ctx = \Ran\PluginLib\Options\WriteContext::for_clear('dummy', 'site', null, null, 'meta', false);
-		$this->assertFalse($this->policy->allow('add_options', $ctx));
+		$this->assertFalse($this->policy->allow('stage_options', $ctx));
 	}
 
 	/**
@@ -217,7 +217,7 @@ class RestrictedDefaultWritePolicyTest extends PluginLibTestCase {
 			->with('manage_options')
 			->andReturn(true);
 
-		$operations = array('flush', 'clear', 'set_option', 'add_options', 'delete_option', 'seed_if_missing', 'migrate');
+		$operations = array('flush', 'clear', 'set_option', 'stage_options', 'delete_option', 'seed_if_missing', 'migrate');
 
 		$ctx = \Ran\PluginLib\Options\WriteContext::for_clear('dummy', 'site', null, null, 'meta', false);
 		foreach ($operations as $operation) {

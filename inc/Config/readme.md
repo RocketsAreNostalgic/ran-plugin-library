@@ -150,7 +150,7 @@ $opts = $config->options([
 ]);
 
 // No writes occur until you call explicit persistence methods
-$opts->add_options(['enabled' => true]);
+$opts->stage_options(['enabled' => true]);
 $opts->flush();
 ```
 

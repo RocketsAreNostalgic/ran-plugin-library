@@ -140,9 +140,9 @@ final class ConfigOptionsNoWritesTest extends PluginLibTestCase {
 	}
 
 	/**
-	 * Explicit operations: add_options + flush → one write expected.
+	 * Explicit operations: stage_options + flush → one write expected.
 	 */
-	public function test_explicit_add_options_then_flush_writes_once(): void {
+	public function test_explicit_stage_options_then_flush_writes_once(): void {
 		WP_Mock::userFunction('sanitize_title')->andReturn('test-plugin');
 		$cfg  = new TestableConfig();
 		$main = $cfg->get_config()['RAN']['AppOption'];
@@ -165,7 +165,7 @@ final class ConfigOptionsNoWritesTest extends PluginLibTestCase {
 		), '', 'yes')->once()->andReturn(true);
 
 		$opts = $cfg->options();
-		$opts->add_options(array('a' => 1, 'b' => 'x'));
+		$opts->stage_options(array('a' => 1, 'b' => 'x'));
 		$this->assertTrue($opts->flush());
 	}
 

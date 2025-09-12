@@ -65,7 +65,7 @@ This TFS documents the completion of a comprehensive Config + Options integratio
 **Performance Optimizations:**
 
 - No-op guards prevent unnecessary DB writes and filter invocations
-- Batch operations (`add_options`) gate once before processing
+- Batch operations (`stage_options`) gate once before processing
 - Shallow merge support in `flush(true)` preserves external changes
 - Memoized storage adapters per instance
 

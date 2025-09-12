@@ -311,7 +311,7 @@ final class RegisterOptionsAdditionalCoverageTest extends PluginLibTestCase {
 		    ->reply(true);
 
 		// Stage memory options
-		$opts->add_options(array('mk' => 'mv'));
+		$opts->stage_options(array('mk' => 'mv'));
 
 		// Storage returns DB snapshot
 		$mockStorage = $this->createMock(\Ran\PluginLib\Options\Storage\OptionStorageInterface::class);

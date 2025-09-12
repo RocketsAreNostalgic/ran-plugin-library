@@ -116,7 +116,7 @@ delete_option($option_name);
 add_option($option_name, $current, '', $newAutoload); // true|false|null
 
 // Pre-6.6 fallback
-// add_option($option_name, $current, '', $newAutoload ? 'yes' : 'no');
+// stage_option($option_name, $current, '', $newAutoload ? 'yes' : 'no');
 ```
 
 ### 5) Optional header default (opt‑in)
@@ -188,7 +188,7 @@ The filter receives (2nd arg) context: `op`, `main_option`, `options`, `scope`, 
 
 Context fields:
 
-- **op (string)** — operation attempted: `save_all`, `set_option`, `add_options`, etc.
+- **op (string)** — operation attempted: `save_all`, `set_option`, `stage_options`, etc.
 - **main_option (string)** — main WordPress option key this manager writes to.
 - **options (array)** — associative values to be persisted (treat as read‑only).
 - **scope ('site'|'network'|'blog'|'user')** — target storage context for the operation.

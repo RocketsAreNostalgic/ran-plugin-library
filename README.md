@@ -402,7 +402,7 @@ Recommended pattern & persisting changes:
 
 ```php
 $opts = $config->options(['autoload' => true]);
-$opts->add_options(['enabled' => true]);
+$opts->stage_options(['enabled' => true]);
 $opts->flush(); // explicit write
 
 // or seed schema defaults and persist immediately (use fluent API on RegisterOptions)

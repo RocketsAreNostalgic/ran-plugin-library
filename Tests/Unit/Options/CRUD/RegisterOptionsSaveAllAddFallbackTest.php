@@ -58,7 +58,7 @@ final class RegisterOptionsSaveAllAddFallbackTest extends PluginLibTestCase {
 		$opts = RegisterOptions::from_config($config, StorageContext::forSite(), true);
 
 		// Stage a value so there's something to persist
-		$opts->add_option('alpha', 'one');
+		$opts->stage_option('alpha', 'one');
 
 		// Ensure immutable policy cannot veto this test path
 		$this->_set_protected_property_value($opts, 'write_policy', new class implements \Ran\PluginLib\Options\Policy\WritePolicyInterface {

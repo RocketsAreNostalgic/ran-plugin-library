@@ -62,7 +62,7 @@ $opts->register_schema($schema, /* seed */ true, /* flush */ true); // safely ba
 ```php
 $opts = $config->options();
 $opts
-  ->add_options([
+  ->stage_options([
     'enabled' => ['value' => true],
     'timeout' => 45,
   ])

@@ -14,7 +14,7 @@ interface WritePolicyInterface {
 	/**
 	 * Decide whether to allow the given operation.
 	 *
-	 * @param string $op  Operation name (e.g., 'flush', 'clear', 'delete_option', 'set_option', 'add_options', 'seed_if_missing', 'migrate')
+	 * @param string $op  Operation name (e.g., 'flush', 'clear', 'delete_option', 'set_option', 'stage_options', 'seed_if_missing', 'migrate')
 	 * @param WriteContext $ctx Typed context describing the operation.
 	 * @return bool True to allow, false to deny.
 	 */

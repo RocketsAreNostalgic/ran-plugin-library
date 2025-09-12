@@ -45,7 +45,7 @@ $home = $options->get_option('homepage_layout', 'standard');
 $values = $options->get_options();
 
 // Batch update pattern
-$options->add_options(array(
+$options->stage_options(array(
   'feature_flags' => array('new_nav' => true),
   'theme_options' => array('color' => 'blue')
 ));

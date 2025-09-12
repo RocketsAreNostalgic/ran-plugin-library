@@ -16,7 +16,7 @@ final class DenyAllWritePolicyTest extends PluginLibTestCase {
 		$policy = new DenyAllWritePolicy();
 		$wc     = WriteContext::for_clear('dummy', 'site', null, null, 'meta', false);
 
-		$ops = array('set_option', 'add_option', 'delete_option', 'add_options', 'clear', 'save_all', 'seed_if_missing', 'migrate');
+		$ops = array('set_option', 'add_option', 'delete_option', 'stage_options', 'clear', 'save_all', 'seed_if_missing', 'migrate');
 		foreach ($ops as $op) {
 			self::assertFalse($policy->allow($op, $wc), "$op should be denied by DenyAllWritePolicy");
 		}

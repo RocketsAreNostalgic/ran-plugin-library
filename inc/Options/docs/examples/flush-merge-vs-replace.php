@@ -21,12 +21,12 @@ $current = $opts->get_option('complex_map', array());
 $merged  = array_replace_recursive(is_array($current) ? $current : array(), $patch);
 $opts->set_option('complex_map', $merged);   // persists immediately
 // If batching multiple keys before final write, prefer staging + flush(false) instead:
-// $opts->add_option('complex_map', $merged)->flush(false);
+// $opts->stage_option('complex_map', $merged)->flush(false);
 
 // 2) Shallow, top-level merge from DB (keeps unrelated DB keys)
 //    - Stage multiple additions, then persist once with flush(true)
 $opts
-  ->add_options(array(
+  ->stage_options(array(
     'feature_flag' => true,
     'timeout'      => 30,
   ))
@@ -36,5 +36,5 @@ $opts
 Notes:
 - flush(true) merges top-level keys from DB and in-memory; nested structures are not deep-merged.
 - For precise nested semantics, prefer read–modify–write on individual keys, then either rely on
-  set_option() immediate persistence or stage with add_option() + flush(false).
+  set_option() immediate persistence or stage with stage_option() + flush(false).
 */

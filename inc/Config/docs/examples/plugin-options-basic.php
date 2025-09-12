@@ -17,7 +17,7 @@ $config = Config::fromPluginFile(__FILE__);
 $opts = $config->options(array('autoload' => true));
 
 // 2) Stage some values (no write yet)
-$opts->add_options(array(
+$opts->stage_options(array(
     'enabled' => true,
     'timeout' => 30,
 ));

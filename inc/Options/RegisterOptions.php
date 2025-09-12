@@ -45,7 +45,7 @@ use Ran\PluginLib\Options\Policy\RestrictedDefaultWritePolicy;
  *     3) Write back: `$options->set_option('my_key', $merged);`
  *     4) Persist once (batch-friendly): `$options->flush(false);`
  *   Prefer flat keys where possible, and for disjoint top-level keys use
- *   `$options->add_options([...])` then `$options->flush(true)` to reduce churn.
+ *   `$options->stage_options([...])` then `$options->flush(true)` to reduce churn.
  *
  * Storage and scope:
  * - Storage is adapter-backed and scope-aware:
@@ -294,7 +294,7 @@ class RegisterOptions {
 	 * Fluent setter: Set initial default values (in-memory only).
 	 *
 	 * This bypasses write gates and does NOT persist. Values are sanitized/validated
-	 * if schema exists. Use add_options()->flush() to persist later if desired.
+	 * if schema exists. Use stage_options()->flush() to persist later if desired.
 	 *
 	 * @param array $defaults Default values to set
 	 * @return static
@@ -533,7 +533,7 @@ class RegisterOptions {
 	 * @param mixed $value The value for the sub-option.
 	 * @return self
 	 */
-	public function add_option(string $option_name, mixed $value): self {
+	public function stage_option(string $option_name, mixed $value): self {
 		$key   = $this->_do_sanitize_key($option_name);
 		$value = $this->_sanitize_and_validate_option($key, $value);
 
@@ -570,14 +570,14 @@ class RegisterOptions {
 	 * @param array<string, mixed> $keyToValue Map of option name => value
 	 * @return self
 	 */
-	public function add_options(array $keyToValue): self {
+	public function stage_options(array $keyToValue): self {
 		$changed = false;
 
 		// Gate batch addition before mutating memory
 		$keys = array_map(static fn($k) => (string) $k, array_keys($keyToValue));
 		$ctx  = $this->_get_storage_context();
-		$wc2  = WriteContext::for_add_options($this->main_wp_option_name, $ctx->scope->value, $ctx->blog_id, $ctx->user_id, $ctx->user_storage ?? 'meta', (bool) $ctx->user_global, $keys);
-		if (!$this->_apply_write_gate('add_options', $wc2)) {
+		$wc2  = WriteContext::for_stage_options($this->main_wp_option_name, $ctx->scope->value, $ctx->blog_id, $ctx->user_id, $ctx->user_storage ?? 'meta', (bool) $ctx->user_global, $keys);
+		if (!$this->_apply_write_gate('stage_options', $wc2)) {
 			return $this; // veto: no mutation
 		}
 
@@ -932,7 +932,7 @@ class RegisterOptions {
 	 * - ran/plugin_lib/options/allow_persist
 	 * - ran/plugin_lib/options/allow_persist/scope/{scope}
 	 *
-	 * @param string $op  Operation name (e.g., 'save_all', 'set_option', 'add_options')
+	 * @param string $op  Operation name (e.g., 'save_all', 'set_option', 'stage_options')
 	 * @param WriteContext $wc
 	 * @return bool
 	 */

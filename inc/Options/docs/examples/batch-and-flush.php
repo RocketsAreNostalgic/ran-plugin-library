@@ -35,7 +35,7 @@ $options = RegisterOptions::from_config($config);
 
 // BATCH PATTERN: Stage multiple changes in memory first, then flush once
 // Note: You can mix simple values and structured definitions
-$options->add_options(array(
+$options->stage_options(array(
   'api_key'        => 'abc',                 // Simple value
   'enabled'        => array('value' => true), // With metadata structure
   'timeout'        => 30,                    // Simple value
@@ -58,7 +58,7 @@ $activation_defaults = array(
     )
 );
 
-$options->add_options($activation_defaults)->flush(); // Single write for all
+$options->stage_options($activation_defaults)->flush(); // Single write for all
 
 // FORM PROCESSING EXAMPLE: Handle admin settings form
 if ($_POST['save_settings']) {
@@ -69,7 +69,7 @@ if ($_POST['save_settings']) {
 	    'last_updated'           => current_time('mysql')
 	);
 
-	$options->add_options($form_data)->flush();
+	$options->stage_options($form_data)->flush();
 	wp_redirect(add_query_arg('updated', '1', wp_get_referer()));
 }
 
@@ -81,7 +81,7 @@ $userOptions = $config->options(array(
   'scope'  => 'user',
   'entity' => new UserEntity((int) get_current_user_id(), false, 'meta'),
 ));
-$userOptions->add_options(array(
+$userOptions->stage_options(array(
   'shortcuts' => array('s' => 'search', 'n' => 'new'),
   'theme'     => 'dark'
 ))->flush();
@@ -91,4 +91,4 @@ $blogOptions = $config->options(array(
   'scope'  => 'blog',
   'entity' => new BlogEntity(2),
 ));
-$blogOptions->add_options(array('feature_flags' => array('beta_ui' => true)))->flush();
+$blogOptions->stage_options(array('feature_flags' => array('beta_ui' => true)))->flush();

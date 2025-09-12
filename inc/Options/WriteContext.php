@@ -254,7 +254,7 @@ final class WriteContext {
 	 *
 	 * @return self New WriteContext instance.
 	 */
-	public static function for_add_options(
+	public static function for_stage_options(
 		string $main_option,
 		string $scope,
 		?int $blogId,
@@ -267,7 +267,7 @@ final class WriteContext {
 		self::ssert_non_emptyArray($keys, 'keys');
 		$scope                            = self::normalize_scope($scope);
 		[$blogId, $userId, $user_storage] = self::validate_scope_triplet($scope, $blogId, $userId, $user_storage);
-		return new self('add_options', $main_option, $scope, $blogId, $userId, $user_storage, $user_global, false, null, array_values(array_map('strval', $keys)), null, null);
+		return new self('stage_options', $main_option, $scope, $blogId, $userId, $user_storage, $user_global, false, null, array_values(array_map('strval', $keys)), null, null);
 	}
 
 	/**

@@ -45,11 +45,11 @@ Introduce a typed `WriteContext` value object to replace array-shaped policy con
     - `user_global?: bool` (user scope)
     - Op-specific context:
       - `key?: string` (set_option, delete_option, add_option)
-      - `keys?: array<int,string>` (add_options)
+      - `keys?: array<int,string>` (stage_options)
       - `options?: array<string,mixed>` (save_all)
       - `changed_keys?: array<int,string>` (migrate)
   - Static factories enforce invariant checks and normalize values:
-    - `for_save_all(...)`, `for_set_option(...)`, `for_add_options(...)`, `for_add_option(...)`, `for_delete_option(...)`, `for_clear(...)`, `for_seed_if_missing(...)`, `for_migrate(...)`.
+    - `for_save_all(...)`, `for_set_option(...)`, `for_stage_options(...)`, `for_add_option(...)`, `for_delete_option(...)`, `for_clear(...)`, `for_seed_if_missing(...)`, `for_migrate(...)`.
 
 ## Implementation Plan
 
