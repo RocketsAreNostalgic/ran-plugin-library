@@ -13,6 +13,7 @@ declare(strict_types=1);
 namespace Ran\PluginLib\Options\Entity;
 
 use Ran\PluginLib\Options\OptionScope;
+use Ran\PluginLib\Options\Storage\StorageContext;
 
 final class BlogEntity extends ScopeEntity {
 	/**
@@ -26,10 +27,13 @@ final class BlogEntity extends ScopeEntity {
 	}
 
 	/**
-	 * @return array{blog_id?: int|null}
+	 * Typed StorageContext helper (preferred over array args).
 	 */
-	public function toStorageArgs(): array {
-		// When null, storage factory will use current blog ID.
-		return array('blog_id' => $this->id);
+	public function toStorageContext(): StorageContext {
+		$blogId = (int) ($this->id ?? 0);
+		if ($blogId <= 0) {
+			throw new \InvalidArgumentException('BlogEntity: blog_id must be a positive integer for typed context.');
+		}
+		return StorageContext::forBlog($blogId);
 	}
 }

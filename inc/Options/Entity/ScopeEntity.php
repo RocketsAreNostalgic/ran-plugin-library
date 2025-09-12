@@ -22,11 +22,4 @@ abstract class ScopeEntity {
 	 * Return the OptionScope represented by this entity.
 	 */
 	abstract public function getScope(): OptionScope;
-
-	/**
-	 * Convert entity to storage args array consumed by RegisterOptions::_make_storage().
-	 *
-	 * @return array<string, mixed>
-	 */
-	abstract public function toStorageArgs(): array;
 }

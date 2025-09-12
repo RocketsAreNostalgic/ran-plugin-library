@@ -15,6 +15,7 @@ namespace Ran\PluginLib\Options\Entity;
 
 use InvalidArgumentException;
 use Ran\PluginLib\Options\OptionScope;
+use Ran\PluginLib\Options\Storage\StorageContext;
 
 final class UserEntity extends ScopeEntity {
 	/**
@@ -41,13 +42,15 @@ final class UserEntity extends ScopeEntity {
 	}
 
 	/**
-	 * @return array{user_id:int,user_global:bool,user_storage:'meta'|'option'}
+	 * Typed StorageContext helper (preferred over array args).
+	 *
+	 * @return StorageContext
 	 */
-	public function toStorageArgs(): array {
-		return array(
-			'user_id'      => $this->id,
-			'user_global'  => $this->global,
-			'user_storage' => strtolower($this->storage),
+	public function toStorageContext(): StorageContext {
+		return StorageContext::forUser(
+			(int) $this->id,
+			strtolower((string) $this->storage),
+			(bool) $this->global
 		);
 	}
 }

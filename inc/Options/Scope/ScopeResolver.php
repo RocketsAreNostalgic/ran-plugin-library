@@ -17,27 +17,28 @@ namespace Ran\PluginLib\Options\Scope;
 
 use InvalidArgumentException;
 use Ran\PluginLib\Options\OptionScope;
+use Ran\PluginLib\Options\Entity\BlogEntity;
+use Ran\PluginLib\Options\Entity\UserEntity;
 use Ran\PluginLib\Options\Entity\ScopeEntity;
+use Ran\PluginLib\Options\Storage\StorageContext;
 
 final class ScopeResolver {
 	/**
-	 * Resolve the normalized OptionScope and validated storage args.
+	 * Resolve to a typed StorageContext.
 	 *
-	 * Behavior (conservative, non-breaking):
-	 * - If an entity is provided, prefer its scope and storage args.
-	 *   If a non-null $scope is also provided and disagrees with the entity,
-	 *   we throw to prevent ambiguous configuration.
+	 * Behavior:
+	 * - If an entity is provided, prefer its scope. If a non-null $scope also disagrees
+	 *   with the entity, throw to prevent ambiguous configuration.
 	 * - If no entity is provided:
-	 *   - site/network: return empty storage args with normalized scope
-	 *   - blog/user: currently allow resolution with empty storage args to
-	 *     remain non-breaking, but strongly recommend providing an entity.
+	 *   - site/network: return StorageContext for site/network
+	 *   - blog/user: require an entity
 	 *
-	 * @param OptionScope|string|null $scope  Target scope, or null to default to site
-	 * @param ScopeEntity|null         $entity Scope entity carrying identifiers
-	 * @return array{scope: OptionScope, storage_args: array<string,mixed>}
+	 * @param OptionScope|string|null $scope
+	 * @param ScopeEntity|null $entity
+	 * @return StorageContext
 	 */
-	public static function resolve(OptionScope|string|null $scope, ?ScopeEntity $entity): array {
-		// Normalize incoming scope to a string key for comparison; null => 'site' (legacy default)
+	public static function resolveToContext(OptionScope|string|null $scope, ?ScopeEntity $entity): StorageContext {
+		// Normalize scope name (null/empty => 'site')
 		if ($scope instanceof OptionScope) {
 			$scopeName = strtolower($scope->name);
 		} elseif (is_string($scope) && $scope !== '') {
@@ -46,46 +47,49 @@ final class ScopeResolver {
 			$scopeName = 'site';
 		}
 
-		// Fast-path: site semantics (ignore entity, return null scope to avoid extra re-read)
 		if ($scopeName === 'site') {
-			return array(
-			    'scope'        => null,            // preserve prior behavior: null means site and avoids re-read
-			    'storage_args' => array(),
-			);
+			return StorageContext::forSite();
 		}
-
-		// Network: ignore entity, no storage args
 		if ($scopeName === 'network') {
-			return array(
-			    'scope'        => 'network',
-			    'storage_args' => array(),
-			);
+			return StorageContext::forNetwork();
 		}
 
-		// Blog/User: require a matching entity; this mirrored previous validation in Config::options()
 		if ($scopeName === 'blog' || $scopeName === 'user') {
 			if (!($entity instanceof ScopeEntity)) {
 				throw new InvalidArgumentException('ScopeResolver: scope "' . $scopeName . '" requires an entity.');
 			}
-			$entityScope = strtolower($entity->getScope()->name);
-			if ($entityScope !== $scopeName) {
-				throw new InvalidArgumentException('ScopeResolver: Provided scope does not match entity scope.');
+			if ($scopeName === 'blog') {
+				if (!($entity instanceof BlogEntity)) {
+					throw new InvalidArgumentException('ScopeResolver: Provided entity does not match blog scope.');
+				}
+				$blogId = (int) ($entity->id ?? 0);
+				if ($blogId <= 0) {
+					throw new InvalidArgumentException('ScopeResolver: blog scope requires a valid blog_id.');
+				}
+				return StorageContext::forBlog($blogId);
 			}
-			return array(
-			    'scope'        => $scopeName,
-			    'storage_args' => $entity->toStorageArgs(),
-			);
+			// user
+			if (!($entity instanceof UserEntity)) {
+				throw new InvalidArgumentException('ScopeResolver: Provided entity does not match user scope.');
+			}
+			$userId      = (int) $entity->id;
+			$userStorage = strtolower((string) $entity->storage);
+			$userGlobal  = (bool) $entity->global;
+			if ($userId <= 0) {
+				throw new InvalidArgumentException('ScopeResolver: user scope requires a valid user_id.');
+			}
+			return StorageContext::forUser($userId, $userStorage, $userGlobal);
 		}
 
-		// Unknown scope: fall back to site semantics (ignore entity)
-		return array(
-		    'scope'        => null,
-		    'storage_args' => array(),
-		);
+		// Fallback
+		return StorageContext::forSite();
 	}
 
 	/**
 	 * Normalize a string scope to OptionScope.
+	 *
+	 * @param string $scope
+	 * @return OptionScope
 	 */
 	private static function fromString(string $scope): OptionScope {
 		$key = strtolower(trim($scope));

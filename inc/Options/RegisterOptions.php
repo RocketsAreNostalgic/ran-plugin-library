@@ -284,8 +284,6 @@ class RegisterOptions {
 		// Initialize typed context
 		$ctx                       = $context ?? StorageContext::forSite();
 		$instance->storage_context = $ctx;
-		// Derive legacy storage_args for current write-gate compatibility (will be removed later)
-		// Removed
 		// Ensure storage is rebuilt for this scope and payload is read from correct storage
 		$instance->storage = null;
 		$instance->options = $instance->_read_main_option();
