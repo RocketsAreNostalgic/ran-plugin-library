@@ -40,22 +40,11 @@ interface ConfigInterface {
 	/**
 	 * Accessor: get a pre-wired RegisterOptions instance for this app's options key.
 	 *
-	 * Semantics (no-write accessor):
-	 * - Returns a RegisterOptions instance bound to `get_options_key()` and this Config's logger.
-	 * - Recognized args (all optional):
-	 *   - `autoload` (bool, default: true) — default autoload policy hint for future writes.
-	 *   - `scope` ('site'|'network'|'blog'|'user' or OptionScope enum), default: 'site'.
-	 *   - `entity` (ScopeEntity|null) — used when relevant for `blog` and `user` scopes.
-	 * - This method performs no DB writes, seeding, or flushing.
-	 * - Unknown args are ignored and a warning is emitted via the configured logger.
-	 * - Persistent changes are performed on the returned RegisterOptions instance using its fluent API,
-	 *   e.g. `$opts->add_options([...])->flush();`, `$opts->with_schema($schema, true, true);`, `$opts->with_policy($policy);`.
-	 *
-	 * @param array{autoload?: bool, scope?: string|\Ran\PluginLib\Options\OptionScope, entity?: \Ran\PluginLib\Options\Entity\ScopeEntity|null} $args
-	 *        Recognized args only; unknown keys are ignored with a warning.
+	 * @param \Ran\PluginLib\Options\Storage\StorageContext|null $context  Typed storage context; when null defaults to site scope.
+	 * @param bool                                                   $autoload Whether to autoload on create (site/blog storages only).
 	 * @return \Ran\PluginLib\Options\RegisterOptions
 	 */
-	public function options(array $args = array()): RegisterOptions;
+	public function options(?\Ran\PluginLib\Options\Storage\StorageContext $context = null, bool $autoload = true): RegisterOptions;
 
 	/**
 	 * Whether the current environment should be treated as development.

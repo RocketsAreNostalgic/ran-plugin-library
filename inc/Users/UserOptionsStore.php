@@ -14,6 +14,7 @@ use Ran\PluginLib\Util\Logger;
 use Ran\PluginLib\Config\ConfigInterface;
 use Ran\PluginLib\Options\RegisterOptions;
 use Ran\PluginLib\Options\Entity\UserEntity;
+use Ran\PluginLib\Options\Storage\StorageContext;
 use Ran\PluginLib\Options\Policy\WritePolicyInterface;
 
 final class UserOptionsStore implements UserOptionsStoreInterface {
@@ -79,10 +80,9 @@ final class UserOptionsStore implements UserOptionsStoreInterface {
 		if (!($this->entity instanceof UserEntity)) {
 			throw new \InvalidArgumentException('UserOptionsStore: call for_user() before use.');
 		}
-		$this->opts = $this->config->options(array(
-			'scope'  => 'user',
-			'entity' => $this->entity,
-		));
+		$this->opts = $this->config->options(
+			StorageContext::forUser($this->entity->id, $this->entity->storage, $this->entity->global)
+		);
 		if ($this->logger instanceof Logger) {
 			$this->opts = $this->opts->with_logger($this->logger);
 		}

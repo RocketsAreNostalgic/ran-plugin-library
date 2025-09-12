@@ -4,7 +4,7 @@
  *
  * Centralizes scope handling for factories so callers avoid stringly-typed
  * storage args and get earlier validation. Designed to be used by both
- * Config::options() and RegisterOptions::_from_config().
+ * Config::options() and RegisterOptions::from_config().
  *
  * NOTE: This is a non-breaking skeleton; integrate gradually.
  *
