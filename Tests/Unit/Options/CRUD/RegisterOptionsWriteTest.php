@@ -8,6 +8,7 @@ use WP_Mock;
 use Ran\PluginLib\Options\OptionScope;
 use Ran\PluginLib\Options\RegisterOptions;
 use Ran\PluginLib\Tests\Unit\PluginLibTestCase;
+use Ran\PluginLib\Options\Storage\StorageContext;
 
 /**
  * Tests for RegisterOptions write operations.
@@ -41,7 +42,12 @@ final class RegisterOptionsWriteTest extends PluginLibTestCase {
 		$opts = RegisterOptions::site('test_options');
 
 		// Mock write guards to allow writes
-		WP_Mock::userFunction('apply_filters')->andReturn(true);
+		WP_Mock::onFilter('ran/plugin_lib/options/allow_persist')
+			->with(\WP_Mock\Functions::type('bool'), \WP_Mock\Functions::type('array'))
+			->reply(true);
+		WP_Mock::onFilter('ran/plugin_lib/options/allow_persist/scope/site')
+			->with(\WP_Mock\Functions::type('bool'), \WP_Mock\Functions::type('array'))
+			->reply(true);
 
 		// Mock storage to return success
 		WP_Mock::userFunction('update_option')->andReturn(true);
@@ -66,7 +72,12 @@ final class RegisterOptionsWriteTest extends PluginLibTestCase {
 		$this->_set_protected_property_value($opts, 'options', array('existing_key' => 'old_value'));
 
 		// Mock write guards and storage
-		WP_Mock::userFunction('apply_filters')->andReturn(true);
+		WP_Mock::onFilter('ran/plugin_lib/options/allow_persist')
+			->with(\WP_Mock\Functions::type('bool'), \WP_Mock\Functions::type('array'))
+			->reply(true);
+		WP_Mock::onFilter('ran/plugin_lib/options/allow_persist/scope/site')
+			->with(\WP_Mock\Functions::type('bool'), \WP_Mock\Functions::type('array'))
+			->reply(true);
 		WP_Mock::userFunction('update_option')->andReturn(true);
 
 		// Update the existing option
@@ -150,9 +161,18 @@ final class RegisterOptionsWriteTest extends PluginLibTestCase {
 		$opts = RegisterOptions::site('test_options');
 
 		// Mock write guards to allow initial mutation but veto persistence
-		WP_Mock::userFunction('apply_filters')
-		    ->andReturn(true)  // Allow mutation
-		    ->andReturn(false); // Veto persistence
+		$gateCounter = 0;
+		$gateFn      = function($allowed, $ctx) use (&$gateCounter) {
+			$gateCounter++;
+			// 1st sequence (pre-mutation) => allow; 2nd (pre-persist) => veto; 3rd (save_all) => veto
+			return $gateCounter === 1 ? true : false;
+		};
+		WP_Mock::onFilter('ran/plugin_lib/options/allow_persist')
+			->with(\WP_Mock\Functions::type('bool'), \WP_Mock\Functions::type('array'))
+			->reply($gateFn);
+		WP_Mock::onFilter('ran/plugin_lib/options/allow_persist/scope/site')
+			->with(\WP_Mock\Functions::type('bool'), \WP_Mock\Functions::type('array'))
+			->reply($gateFn);
 
 		// Mock storage to return failure
 		WP_Mock::userFunction('update_option')->andReturn(false);
@@ -174,7 +194,12 @@ final class RegisterOptionsWriteTest extends PluginLibTestCase {
 		$opts = RegisterOptions::site('test_options');
 
 		// Mock write guards to allow both mutation and persistence
-		WP_Mock::userFunction('apply_filters')->andReturn(true);
+		WP_Mock::onFilter('ran/plugin_lib/options/allow_persist')
+			->with(\WP_Mock\Functions::type('bool'), \WP_Mock\Functions::type('array'))
+			->reply(true);
+		WP_Mock::onFilter('ran/plugin_lib/options/allow_persist/scope/site')
+			->with(\WP_Mock\Functions::type('bool'), \WP_Mock\Functions::type('array'))
+			->reply(true);
 
 		// Mock storage to return failure
 		WP_Mock::userFunction('update_option')->andReturn(false);
@@ -192,25 +217,25 @@ final class RegisterOptionsWriteTest extends PluginLibTestCase {
 	/**
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::set_option
 	 */
-	public function test_set_option_with_string_scope_override(): void {
+	public function test_set_option_with_typed_scope_override(): void {
 		$opts = RegisterOptions::site('test_options');
 
-		// Set string scope override (should exercise lines 323-324)
-		$this->_set_protected_property_value($opts, 'storage_scope', 'blog');
+		// Switch to blog storage context via typed API using reflection
+		$this->_set_protected_property_value($opts, 'storage_context', StorageContext::forBlog(123));
+		// Force storage rebuild
+		$this->_set_protected_property_value($opts, 'storage', null);
 
 		// Mock write guards to allow writes
 		WP_Mock::userFunction('apply_filters')->andReturn(true);
 
-		// Mock storage to return success
-		WP_Mock::userFunction('update_option')->andReturn(true);
+		// Mock blog storage path to return success
+		WP_Mock::userFunction('update_blog_option')->andReturn(true);
 
-		// Set an option - should exercise scope string logic
+		// Set an option - should use blog storage and succeed
 		$result = $opts->set_option('test_key', 'test_value');
 
-		// Verify the method returned true (success)
+		// Verify success and in-memory update
 		$this->assertTrue($result);
-
-		// Verify the option was stored in memory
 		$this->assertEquals('test_value', $opts->get_option('test_key'));
 	}
 

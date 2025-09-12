@@ -10,6 +10,7 @@ use Ran\PluginLib\Util\ExpectLogTrait;
 use Ran\PluginLib\Config\ConfigInterface;
 use Ran\PluginLib\Options\RegisterOptions;
 use Ran\PluginLib\Tests\Unit\PluginLibTestCase;
+use Ran\PluginLib\Options\Storage\StorageContext;
 
 /**
  * Test-only subclass that forces allow_persist filters to veto by overriding
@@ -42,7 +43,7 @@ class RegisterOptionsGateNoticeTest extends PluginLibTestCase {
 		$config->method('get_options_key')->willReturn('gate_notice_opts');
 		$config->method('get_logger')->willReturn($this->logger_mock);
 
-		$opts = TestableGateRegisterOptions::_from_config($config, true, OptionScope::Site);
+		$opts = TestableGateRegisterOptions::from_config($config, StorageContext::forSite(), true);
 
 		// Provide a storage mock so scope resolves to 'site'.
 		$storage = $this->createMock(\Ran\PluginLib\Options\Storage\OptionStorageInterface::class);

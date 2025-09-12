@@ -40,6 +40,11 @@ final class RegisterOptionsSchemaTest extends PluginLibTestCase {
 	public function test_register_schema_basic(): void {
 		$opts = RegisterOptions::site('test_options');
 
+		// Allow all writes for this test
+		$policy = $this->getMockBuilder(\Ran\PluginLib\Options\Policy\WritePolicyInterface::class)->getMock();
+		$policy->method('allow')->willReturn(true);
+		$opts->with_policy($policy);
+
 		$schema = array(
 		    'test_key' => array(
 		        'default'  => 'default_value',
@@ -58,7 +63,12 @@ final class RegisterOptionsSchemaTest extends PluginLibTestCase {
 		$this->assertIsBool($result);
 
 		// Verify schema was registered by checking if we can set an option
-		WP_Mock::userFunction('apply_filters')->andReturn(true);
+		WP_Mock::onFilter('ran/plugin_lib/options/allow_persist')
+			->with(\WP_Mock\Functions::type('bool'), \WP_Mock\Functions::type('array'))
+			->reply(true);
+		WP_Mock::onFilter('ran/plugin_lib/options/allow_persist/scope/site')
+			->with(\WP_Mock\Functions::type('bool'), \WP_Mock\Functions::type('array'))
+			->reply(true);
 		WP_Mock::userFunction('update_option')->andReturn(true);
 
 		$result = $opts->set_option('test_key', 'test_value');
@@ -139,6 +149,11 @@ final class RegisterOptionsSchemaTest extends PluginLibTestCase {
 	public function test_register_schema_with_flush_and_changed(): void {
 		$opts = RegisterOptions::site('test_options');
 
+		// Allow all writes for this test
+		$policy = $this->getMockBuilder(\Ran\PluginLib\Options\Policy\WritePolicyInterface::class)->getMock();
+		$policy->method('allow')->willReturn(true);
+		$opts->with_policy($policy);
+
 		$schema = array(
 		    'flush_key' => array(
 		        'default'  => 'flush_value',
@@ -152,7 +167,12 @@ final class RegisterOptionsSchemaTest extends PluginLibTestCase {
 		);
 
 		// Mock write guards to allow writes
-		WP_Mock::userFunction('apply_filters')->andReturn(true);
+		WP_Mock::onFilter('ran/plugin_lib/options/allow_persist')
+			->with(\WP_Mock\Functions::type('bool'), \WP_Mock\Functions::type('array'))
+			->reply(true);
+		WP_Mock::onFilter('ran/plugin_lib/options/allow_persist/scope/site')
+			->with(\WP_Mock\Functions::type('bool'), \WP_Mock\Functions::type('array'))
+			->reply(true);
 
 		// Mock storage to return success
 		WP_Mock::userFunction('update_option')->andReturn(true);

@@ -5,6 +5,7 @@ namespace Ran\PluginLib\Tests\Unit\Options\Entity;
 
 use Ran\PluginLib\Options\Entity\BlogEntity;
 use Ran\PluginLib\Options\OptionScope;
+use Ran\PluginLib\Options\Storage\StorageContext;
 use Ran\PluginLib\Tests\Unit\PluginLibTestCase;
 
 final class BlogEntityTest extends PluginLibTestCase {
@@ -13,13 +14,17 @@ final class BlogEntityTest extends PluginLibTestCase {
 		$this->assertSame(OptionScope::Blog, $e->getScope());
 	}
 
-	public function test_toStorageArgs_with_id(): void {
-		$e = new BlogEntity(5);
-		$this->assertSame(array('blog_id' => 5), $e->toStorageArgs());
+	public function test_toStorageContext_with_id(): void {
+		$e   = new BlogEntity(5);
+		$ctx = $e->toStorageContext();
+		$this->assertSame(OptionScope::Blog, $ctx->scope);
+		$this->assertSame(5, $ctx->blog_id);
 	}
 
-	public function test_toStorageArgs_with_null_id_uses_null(): void {
+	public function test_toStorageContext_with_null_id_throws(): void {
 		$e = new BlogEntity(null);
-		$this->assertSame(array('blog_id' => null), $e->toStorageArgs());
+		$this->expectException(\InvalidArgumentException::class);
+		// Typed conversion should fail for null/invalid id
+		$e->toStorageContext();
 	}
 }

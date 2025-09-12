@@ -6,10 +6,11 @@ namespace Ran\PluginLib\Tests\Unit\Options;
 
 use WP_Mock;
 use Ran\PluginLib\Options\OptionScope;
+use Ran\PluginLib\Util\ExpectLogTrait;
 use Ran\PluginLib\Config\ConfigInterface;
 use Ran\PluginLib\Options\RegisterOptions;
 use Ran\PluginLib\Tests\Unit\PluginLibTestCase;
-use Ran\PluginLib\Util\ExpectLogTrait;
+use Ran\PluginLib\Options\Storage\StorageContext;
 
 /**
  * Expanded coverage for RegisterOptions::_save_all_options add() fallback path (lines 1248-1251).
@@ -54,7 +55,7 @@ final class RegisterOptionsSaveAllAddFallbackTest extends PluginLibTestCase {
 		$config->method('get_options_key')->willReturn('test_options');
 		$config->method('get_logger')->willReturn($this->logger_mock);
 
-		$opts = RegisterOptions::_from_config($config, true, OptionScope::Site);
+		$opts = RegisterOptions::from_config($config, StorageContext::forSite(), true);
 
 		// Stage a value so there's something to persist
 		$opts->add_option('alpha', 'one');

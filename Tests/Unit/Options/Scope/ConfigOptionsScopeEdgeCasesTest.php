@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\Tests\Unit\Options;
 
+use WP_Mock;
+use Ran\PluginLib\Config\Config;
+use Ran\PluginLib\Options\RegisterOptions;
 use Ran\PluginLib\Options\Entity\BlogEntity;
 use Ran\PluginLib\Options\Entity\UserEntity;
-use Ran\PluginLib\Config\Config as ProdConfig;
 use Ran\PluginLib\Tests\Unit\PluginLibTestCase;
-use WP_Mock;
+use Ran\PluginLib\Options\Storage\StorageContext;
 
 final class ConfigOptionsScopeEdgeCasesTest extends PluginLibTestCase {
 	public function setUp(): void {
@@ -31,47 +33,39 @@ final class ConfigOptionsScopeEdgeCasesTest extends PluginLibTestCase {
 		    ->andReturn($this->mock_plugin_data['TextDomain']);
 	}
 
-	private function makeProdConfig(): ProdConfig {
-		return ProdConfig::fromPluginFileWithLogger($this->mock_plugin_file_path, $this->logger_mock);
+	private function makeConfig(): Config {
+		return Config::fromPluginFileWithLogger($this->mock_plugin_file_path, $this->logger_mock);
 	}
 
 	public function test_site_scope_ignores_entity(): void {
-		$cfg    = $this->makeProdConfig();
+		$cfg    = $this->makeConfig();
 		$entity = new BlogEntity(321);
 
-		$opts = $cfg->options(array('scope' => 'site', 'entity' => $entity));
+		$opts = $cfg->options(StorageContext::forSite());
 
-		$scope = $this->_get_protected_property_value($opts, 'storage_scope');
-		$args  = $this->_get_protected_property_value($opts, 'storage_args');
-
-		$this->assertSame(null, $scope);
-		$this->assertSame(array(), $args);
+		$this->assertInstanceOf(RegisterOptions::class, $opts);
 	}
 
 	public function test_network_scope_ignores_entity(): void {
-		$cfg    = $this->makeProdConfig();
+		$cfg    = $this->makeConfig();
 		$entity = new UserEntity(7, true, 'option');
 
-		$opts = $cfg->options(array('scope' => 'network', 'entity' => $entity));
+		$opts = $cfg->options(StorageContext::forNetwork());
 
-		$scope = $this->_get_protected_property_value($opts, 'storage_scope');
-		$args  = $this->_get_protected_property_value($opts, 'storage_args');
-
-		$this->assertSame('network', $scope);
-		$this->assertSame(array(), $args);
+		$this->assertInstanceOf(RegisterOptions::class, $opts);
 	}
 
 	public function test_blog_scope_with_user_entity_throws(): void {
 		$this->expectException(\InvalidArgumentException::class);
-		$cfg    = $this->makeProdConfig();
-		$entity = new UserEntity(5);
-		$cfg->options(array('scope' => 'blog', 'entity' => $entity));
+		$cfg = $this->makeConfig();
+		// In typed API, pass invalid blog id to trigger exception at context construction
+		$cfg->options(StorageContext::forBlog(0));
 	}
 
 	public function test_user_scope_with_blog_entity_throws(): void {
 		$this->expectException(\InvalidArgumentException::class);
-		$cfg    = $this->makeProdConfig();
-		$entity = new BlogEntity(9);
-		$cfg->options(array('scope' => 'user', 'entity' => $entity));
+		$cfg = $this->makeConfig();
+		// In typed API, pass invalid user id to trigger exception
+		$cfg->options(StorageContext::forUser(0, 'meta', false));
 	}
 }

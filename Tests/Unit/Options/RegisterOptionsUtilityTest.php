@@ -10,6 +10,7 @@ use Ran\PluginLib\Options\OptionScope;
 use Ran\PluginLib\Util\ExpectLogTrait;
 use Ran\PluginLib\Options\RegisterOptions;
 use Ran\PluginLib\Tests\Unit\PluginLibTestCase;
+use Ran\PluginLib\Options\Storage\StorageContext;
 use Ran\PluginLib\Options\Policy\WritePolicyInterface;
 
 /**
@@ -42,13 +43,19 @@ final class RegisterOptionsUtilityTest extends PluginLibTestCase {
 		WP_Mock::userFunction('update_option')->andReturn(true);
 		WP_Mock::userFunction('delete_option')->andReturn(true);
 
-		// Note: Do not set a global default for apply_filters here; tests will set expectations explicitly per scenario.
+		// Default allow for write gate at site scope (tests can override with onFilter per scenario)
+		WP_Mock::onFilter('ran/plugin_lib/options/allow_persist')
+			->with(\WP_Mock\Functions::type('bool'), \WP_Mock\Functions::type('array'))
+			->reply(true);
+		WP_Mock::onFilter('ran/plugin_lib/options/allow_persist/scope/site')
+			->with(\WP_Mock\Functions::type('bool'), \WP_Mock\Functions::type('array'))
+			->reply(true);
 	}
 
 	/**
-		* @covers \Ran\PluginLib\Options\RegisterOptions::__construct
-		* @covers \Ran\PluginLib\Options\RegisterOptions::with_defaults
-		*/
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::__construct
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::with_defaults
+	 */
 	public function test_with_defaults_sets_default_values(): void {
 		$opts = RegisterOptions::site('test_options');
 
@@ -68,9 +75,9 @@ final class RegisterOptionsUtilityTest extends PluginLibTestCase {
 	}
 
 	/**
-		* @covers \Ran\PluginLib\Options\RegisterOptions::__construct
-		* @covers \Ran\PluginLib\Options\RegisterOptions::with_policy
-		*/
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::__construct
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::with_policy
+	 */
 	public function test_with_policy_sets_write_policy(): void {
 		$opts = RegisterOptions::site('test_options');
 
@@ -88,9 +95,9 @@ final class RegisterOptionsUtilityTest extends PluginLibTestCase {
 	}
 
 	/**
-		* @covers \Ran\PluginLib\Options\RegisterOptions::__construct
-		* @covers \Ran\PluginLib\Options\RegisterOptions::with_logger
-		*/
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::__construct
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::with_logger
+	 */
 	public function test_with_logger_sets_logger_instance(): void {
 		// Create a mock logger
 		$mockLogger = $this->getMockBuilder(\Ran\PluginLib\Util\Logger::class)
@@ -109,11 +116,11 @@ final class RegisterOptionsUtilityTest extends PluginLibTestCase {
 	}
 
 	/**
-		* @covers \Ran\PluginLib\Options\RegisterOptions::__construct
-		* @covers \Ran\PluginLib\Options\RegisterOptions::with_defaults
-		* @covers \Ran\PluginLib\Options\RegisterOptions::with_policy
-		* @covers \Ran\PluginLib\Options\RegisterOptions::with_logger
-		*/
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::__construct
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::with_defaults
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::with_policy
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::with_logger
+	 */
 	public function test_fluent_interface_method_chaining(): void {
 		$opts = RegisterOptions::site('test_options');
 
@@ -142,6 +149,11 @@ final class RegisterOptionsUtilityTest extends PluginLibTestCase {
 	public function test_migrate_with_array_result(): void {
 		$opts = RegisterOptions::site('test_options');
 
+		// Allow all writes for this test
+		$policy = $this->getMockBuilder(\Ran\PluginLib\Options\Policy\WritePolicyInterface::class)->getMock();
+		$policy->method('allow')->willReturn(true);
+		$opts->with_policy($policy);
+
 		// Set up initial data
 		$initialData = array('old_key' => 'old_value');
 		$this->_set_protected_property_value($opts, 'options', $initialData);
@@ -153,7 +165,12 @@ final class RegisterOptionsUtilityTest extends PluginLibTestCase {
 		$this->_set_protected_property_value($opts, 'storage', $mockStorage);
 
 		// Mock write guards and storage functions
-		WP_Mock::userFunction('apply_filters')->andReturn(true);
+		WP_Mock::onFilter('ran/plugin_lib/options/allow_persist')
+            ->with(\WP_Mock\Functions::type('bool'), \WP_Mock\Functions::type('array'))
+            ->reply(true);
+		WP_Mock::onFilter('ran/plugin_lib/options/allow_persist/scope/site')
+		    ->with(\WP_Mock\Functions::type('bool'), \WP_Mock\Functions::type('array'))
+		    ->reply(true);
 		WP_Mock::userFunction('update_option')->andReturn(true);
 		WP_Mock::userFunction('get_option')->andReturn($initialData);
 
@@ -177,6 +194,11 @@ final class RegisterOptionsUtilityTest extends PluginLibTestCase {
 	public function test_migrate_with_scalar_result(): void {
 		$opts = RegisterOptions::site('test_options');
 
+		// Allow all writes for this test
+		$policy = $this->getMockBuilder(\Ran\PluginLib\Options\Policy\WritePolicyInterface::class)->getMock();
+		$policy->method('allow')->willReturn(true);
+		$opts->with_policy($policy);
+
 		// Set up initial data
 		$initialData = array('key' => 'value');
 		$this->_set_protected_property_value($opts, 'options', $initialData);
@@ -187,7 +209,12 @@ final class RegisterOptionsUtilityTest extends PluginLibTestCase {
 		$mockStorage->method('scope')->willReturn(\Ran\PluginLib\Options\OptionScope::Site);
 		$this->_set_protected_property_value($opts, 'storage', $mockStorage);
 
-		WP_Mock::userFunction('apply_filters')->andReturn(true);
+		WP_Mock::onFilter('ran/plugin_lib/options/allow_persist')
+            ->with(\WP_Mock\Functions::type('bool'), \WP_Mock\Functions::type('array'))
+            ->reply(true);
+		WP_Mock::onFilter('ran/plugin_lib/options/allow_persist/scope/site')
+		    ->with(\WP_Mock\Functions::type('bool'), \WP_Mock\Functions::type('array'))
+		    ->reply(true);
 		WP_Mock::userFunction('update_option')->andReturn(true);
 		WP_Mock::userFunction('get_option')->andReturn($initialData);
 
@@ -222,7 +249,12 @@ final class RegisterOptionsUtilityTest extends PluginLibTestCase {
 		$policy = $this->getMockBuilder(\Ran\PluginLib\Options\Policy\WritePolicyInterface::class)->getMock();
 		$policy->method('allow')->willReturn(false);
 		$opts->with_policy($policy);
-		WP_Mock::userFunction('apply_filters')->andReturn(false);
+		WP_Mock::onFilter('ran/plugin_lib/options/allow_persist')
+            ->with(\WP_Mock\Functions::type('bool'), \WP_Mock\Functions::type('array'))
+            ->reply(false);
+		WP_Mock::onFilter('ran/plugin_lib/options/allow_persist/scope/site')
+		    ->with(\WP_Mock\Functions::type('bool'), \WP_Mock\Functions::type('array'))
+		    ->reply(false);
 
 		$migration = function($current) {
 			return array('should_not_run' => 'value');
@@ -241,11 +273,21 @@ final class RegisterOptionsUtilityTest extends PluginLibTestCase {
 	public function test_migrate_no_op_when_no_changes(): void {
 		$opts = RegisterOptions::site('test_options');
 
+		// Allow all writes for this test
+		$policy = $this->getMockBuilder(\Ran\PluginLib\Options\Policy\WritePolicyInterface::class)->getMock();
+		$policy->method('allow')->willReturn(true);
+		$opts->with_policy($policy);
+
 		$initialData = array('key' => 'value');
 		$this->_set_protected_property_value($opts, 'options', $initialData);
 
 		$mockStorage = $this->createMock(\Ran\PluginLib\Options\Storage\OptionStorageInterface::class);
 		$opts        = RegisterOptions::site('test_options');
+
+		// Allow all writes for this (second) instance as well
+		$policy = $this->getMockBuilder(\Ran\PluginLib\Options\Policy\WritePolicyInterface::class)->getMock();
+		$policy->method('allow')->willReturn(true);
+		$opts->with_policy($policy);
 
 		// Set up initial data
 		$initialData = array('key' => 'value');
@@ -257,7 +299,12 @@ final class RegisterOptionsUtilityTest extends PluginLibTestCase {
 		$mockStorage->method('scope')->willReturn(\Ran\PluginLib\Options\OptionScope::Site);
 		$this->_set_protected_property_value($opts, 'storage', $mockStorage);
 
-		WP_Mock::userFunction('apply_filters')->andReturn(true);
+		WP_Mock::onFilter('ran/plugin_lib/options/allow_persist')
+            ->with(\WP_Mock\Functions::type('bool'), \WP_Mock\Functions::type('array'))
+            ->reply(true);
+		WP_Mock::onFilter('ran/plugin_lib/options/allow_persist/scope/site')
+		    ->with(\WP_Mock\Functions::type('bool'), \WP_Mock\Functions::type('array'))
+		    ->reply(true);
 		WP_Mock::userFunction('update_option')->andReturn(true);
 		WP_Mock::userFunction('get_option')->andReturn($initialData);
 
@@ -279,6 +326,11 @@ final class RegisterOptionsUtilityTest extends PluginLibTestCase {
 	public function test_flush_with_merge_from_db(): void {
 		$opts = RegisterOptions::site('test_options', true, $this->logger_mock);
 
+		// Allow all writes for this test
+		$policy = $this->getMockBuilder(\Ran\PluginLib\Options\Policy\WritePolicyInterface::class)->getMock();
+		$policy->method('allow')->willReturn(true);
+		$opts->with_policy($policy);
+
 		// Add some options in memory
 		$opts->add_option('memory_key', 'memory_value');
 
@@ -290,7 +342,12 @@ final class RegisterOptionsUtilityTest extends PluginLibTestCase {
 		$this->_set_protected_property_value($opts, 'storage', $mockStorage);
 
 		// Allow writes in this test
-		WP_Mock::userFunction('apply_filters')->andReturn(true);
+		WP_Mock::onFilter('ran/plugin_lib/options/allow_persist')
+            ->with(\WP_Mock\Functions::type('bool'), \WP_Mock\Functions::type('array'))
+            ->reply(true);
+		WP_Mock::onFilter('ran/plugin_lib/options/allow_persist/scope/site')
+		    ->with(\WP_Mock\Functions::type('bool'), \WP_Mock\Functions::type('array'))
+		    ->reply(true);
 
 		// Mock storage to return success
 		WP_Mock::userFunction('update_option')->andReturn(true);
@@ -310,10 +367,10 @@ final class RegisterOptionsUtilityTest extends PluginLibTestCase {
 	}
 
 	/**
-		* @covers \Ran\PluginLib\Options\RegisterOptions::__construct
-		* @covers \Ran\PluginLib\Options\RegisterOptions::refresh_options
-		* @covers \Ran\PluginLib\Options\RegisterOptions::_read_main_option
-		*/
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::__construct
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::refresh_options
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::_read_main_option
+	 */
 	public function test_refresh_options_reloads_from_storage(): void {
 		$opts = RegisterOptions::site('test_options');
 
@@ -335,9 +392,9 @@ final class RegisterOptionsUtilityTest extends PluginLibTestCase {
 	}
 
 	/**
-		* @covers \Ran\PluginLib\Options\RegisterOptions::__construct
-		* @covers \Ran\PluginLib\Options\RegisterOptions::supports_autoload
-		*/
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::__construct
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::supports_autoload
+	 */
 	public function test_supports_autoload_method(): void {
 		$opts = RegisterOptions::site('test_options');
 		$this->assertTrue($opts->supports_autoload()); // Site scope supports autoload
@@ -347,32 +404,47 @@ final class RegisterOptionsUtilityTest extends PluginLibTestCase {
 	}
 
 	/**
-		* @covers \Ran\PluginLib\Options\RegisterOptions::__construct
-		* @covers \Ran\PluginLib\Options\RegisterOptions::set_option
-		*/
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::__construct
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::set_option
+	 */
 	public function test_set_option_with_string_scope_override(): void {
 		$opts = RegisterOptions::site('test_options', true, $this->logger_mock);
 
-		// Exercise alternate scope path
-		$this->_set_protected_property_value($opts, 'storage_scope', 'blog');
+		// Allow all writes for this test
+		$policy = $this->getMockBuilder(\Ran\PluginLib\Options\Policy\WritePolicyInterface::class)->getMock();
+		$policy->method('allow')->willReturn(true);
+		$opts->with_policy($policy);
+
+		// Switch to blog storage via typed StorageContext reflection
+		$this->_set_protected_property_value($opts, 'storage_context', StorageContext::forBlog(123));
+		// Force rebuild of storage to pick up new context
+		$this->_set_protected_property_value($opts, 'storage', null);
 
 		// Allow writes in this test
-		WP_Mock::userFunction('apply_filters')->andReturn(true);
+		WP_Mock::onFilter('ran/plugin_lib/options/allow_persist')
+            ->with(\WP_Mock\Functions::type('bool'), \WP_Mock\Functions::type('array'))
+            ->reply(true);
+		WP_Mock::onFilter('ran/plugin_lib/options/allow_persist/scope/site')
+		    ->with(\WP_Mock\Functions::type('bool'), \WP_Mock\Functions::type('array'))
+		    ->reply(true);
+		WP_Mock::onFilter('ran/plugin_lib/options/allow_persist/scope/blog')
+		    ->with(\WP_Mock\Functions::type('bool'), \WP_Mock\Functions::type('array'))
+		    ->reply(true);
 
-		// Mock storage to return success through WP update_option
-		WP_Mock::userFunction('update_option')->andReturn(true);
+		// Mock blog update to return success
+		WP_Mock::userFunction('update_blog_option')->andReturn(true);
 
-		// Set an option - should exercise scope string logic and succeed
+		// Set an option - should use blog storage and succeed
 		$result = $opts->set_option('test_key', 'test_value');
 		$this->assertTrue($result);
 		$this->assertEquals('test_value', $opts->get_option('test_key'));
 	}
 
 	/**
-		* @covers \Ran\PluginLib\Options\RegisterOptions::__construct
-		* @covers \Ran\PluginLib\Options\RegisterOptions::refresh_options
-		* @covers \Ran\PluginLib\Options\RegisterOptions::_read_main_option
-		*/
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::__construct
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::refresh_options
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::_read_main_option
+	 */
 	public function test_read_main_option_non_array_returns_empty_and_logs(): void {
 		$opts = RegisterOptions::site('test_options', true, $this->logger_mock);
 

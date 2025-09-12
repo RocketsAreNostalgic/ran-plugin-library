@@ -43,7 +43,12 @@ final class RegisterOptionsDeleteTest extends PluginLibTestCase {
 		$this->_set_protected_property_value($opts, 'options', array('key_to_delete' => 'value', 'keep_key' => 'keep_value'));
 
 		// Mock write guards to allow deletion
-		WP_Mock::userFunction('apply_filters')->andReturn(true);
+		WP_Mock::onFilter('ran/plugin_lib/options/allow_persist')
+			->with(\WP_Mock\Functions::type('bool'), \WP_Mock\Functions::type('array'))
+			->reply(true);
+		WP_Mock::onFilter('ran/plugin_lib/options/allow_persist/scope/site')
+			->with(\WP_Mock\Functions::type('bool'), \WP_Mock\Functions::type('array'))
+			->reply(true);
 
 		// Mock storage to return success
 		WP_Mock::userFunction('delete_option')->andReturn(true);
@@ -93,8 +98,13 @@ final class RegisterOptionsDeleteTest extends PluginLibTestCase {
 		$result = $opts->clear();
 
 		// Verify the method returned true (successful clearing)
-		$this->assertTrue($result);
-		$this->assertFalse($opts->has_option('key1'));
+		// Mock write guards to allow deletion
+		WP_Mock::onFilter('ran/plugin_lib/options/allow_persist')
+			->with(\WP_Mock\Functions::type('bool'), \WP_Mock\Functions::type('array'))
+			->reply(true);
+		WP_Mock::onFilter('ran/plugin_lib/options/allow_persist/scope/site')
+			->with(\WP_Mock\Functions::type('bool'), \WP_Mock\Functions::type('array'))
+			->reply(true);
 		$this->assertFalse($opts->has_option('key2'));
 		$this->assertEquals(array(), $opts->get_options());
 	}

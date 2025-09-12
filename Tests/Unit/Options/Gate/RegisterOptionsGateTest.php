@@ -123,10 +123,18 @@ final class RegisterOptionsGateTest extends PluginLibTestCase {
 	public function test_set_option_vetoed_by_persist_gate(): void {
 		$opts = RegisterOptions::site('test_options');
 
-		// Mock write guards to allow initial mutation but veto persistence
-		WP_Mock::userFunction('apply_filters')
-		    ->andReturn(true)  // Allow mutation
-		    ->andReturn(false); // Veto persistence
+		// Mock write guards to allow initial mutation but veto persistence (general + site)
+		$gateCounter = 0;
+		$gateFn      = function($allowed, $ctx) use (&$gateCounter) {
+			$gateCounter++;
+			return $gateCounter === 1 ? true : false; // allow first, veto thereafter
+		};
+		WP_Mock::onFilter('ran/plugin_lib/options/allow_persist')
+			->with(\WP_Mock\Functions::type('bool'), \WP_Mock\Functions::type('array'))
+			->reply($gateFn);
+		WP_Mock::onFilter('ran/plugin_lib/options/allow_persist/scope/site')
+			->with(\WP_Mock\Functions::type('bool'), \WP_Mock\Functions::type('array'))
+			->reply($gateFn);
 
 		// Mock storage to return failure
 		WP_Mock::userFunction('update_option')->andReturn(false);

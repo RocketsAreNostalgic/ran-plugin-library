@@ -8,6 +8,7 @@ use WP_Mock;
 use Ran\PluginLib\Options\OptionScope;
 use Ran\PluginLib\Config\ConfigInterface;
 use Ran\PluginLib\Options\RegisterOptions;
+use Ran\PluginLib\Options\Storage\StorageContext;
 use Ran\PluginLib\Tests\Unit\PluginLibTestCase;
 use Ran\PluginLib\Util\ExpectLogTrait;
 
@@ -50,7 +51,7 @@ final class RegisterOptionsSaveAllStorageOverrideTest extends PluginLibTestCase 
 		$config->method('get_options_key')->willReturn($main);
 		$config->method('get_logger')->willReturn($this->logger_mock);
 
-		$opts = TestableSaveAllRegisterOptions::_from_config($config, true, OptionScope::Site);
+		$opts = TestableSaveAllRegisterOptions::from_config($config, StorageContext::forSite(), true);
 
 		// In-memory options to ensure foreach merge runs
 		$this->_set_protected_property_value($opts, 'options', array('a1' => 1, 'a2' => 2));
@@ -90,7 +91,7 @@ final class RegisterOptionsSaveAllStorageOverrideTest extends PluginLibTestCase 
 		$config->method('get_options_key')->willReturn($main);
 		$config->method('get_logger')->willReturn($this->logger_mock);
 
-		$opts = TestableSaveAllRegisterOptions::_from_config($config, true, OptionScope::Site)
+		$opts = TestableSaveAllRegisterOptions::from_config($config, StorageContext::forSite(), true)
 			->with_logger($this->logger_mock);
 
 		// In-memory payload to persist

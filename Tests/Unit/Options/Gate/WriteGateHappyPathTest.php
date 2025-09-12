@@ -36,10 +36,6 @@ final class WriteGateHappyPathTest extends PluginLibTestCase {
 			return trim($key, '_');
 		});
 
-		// Ensure filters default to pass-through (prevents any residual veto stubs impacting these tests)
-		WP_Mock::userFunction('apply_filters')->andReturnUsing(function($hook, $value) {
-			return $value;
-		});
 
 		// Write functions default to success unless overridden in a test
 		WP_Mock::userFunction('add_option')->andReturn(true);

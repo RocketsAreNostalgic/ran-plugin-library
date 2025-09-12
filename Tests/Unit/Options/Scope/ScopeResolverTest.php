@@ -9,6 +9,7 @@ use Ran\PluginLib\Options\Scope\ScopeResolver;
 use Ran\PluginLib\Options\OptionScope;
 use Ran\PluginLib\Options\Entity\BlogEntity;
 use Ran\PluginLib\Options\Entity\UserEntity;
+use Ran\PluginLib\Options\Storage\StorageContext;
 
 /**
  * Consolidated unit tests for ScopeResolver covering:
@@ -25,18 +26,16 @@ final class ScopeResolverTest extends TestCase {
 	 * Branch: enum OptionScope::Site (ignore entity, return scope=null + empty args).
 	 */
 	public function test_enum_site_ignores_entity(): void {
-		$resolved = ScopeResolver::resolve(OptionScope::Site, new BlogEntity(99));
-		$this->assertSame(null, $resolved['scope']);
-		$this->assertSame(array(), $resolved['storage_args']);
+		$ctx = ScopeResolver::resolveToContext(OptionScope::Site, new BlogEntity(99));
+		$this->assertSame(OptionScope::Site, $ctx->scope);
 	}
 
 	/**
 	 * Branch: enum OptionScope::Network (ignore entity, return 'network' + empty args).
 	 */
 	public function test_enum_network_ignores_entity(): void {
-		$resolved = ScopeResolver::resolve(OptionScope::Network, new UserEntity(10, true, 'option'));
-		$this->assertSame('network', $resolved['scope']);
-		$this->assertSame(array(), $resolved['storage_args']);
+		$ctx = ScopeResolver::resolveToContext(OptionScope::Network, new UserEntity(10, true, 'option'));
+		$this->assertSame(OptionScope::Network, $ctx->scope);
 	}
 
 	// --- String scope normalization (site/network) --------------------------------
@@ -45,18 +44,16 @@ final class ScopeResolverTest extends TestCase {
 	 * Branch: string 'site' (ignore entity, scope=null + empty args).
 	 */
 	public function test_string_site_ignores_entity(): void {
-		$resolved = ScopeResolver::resolve('site', new UserEntity(2));
-		$this->assertSame(null, $resolved['scope']);
-		$this->assertSame(array(), $resolved['storage_args']);
+		$ctx = ScopeResolver::resolveToContext('site', new UserEntity(2));
+		$this->assertSame(OptionScope::Site, $ctx->scope);
 	}
 
 	/**
 	 * Branch: string 'network' (ignore entity, return 'network' + empty args).
 	 */
 	public function test_string_network_ignores_entity(): void {
-		$resolved = ScopeResolver::resolve('network', new BlogEntity(1));
-		$this->assertSame('network', $resolved['scope']);
-		$this->assertSame(array(), $resolved['storage_args']);
+		$ctx = ScopeResolver::resolveToContext('network', new BlogEntity(1));
+		$this->assertSame(OptionScope::Network, $ctx->scope);
 	}
 
 	// --- Blog/user entity handling ------------------------------------------------
@@ -65,56 +62,90 @@ final class ScopeResolverTest extends TestCase {
 	 * Branch: 'blog' requires BlogEntity; returns 'blog' + blog_id.
 	 */
 	public function test_string_blog_with_entity(): void {
-		$entity   = new BlogEntity(123);
-		$resolved = ScopeResolver::resolve('blog', $entity);
-		$this->assertSame('blog', $resolved['scope']);
-		$this->assertSame(array('blog_id' => 123), $resolved['storage_args']);
+		$entity = new BlogEntity(123);
+		$ctx    = ScopeResolver::resolveToContext('blog', $entity);
+		$this->assertSame(OptionScope::Blog, $ctx->scope);
+		$this->assertSame(123, $ctx->blog_id);
 	}
 
 	/**
 	 * Branch: 'user' requires UserEntity; returns 'user' + user args.
 	 */
 	public function test_string_user_with_entity(): void {
-		$entity   = new UserEntity(7, false, 'meta');
-		$resolved = ScopeResolver::resolve('user', $entity);
-		$this->assertSame('user', $resolved['scope']);
-		$this->assertSame(array(
-		    'user_id'      => 7,
-		    'user_global'  => false,
-		    'user_storage' => 'meta',
-		), $resolved['storage_args']);
+		$entity = new UserEntity(7, false, 'meta');
+		$ctx    = ScopeResolver::resolveToContext('user', $entity);
+		$this->assertSame(OptionScope::User, $ctx->scope);
+		$this->assertSame(7, $ctx->user_id);
+		$this->assertSame('meta', $ctx->user_storage);
+		$this->assertFalse($ctx->user_global);
 	}
 
 	/**
 	 * Branch: 'user' without entity throws.
 	 */
-	public function test_user_without_entity_throws(): void {
+	public function test_user_without_entity_throws_typed(): void {
 		$this->expectException(\InvalidArgumentException::class);
-		ScopeResolver::resolve('user', null);
+		ScopeResolver::resolveToContext('user', null);
 	}
 
 	/**
 	 * Branch: 'blog' without entity throws.
 	 */
-	public function test_blog_without_entity_throws(): void {
+	public function test_blog_without_entity_throws_typed(): void {
 		$this->expectException(\InvalidArgumentException::class);
-		ScopeResolver::resolve('blog', null);
+		ScopeResolver::resolveToContext('blog', null);
 	}
 
 	/**
 	 * Branch: 'user' with BlogEntity throws mismatch.
 	 */
-	public function test_user_with_mismatched_entity_throws(): void {
+	public function test_user_with_mismatched_entity_throws_typed(): void {
 		$this->expectException(\InvalidArgumentException::class);
-		ScopeResolver::resolve('user', new BlogEntity(3));
+		ScopeResolver::resolveToContext('user', new BlogEntity(3));
 	}
 
 	/**
-	 * Branch: 'blog' with UserEntity throws mismatch.
-	 */
-	public function test_blog_with_mismatched_entity_throws(): void {
+		* Branch: 'blog' with UserEntity throws mismatch.
+		*/
+	public function test_blog_with_mismatched_entity_throws_typed(): void {
 		$this->expectException(\InvalidArgumentException::class);
-		ScopeResolver::resolve('blog', new UserEntity(4));
+		ScopeResolver::resolveToContext('blog', new UserEntity(4));
+	}
+
+	/**
+		* Branch: 'blog' with invalid blog_id (<= 0) throws.
+		*/
+	public function test_blog_with_invalid_blog_id_throws(): void {
+		$this->expectException(\InvalidArgumentException::class);
+		ScopeResolver::resolveToContext('blog', new BlogEntity(0));
+	}
+
+	/**
+		* Branch: 'user' with invalid user_id (<= 0) throws at resolver (line 79).
+		* We bypass the UserEntity constructor guard via Reflection to ensure the
+		* exception is thrown within ScopeResolver rather than the entity ctor.
+		*/
+	/**
+	* Note:
+	* - We intentionally bypass the UserEntity constructor to avoid its own guard
+	*   (which would throw for id <= 0) and instead assert that the resolver's
+	*   validation (line 79) throws the InvalidArgumentException.
+	* - This ensures coverage of the specific branch in ScopeResolver rather than
+	*   the entity's constructor validation.
+	*/
+	public function test_user_with_invalid_user_id_throws_via_reflection(): void {
+		// Build UserEntity without running its constructor
+		$ref = new \ReflectionClass(UserEntity::class);
+		/** @var UserEntity $entity */
+		$entity = $ref->newInstanceWithoutConstructor();
+		// Initialize readonly properties via Reflection (allowed when not constructed)
+		foreach (array('id' => 0, 'global' => false, 'storage' => 'meta') as $prop => $val) {
+			$p = $ref->getProperty($prop);
+			$p->setAccessible(true);
+			$p->setValue($entity, $val);
+		}
+		$this->expectException(\InvalidArgumentException::class);
+		ScopeResolver::resolveToContext('user', $entity);
 	}
 
 	// --- Unknown/empty scope fallbacks --------------------------------------------
@@ -123,18 +154,16 @@ final class ScopeResolverTest extends TestCase {
 	 * Branch: unknown scope string -> site fallback (scope=null), ignore entity.
 	 */
 	public function test_unknown_scope_falls_back_to_site(): void {
-		$resolved = ScopeResolver::resolve('unknown-scope', new BlogEntity(42));
-		$this->assertSame(null, $resolved['scope']);
-		$this->assertSame(array(), $resolved['storage_args']);
+		$ctx = ScopeResolver::resolveToContext('unknown-scope', new BlogEntity(42));
+		$this->assertSame(OptionScope::Site, $ctx->scope);
 	}
 
 	/**
 	 * Branch: empty scope string -> site fallback (scope=null).
 	 */
 	public function test_empty_scope_string_falls_back_to_site(): void {
-		$resolved = ScopeResolver::resolve('', null);
-		$this->assertSame(null, $resolved['scope']);
-		$this->assertSame(array(), $resolved['storage_args']);
+		$ctx = ScopeResolver::resolveToContext('', null);
+		$this->assertSame(OptionScope::Site, $ctx->scope);
 	}
 
 	// --- fromString mapping --------------------------------------------------------

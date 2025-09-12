@@ -9,6 +9,7 @@ use Ran\PluginLib\Options\OptionScope;
 use Ran\PluginLib\Util\ExpectLogTrait;
 use Ran\PluginLib\Options\RegisterOptions;
 use Ran\PluginLib\Tests\Unit\PluginLibTestCase;
+use Ran\PluginLib\Options\Storage\StorageContext;
 
 /**
  * Additional targeted coverage for RegisterOptions.
@@ -68,6 +69,22 @@ final class RegisterOptionsAdditionalCoverageTest extends PluginLibTestCase {
 		WP_Mock::userFunction('add_option')->andReturn(true);
 		WP_Mock::userFunction('update_option')->andReturn(true);
 		WP_Mock::userFunction('delete_option')->andReturn(true);
+
+		// Default allow for write gate (tests override when needed)
+		WP_Mock::onFilter('ran/plugin_lib/options/allow_persist')
+			->with(\WP_Mock\Functions::type('bool'), \WP_Mock\Functions::type('array'))
+			->reply(true);
+		WP_Mock::onFilter('ran/plugin_lib/options/allow_persist/scope/site')
+			->with(\WP_Mock\Functions::type('bool'), \WP_Mock\Functions::type('array'))
+			->reply(true);
+		WP_Mock::onFilter('ran/plugin_lib/options/allow_persist/scope/network')
+			->with(\WP_Mock\Functions::type('bool'), \WP_Mock\Functions::type('array'))
+			->reply(true);
+		// Ensure apply_filters exists and defaults to pass-through so that
+		// policy + onFilter hooks control allow/deny regardless of file order.
+		WP_Mock::userFunction('apply_filters')->andReturnUsing(function ($hook, $value) {
+			return $value;
+		});
 	}
 
 	private function allow_all_persist_filters_for_site(): void {
@@ -91,7 +108,7 @@ final class RegisterOptionsAdditionalCoverageTest extends PluginLibTestCase {
 		if (method_exists($config, 'get_logger')) {
 			$config->method('get_logger')->willReturn($this->logger_mock);
 		}
-		$sut = RegisterOptions::_from_config($config, true);
+		$sut = RegisterOptions::from_config($config, StorageContext::forSite(), true);
 		// After construction, the constructor logs an initialization message (exact string)
 		$this->expectLog('debug', "RegisterOptions: Initialized with main option 'ctor_log'. Loaded 0 existing sub-options.", 1);
 		// Sanity: no options initially
@@ -106,6 +123,10 @@ final class RegisterOptionsAdditionalCoverageTest extends PluginLibTestCase {
 	 */
 	public function test_network_scope_set_option_and_autoload_false(): void {
 		$opts = RegisterOptions::network('net_opts');
+		// Allow all writes for this test
+		$policy = $this->getMockBuilder(\Ran\PluginLib\Options\Policy\WritePolicyInterface::class)->getMock();
+		$policy->method('allow')->willReturn(true);
+		$opts->with_policy($policy);
 		$this->assertFalse($opts->supports_autoload());
 
 		// Allow writes
@@ -191,7 +212,7 @@ final class RegisterOptionsAdditionalCoverageTest extends PluginLibTestCase {
 		$config = $this->getMockBuilder(\Ran\PluginLib\Config\ConfigInterface::class)->getMock();
 		$config->method('get_options_key')->willReturn('ctor_initial');
 		$config->method('get_logger')->willReturn($this->logger_mock);
-		$sut = RegisterOptions::_from_config($config, true)->with_defaults($initial);
+		$sut = RegisterOptions::from_config($config, StorageContext::forSite(), true)->with_defaults($initial);
 		// Keys are normalized and values set in-memory only
 		$this->assertSame('val1', $sut->get_option('mixed-case_key'));
 		// Without schema, complex array remains as provided
@@ -221,7 +242,7 @@ final class RegisterOptionsAdditionalCoverageTest extends PluginLibTestCase {
 		$config = $this->getMockBuilder(\Ran\PluginLib\Config\ConfigInterface::class)->getMock();
 		$config->method('get_options_key')->willReturn('ctor_schema');
 		$config->method('get_logger')->willReturn($this->logger_mock);
-		$sut = RegisterOptions::_from_config($config, true)->with_schema($schema, true, false);
+		$sut = RegisterOptions::from_config($config, StorageContext::forSite(), true)->with_schema($schema, true, false);
 		// Normalized key should be present with sanitized/validated default value
 		$this->assertSame('ABC', $sut->get_option('mixed_key'));
 		$this->expectLog('debug', '_resolve_default_value');
@@ -233,6 +254,11 @@ final class RegisterOptionsAdditionalCoverageTest extends PluginLibTestCase {
 	 */
 	public function test_string_callable_validate_success_does_not_throw(): void {
 		$opts = RegisterOptions::site('string_valid');
+		// Allow all writes for this test
+		$policy = $this->getMockBuilder(\Ran\PluginLib\Options\Policy\WritePolicyInterface::class)->getMock();
+		$policy->method('allow')->willReturn(true);
+		$opts->with_policy($policy);
+		WP_Mock::userFunction('apply_filters')->andReturn(true);
 		$opts->register_schema(array(
 		    'num' => array(
 		        'validate' => 'is_numeric',
@@ -271,6 +297,10 @@ final class RegisterOptionsAdditionalCoverageTest extends PluginLibTestCase {
 	 */
 	public function test_network_scope_flush_merge_from_db(): void {
 		$opts = RegisterOptions::network('net_merge');
+		// Allow all writes for this test
+		$policy = $this->getMockBuilder(\Ran\PluginLib\Options\Policy\WritePolicyInterface::class)->getMock();
+		$policy->method('allow')->willReturn(true);
+		$opts->with_policy($policy);
 
 		// Allow persistence filters
 		WP_Mock::onFilter('ran/plugin_lib/options/allow_persist')

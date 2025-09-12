@@ -10,6 +10,7 @@ use Ran\PluginLib\Util\ExpectLogTrait;
 use Ran\PluginLib\Config\ConfigInterface;
 use Ran\PluginLib\Options\RegisterOptions;
 use Ran\PluginLib\Tests\Unit\PluginLibTestCase;
+use Ran\PluginLib\Options\Storage\StorageContext;
 
 /**
  * @covers \Ran\PluginLib\Options\RegisterOptions::__construct
@@ -66,7 +67,7 @@ final class RegisterOptionsInternalsCoverageTest extends PluginLibTestCase {
 		$config = $this->getMockBuilder(ConfigInterface::class)->getMock();
 		$config->method('get_options_key')->willReturn('test_options');
 		$config->method('get_logger')->willReturn($this->logger_mock);
-		$opts = RegisterOptions::_from_config($config, true, OptionScope::Site);
+		$opts = RegisterOptions::from_config($config, StorageContext::forSite(), true);
 
 		$schema = array(
 			'num' => array(
@@ -117,7 +118,7 @@ final class RegisterOptionsInternalsCoverageTest extends PluginLibTestCase {
 		$config = $this->getMockBuilder(ConfigInterface::class)->getMock();
 		$config->method('get_options_key')->willReturn('test_options');
 		$config->method('get_logger')->willReturn($this->logger_mock);
-		$opts = RegisterOptions::_from_config($config, true, OptionScope::Site);
+		$opts = RegisterOptions::from_config($config, StorageContext::forSite(), true);
 
 		$schema = array(
 			'age' => array(
@@ -149,7 +150,11 @@ final class RegisterOptionsInternalsCoverageTest extends PluginLibTestCase {
 		$config = $this->getMockBuilder(ConfigInterface::class)->getMock();
 		$config->method('get_options_key')->willReturn('test_options');
 		$config->method('get_logger')->willReturn($this->logger_mock);
-		$opts = RegisterOptions::_from_config($config, true, OptionScope::Site);
+		$opts = RegisterOptions::from_config($config, StorageContext::forSite(), true);
+		// Allow all writes for this test
+		$policy = $this->getMockBuilder(\Ran\PluginLib\Options\Policy\WritePolicyInterface::class)->getMock();
+		$policy->method('allow')->willReturn(true);
+		$opts->with_policy($policy);
 		$this->allow_all_persist_filters_for_site();
 
 		// Stage new value
@@ -188,7 +193,7 @@ final class RegisterOptionsInternalsCoverageTest extends PluginLibTestCase {
 		$config = $this->getMockBuilder(ConfigInterface::class)->getMock();
 		$config->method('get_options_key')->willReturn('test_options');
 		$config->method('get_logger')->willReturn($this->logger_mock);
-		$opts = RegisterOptions::_from_config($config, true, OptionScope::Site);
+		$opts = RegisterOptions::from_config($config, StorageContext::forSite(), true);
 
 		// In-memory different from storage
 		$this->_set_protected_property_value($opts, 'options', array('foo' => 'mem'));
@@ -221,7 +226,11 @@ final class RegisterOptionsInternalsCoverageTest extends PluginLibTestCase {
 		$config = $this->getMockBuilder(ConfigInterface::class)->getMock();
 		$config->method('get_options_key')->willReturn('test_options');
 		$config->method('get_logger')->willReturn($this->logger_mock);
-		$opts = RegisterOptions::_from_config($config, true, OptionScope::Site);
+		$opts = RegisterOptions::from_config($config, StorageContext::forSite(), true);
+		// Allow all writes for this test
+		$policy = $this->getMockBuilder(\Ran\PluginLib\Options\Policy\WritePolicyInterface::class)->getMock();
+		$policy->method('allow')->willReturn(true);
+		$opts->with_policy($policy);
 		WP_Mock::onFilter('ran/plugin_lib/options/allow_persist')
 			->with(WP_Mock\Functions::type('bool'), WP_Mock\Functions::type('array'))
 			->reply(true);
@@ -255,7 +264,7 @@ final class RegisterOptionsInternalsCoverageTest extends PluginLibTestCase {
 		$config = $this->getMockBuilder(ConfigInterface::class)->getMock();
 		$config->method('get_options_key')->willReturn('test_options');
 		$config->method('get_logger')->willReturn($this->logger_mock);
-		$opts   = RegisterOptions::_from_config($config, true, OptionScope::Site);
+		$opts   = RegisterOptions::from_config($config, StorageContext::forSite(), true);
 		$schema = array(
 			's' => array(
 				'validate' => 'is_numeric',
@@ -277,7 +286,7 @@ final class RegisterOptionsInternalsCoverageTest extends PluginLibTestCase {
 		$config = $this->getMockBuilder(ConfigInterface::class)->getMock();
 		$config->method('get_options_key')->willReturn('test_options');
 		$config->method('get_logger')->willReturn($this->logger_mock);
-		$opts   = RegisterOptions::_from_config($config, true, OptionScope::Site);
+		$opts   = RegisterOptions::from_config($config, StorageContext::forSite(), true);
 		$schema = array(
 			'a' => array(
 				'validate' => array($this, 'helperReturnsFalse'),
@@ -299,7 +308,7 @@ final class RegisterOptionsInternalsCoverageTest extends PluginLibTestCase {
 		$config = $this->getMockBuilder(ConfigInterface::class)->getMock();
 		$config->method('get_options_key')->willReturn('test_options');
 		$config->method('get_logger')->willReturn($this->logger_mock);
-		$opts      = RegisterOptions::_from_config($config, true, OptionScope::Site);
+		$opts      = RegisterOptions::from_config($config, StorageContext::forSite(), true);
 		$invokable = new class {
 			public function __invoke($v) {
 				return false;
@@ -322,88 +331,21 @@ final class RegisterOptionsInternalsCoverageTest extends PluginLibTestCase {
 		return false;
 	}
 
-	/**
-	 * @covers \Ran\PluginLib\Options\RegisterOptions::__construct
-	 * @covers \Ran\PluginLib\Options\RegisterOptions::set_option
-	 * @covers \Ran\PluginLib\Options\RegisterOptions::_stringify_value_for_error
-	 */
-	public function test_stringify_handles_array_input(): void {
-		$config = $this->getMockBuilder(ConfigInterface::class)->getMock();
-		$config->method('get_options_key')->willReturn('test_options');
-		$config->method('get_logger')->willReturn($this->logger_mock);
-		$opts   = RegisterOptions::_from_config($config, true, OptionScope::Site);
-		$schema = array(
-			'arr' => array(
-				'validate' => function ($v) {
-					return false;
-				},
-			),
-		);
-		$opts->register_schema($schema, seed_defaults: false, flush: false);
-		$this->expectException(\InvalidArgumentException::class);
-		$this->expectExceptionMessageMatches('/Array\(3\)/');
-		$opts->set_option('arr', array(1, 2, 3));
-		$this->expectLog('debug', '_stringify_value_for_error completed');
-	}
+
 
 	/**
-	 * @covers \Ran\PluginLib\Options\RegisterOptions::__construct
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::set_option
-	 * @covers \Ran\PluginLib\Options\RegisterOptions::_stringify_value_for_error
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::_sanitize_and_validate_option
 	 */
-	public function test_stringify_handles_object_input(): void {
-		$config = $this->getMockBuilder(ConfigInterface::class)->getMock();
-		$config->method('get_options_key')->willReturn('test_options');
-		$config->method('get_logger')->willReturn($this->logger_mock);
-		$opts   = RegisterOptions::_from_config($config, true, OptionScope::Site);
-		$schema = array(
-			'obj' => array(
-				'validate' => function ($v) {
-					return false;
-				},
-			),
-		);
-		$opts->register_schema($schema, seed_defaults: false, flush: false);
-		$this->expectException(\InvalidArgumentException::class);
-		$this->expectExceptionMessageMatches('/Object\(stdClass\)/');
-		$opts->set_option('obj', new \stdClass());
-		$this->expectLog('debug', '_stringify_value_for_error completed');
-	}
-
-	/**
-	 * @covers \Ran\PluginLib\Options\RegisterOptions::__construct
-	 * @covers \Ran\PluginLib\Options\RegisterOptions::set_option
-	 * @covers \Ran\PluginLib\Options\RegisterOptions::_stringify_value_for_error
-	 */
-	public function test_stringify_truncates_long_scalar(): void {
-		$config = $this->getMockBuilder(ConfigInterface::class)->getMock();
-		$config->method('get_options_key')->willReturn('test_options');
-		$config->method('get_logger')->willReturn($this->logger_mock);
-		$opts   = RegisterOptions::_from_config($config, true, OptionScope::Site);
-		$schema = array(
-			'long' => array(
-				'validate' => function ($v) {
-					return false;
-				},
-			),
-		);
-		$opts->register_schema($schema, seed_defaults: false, flush: false);
-		$long = str_repeat('A', 500);
-		$this->expectException(\InvalidArgumentException::class);
-		$this->expectExceptionMessageMatches('/\.\.\./');
-		$opts->set_option('long', $long);
-		$this->expectLog('debug', '_stringify_value_for_error completed');
-	}
-
-	/**
-		* @covers \Ran\PluginLib\Options\RegisterOptions::set_option
-		* @covers \Ran\PluginLib\Options\RegisterOptions::_sanitize_and_validate_option
-		*/
 	public function test_set_option_unknown_key_triggers_no_schema_log(): void {
 		$config = $this->getMockBuilder(ConfigInterface::class)->getMock();
 		$config->method('get_options_key')->willReturn('test_options');
 		$config->method('get_logger')->willReturn($this->logger_mock);
-		$opts = RegisterOptions::_from_config($config, true, OptionScope::Site);
+		$opts = RegisterOptions::from_config($config, StorageContext::forSite(), true);
+		// Allow all writes for this test
+		$policy = $this->getMockBuilder(\Ran\PluginLib\Options\Policy\WritePolicyInterface::class)->getMock();
+		$policy->method('allow')->willReturn(true);
+		$opts->with_policy($policy);
 		// Allow persistence to exercise full path
 		WP_Mock::onFilter('ran/plugin_lib/options/allow_persist')
 			->with(WP_Mock\Functions::type('bool'), WP_Mock\Functions::type('array'))

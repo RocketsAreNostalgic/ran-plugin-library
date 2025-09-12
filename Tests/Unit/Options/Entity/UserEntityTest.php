@@ -6,6 +6,7 @@ namespace Ran\PluginLib\Tests\Unit\Options\Entity;
 use InvalidArgumentException;
 use Ran\PluginLib\Options\Entity\UserEntity;
 use Ran\PluginLib\Options\OptionScope;
+use Ran\PluginLib\Options\Storage\StorageContext;
 use Ran\PluginLib\Tests\Unit\PluginLibTestCase;
 
 final class UserEntityTest extends PluginLibTestCase {
@@ -14,20 +15,22 @@ final class UserEntityTest extends PluginLibTestCase {
 		$this->assertSame(OptionScope::User, $e->getScope());
 	}
 
-	public function test_toStorageArgs_defaults_meta_and_false_global(): void {
-		$e = new UserEntity(42);
-		$this->assertSame(
-			array('user_id' => 42, 'user_global' => false, 'user_storage' => 'meta'),
-			$e->toStorageArgs()
-		);
+	public function test_toStorageContext_defaults_meta_and_false_global(): void {
+		$e   = new UserEntity(42);
+		$ctx = $e->toStorageContext();
+		$this->assertSame(OptionScope::User, $ctx->scope);
+		$this->assertSame(42, $ctx->user_id);
+		$this->assertSame('meta', $ctx->user_storage);
+		$this->assertFalse($ctx->user_global);
 	}
 
-	public function test_toStorageArgs_with_option_and_global_true(): void {
-		$e = new UserEntity(7, true, 'option');
-		$this->assertSame(
-			array('user_id' => 7, 'user_global' => true, 'user_storage' => 'option'),
-			$e->toStorageArgs()
-		);
+	public function test_toStorageContext_with_option_and_global_true(): void {
+		$e   = new UserEntity(7, true, 'option');
+		$ctx = $e->toStorageContext();
+		$this->assertSame(OptionScope::User, $ctx->scope);
+		$this->assertSame(7, $ctx->user_id);
+		$this->assertSame('option', $ctx->user_storage);
+		$this->assertTrue($ctx->user_global);
 	}
 
 	public function test_constructor_rejects_non_positive_id(): void {

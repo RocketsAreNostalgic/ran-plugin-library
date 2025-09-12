@@ -6,18 +6,18 @@ namespace Ran\PluginLib\Tests\Unit\Options;
 
 use WP_Mock;
 use Ran\PluginLib\Util\Logger;
+use Ran\PluginLib\Util\ExpectLogTrait;
+use Ran\PluginLib\Config\ConfigInterface;
 use Ran\PluginLib\Options\RegisterOptions;
 use Ran\PluginLib\Options\Entity\BlogEntity;
 use Ran\PluginLib\Options\Entity\UserEntity;
-use Ran\PluginLib\Config\ConfigInterface;
 use Ran\PluginLib\Tests\Unit\PluginLibTestCase;
-use Ran\PluginLib\Util\ExpectLogTrait;
+use Ran\PluginLib\Options\Storage\StorageContext;
 
 /**
- * Tests for RegisterOptions::from_config factory (lines 339-356).
+ * Tests for RegisterOptions::from_config factory.
  *
- * Covers default args handling, scope resolution via ScopeResolver, and forwarding
- * to _from_config with derived (scope, storage_args).
+ * Covers default args handling and typed StorageContext usage for scope selection.
  */
 final class RegisterOptionsFromConfigTest extends PluginLibTestCase {
 	use ExpectLogTrait;
@@ -103,8 +103,8 @@ final class RegisterOptionsFromConfigTest extends PluginLibTestCase {
 			public function get_config(): array {
 				return array();
 			}
-			public function options(array $args = array()): RegisterOptions {
-				return RegisterOptions::site('unused');
+			public function options(?StorageContext $context = null, bool $autoload = true): RegisterOptions {
+				return RegisterOptions::from_config($this, $context, $autoload);
 			}
 			public function is_dev_environment(): bool {
 				return false;
@@ -126,25 +126,17 @@ final class RegisterOptionsFromConfigTest extends PluginLibTestCase {
 		$this->expectLog('debug', "RegisterOptions: Initialized with main option 'test_plugin_options'. Loaded 0 existing sub-options.", 1);
 
 		$this->assertInstanceOf(RegisterOptions::class, $opts);
-		// Site scope defaults: null storage_scope and empty storage_args
-		$scope = $this->_get_protected_property_value($opts, 'storage_scope');
-		$args  = $this->_get_protected_property_value($opts, 'storage_args');
-		$this->assertSame(null, $scope);
-		$this->assertSame(array(), $args);
+		// Site scope defaults: supports autoload and site storage adapter
+		$this->assertTrue($opts->supports_autoload());
 		$this->assertTrue($opts->supports_autoload());
 	}
 
 	/**
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::from_config
 	 */
-	public function test_from_config_network_scope_string(): void {
+	public function test_from_config_network_scope_context(): void {
 		$cfg  = $this->makeConfig();
-		$opts = RegisterOptions::from_config($cfg, array('scope' => 'network'));
-
-		$scope = $this->_get_protected_property_value($opts, 'storage_scope');
-		$args  = $this->_get_protected_property_value($opts, 'storage_args');
-		$this->assertSame('network', $scope);
-		$this->assertSame(array(), $args);
+		$opts = RegisterOptions::from_config($cfg, StorageContext::forNetwork());
 		// Network storage does not support autoload
 		$this->assertFalse($opts->supports_autoload());
 	}
@@ -152,44 +144,41 @@ final class RegisterOptionsFromConfigTest extends PluginLibTestCase {
 	/**
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::from_config
 	 */
-	public function test_from_config_blog_scope_requires_entity_throws(): void {
+	public function test_from_config_blog_scope_invalid_id_throws(): void {
 		$cfg = $this->makeConfig();
 		$this->expectException(\InvalidArgumentException::class);
-		$this->expectExceptionMessage('requires an entity');
-		RegisterOptions::from_config($cfg, array('scope' => 'blog'));
+		// Invalid blog id (0) should throw from StorageContext
+		RegisterOptions::from_config($cfg, StorageContext::forBlog(0));
 	}
 
 	/**
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::from_config
 	 */
 	public function test_from_config_blog_with_entity(): void {
-		$cfg    = $this->makeConfig();
-		$entity = new BlogEntity(123);
-
-		$opts  = RegisterOptions::from_config($cfg, array('scope' => 'blog', 'entity' => $entity));
-		$scope = $this->_get_protected_property_value($opts, 'storage_scope');
-		$args  = $this->_get_protected_property_value($opts, 'storage_args');
-
-		$this->assertSame('blog', $scope);
-		$this->assertSame(array('blog_id' => 123), $args);
+		$cfg  = $this->makeConfig();
+		$opts = RegisterOptions::from_config($cfg, StorageContext::forBlog(123));
+		// supports_autoload may be false if not current blog; this test focuses on construction success
+		$this->assertInstanceOf(RegisterOptions::class, $opts);
 	}
 
 	/**
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::from_config
 	 */
-	public function test_from_config_user_with_entity(): void {
-		$cfg    = $this->makeConfig();
-		$entity = new UserEntity(5, true, 'option');
+	public function test_from_config_user_with_context(): void {
+		$cfg  = $this->makeConfig();
+		$ctx  = StorageContext::forUser(7, 'option', true);
+		$opts = RegisterOptions::from_config($cfg, $ctx);
+		$this->assertInstanceOf(RegisterOptions::class, $opts);
+	}
 
-		$opts  = RegisterOptions::from_config($cfg, array('scope' => 'user', 'entity' => $entity));
-		$scope = $this->_get_protected_property_value($opts, 'storage_scope');
-		$args  = $this->_get_protected_property_value($opts, 'storage_args');
-
-		$this->assertSame('user', $scope);
-		$this->assertSame(array(
-		    'user_id'      => 5,
-		    'user_global'  => true,
-		    'user_storage' => 'option',
-		), $args);
+	/**
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::from_config
+	 */
+	public function test_from_config_throws_on_empty_options_key(): void {
+		$cfg = $this->getMockBuilder(ConfigInterface::class)->getMock();
+		$cfg->method('get_options_key')->willReturn('');
+		$this->expectException(\InvalidArgumentException::class);
+		$this->expectExceptionMessage('Missing or invalid options key from Config');
+		RegisterOptions::from_config($cfg, StorageContext::forSite(), true);
 	}
 }
