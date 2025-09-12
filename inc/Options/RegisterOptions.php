@@ -43,9 +43,9 @@ use Ran\PluginLib\Options\Policy\RestrictedDefaultWritePolicy;
  *        - Simple deep merge: `$merged = array_replace_recursive($current, $patch);`
  *        - Or custom logic for precise add/remove/transform semantics
  *     3) Write back: `$options->set_option('my_key', $merged);`
- *     4) Persist once (batch-friendly): `$options->flush(false);`
+ *     4) Persist once (batch-friendly): `$options->commit_replace();`
  *   Prefer flat keys where possible, and for disjoint top-level keys use
- *   `$options->stage_options([...])` then `$options->flush(true)` to reduce churn.
+ *   `$options->stage_options([...])` then `$options->commit_merge()` to reduce churn.
  *
  * Storage and scope:
  * - Storage is adapter-backed and scope-aware:
@@ -674,25 +674,31 @@ class RegisterOptions {
 		return $this->_save_all_options();
 	}
 
-	/**
-	 * Persist current in-memory options to the database.
-     * Explicit persistence point: complements the "No implicit writes" principle.
-	 *
-	 * @param bool $merge_from_db When true, reads current DB value and performs a
-	 *                          shallow, top-level merge before saving:
-	 *                          - Existing DB keys are preserved
-	 *                          - In-memory keys overwrite on collision
-	 *                          This reduces lost updates for disjoint keys during
-	 *                          installers/migrations. Nested values are replaced
-	 *                          as a whole; for complex merges, callers should
-	 *                          read–modify–write and then flush(false).
-	 *                          See header notes for details.
-	 *
-	 * @return bool Whether the save succeeded.
-	 */
-	public function flush(bool $merge_from_db = false): bool {
-		return $this->_save_all_options($merge_from_db);
-	}
+    /**
+     * Commit staged changes with a top-level (shallow) merge against the current DB row.
+     *
+     * Intent-revealing wrapper for a merge commit. Equivalent to calling {@see flush(true)}.
+     * - Preserves existing DB keys, overwriting collisions with in-memory values
+     * - Does not deep-merge nested arrays; for nested merges, perform a read–modify–write
+     *   for the specific key and then use {@see set_option()} or {@see commit_replace()}
+     *
+     * @return bool Whether the save succeeded.
+     */
+    public function commit_merge(): bool {
+        return $this->_save_all_options(true);
+    }
+
+    /**
+     * Commit staged changes by replacing the entire stored row (no merge).
+     *
+     * Intent-revealing wrapper for a replace commit. Equivalent to calling {@see flush(false)}.
+     * Use when you have staged a complete, authoritative in-memory payload.
+     *
+     * @return bool Whether the save succeeded.
+     */
+    public function commit_replace(): bool {
+        return $this->_save_all_options(false);
+    }
 
 	/**
 	 * Seed the main option row with provided defaults if it does not already exist (idempotent).

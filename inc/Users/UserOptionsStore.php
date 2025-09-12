@@ -62,7 +62,7 @@ final class UserOptionsStore implements UserOptionsStoreInterface {
 	public function set_many(array $kv): bool {
 		$this->ensure_opts();
 		$this->opts->stage_options($kv);
-		return (bool) $this->opts->flush(true);
+		return (bool) $this->opts->commit_merge();
 	}
 
 	/**
