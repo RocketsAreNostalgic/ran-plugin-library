@@ -103,13 +103,14 @@ Introduce a typed `WriteContext` value object to replace array-shaped policy con
 
 ```php
 // RegisterOptions::_save_all_options()
-$wc = WriteContext::for_save_all(
-   main_option: $this->main_wp_option_name,
-    scope: $scopeEnum->value,
-    blogId: $this->storage_args['blog_id'] ?? null,
-    userId: $this->storage_args['user_id'] ?? null,
-    user_storage: ($this->storage_args['user_storage'] ?? 'meta'),
-    user_global: (bool)($this->storage_args['user_global'] ?? false),
+$ctx = $this->_get_storage_context(); // typed StorageContext
+$wc  = WriteContext::for_save_all(
+    main_option: $this->main_wp_option_name,
+    scope: $ctx->scope->value,
+    blogId: $ctx->blog_id,
+    userId: $ctx->user_id,
+    user_storage: $ctx->user_storage,
+    user_global: $ctx->user_global,
     options: $to_save,
     merge_from_db: $merge_from_db
 );

@@ -17,9 +17,9 @@ This TFS documents the completion of a comprehensive Config + Options integratio
 **Config Enhancement:**
 
 - `Config::get_options_key()` - deterministic option key from `RAN.AppOption` header or slug fallback
-- `Config::options(array $args = [])` - one-liner to get pre-wired `RegisterOptions` instance
-- Supported optional arguments (no writes): `autoload`, `scope`, `entity` (for blog/user scopes)
-- No implicit writes during Config hydration - all persistence explicit via Options helpers
+  `Config::options(?StorageContext $context = null, bool $autoload = true): RegisterOptions`
+- Typed StorageContext selects scope (site/network/blog/user); no implicit writes during Config hydration
+- All persistence remains explicit via Options helpers
 
 **RegisterOptions Enhancement:**
 
@@ -101,25 +101,25 @@ add_filter('ran/plugin_lib/options/allow_persist/scope/network', $callback, 10, 
 add_filter('ran/plugin_lib/options/allow_persist/scope/user', $callback, 10, 2);
 ```
 
-### Usage Patterns
+### Usage Patterns (typed StorageContext)
 
 ```php
+use Ran\PluginLib\Options\Storage\StorageContext;
+
 // Site scope (default)
 $opts = $config->options();
 
 // Network scope (multisite)
-$opts = $config->options(['scope' => 'network']);
+$opts = $config->options(StorageContext::forNetwork());
 
-// Blog-specific (use entity)
-use Ran\PluginLib\Options\Entity\BlogEntity;
-$opts = $config->options(['scope' => 'blog', 'entity' => new BlogEntity(123)]);
+// Blog-specific
+$opts = $config->options(StorageContext::forBlog(123));
 
-// User-specific (use entity)
-use Ran\PluginLib\Options\Entity\UserEntity;
-$opts = $config->options(['scope' => 'user', 'entity' => new UserEntity(456)]);
+// User-specific (meta)
+$opts = $config->options(StorageContext::forUser(456, 'meta', false));
 
-// User global options (via entity flags)
-$opts = $config->options(['scope' => 'user', 'entity' => new UserEntity(456, true /* global */)]);
+// User global options (option storage, global=true)
+$opts = $config->options(StorageContext::forUser(456, 'option', true));
 
 // Inject a custom immutable write policy (fluent on RegisterOptions)
 $opts = $config->options();

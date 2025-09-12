@@ -31,13 +31,15 @@ It covers control flow, filters, rollback guarantees, and extension points. Diag
 - **Default**: If no policy is supplied, `RegisterOptions` lazily applies `RestrictedDefaultWritePolicy`.
 - **Injection points**:
   - Constructor: `new RegisterOptions(..., ?WritePolicyInterface $policy = null)`
-  - Factory: `RegisterOptions::from_config(..., array $storage_args = [], ?WritePolicyInterface $policy = null)`
-  - Fluent on the returned manager: `$config->options([...])->with_policy($customPolicy)`
+  - Factory: `RegisterOptions::from_config(ConfigInterface $config, ?StorageContext $context = null, bool $autoload = true)`
+  - Fluent on the returned manager: `$config->options(StorageContext::forSite())->with_policy($customPolicy)`
 
 Example via fluent API on the returned manager:
 
 ```php
-$opts = $config->options(['scope' => 'site']); // no writes
+use Ran\PluginLib\Options\Storage\StorageContext;
+
+$opts = $config->options(StorageContext::forSite()); // no writes
 $opts->with_policy($customPolicy); // implements WritePolicyInterface
 ```
 
@@ -119,6 +121,7 @@ Related building blocks:
 ### Choose your path
 
 - Basic (recommended default):
+
   - Use `RestrictedDefaultWritePolicy` only (no composition). Aligns with WordPress capabilities by scope.
   - Example wiring: `inc/Options/docs/examples/policy-example-subscriber.php`
 

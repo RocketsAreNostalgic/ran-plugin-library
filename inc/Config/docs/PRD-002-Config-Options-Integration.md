@@ -46,15 +46,18 @@ public function get_options_key(): string;
 - Returns `RAN.AppOption` if present; otherwise returns `Slug`.
 - No I/O, just a deterministic key to be used with Options.
 
-### 2) First-class Options accessor
+### 2) First-class Options accessor (typed StorageContext)
 
 Add to Config:
 
 ```php
-public function options(): \Ran\PluginLib\Options\RegisterOptions;
+use Ran\PluginLib\Options\Storage\StorageContext;
+
+public function options(StorageContext $context = null, bool $autoload = true): \Ran\PluginLib\Options\RegisterOptions;
 ```
 
 - Returns a `RegisterOptions` instance pre-wired to the app’s option key.
+- `StorageContext` determines scope (site/network/blog/user); when `null`, defaults to site.
 - No implicit writes; just the manager instance.
 
 ### 3) Options convenience constructors
@@ -62,10 +65,12 @@ public function options(): \Ran\PluginLib\Options\RegisterOptions;
 Add to `RegisterOptions`:
 
 ```php
-public static function from_config(\Ran\PluginLib\Config\ConfigInterface $cfg): self;
+use Ran\PluginLib\Options\Storage\StorageContext;
+
+public static function from_config(\Ran\PluginLib\Config\ConfigInterface $cfg, StorageContext $context = null, bool $autoload = true): self;
 ```
 
-- Initializes a `RegisterOptions` bound to `$cfg->get_options_key()`.
+- Initializes a `RegisterOptions` bound to `$cfg->get_options_key()` with typed `StorageContext`.
 
 ### 4) Seeding helper (activation-time)
 
@@ -89,22 +94,22 @@ public function migrate(callable $migration): self;
 - Executes user-provided migration logic to transform stored data (e.g., on version bump).
 - Caller is responsible for version checks and idempotency.
 
-### 6) Optional Arguments (non-breaking)
+### 6) Options Parameters (typed, no arrays)
 
-`Config::options()` accepts a minimal set of optional arguments (no implicit writes).
+`Config::options()` accepts a typed `StorageContext` and an `autoload` flag (no implicit writes).
 
 ```php
-public function options(array $args = []): \Ran\PluginLib\Options\RegisterOptions;
+use Ran\PluginLib\Options\Storage\StorageContext;
+
+public function options(StorageContext $context = null, bool $autoload = true): \Ran\PluginLib\Options\RegisterOptions;
 ```
 
-- **`autoload: bool`** — default `true`. Policy hint used for new-row creation; does not write by itself.
-- **`scope: 'site'|'network'|'blog'|'user'|OptionScope`** — default `'site'`.
-- **`entity: ScopeEntity|null`** — required when `scope` is `blog` or `user` (e.g., `new BlogEntity($blog_id)` or `new UserEntity($user_id[, $global])`).
+- `StorageContext` selects scope: `forSite()`, `forNetwork()`, `forBlog(int)`, `forUser(int, string $storage, bool $global)`.
+- `autoload` is a policy hint used at new-row creation; does not write by itself.
 
 Notes:
 
 - **No implicit writes** occur in `Config::options()`.
-- Unknown arguments are ignored and a warning is emitted via the configured logger.
 - Operational helpers (e.g., flipping autoload, schema registration, defaults, flushing) are performed on the returned `RegisterOptions` instance via its fluent API.
 
 Autoload implementation details:
@@ -117,13 +122,18 @@ Autoload implementation details:
 Keep defaults (no writes):
 
 ```php
-$opts = $config->options();
+use Ran\PluginLib\Options\Storage\StorageContext;
+
+$opts = $config->options();                       // site, autoload=true
+$opts = $config->options(StorageContext::forSite());
 ```
 
 Set autoload policy for new row only (no writes):
 
 ```php
-$opts = $config->options(['autoload' => false]);
+use Ran\PluginLib\Options\Storage\StorageContext;
+
+$opts = $config->options(StorageContext::forSite(), false);
 ```
 
 Flip autoload on the returned manager (guarded delete + add):
@@ -151,24 +161,28 @@ $opts->migrate(function($current, $manager) {
 $opts->flush();
 ```
 
-Network scope (multisite) — Available in 0.1.3 (see PRD‑003):
+Network scope (multisite):
 
 ```php
-$opts = $config->options(['scope' => 'network']);
+use Ran\PluginLib\Options\Storage\StorageContext;
+
+$opts = $config->options(StorageContext::forNetwork());
 ```
 
-Blog scope (with typed entity) — Available in 0.1.3 (see PRD‑003):
+Blog scope:
 
 ```php
-use Ran\PluginLib\Options\Entity\BlogEntity;
-$opts = $config->options(['scope' => 'blog', 'entity' => new BlogEntity(123)]);
+use Ran\PluginLib\Options\Storage\StorageContext;
+
+$opts = $config->options(StorageContext::forBlog(123));
 ```
 
-User scope (with typed entity):
+User scope:
 
 ```php
-use Ran\PluginLib\Options\Entity\UserEntity;
-$opts = $config->options(['scope' => 'user', 'entity' => new UserEntity(123)]);
+use Ran\PluginLib\Options\Storage\StorageContext;
+
+$opts = $config->options(StorageContext::forUser(123, 'option', true));
 ```
 
 ## Usage Examples

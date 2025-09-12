@@ -6,7 +6,7 @@
 
 ## Overview
 
-Introduce explicit option scope support (site, network, blog) while keeping today’s behavior unchanged. Provide ergonomic access via `Config::options()` with optional scope parameters, a factory on `RegisterOptions`, and internal storage adapters that map to the appropriate WordPress APIs. Migration guidance is provided via WP-CLI recipes. No implicit writes; no breaking changes.
+Introduce explicit option scope support (site, network, blog, user) while keeping today’s behavior unchanged. Provide ergonomic access via `Config::options(?StorageContext $context = null, bool $autoload = true)` (typed `StorageContext`), a factory on `RegisterOptions`, and internal storage adapters that map to the appropriate WordPress APIs. Migration guidance is provided via WP-CLI recipes. No implicit writes; no breaking changes.
 
 ## Goals
 
@@ -69,39 +69,23 @@ interface OptionStorageInterface {
   - NetworkOptionStorage → `get_site_option` / `update_site_option` / `add_site_option` / `delete_site_option`; autoload N/A
   - BlogOptionStorage → `get_blog_option` / `update_blog_option` / `add_blog_option` / `delete_blog_option`; requires `blog_id`; autoload only when targeting current blog
 
-A small factory selects the adapter from `(scope, blog_id)` and is used by both `Config::options()` and `RegisterOptions::fromConfig()`.
+A small factory selects the adapter from the typed `StorageContext` and is used by both `Config::options()` and `RegisterOptions::from_config()`.
 
 ## Proposed Additions
 
-### 1) Config options accessor with scope params
+### 1) Config options accessor with typed StorageContext
 
-Extend `Config::options(array $args = [])`:
+`Config::options(?StorageContext $context = null, bool $autoload = true): RegisterOptions`
 
-```php
-public function options(array $args = []): \Ran\PluginLib\Options\RegisterOptions;
-```
-
-- Supported args:
-  - `scope` (`'site'|'network'|'blog'`, default `'site'`)
-  - `blog_id` (`?int`, optional for `'blog'`; defaults to current blog when omitted)
-  - `autoload` (`bool`, default `true`) — policy hint for future writes; no write by itself
-  - `initial` (`array<string,mixed>`, default `[]`) — staged values merged in‑memory on the manager
-  - `schema` (`array<string,mixed>`, default `[]`) — staged schema merged in‑memory on the manager
+- `StorageContext` selects scope: `forSite()`, `forNetwork()`, `forBlog(int)`, `forUser(int, 'meta'|'option', bool)`
 - Side‑effect free; returns a pre‑wired `RegisterOptions`.
-- Unknown args are ignored and a warning is emitted via the configured logger.
 
 ### 2) Scope‑aware factory on RegisterOptions
 
-Extend `RegisterOptions`:
+`RegisterOptions::from_config(\Ran\PluginLib\Config\ConfigInterface $cfg, ?StorageContext $context = null, bool $autoload = true): static`.
 
-```php
-public static function fromConfig(\Ran\PluginLib\Config\ConfigInterface $cfg, string $scope = 'site', ?int $blog_id = null): self;
-```
-
-- Accepts scope as `'site'|'network'|'blog'` (string). Internally normalized to `OptionScope`.
-- Wires an appropriate `OptionStorageInterface` via the internal factory.
-- Binds to `$cfg->get_options_key()` with the requested scope and blog context.
-- For `scope='blog'`, `blog_id` is optional; omitted means current blog.
+- Wires an appropriate `OptionStorageInterface` via the internal factory using the typed `StorageContext`.
+- Binds to `$cfg->get_options_key()` with the requested scope.
 
 ### 3) Internal storage adapters (private)
 
@@ -153,7 +137,7 @@ add_option($option_name, $current, '', $newAutoload); // true|false|null
 use Ran\PluginLib\Config\Config;
 
 $config = Config::fromPluginFile(__FILE__);
-$opts   = $config->options(); // defaults to 'site'
+$opts   = $config->options(); // defaults to site (StorageContext::forSite())
 
 $current = $opts->get_options();
 ```
@@ -161,22 +145,17 @@ $current = $opts->get_options();
 ### Network‑wide options (multisite)
 
 ```php
+use Ran\PluginLib\Options\Storage\StorageContext;
 if (is_multisite() && current_user_can('manage_network_options')) {
-  $opts = $config->options(['scope' => 'network']);
+  $opts = $config->options(StorageContext::forNetwork());
   $global = $opts->get_options();
 }
 ```
 
-### Scope with initial and schema (no write until explicit)
+### Schema example (no write until explicit)
 
 ```php
-// Stage values and schema for network scope; this does not persist yet
-$opts = $config->options([
-  'scope'   => 'network',
-  'initial' => ['enabled' => true],
-  'schema'  => ['enabled' => ['default' => false]],
-]);
-
+$opts = $config->options(StorageContext::forNetwork());
 // Persist explicitly (seed defaults and flush once)
 $opts->register_schema(['enabled' => ['default' => false]], true, true);
 ```
@@ -185,10 +164,10 @@ $opts->register_schema(['enabled' => ['default' => false]], true, true);
 
 ```php
 $blog_id = 123; // known site ID
-$opts = $config->options(['scope' => 'blog', 'blog_id' => $blog_id]);
+$opts = $config->options(StorageContext::forBlog($blog_id));
 $blog_settings = $opts->get_options();
 // Alternatively:
-// $opts = \Ran\PluginLib\Options\RegisterOptions::fromConfig($config, 'blog', $blog_id);
+// $opts = \Ran\PluginLib\Options\RegisterOptions::from_config($config, StorageContext::forBlog($blog_id));
 // $blog_settings = $opts->get_options();
 ```
 
@@ -275,11 +254,11 @@ add_option($option_name, $current, '', $new_autoload ? 'yes' : 'no');
 ```php
 // Pseudocode for a CLI command; actual implementation will live under a CLI namespace.
 $target_key = $config->get_options_key();
-$network    = $config->options(['scope' => 'network']);
+$network    = $config->options(StorageContext::forNetwork());
 
 $aggregate = [];
 foreach (get_sites(['number' => 0]) as $site) {
-  $blog_opts = $config->options(['scope' => 'blog', 'blog_id' => (int) $site->blog_id]);
+  $blog_opts = $config->options(StorageContext::forBlog((int) $site->blog_id));
   $data = $blog_opts->get_options();
   // Merge policy up to the product: union/override/etc.
   $aggregate = array_replace_recursive($aggregate, (array) $data);
@@ -367,8 +346,8 @@ Notes:
 
 ## Acceptance Criteria
 
-- `Config::options(array $args = [])` accepts `scope` (default `'site'`) and optional `blog_id` for `'blog'` scope (defaults to current blog when omitted) without breaking existing call sites.
-- `RegisterOptions::fromConfig($cfg, string $scope = 'site', ?int $blog_id = null)` available and uses the storage factory internally.
+- `Config::options(?StorageContext $context = null, bool $autoload = true)` selects scope via typed `StorageContext` (defaults to site when null).
+- `RegisterOptions::from_config($cfg, ?StorageContext $context = null, bool $autoload = true)` available and uses the storage factory internally.
 - `OptionScope` enum defined with values `site`, `network`, `blog` (library‑internal, referenced in docs/examples).
 - `OptionStorageInterface` defined and implemented by `SiteOptionStorage`, `NetworkOptionStorage`, `BlogOptionStorage`.
   - Internal storage adapters route calls to correct WP APIs, honoring autoload only when `supports_autoload()` is true.

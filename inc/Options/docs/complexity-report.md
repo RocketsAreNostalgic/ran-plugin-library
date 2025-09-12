@@ -19,13 +19,13 @@ Key entry points and collaborators:
 
 ## Complexity Hotspots
 
-- **Constructor + Factories (choice overload):**
+- **Constructor + Factories (choice overload):** WONTFIX (for now)
 
   - `protected function __construct()` with multiple named factories: `site()`, `network()`, `blog()`, `user()` and a flexible `from_config()`.
-  - Developers may be unsure whether to prefer named factories or `from_config($config, $autoload, $scope, $storage_args)`.
-  - Location: `RegisterOptions::from_config()` in `inc/Options/RegisterOptions.php` (around lines 274–321).
+  - Developers may be unsure whether to prefer named factories or `from_config($config, StorageContext $context = null, bool $autoload = true)`.
+  - Location: `RegisterOptions::from_config()` / `_from_config()` in `inc/Options/RegisterOptions.php`.
 
-- **Scope/Args encoding is stringly-typed:**
+- **Scope/Args encoding is stringly-typed: (DONE)**
 
   - `_make_storage()` expects specific keys in `$this->storage_args` (`blog_id`, `user_id`, `user_storage`, `user_global`), validated at runtime.
   - Errors surface late (runtime exceptions), IDE hinting is limited, and it’s easy to pass invalid combinations.
@@ -57,12 +57,12 @@ Key entry points and collaborators:
   - Correct but dense; the ordering is non-obvious without reading the method or accompanying docs.
   - Location: `RegisterOptions::_apply_write_gate()` (around 1002–1137).
 
-- **WP wrappers hide behavior:**
+- **WP wrappers hide behavior:** (WONTFIX)
 
   - `WPWrappersTrait` methods (`_do_get_option`, `_do_add_option`, `_do_update_option`, `_do_apply_filter`, `_do_get_current_blog_id`) abstract WordPress internals.
   - Great for testing but obscures exact WP API interactions for new developers.
 
-- **Coverage-related comment distracts:**
+- **Coverage-related comment distracts:** DONE
   - `_make_storage()` contains a comment about avoiding `switch` because of PHPUnit coverage recognition.
   - This is an internal testing artifact that may confuse maintainers.
 
@@ -79,7 +79,8 @@ Key entry points and collaborators:
 
 - **Add a short "Choosing an entry point" section** in `inc/Options/readme.md` and class docs:
 
-  - Recommend `RegisterOptions::from_config($config, autoload: true, scope: ..., storage_args: ...)` as the primary constructor.
+  - Prefer `Config::options(StorageContext $context = null, bool $autoload = true)` for the 80/20 path (no writes).
+  - Present `RegisterOptions::from_config($config, StorageContext $context = null, bool $autoload = true)` as the explicit factory alternative.
   - Keep `site()`, `network()`, `blog()`, `user()` as convenience alternatives, but de-emphasize in examples.
 
 - **Add a "Memory vs Persistence" table**:
@@ -97,16 +98,16 @@ Key entry points and collaborators:
 
 ### Low-risk structural improvements
 
-- **Prefer the existing typed ScopeEntity flow via `Config::options()`**:
+- **Prefer the typed ScopeEntity flow via `Config::options()`**: DONE
 
   - Use `Config::options(array $args)` with:
     - `scope`: `'site'|'network'|'blog'|'user'` or `OptionScope`
     - `entity`: a `ScopeEntity` implementation (e.g., `BlogEntity`, `UserEntity`) where required
-  - `ScopeEntity::toStorageArgs()` produces validated storage arguments for `RegisterOptions::from_config()` (avoids stringly-typed `storage_args`).
+  - `ScopeResolver` produces validated storage arguments used by the factory (avoids stringly-typed `storage_args`).
   - Cross-reference: `inc/Config/Config.php::options` (docblock explains semantics and recognized args).
   - Benefits: IDE-friendly, validated earlier, fewer runtime surprises, consistent across call sites.
 
-- **Add a minimal façade for the common path**:
+- **Add a minimal façade for the common path**: (WONT DO, REDUNDANT)
 
   - e.g., `RegisterOptions::for_site(ConfigInterface $config)` returning a pre-scoped instance with sensible defaults.
   - Reduces friction for typical usage while preserving full power for advanced cases.
@@ -129,7 +130,7 @@ Key entry points and collaborators:
 
 ## Notable Specifics (for reference)
 
-- `RegisterOptions::from_config()` – `inc/Options/RegisterOptions.php` (274–321)
+- `RegisterOptions::from_config()` – `inc/Options/RegisterOptions.php`
 - `RegisterOptions::_make_storage()` – `inc/Options/RegisterOptions.php` (955–1000)
 - `RegisterOptions::_apply_write_gate()` – `inc/Options/RegisterOptions.php` (1002–1137)
 - `RegisterOptions::set_option()` – `inc/Options/RegisterOptions.php` (506–576)

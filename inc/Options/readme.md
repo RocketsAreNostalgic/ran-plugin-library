@@ -10,10 +10,8 @@ use Ran\PluginLib\Options\RegisterOptions;
 
 // Assume you already have a Config instance (e.g., from your plugin bootstrap):
 // $config = Config::fromPluginFile( __FILE__ );
-$opts = $config->options([
-  'autoload' => true, // default
-  'scope'    => 'site', // default
-]);
+// Site scope (default)
+$opts = $config->options();
 
 // Set
 $opts->set_option('enabled', true);
@@ -39,7 +37,7 @@ $opts
   ->with_defaults(['api_timeout' => 30]);
 ```
 
-You can also construct instances for specific scopes using named factories, or via the public `from_config()` for construction-time concerns only:
+You can also construct instances for specific scopes using named factories, or via the public `from_config()` (typed `StorageContext`) for construction-time concerns only:
 
 ````php
 use Ran\PluginLib\Options\OptionScope;
@@ -50,30 +48,18 @@ $networkOpts = RegisterOptions::network('my_plugin_network_option');
 $blogOpts    = RegisterOptions::blog('my_plugin_blog_option', 123 /* blog_id */);
 $userOpts    = RegisterOptions::user('my_plugin_user_option', 456 /* user_id */, true /* global? */);
 
-// Factory from Config (construction-only args)
-// Note: prefer the typed path (Config::options with ScopeEntity) for scope handling; see below.
-$opts = RegisterOptions::from_config(
-  $config,
-  [
-    'autoload' => true,
-    'scope'    => OptionScope::Site, // or 'network'|'blog'|'user'
-    // For blog/user scopes provide an entity, e.g.:
-    // 'entity' => new \Ran\PluginLib\Options\Entity\BlogEntity(123),
-    // 'entity' => new \Ran\PluginLib\Options\Entity\UserEntity(5, true, 'option'),
-  ]
-);
+// Factory from Config (construction-only args, typed context)
+use Ran\PluginLib\Options\Storage\StorageContext;
+$opts = RegisterOptions::from_config($config, StorageContext::forSite(), true);
 
-#### Typed scope + entity (recommended)
+#### Typed StorageContext (recommended)
 
-For earlier validation and clearer intent, prefer the typed path via `Config::options()` with a `ScopeEntity`:
+Prefer the typed `StorageContext` path via `Config::options()` for earlier validation and clearer intent:
 
 ```php
-use Ran\PluginLib\Options\Entity\BlogEntity;
+use Ran\PluginLib\Options\Storage\StorageContext;
 
-$opts = $config->options([
-  'scope'  => 'blog',
-  'entity' => new BlogEntity(123),
-]);
+$opts = $config->options(StorageContext::forBlog(123));
 ````
 
 This approach avoids stringly `storage_args` and ensures consistent scope resolution.
@@ -83,8 +69,10 @@ This approach avoids stringly `storage_args` and ensures consistent scope resolu
 ### Factory vs. fluents
 
 ```php
+use Ran\PluginLib\Options\Storage\StorageContext;
+
 // Construction-only via factory; no writes happen here
-$opts = $config->options(['scope' => 'site']);
+$opts = $config->options(StorageContext::forSite());
 
 // Configuration and persistence via fluents (20% use-cases)
 $opts
@@ -93,12 +81,11 @@ $opts
   ->with_defaults(['another_key' => 'val'])
   ->flush();
 
-> from_config() notes
->
-> - `from_config()` is intended for construction-time concerns (e.g., autoload, basic scope selection).
-> - Prefer `Config::options()` + fluents for most cases; it’s a no-write accessor that binds the logger and supports a typed `ScopeEntity`.
-> - Passing raw `storage_args` to `from_config()` is supported for backward-compatibility, but new code should favor the typed entity pathway.
-````
+// from_config() notes
+// - from_config() is intended for construction-time concerns (e.g., autoload, basic scope selection via typed StorageContext).
+// - Prefer Config::options() + fluents for most cases; it’s a no-write accessor that binds the logger.
+// - storage_args are not supported; use StorageContext for scope selection.
+```
 
 ### Logger binding: DI vs `with_logger()`
 
@@ -228,6 +215,20 @@ $merged  = array_replace_recursive(is_array($current) ? $current : [], $patch);
 $opts->set_option('complex_map', $merged);
 ```
 
+### No implicit writes (cheat sheet)
+
+- set_option/update_option
+  - Persists immediately on success (after write-gate policy and filters).
+  - Uses the current scope from typed `StorageContext`.
+- add_option/add_options
+  - Stages changes in memory only; call `flush()` to persist.
+- flush(true)
+  - Performs a shallow, top-level merge with the current DB snapshot (keeps DB keys, overwrites collisions with in-memory values). Does not deep-merge nested structures.
+- flush(false)
+  - Replaces the stored row with the in-memory payload (no merge).
+- register_schema/with_schema
+  - Seeding defaults persists only when you pass `seed_defaults: true` together with a `flush` request (or call `flush()` separately afterward). No implicit writes by default.
+
 ### Examples
 
 - Basic usage: `plugin-lib/inc/Options/docs/examples/basic-usage.php`
@@ -244,3 +245,4 @@ $opts->set_option('complex_map', $merged);
 - Fluent batching: `add_option($k,$v)->add_option($k2,$v2)->flush()` or `add_options([...])->flush()`
 - `flush(bool $merge_from_db = false)` supports optional shallow merge-from-DB
 - `register_schema(...)` / `with_schema(...)` for post-construction schema
+````

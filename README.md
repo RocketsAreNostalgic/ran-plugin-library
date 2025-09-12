@@ -348,14 +348,16 @@ $public_assets->add_inline_scripts([
 
 ### 4. Options Management (Quick Start)
 
-Use `Config::options(array $args = [])` to access your plugin’s registered options. Defaults to site scope.
+Use `Config::options(StorageContext $context = null, bool $autoload = true)` to access your plugin’s registered options. Defaults to site scope.
 
 ```php
 // Assume you already have a Config instance (e.g., from your bootstrap):
 // $config = MyAwesomePlugin\Base\Config::fromPluginFile( __FILE__ );
 
+use Ran\PluginLib\Options\Storage\StorageContext;
+
 // Default (site) scope
-$opts = $config->options(); // same as ['scope' => 'site']
+$opts = $config->options(); // same as StorageContext::forSite()
 
 // Read values
 $values  = $opts->get_options();                // values-only array
@@ -363,28 +365,19 @@ $enabled = $opts->get_option('enabled', false); // single field with default
 
 ```
 
-Scopes (typed entities recommended):
+Scopes (typed StorageContext):
 
 ```php
-use Ran\PluginLib\Options\Entity\BlogEntity;
-use Ran\PluginLib\Options\Entity\UserEntity;
+use Ran\PluginLib\Options\Storage\StorageContext;
 
 // Network-wide options
-$networkOpts = $config->options(['scope' => 'network']);
+$networkOpts = $config->options(StorageContext::forNetwork());
 
 // Specific blog/site options (multisite)
-$blogEntity = new BlogEntity(123); // 123 is the blog/site ID; null means current blog
-$blogOpts = $config->options([
-  'scope'  => 'blog',
-  'entity' => $blogEntity, // required for 'blog'
-]);
+$blogOpts = $config->options(StorageContext::forBlog(123));
 
 // Specific user options
-$userEntity = new UserEntity(456, /* global */ false, /* storage */ 'meta');
-$userOpts = $config->options([
-  'scope'  => 'user',
-  'entity' => $userEntity, // required for 'user'
-]);
+$userOpts = $config->options(StorageContext::forUser(456, 'meta', false));
 ```
 
 Notes:
