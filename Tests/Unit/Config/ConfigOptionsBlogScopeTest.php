@@ -9,7 +9,7 @@ use WP_Mock;
  * Covers blog scope forwarding of blog_id in Config::options() (line 112).
  *
  * @covers \Ran\PluginLib\Config\Config::options
- * @covers \Ran\PluginLib\Options\RegisterOptions::_from_config
+ * @covers \Ran\PluginLib\Options\RegisterOptions::from_config
  */
 final class ConfigOptionsBlogScopeTest extends ConfigTestCase {
 	private string $plugin_dir;
@@ -80,10 +80,7 @@ final class ConfigOptionsBlogScopeTest extends ConfigTestCase {
 		$config = $this->configFromPluginFileWithLogger($this->plugin_file);
 
 		// Acquire accessor with explicit blog entity (blog_id = 999)
-		$opts = $config->options(array(
-		    'scope'  => 'blog',
-		    'entity' => new \Ran\PluginLib\Options\Entity\BlogEntity(999),
-		));
+		$opts = $config->options(\Ran\PluginLib\Options\Storage\StorageContext::forBlog(999));
 
 		$this->assertInstanceOf(\Ran\PluginLib\Options\RegisterOptions::class, $opts);
 

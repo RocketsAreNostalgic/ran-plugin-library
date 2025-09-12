@@ -218,28 +218,10 @@ class TestableConfig extends ConfigAbstract {
 		*/
 
 	/**
-	 * Provide options accessor required by ConfigInterface for this test class.
-	 * Mirrors production semantics: no writes; optional schema registration without seed/flush.
-	 *
-	 * @param array{autoload?: bool, schema?: array<string, mixed>} $args
-	 * @return \Ran\PluginLib\Options\RegisterOptions
-	 */
-	public function options(array $args = array()): \Ran\PluginLib\Options\RegisterOptions {
-		$defaults = array('autoload' => true, 'schema' => array());
-		$args     = is_array($args) ? array_merge($defaults, $args) : $defaults;
-
-		$autoload = (bool) ($args['autoload'] ?? true);
-		$schema   = is_array($args['schema'] ?? null) ? $args['schema'] : array();
-
-		$opts = \Ran\PluginLib\Options\RegisterOptions::_from_config(
-			$this,
-			$autoload
-		);
-		// Use fluent methods for configuration
-		$opts = $opts->with_logger($this->get_logger());
-		if (!empty($schema)) {
-			$opts = $opts->with_schema($schema, false, false);
-		}
-		return $opts;
+    	 * Provide options accessor required by ConfigInterface for this test class (typed-first).
+    	 */
+	public function options(?\Ran\PluginLib\Options\Storage\StorageContext $context = null, bool $autoload = true): \Ran\PluginLib\Options\RegisterOptions {
+		$opts = \Ran\PluginLib\Options\RegisterOptions::from_config($this, $context, $autoload);
+		return $opts->with_logger($this->get_logger());
 	}
 }

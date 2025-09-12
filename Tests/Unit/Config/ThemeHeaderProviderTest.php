@@ -58,7 +58,7 @@ final class ThemeHeaderProviderTest extends RanTestCase {
 			public function get_config(): array {
 				return array();
 			}
-			public function options(array $args = array()): \Ran\PluginLib\Options\RegisterOptions {
+			public function options(?\Ran\PluginLib\Options\Storage\StorageContext $context = null, bool $autoload = true): \Ran\PluginLib\Options\RegisterOptions {
 				throw new \RuntimeException('not used');
 			}
 			public function _get_standard_theme_headers(string $dir): array {

@@ -8,6 +8,7 @@ use WP_Mock;
 use Ran\PluginLib\Options\OptionScope;
 use Ran\PluginLib\Util\ExpectLogTrait;
 use Ran\PluginLib\Tests\Unit\PluginLibTestCase;
+use Ran\PluginLib\Options\Storage\StorageContext;
 use Ran\PluginLib\Tests\Unit\TestClasses\TestableConfig;
 
 /**
@@ -47,20 +48,9 @@ final class ConfigOptionsEdgeCasesTest extends PluginLibTestCase {
 		));
 
 		$main = 'test_plugin_options';
-		WP_Mock::userFunction('get_option')->with($main, array())->once()->andReturn(array());
+		WP_Mock::userFunction('get_option')->andReturn(array());
 
-		// Create a logger with warning method to satisfy method_exists check
-		$logger = $this->createMock(\Ran\PluginLib\Util\Logger::class);
-		$logger->expects($this->once())
-			->method('warning')
-			->with('Config::options(): Ignored args: policy');
-
-		// Set the logger on config to ensure get_logger() returns it
-		$cfg->set_logger($logger);
-
-		// Pass policy as unknown argument - this should trigger unknown args warning
-		$invalidPolicy = new \stdClass();
-		$opts          = $cfg->options(array('policy' => $invalidPolicy));
+		$opts = $cfg->options();
 
 		$this->assertInstanceOf(\Ran\PluginLib\Options\RegisterOptions::class, $opts);
 	}
@@ -85,10 +75,7 @@ final class ConfigOptionsEdgeCasesTest extends PluginLibTestCase {
 		// Expect network storage path: site option is used
 		\WP_Mock::userFunction('get_site_option')->once()->andReturn(array());
 
-		$opts = $cfg->options(array(
-			'scope'  => 'network',
-			'entity' => new \Ran\PluginLib\Options\Entity\BlogEntity(999), // should be ignored
-		));
+		$opts = $cfg->options(StorageContext::forNetwork());
 
 		$this->assertInstanceOf(\Ran\PluginLib\Options\RegisterOptions::class, $opts);
 		// NetworkOptionStorage::supports_autoload() is false
@@ -112,10 +99,7 @@ final class ConfigOptionsEdgeCasesTest extends PluginLibTestCase {
 		\WP_Mock::userFunction('get_option')->andReturn(array());
 		\WP_Mock::userFunction('get_site_option')->andReturn(array());
 
-		$opts = $cfg->options(array(
-			'scope'  => \Ran\PluginLib\Options\OptionScope::Network,
-			'entity' => new \Ran\PluginLib\Options\Entity\BlogEntity(999), // should be ignored
-		));
+		$opts = $cfg->options(StorageContext::forNetwork());
 
 		$this->assertInstanceOf(\Ran\PluginLib\Options\RegisterOptions::class, $opts);
 		$this->assertFalse($opts->supports_autoload());
@@ -137,7 +121,8 @@ final class ConfigOptionsEdgeCasesTest extends PluginLibTestCase {
 		));
 
 		$this->expectException(\InvalidArgumentException::class);
-		$cfg->options(array('scope' => 'blog'));
+		// Invalid blog id should throw from StorageContext
+		$cfg->options(StorageContext::forBlog(0));
 	}
 
 	/**
@@ -156,7 +141,8 @@ final class ConfigOptionsEdgeCasesTest extends PluginLibTestCase {
 		));
 
 		$this->expectException(\InvalidArgumentException::class);
-		$cfg->options(array('scope' => 'user'));
+		// Invalid user id should throw from StorageContext
+		$cfg->options(StorageContext::forUser(0, 'meta', false));
 	}
 
 	/**
@@ -175,12 +161,9 @@ final class ConfigOptionsEdgeCasesTest extends PluginLibTestCase {
 		));
 
 		// Site storage path: uses get_option
-		\WP_Mock::userFunction('get_option')->once()->andReturn(array());
+		\WP_Mock::userFunction('get_option')->andReturn(array());
 
-		$opts = $cfg->options(array(
-			'scope'  => 'unknown-scope',
-			'entity' => new \Ran\PluginLib\Options\Entity\BlogEntity(123), // ignored
-		));
+		$opts = $cfg->options();
 
 		$this->assertInstanceOf(\Ran\PluginLib\Options\RegisterOptions::class, $opts);
 		$this->assertTrue($opts->supports_autoload()); // site storage supports autoload
@@ -201,12 +184,9 @@ final class ConfigOptionsEdgeCasesTest extends PluginLibTestCase {
 		));
 
 		// Site storage path: uses get_option
-		\WP_Mock::userFunction('get_option')->once()->andReturn(array());
+		\WP_Mock::userFunction('get_option')->andReturn(array());
 
-		$opts = $cfg->options(array(
-			'scope'  => 'site',
-			'entity' => new \Ran\PluginLib\Options\Entity\BlogEntity(999), // ignored
-		));
+		$opts = $cfg->options(StorageContext::forSite());
 
 		$this->assertInstanceOf(\Ran\PluginLib\Options\RegisterOptions::class, $opts);
 		$this->assertTrue($opts->supports_autoload());
@@ -231,10 +211,7 @@ final class ConfigOptionsEdgeCasesTest extends PluginLibTestCase {
 		WP_Mock::userFunction('get_option')->andReturn(array());
 		WP_Mock::userFunction('get_user_meta')->andReturn(array());
 
-		$opts = $cfg->options(array(
-			'scope'  => 'user',
-			'entity' => new \Ran\PluginLib\Options\Entity\UserEntity(42)
-		));
+		$opts = $cfg->options(StorageContext::forUser(42, 'meta', false));
 
 		$this->assertInstanceOf(\Ran\PluginLib\Options\RegisterOptions::class, $opts);
 	}
@@ -258,10 +235,7 @@ final class ConfigOptionsEdgeCasesTest extends PluginLibTestCase {
 		WP_Mock::userFunction('get_option')->andReturn(array());
 		WP_Mock::userFunction('get_user_option')->andReturn(array());
 
-		$opts = $cfg->options(array(
-			'scope'  => 'user',
-			'entity' => new \Ran\PluginLib\Options\Entity\UserEntity(42, false, 'option')
-		));
+		$opts = $cfg->options(StorageContext::forUser(42, 'option', false));
 
 		$this->assertInstanceOf(\Ran\PluginLib\Options\RegisterOptions::class, $opts);
 	}
@@ -286,10 +260,7 @@ final class ConfigOptionsEdgeCasesTest extends PluginLibTestCase {
 		// Mock user meta function for user scope with meta storage (default when null)
 		WP_Mock::userFunction('get_user_meta')->andReturn(array());
 
-		$opts = $cfg->options(array(
-			'scope'  => 'user',
-			'entity' => new \Ran\PluginLib\Options\Entity\UserEntity(42)
-		));
+		$opts = $cfg->options(StorageContext::forUser(42, 'meta', false));
 
 		$this->assertInstanceOf(\Ran\PluginLib\Options\RegisterOptions::class, $opts);
 	}
@@ -310,12 +281,9 @@ final class ConfigOptionsEdgeCasesTest extends PluginLibTestCase {
 		));
 
 		$main = 'test_plugin_options';
-		WP_Mock::userFunction('get_option')->with($main, array())->once()->andReturn(array());
+		WP_Mock::userFunction('get_option')->andReturn(array());
 
-		$opts = $cfg->options(array(
-			'unknown_arg1' => 'value1',
-			'unknown_arg2' => 'value2'
-		));
+		$opts = $cfg->options();
 
 		// Unknown args should be ignored and the method should return a valid RegisterOptions instance
 		$this->assertInstanceOf(\Ran\PluginLib\Options\RegisterOptions::class, $opts);
@@ -341,9 +309,7 @@ final class ConfigOptionsEdgeCasesTest extends PluginLibTestCase {
 		// Use flexible mock that accepts any parameters
 		WP_Mock::userFunction('get_option')->andReturn(array());
 
-		$opts = $cfg->options(array(
-			'initial_values' => $initial_values
-		));
+		$opts = $cfg->options()->with_defaults((array) $initial_values);
 
 		$this->assertInstanceOf(\Ran\PluginLib\Options\RegisterOptions::class, $opts);
 	}
@@ -368,9 +334,7 @@ final class ConfigOptionsEdgeCasesTest extends PluginLibTestCase {
 		// Use flexible mock that accepts any parameters
 		WP_Mock::userFunction('get_option')->andReturn(array());
 
-		$opts = $cfg->options(array(
-			'initial' => $initial_values
-		));
+		$opts = $cfg->options()->with_defaults($initial_values);
 
 		$this->assertInstanceOf(\Ran\PluginLib\Options\RegisterOptions::class, $opts);
 	}
@@ -391,7 +355,7 @@ final class ConfigOptionsEdgeCasesTest extends PluginLibTestCase {
 		));
 
 		$main = 'test_plugin_options';
-		WP_Mock::userFunction('get_option')->with($main, array())->once()->andReturn(array());
+		WP_Mock::userFunction('get_option')->with($main, array())->andReturn(array());
 
 		$schema = array(
 			'test_option' => array(
@@ -402,7 +366,7 @@ final class ConfigOptionsEdgeCasesTest extends PluginLibTestCase {
 			)
 		);
 
-		$opts = $cfg->options(array());
+		$opts = $cfg->options();
 		// Apply schema using fluent API; ensure no writes occur via options() itself
 		$opts->with_schema($schema, true, false);
 
@@ -425,10 +389,10 @@ final class ConfigOptionsEdgeCasesTest extends PluginLibTestCase {
 		));
 
 		$main = 'test_plugin_options';
-		WP_Mock::userFunction('get_option')->with($main, array())->once()->andReturn(array());
+		WP_Mock::userFunction('get_option')->with($main, array())->andReturn(array());
 
 		$policy = $this->createMock(\Ran\PluginLib\Options\Policy\WritePolicyInterface::class);
-		$opts   = $cfg->options(array('policy' => $policy));
+		$opts   = $cfg->options()->with_policy($policy);
 
 		$this->assertInstanceOf(\Ran\PluginLib\Options\RegisterOptions::class, $opts);
 	}
@@ -453,10 +417,7 @@ final class ConfigOptionsEdgeCasesTest extends PluginLibTestCase {
 		// Mock user meta function for user scope with enum
 		WP_Mock::userFunction('get_user_meta')->andReturn(array());
 
-		$opts = $cfg->options(array(
-			'scope'  => OptionScope::User,
-			'entity' => new \Ran\PluginLib\Options\Entity\UserEntity(42, true)
-		));
+		$opts = $cfg->options(StorageContext::forUser(42, 'meta', true));
 
 		$this->assertInstanceOf(\Ran\PluginLib\Options\RegisterOptions::class, $opts);
 	}
@@ -481,10 +442,7 @@ final class ConfigOptionsEdgeCasesTest extends PluginLibTestCase {
 		// Mock blog option function for blog scope
 		WP_Mock::userFunction('get_blog_option')->andReturn(array());
 
-		$opts = $cfg->options(array(
-			'scope'  => 'blog',
-			'entity' => new \Ran\PluginLib\Options\Entity\BlogEntity(5)
-		));
+		$opts = $cfg->options(StorageContext::forBlog(5));
 
 		$this->assertInstanceOf(\Ran\PluginLib\Options\RegisterOptions::class, $opts);
 	}

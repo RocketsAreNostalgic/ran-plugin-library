@@ -50,7 +50,7 @@ namespace Ran\PluginLib\Tests\Unit\Config {
 				public function get_config(): array {
 					return array();
 				}
-				public function options(array $args = array()): \Ran\PluginLib\Options\RegisterOptions {
+				public function options(?\Ran\PluginLib\Options\Storage\StorageContext $context = null, bool $autoload = true): \Ran\PluginLib\Options\RegisterOptions {
 					throw new \RuntimeException('not used');
 				}
 				public function _get_standard_plugin_headers(string $file): array {

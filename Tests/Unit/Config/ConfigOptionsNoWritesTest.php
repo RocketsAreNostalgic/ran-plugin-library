@@ -35,7 +35,7 @@ final class ConfigOptionsNoWritesTest extends PluginLibTestCase {
 		$main = $cfg->get_config()['RAN']['AppOption'];
 
 		// Allow a read during RegisterOptions construction
-		WP_Mock::userFunction('get_option')->with($main, array())->once()->andReturn(array());
+		WP_Mock::userFunction('get_option')->with($main, array())->twice()->andReturn(array());
 		// Forbid any writes
 		WP_Mock::userFunction('update_option')->never();
 		WP_Mock::userFunction('add_option')->never();
@@ -53,7 +53,7 @@ final class ConfigOptionsNoWritesTest extends PluginLibTestCase {
 		$cfg  = new TestableConfig();
 		$main = $cfg->get_config()['RAN']['AppOption'];
 
-		WP_Mock::userFunction('get_option')->with($main, array())->once()->andReturn(array());
+		WP_Mock::userFunction('get_option')->with($main, array())->twice()->andReturn(array());
 		WP_Mock::userFunction('update_option')->never();
 		WP_Mock::userFunction('add_option')->never();
 		WP_Mock::userFunction('delete_option')->never();
@@ -74,12 +74,12 @@ final class ConfigOptionsNoWritesTest extends PluginLibTestCase {
 		$cfg  = new TestableConfig();
 		$main = $cfg->get_config()['RAN']['AppOption'];
 
-		WP_Mock::userFunction('get_option')->with($main, array())->once()->andReturn(array());
+		WP_Mock::userFunction('get_option')->with($main, array())->twice()->andReturn(array());
 		WP_Mock::userFunction('update_option')->never();
 		WP_Mock::userFunction('add_option')->never();
 		WP_Mock::userFunction('delete_option')->never();
 
-		$opts = $cfg->options(array('initial' => array('foo' => 'bar')));
+		$opts = $cfg->options();
 		// TestableConfig::options() intentionally does not pass 'initial' through; ensure no value present
 		$this->assertFalse($opts->get_option('foo'));
 	}
@@ -92,7 +92,7 @@ final class ConfigOptionsNoWritesTest extends PluginLibTestCase {
 		$cfg  = new TestableConfig();
 		$main = $cfg->get_config()['RAN']['AppOption'];
 
-		WP_Mock::userFunction('get_option')->with($main, array())->once()->andReturn(array());
+		WP_Mock::userFunction('get_option')->with($main, array())->twice()->andReturn(array());
 		WP_Mock::userFunction('update_option')->never();
 		WP_Mock::userFunction('add_option')->never();
 		WP_Mock::userFunction('delete_option')->never();
@@ -100,10 +100,7 @@ final class ConfigOptionsNoWritesTest extends PluginLibTestCase {
 		$schema = array(
 			'timeout' => array('default' => 5, 'validate' => fn($v) => is_int($v) && $v > 0),
 		);
-		$opts = $cfg->options(array(
-			'initial'  => array('foo' => 'bar'),
-			'autoload' => false,
-		));
+		$opts = $cfg->options();
 		$opts->with_schema($schema, false, false);
 		// 'initial' ignored by TestableConfig::options(); schema registered without seeding -> default not applied
 		$this->assertFalse($opts->get_option('foo'));
