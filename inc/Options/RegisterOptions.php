@@ -25,6 +25,8 @@ use Ran\PluginLib\Options\OptionScope;
 use Ran\PluginLib\Options\Policy\WritePolicyInterface;
 use Ran\PluginLib\Options\WriteContext;
 use Ran\PluginLib\Options\Policy\RestrictedDefaultWritePolicy;
+use Ran\PluginLib\Options\Validate;
+use \Ran\PluginLib\Config\ConfigInterface;
 
 /**
  * Manages grouped settings via a scope-aware storage adapter (site, network, blog, or user).
@@ -59,9 +61,9 @@ use Ran\PluginLib\Options\Policy\RestrictedDefaultWritePolicy;
  *
  * In-memory vs persistence:
  * - Constructor/registration may seed in-memory state (schema defaults, initial merges)
- * - Persistence is explicit (set/update/add + `flush()`)
- * - `flush(true)` performs a top-level shallow merge with DB to reduce lost updates for disjoint keys.
- *   Nested structures are replaced wholesale; for deep merges, use read–modify–write pattern, then `flush(false)`.
+ * - Persistence is explicit (set/update/add + `commit_merge()`/`commit_replace()`)
+ * - `commit_merge()` performs a top-level shallow merge with DB to reduce lost updates for disjoint keys.
+ *   Nested structures are replaced wholesale; for deep merges, use read–modify–write pattern, then `commit_replace()`.
  */
 class RegisterOptions {
 	use WPWrappersTrait;
@@ -275,7 +277,7 @@ class RegisterOptions {
      * @param bool                        $autoload Autoload preference for site/blog storages on first create.
      * @return static
      */
-	public static function from_config(\Ran\PluginLib\Config\ConfigInterface $config, ?StorageContext $context = null, bool $autoload = true): static {
+	public static function from_config(ConfigInterface $config, ?StorageContext $context = null, bool $autoload = true): static {
 		$optionName = $config->get_options_key();
 		if ($optionName === '') {
 			throw new \InvalidArgumentException('Missing or invalid options key from Config');
@@ -294,7 +296,8 @@ class RegisterOptions {
 	 * Fluent setter: Set initial default values (in-memory only).
 	 *
 	 * This bypasses write gates and does NOT persist. Values are sanitized/validated
-	 * if schema exists. Use stage_options()->flush() to persist later if desired.
+	 * if schema exists. Use stage_options() + commit_merge()/commit_replace() to
+	 * persist later if desired.
 	 *
 	 * @param array $defaults Default values to set
 	 * @return static
@@ -338,97 +341,99 @@ class RegisterOptions {
 	 * Config as source for main option name and autoload policy.
 	 *
 	 * @param array $schema  Schema map: ['key' => ['default' => mixed|callable(ConfigInterface|null): mixed, 'sanitize' => callable|null, 'validate' => callable|null]]
-	 * @param bool  $seed_defaults If true, set missing option values from 'default' (after sanitize/validate)
-	 * @param bool  $flush If true, persist after seeding (single write)
 	 * @return self
 	 */
-	public function with_schema(array $schema, bool $seed_defaults = false, bool $flush = false): self {
-		$this->register_schema($schema, $seed_defaults, $flush);
+	public function with_schema(array $schema): self {
+		$this->register_schema($schema);
 		return $this;
 	}
 
 	/**
 	 * Register/extend schema post-construction (for lazy registration or migrations).
 	 *
-	 * - Merges provided rules into the existing schema (per-key shallow override)
-	 * - Optionally seeds defaults for keys missing a value
-	 * - Optionally flushes once after seeding
+	 * Option A behavior:
+	 * - Always seeds defaults for missing keys into the in-memory store (sanitize+validate applied)
+	 * - Always normalizes existing in-memory values for keys covered by the schema (sanitize+validate)
+	 * - NEVER persists implicitly; callers should use commit_merge()/commit_replace()
 	 *
-	 * @param array $schema  Schema map: ['key' => ['default' => mixed|callable(ConfigInterface|null): mixed, 'sanitize' => callable|null, 'validate' => callable|null]]
-	 * @param bool  $seed_defaults If true, set missing option values from 'default' (after sanitize/validate)
-	 * @param bool  $flush If true, persist after seeding (single write)
-	 * @return bool When flush=false: whether any values were seeded; when flush=true: whether the save succeeded
+	 * Parameters are retained for BC but $seed_defaults/$flush are ignored.
+	 *
+	 * @param array $schema Schema map: ['key' => ['default' => mixed|callable(ConfigInterface|null): mixed, 'sanitize' => callable|null, 'validate' => callable|null]]
+	 * @param bool  $seed_defaults Ignored under Option A
+	 * @param bool  $flush         Ignored under Option A
+	 * @return bool Whether the in-memory store changed as a result of seeding/normalization
 	 */
-	public function register_schema(array $schema, bool $seed_defaults = false, bool $flush = false): bool {
+	public function register_schema(array $schema): bool {
 		if (empty($schema)) {
 			return false;
 		}
 
 		$normalized = $this->_normalize_schema_keys($schema);
 
-		// Merge schema shallowly per provided fields (by design)
+		// Shallow merge rules into existing schema map
 		foreach ($normalized as $key => $rules) {
 			if (!isset($this->schema[$key])) {
 				$this->schema[$key] = $rules;
 			} else {
 				$existing           = $this->schema[$key];
 				$this->schema[$key] = array(
-				    'default'  => array_key_exists('default', $rules)  ? $rules['default']  : ($existing['default'] ?? null),
-				    'sanitize' => array_key_exists('sanitize', $rules) ? $rules['sanitize'] : ($existing['sanitize'] ?? null),
-				    'validate' => array_key_exists('validate', $rules) ? $rules['validate'] : ($existing['validate'] ?? null),
+					'default'  => array_key_exists('default', $rules)  ? $rules['default']  : ($existing['default'] ?? null),
+					'sanitize' => array_key_exists('sanitize', $rules) ? $rules['sanitize'] : ($existing['sanitize'] ?? null),
+					'validate' => array_key_exists('validate', $rules) ? $rules['validate'] : ($existing['validate'] ?? null),
 				);
 			}
 		}
 
 		$changed = false;
-		if ($seed_defaults) {
-			// Note: Seeding defaults is an in-memory operation; do not gate with allow_persist.
 
-			// Build a temporary map to avoid partial in-memory state on failure
-			if ($seed_defaults) {
-				$toSeed = array();
-				try {
-					foreach ($normalized as $key => $rules) {
-						$has_value = isset($this->options[$key]);
-						if (!$has_value && array_key_exists('default', $rules)) {
-							$resolved     = $this->_resolve_default_value($rules['default']);
-							$resolved     = $this->_sanitize_and_validate_option($key, $resolved);
-							$toSeed[$key] = $resolved;
-						}
-					}
-				} catch (\Throwable $e) {
-					// Log and abort seeding without mutating in-memory state
-					$this->_get_logger()->error(
-						'RegisterOptions: register_schema seed_defaults failed; aborting seeding.',
-						array(
-							'main_option' => $this->main_wp_option_name,
-							'error'       => $e->getMessage(),
-						)
-					);
-					$toSeed        = array();
-					$seed_defaults = false;
+		// Seed defaults for missing keys (in-memory only)
+		$toSeed = array();
+		try {
+			foreach ($normalized as $key => $rules) {
+				$has_value = isset($this->options[$key]);
+				if (!$has_value && array_key_exists('default', $rules)) {
+					$resolved     = $this->_resolve_default_value($rules['default']);
+					$resolved     = $this->_sanitize_and_validate_option($key, $resolved);
+					$toSeed[$key] = $resolved;
 				}
+			}
+		} catch (\Throwable $e) {
+			$this->_get_logger()->error(
+				'RegisterOptions: register_schema seeding failed; aborting seeding.',
+				array(
+					'main_option' => $this->main_wp_option_name,
+					'error'       => $e->getMessage(),
+				)
+			);
+			$toSeed = array();
+		}
 
-				// Apply staged seeds atomically
-				if ($seed_defaults && !empty($toSeed)) {
-					foreach ($toSeed as $k => $entry) {
-						$this->options[$k] = $entry;
-					}
-					$changed = true;
+		if (!empty($toSeed)) {
+			foreach ($toSeed as $k => $entry) {
+				$this->options[$k] = $entry;
+			}
+			$changed = true;
+		}
+
+		// Normalize existing in-memory values for keys covered by schema
+		foreach ($this->options as $k => $v) {
+			if (isset($normalized[$k])) {
+				$normalizedValue = $this->_sanitize_and_validate_option($k, $v);
+				if ($normalizedValue !== $v) {
+					$this->options[$k] = $normalizedValue;
+					$changed           = true;
 				}
 			}
 		}
 
-		if ($flush && $changed) {
-			return $this->_save_all_options();
-		}
+		// No implicit persistence here
 		return $changed;
 	}
 
 	/**
 	 * Retrieves a specific option's value from the main options array.
 	 *
-     * @param string $option_name The name of the sub-option to retrieve. Key is sanitized via sanitize_key().
+	 * @param string $option_name The name of the sub-option to retrieve. Key is sanitized via sanitize_key().
 	 * @param mixed  $default     Optional. Default value to return if the sub-option does not exist.
 	 * @return mixed The value of the sub-option, or the default value if not found.
 	 */
@@ -527,7 +532,8 @@ class RegisterOptions {
 	}
 
 	/**
-	 * Add a single option to the in-memory store (fluent). Call flush() to persist.
+	 * Add a single option to the in-memory store (fluent).
+	 * Call {@see commit_merge()} or {@see commit_replace()} to persist.
 	 *
 	 * @param string $option_name The name of the sub-option to add.
 	 * @param mixed $value The value for the sub-option.
@@ -565,7 +571,8 @@ class RegisterOptions {
 	}
 
 	/**
-	 * Batch add multiple options to the in-memory store (fluent). Call flush() to persist.
+	 * Batch add multiple options to the in-memory store (fluent).
+	 * Call {@see commit_merge()} or {@see commit_replace()} to persist.
 	 *
 	 * @param array<string, mixed> $keyToValue Map of option name => value
 	 * @return self
@@ -674,31 +681,29 @@ class RegisterOptions {
 		return $this->_save_all_options();
 	}
 
-    /**
-     * Commit staged changes with a top-level (shallow) merge against the current DB row.
-     *
-     * Intent-revealing wrapper for a merge commit. Equivalent to calling {@see flush(true)}.
-     * - Preserves existing DB keys, overwriting collisions with in-memory values
-     * - Does not deep-merge nested arrays; for nested merges, perform a read–modify–write
-     *   for the specific key and then use {@see set_option()} or {@see commit_replace()}
-     *
-     * @return bool Whether the save succeeded.
-     */
-    public function commit_merge(): bool {
-        return $this->_save_all_options(true);
-    }
+	/**
+	 * Commit staged changes with a top-level (shallow) merge against the current DB row.
+	 *
+	 * - Preserves existing DB keys, overwriting collisions with in-memory values
+	 * - Does not deep-merge nested arrays; for nested merges, perform a read–modify–write
+	 *   for the specific key and then use {@see set_option()} or {@see commit_replace()}
+	 *
+	 * @return bool Whether the save succeeded.
+	 */
+	public function commit_merge(): bool {
+		return $this->_save_all_options(true);
+	}
 
-    /**
-     * Commit staged changes by replacing the entire stored row (no merge).
-     *
-     * Intent-revealing wrapper for a replace commit. Equivalent to calling {@see flush(false)}.
-     * Use when you have staged a complete, authoritative in-memory payload.
-     *
-     * @return bool Whether the save succeeded.
-     */
-    public function commit_replace(): bool {
-        return $this->_save_all_options(false);
-    }
+	/**
+	 * Commit staged changes by replacing the entire stored row (no merge).
+	 *
+	 * Use when you have staged a complete, authoritative in-memory payload.
+	 *
+	 * @return bool Whether the save succeeded.
+	 */
+	public function commit_replace(): bool {
+		return $this->_save_all_options(false);
+	}
 
 	/**
 	 * Seed the main option row with provided defaults if it does not already exist (idempotent).
@@ -1223,6 +1228,26 @@ class RegisterOptions {
 					static::class . ": Validation failed for option '{$normalized_key}' with value {$valStr} using validator {$validatorStr}."
 				);
 			}
+		} else {
+			// Inferred validation: derive a simple type validator from the default (when present)
+			if (\is_array($rules) && array_key_exists('default', $rules)) {
+				$default = $rules['default'];
+				// Resolve callable defaults to infer type more accurately
+				$resolvedDefault = \is_callable($default) ? $this->_resolve_default_value($default) : $default;
+				$inferredType    = Validate::inferSimpleTypeFromDefault($resolvedDefault);
+				if (is_string($inferredType)) {
+					$validator = Validate::validatorForType($inferredType);
+					if (\is_callable($validator)) {
+						$valid = $validator($value);
+						if ($valid !== true) {
+							$valStr = $this->_stringify_value_for_error($value);
+							throw new \InvalidArgumentException(
+								static::class . ": Validation failed for option '{$normalized_key}' with value {$valStr} (inferred type '{$inferredType}')."
+							);
+						}
+					}
+				}
+			}
 		}
 
 		if ($this->_get_logger()->is_active()) {
@@ -1275,7 +1300,11 @@ class RegisterOptions {
 	 * avoid seeding with null unintentionally.
 	 *
 	 * @param array $schema
-	 * @return array<string, array{default?:mixed|null, sanitize?:callable|null, validate?:callable|null}>
+	 * @return array<string, array{
+	 * 						default?:mixed|null, 	 // Literal default value or callable returning a value
+	 * 						sanitize?:callable|null, // Callable accepting a value and returning a sanitized value
+	 * 						validate?:callable|null  // Callable accepting a value and returning a boolean
+	 * 					}>
 	 */
 	protected function _normalize_schema_keys(array $schema): array {
 		$normalized = array();
