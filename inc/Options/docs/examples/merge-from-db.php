@@ -33,8 +33,7 @@ declare(strict_types=1);
 
 use Ran\PluginLib\Config\Config;
 use Ran\PluginLib\Options\RegisterOptions;
-use Ran\PluginLib\Options\Entity\UserEntity;
-use Ran\PluginLib\Options\Entity\BlogEntity;
+use Ran\PluginLib\Options\Storage\StorageContext;
 
 $config  = Config::fromPluginFile(__FILE__);
 $options = RegisterOptions::from_config($config);
@@ -52,9 +51,9 @@ $options->stage_options(array(
 // 'enable_features' => ['analytics', 'caching']
 // 'api_timeout' => 30
 
-// Persist with merge_from_db to avoid overwriting concurrent admin changes
+// Persist with a shallow merge from DB to avoid overwriting concurrent admin changes
 // RESULT: Both your activation data AND admin changes are preserved
-$options->flush(merge_from_db: true);
+$options->commit_merge();
 
 // REAL-WORLD EXAMPLE: Cron job updating cache while user modifies settings
 register_activation_hook(__FILE__, function() {
@@ -67,7 +66,7 @@ register_activation_hook(__FILE__, function() {
 	    'needs_welcome_screen' => true,
 	), false);
 
-	$options->flush(merge_from_db: true); // Safe concurrent save
+	$options->commit_merge(); // Safe concurrent save
 });
 
 // CRON JOB EXAMPLE: Update analytics data without losing user settings
@@ -86,21 +85,21 @@ add_action('my_plugin_daily_stats', function() {
 	// Scoped instance (advanced)
 	// ------------------------------------------------------------
 	// If you need to merge writes in a different scope, obtain a scoped instance:
-	$userOptions = $config->options(array(
-	  'scope'  => 'user',
-	  'entity' => new UserEntity((int) get_current_user_id(), false, 'meta'),
-	));
+	$userOptions = $config->options(
+		StorageContext::forUser((int) get_current_user_id(), 'meta', false),
+		false
+	);
 	$userOptions->stage_options(array('wizard_step' => 'done'));
-	$userOptions->flush(merge_from_db: true);
+	$userOptions->commit_merge();
 
-	$blogOptions = $config->options(array(
-	  'scope'  => 'blog',
-	  'entity' => new BlogEntity(2),
-	));
+	$blogOptions = $config->options(
+		StorageContext::forBlog(2),
+		false // explicit preference (ignored for non-current blog)
+	);
 	$blogOptions->stage_options(array('feature_flags' => array('beta' => true)));
-	$blogOptions->flush(merge_from_db: true);
+	$blogOptions->commit_merge();
 	// Merge with DB in case admin changed settings during cron run
-	$options->flush(merge_from_db: true);
+	$options->commit_merge();
 });
 
 // AJAX FORM EXAMPLE: Handle overlapping form submissions
@@ -115,7 +114,7 @@ add_action('wp_ajax_save_plugin_settings', function() {
 	));
 
 	// Protect against overlapping AJAX requests
-	if ($options->flush(merge_from_db: true)) {
+	if ($options->commit_merge()) {
 		wp_send_json_success('Settings saved');
 	} else {
 		wp_send_json_error('Save failed');

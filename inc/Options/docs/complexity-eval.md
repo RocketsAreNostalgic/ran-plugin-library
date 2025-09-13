@@ -33,15 +33,19 @@ References:
   - Impact: 5
   - Effort/Thrash: 3
 
-- **In‑memory vs persistence behavior divergence**
+- **In‑memory vs persistence behavior divergence (done)**
 
-  - Assessment: `set_option()/update_option()` persist, `add_option(s)` require `flush()`. ARD reinforces "no implicit writes"; requires clearer docs.
+  - Assessment:  - `set_option()` / `update_option()` → persists immediately.
+  - `stage_option()` / `stage_options()` → in-memory only; call `commit_merge()` or `commit_replace()`.
+  - ARD reinforces "no implicit writes"; requires clearer docs.
   - Impact: 4
   - Effort/Thrash: 1
+    RENAMED TO staged\_\*
 
 - **Shallow merge semantics nuance**
 
-  - Assessment: Rules are correct but nuanced. Provide cheat‑sheet examples for `flush(true)` vs deep merge (read–modify–write + `flush(false)`).
+  - Assessment: Rules are correct but nuanced. Provide cheat‑sheet  - Top-level shallow merge: `commit_merge()`.
+  - Deep merge: read–modify–write + `commit_replace()`.
   - Impact: 3
   - Effort/Thrash: 1
 
@@ -69,7 +73,7 @@ References:
   - Impact: 1
   - Effort/Thrash: 1
 
-- **API surface sprawl across projects**
+- **API surface sprawl across projects (DONE)**
 
   - Assessment: ARD narrows the “blessed” path to `Config::options()` + fluents; soft‑deprecate extras in `from_config()` via phpdoc and examples.
   - Impact: 5
@@ -107,7 +111,7 @@ NOTE: standardized on typed StorageContext across the stack.
   - Impact: 3
   - Effort/Thrash: 2–3
 
-- **Separate schema concerns (`SchemaManager`)**
+- **Separate schema concerns (`SchemaManager`) DEFFERED**
 
   - Assessment: Future‑facing; reduces `RegisterOptions` size and increases SRP.
   - Impact: 4
@@ -144,5 +148,7 @@ NOTE: standardized on typed StorageContext across the stack.
 - Cross‑reference Options Test Plan in `inc/Options/docs/Options-Tests-Plan.md` to ensure coverage includes:
   - `Config::options()` integration (typed scope/entity, autoload defaults, no implicit writes)
   - Autoload tri‑state and write policy gating
-  - Schema registration, seeding, and explicit `flush()` behavior
-  - Shallow vs deep merge scenarios and helpers
+  - Schema registration, seeding, and explicit commit behavior
+  - **Add a "Shallow vs Deep merge cheat sheet"** with code snippets:
+    - Top-level shallow merge: `commit_merge()`.
+    - Deep merge: read–modify–write + `commit_replace()`.

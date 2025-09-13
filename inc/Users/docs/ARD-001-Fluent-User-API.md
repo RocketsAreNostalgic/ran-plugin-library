@@ -133,12 +133,12 @@ final class UserResult {
     - Optionally `with_logger($logger)` if provided
     - Optionally `with_policy($policy)` if provided
     - Optionally `register_schema($schema, $seedDefaults, $flush)` if provided
-    - Apply `stage_options($kv)` and `flush(true)` if any options were queued
+    - Apply `stage_options($kv)` and `commit_merge()` if any options were queued
 
 - **Logging**
 
   - Optional `Logger` DI.
-  - Log at key steps: input validation, pre-insert, insert result, applying schema/options, and flush.
+  - Log at key steps: input validation, pre-insert, insert result, applying schema/options, and commit.
   - The same logger is bound to `RegisterOptions`.
 
 - **Error Handling**
@@ -165,8 +165,8 @@ final class UserResult {
   4. If options were provided:
      - Instantiate `RegisterOptions` with `UserEntity($id, $global, $storage)` using `Config::options()`.
      - Bind logger and optional write policy.
-     - Optionally `register_schema($schema, $seedDefaults, $flush)`.
-     - `stage_options($kv)` and `flush(true)` for batch save.
+     - Optionally `register_schema($schema, $seedDefaults, $flush)` if provided
+    - `stage_options($kv)` and `commit_merge()` for batch save.
 
 ## Alternatives Considered
 

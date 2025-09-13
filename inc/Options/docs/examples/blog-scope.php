@@ -16,16 +16,16 @@
 declare(strict_types=1);
 
 use Ran\PluginLib\Config\Config;
-use Ran\PluginLib\Options\Entity\BlogEntity;
+use Ran\PluginLib\Options\Storage\StorageContext;
 
 $config = Config::fromPluginFile(__FILE__);
 
 // Target blog #2 explicitly
 $blogId  = 2;
-$options = $config->options(array(
-    'scope'  => 'blog',
-    'entity' => new BlogEntity($blogId),
-));
+$options = $config->options(
+	StorageContext::forBlog($blogId),
+	false // autoload preference for blog scope (ignored for non-current blog)
+);
 
 // Check autoload support; only meaningful for the current blog
 if ($options->supports_autoload()) {
@@ -49,4 +49,4 @@ $options->stage_options(array(
   'feature_flags' => array('new_nav' => true),
   'theme_options' => array('color' => 'blue')
 ));
-$options->flush(true);
+$options->commit_merge();

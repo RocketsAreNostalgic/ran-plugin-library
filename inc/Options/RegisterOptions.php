@@ -356,11 +356,7 @@ class RegisterOptions {
 	 * - Always normalizes existing in-memory values for keys covered by the schema (sanitize+validate)
 	 * - NEVER persists implicitly; callers should use commit_merge()/commit_replace()
 	 *
-	 * Parameters are retained for BC but $seed_defaults/$flush are ignored.
-	 *
 	 * @param array $schema Schema map: ['key' => ['default' => mixed|callable(ConfigInterface|null): mixed, 'sanitize' => callable|null, 'validate' => callable|null]]
-	 * @param bool  $seed_defaults Ignored under Option A
-	 * @param bool  $flush         Ignored under Option A
 	 * @return bool Whether the in-memory store changed as a result of seeding/normalization
 	 */
 	public function register_schema(array $schema): bool {

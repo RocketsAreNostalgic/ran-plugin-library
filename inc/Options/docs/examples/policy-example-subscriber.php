@@ -9,18 +9,18 @@
 
 declare(strict_types=1);
 
-use Ran\PluginLib\Options\Entity\UserEntity;
+use Ran\PluginLib\Options\Storage\StorageContext;
 use Ran\PluginLib\Options\Policy\ExampleUserSelfServiceWhitelistPolicy;
 
 // Assume you already have a Config instance
 // $config = ... implements \Ran\PluginLib\Config\ConfigInterface
 
 // 1) Obtain a pre‑wired RegisterOptions manager from Config in user scope
-//    Target the current user via the UserEntity helper.
-$opts = $config->options(array(
-    'scope'  => 'user',
-    'entity' => new UserEntity(get_current_user_id()),
-));
+//    Target the current user via typed StorageContext.
+$opts = $config->options(
+	StorageContext::forUser((int) get_current_user_id(), 'meta', false),
+	false
+);
 
 // 2) Attach the example policy. The policy will be consulted BEFORE any
 //    WordPress filter hooks and can veto the write immediately.

@@ -32,7 +32,7 @@ Adopt a single-row, schema-aware options manager (`RegisterOptions`) that:
 - Groups all sub-options under one main option name.
 - Stores values directly as an associative array: `key => value`.
 - Supports callable defaults, sanitization, and validation per key.
-- Avoids no-op writes and supports batch updates with an explicit `flush()`.
+- Avoids no-op writes and supports batch updates with explicit commit helpers (`commit_merge()` / `commit_replace()`).
 - Keeps the API surface tight while allowing advanced patterns (deep merges, post-construction schema registration).
 
 ### Core Architecture
@@ -74,8 +74,8 @@ See also: `inc/Options/docs/TFS-002-Using-Schemas.md` for detailed schema usage 
 1. Construct instance (from config or directly).
 2. Load existing grouped options from DB.
 3. Normalize schema; seed defaults for missing keys if provided.
-4. Callers read via `get_option()`/`get_options()` and write via `set_option()` for single writes or `add_option(s)` + `flush()` for batching.
-5. Persist explicitly via `flush()` (or implicitly via `set_option`).
+4. Callers read via `get_option()`/`get_options()` and write via `set_option()` for single writes or `add_option(s)` + `commit_merge()`/`commit_replace()` for batching.
+5. Persist explicitly via `commit_merge()`/`commit_replace()` (or implicitly via `set_option`).
 
 ## API Design
 
@@ -118,12 +118,13 @@ public function stage_options(array $keyToValue): self
 public function set_option(string $option_name, mixed $value): bool
 public function delete_option(string $option_name): bool
 public function clear(): bool
-public function flush(bool $merge_from_db = false): bool
+public function commit_merge(): bool
+public function commit_replace(): bool
 public function refresh_options(): void
 
-// Schema
-public function register_schema(array $schema, bool $seed_defaults = false, bool $flush = false): bool
-public function with_schema(array $schema, bool $seed_defaults = false, bool $flush = false): self
+// Schema (Option A)
+public function register_schema(array $schema): bool
+public function with_schema(array $schema): self
 ```
 
 ### Usage Examples
@@ -131,7 +132,7 @@ public function with_schema(array $schema, bool $seed_defaults = false, bool $fl
 - Basic usage: `plugin-lib/inc/Options/docs/examples/basic-usage.php`
 - Constructor schema + default seeding: `plugin-lib/inc/Options/docs/examples/schema-defaults.php`
 - Sanitization and validation: `plugin-lib/inc/Options/docs/examples/sanitize-validate.php`
-- Batch and flush: `plugin-lib/inc/Options/docs/examples/batch-and-flush.php`
+- Batch and commit: `plugin-lib/inc/Options/docs/examples/batch-and-flush.php`
 - Deep merge pattern (caller-defined): `plugin-lib/inc/Options/docs/examples/deep-merge-pattern.php`
 - Flip autoload safely: `plugin-lib/inc/Options/docs/examples/autoload-flip-example.php`
 
@@ -145,7 +146,7 @@ public function with_schema(array $schema, bool $seed_defaults = false, bool $fl
 ### Performance Requirements
 
 - No-op guard in `set_option()` avoids unnecessary DB writes.
-- Batch updates via `add_option(s)` + `flush()` minimize write frequency.
+- Batch updates via `add_option(s)` + `commit_merge()`/`commit_replace()` minimize write frequency.
 
 ### Compatibility Requirements
 
@@ -166,7 +167,7 @@ public function with_schema(array $schema, bool $seed_defaults = false, bool $fl
 ### Phase 2: Schema & Ergonomics
 
 - Add schema normalization, default seeding, sanitization/validation.
-- Add batching (`set_options`, `flush`) and no-op guards.
+- Add batching (`set_options`, `commit_merge()`/`commit_replace()`) and no-op guards.
 
 ### Phase 3: Escape Hatches & Docs
 
@@ -205,7 +206,7 @@ public function with_schema(array $schema, bool $seed_defaults = false, bool $fl
 
 - Getter/setter correctness, including `has_option`, `get_values`.
 - No-op write guard: unchanged values skip persistence.
-- Batch via `add_option(s)` and `flush()`.
+- Batch via `add_option(s)` and `commit_merge()`/`commit_replace()`.
 - Schema default seeding; callable defaults; sanitize/validate flows.
 
 - Error messages include truncated value and callable descriptor.

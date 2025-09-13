@@ -8,13 +8,14 @@
 declare(strict_types=1);
 
 use Ran\PluginLib\Config\Config;
+use Ran\PluginLib\Options\Storage\StorageContext;
 
 // In your plugin bootstrap or a setup routine
 $config = Config::fromPluginFile(__FILE__);
 
 // 1) Get a no-write manager for your plugin's option key (site scope by default)
-//    You can hint autoload for future creation; this does NOT write by itself
-$opts = $config->options(array('autoload' => true));
+//    Use typed StorageContext; pass autoload preference for creation-time only.
+$opts = $config->options(StorageContext::forSite(), true);
 
 // 2) Stage some values (no write yet)
 $opts->stage_options(array(
@@ -23,11 +24,11 @@ $opts->stage_options(array(
 ));
 
 // 3) Persist changes explicitly (single DB write)
-$opts->flush();
+$opts->commit_replace();
 
-// Optional: register a schema, then seed defaults and persist in one step
-// (If you only want to register validation with no writes, use seed_defaults: false, flush: false)
-$opts->register_schema(array(
+// Optional: register a schema, seed/normalize in-memory, then persist explicitly
+$opts->with_schema(array(
     'enabled' => array('default' => true, 'validate' => 'is_bool'),
     'timeout' => array('default' => 30,   'validate' => fn($v) => is_int($v) && $v >= 0),
-), seed_defaults: true, flush: true);
+));
+$opts->commit_replace();

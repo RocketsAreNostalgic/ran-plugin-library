@@ -86,7 +86,8 @@ $merged_api = array_replace_recursive(
 
 // Batch this with other changes for efficiency
 $options->set_option('api_endpoints', $merged_api);
-$options->flush(false); // Will flush later with other changes
+// If staging more keys before persisting, prefer staged commit
+// $options->stage_option('api_endpoints', $merged_api)->commit_replace();
 
 // NUMERIC ARRAY CAVEAT EXAMPLE:
 // BE CAREFUL: array_replace_recursive() with numeric keys can be surprising

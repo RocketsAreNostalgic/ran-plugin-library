@@ -403,7 +403,7 @@ Recommended pattern & persisting changes:
 ```php
 $opts = $config->options(['autoload' => true]);
 $opts->stage_options(['enabled' => true]);
-$opts->flush(); // explicit write
+$opts->commit_replace(); // explicit write
 
 // or seed schema defaults and persist immediately (use fluent API on RegisterOptions)
 $opts->register_schema(['enabled' => ['default' => true]], seed_defaults: true, flush: true);

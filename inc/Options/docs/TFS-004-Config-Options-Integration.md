@@ -28,6 +28,8 @@ This TFS documents the completion of a comprehensive Config + Options integratio
 - `migrate(callable $migration)` - user-provided migration logic with strict change detection
 - Enhanced autoload management with tri-state getter and guarded setter
 - Write-gating system with comprehensive filter hooks for security
+- `with_schema(array $schema)` and `register_schema(array $schema)` always seed missing defaults and normalize existing in-memory values using per-key sanitize/validate.
+- There are no implicit writes; persist explicitly using `commit_merge()` or `commit_replace()`.
 
 ### Multi-Scope Support (PRD-003)
 
@@ -66,7 +68,7 @@ This TFS documents the completion of a comprehensive Config + Options integratio
 
 - No-op guards prevent unnecessary DB writes and filter invocations
 - Batch operations (`stage_options`) gate once before processing
-- Shallow merge support in `flush(true)` preserves external changes
+- Shallow merge support in `commit_merge()` preserves external changes
 - Memoized storage adapters per instance
 
 ## Technical Architecture
@@ -156,6 +158,11 @@ $opts->with_policy($customPolicy); // implements \Ran\PluginLib\Options\Policy\W
 ```php
 register_activation_hook(__FILE__, function() use ($config) {
     $opts = $config->options();
+    $opts->with_schema([
+        'enabled' => ['default' => true],
+        'timeout' => ['default' => 30, 'validate' => 'is_numeric']
+    ]); // seeds defaults and normalizes in-memory (no implicit writes)
+    $opts->commit_replace(); // explicit commit
     $opts->seed_if_missing([
         'enabled' => true,
         'timeout' => 30
@@ -170,7 +177,10 @@ $opts = $config->options();
 $opts->with_schema([
     'enabled' => ['default' => true],
     'timeout' => ['default' => 30, 'validate' => 'is_numeric']
-], false, false);
+]); // seeds defaults and normalizes in-memory (no implicit writes)
+
+// Persist when ready (single write)
+$opts->commit_replace();
 
 $opts->migrate(function($current, $manager) {
     if (version_compare($current['version'] ?? '0.0.0', '2.0.0', '<')) {

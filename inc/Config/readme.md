@@ -151,11 +151,11 @@ $opts = $config->options([
 
 // No writes occur until you call explicit persistence methods
 $opts->stage_options(['enabled' => true]);
-$opts->flush();
+$opts->commit_replace();
 ```
 
 - Recognized args: `autoload` (bool, default `true`), `initial` (array<string,mixed>, default `[]`), `schema` (array<string,mixed>, default `[]`).
-- This accessor performs no DB writes, seeding, or flushing by itself.
+- This accessor performs no DB writes, seeding, or commits by itself.
 - Unknown args are ignored and a warning is emitted via the configured logger.
 
 See the root `README.md` “Options Management” section for a detailed overview and persistence patterns.

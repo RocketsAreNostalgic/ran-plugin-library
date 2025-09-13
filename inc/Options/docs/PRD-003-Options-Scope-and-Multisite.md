@@ -290,8 +290,8 @@ $network->update_option($target_key, $aggregate);
 
 - **Write batching**
 
-  - Stage multiple changes via `add_option(s)` and persist once with `flush(true)` to merge with the latest DB snapshot (shallow, top‑level), preserving disjoint keys.
-  - For deep/nested merges, callers should prepare the merged payload and use `flush(false)` to replace without DB merge.
+  - Stage multiple changes via `add_option(s)` and persist once with `commit_merge()` to merge with the latest DB snapshot (shallow, top‑level), preserving disjoint keys.
+  - For deep/nested merges, callers should prepare the merged payload and use `commit_replace()` to replace without DB merge.
 
 - **Multiple instances in same request**
 
@@ -304,7 +304,7 @@ $network->update_option($target_key, $aggregate);
 
 - **Autoload flips**
 
-  - See “Autoload semantics”. Setter is guarded; when flipping, content comes from the latest DB snapshot unless the caller `flush(true)` beforehand.
+  - See “Autoload semantics”. Setter is guarded; when flipping, content comes from the latest DB snapshot unless the caller `commit_merge()` beforehand.
 
 - **Write gating**
   - Use the documented filters (e.g., `ran/plugin_lib/options/allow_persist`) to gate writes per scope, operation, and execution context (admin/CLI/cron).
@@ -319,7 +319,7 @@ $network->update_option($target_key, $aggregate);
 - **RegisterOptions integration**
 
   - `fromConfig()` and `Config::options()` return instances that read/write through the correct adapter for `(scope, blog_id)`.
-  - `flush(true)` performs shallow, top‑level merge with current DB snapshot; `flush(false)` replaces without merge.
+  - `commit_merge()` performs shallow, top‑level merge with current DB snapshot; `commit_replace()` replaces without merge.
 
 - **Multisite nuances**
 

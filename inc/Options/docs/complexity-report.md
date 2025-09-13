@@ -19,7 +19,7 @@ Key entry points and collaborators:
 
 ## Complexity Hotspots
 
-- **Constructor + Factories (choice overload):** WONTFIX (for now)
+- **Constructor + Factories (choice overload): WONTFIX (for now)**
 
   - `protected function __construct()` with multiple named factories: `site()`, `network()`, `blog()`, `user()` and a flexible `from_config()`.
   - Developers may be unsure whether to prefer named factories or `from_config($config, StorageContext $context = null, bool $autoload = true)`.
@@ -34,18 +34,20 @@ Key entry points and collaborators:
 - **In-memory vs persistence behavior differs across methods: (DONE)**
 
   - `set_option()`/`update_option()` persist immediately.
-  - `add_option()`/`add_options()` only mutate memory; require `flush()` to persist.
+  - `stage_option()`/`stage_options()` only mutate memory; require `flush()` to persist.
   - Although documented, this can surprise developers who forget to call `flush()`.
-  - Locations: `set_option()` (around 506–576), `add_options()` (around 579–612), `add_option()` (around 615–650), `flush()` (around 737–755).
+  - Locations: `set_option()` (around 506–576), `stage_options()` (around 579–612), `stage_option()` (around 615–650), `flush()` (around 737–755).
 
-Solution - we renamed `add_options` to `stage_options` and `add_option` to `stage_option` to make the intent clearer.
+Solution - we renamed `stage_options` to `stage_options` and `stage_option` to `stage_option` to make the intent cleare they only mutate memory; require `commit_merge()` or `commit_replace()` to persist.
 
-- **Shallow merge semantics require careful reading:**
+- **Shallow merge semantics require careful reading: (DONE)**
 
   - `register_schema()` performs per-key shallow rule merges; default seeding replaces entire values for missing keys.
   - `flush(true)` performs a top-level shallow merge with DB; deep merges require manual read–modify–write then `flush(false)`.
   - These rules are correct but nuanced; easy to miss if the header docs aren’t read closely.
   - Locations: `register_schema()` (around 381–456), `flush()`/`_save_all_options()` (around 753–1239).
+
+Solution: New methods: `commit_merge()` performs a top-level shallow merge with the current DB snapshot; deep merges require manual read–modify–write then `commit_replace()`.
 
 - **Strict no-op guards may be surprising:**
 
@@ -53,18 +55,18 @@ Solution - we renamed `add_options` to `stage_options` and `add_option` to `stag
   - This is precise but may not match developer expectations (e.g., deep value equality).
   - Location: `set_option()` (around 512–541).
 
-- **Write-gating method is long and verbose:**
+- **Write-gating method is long and verbose: (WONT FIX)**
 
   - `_apply_write_gate()` applies immutable policy, general filter, then scoped filter; logs heavily.
   - Correct but dense; the ordering is non-obvious without reading the method or accompanying docs.
   - Location: `RegisterOptions::_apply_write_gate()` (around 1002–1137).
 
-- **WP wrappers hide behavior:** (WONTFIX)
+- **WP wrappers hide behavior: (WONTFIX)**
 
-  - `WPWrappersTrait` methods (`_do_get_option`, `_do_add_option`, `_do_update_option`, `_do_apply_filter`, `_do_get_current_blog_id`) abstract WordPress internals.
+  - `WPWrappersTrait` methods (`_do_get_option`, `_do_stage_option`, `_do_update_option`, `_do_apply_filter`, `_do_get_current_blog_id`) abstract WordPress internals.
   - Great for testing but obscures exact WP API interactions for new developers.
 
-- **Coverage-related comment distracts:** DONE
+- **Coverage-related comment distracts: DONE**
   - `_make_storage()` contains a comment about avoiding `switch` because of PHPUnit coverage recognition.
   - This is an internal testing artifact that may confuse maintainers.
 
@@ -88,12 +90,12 @@ Solution - we renamed `add_options` to `stage_options` and `add_option` to `stag
 - **Add a "Memory vs Persistence" table**:
 
   - `set_option()` / `update_option()` → persists immediately.
-  - `add_option()` / `add_options()` → in-memory only; call `flush([merge_from_db])`.
+  - `stage_option()` / `stage_options()` → in-memory only; call `flush([merge_from_db])`.
 
 - **Add a "Shallow vs Deep merge cheat sheet"** with code snippets:
 
-  - Top-level shallow merge: `flush(true)`.
-  - Deep merge: read–modify–write + `flush(false)`.
+  - Top-level shallow merge: `commit_merge()`.
+  - Deep merge: read–modify–write + `commit_replace()`.
 
 - **Clarify strict equality rationale** in `set_option()` docs:
   - Explain the no-op guard and include guidance for deep-equality comparisons where needed.

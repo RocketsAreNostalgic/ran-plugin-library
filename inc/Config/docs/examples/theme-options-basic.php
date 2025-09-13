@@ -22,7 +22,7 @@ $opts->stage_options(array(
 ));
 
 // 3) Persist changes explicitly (single DB write)
-$opts->flush();
+$opts->commit_replace();
 
 // Optional: register a schema for validation; seed and persist immediately if desired
 $opts->register_schema(array(

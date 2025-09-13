@@ -21,17 +21,18 @@ declare(strict_types=1);
 use Ran\PluginLib\Config\Config;
 use Ran\PluginLib\Options\RegisterOptions;
 use Ran\PluginLib\Options\Entity\UserEntity;
+use Ran\PluginLib\Options\Storage\StorageContext;
 
 // Initialize config (adapt as needed for your plugin bootstrap)
 $config = Config::fromPluginFile(__FILE__);
 
 $userId = get_current_user_id(); // Or any specific user ID
 
-// Default: user meta storage via typed entity (stores entire options array in usermeta)
-$options = $config->options(array(
-    'scope'  => 'user',
-    'entity' => new UserEntity((int) $userId, false, 'meta'),
-));
+// Default: user meta storage via typed context (stores entire options array in usermeta)
+$options = $config->options(
+	StorageContext::forUser((int) $userId, 'meta', false),
+	false // autoload not applicable for user scope
+);
 
 // Autoload is not supported for user scope
 if ($options->supports_autoload() === false) {
@@ -57,20 +58,20 @@ $options->stage_options(array(
   'theme'     => 'dark',
   'shortcuts' => array('s' => 'search')
 ));
-$options->flush(true); // single DB write
+$options->commit_merge(); // single DB write (shallow merge with DB)
 
-// Optional: Explicit construction via RegisterOptions::from_config() (array args)
-$explicit = RegisterOptions::from_config($config, array(
-    'autoload' => false, // user scope does not support autoload
-    'scope'    => 'user',
-    'entity'   => new UserEntity((int) $userId, true, 'meta'), // network-wide user meta
-));
+// Optional: Explicit construction via RegisterOptions::from_config() (typed context)
+$explicit = RegisterOptions::from_config(
+	$config,
+	StorageContext::forUser((int) $userId, 'meta', true), // network-wide user meta
+	false // autoload not applicable for user scope
+);
 
 // Alternate backend: user option storage (per-user option key)
-$optionsOption = $config->options(array(
-    'scope'  => 'user',
-    'entity' => new UserEntity((int) $userId, false, 'option'), // select WP user option storage
-));
+$optionsOption = $config->options(
+	StorageContext::forUser((int) $userId, 'option', false), // select WP user option storage
+	false // autoload not applicable for user scope
+);
 
 // Usage is identical regardless of backend:
 $optionsOption->set_option('onboarding_state', array('step' => 2));

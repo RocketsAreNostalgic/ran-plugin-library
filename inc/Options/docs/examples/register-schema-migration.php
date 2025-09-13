@@ -51,7 +51,8 @@ if (version_compare($current_version, '2.0.0', '<')) {
 	        'default'  => '2.0.0',
 	        'validate' => fn($v) => is_string($v) && !empty($v),
 	    ),
-	), seed_defaults: true, flush: true);
+	));
+
 }
 
 // EXAMPLE 2: Conditional feature registration based on server capabilities
@@ -65,7 +66,7 @@ if (function_exists('imagick') || extension_loaded('gd')) {
 	        'default'  => 85,
 	        'validate' => fn($v) => is_int($v) && $v >= 1 && $v <= 100,
 	    ),
-	), seed_defaults: true, flush: false); // Don't flush yet, may add more
+	)); // No implicit flush; will persist later
 }
 
 // EXAMPLE 3: User role-based feature availability
@@ -80,7 +81,7 @@ if (user_can($current_user, 'manage_options')) {
 	        'default'  => false,
 	        'validate' => fn($v) => is_bool($v),
 	    ),
-	), seed_defaults: true, flush: false);
+	));
 }
 
 // EXAMPLE 4: A/B testing feature flags
@@ -94,11 +95,10 @@ $options->register_schema(array(
     'test_group' => array(
         'default'  => $test_group,
         'validate' => fn($v) => is_int($v) && in_array($v, array(0, 1)),
-    ),
-), seed_defaults: true, flush: false);
+    ));
 
-// Flush all schema changes at once for efficiency
-$options->flush();
+// Commit all schema changes at once for efficiency
+$options->commit_replace();
 
 // REAL-WORLD MIGRATION EXAMPLE:
 add_action('plugins_loaded', function() {
@@ -111,7 +111,7 @@ add_action('plugins_loaded', function() {
 		    'cache_enabled'  => array('default' => true, 'validate' => fn($v) => is_bool($v)),
 		    'cache_duration' => array('default' => 3600, 'validate' => fn($v) => is_int($v) && $v > 0),
 		    'db_version'     => array('default' => '1.1'),
-		), seed_defaults: true, flush: false);
+		));
 	}
 
 	// Migration for version 1.2 - add API settings
@@ -120,8 +120,8 @@ add_action('plugins_loaded', function() {
 		    'api_endpoint' => array('default' => 'https://api.example.com/v1'),
 		    'api_timeout'  => array('default' => 30, 'validate' => fn($v) => is_int($v) && $v > 0),
 		    'db_version'   => array('default' => '1.2'),
-		), seed_defaults: true, flush: false);
+		));
 	}
 
-	$options->flush(); // Single write for all migrations
+	$options->commit_replace(); // Single write for all migrations
 });

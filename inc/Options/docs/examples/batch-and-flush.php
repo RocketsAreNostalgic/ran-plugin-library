@@ -1,6 +1,6 @@
 <?php
 /**
- * RegisterOptions Example: Batch updates with flush
+ * RegisterOptions Example: Batch updates with commit helpers
  *
  * PRACTICAL USE CASE: Performance optimization for bulk operations
  *
@@ -27,20 +27,19 @@ declare(strict_types=1);
 
 use Ran\PluginLib\Config\Config;
 use Ran\PluginLib\Options\RegisterOptions;
-use Ran\PluginLib\Options\Entity\UserEntity;
-use Ran\PluginLib\Options\Entity\BlogEntity;
+use Ran\PluginLib\Options\Storage\StorageContext;
 
 $config  = Config::fromPluginFile(__FILE__);
 $options = RegisterOptions::from_config($config);
 
-// BATCH PATTERN: Stage multiple changes in memory first, then flush once
+// BATCH PATTERN: Stage multiple changes in memory first, then commit once
 // Note: You can mix simple values and structured definitions
 $options->stage_options(array(
   'api_key'        => 'abc',                 // Simple value
   'enabled'        => array('value' => true), // With metadata structure
   'timeout'        => 30,                    // Simple value
   'cache_duration' => array('value' => 3600) // With metadata structure
-))->flush(); // Single DB write for all changes
+))->commit_replace(); // Single DB write for all changes
 
 // REAL-WORLD EXAMPLE: Plugin activation with many defaults
 $activation_defaults = array(
@@ -58,7 +57,7 @@ $activation_defaults = array(
     )
 );
 
-$options->stage_options($activation_defaults)->flush(); // Single write for all
+$options->stage_options($activation_defaults)->commit_replace(); // Single write for all
 
 // FORM PROCESSING EXAMPLE: Handle admin settings form
 if ($_POST['save_settings']) {
@@ -69,7 +68,7 @@ if ($_POST['save_settings']) {
 	    'last_updated'           => current_time('mysql')
 	);
 
-	$options->stage_options($form_data)->flush();
+	$options->stage_options($form_data)->commit_replace(); // Persist staged changes
 	wp_redirect(add_query_arg('updated', '1', wp_get_referer()));
 }
 
@@ -77,18 +76,18 @@ if ($_POST['save_settings']) {
 // Scoped instance (advanced): obtain $options for a specific scope
 // ------------------------------------------------------------
 // Example: per-user batch update
-$userOptions = $config->options(array(
-  'scope'  => 'user',
-  'entity' => new UserEntity((int) get_current_user_id(), false, 'meta'),
-));
+$userOptions = $config->options(
+	StorageContext::forUser((int) get_current_user_id(), 'meta', false),
+	false // autoload not applicable for user scope
+);
 $userOptions->stage_options(array(
   'shortcuts' => array('s' => 'search', 'n' => 'new'),
   'theme'     => 'dark'
-))->flush();
+))->commit_replace();
 
 // Example: specific blog in multisite
-$blogOptions = $config->options(array(
-  'scope'  => 'blog',
-  'entity' => new BlogEntity(2),
-));
-$blogOptions->stage_options(array('feature_flags' => array('beta_ui' => true)))->flush();
+$blogOptions = $config->options(
+	StorageContext::forBlog(2),
+	false // autoload preference for blog scope (ignored for non-current blog)
+);
+$blogOptions->stage_options(array('feature_flags' => array('beta_ui' => true)))->commit_replace();

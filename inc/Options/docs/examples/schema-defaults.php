@@ -13,10 +13,10 @@
  *
  * BENEFITS OF CONSTRUCTOR SCHEMA:
  * - Defaults are resolved immediately when RegisterOptions is created (in-memory)
- * - Persist all missing defaults efficiently with a single flush() call
+ * - Persist all missing defaults efficiently with a single commit_replace() call
  * - Environment-aware defaults using Config context
  * - Validation ensures defaults are always valid
- * - Simple activation flow: seed in-memory at construction, then flush once
+ * - Simple activation flow: seed in-memory at construction, then commit once
  *
  * DYNAMIC DEFAULTS:
  * Use callable defaults when values depend on runtime conditions:
@@ -30,8 +30,7 @@ declare(strict_types=1);
 
 use Ran\PluginLib\Config\Config;
 use Ran\PluginLib\Options\RegisterOptions;
-use Ran\PluginLib\Options\Entity\UserEntity;
-use Ran\PluginLib\Options\Entity\BlogEntity;
+use Ran\PluginLib\Options\Storage\StorageContext;
 
 $config = Config::fromPluginFile(__FILE__);
 
@@ -114,17 +113,17 @@ $schema = array(
 
 // Create RegisterOptions with schema - defaults will be seeded in-memory automatically
 // Construct with autoload preference; bind schema via fluent
-$options = RegisterOptions::from_config($config, array('autoload' => true))
+$options = RegisterOptions::from_config($config, StorageContext::forSite(), true)
     ->with_schema($schema);
 
 // Persist seeded defaults explicitly (single write)
-$options->flush();
+$options->commit_replace();
 
 // At this point, all missing options have been:
 // 1. Resolved from their default values (including callable defaults)
 // 2. Sanitized (if sanitizers were defined)
 // 3. Validated (ensuring they meet requirements)
-// 4. Persisted to the database via a single flush() call
+// 4. Persisted to the database via a single commit_replace() call
 
 // VERIFY THE SEEDED VALUES:
 echo "Seeded values:\n";
@@ -161,9 +160,9 @@ register_activation_hook(__FILE__, function() {
 	);
 
 	// Seed defaults in-memory via fluent, then persist in one write
-	$options = RegisterOptions::from_config($config, array('autoload' => true))
-	    ->with_schema($activation_schema);
-	$options->flush();
+	$options = RegisterOptions::from_config($config, StorageContext::forSite(), true)
+        ->with_schema($activation_schema);
+	$options->commit_replace();
 
 	// Plugin is now properly initialized with environment-appropriate defaults
 });
@@ -173,13 +172,13 @@ register_activation_hook(__FILE__, function() {
 // ------------------------------------------------------------
 // When you need to seed defaults for a different storage scope, prefer Config::options()
 // Example: per-user defaults
-$userOptions = $config->options(array(
-	'scope'  => 'user',
-	'entity' => new UserEntity((int) get_current_user_id(), false, 'meta'),
-))->with_schema($schema);
+$userOptions = $config->options(
+	StorageContext::forUser((int) get_current_user_id(), 'meta', false),
+	false
+)->with_schema($schema);
 
 // Example: blog-scoped defaults (multisite)
-$blogOptions = $config->options(array(
-	'scope'  => 'blog',
-	'entity' => new BlogEntity(2),
-))->with_schema($schema);
+$blogOptions = $config->options(
+	StorageContext::forBlog(2),
+	false // explicit preference (ignored for non-current blog)
+)->with_schema($schema);

@@ -126,7 +126,7 @@ $allowed = $this->write_policy->allow($this->__persist_origin ?? 'save_all', $wc
 
 - Wiring a user-scope policy with `ExampleUserSelfServiceWhitelistPolicy`: `inc/Options/docs/examples/policy-example-subscriber.php`
 - Abstract helper base: `inc/Options/Policy/AbstractWritePolicy.php`
-- AND-composite for stacking multiple policies: `inc/Options/Policy/WritePolicy.php` (note: use AND semantics by default; OR stacking can be added later)
+ - AND-composite for stacking multiple policies: `inc/Options/Policy/CompositeWritePolicy.php` (note: uses AND semantics by default; OR stacking can be added later)
 
 ### Choose your path
 
@@ -136,8 +136,8 @@ $allowed = $this->write_policy->allow($this->__persist_origin ?? 'save_all', $wc
   - Example wiring: `inc/Options/docs/examples/policy-example-subscriber.php`
 
 - Advanced (optional, application rules):
-  - Compose policies with `WritePolicy` (AND semantics) for stricter control.
-  - Common pattern: `new WritePolicy(new RestrictedDefaultWritePolicy(), new ExampleUserSelfServiceWhitelistPolicy())`
+  - Compose policies with `CompositeWritePolicy` (AND semantics) for stricter control.
+  - Common pattern: `new CompositeWritePolicy(new RestrictedDefaultWritePolicy(), new ExampleUserSelfServiceWhitelistPolicy())`
   - Single-policy example: `inc/Options/docs/examples/policy-example-subscriber.php`
   - Composite example: `inc/Options/docs/examples/policy-example-composite.php`
 
@@ -146,11 +146,11 @@ $allowed = $this->write_policy->allow($this->__persist_origin ?? 'save_all', $wc
 In some scenarios you may want any one of several policies to allow a write (OR semantics). We currently default to AND semantics for security (all policies must allow). To add OR support later, consider one of these approaches:
 
 - Create a dedicated OR composite:
-  - `inc/Options/Policy/WritePolicyOr.php` with the same constructor signature as `WritePolicy`, but returns allow if any child allows and only denies if all deny.
+  - `inc/Options/Policy/CompositeWritePolicyOr.php` with the same constructor signature as `CompositeWritePolicy`, but returns allow if any child allows and only denies if all deny.
 - Add a static factory to the existing composite:
-  - `WritePolicy::or(WritePolicyInterface ...$policies): WritePolicyInterface` returning an OR-composite instance.
+  - `CompositeWritePolicy::or(WritePolicyInterface ...$policies): WritePolicyInterface` returning an OR-composite instance.
 - Add a boolean constructor flag (avoid if it risks ambiguity):
-  - `new WritePolicy($policies..., $mode = 'AND')` — less explicit than separate types.
+  - `new CompositeWritePolicy($policies..., $mode = 'AND')` — less explicit than separate types.
 
 Operational considerations:
 

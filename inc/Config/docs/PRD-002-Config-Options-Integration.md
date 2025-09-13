@@ -31,7 +31,7 @@ We have a unified, environment-agnostic Config that hydrates from plugins or the
   - `get_logger()`, `is_dev_environment()` implemented.
 
 - Options (`RegisterOptions`)
-  - Manages a single WP option (array/object), with helpers to read/write/merge/flush.
+  - Manages a single WP option (array/object), with helpers to read/write/merge/commit.
 
 ## Proposed Additions
 
@@ -150,7 +150,7 @@ $opts = $config->options();
 $opts->with_schema([
     'enabled' => ['default' => true],
     'timeout' => ['default' => 30, 'validate' => 'is_numeric']
-], false, false);
+]);
 
 $opts->migrate(function($current, $manager) {
     if (version_compare($current['version'] ?? '0.0.0', '2.0.0', '<')) {
@@ -158,7 +158,7 @@ $opts->migrate(function($current, $manager) {
     }
     return $current;
 });
-$opts->flush();
+$opts->commit_replace();
 ```
 
 Network scope (multisite):

@@ -6,7 +6,7 @@ Explain how to use schemas with `RegisterOptions` safely and predictably, with n
 
 ## Key Principles
 
-- **No implicit writes**: Registering a schema does not write to the DB by itself.
+- **No implicit writes**: Registering a schema does not write to the DB by itself; you must commit explicitly.
 - **Separation of concerns**: `Config::options()` returns a pre-wired manager; persistence is always explicit on `RegisterOptions`.
 - **Single source of truth**: Autoload policy and option key come from `Config` unless you intentionally construct options directly.
 
@@ -20,8 +20,8 @@ $schema = [
   'timeout' => ['default' => 30,    'validate' => fn($v) => is_int($v) && $v >= 0],
 ];
 
-$opts = $config->options(); // no writes
-$opts->register_schema($schema, false, false); // register only; no seed, no flush
+$opts = $config->options(); // no writes yet
+$opts->with_schema($schema); // seeds defaults and normalizes in-memory (no implicit writes)
 ```
 
 - Rationale: Developers can wire validation early (read-only boot), then choose if/when to persist via explicit helpers.
@@ -32,7 +32,7 @@ $opts->register_schema($schema, false, false); // register only; no seed, no flu
 
 ```php
 $opts = $config->options();
-$opts->register_schema($schema, false, false);
+$opts->with_schema($schema); // in-memory only
 $options = $opts->get_options(); // validated reads; still no writes
 ```
 
@@ -40,21 +40,23 @@ $options = $opts->get_options(); // validated reads; still no writes
 
 ```php
 $opts = $config->options();
-$opts->register_schema($schema, /* seed */ true, /* flush */ true); // backfill defaults and persist once
+$opts->with_schema($schema);  // in-memory seeding/normalization
+$opts->commit_replace();      // single write to persist
 ```
 
 - **Guarded first-write (idempotent)**
 
 ```php
 $opts = $config->options();
-$opts->seed_if_missing(['enabled' => true, 'timeout' => 30])->flush();
+$opts->seed_if_missing(['enabled' => true, 'timeout' => 30])->commit_replace();
 ```
 
 - **Update/expansion of schema**
 
 ```php
 $opts = $config->options();
-$opts->register_schema($schema, /* seed */ true, /* flush */ true); // safely backfill new fields
+$opts->register_schema($schema); // in-memory
+$opts->commit_replace();         // persist when ready
 ```
 
 - **Batch updates (recommended)**
@@ -66,7 +68,7 @@ $opts
     'enabled' => ['value' => true],
     'timeout' => 45,
   ])
-  ->flush(); // single DB write
+  ->commit_replace(); // single DB write
 ```
 
 ## Schema callbacks contract
@@ -117,7 +119,7 @@ $opts
 
 ## Autoload behavior
 
-- Autoload is applied only on creation by WordPress (e.g., via `seed_if_missing(...)->flush()` or `register_schema(..., true, true)`).
+- Autoload is applied only on creation by WordPress (e.g., via `seed_if_missing(...)->commit_replace()` or `with_schema(...)->commit_replace()`).
 - WP 6.6+: when adding an option, a nullable autoload hint (`?bool`) is accepted; passing `null` defers to WordPress heuristics. Updates do not change autoload.
 - For manual autoload flipping, use WordPress core functions directly (delete + add with a bool|null autoload where supported).
 - Performance note: when autoload is supported, WordPress may preload options globally (e.g., via `wp_load_alloptions()`). On large sites this can be heavy. The library does not implicitly load all options; prefer targeted reads and cache results at your call site. Use `supports_autoload()` to detect capability.
@@ -129,16 +131,17 @@ $opts
 
 ## FAQ
 
-- **Does `Config::options()` write to the DB?** No. It is a no-write accessor; use the fluent API on the returned `RegisterOptions` to register schema, seed defaults, and flush.
-- **Do I still need `register_schema()`?** Yes, if you want to seed or persist: call `register_schema($schema, true, true)` or use `seed_if_missing(...)->flush()`.
+- **Does `Config::options()` write to the DB?** No. It is a no-write accessor; use the fluent API on the returned `RegisterOptions` to register schema, seed defaults, and persist via commit helpers.
+- **Do I still need `register_schema()`?** Yes. Use `with_schema($schema)` or `register_schema($schema)` to seed and normalize in-memory, then call `commit_replace()` (or `commit_merge()`) to persist. Alternatively, `seed_if_missing(...)->commit_replace()` for idempotent first-writes.
 - **Can I define schema after construction?** Yes:
 
 ```php
 $opts = $config->options();
-$opts->register_schema($schema, seed_defaults: true, flush: true);
+$opts->register_schema($schema);
+$opts->commit_replace();
 ```
 
 ## Testing Tips
 
 - Use `seed_if_missing()` for idempotent first-writes; assert autoload state via `$wpdb->options` when needed.
-- Verify “no implicit writes” by asserting no row exists after `options(['schema'=>...])` and after `register_schema($schema, false, false)`.
+- Verify “no implicit writes” by asserting no row exists after `options(...)` and after `with_schema($schema)`.

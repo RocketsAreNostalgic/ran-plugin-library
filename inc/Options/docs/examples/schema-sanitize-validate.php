@@ -30,6 +30,7 @@ declare(strict_types=1);
 
 use Ran\PluginLib\Config\Config;
 use Ran\PluginLib\Options\RegisterOptions;
+use Ran\PluginLib\Options\Storage\StorageContext;
 
 $config = Config::fromPluginFile(__FILE__);
 
@@ -87,7 +88,7 @@ $schema = array(
 );
 
 // Construct with autoload preference and attach schema via fluent
-$options = RegisterOptions::from_config($config, array('autoload' => true))
+$options = RegisterOptions::from_config($config, StorageContext::forSite(), true)
     ->with_schema($schema);
 
 // EXAMPLES OF SANITIZATION AND VALIDATION IN ACTION:
@@ -133,7 +134,7 @@ if ($_POST['save_settings']) {
 		    'webhook_url'        => $_POST['webhook'],
 		    'api_timeout'        => $_POST['timeout'],
 		    'enabled_features'   => $_POST['features'] ?? array(),
-		))->flush();
+		        ))->commit_replace();
 
 		wp_redirect(add_query_arg('updated', '1', wp_get_referer()));
 	} catch (InvalidArgumentException $e) {

@@ -23,8 +23,7 @@ declare(strict_types=1);
 
 use Ran\PluginLib\Config\Config;
 use Ran\PluginLib\Options\RegisterOptions;
-use Ran\PluginLib\Options\Entity\BlogEntity;
-use Ran\PluginLib\Options\Entity\UserEntity;
+use Ran\PluginLib\Options\Storage\StorageContext;
 
 // Acquire config for this plugin file
 $config = Config::fromPluginFile(__FILE__);
@@ -32,15 +31,11 @@ $config = Config::fromPluginFile(__FILE__);
 // Create options group using plugin's primary option name
 // RATIONALE: from_config() uses your plugin's configured option name from Config,
 // ensuring consistency across your plugin and avoiding hardcoded strings.
-// Pass construction-time args via an associative array.
-$options = RegisterOptions::from_config($config, array(
-    'autoload' => true,   // enable autoloading for frequently accessed options
-    'scope'    => 'site', // default scope
-));
+$options = RegisterOptions::from_config($config, StorageContext::forSite(), true);
 
 // Set individual options - each call writes to database immediately
 // PERFORMANCE NOTE: Each set_option() call triggers a database write.
-// For multiple options, prefer stage_option(s) + flush() (see batch-and-flush.php)
+// For multiple options, prefer stage_option(s) + commit_replace() (see batch-and-flush.php)
 $options->set_option('api_key', 'abc123');
 $options->set_option('enabled', true);
 
@@ -65,31 +60,28 @@ if (!$options->has_option('version')) {
 // You can target different storage scopes without changing call sites.
 // Preferred: use Config accessor with explicit scope and arguments.
 
-// User scope (typed entity recommended)
+// User scope (typed context)
 // Autoload is not supported for user scope (supports_autoload() => false).
-$userOptions = $config->options(array(
-    'scope'  => 'user',
-    'entity' => new UserEntity((int) get_current_user_id(), false, 'meta'),
-));
+$userOptions = $config->options(
+	StorageContext::forUser((int) get_current_user_id(), 'meta', false),
+	false
+);
 $userOptions->set_option('dashboard_prefs', array('layout' => 'compact'));
 $prefs = $userOptions->get_option('dashboard_prefs', array());
 
 // Blog scope (multisite)
 // Autoload is supported only when blog_id equals the current blog.
-$blogOptions = $config->options(array(
-    'scope'  => 'blog',
-    'entity' => new BlogEntity(2),
-));
+$blogOptions = $config->options(
+	StorageContext::forBlog(2),
+	false // explicit preference (ignored for non-current blog)
+);
 if ($blogOptions->supports_autoload()) {
 	// safe to rely on autoload
 }
 
-// Alternate construction via RegisterOptions::from_config() (array-args)
+// Alternate construction via RegisterOptions::from_config() (typed context)
 $explicit = RegisterOptions::from_config(
 	$config,
-	array(
-	    'autoload' => true,
-	    'scope'    => 'user',
-	    'entity'   => new UserEntity((int) get_current_user_id(), true, 'option'),
-	)
+	StorageContext::forUser((int) get_current_user_id(), 'option', true),
+	false // autoload not applicable for user scope
 );

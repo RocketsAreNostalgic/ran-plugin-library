@@ -1,6 +1,6 @@
 # RegisterOptions
 
-A small, pragmatic options manager that stores all of your plugin settings in a single WordPress `wp_options` row. It provides schema-driven defaults, sanitization/validation, batching, and safe escape hatches for WordPress autoload semantics (including WP 6.6+ nullable autoload heuristics on creation).
+A pragmatic options manager that stores all of your plugin settings in a single WordPress `wp_options` row. It provides schema-driven defaults, sanitization/validation, batching, and safe escape hatches for WordPress autoload semantics (including WP 6.6+ nullable autoload heuristics on creation).
 
 ## Quick start
 
@@ -32,14 +32,14 @@ Use the minimal `Config::options()` accessor for the common case (no writes), th
 ```php
 $opts = $config->options();
 $opts
-  ->with_schema(['enabled' => ['default' => true]], seed_defaults: true, flush: true)
+  ->with_schema(['enabled' => ['default' => true]])
   ->with_policy($customPolicy)
   ->with_defaults(['api_timeout' => 30]);
 ```
 
 You can also construct instances for specific scopes using named factories, or via the public `from_config()` (typed `StorageContext`) for construction-time concerns only:
 
-````php
+```php
 use Ran\PluginLib\Options\OptionScope;
 
 // Named factories
@@ -51,6 +51,7 @@ $userOpts    = RegisterOptions::user('my_plugin_user_option', 456 /* user_id */,
 // Factory from Config (construction-only args, typed context)
 use Ran\PluginLib\Options\Storage\StorageContext;
 $opts = RegisterOptions::from_config($config, StorageContext::forSite(), true);
+```
 
 #### Typed StorageContext (recommended)
 
@@ -60,11 +61,9 @@ Prefer the typed `StorageContext` path via `Config::options()` for earlier valid
 use Ran\PluginLib\Options\Storage\StorageContext;
 
 $opts = $config->options(StorageContext::forBlog(123));
-````
+```
 
 This approach avoids stringly `storage_args` and ensures consistent scope resolution.
-
-````
 
 ### Factory vs. fluents
 
@@ -76,10 +75,10 @@ $opts = $config->options(StorageContext::forSite());
 
 // Configuration and persistence via fluents (20% use-cases)
 $opts
-  ->with_schema(['feature_flag' => ['default' => false]], seed_defaults: true)
+  ->with_schema(['feature_flag' => ['default' => false]])
   ->with_policy($customPolicy)
   ->with_defaults(['another_key' => 'val'])
-  ->flush();
+  ->commit_replace();
 
 // from_config() notes
 // - from_config() is intended for construction-time concerns (e.g., autoload, basic scope selection via typed StorageContext).
@@ -143,13 +142,13 @@ $schema = [
   ],
 ];
 $opts = $config->options();
-$opts->with_schema($schema); // seed/defaults/flush are explicit flags
+$opts->with_schema($schema); // seeds defaults and normalizes values in-memory (no implicit writes)
 ```
 
-Note: Registration seeds defaults in-memory only when `seed_defaults` is true. To persist, call `flush()` explicitly:
+Note: Schema registration seeds defaults and normalizes values in-memory by default. To persist, call `commit_replace()` (or `commit_merge()`) explicitly:
 
 ```php
-$opts->flush(); // single DB write for seeded defaults
+$opts->commit_replace(); // single DB write for seeded defaults
 ```
 
 You can also register schema after construction:
@@ -157,8 +156,72 @@ You can also register schema after construction:
 ```php
 $opts->register_schema([
   'new_feature' => ['default' => false, 'validate' => fn($v) => is_bool($v)],
-], seed_defaults: true, flush: true);
+]);
+$opts->commit_replace(); // explicit persistence
 ```
+
+### Schema reference and normalization (important)
+
+Schemas are the single place to define per-key defaults, normalization (sanitize), and validation. They directly influence change detection and persistence behavior.
+
+• **Keys per schema entry**
+
+- `default: mixed|callable(ConfigInterface|null): mixed`
+  - Literal default or a callable that returns a default (receives `ConfigInterface|null`).
+- `sanitize: callable(mixed): mixed`
+  - Normalizes/canonicalizes the value before comparison and storage on all write paths.
+  - Use this to ensure semantically equivalent inputs map to one canonical form (e.g., sort associative keys, define a stable order for lists when order doesn’t matter).
+- `validate: callable(mixed): bool`
+  - Should return true for valid values; may throw or return false to reject.
+
+• **Why this matters for strict equality and DB writes**
+
+- `RegisterOptions` uses strict equality (`===`) to detect no-op changes.
+- Without normalization, arrays with the same content but different order will not be equal and may cause needless writes.
+- By normalizing in `sanitize`, you make structurally equivalent values compare equal, preventing redundant DB updates.
+
+• **Where schema is applied (write paths)**
+
+- `set_option($key, $value)` → sanitize + validate before strict equality check and persistence.
+- `stage_option($key, $value)` / `stage_options([...])` → sanitize + validate before staging in memory.
+- `with_defaults([...])` / `register_schema(...)` / `with_schema(...)` → defaults are resolved, then sanitized + validated before taking effect (in-memory). No implicit writes.
+- `seed_if_missing([...])` and `migrate(callable)` → values are normalized and validated before persistence.
+
+• **Consistent DB shape (read/write)**
+
+- Because values are canonicalized via `sanitize` prior to storage, subsequent reads and writes interact with a consistent shape.
+- This stabilizes equality checks, reduces write churn, and avoids drift caused by incidental ordering differences.
+
+• **Practical guidance**
+
+- For order-insensitive structures: in your `sanitize`, recursively sort associative keys and apply a stable ordering to lists (only if list order is semantically irrelevant).
+- For order-sensitive data: omit normalization so that strict equality preserves intentional ordering.
+- Keep validation focused on invariants (types, ranges, presence of required fields) after normalization.
+
+See also: `plugin-lib/inc/Options/docs/examples/sanitize-validate.php` for end-to-end examples of `sanitize` and `validate` callbacks.
+
+### Inferred validation (simple types)
+
+When a schema key omits a `validate` callable but provides a `default`, a simple type validator is inferred from the default's type. For example:
+
+```php
+$schema = [
+  'flag' => [ 'default' => false ],   // inferred type: bool
+  'max'  => [ 'default' => 10 ],      // inferred type: int
+  'pi'   => [ 'default' => 3.14 ],    // inferred type: float
+  'name' => [ 'default' => 'abc' ],   // inferred type: string
+  'list' => [ 'default' => [] ],      // inferred type: array
+];
+```
+
+Rules:
+
+- Explicit `validate` always takes precedence.
+- Callable defaults are resolved (with `ConfigInterface|null`, currently `null`) before inferring the type.
+- Supported inferred types: `bool`, `int`, `float`, `string`, `array`, `object`, `null`.
+- Unknown types fall back to allowing any value unless you provide an explicit `validate`.
+
+This keeps simple schemas concise while preserving type safety.
 
 ### Batch updates (recommended for bulk operations)
 
@@ -170,7 +233,7 @@ $opts
     'enabled' => ['value' => true],
     'timeout' => 30,
   ])
-  ->flush(); // single DB write
+  ->commit_replace(); // single DB write
 ```
 
 ### Autoload semantics (WordPress)
@@ -221,13 +284,13 @@ $opts->set_option('complex_map', $merged);
   - Persists immediately on success (after write-gate policy and filters).
   - Uses the current scope from typed `StorageContext`.
 - add_option/stage_options
-  - Stages changes in memory only; call `flush()` to persist.
-- flush(true)
+  - Stages changes in memory only; call `commit_merge()` or `commit_replace()` to persist.
+- commit_merge()
   - Performs a shallow, top-level merge with the current DB snapshot (keeps DB keys, overwrites collisions with in-memory values). Does not deep-merge nested structures.
-- flush(false)
+- commit_replace()
   - Replaces the stored row with the in-memory payload (no merge).
 - register_schema/with_schema
-  - Seeding defaults persists only when you pass `seed_defaults: true` together with a `flush` request (or call `flush()` separately afterward). No implicit writes by default.
+  - Always seed defaults and normalize values in-memory. There are no implicit writes; persist with `commit_replace()` or `commit_merge()` when you are ready.
 
 ### Examples
 
@@ -242,7 +305,6 @@ $opts->set_option('complex_map', $merged);
 
 - `get_option($key, $default)` / `set_option($key, $value)`
 - `get_options()` returns values only
-- Fluent batching: `stage_option($k,$v)->stage_option($k2,$v2)->flush()` or `stage_options([...])->flush()`
-- `flush(bool $merge_from_db = false)` supports optional shallow merge-from-DB
+- Fluent batching: `stage_option($k,$v)->stage_option($k2,$v2)->commit_replace()` or `stage_options([...])->commit_replace()`
+- `commit_merge()` / `commit_replace()` to persist staged changes (shallow merge vs replace)
 - `register_schema(...)` / `with_schema(...)` for post-construction schema
-````

@@ -20,8 +20,9 @@
 
 use Ran\PluginLib\Config\Config;
 use Ran\PluginLib\Options\RegisterOptions;
-use Ran\PluginLib\Options\Entity\UserEntity;
 use Ran\PluginLib\Options\Entity\BlogEntity;
+use Ran\PluginLib\Options\Entity\UserEntity;
+use Ran\PluginLib\Options\Storage\StorageContext;
 
 // Initialize config and options
 $config  = Config::fromPluginFile(__FILE__);
@@ -31,16 +32,16 @@ $options = RegisterOptions::from_config($config); // site scope by default
 if (!$options->supports_autoload()) {
 	echo "Current scope does not support autoload. Skipping flip.\n";
 	// Example: show that user/blog scopes are not eligible
-	$userOpts = $config->options(array(
-	    'scope'  => 'user',
-	    'entity' => new UserEntity(123, false, 'meta'),
-	));
+	$userOpts = $config->options(
+		StorageContext::forUser(123, 'meta', false),
+		false
+	);
 	assert($userOpts->supports_autoload() === false);
 
-	$blogOpts = $config->options(array(
-	    'scope'  => 'blog',
-	    'entity' => new BlogEntity(2),
-	));
+	$blogOpts = $config->options(
+		StorageContext::forBlog(2),
+		false // explicit preference (ignored for non-current blog)
+	);
 	// Will only be true when blog_id == current blog id
 	echo 'Blog scope supports autoload? ' . ($blogOpts->supports_autoload() ? 'yes' : 'no') . "\n";
 	exit;

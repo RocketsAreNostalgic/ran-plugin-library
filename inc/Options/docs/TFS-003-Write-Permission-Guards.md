@@ -116,7 +116,7 @@ Further reading:
 Related building blocks:
 
 - Abstract base for policy helpers: `inc/Options/Policy/AbstractWritePolicy.php`
-- AND-composite to stack multiple policies: `inc/Options/Policy/WritePolicy.php`
+- AND-composite to stack multiple policies: `inc/Options/Policy/CompositeWritePolicy.php`
 
 ### Choose your path
 
@@ -126,8 +126,8 @@ Related building blocks:
   - Example wiring: `inc/Options/docs/examples/policy-example-subscriber.php`
 
 - Advanced (optional, application rules):
-  - Compose policies with `WritePolicy` (AND semantics) for stricter control.
-  - Common pattern: `new WritePolicy(new RestrictedDefaultWritePolicy(), new ExampleUserSelfServiceWhitelistPolicy())`
+  - Compose policies with `CompositeWritePolicy` (AND semantics) for striccter control.
+  - Common pattern: `new CompositeWritePolicy(new RestrictedDefaultWritePolicy(), new ExampleUserSelfServiceWhitelistPolicy())`
   - Single-policy example: `inc/Options/docs/examples/policy-example-subscriber.php`
   - Composite example: `inc/Options/docs/examples/policy-example-composite.php`
 
@@ -219,7 +219,7 @@ sequenceDiagram
   - Gate before writing; veto returns without DB or memory effects
 - `migrate()`
   - Gate before applying migration; veto returns without write/mutate
-- `flush($merge_from_db)` and `_save_all_options($merge_from_db)`
+- `commit_merge()` / `commit_replace()` and `_save_all_options($merge_from_db)`
   - Always gate before persistence; origin-op is `'save_all'` unless invoked from another operation (e.g., `'set_option'`)
 
 ## Implementation Pointers
