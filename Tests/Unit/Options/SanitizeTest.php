@@ -7,94 +7,206 @@ namespace Ran\PluginLib\Tests\Unit\Options;
 use Ran\PluginLib\Options\Sanitize;
 use Ran\PluginLib\Tests\Unit\PluginLibTestCase;
 
-/**
- * @covers \Ran\PluginLib\Options\Sanitize::orderInsensitiveDeep
- * @covers \Ran\PluginLib\Options\Sanitize::orderInsensitiveShallow
- */
 final class SanitizeTest extends PluginLibTestCase {
-    public function test_deep_passes_through_scalars(): void {
-        $this->assertSame(123, Sanitize::orderInsensitiveDeep(123));
-        $this->assertSame('abc', Sanitize::orderInsensitiveDeep('abc'));
-        $this->assertSame(null, Sanitize::orderInsensitiveDeep(null));
-    }
+	/**
+	 * @covers \Ran\PluginLib\Options\Sanitize::string
+	 * @covers \Ran\PluginLib\Options\SanitizeStringGroup::trim
+	 * @covers \Ran\PluginLib\Options\SanitizeStringGroup::toLower
+	 * @covers \Ran\PluginLib\Options\SanitizeStringGroup::stripTags
+	 */
+	public function test_string_sanitizers(): void {
+		$trim = Sanitize::string()->trim();
+		$this->assertSame('abc', $trim('  abc  '));
+		$this->assertSame(123, $trim(123));
 
-    public function test_deep_converts_object_to_array_preferring_jsonserializable(): void {
-        $jsonObj = new class implements \JsonSerializable {
-            public function jsonSerialize(): mixed { return ['b' => 2, 'a' => 1]; }
-        };
-        $out = Sanitize::orderInsensitiveDeep($jsonObj);
-        $this->assertSame(['a' => 1, 'b' => 2], $out); // assoc sorted by key after deep normalize
+		$lower = Sanitize::string()->toLower();
+		$this->assertSame('abc', $lower('AbC'));
+		$this->assertSame(123, $lower(123));
 
-        $plainObj = new class { public int $z = 1; public int $a = 2; };
-        $out2 = Sanitize::orderInsensitiveDeep($plainObj);
-        $this->assertSame(['a' => 2, 'z' => 1], $out2);
-    }
+		$strip = Sanitize::string()->stripTags();
+		$this->assertSame('hello', $strip('<b>hello</b>'));
+		$this->assertSame(array('x'), $strip(array('x')));
+	}
 
-    public function test_deep_normalizes_assoc_by_keys_and_recurse(): void {
-        $a = ['b' => ['y' => 2, 'x' => 1], 'a' => 9];
-        $b = ['a' => 9, 'b' => ['x' => 1, 'y' => 2]]; // same semantics, different order
-        $na = Sanitize::orderInsensitiveDeep($a);
-        $nb = Sanitize::orderInsensitiveDeep($b);
-        $this->assertSame($na, $nb);
-        $this->assertSame(['a' => 9, 'b' => ['x' => 1, 'y' => 2]], $na);
-    }
+	/**
+	 * @covers \Ran\PluginLib\Options\Sanitize::number
+	 * @covers \Ran\PluginLib\Options\SanitizeNumberGroup::toInt
+	 * @covers \Ran\PluginLib\Options\SanitizeNumberGroup::toFloat
+	 * @covers \Ran\PluginLib\Options\SanitizeNumberGroup::toBoolStrict
+	 */
+	public function test_number_sanitizers(): void {
+		$toInt = Sanitize::number()->toInt();
+		$this->assertSame(42, $toInt('42'));
+		$this->assertSame(42, $toInt(42.8));
+		$this->assertSame('x', $toInt('x'));
 
-    public function test_deep_normalizes_lists_by_element_then_sorts_stably(): void {
-        $l1 = [["k" => 2], ["k" => 1]];      // list with assoc elements
-        $l2 = [["k" => 1], ["k" => 2]];      // same elements different order
-        $n1 = Sanitize::orderInsensitiveDeep($l1);
-        $n2 = Sanitize::orderInsensitiveDeep($l2);
-        $this->assertSame($n1, $n2);
-        $this->assertSame([["k" => 1], ["k" => 2]], $n1);
-    }
+		$toFloat = Sanitize::number()->toFloat();
+		$this->assertSame(42.0, $toFloat('42'));
+		$this->assertSame(42.5, $toFloat(42.5));
+		$this->assertSame('x', $toFloat('x'));
 
-    public function test_deep_handles_nested_mixed_list_and_assoc(): void {
-        $in = [
-            ['b' => [2,1]],
-            ['a' => [ ['y'=>2,'x'=>1], ['x'=>1,'y'=>2] ]],
-        ];
-        $out = Sanitize::orderInsensitiveDeep($in);
-        // Expect inner lists sorted and inner maps canonicalized, outer list sorted by JSON
-        $this->assertSame([
-            ['a' => [ ['x'=>1,'y'=>2], ['x'=>1,'y'=>2] ]],
-            ['b' => [1,2]],
-        ], $out);
-    }
+		$toBool = Sanitize::number()->toBoolStrict();
+		$this->assertTrue($toBool(true));
+		$this->assertFalse($toBool(false));
+		$this->assertTrue($toBool(1));
+		$this->assertFalse($toBool(0));
+		$this->assertTrue($toBool('true'));
+		$this->assertFalse($toBool('false'));
+		$this->assertSame('yes', $toBool('yes'));
+	}
 
-    public function test_shallow_passes_through_scalars(): void {
-        $this->assertSame(false, Sanitize::orderInsensitiveShallow(false));
-        $this->assertSame('x', Sanitize::orderInsensitiveShallow('x'));
-    }
+	/**
+	 * @covers \Ran\PluginLib\Options\Sanitize::array
+	 * @covers \Ran\PluginLib\Options\SanitizeArrayGroup::ensureList
+	 * @covers \Ran\PluginLib\Options\SanitizeArrayGroup::uniqueList
+	 * @covers \Ran\PluginLib\Options\SanitizeArrayGroup::ksortAssoc
+	 */
+	public function test_array_sanitizers(): void {
+		$ensureList = Sanitize::array()->ensureList();
+		$this->assertSame(array('a', 'b'), $ensureList(array('a', 'b')));
+		$this->assertSame(array('a', 'b'), $ensureList(array('x' => 'a', 'y' => 'b')));
+		$this->assertSame('x', $ensureList('x'));
 
-    public function test_shallow_converts_object_to_array_preferring_jsonserializable(): void {
-        $obj = new class implements \JsonSerializable {
-            public function jsonSerialize(): mixed { return ['b' => 1, 'a' => 2]; }
-        };
-        $out = Sanitize::orderInsensitiveShallow($obj);
-        $this->assertSame(['a' => 2, 'b' => 1], $out);
+		$uniqueList = Sanitize::array()->uniqueList();
+		$this->assertSame(array('a', 'b', 'c'), $uniqueList(array('a', 'b', 'a', 'c', 'b')));
+		$this->assertSame('x', $uniqueList('x'));
 
-        $plain = new class { public $k = 3; public $a = 1; };
-        $out2 = Sanitize::orderInsensitiveShallow($plain);
-        // Keys sorted top-level only
-        $this->assertSame(['a' => 1, 'k' => 3], $out2);
-    }
+		$ksortAssoc = Sanitize::array()->ksortAssoc();
+		$this->assertSame(array('a' => 1, 'b' => 2), $ksortAssoc(array('b' => 2, 'a' => 1)));
+		$this->assertSame(array('a', 'b'), $ksortAssoc(array('a', 'b')));
+	}
 
-    public function test_shallow_sorts_top_level_assoc_only_no_recurse(): void {
-        $in = ['b' => ['z'=>2,'a'=>1], 'a' => ['y'=>2,'x'=>1]];
-        $out = Sanitize::orderInsensitiveShallow($in);
-        // Top-level keys sorted, nested arrays untouched (original order maintained)
-        $this->assertSame(['a' => ['y'=>2,'x'=>1], 'b' => ['z'=>2,'a'=>1]], $out);
-    }
+	/**
+	 * @covers \Ran\PluginLib\Options\Sanitize::json
+	 * @covers \Ran\PluginLib\Options\SanitizeJsonGroup::decodeToValue
+	 * @covers \Ran\PluginLib\Options\SanitizeJsonGroup::decodeObject
+	 * @covers \Ran\PluginLib\Options\SanitizeJsonGroup::decodeArray
+	 */
+	public function test_json_sanitizers(): void {
+		$toVal = Sanitize::json()->decodeToValue();
+		$this->assertSame(array('a' => 1), $toVal('{"a":1}'));
+		$this->assertSame('x', $toVal('x'));
 
-    public function test_shallow_stable_sort_for_top_level_list_only(): void {
-        $in = [["k"=>2], ["k"=>1]];
-        $out = Sanitize::orderInsensitiveShallow($in);
-        $this->assertSame([["k"=>1],["k"=>2]], $out);
+		$toObj = Sanitize::json()->decodeObject();
+		$this->assertSame(array('a' => 1), $toObj('{"a":1}'));
+		$this->assertSame('[1,2]', $toObj('[1,2]'));
 
-        // Elements are not deep-normalized in shallow mode
-        $in2 = [["b"=>2,"a"=>1], ["a"=>1,"b"=>2]];
-        $out2 = Sanitize::orderInsensitiveShallow($in2);
-        // Sorting by JSON means as-is JSON of elements governs order; but structure stays otherwise the same
-        $this->assertSame([["a"=>1,"b"=>2],["b"=>2,"a"=>1]], $out2);
-    }
+		$toArr = Sanitize::json()->decodeArray();
+		$this->assertSame(array(1, 2), $toArr('[1,2]'));
+		$this->assertSame('{"a":1}', $toArr('{"a":1}'));
+	}
+
+	/**
+	 * @covers \Ran\PluginLib\Options\Sanitize::combine
+	 * @covers \Ran\PluginLib\Options\SanitizeCombineGroup::pipe
+	 */
+	public function test_combine_pipe(): void {
+		$pipe = Sanitize::combine()->pipe(
+			Sanitize::string()->trim(),
+			Sanitize::string()->toLower()
+		);
+		$this->assertSame('abc', $pipe('  ABC  '));
+		$this->assertSame(5, $pipe(5));
+	}
+
+	/**
+	 * @covers \Ran\PluginLib\Options\Sanitize::canonical
+	 * @covers \Ran\PluginLib\Options\SanitizeCanonicalGroup::orderInsensitiveDeep
+	 * @covers \Ran\PluginLib\Options\SanitizeCanonicalGroup::orderInsensitiveShallow
+	 */
+	public function test_canonical_wrappers(): void {
+		$deep = Sanitize::canonical()->orderInsensitiveDeep();
+		$this->assertSame(array('a' => 1, 'b' => 2), $deep(array('b' => 2, 'a' => 1)));
+
+		$shallow = Sanitize::canonical()->orderInsensitiveShallow();
+		$this->assertSame(array('a' => 1, 'b' => 2), $shallow(array('b' => 2, 'a' => 1)));
+	}
+
+	/**
+	 * @covers \Ran\PluginLib\Options\Sanitize::orderInsensitiveDeep
+	 */
+	public function test_order_insensitive_deep(): void {
+		// Scalars pass-through
+		$this->assertSame(123, Sanitize::orderInsensitiveDeep(123));
+		$this->assertSame('abc', Sanitize::orderInsensitiveDeep('abc'));
+		$this->assertSame(null, Sanitize::orderInsensitiveDeep(null));
+
+		// Object conversion preference: JsonSerializable over public props
+		$jsonObj = new class implements \JsonSerializable {
+			public function jsonSerialize(): mixed {
+				return array('b' => 1, 'a' => 2);
+			}
+		};
+		$this->assertSame(array('a' => 2, 'b' => 1), Sanitize::orderInsensitiveDeep($jsonObj));
+
+		$plainObj = new class {
+			public int $z = 1;
+			public int $a = 2;
+		};
+		$this->assertSame(array('a' => 2, 'z' => 1), Sanitize::orderInsensitiveDeep($plainObj));
+
+		// Assoc maps: recurse and sort by keys
+		$a  = array('b' => array('y' => 2, 'x' => 1), 'a' => 9);
+		$b  = array('a' => 9, 'b' => array('x' => 1, 'y' => 2));
+		$na = Sanitize::orderInsensitiveDeep($a);
+		$nb = Sanitize::orderInsensitiveDeep($b);
+		$this->assertSame($na, $nb);
+		$this->assertSame(array('a' => 9, 'b' => array('x' => 1, 'y' => 2)), $na);
+
+		// Lists: normalize elements then stable sort by JSON
+		$l1 = array(array('k' => 2), array('k' => 1));
+		$l2 = array(array('k' => 1), array('k' => 2));
+		$n1 = Sanitize::orderInsensitiveDeep($l1);
+		$n2 = Sanitize::orderInsensitiveDeep($l2);
+		$this->assertSame($n1, $n2);
+		$this->assertSame(array(array('k' => 1), array('k' => 2)), $n1);
+
+		// Nested mixed
+		$in = array(
+		    array('b' => array(2, 1)),
+		    array('a' => array( array('y' => 2, 'x' => 1), array('x' => 1, 'y' => 2) )),
+		);
+		$out = Sanitize::orderInsensitiveDeep($in);
+		$this->assertSame(array(
+		    array('a' => array( array('x' => 1, 'y' => 2), array('x' => 1, 'y' => 2) )),
+		    array('b' => array(1, 2)),
+		), $out);
+	}
+
+	/**
+	 * @covers \Ran\PluginLib\Options\Sanitize::orderInsensitiveShallow
+	 */
+	public function test_order_insensitive_shallow(): void {
+		// Scalars pass-through
+		$this->assertSame(false, Sanitize::orderInsensitiveShallow(false));
+		$this->assertSame('x', Sanitize::orderInsensitiveShallow('x'));
+
+		// Object conversion preference: JsonSerializable over public props; sort top-level only
+		$obj = new class implements \JsonSerializable {
+			public function jsonSerialize(): mixed {
+				return array('b' => 1, 'a' => 2);
+			}
+		};
+		$this->assertSame(array('a' => 2, 'b' => 1), Sanitize::orderInsensitiveShallow($obj));
+
+		$plain = new class {
+			public $k = 3;
+			public $a = 1;
+		};
+		$this->assertSame(array('a' => 1, 'k' => 3), Sanitize::orderInsensitiveShallow($plain));
+
+		// Assoc: sort top-level keys only; do not recurse
+		$in  = array('b' => array('z' => 2, 'a' => 1), 'a' => array('y' => 2, 'x' => 1));
+		$out = Sanitize::orderInsensitiveShallow($in);
+		$this->assertSame(array('a' => array('y' => 2, 'x' => 1), 'b' => array('z' => 2, 'a' => 1)), $out);
+
+		// List: stable sort by JSON at top level only
+		$list = array(array('k' => 2), array('k' => 1));
+		$this->assertSame(array(array('k' => 1), array('k' => 2)), Sanitize::orderInsensitiveShallow($list));
+
+		// Elements are not deep-normalized in shallow mode
+		$in2  = array(array('b' => 2, 'a' => 1), array('a' => 1, 'b' => 2));
+		$out2 = Sanitize::orderInsensitiveShallow($in2);
+		$this->assertSame(array(array('a' => 1, 'b' => 2), array('b' => 2, 'a' => 1)), $out2);
+	}
 }
