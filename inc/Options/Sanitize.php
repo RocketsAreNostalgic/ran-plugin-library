@@ -51,10 +51,10 @@ final class Sanitize {
 	/**
 	 * Access sanitizer combinators (composition helpers).
 	 *
-	 * @return SanitizeCombineGroup
+	 * @return SanitizeComposeGroup
 	 */
-	public static function combine(): SanitizeCombineGroup {
-		return new SanitizeCombineGroup();
+	public static function combine(): SanitizeComposeGroup {
+		return new SanitizeComposeGroup();
 	}
 
 	/**
@@ -365,7 +365,7 @@ final class SanitizeJsonGroup {
 	}
 }
 
-final class SanitizeCombineGroup {
+final class SanitizeComposeGroup {
 	/**
 	 * Combine multiple sanitizers into one by piping the output of each into the next.
 	 *
@@ -379,6 +379,57 @@ final class SanitizeCombineGroup {
 				$out = $s($out);
 			}
 			return $out;
+		};
+	}
+
+	/**
+	 * Apply a sanitizer only when value is not null; pass-through null.
+	 *
+	 * @param callable(mixed):mixed $sanitizer
+	 * @return callable(mixed):mixed
+	 */
+	public function nullable(callable $sanitizer): callable {
+		return static function (mixed $v) use ($sanitizer): mixed {
+			if ($v === null) {
+				return null;
+			}
+			return $sanitizer($v);
+		};
+	}
+
+	/**
+	 * Alias of nullable(...) for ergonomics; null is treated as absent and passed through.
+	 *
+	 * @param callable(mixed):mixed $sanitizer
+	 * @return callable(mixed):mixed
+	 */
+	public function optional(callable $sanitizer): callable {
+		return $this->nullable($sanitizer);
+	}
+
+	/**
+	 * Conditionally apply a sanitizer when predicate returns true; otherwise pass-through.
+	 *
+	 * @param callable(mixed):bool   $predicate Pure predicate receiving the current value
+	 * @param callable(mixed):mixed  $sanitizer Sanitizer to apply when predicate is true
+	 * @return callable(mixed):mixed
+	 */
+	public function when(callable $predicate, callable $sanitizer): callable {
+		return static function (mixed $v) use ($predicate, $sanitizer): mixed {
+			return $predicate($v) ? $sanitizer($v) : $v;
+		};
+	}
+
+	/**
+	 * Conditionally apply a sanitizer when predicate returns false; otherwise pass-through.
+	 *
+	 * @param callable(mixed):bool   $predicate Pure predicate receiving the current value
+	 * @param callable(mixed):mixed  $sanitizer Sanitizer to apply when predicate is false
+	 * @return callable(mixed):mixed
+	 */
+	public function unless(callable $predicate, callable $sanitizer): callable {
+		return static function (mixed $v) use ($predicate, $sanitizer): mixed {
+			return $predicate($v) ? $v : $sanitizer($v);
 		};
 	}
 }
