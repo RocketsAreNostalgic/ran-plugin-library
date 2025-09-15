@@ -1,6 +1,6 @@
 # RegisterOptions
 
-A pragmatic options manager that stores all of your plugin settings in a single WordPress `wp_options` row. It provides schema-driven defaults, sanitization/validation, batching, and safe escape hatches for WordPress autoload semantics (including WP 6.6+ nullable autoload heuristics on creation).
+A pragmatic options manager that stores plugin/theme settings in a single WordPress `wp_options` row. It provides schema-driven defaults, sanitization/validation, batching, and safe escape hatches for WordPress autoload semantics (including WP 6.6+ nullable autoload heuristics on creation).
 
 ## Quick start
 
@@ -32,7 +32,7 @@ Use the minimal `Config::options()` accessor for the common case (no writes), th
 ```php
 $opts = $config->options();
 $opts
-  ->with_schema(['enabled' => ['default' => true]])
+  ->with_schema(['enabled' => ['default' => true, 'validate' => fn($v) => is_bool($v)]])
   ->with_policy($customPolicy)
   ->with_defaults(['api_timeout' => 30]);
 ```
@@ -55,15 +55,13 @@ $opts = RegisterOptions::from_config($config, StorageContext::forSite(), true);
 
 #### Typed StorageContext (recommended)
 
-Prefer the typed `StorageContext` path via `Config::options()` for earlier validation and clearer intent:
+Use the typed `StorageContext` path via `Config::options()` for validation and clear intent:
 
 ```php
 use Ran\PluginLib\Options\Storage\StorageContext;
 
 $opts = $config->options(StorageContext::forBlog(123));
 ```
-
-This approach avoids stringly `storage_args` and ensures consistent scope resolution.
 
 ### Factory vs. fluents
 
@@ -75,7 +73,7 @@ $opts = $config->options(StorageContext::forSite());
 
 // Configuration and persistence via fluents (20% use-cases)
 $opts
-  ->with_schema(['feature_flag' => ['default' => false]])
+  ->with_schema(['feature_flag' => ['default' => false, 'validate' => fn($v) => is_bool($v)]])
   ->with_policy($customPolicy)
   ->with_defaults(['another_key' => 'val'])
   ->commit_replace();
@@ -83,8 +81,22 @@ $opts
 // from_config() notes
 // - from_config() is intended for construction-time concerns (e.g., autoload, basic scope selection via typed StorageContext).
 // - Prefer Config::options() + fluents for most cases; it’s a no-write accessor that binds the logger.
-// - storage_args are not supported; use StorageContext for scope selection.
 ```
+
+### Choosing an entry point
+
+Most callers should start with `Config::options()` and then use fluent methods to attach schema/defaults/policy. Use `RegisterOptions::from_config()` only when you must control construction-time concerns (e.g., explicit typed `StorageContext` or autoload preference for first-create) at creation.
+
+- `Config::options(StorageContext $ctx = StorageContext::forSite())`
+  - No writes during construction
+  - Binds logger from `ConfigInterface::get_logger()` when available
+  - Preferred entry point for application code
+- `RegisterOptions::from_config(ConfigInterface $config, ?StorageContext $ctx = null, bool $autoload = true)`
+  - Construction-only concerns (scope via typed context, autoload preference)
+  - No implicit writes; still configure schema/defaults/policy via fluents after creation
+- Named factories (e.g., `RegisterOptions::site|network|blog|user`) are available for low-level cases when you don’t have a `Config` instance.
+
+Tip: After construction, always register an explicit schema before calling `set_option()`/`stage_option()`/`stage_options()`/`with_defaults()`. Under strict validation, every key must have a `validate` callable.
 
 ### Logger binding: DI vs `with_logger()`
 
@@ -198,30 +210,38 @@ Schemas are the single place to define per-key defaults, normalization (sanitize
 - For order-sensitive data: omit normalization so that strict equality preserves intentional ordering.
 - Keep validation focused on invariants (types, ranges, presence of required fields) after normalization.
 
-See also: `plugin-lib/inc/Options/docs/examples/sanitize-validate.php` for end-to-end examples of `sanitize` and `validate` callbacks.
+See also: `plugin-lib/inc/Options/docs/examples/schema-sanitize-validate.php` for end-to-end examples of `sanitize` and `validate` callbacks.
 
-### Inferred validation (simple types)
+### Strict validation (no inference)
 
-When a schema key omits a `validate` callable but provides a `default`, a simple type validator is inferred from the default's type. For example:
+Schemas must provide an explicit `validate` callable for every key. Sanitization is optional but, if present, must be callable. Registration-time checks enforce:
+
+- A callable `validate` exists for each schema key (required)
+- If `sanitize` is present, it is callable (optional)
+
+Defaults remain supported (literal or callable), and are applied in-memory on registration. There is no type inference from defaults—validation must be explicit, e.g.:
 
 ```php
 $schema = [
-  'flag' => [ 'default' => false ],   // inferred type: bool
-  'max'  => [ 'default' => 10 ],      // inferred type: int
-  'pi'   => [ 'default' => 3.14 ],    // inferred type: float
-  'name' => [ 'default' => 'abc' ],   // inferred type: string
-  'list' => [ 'default' => [] ],      // inferred type: array
+  'flag' => [ 'default' => false, 'validate' => fn($v) => is_bool($v) ],
+  'max'  => [ 'default' => 10,    'validate' => fn($v) => is_int($v) && $v >= 0 ],
+  'name' => [ 'default' => 'abc', 'validate' => fn($v) => is_string($v) && $v !== '' ],
 ];
 ```
 
-Rules:
+### Validation helper recipes
 
-- Explicit `validate` always takes precedence.
-- Callable defaults are resolved (with `ConfigInterface|null`, currently `null`) before inferring the type.
-- Supported inferred types: `bool`, `int`, `float`, `string`, `array`, `object`, `null`.
-- Unknown types fall back to allowing any value unless you provide an explicit `validate`.
+Common validator shapes you may find useful:
 
-This keeps simple schemas concise while preserving type safety.
+- Booleans: `fn($v) => is_bool($v)`
+- Non-empty string: `fn($v) => is_string($v) && $v !== ''`
+- String pattern: `fn($v) => is_string($v) && preg_match('/^[A-Za-z0-9_-]+$/', $v)`
+- Positive int (bounded): `fn($v) => is_int($v) && $v > 0 && $v <= 300`
+- Enum: `fn($v) => in_array($v, ['a','b','c'], true)`
+
+If you maintain shared validators, place them in `inc/Options/Validate.php` and reference them in your schema, e.g. `['validate' => [Validate::class, 'isNonEmptyString']]`.
+
+See: `plugin-lib/inc/Options/docs/examples/schema-sanitize-validate.php` for end-to-end patterns (sanitize + validate).
 
 ### Batch updates (recommended for bulk operations)
 
@@ -344,7 +364,7 @@ $opts->stage_option('complex_map', $merged)->commit_replace();
 - Basic usage: `plugin-lib/inc/Options/docs/examples/basic-usage.php`
 - Batch + flush: `plugin-lib/inc/Options/docs/examples/batch-and-flush.php`
 - Deep merge pattern: `plugin-lib/inc/Options/docs/examples/deep-merge-pattern.php`
-- Sanitization & validation: `plugin-lib/inc/Options/docs/examples/sanitize-validate.php`
+- Sanitization & validation: `plugin-lib/inc/Options/docs/examples/schema-sanitize-validate.php`
 - Schema defaults at construction: `plugin-lib/inc/Options/docs/examples/schema-defaults.php`
 - Flip autoload safely: `plugin-lib/inc/Options/docs/examples/autoload-flip.php`
 
