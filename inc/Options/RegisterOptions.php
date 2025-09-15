@@ -410,13 +410,15 @@ class RegisterOptions {
 		$this->schema = $mergedSchema;
 		try {
 			// Seed defaults for missing keys (prepare locally; exceptions propagate)
-			$toSeed = array();
+			$toSeed   = array();
+			$seedKeys = array();
 			foreach ($normalized as $key => $rules) {
 				$has_value = isset($this->options[$key]);
 				if (!$has_value && array_key_exists('default', $rules)) {
 					$resolved     = $this->_resolve_default_value($rules['default']);
 					$resolved     = $this->_sanitize_and_validate_option($key, $resolved);
 					$toSeed[$key] = $resolved;
+					$seedKeys[]   = $key;
 				}
 			}
 
@@ -428,12 +430,14 @@ class RegisterOptions {
 			}
 
 			// Normalize values for keys covered by schema (operate on local copy)
+			$normalizedKeys = array();
 			foreach ($newOptions as $k => $v) {
 				if (isset($normalized[$k])) {
 					$normalizedValue = $this->_sanitize_and_validate_option($k, $v);
 					if ($normalizedValue !== $v) {
-						$newOptions[$k] = $normalizedValue;
-						$changed        = true;
+						$newOptions[$k]   = $normalizedValue;
+						$changed          = true;
+						$normalizedKeys[] = $k;
 					}
 				}
 			}
@@ -442,6 +446,23 @@ class RegisterOptions {
 			$this->schema  = $mergedSchema;
 			$this->options = $newOptions;
 
+			// Operation-level summary (dev-friendly): seeded/normalized counts
+			if ($this->_get_logger()->is_active()) {
+				$seedCount = count($seedKeys);
+				$normCount = count($normalizedKeys);
+				$brief     = static function(array $keys): array {
+					return count($keys) <= 10 ? $keys : array_slice($keys, 0, 10);
+				};
+				$this->_get_logger()->debug(
+					'RegisterOptions: register_schema summary',
+					array(
+						'seeded'          => $seedCount,
+						'normalized'      => $normCount,
+						'seed_keys'       => $brief($seedKeys),
+						'normalized_keys' => $brief($normalizedKeys)
+					)
+				);
+			}
 			// No implicit persistence here
 			return $changed;
 		} catch (\Throwable $e) {
@@ -599,7 +620,8 @@ class RegisterOptions {
 	 * @return self
 	 */
 	public function stage_options(array $keyToValue): self {
-		$changed = false;
+		$changed     = false;
+		$changedKeys = array();
 
 		// Gate batch addition before mutating memory
 		$keys = array_map(static fn($k) => (string) $k, array_keys($keyToValue));
@@ -622,6 +644,20 @@ class RegisterOptions {
 
 			$this->options[$key] = $value;
 			$changed             = true;
+			$changedKeys[]       = $key;
+		}
+
+		// Operation-level summary for staging
+		if ($this->_get_logger()->is_active()) {
+			$count = count($changedKeys);
+			$brief = ($count <= 10) ? $changedKeys : array_slice($changedKeys, 0, 10);
+			$this->_get_logger()->debug(
+				'RegisterOptions: stage_options summary',
+				array(
+					'changed' => $count,
+					'keys'    => $brief
+				)
+			);
 		}
 
 		// Return self for fluent chaining (flush separately)
@@ -1234,11 +1270,30 @@ class RegisterOptions {
 		$rules = $this->schema[$normalized_key];
 
 		if (isset($rules['sanitize']) && \is_callable($rules['sanitize'])) {
-			$value = ($rules['sanitize'])($value);
+			$sanitizer = $rules['sanitize'];
+			$once      = $sanitizer($value);
+			$twice     = $sanitizer($once);
+			if ($twice !== $once) {
+				$valStr1      = $this->_stringify_value_for_error($once);
+				$valStr2      = $this->_stringify_value_for_error($twice);
+				$sanitizerStr = $this->_describe_callable($sanitizer);
+				throw new \InvalidArgumentException(
+					static::class . ": Sanitizer for option '{$normalized_key}' must be idempotent. First result {$valStr1} differs from second {$valStr2}. Sanitizer {$sanitizerStr}."
+				);
+			}
+			$value = $once;
 		}
 		if (isset($rules['validate']) && \is_callable($rules['validate'])) {
 			$validator = $rules['validate'];
 			$valid     = $validator($value);
+			if ($valid !== true && $valid !== false) {
+				$valStr       = $this->_stringify_value_for_error($value);
+				$validatorStr = $this->_describe_callable($validator);
+				$gotType      = gettype($valid);
+				throw new \InvalidArgumentException(
+					static::class . ": Validator for option '{$normalized_key}' must return strict bool; got {$gotType}. Value {$valStr}; validator {$validatorStr}."
+				);
+			}
 			if ($valid !== true) {
 				$valStr       = $this->_stringify_value_for_error($value);
 				$validatorStr = $this->_describe_callable($validator);
@@ -1248,6 +1303,7 @@ class RegisterOptions {
 			}
 		}
 
+		// Per-key completion (kept for backward compatibility and internal coverage expectations)
 		if ($this->_get_logger()->is_active()) {
 			$this->_get_logger()->debug('RegisterOptions: _sanitize_and_validate_option completed', array('key' => $normalized_key));
 		}
@@ -1347,9 +1403,9 @@ class RegisterOptions {
 	}
 
 	/**
-	 * Describe a callable for diagnostics.
+	 * Describe a callable for diagnostics. Provides richer context for closures and invokable objects.
 	 *
-	 * @param callable $callable
+	 * @param mixed $callable
 	 * @return string
 	 */
 	protected function _describe_callable(mixed $callable): string {
@@ -1368,10 +1424,30 @@ class RegisterOptions {
 			return $desc;
 		}
 		if ($callable instanceof \Closure) {
+			// Enhanced diagnostics: include file:line when available
+			$desc = 'Closure';
+			try {
+				$ref  = new \ReflectionFunction($callable);
+				$file = (string) $ref->getFileName();
+				$line = (int) $ref->getStartLine();
+				if ($file !== '') {
+					$desc = 'Closure(' . basename($file) . ':' . $line . ')';
+				}
+			} catch (\Throwable $e) {
+				// Fallback keeps 'Closure'
+			}
 			if ($this->_get_logger()->is_active()) {
 				$this->_get_logger()->debug('RegisterOptions: _describe_callable completed (closure)');
 			}
-			return 'Closure';
+			return $desc;
+		}
+		if (is_object($callable) && method_exists($callable, '__invoke')) {
+			// Enhanced diagnostics: render as Class::__invoke
+			$desc = get_class($callable) . '::__invoke';
+			if ($this->_get_logger()->is_active()) {
+				$this->_get_logger()->debug('RegisterOptions: _describe_callable completed (invokable object)');
+			}
+			return $desc;
 		}
 		if ($this->_get_logger()->is_active()) {
 			$this->_get_logger()->debug('RegisterOptions: _describe_callable completed (other)');
