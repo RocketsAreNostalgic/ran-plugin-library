@@ -80,8 +80,10 @@ final class UserBuilderTest extends PluginLibTestCase {
 
 		$config  = new TestableConfig();
 		$builder = new User($config, null);
-		$schema  = array('welcome' => array('default' => true));
-		$result  = $builder
+		$schema  = array('welcome' => array('default' => true, 'validate' => function ($v) {
+			return is_bool($v);
+		}));
+		$result = $builder
 			->email('seed@example.com')
 			->on_exists('attach')
 			->schema($schema, true, true)
@@ -106,6 +108,9 @@ final class UserBuilderTest extends PluginLibTestCase {
 			->email('policy@example.com')
 			->on_exists('attach')
 			->with_policy($policy)
+			->schema(array('k' => array('default' => 'v', 'validate' => function ($v) {
+				return is_string($v);
+			})), true, false)
 			->options(array('k' => 'v'))
 			->create();
 
@@ -125,8 +130,10 @@ final class UserBuilderTest extends PluginLibTestCase {
 
 		$config  = new TestableConfig();
 		$builder = new User($config, null);
-		$schema  = array('theme' => array('default' => 'light'));
-		$result  = $builder
+		$schema  = array('theme' => array('default' => 'light', 'validate' => function ($v) {
+			return is_string($v);
+		}));
+		$result = $builder
 			->email('schema@example.com')
 			->on_exists('attach')
 			->user_scope(false, 'meta')
