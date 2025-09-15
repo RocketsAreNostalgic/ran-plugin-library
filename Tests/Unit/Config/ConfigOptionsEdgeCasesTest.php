@@ -334,7 +334,17 @@ final class ConfigOptionsEdgeCasesTest extends PluginLibTestCase {
 		// Use flexible mock that accepts any parameters
 		WP_Mock::userFunction('get_option')->andReturn(array());
 
-		$opts = $cfg->options()->with_defaults($initial_values);
+		$opts = $cfg->options();
+		// Phase 4: schema required for defaults
+		$opts->with_schema(array(
+			'key1' => array('validate' => function ($v) {
+				return is_string($v);
+			}),
+			'key2' => array('validate' => function ($v) {
+				return is_string($v);
+			}),
+		));
+		$opts = $opts->with_defaults($initial_values);
 
 		$this->assertInstanceOf(\Ran\PluginLib\Options\RegisterOptions::class, $opts);
 	}

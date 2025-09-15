@@ -167,6 +167,15 @@ final class ConfigOptionsNoWritesTest extends PluginLibTestCase {
 		), '', 'yes')->once()->andReturn(true);
 
 		$opts = $cfg->options();
+		// Phase 4: schema required for stage_options keys
+		$opts->with_schema(array(
+			'a' => array('validate' => function ($v) {
+				return is_int($v);
+			}),
+			'b' => array('validate' => function ($v) {
+				return is_string($v);
+			}),
+		));
 		$opts->stage_options(array('a' => 1, 'b' => 'x'));
 		$this->assertTrue($opts->commit_replace());
 	}
@@ -195,6 +204,10 @@ final class ConfigOptionsNoWritesTest extends PluginLibTestCase {
 		WP_Mock::userFunction('update_option')->with($main, array('k' => 2))->once()->andReturn(true);
 
 		$opts = $cfg->options();
+		// Phase 4: schema required for set_option key
+		$opts->with_schema(array('k' => array('validate' => function ($v) {
+			return is_int($v);
+		})));
 		$this->assertTrue($opts->set_option('k', 2));
 	}
 }
