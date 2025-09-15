@@ -131,7 +131,7 @@ public function with_schema(array $schema): self
 
 - Basic usage: `plugin-lib/inc/Options/docs/examples/basic-usage.php`
 - Constructor schema + default seeding: `plugin-lib/inc/Options/docs/examples/schema-defaults.php`
-- Sanitization and validation: `plugin-lib/inc/Options/docs/examples/sanitize-validate.php`
+- Sanitization and validation: `plugin-lib/inc/Options/docs/examples/schema-sanitize-validate.php`
 - Batch and commit: `plugin-lib/inc/Options/docs/examples/batch-and-flush.php`
 - Deep merge pattern (caller-defined): `plugin-lib/inc/Options/docs/examples/deep-merge-pattern.php`
 - Flip autoload safely: `plugin-lib/inc/Options/docs/examples/autoload-flip-example.php`
