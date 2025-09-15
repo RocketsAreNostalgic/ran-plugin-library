@@ -104,7 +104,7 @@ final class RegisterOptionsInternalsCoverageTest extends PluginLibTestCase {
 		$this->expectLog('debug', "Getting option 'num'");
 		$this->expectLog('debug', "Getting option 'label'");
 		$this->expectLog('debug', '_normalize_schema_keys completed');
-		$this->expectLog('debug', '_resolve_default_value resolved callable');
+		$this->expectLog('debug', '_resolve_default_value resolved callable', 1);
 		// Under Option A, seeding and normalization can trigger sanitization multiple times
 		$this->expectLog('debug', '_sanitize_and_validate_option completed', 4);
 	}
@@ -158,6 +158,10 @@ final class RegisterOptionsInternalsCoverageTest extends PluginLibTestCase {
 		$opts->with_policy($policy);
 		$this->allow_all_persist_filters_for_site();
 
+		// Phase 4: schema required for staged keys
+		$opts->with_schema(array('k' => array('validate' => function ($v) {
+			return is_string($v);
+		})));
 		// Stage new value
 		$opts->stage_option('k', 'v');
 
@@ -240,6 +244,11 @@ final class RegisterOptionsInternalsCoverageTest extends PluginLibTestCase {
 			->reply(true);
 		WP_Mock::userFunction('update_option')->andReturn(true);
 
+		// Phase 4: schema required for set_option keys
+		$opts->with_schema(array('lg_key' => array('validate' => function ($v) {
+			return is_string($v);
+		})));
+
 		$this->assertTrue($opts->set_option('lg_key', 'lg_value'));
 		$this->assertSame('lg_value', $opts->get_option('lg_key'));
 		// Assert logs after SUT ran
@@ -260,7 +269,7 @@ final class RegisterOptionsInternalsCoverageTest extends PluginLibTestCase {
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::set_option
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::_sanitize_and_validate_option
 	 */
-	public function test_set_option_unknown_key_triggers_no_schema_log(): void {
+	public function test_set_option_unknown_key_without_schema_throws(): void {
 		$config = $this->getMockBuilder(ConfigInterface::class)->getMock();
 		$config->method('get_options_key')->willReturn('test_options');
 		$config->method('get_logger')->willReturn($this->logger_mock);
@@ -278,9 +287,12 @@ final class RegisterOptionsInternalsCoverageTest extends PluginLibTestCase {
 			->reply(true);
 		WP_Mock::userFunction('update_option')->andReturn(true);
 
-		$this->assertTrue($opts->set_option('unknown_key', 'val'));
-		$this->assertSame('val', $opts->get_option('unknown_key'));
-		$this->expectLog('debug', '_sanitize_and_validate_option no-schema');
+		$this->expectException(\InvalidArgumentException::class);
+		try {
+			$opts->set_option('unknown_key', 'val');
+		} finally {
+			$this->assertFalse($opts->get_option('unknown_key'));
+		}
 	}
 
 	/**
@@ -398,29 +410,34 @@ final class RegisterOptionsInternalsCoverageTest extends PluginLibTestCase {
 		}
 	}
 
-    /**
-     * @covers \Ran\PluginLib\Options\RegisterOptions::_sanitize_and_validate_option
-     * Ensures the inferred validation path executes the stringify+throw block
-     * (RegisterOptions.php lines ~1239–1242) when a value mismatches the inferred type.
-     */
-    public function test_inferred_validation_branch_hits_stringify_and_throws(): void {
-        $config = $this->getMockBuilder(ConfigInterface::class)->getMock();
-        $config->method('get_options_key')->willReturn('opts_inferred_str');
-        $config->method('get_logger')->willReturn($this->logger_mock);
-        $opts = RegisterOptions::from_config($config, StorageContext::forSite(), true);
+	/**
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::_sanitize_and_validate_option
+	 * Ensures the inferred validation path executes the stringify+throw block
+	 * (RegisterOptions.php lines ~1239–1242) when a value mismatches the inferred type.
+	 */
+	public function test_inferred_validation_branch_hits_stringify_and_throws(): void {
+		$config = $this->getMockBuilder(ConfigInterface::class)->getMock();
+		$config->method('get_options_key')->willReturn('opts_inferred_str');
+		$config->method('get_logger')->willReturn($this->logger_mock);
+		$opts = RegisterOptions::from_config($config, StorageContext::forSite(), true);
 
-        // Schema with default only; inferred type will be 'int'.
-        $opts->register_schema(array(
-            'count' => array('default' => 1),
-        ));
+		// With strict validator-required, provide an explicit validator that mimics the old inferred 'int' expectation.
+		$opts->register_schema(array(
+			'count' => array(
+				'default'  => 1,
+				'validate' => function ($v) {
+					return is_int($v);
+				},
+			),
+		));
 
-        $this->expectException(\InvalidArgumentException::class);
-        $this->expectExceptionMessageMatches("/inferred type 'int'/");
-        try {
-            // Non-int value should fail inferred validator and trigger stringify before throw
-            $opts->set_option('count', 'not-an-int');
-        } finally {
-            $this->expectLog('debug', '_stringify_value_for_error completed');
-        }
-    }
+		$this->expectException(\InvalidArgumentException::class);
+		$this->expectExceptionMessageMatches('/Validation failed/');
+		try {
+			// Non-int value should fail validator and trigger stringify before throw
+			$opts->set_option('count', 'not-an-int');
+		} finally {
+			$this->expectLog('debug', '_stringify_value_for_error completed');
+		}
+	}
 }

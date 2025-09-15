@@ -94,26 +94,28 @@ final class RegisterOptionsSchemaTest extends PluginLibTestCase {
 
 		// First register a schema with some keys
 		$initialSchema = array(
-		    'existing_key' => array(
+	'existing_key' => array(
 		        'default'  => 'initial_default',
 		        'sanitize' => function($value) {
 		        	return $value;
 		        },
 		        'validate' => function($value) {
-		        	return true;
+		        	return is_string($value);
 		        }
-		    )
-		);
+	)
+);
 
 		$opts->register_schema($initialSchema);
 
 		// Now register a second schema that updates the existing key (lines 529-534)
 		$updateSchema = array(
-		    'existing_key' => array(
-		        'default'  => 'updated_default', // This should override
-		        'sanitize' => null, // This should clear the sanitizer
-		        // validate not provided, should preserve existing
-		    )
+			    'existing_key' => array(
+				'default'  => 'updated_default', // This should override
+				'sanitize' => null, // This should clear the sanitizer
+				'validate' => function ($v) {
+					return is_string($v);
+				}, // explicit for strict mode (preserves existing semantics)
+			    )
 		);
 
 		$result = $opts->register_schema($updateSchema);
@@ -134,9 +136,12 @@ final class RegisterOptionsSchemaTest extends PluginLibTestCase {
 		$opts = RegisterOptions::site('test_options');
 
 		$schema = array(
-		    'fluent_key' => array(
-		        'default' => 'fluent_value'
-		    )
+			    'fluent_key' => array(
+				'default'  => 'fluent_value',
+				'validate' => function ($v) {
+					return is_string($v);
+				}
+			    )
 		);
 
 		$result = $opts->with_schema($schema);
@@ -208,14 +213,14 @@ final class RegisterOptionsSchemaTest extends PluginLibTestCase {
 		    )
 		);
 
-		// Option A: register schema (seeding occurs by default); validator throws during seeding
-		$result = $opts->register_schema($schema);
-
-		// Should return false due to exception during seeding
-		$this->assertFalse($result);
-
-		// Verify that the option was not set due to the exception
-		$this->assertFalse($opts->has_option('exception_key'));
+		// Under strict fail-fast: register_schema should throw; ensure no mutation occurs
+		$this->expectException(\RuntimeException::class);
+		try {
+			$opts->register_schema($schema);
+		} finally {
+			// Verify that the option was not set due to the exception
+			$this->assertFalse($opts->has_option('exception_key'));
+		}
 	}
 
 	/**

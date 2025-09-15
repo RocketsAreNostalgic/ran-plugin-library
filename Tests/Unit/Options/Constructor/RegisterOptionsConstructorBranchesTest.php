@@ -87,7 +87,7 @@ final class RegisterOptionsConstructorBranchesTest extends PluginLibTestCase {
 	public function test_constructor_covers_schema_normalization_default_seeding_and_initial_merge(): void {
 		// Schema with a default to seed, and simple sanitize/validate to exercise helpers
 		$schema = array(
-		    'greeting' => array(
+	'greeting' => array(
 		        'default' => function () {
 		        	return '  Hello  ';
 		        },
@@ -97,8 +97,14 @@ final class RegisterOptionsConstructorBranchesTest extends PluginLibTestCase {
 		        'validate' => function ($v) {
 		        	return is_string($v);
 		        },
-		    ),
-		);
+	),
+	// Phase 4: include schema for initial key 'count'
+	'count' => array(
+		'validate' => function ($v) {
+			return is_int($v);
+		},
+	),
+);
 		// Initial options include a different key to exercise initial merge branch
 		$initial = array(
 		    'count' => array('value' => 5),

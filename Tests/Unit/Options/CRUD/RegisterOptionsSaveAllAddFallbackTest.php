@@ -57,6 +57,13 @@ final class RegisterOptionsSaveAllAddFallbackTest extends PluginLibTestCase {
 
 		$opts = RegisterOptions::from_config($config, StorageContext::forSite(), true);
 
+		// Phase 4: schema required for staged keys
+		$opts->with_schema(array(
+			'alpha' => array('validate' => function ($v) {
+				return is_string($v);
+			}),
+		));
+
 		// Stage a value so there's something to persist
 		$opts->stage_option('alpha', 'one');
 

@@ -123,6 +123,10 @@ final class RegisterOptionsAdditionalCoverageTest extends PluginLibTestCase {
 	 */
 	public function test_network_scope_set_option_and_autoload_false(): void {
 		$opts = RegisterOptions::network('net_opts');
+		// Phase 4: schema required for set_option key
+		$opts->with_schema(array('k' => array('validate' => function ($v) {
+			return is_string($v);
+		})));
 		// Allow all writes for this test
 		$policy = $this->getMockBuilder(\Ran\PluginLib\Options\Policy\WritePolicyInterface::class)->getMock();
 		$policy->method('allow')->willReturn(true);
@@ -183,11 +187,17 @@ final class RegisterOptionsAdditionalCoverageTest extends PluginLibTestCase {
 		$opts = RegisterOptions::site('norm_opts');
 
 		$schema = array(
-		    'MiXeD-Case Key' => array(
-		        'default' => 'x',
-		    ),
-		    'weird key!!' => array(
-		        'default' => 42,
+			    'MiXeD-Case Key' => array(
+				'default'  => 'x',
+				'validate' => function ($v) {
+					return is_string($v);
+				},
+			    ),
+			    'weird key!!' => array(
+				'default'  => 42,
+				'validate' => function ($v) {
+					return is_int($v);
+				},
 		    ),
 		);
 
@@ -212,10 +222,19 @@ final class RegisterOptionsAdditionalCoverageTest extends PluginLibTestCase {
 		$config = $this->getMockBuilder(\Ran\PluginLib\Config\ConfigInterface::class)->getMock();
 		$config->method('get_options_key')->willReturn('ctor_initial');
 		$config->method('get_logger')->willReturn($this->logger_mock);
-		$sut = RegisterOptions::from_config($config, StorageContext::forSite(), true)->with_defaults($initial);
+		$sut = RegisterOptions::from_config($config, StorageContext::forSite(), true)
+			->with_schema(array(
+				'mixed-case_key' => array('validate' => function ($v) {
+					return is_string($v);
+				}),
+				'arr-key' => array('validate' => function ($v) {
+					return is_array($v);
+				}),
+			))
+			->with_defaults($initial);
 		// Keys are normalized and values set in-memory only
 		$this->assertSame('val1', $sut->get_option('mixed-case_key'));
-		// Without schema, complex array remains as provided
+		// Array remains as provided with array validator
 		$this->assertSame(array('value' => 'val2'), $sut->get_option('arr-key'));
 		// Defaults were applied via fluent method; constructor-specific initialization logs are not expected here.
 	}
@@ -245,7 +264,7 @@ final class RegisterOptionsAdditionalCoverageTest extends PluginLibTestCase {
 		$sut = RegisterOptions::from_config($config, StorageContext::forSite(), true)->with_schema($schema);
 		// Normalized key should be present with sanitized/validated default value
 		$this->assertSame('ABC', $sut->get_option('mixed_key'));
-		$this->expectLog('debug', '_resolve_default_value');
+		$this->expectLog('debug', '_resolve_default_value', 1);
 		// Under Option A, seeding/normalization may trigger the sanitizer twice in this constructor path
 		$this->expectLog('debug', '_sanitize_and_validate_option completed', 2);
 	}
@@ -311,6 +330,10 @@ final class RegisterOptionsAdditionalCoverageTest extends PluginLibTestCase {
 		    ->with(\WP_Mock\Functions::type('bool'), \WP_Mock\Functions::type('array'))
 		    ->reply(true);
 
+		// Phase 4: schema required for staged keys
+		$opts->with_schema(array('mk' => array('validate' => function ($v) {
+			return is_string($v);
+		})));
 		// Stage memory options
 		$opts->stage_options(array('mk' => 'mv'));
 
@@ -349,11 +372,21 @@ final class RegisterOptionsAdditionalCoverageTest extends PluginLibTestCase {
 
 		// Allow write gate for stage_options (base + site-scoped filters)
 		WP_Mock::onFilter('ran/plugin_lib/options/allow_persist')
-		    ->with(\WP_Mock\Functions::type('bool'), \WP_Mock\Functions::type('array'))
-		    ->reply(true);
+			->with(\WP_Mock\Functions::type('bool'), \WP_Mock\Functions::type('array'))
+			->reply(true);
 		WP_Mock::onFilter('ran/plugin_lib/options/allow_persist/scope/site')
-		    ->with(\WP_Mock\Functions::type('bool'), \WP_Mock\Functions::type('array'))
-		    ->reply(true);
+			->with(\WP_Mock\Functions::type('bool'), \WP_Mock\Functions::type('array'))
+			->reply(true);
+
+		// Phase 4: schema required for stage_options keys
+		$opts->with_schema(array(
+			'a' => array('validate' => function ($v) {
+				return is_int($v);
+			}),
+			'b' => array('validate' => function ($v) {
+				return is_int($v);
+			}),
+		));
 
 		// Stage: same value for 'a' (no-op), new key 'b' => 2 (should stage)
 		$opts->stage_options(array('a' => 1, 'b' => 2));

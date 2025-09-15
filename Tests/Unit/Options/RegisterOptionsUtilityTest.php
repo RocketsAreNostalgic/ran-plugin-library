@@ -59,6 +59,16 @@ final class RegisterOptionsUtilityTest extends PluginLibTestCase {
 	public function test_with_defaults_sets_default_values(): void {
 		$opts = RegisterOptions::site('test_options');
 
+		// Phase 4: require schema for all mutated keys
+		$opts->with_schema(array(
+			'default_key1' => array('validate' => function ($v) {
+				return is_string($v);
+			}),
+			'default_key2' => array('validate' => function ($v) {
+				return is_string($v);
+			}),
+		));
+
 		$defaults = array(
 			'default_key1' => 'default_value1',
 			'default_key2' => 'default_value2'
@@ -124,6 +134,13 @@ final class RegisterOptionsUtilityTest extends PluginLibTestCase {
 	public function test_fluent_interface_method_chaining(): void {
 		$opts = RegisterOptions::site('test_options');
 
+		// Phase 4: schema required for defaults
+		$opts->with_schema(array(
+			'chained_key' => array('validate' => function ($v) {
+				return is_string($v);
+			}),
+		));
+
 		// Create mock objects
 		$mockPolicy = $this->getMockBuilder(\Ran\PluginLib\Options\Policy\WritePolicyInterface::class)
 			->getMock();
@@ -148,6 +165,16 @@ final class RegisterOptionsUtilityTest extends PluginLibTestCase {
 	 */
 	public function test_migrate_with_array_result(): void {
 		$opts = RegisterOptions::site('test_options');
+
+		// Phase 4: schema required for mutated keys during migration
+		$opts->with_schema(array(
+			'new_key' => array('validate' => function ($v) {
+				return is_string($v);
+			}),
+			'old_key' => array('validate' => function ($v) {
+				return is_string($v);
+			}),
+		));
 
 		// Allow all writes for this test
 		$policy = $this->getMockBuilder(\Ran\PluginLib\Options\Policy\WritePolicyInterface::class)->getMock();
@@ -193,6 +220,13 @@ final class RegisterOptionsUtilityTest extends PluginLibTestCase {
 	 */
 	public function test_migrate_with_scalar_result(): void {
 		$opts = RegisterOptions::site('test_options');
+
+		// Phase 4: schema required for mutated keys during migration
+		$opts->with_schema(array(
+			'value' => array('validate' => function ($v) {
+				return is_string($v);
+			}),
+		));
 
 		// Allow all writes for this test
 		$policy = $this->getMockBuilder(\Ran\PluginLib\Options\Policy\WritePolicyInterface::class)->getMock();
@@ -273,6 +307,13 @@ final class RegisterOptionsUtilityTest extends PluginLibTestCase {
 	public function test_migrate_no_op_when_no_changes(): void {
 		$opts = RegisterOptions::site('test_options');
 
+		// Phase 4: schema required for mutated keys during migration
+		$opts->with_schema(array(
+			'value' => array('validate' => function ($v) {
+				return is_string($v);
+			}),
+		));
+
 		// Allow all writes for this test
 		$policy = $this->getMockBuilder(\Ran\PluginLib\Options\Policy\WritePolicyInterface::class)->getMock();
 		$policy->method('allow')->willReturn(true);
@@ -283,6 +324,13 @@ final class RegisterOptionsUtilityTest extends PluginLibTestCase {
 
 		$mockStorage = $this->createMock(\Ran\PluginLib\Options\Storage\OptionStorageInterface::class);
 		$opts        = RegisterOptions::site('test_options');
+
+		// Phase 4: schema required for mutated keys during migration (reinstantiated opts)
+		$opts->with_schema(array(
+			'value' => array('validate' => function ($v) {
+				return is_string($v);
+			}),
+		));
 
 		// Allow all writes for this (second) instance as well
 		$policy = $this->getMockBuilder(\Ran\PluginLib\Options\Policy\WritePolicyInterface::class)->getMock();
@@ -325,6 +373,13 @@ final class RegisterOptionsUtilityTest extends PluginLibTestCase {
 	 */
 	public function test_commit_merge_combines_db_and_memory(): void {
 		$opts = RegisterOptions::site('test_options', true, $this->logger_mock);
+
+		// Phase 4: schema required for staged memory keys
+		$opts->with_schema(array(
+			'memory_key' => array('validate' => function ($v) {
+				return is_string($v);
+			}),
+		));
 
 		// Allow all writes for this test
 		$policy = $this->getMockBuilder(\Ran\PluginLib\Options\Policy\WritePolicyInterface::class)->getMock();
@@ -406,6 +461,13 @@ final class RegisterOptionsUtilityTest extends PluginLibTestCase {
 	 */
 	public function test_set_option_with_string_scope_override(): void {
 		$opts = RegisterOptions::site('test_options', true, $this->logger_mock);
+
+		// Phase 4: schema required for set_option keys
+		$opts->with_schema(array(
+			'test_key' => array('validate' => function ($v) {
+				return is_string($v);
+			}),
+		));
 
 		// Allow all writes for this test
 		$policy = $this->getMockBuilder(\Ran\PluginLib\Options\Policy\WritePolicyInterface::class)->getMock();

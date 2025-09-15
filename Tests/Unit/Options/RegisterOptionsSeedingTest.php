@@ -181,6 +181,16 @@ final class RegisterOptionsSeedingTest extends PluginLibTestCase {
 		
 		$opts = TestableRegisterOptionsSeeding::site('test_options');
 
+		// Phase 4: schema required for all keys to be seeded/normalized
+		$opts->with_schema(array(
+			'test_key1' => array('validate' => function ($v) {
+				return is_string($v);
+			}),
+			'test_key2' => array('validate' => function ($v) {
+				return is_string($v);
+			}),
+		));
+
 		// Mock storage to return null (simulates option doesn't exist)
 		$mockStorage = $this->createMock(\Ran\PluginLib\Options\Storage\OptionStorageInterface::class);
 		$mockStorage->method('read')->willReturn(null); // Option doesn't exist
@@ -220,6 +230,16 @@ final class RegisterOptionsSeedingTest extends PluginLibTestCase {
 	 */
 	public function test_normalize_defaults_direct_unit_test(): void {
 		$opts = TestableRegisterOptionsSeeding::site('test_options');
+
+		// Phase 4: schema required for normalized defaults keys
+		$opts->with_schema(array(
+			'test_key1' => array('validate' => function ($v) {
+				return is_string($v);
+			}),
+			'test_key2' => array('validate' => function ($v) {
+				return is_string($v);
+			}),
+		));
 
 		// Test data for direct unit test
 		$defaults = array(

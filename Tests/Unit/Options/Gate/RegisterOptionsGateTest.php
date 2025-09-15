@@ -53,6 +53,13 @@ final class RegisterOptionsGateTest extends PluginLibTestCase {
 		$mockOpts->method('_do_apply_filter')
 			->willReturn(false); // Veto the write
 
+		// Provide minimal schema to satisfy Phase 4
+		$this->_set_protected_property_value($mockOpts, 'schema', array(
+			'test_key' => array('validate' => function ($v) {
+				return is_string($v);
+			}),
+		));
+	
 		// Attempt to set option - should be vetoed before mutation
 		$result = $mockOpts->set_option('test_key', 'test_value');
 
@@ -82,6 +89,13 @@ final class RegisterOptionsGateTest extends PluginLibTestCase {
 		$mockOpts->method('_do_apply_filter')
 			->willReturnOnConsecutiveCalls(true, false); // Allow first, veto second
 
+		// Provide minimal schema to satisfy Phase 4
+		$this->_set_protected_property_value($mockOpts, 'schema', array(
+			'test_key' => array('validate' => function ($v) {
+				return is_string($v);
+			}),
+		));
+	
 		// Attempt to set option - should be vetoed after mutation
 		$result = $mockOpts->set_option('test_key', 'test_value');
 
@@ -97,6 +111,11 @@ final class RegisterOptionsGateTest extends PluginLibTestCase {
 	 */
 	public function test_set_option_write_gate_veto_after_mutation_with_policy(): void {
 		$opts = RegisterOptions::site('test_options');
+
+		// Phase 4: schema required for set_option key
+		$opts->with_schema(array('test_key' => array('validate' => function ($v) {
+			return is_string($v);
+		})));
 
 		// Create a mock write policy that vetoes after mutation
 		$mockPolicy = $this->getMockBuilder(WritePolicyInterface::class)
@@ -122,6 +141,11 @@ final class RegisterOptionsGateTest extends PluginLibTestCase {
 	 */
 	public function test_set_option_vetoed_by_persist_gate(): void {
 		$opts = RegisterOptions::site('test_options');
+
+		// Phase 4: schema required for set_option key
+		$opts->with_schema(array('test_key' => array('validate' => function ($v) {
+			return is_string($v);
+		})));
 
 		// Mock write guards to allow initial mutation but veto persistence (general + site)
 		$gateCounter = 0;

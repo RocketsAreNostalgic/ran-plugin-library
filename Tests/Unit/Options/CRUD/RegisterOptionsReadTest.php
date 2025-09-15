@@ -103,6 +103,10 @@ final class RegisterOptionsReadTest extends PluginLibTestCase {
 	public function test_has_option_with_existing_key(): void {
 		$opts = RegisterOptions::site('test_options');
 
+		// Phase 4: schema required for stage_option keys
+		$opts->with_schema(array('existing_key' => array('validate' => function ($v) {
+			return is_string($v);
+		})));
 		// Add an option using stage_option (which doesn't require write gate mocking)
 		$opts->stage_option('existing_key', 'value');
 
