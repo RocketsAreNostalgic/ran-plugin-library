@@ -15,7 +15,7 @@ use Ran\PluginLib\Options\Storage\StorageContext;
 /**
  * @covers \Ran\PluginLib\Options\RegisterOptions::__construct
  * @covers \Ran\PluginLib\Options\RegisterOptions::refresh_options
- * @covers \Ran\PluginLib\Options\RegisterOptions::flush
+ * @covers \Ran\PluginLib\Options\RegisterOptions::commit_replace
  * @covers \Ran\PluginLib\Options\RegisterOptions::set_option
  * @covers \Ran\PluginLib\Options\RegisterOptions::register_schema
  * @uses \Ran\PluginLib\Config\ConfigInterface
@@ -95,8 +95,8 @@ final class RegisterOptionsInternalsCoverageTest extends PluginLibTestCase {
 			),
 		);
 
-		// Seed defaults (in-memory). This exercises _normalize_schema_keys, _resolve_default_value, _sanitize_and_validate_option
-		$changed = $opts->register_schema($schema, seed_defaults: true, flush: false);
+		// Register schema (Option A seeds defaults and normalizes in-memory by default)
+		$changed = $opts->register_schema($schema);
 		$this->assertTrue($changed);
 		$this->assertSame(5, $opts->get_option('num'));
 		$this->assertSame('Hello', $opts->get_option('label'));
@@ -105,7 +105,8 @@ final class RegisterOptionsInternalsCoverageTest extends PluginLibTestCase {
 		$this->expectLog('debug', "Getting option 'label'");
 		$this->expectLog('debug', '_normalize_schema_keys completed');
 		$this->expectLog('debug', '_resolve_default_value resolved callable');
-		$this->expectLog('debug', '_sanitize_and_validate_option completed', 2);
+		// Under Option A, seeding and normalization can trigger sanitization multiple times
+		$this->expectLog('debug', '_sanitize_and_validate_option completed', 4);
 	}
 
 	/**
@@ -130,7 +131,7 @@ final class RegisterOptionsInternalsCoverageTest extends PluginLibTestCase {
 				},
 			),
 		);
-		$opts->register_schema($schema, seed_defaults: false, flush: false);
+		$opts->register_schema($schema);
 
 		$this->expectException(\InvalidArgumentException::class);
 		$this->expectExceptionMessageMatches('/Validation failed/');
@@ -141,12 +142,12 @@ final class RegisterOptionsInternalsCoverageTest extends PluginLibTestCase {
 	}
 
 	/**
-	 * @covers \Ran\PluginLib\Options\RegisterOptions::flush
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::commit_replace
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::_save_all_options
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::_apply_write_gate
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::_get_storage
 	 */
-	public function test_flush_triggers_storage_update_and_save_all_options(): void {
+	public function test_commit_replace_triggers_storage_update_and_save_all_options(): void {
 		$config = $this->getMockBuilder(ConfigInterface::class)->getMock();
 		$config->method('get_options_key')->willReturn('test_options');
 		$config->method('get_logger')->willReturn($this->logger_mock);
@@ -170,7 +171,7 @@ final class RegisterOptionsInternalsCoverageTest extends PluginLibTestCase {
 		// update_option used by Site storage adapter paths
 		WP_Mock::userFunction('update_option')->andReturn(true);
 
-		$this->assertTrue($opts->flush(false));
+		$this->assertTrue($opts->commit_replace());
 		// Assert logs after SUT ran
 		// Expect two write-gate sequences (add_option, save_all)
 		$this->expectLog('debug', '_apply_write_gate policy decision', 2);
@@ -256,84 +257,6 @@ final class RegisterOptionsInternalsCoverageTest extends PluginLibTestCase {
 	}
 
 	/**
-	 * @covers \Ran\PluginLib\Options\RegisterOptions::__construct
-	 * @covers \Ran\PluginLib\Options\RegisterOptions::set_option
-	 * @covers \Ran\PluginLib\Options\RegisterOptions::_describe_callable
-	 */
-	public function test_describe_callable_string(): void {
-		$config = $this->getMockBuilder(ConfigInterface::class)->getMock();
-		$config->method('get_options_key')->willReturn('test_options');
-		$config->method('get_logger')->willReturn($this->logger_mock);
-		$opts   = RegisterOptions::from_config($config, StorageContext::forSite(), true);
-		$schema = array(
-			's' => array(
-				'validate' => 'is_numeric',
-			),
-		);
-		$opts->register_schema($schema, seed_defaults: false, flush: false);
-		$this->expectException(\InvalidArgumentException::class);
-		$this->expectExceptionMessageMatches('/using validator is_numeric/');
-		$opts->set_option('s', 'not-a-number');
-		$this->expectLog('debug', '_describe_callable completed (string)');
-	}
-
-	/**
-	 * @covers \Ran\PluginLib\Options\RegisterOptions::__construct
-	 * @covers \Ran\PluginLib\Options\RegisterOptions::set_option
-	 * @covers \Ran\PluginLib\Options\RegisterOptions::_describe_callable
-	 */
-	public function test_describe_callable_array(): void {
-		$config = $this->getMockBuilder(ConfigInterface::class)->getMock();
-		$config->method('get_options_key')->willReturn('test_options');
-		$config->method('get_logger')->willReturn($this->logger_mock);
-		$opts   = RegisterOptions::from_config($config, StorageContext::forSite(), true);
-		$schema = array(
-			'a' => array(
-				'validate' => array($this, 'helperReturnsFalse'),
-			),
-		);
-		$opts->register_schema($schema, seed_defaults: false, flush: false);
-		$this->expectException(\InvalidArgumentException::class);
-		$this->expectExceptionMessageMatches('/::helperReturnsFalse/');
-		$opts->set_option('a', 'anything');
-		$this->expectLog('debug', '_describe_callable completed (array)');
-	}
-
-	/**
-	 * @covers \Ran\PluginLib\Options\RegisterOptions::__construct
-	 * @covers \Ran\PluginLib\Options\RegisterOptions::set_option
-	 * @covers \Ran\PluginLib\Options\RegisterOptions::_describe_callable
-	 */
-	public function test_describe_callable_invokable_object(): void {
-		$config = $this->getMockBuilder(ConfigInterface::class)->getMock();
-		$config->method('get_options_key')->willReturn('test_options');
-		$config->method('get_logger')->willReturn($this->logger_mock);
-		$opts      = RegisterOptions::from_config($config, StorageContext::forSite(), true);
-		$invokable = new class {
-			public function __invoke($v) {
-				return false;
-			}
-		};
-		$schema = array(
-			'i' => array(
-				'validate' => $invokable,
-			),
-		);
-		$opts->register_schema($schema, seed_defaults: false, flush: false);
-		$this->expectException(\InvalidArgumentException::class);
-		$this->expectExceptionMessageMatches('/using validator/');
-		$opts->set_option('i', 'anything');
-		$this->expectLog('debug', '_describe_callable completed (other)');
-	}
-
-	// helper for array callable test above
-	public function helperReturnsFalse($v) {
-		return false;
-	}
-
-
-
-	/**
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::set_option
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::_sanitize_and_validate_option
 	 */
@@ -359,4 +282,145 @@ final class RegisterOptionsInternalsCoverageTest extends PluginLibTestCase {
 		$this->assertSame('val', $opts->get_option('unknown_key'));
 		$this->expectLog('debug', '_sanitize_and_validate_option no-schema');
 	}
+
+	/**
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::_describe_callable
+	 * Ensures string callables (e.g., 'is_int') are described verbatim and logged as (string).
+	 */
+	public function test_describe_callable_string_validator_formats_name(): void {
+		$config = $this->getMockBuilder(ConfigInterface::class)->getMock();
+		$config->method('get_options_key')->willReturn('opts_call_string');
+		$config->method('get_logger')->willReturn($this->logger_mock);
+		$opts = RegisterOptions::from_config($config, StorageContext::forSite(), true);
+
+		$opts->register_schema(array(
+			'age' => array(
+				'validate' => 'is_int',
+			),
+		));
+
+		$this->expectException(\InvalidArgumentException::class);
+		$this->expectExceptionMessageMatches('/using validator is_int\./');
+		try {
+			$opts->set_option('age', '10');
+		} finally {
+			$this->expectLog('debug', '_describe_callable completed (string)');
+		}
+	}
+
+	/**
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::_describe_callable
+	 * Ensures array callables are rendered as Class::method and logged as (array).
+	 */
+	public function test_describe_callable_array_validator_formats_class_and_method(): void {
+		$validator = new class {
+			public static function validateFalse($v): bool {
+				return false;
+			}
+		};
+
+		$config = $this->getMockBuilder(ConfigInterface::class)->getMock();
+		$config->method('get_options_key')->willReturn('opts_call_array');
+		$config->method('get_logger')->willReturn($this->logger_mock);
+		$opts = RegisterOptions::from_config($config, StorageContext::forSite(), true);
+
+		$opts->register_schema(array(
+			'age' => array(
+				'validate' => array($validator, 'validateFalse'),
+			),
+		));
+
+		$fqcn = get_class($validator);
+		$this->expectException(\InvalidArgumentException::class);
+		$this->expectExceptionMessageMatches('/using validator ' . preg_quote($fqcn, '/') . '::validateFalse\./');
+		try {
+			$opts->set_option('age', 10);
+		} finally {
+			$this->expectLog('debug', '_describe_callable completed (array)');
+		}
+	}
+
+	/**
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::_describe_callable
+	 * Ensures closures are reported as "Closure" and logged as (closure).
+	 */
+	public function test_describe_callable_closure_reports_closure(): void {
+		$config = $this->getMockBuilder(ConfigInterface::class)->getMock();
+		$config->method('get_options_key')->willReturn('opts_call_closure');
+		$config->method('get_logger')->willReturn($this->logger_mock);
+		$opts = RegisterOptions::from_config($config, StorageContext::forSite(), true);
+
+		$opts->register_schema(array(
+			'flag' => array(
+				'validate' => function ($v) {
+					return false;
+				},
+			),
+		));
+
+		$this->expectException(\InvalidArgumentException::class);
+		$this->expectExceptionMessageMatches('/using validator Closure\./');
+		try {
+			$opts->set_option('flag', 1);
+		} finally {
+			$this->expectLog('debug', '_describe_callable completed (closure)');
+		}
+	}
+
+	/**
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::_describe_callable
+	 * Ensures invokable objects are reported generically as "callable" and logged as (other).
+	 */
+	public function test_describe_callable_invokable_object_reports_callable(): void {
+		$config = $this->getMockBuilder(ConfigInterface::class)->getMock();
+		$config->method('get_options_key')->willReturn('opts_call_other');
+		$config->method('get_logger')->willReturn($this->logger_mock);
+		$opts = RegisterOptions::from_config($config, StorageContext::forSite(), true);
+
+		$validator = new class {
+			public function __invoke($v): bool {
+				return false;
+			}
+		};
+
+		$opts->register_schema(array(
+			'age' => array(
+				'validate' => $validator,
+			),
+		));
+
+		$this->expectException(\InvalidArgumentException::class);
+		$this->expectExceptionMessageMatches('/using validator callable\./');
+		try {
+			$opts->set_option('age', 10);
+		} finally {
+			$this->expectLog('debug', '_describe_callable completed (other)');
+		}
+	}
+
+    /**
+     * @covers \Ran\PluginLib\Options\RegisterOptions::_sanitize_and_validate_option
+     * Ensures the inferred validation path executes the stringify+throw block
+     * (RegisterOptions.php lines ~1239–1242) when a value mismatches the inferred type.
+     */
+    public function test_inferred_validation_branch_hits_stringify_and_throws(): void {
+        $config = $this->getMockBuilder(ConfigInterface::class)->getMock();
+        $config->method('get_options_key')->willReturn('opts_inferred_str');
+        $config->method('get_logger')->willReturn($this->logger_mock);
+        $opts = RegisterOptions::from_config($config, StorageContext::forSite(), true);
+
+        // Schema with default only; inferred type will be 'int'.
+        $opts->register_schema(array(
+            'count' => array('default' => 1),
+        ));
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessageMatches("/inferred type 'int'/");
+        try {
+            // Non-int value should fail inferred validator and trigger stringify before throw
+            $opts->set_option('count', 'not-an-int');
+        } finally {
+            $this->expectLog('debug', '_stringify_value_for_error completed');
+        }
+    }
 }

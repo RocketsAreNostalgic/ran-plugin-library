@@ -191,7 +191,7 @@ final class RegisterOptionsAdditionalCoverageTest extends PluginLibTestCase {
 		    ),
 		);
 
-		$changed = $opts->register_schema($schema, seed_defaults: true, flush: false);
+		$changed = $opts->register_schema($schema);
 		$this->assertTrue($changed);
 
 		// Normalized: 'mixed-case_key' and 'weird_key'
@@ -242,11 +242,12 @@ final class RegisterOptionsAdditionalCoverageTest extends PluginLibTestCase {
 		$config = $this->getMockBuilder(\Ran\PluginLib\Config\ConfigInterface::class)->getMock();
 		$config->method('get_options_key')->willReturn('ctor_schema');
 		$config->method('get_logger')->willReturn($this->logger_mock);
-		$sut = RegisterOptions::from_config($config, StorageContext::forSite(), true)->with_schema($schema, true, false);
+		$sut = RegisterOptions::from_config($config, StorageContext::forSite(), true)->with_schema($schema);
 		// Normalized key should be present with sanitized/validated default value
 		$this->assertSame('ABC', $sut->get_option('mixed_key'));
 		$this->expectLog('debug', '_resolve_default_value');
-		$this->expectLog('debug', '_sanitize_and_validate_option completed');
+		// Under Option A, seeding/normalization may trigger the sanitizer twice in this constructor path
+		$this->expectLog('debug', '_sanitize_and_validate_option completed', 2);
 	}
 
 	/**
@@ -263,7 +264,7 @@ final class RegisterOptionsAdditionalCoverageTest extends PluginLibTestCase {
 		    'num' => array(
 		        'validate' => 'is_numeric',
 		    ),
-		), seed_defaults: false, flush: false);
+		));
 
 		// Should not throw
 		$this->assertTrue($opts->set_option('num', '123'));
@@ -293,7 +294,7 @@ final class RegisterOptionsAdditionalCoverageTest extends PluginLibTestCase {
 	/**
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::__construct
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::network
-	 * @covers \Ran\PluginLib\Options\RegisterOptions::flush
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::commit_merge
 	 */
 	public function test_network_scope_flush_merge_from_db(): void {
 		$opts = RegisterOptions::network('net_merge');
@@ -323,8 +324,42 @@ final class RegisterOptionsAdditionalCoverageTest extends PluginLibTestCase {
 		// Simulate network option update path
 		WP_Mock::userFunction('update_site_option')->andReturn(true);
 
-		$this->assertTrue($opts->flush(true));
+		$this->assertTrue($opts->commit_merge());
 		$this->assertSame('mv', $opts->get_option('mk'));
 		$this->assertSame('dbv', $opts->get_option('dbk'));
+	}
+
+	/**
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::stage_options
+	 */
+	public function test_stage_options_skips_noop_and_stages_changes(): void {
+		$opts = RegisterOptions::site('stage_noop');
+
+		// Pre-populate in-memory with an existing key
+		$this->_set_protected_property_value($opts, 'options', array('a' => 1));
+
+		// Ensure immutable policy permits stage_options for this test
+		$policy = $this->getMockBuilder(\Ran\PluginLib\Options\Policy\WritePolicyInterface::class)->getMock();
+		$policy->method('allow')->willReturn(true);
+		$opts->with_policy($policy);
+
+		// No persistence should occur (stage_options is in-memory only)
+		WP_Mock::userFunction('add_option')->never();
+		WP_Mock::userFunction('update_option')->never();
+
+		// Allow write gate for stage_options (base + site-scoped filters)
+		WP_Mock::onFilter('ran/plugin_lib/options/allow_persist')
+		    ->with(\WP_Mock\Functions::type('bool'), \WP_Mock\Functions::type('array'))
+		    ->reply(true);
+		WP_Mock::onFilter('ran/plugin_lib/options/allow_persist/scope/site')
+		    ->with(\WP_Mock\Functions::type('bool'), \WP_Mock\Functions::type('array'))
+		    ->reply(true);
+
+		// Stage: same value for 'a' (no-op), new key 'b' => 2 (should stage)
+		$opts->stage_options(array('a' => 1, 'b' => 2));
+
+		// Assert: 'a' unchanged; 'b' added
+		$this->assertSame(1, $opts->get_option('a'));
+		$this->assertSame(2, $opts->get_option('b'));
 	}
 }

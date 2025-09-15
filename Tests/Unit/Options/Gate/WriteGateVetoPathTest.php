@@ -93,13 +93,13 @@ final class WriteGateVetoPathTest extends PluginLibTestCase {
 	}
 
 	/**
-	 * @covers \Ran\PluginLib\Options\RegisterOptions::flush
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::commit_replace
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::_save_all_options
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::_apply_write_gate
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::_get_storage
 	 * @uses \Ran\PluginLib\Config\ConfigInterface
 	 */
-	public function test_flush_failure_returns_false(): void {
+	public function test_commit_replace_failure_returns_false(): void {
 		$config = $this->getMockBuilder(ConfigInterface::class)->getMock();
 		$config->method('get_options_key')->willReturn('test_options');
 		$config->method('get_logger')->willReturn($this->logger_mock);
@@ -110,7 +110,7 @@ final class WriteGateVetoPathTest extends PluginLibTestCase {
 		// Logger provided via Config; no need to attach post-construction
 		$this->veto_all_persist_filters_for_site();
 
-		$result = $opts->flush();
+		$result = $opts->commit_replace();
 		$this->assertFalse($result);
 	}
 
@@ -429,7 +429,7 @@ final class WriteGateVetoPathTest extends PluginLibTestCase {
 		$storage->method('scope')->willReturn(OptionScope::Site);
 		$storage->method('read')->willReturn(array());
 		$this->_set_protected_property_value($opts, 'storage', $storage);
-		$opts->flush();
+		$opts->commit_replace();
 		// Expect the final decision debug log (allowed=false); notice assertion is covered in a deterministic unit
 		$this->expectLog('debug', 'RegisterOptions: _apply_write_gate final decision', 1);
 	}
@@ -489,7 +489,7 @@ final class WriteGatePersistPathsTest extends PluginLibTestCase {
 		    ->willReturn(true);
 		$this->_set_protected_property_value($opts, 'storage', $storage);
 
-		$this->assertTrue($opts->flush(false));
+		$this->assertTrue($opts->commit_replace());
 		$this->expectLog('debug', 'RegisterOptions: storage->add() selected', 1);
 	}
 
@@ -522,6 +522,6 @@ final class WriteGatePersistPathsTest extends PluginLibTestCase {
 		    ->willReturn(true);
 		$this->_set_protected_property_value($opts, 'storage', $storage);
 
-		$this->assertTrue($opts->flush(false));
+		$this->assertTrue($opts->commit_replace());
 	}
 }

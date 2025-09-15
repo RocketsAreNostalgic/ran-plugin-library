@@ -278,6 +278,53 @@ $merged  = array_replace_recursive(is_array($current) ? $current : [], $patch);
 $opts->set_option('complex_map', $merged);
 ```
 
+### Memory vs Persistence
+
+- `set_option()` / `update_option()` — Immediate persistence path
+
+  - Values are sanitized and validated against the current schema before any write.
+  - A strict no‑op guard uses `===` to avoid redundant writes (arrays must match exactly; order matters unless normalized by `sanitize`).
+  - Writes are allowed only if the immutable write policy and filters permit it:
+    - General filter: `ran/plugin_lib/options/allow_persist`
+    - Scoped filter: `ran/plugin_lib/options/allow_persist/scope/{site|network|blog|user}`
+  - On success, the grouped option row for the current scope is updated in the DB immediately. Autoload is unaffected after creation (WordPress behavior).
+  - Return value indicates whether a write occurred (true = persisted, false = blocked or no‑op).
+
+- `stage_option()` / `stage_options()` — In‑memory batching path
+  - Values are sanitized and validated, then stored in memory only (no DB write yet).
+  - Use this to batch multiple changes and persist once with one of the commit methods:
+    - `commit_merge()` — shallow, top‑level merge with the current DB snapshot (keeps DB keys not present in memory; in‑memory keys overwrite collisions with in-memory values).
+    - `commit_replace()` — full replace of the grouped row with the in‑memory payload (no merge).
+  - Typical flow:
+
+```php
+$opts
+  ->stage_option('flag', true)
+  ->stage_option('timeout', 45)
+  ->commit_merge(); // single DB write
+```
+
+Use a schema to prevent unnecessary DB writes, and to seed defaults. You should use `commit_merge()` when you are only making additive changes to independent keys without touching nested structures.
+
+### Shallow vs Deep merge cheat sheet
+
+- Top‑level shallow merge (`commit_merge()`)
+
+  - Reads the current DB row, performs a top‑level array merge, and writes back.
+  - Good for additive changes to independent keys without touching nested structures.
+  - Example result (DB: `{a:1, nested:{x:1}}`, Memory: `{b:2}`) → Saved: `{a:1, nested:{x:1}, b:2}`.
+
+- Deep merge (read–modify–write + `commit_replace()`)
+  - When nested structures must be merged, first compute the merged structure in PHP, then stage and `commit_replace()`.
+  - Example:
+
+```php
+$current = $opts->get_option('complex_map', []);
+$patch   = ['level1' => ['added' => 'x']];
+$merged  = array_replace_recursive(is_array($current) ? $current : [], $patch);
+$opts->stage_option('complex_map', $merged)->commit_replace();
+```
+
 ### No implicit writes (cheat sheet)
 
 - set_option/update_option

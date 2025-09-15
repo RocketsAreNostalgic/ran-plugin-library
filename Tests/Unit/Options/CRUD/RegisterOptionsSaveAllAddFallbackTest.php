@@ -46,7 +46,7 @@ final class RegisterOptionsSaveAllAddFallbackTest extends PluginLibTestCase {
 	}
 
 	/**
-	 * @covers \Ran\PluginLib\Options\RegisterOptions::flush
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::commit_replace
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::_save_all_options
 	 */
 	public function test_save_all_options_falls_back_to_update_when_add_returns_false(): void {
@@ -82,7 +82,7 @@ final class RegisterOptionsSaveAllAddFallbackTest extends PluginLibTestCase {
 		$this->_set_protected_property_value($opts, 'storage', $storage);
 
 		// Execute
-		$this->assertTrue($opts->flush(false));
+		$this->assertTrue($opts->commit_replace());
 
 		// Assert logs after SUT ran
 		$this->expectLog('debug', 'RegisterOptions: storage->add() selected');

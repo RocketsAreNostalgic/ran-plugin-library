@@ -23,7 +23,7 @@ final class Validate {
 	    'array'   => array(self::class, 'isArray'),
 	    'object'  => array(self::class, 'isObject'),
 	    'null'    => array(self::class, 'isNull'),
-	    'mixed'   => array(self::class, 'alwaysTrue'),
+		'callable' => array(self::class, 'isCallable'),
 	);
 
 	public static function validatorForType(string $type): ?callable {
@@ -53,9 +53,10 @@ final class Validate {
 			case 'array':   return 'array';
 			case 'object':  return 'object';
 			case 'NULL':    return 'null';
-			default:        return null;
+			default:
+				throw new \InvalidArgumentException("Unknown type, please set your own validation callable. Type: $t");
+			}
 		}
-	}
 
 	// --- Basic validators ---
 	public static function isBool(mixed $v): bool {
@@ -81,5 +82,32 @@ final class Validate {
 	}
 	public static function alwaysTrue(mixed $v): bool {
 		return true;
+	}
+	public static function isAnyNotNull(mixed $v): bool {
+		return $v !== null;
+	}
+	public static function isAnyNotScalar(mixed $v): bool {
+		return !\is_scalar($v);
+	}
+	public static function isCallable(mixed $v): bool {
+		return \is_callable($v);
+	}
+	public static function isScalar(mixed $v): bool {
+		return \is_scalar($v);
+	}
+	public static function isNumeric(mixed $v): bool {
+		return \is_numeric($v);
+	}
+	public static function isFinite(mixed $v): bool {
+		return \is_finite($v);
+	}
+	public static function isCountable(mixed $v): bool {
+		return \is_countable($v);
+	}
+	public static function isNullable(mixed $v): bool {
+		return $v === null || \is_scalar($v);
+	}
+	public static function isAnyNotCallabe(mixed $v): bool {
+		return !\is_callable($v);
 	}
 }

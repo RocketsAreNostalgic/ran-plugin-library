@@ -368,7 +368,7 @@ final class ConfigOptionsEdgeCasesTest extends PluginLibTestCase {
 
 		$opts = $cfg->options();
 		// Apply schema using fluent API; ensure no writes occur via options() itself
-		$opts->with_schema($schema, true, false);
+		$opts->with_schema($schema);
 
 		$this->assertInstanceOf(\Ran\PluginLib\Options\RegisterOptions::class, $opts);
 	}

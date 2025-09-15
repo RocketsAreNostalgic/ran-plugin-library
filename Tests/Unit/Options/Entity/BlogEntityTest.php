@@ -3,10 +3,10 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\Tests\Unit\Options\Entity;
 
-use Ran\PluginLib\Options\Entity\BlogEntity;
 use Ran\PluginLib\Options\OptionScope;
-use Ran\PluginLib\Options\Storage\StorageContext;
+use Ran\PluginLib\Options\Entity\BlogEntity;
 use Ran\PluginLib\Tests\Unit\PluginLibTestCase;
+use Ran\PluginLib\Options\Storage\StorageContext;
 
 final class BlogEntityTest extends PluginLibTestCase {
 	public function test_getScope_returns_blog(): void {

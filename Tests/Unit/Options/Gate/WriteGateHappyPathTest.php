@@ -87,12 +87,12 @@ final class WriteGateHappyPathTest extends PluginLibTestCase {
 
 	/**
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::stage_option
-	 * @covers \Ran\PluginLib\Options\RegisterOptions::flush
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::commit_merge
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::_apply_write_gate
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::_save_all_options
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::_get_storage
 	 */
-	public function test_stage_options_and_flush_merge_from_db_allowed(): void {
+	public function test_stage_options_and_commit_merge_allowed(): void {
 		$opts = RegisterOptions::site('test_options', true, $this->logger_mock);
 		$this->allow_all_persist_filters_for_site();
 
@@ -110,7 +110,7 @@ final class WriteGateHappyPathTest extends PluginLibTestCase {
 		// Ensure the low-level update succeeds
 		WP_Mock::userFunction('update_option')->andReturn(true);
 
-		$result = $opts->flush(true); // merge_from_db = true
+		$result = $opts->commit_merge();
 		$this->assertTrue($result);
 		$this->assertSame(10, $opts->get_option('x'));
 		$this->assertSame(20, $opts->get_option('y'));

@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace Ran\PluginLib\Tests\Unit\Options\Scope;
 
 use PHPUnit\Framework\TestCase;
-use Ran\PluginLib\Options\Scope\ScopeResolver;
 use Ran\PluginLib\Options\OptionScope;
 use Ran\PluginLib\Options\Entity\BlogEntity;
 use Ran\PluginLib\Options\Entity\UserEntity;
+use Ran\PluginLib\Options\Scope\ScopeResolver;
 use Ran\PluginLib\Options\Storage\StorageContext;
 
 /**

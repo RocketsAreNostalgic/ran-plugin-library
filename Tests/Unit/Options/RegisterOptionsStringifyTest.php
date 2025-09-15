@@ -54,7 +54,7 @@ final class RegisterOptionsStringifyTest extends PluginLibTestCase {
 				},
 			),
 		);
-		$opts->register_schema($schema, seed_defaults: false, flush: false);
+		$opts->register_schema($schema);
 		$this->expectException(\InvalidArgumentException::class);
 		$this->expectExceptionMessageMatches('/Array\(3\)/');
 		$opts->set_option('arr', array(1, 2, 3));
@@ -78,7 +78,7 @@ final class RegisterOptionsStringifyTest extends PluginLibTestCase {
 				},
 			),
 		);
-		$opts->register_schema($schema, seed_defaults: false, flush: false);
+		$opts->register_schema($schema);
 		$long = str_repeat('A', 500);
 		$this->expectException(\InvalidArgumentException::class);
 		$this->expectExceptionMessageMatches('/\.\.\./');

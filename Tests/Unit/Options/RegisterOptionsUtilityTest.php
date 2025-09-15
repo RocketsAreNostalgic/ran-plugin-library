@@ -321,9 +321,9 @@ final class RegisterOptionsUtilityTest extends PluginLibTestCase {
 
 	/**
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::migrate
-	 * @covers \Ran\PluginLib\Options\RegisterOptions::flush
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::commit_merge
 	 */
-	public function test_flush_with_merge_from_db(): void {
+	public function test_commit_merge_combines_db_and_memory(): void {
 		$opts = RegisterOptions::site('test_options', true, $this->logger_mock);
 
 		// Allow all writes for this test
@@ -355,13 +355,10 @@ final class RegisterOptionsUtilityTest extends PluginLibTestCase {
 		// Mock get_option for merge from DB
 		WP_Mock::userFunction('get_option')->andReturn(array('db_key' => 'db_value'));
 
-		// Mock update_option to prevent undefined function error
-		WP_Mock::userFunction('update_option')->andReturn(true);
+		// Commit with merge should combine memory and DB data
+		$result = $opts->commit_merge(); // shallow, top-level merge
 
-	// Flush with merge should combine memory and DB data
-		$result = $opts->flush(true); // merge_from_db = true
-
-		$this->assertTrue($result); // Flush should succeed with proper mocks
+		$this->assertTrue($result);
 		$this->assertTrue($opts->has_option('memory_key'));
 		$this->assertTrue($opts->has_option('db_key'));
 	}

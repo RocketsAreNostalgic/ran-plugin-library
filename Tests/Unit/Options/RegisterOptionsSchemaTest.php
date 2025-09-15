@@ -116,14 +116,15 @@ final class RegisterOptionsSchemaTest extends PluginLibTestCase {
 		    )
 		);
 
-		$result = $opts->register_schema($updateSchema, true); // Enable seeding to trigger lines 529-534
+		$result = $opts->register_schema($updateSchema);
 
 		// Should return a boolean (true if changes made, false if no changes)
 		$this->assertIsBool($result);
 
-		// Verify the schema merging worked by checking that the updated default was seeded
-		// Since we enabled seeding, the updated default should be in the options
-		$this->assertEquals('updated_default', $opts->get_option('existing_key')); // Should use updated default
+		// Verify the schema merging worked by checking that the updated default was not seeded
+		// Under Option A, defaults are seeded only when missing; existing in-memory value
+		// from the initial schema remains unchanged by a later schema change.
+		$this->assertEquals('initial_default', $opts->get_option('existing_key'));
 	}
 
 	/**
@@ -177,14 +178,12 @@ final class RegisterOptionsSchemaTest extends PluginLibTestCase {
 		// Mock storage to return success
 		WP_Mock::userFunction('update_option')->andReturn(true);
 
-		// Call register_schema with both seed_defaults=true and flush=true
-		// This should trigger the condition at line 577: if ($flush && $changed)
-		$result = $opts->register_schema($schema, true, true); // seed_defaults=true, flush=true
-
-		// Should return the result of _save_all_options() (true on success)
-		$this->assertTrue($result);
-
-		// Verify the option was seeded and flushed
+		// Option A: register_schema seeds/normalizes in-memory, no implicit flush
+		$result = $opts->register_schema($schema);
+		$this->assertTrue($result); // changed in memory
+		// Persist explicitly
+		$this->assertTrue($opts->commit_replace());
+		// Verify the option was persisted
 		$this->assertEquals('flush_value', $opts->get_option('flush_key'));
 	}
 
@@ -209,13 +208,59 @@ final class RegisterOptionsSchemaTest extends PluginLibTestCase {
 		    )
 		);
 
-		// Register schema with seeding enabled - this should trigger the catch block at lines 554-564
-		$result = $opts->register_schema($schema, true); // seed_defaults = true
+		// Option A: register schema (seeding occurs by default); validator throws during seeding
+		$result = $opts->register_schema($schema);
 
 		// Should return false due to exception during seeding
 		$this->assertFalse($result);
 
 		// Verify that the option was not set due to the exception
 		$this->assertFalse($opts->has_option('exception_key'));
+	}
+
+	/**
+	 * Ensure register_schema normalizes existing in-memory values and flags changes.
+	 *
+	 * Targets the branch where sanitized value differs from current in-memory value,
+	 * updating the in-memory option and setting $changed = true (lines 419–420).
+	 *
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::register_schema
+	 */
+	public function test_register_schema_normalizes_existing_values_and_sets_changed_true(): void {
+		$opts = RegisterOptions::site('test_options');
+
+		// Pre-populate in-memory options with values that will be normalized by schema.
+		$this->_set_protected_property_value($opts, 'options', array(
+			'normalize_me' => '  Hello  ', // will become 'Hello'
+			'num'          => '5',         // will become 5 (int)
+		));
+
+		$schema = array(
+			'normalize_me' => array(
+				'default'  => null,
+				'sanitize' => function ($v) {
+					return trim((string) $v);
+				},
+				'validate' => function ($v) {
+					return is_string($v);
+				},
+			),
+			'num' => array(
+				'default'  => null,
+				'sanitize' => function ($v) {
+					return (int) $v;
+				},
+				'validate' => function ($v) {
+					return is_int($v);
+				},
+			),
+		);
+
+		$changed = $opts->register_schema($schema);
+
+		// Expect changes due to normalization.
+		$this->assertTrue($changed);
+		$this->assertSame('Hello', $opts->get_option('normalize_me'));
+		$this->assertSame(5, $opts->get_option('num'));
 	}
 }

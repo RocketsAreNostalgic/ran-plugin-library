@@ -6,11 +6,11 @@ namespace Ran\PluginLib\Tests\Unit\Options;
 
 use WP_Mock;
 use Ran\PluginLib\Options\OptionScope;
+use Ran\PluginLib\Util\ExpectLogTrait;
 use Ran\PluginLib\Config\ConfigInterface;
 use Ran\PluginLib\Options\RegisterOptions;
-use Ran\PluginLib\Options\Storage\StorageContext;
 use Ran\PluginLib\Tests\Unit\PluginLibTestCase;
-use Ran\PluginLib\Util\ExpectLogTrait;
+use Ran\PluginLib\Options\Storage\StorageContext;
 
 /**
  * Test-only subclass that guarantees _get_storage() returns our injected mock.
@@ -70,7 +70,7 @@ final class RegisterOptionsSaveAllStorageOverrideTest extends PluginLibTestCase 
 
 		$opts->with_forced_storage($storage);
 
-		$this->assertTrue($opts->flush(true));
+		$this->assertTrue($opts->commit_merge());
 		$this->expectLog('debug', 'RegisterOptions: _save_all_options merge_from_db snapshot not array; normalizing to empty array', 1);
 	}
 
@@ -107,7 +107,7 @@ final class RegisterOptionsSaveAllStorageOverrideTest extends PluginLibTestCase 
 
 		$opts->with_forced_storage($storage);
 
-		$this->assertTrue($opts->flush(false));
+		$this->assertTrue($opts->commit_replace());
 		$this->expectLog('debug', 'RegisterOptions: storage->add() selected', 1);
 	}
 }

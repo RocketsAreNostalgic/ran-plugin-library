@@ -62,7 +62,7 @@ final class ConfigOptionsNoWritesTest extends PluginLibTestCase {
 			'flag' => array('default' => false, 'validate' => fn($v) => is_bool($v)),
 		);
 		$opts = $cfg->options();
-		$opts->with_schema($schema, false, false);
+		$opts->with_schema($schema);
 		$this->assertSame(false, $opts->get_option('flag'));
 	}
 
@@ -101,10 +101,10 @@ final class ConfigOptionsNoWritesTest extends PluginLibTestCase {
 			'timeout' => array('default' => 5, 'validate' => fn($v) => is_int($v) && $v > 0),
 		);
 		$opts = $cfg->options();
-		$opts->with_schema($schema, false, false);
-		// 'initial' ignored by TestableConfig::options(); schema registered without seeding -> default not applied
+		$opts->with_schema($schema);
+		// 'initial' ignored by TestableConfig::options(); schema registered (defaults are now seeded in-memory by default)
 		$this->assertFalse($opts->get_option('foo'));
-		$this->assertFalse($opts->get_option('timeout'));
+		$this->assertSame(5, $opts->get_option('timeout'));
 	}
 
 	/**
@@ -135,8 +135,10 @@ final class ConfigOptionsNoWritesTest extends PluginLibTestCase {
 		$opts = $cfg->options();
 		$this->assertTrue($opts->register_schema(array(
 			'flag' => array('default' => true, 'validate' => fn($v) => is_bool($v)),
-		), seed_defaults: true, flush: true));
+		)));
 		$this->assertTrue($opts->get_option('flag'));
+		// Persist explicitly (no implicit flush on register_schema under Option A)
+		$this->assertTrue($opts->commit_replace());
 	}
 
 	/**
@@ -166,7 +168,7 @@ final class ConfigOptionsNoWritesTest extends PluginLibTestCase {
 
 		$opts = $cfg->options();
 		$opts->stage_options(array('a' => 1, 'b' => 'x'));
-		$this->assertTrue($opts->flush());
+		$this->assertTrue($opts->commit_replace());
 	}
 
 

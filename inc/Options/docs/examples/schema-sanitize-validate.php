@@ -43,7 +43,7 @@ $schema = array(
         'validate' => fn($v) => is_string($v) && preg_match('/^sk_(test_|live_)[a-zA-Z0-9]{24,}$/', $v),
     ),
 
-    // Email validation - for notifications, admin contacts
+    // Email validation - for notifications, admin contacts (hypothetical methods)
     'notification_email' => array(
         'default'  => get_option('admin_email', ''),
         'sanitize' => fn($v) => sanitize_email($v),

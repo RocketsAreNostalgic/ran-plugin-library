@@ -38,8 +38,8 @@ final class TestableRegisterOptions extends RegisterOptions {
 		// passing logger via DI so constructor-time logs are captured when provided.
 		$instance = new static($main, $autoload, null, $logger);
 		if (!empty($schema)) {
-			// Register schema and seed defaults (no flush for this constructor-branches coverage)
-			$instance->with_schema($schema, true, false);
+			// Register schema and seed defaults
+			$instance->with_schema($schema);
 		}
 		if (!empty($initial)) {
 			// Apply initial defaults via fluent path
