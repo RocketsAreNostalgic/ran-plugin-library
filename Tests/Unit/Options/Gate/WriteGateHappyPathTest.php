@@ -70,6 +70,11 @@ final class WriteGateHappyPathTest extends PluginLibTestCase {
 		$opts = RegisterOptions::site('test_options', true, $this->logger_mock);
 		$this->allow_all_persist_filters_for_site();
 
+		// Phase 4: schema required for set_option keys
+		$opts->with_schema(array('foo' => array('validate' => function ($v) {
+			return is_string($v);
+		})));
+
 		// update_option returns true by default from setUp
 		$result = $opts->set_option('foo', 'bar');
 
@@ -95,6 +100,16 @@ final class WriteGateHappyPathTest extends PluginLibTestCase {
 	public function test_stage_options_and_commit_merge_allowed(): void {
 		$opts = RegisterOptions::site('test_options', true, $this->logger_mock);
 		$this->allow_all_persist_filters_for_site();
+
+		// Phase 4: schema required for staged keys
+		$opts->with_schema(array(
+			'x' => array('validate' => function ($v) {
+				return is_int($v);
+			}),
+			'y' => array('validate' => function ($v) {
+				return is_int($v);
+			}),
+		));
 
 		// Stage two new options in memory
 		$opts->stage_options(array('x' => 10, 'y' => 20));
@@ -135,6 +150,11 @@ final class WriteGateHappyPathTest extends PluginLibTestCase {
 	public function test_delete_option_persists_when_allowed(): void {
 		$opts = RegisterOptions::site('test_options', true, $this->logger_mock);
 		$this->allow_all_persist_filters_for_site();
+
+		// Phase 4: schema required for set/delete keys
+		$opts->with_schema(array('to_del' => array('validate' => function ($v) {
+			return is_int($v);
+		})));
 
 		// Seed an option (allowed path)
 		$opts->set_option('to_del', 123);
