@@ -36,6 +36,17 @@ use \Ran\PluginLib\Config\ConfigInterface;
  * one main option key. Grouping improves organization and reduces the number of discrete rows,
  * while the actual storage location is selected by the current scope and adapter.
  *
+ * Collision safety for the same key across scopes:
+ * - Using the same main option key in different helpers (e.g., `site($key)`, `network($key)`,
+ *   `blog($key)`, `user($key, ...)`) does NOT collide. Each scope maps to a distinct storage backend:
+ *   - Site scope → `wp_options` (per site) via `get_option()/update_option()`
+ *   - Network scope → `wp_sitemeta` (network-wide) via `get_site_option()/update_site_option()`
+ *   - Blog scope → `wp_{blog_id}_options` (isolated per blog) via `get_blog_option()/update_option()`
+ *   - User scope → user-specific storage (typically user meta via `get_user_meta()/update_user_meta()`,
+ *     or user option variants depending on adapter configuration)
+ *   Therefore, the same option name is stored in separate locations per scope and cannot overwrite
+ *   or collide with another scope's value.
+ *
  * Important semantics and recommendations:
  * - Schema merges are shallow: register_schema() performs a per-key shallow merge of rules, and default
  *   seeding replaces the entire value when seeding a missing key. For nested structures that require
@@ -105,7 +116,7 @@ class RegisterOptions {
 	private ?OptionStorageInterface $storage = null;
 
 	/**
-	 * Typed storage context (preferred over stringly $storage_args).
+	 * Typed storage context.
 	 * When null, defaults to Site on first storage access.
 	 */
 	private ?StorageContext $storage_context = null;
@@ -366,13 +377,14 @@ class RegisterOptions {
 
 		$normalized = $this->_normalize_schema_keys($schema);
 
-		// Shallow merge rules into existing schema map
+		// Shallow merge rules into existing schema map (prepare locally)
+		$mergedSchema = $this->schema;
 		foreach ($normalized as $key => $rules) {
-			if (!isset($this->schema[$key])) {
-				$this->schema[$key] = $rules;
+			if (!isset($mergedSchema[$key])) {
+				$mergedSchema[$key] = $rules;
 			} else {
-				$existing           = $this->schema[$key];
-				$this->schema[$key] = array(
+				$existing           = $mergedSchema[$key];
+				$mergedSchema[$key] = array(
 					'default'  => array_key_exists('default', $rules)  ? $rules['default']  : ($existing['default'] ?? null),
 					'sanitize' => array_key_exists('sanitize', $rules) ? $rules['sanitize'] : ($existing['sanitize'] ?? null),
 					'validate' => array_key_exists('validate', $rules) ? $rules['validate'] : ($existing['validate'] ?? null),
@@ -380,11 +392,25 @@ class RegisterOptions {
 			}
 		}
 
-		$changed = false;
+		// Registration-time checks: enforce callable validate; sanitize (when present) must be callable; optionally self-check defaults
+		foreach ($mergedSchema as $k => $r) {
+			if (!array_key_exists('validate', $r) || !\is_callable($r['validate'])) {
+				throw new \InvalidArgumentException("RegisterOptions: Schema for key '{$k}' requires a 'validate' callable.");
+			}
+			if (array_key_exists('sanitize', $r) && $r['sanitize'] !== null && !\is_callable($r['sanitize'])) {
+				throw new \InvalidArgumentException("RegisterOptions: Schema for key '{$k}' has non-callable 'sanitize'.");
+			}
+		}
 
-		// Seed defaults for missing keys (in-memory only)
-		$toSeed = array();
+		$changed    = false;
+		$newOptions = $this->options;
+		$oldSchema  = $this->schema;
+
+		// Temporarily apply merged schema for sanitize/validate, restore on failure
+		$this->schema = $mergedSchema;
 		try {
+			// Seed defaults for missing keys (prepare locally; exceptions propagate)
+			$toSeed = array();
 			foreach ($normalized as $key => $rules) {
 				$has_value = isset($this->options[$key]);
 				if (!$has_value && array_key_exists('default', $rules)) {
@@ -393,37 +419,36 @@ class RegisterOptions {
 					$toSeed[$key] = $resolved;
 				}
 			}
-		} catch (\Throwable $e) {
-			$this->_get_logger()->error(
-				'RegisterOptions: register_schema seeding failed; aborting seeding.',
-				array(
-					'main_option' => $this->main_wp_option_name,
-					'error'       => $e->getMessage(),
-				)
-			);
-			$toSeed = array();
-		}
 
-		if (!empty($toSeed)) {
-			foreach ($toSeed as $k => $entry) {
-				$this->options[$k] = $entry;
+			if (!empty($toSeed)) {
+				foreach ($toSeed as $k => $entry) {
+					$newOptions[$k] = $entry;
+				}
+				$changed = true;
 			}
-			$changed = true;
-		}
 
-		// Normalize existing in-memory values for keys covered by schema
-		foreach ($this->options as $k => $v) {
-			if (isset($normalized[$k])) {
-				$normalizedValue = $this->_sanitize_and_validate_option($k, $v);
-				if ($normalizedValue !== $v) {
-					$this->options[$k] = $normalizedValue;
-					$changed           = true;
+			// Normalize values for keys covered by schema (operate on local copy)
+			foreach ($newOptions as $k => $v) {
+				if (isset($normalized[$k])) {
+					$normalizedValue = $this->_sanitize_and_validate_option($k, $v);
+					if ($normalizedValue !== $v) {
+						$newOptions[$k] = $normalizedValue;
+						$changed        = true;
+					}
 				}
 			}
-		}
 
-		// No implicit persistence here
-		return $changed;
+			// Atomic assignment after successful preparation
+			$this->schema  = $mergedSchema;
+			$this->options = $newOptions;
+
+			// No implicit persistence here
+			return $changed;
+		} catch (\Throwable $e) {
+			// Restore prior schema to avoid partial mutations and rethrow
+			$this->schema = $oldSchema;
+			throw $e;
+		}
 	}
 
 	/**
@@ -1203,10 +1228,7 @@ class RegisterOptions {
 	 */
 	protected function _sanitize_and_validate_option(string $normalized_key, mixed $value): mixed {
 		if (!isset($this->schema[$normalized_key])) {
-			if ($this->_get_logger()->is_active()) {
-				$this->_get_logger()->debug('RegisterOptions: _sanitize_and_validate_option no-schema', array('key' => $normalized_key));
-			}
-			return $value;
+			throw new \InvalidArgumentException(static::class . ": No schema defined for option '{$normalized_key}'.");
 		}
 
 		$rules = $this->schema[$normalized_key];
@@ -1223,26 +1245,6 @@ class RegisterOptions {
 				throw new \InvalidArgumentException(
 					static::class . ": Validation failed for option '{$normalized_key}' with value {$valStr} using validator {$validatorStr}."
 				);
-			}
-		} else {
-			// Inferred validation: derive a simple type validator from the default (when present)
-			if (\is_array($rules) && array_key_exists('default', $rules)) {
-				$default = $rules['default'];
-				// Resolve callable defaults to infer type more accurately
-				$resolvedDefault = \is_callable($default) ? $this->_resolve_default_value($default) : $default;
-				$inferredType    = Validate::inferSimpleTypeFromDefault($resolvedDefault);
-				if (is_string($inferredType)) {
-					$validator = Validate::validatorForType($inferredType);
-					if (\is_callable($validator)) {
-						$valid = $validator($value);
-						if ($valid !== true) {
-							$valStr = $this->_stringify_value_for_error($value);
-							throw new \InvalidArgumentException(
-								static::class . ": Validation failed for option '{$normalized_key}' with value {$valStr} (inferred type '{$inferredType}')."
-							);
-						}
-					}
-				}
 			}
 		}
 
