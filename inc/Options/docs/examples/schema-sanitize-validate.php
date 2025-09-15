@@ -29,6 +29,8 @@
 declare(strict_types=1);
 
 use Ran\PluginLib\Config\Config;
+use Ran\PluginLib\Options\Sanitize;
+use Ran\PluginLib\Options\Validate;
 use Ran\PluginLib\Options\RegisterOptions;
 use Ran\PluginLib\Options\Storage\StorageContext;
 
@@ -50,18 +52,18 @@ $schema = array(
         'validate' => fn($v) => is_email($v),
     ),
 
-    // URL validation - for webhooks, API endpoints
+    // URL validation - for webhooks, API endpoints (using Validate::format())
     'webhook_url' => array(
         'default'  => '',
-        'sanitize' => fn($v) => esc_url_raw($v),
-        'validate' => fn($v) => filter_var($v, FILTER_VALIDATE_URL) !== false,
+        'sanitize' => Sanitize::combine()->when(static fn($v) => is_string($v), Sanitize::string()->trim()),
+        'validate' => Validate::format()->url(),
     ),
 
-    // Numeric range validation - for timeouts, limits
+    // Numeric range validation - for timeouts, limits (optional sanitizer for null pass-through)
     'api_timeout' => array(
         'default'  => 30,
-        'sanitize' => fn($v) => (int) $v,
-        'validate' => fn($v) => is_int($v) && $v >= 5 && $v <= 300, // 5-300 seconds
+        'sanitize' => Sanitize::combine()->optional(Sanitize::number()->toInt()),
+        'validate' => Validate::number()->between(5, 300), // 5-300 seconds
     ),
 
     // Percentage validation - for quality settings, rates
@@ -71,19 +73,41 @@ $schema = array(
         'validate' => fn($v) => is_int($v) && $v >= 1 && $v <= 100,
     ),
 
-    // Array validation - for feature lists, selected options
+    // Array validation - for feature lists, selected options (ensure list + unique)
     'enabled_features' => array(
         'default'  => array('basic'),
-        'sanitize' => fn($v) => is_array($v) ? array_map('sanitize_key', $v) : array('basic'),
-        'validate' => fn($v) => is_array($v) && !empty($v) && array_intersect($v, array('basic', 'advanced', 'premium')) === $v,
+        'sanitize' => Sanitize::combine()->pipe(
+        	Sanitize::array()->ensureList(),
+        	Sanitize::array()->uniqueList()
+        ),
+        'validate' => Validate::collection()->listOf(static fn($v) => in_array($v, array('basic', 'advanced', 'premium'), true)),
     ),
 
-    // File path validation - for upload directories, log files
+    // JSON payload validations (decode to object/array, then validate)
+    'json_object' => array(
+        'default'  => '{}',
+        'sanitize' => Sanitize::json()->decodeObject(),
+        'validate' => Validate::basic()->isArray(),
+    ),
+    'json_array' => array(
+        'default'  => '[]',
+        'sanitize' => Sanitize::json()->decodeArray(),
+        'validate' => Validate::basic()->isArray(),
+    ),
+
+    // File path validation - for upload directories, log files (pragmatic origin example too)
     'upload_directory' => array(
         'default'  => wp_upload_dir()['basedir'] . '/my-plugin',
         'sanitize' => fn($v) => sanitize_text_field($v),
         'validate' => fn($v) => is_string($v) && strpos($v, '..')     === false && // Prevent path traversal
                                strpos($v, wp_upload_dir()['basedir']) === 0, // Must be in uploads
+    ),
+
+    // Origin validator example (scheme://host[:port] only)
+    'allowed_origin' => array(
+        'default'  => 'https://example.com',
+        'sanitize' => Sanitize::combine()->when(static fn($v) => is_string($v), Sanitize::string()->trim()),
+        'validate' => Validate::format()->origin(),
     ),
 );
 

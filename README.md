@@ -388,6 +388,13 @@ Notes:
   - inc/Config/docs/PRD-002-Config-Options-Integration.md
   - inc/Config/docs/PRD-003-Options-Scope-and-Multisite.md
 
+#### Performance notes
+
+- Schema rules (`sanitize`/`validate`) can run multiple times by design:
+  - During `register_schema()` for default seeding and normalization
+  - Again on subsequent `set_option()` / `stage_options()` calls
+- Use pure, idempotent sanitizers and strict-boolean validators to keep passes cheap and deterministic. See `inc/Options/docs/TFS-006-Schema-Validation-and-Sanitization.md` for guidance.
+
 #### Config::options() semantics (no-write accessor)
 
 - Recognized args (all optional):
