@@ -371,7 +371,8 @@ final class RegisterOptionsInternalsCoverageTest extends PluginLibTestCase {
 		));
 
 		$this->expectException(\InvalidArgumentException::class);
-		$this->expectExceptionMessageMatches('/using validator Closure\./');
+		// Accept enhanced closure description: Closure or Closure(file:line)
+		$this->expectExceptionMessageMatches('/using validator Closure(\([^\)]*\))?\./');
 		try {
 			$opts->set_option('flag', 1);
 		} finally {
@@ -402,11 +403,12 @@ final class RegisterOptionsInternalsCoverageTest extends PluginLibTestCase {
 		));
 
 		$this->expectException(\InvalidArgumentException::class);
-		$this->expectExceptionMessageMatches('/using validator callable\./');
+		// Enhanced invokable description now prints Class::__invoke
+		$this->expectExceptionMessageMatches('/using validator .*::__invoke\./');
 		try {
 			$opts->set_option('age', 10);
 		} finally {
-			$this->expectLog('debug', '_describe_callable completed (other)');
+			$this->expectLog('debug', '_describe_callable completed (invokable object)');
 		}
 	}
 

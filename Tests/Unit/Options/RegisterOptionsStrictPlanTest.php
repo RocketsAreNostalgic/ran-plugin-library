@@ -20,14 +20,14 @@ final class RegisterOptionsStrictPlanTest extends PluginLibTestCase {
 			protected function _read_main_option(): array {
 				return array();
 			}
-            // Always allow writes in tests so validation paths run and avoid external gates
-            protected function _apply_write_gate(string $op, \Ran\PluginLib\Options\WriteContext $wc): bool {
-                return true;
-            }
-            // Pretend persistence succeeded to keep test focused on validation behavior
-            protected function _save_all_options(bool $merge = true): bool {
-                return true;
-            }
+			// Always allow writes in tests so validation paths run and avoid external gates
+			protected function _apply_write_gate(string $op, \Ran\PluginLib\Options\WriteContext $wc): bool {
+				return true;
+			}
+			// Pretend persistence succeeded to keep test focused on validation behavior
+			protected function _save_all_options(bool $merge = true): bool {
+				return true;
+			}
 		};
 	}
 

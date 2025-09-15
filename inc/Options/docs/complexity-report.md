@@ -87,7 +87,7 @@ Solution: New methods: `commit_merge()` performs a top-level shallow merge with 
   - Present `RegisterOptions::from_config($config, StorageContext $context = null, bool $autoload = true)` as the explicit factory alternative.
   - Keep `site()`, `network()`, `blog()`, `user()` as convenience alternatives, but de-emphasize in examples.
 
-- **Add a "Memory vs Persistence" table**:
+- **Add a "Memory vs Persistence" table**: done
 
   - `set_option()` / `update_option()` → persists immediately.
   - `stage_option()` / `stage_options()` → in-memory only; call `flush([merge_from_db])`.

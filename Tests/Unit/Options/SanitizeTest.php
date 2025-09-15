@@ -98,7 +98,7 @@ final class SanitizeTest extends PluginLibTestCase {
 
 	/**
 	 * @covers \Ran\PluginLib\Options\Sanitize::combine
-	 * @covers \Ran\PluginLib\Options\SanitizeCombineGroup::pipe
+	 * @covers \Ran\PluginLib\Options\SanitizeComposeGroup::pipe
 	 */
 	public function test_combine_pipe(): void {
 		$pipe = Sanitize::combine()->pipe(
@@ -107,6 +107,38 @@ final class SanitizeTest extends PluginLibTestCase {
 		);
 		$this->assertSame('abc', $pipe('  ABC  '));
 		$this->assertSame(5, $pipe(5));
+	}
+
+	/**
+	 * @covers \Ran\PluginLib\Options\Sanitize::combine
+	 * @covers \Ran\PluginLib\Options\SanitizeComposeGroup::nullable
+	 * @covers \Ran\PluginLib\Options\SanitizeComposeGroup::optional
+	 */
+	public function test_compose_nullable_and_optional(): void {
+		$nullableTrim = Sanitize::combine()->nullable(Sanitize::string()->trim());
+		$this->assertNull($nullableTrim(null));
+		$this->assertSame('x', $nullableTrim(' x '));
+
+		$optionalInt = Sanitize::combine()->optional(Sanitize::number()->toInt());
+		$this->assertNull($optionalInt(null));
+		$this->assertSame(42, $optionalInt('42'));
+		$this->assertSame('nope', $optionalInt('nope'));
+	}
+
+	/**
+	 * @covers \Ran\PluginLib\Options\Sanitize::combine
+	 * @covers \Ran\PluginLib\Options\SanitizeComposeGroup::when
+	 * @covers \Ran\PluginLib\Options\SanitizeComposeGroup::unless
+	 */
+	public function test_compose_when_and_unless(): void {
+		$whenLower = Sanitize::combine()->when(static fn($v) => is_string($v), Sanitize::string()->toLower());
+		$this->assertSame('abc', $whenLower('ABC'));
+		$this->assertSame(10, $whenLower(10));
+
+		$unlessIntCast = Sanitize::combine()->unless(static fn($v) => is_int($v), Sanitize::number()->toInt());
+		$this->assertSame(5, $unlessIntCast(5));
+		$this->assertSame(5, $unlessIntCast('5'));
+		$this->assertSame('x', $unlessIntCast('x'));
 	}
 
 	/**
