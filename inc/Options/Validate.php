@@ -106,6 +106,7 @@ final class Validate {
      * @example Validate::basic()->isString()
      */
 	public static function basic(): ValidateBasicGroup {
+		/** @inheritDoc */
 		return new ValidateBasicGroup();
 	}
 
@@ -119,6 +120,7 @@ final class Validate {
 	 * @example Validate::number()->between(1, 300)
 	 */
 	public static function number(): ValidateNumberGroup {
+		/** @inheritDoc */
 		return new ValidateNumberGroup();
 	}
 
@@ -132,6 +134,7 @@ final class Validate {
 	 * @example Validate::string()->pattern('/^[a-z0-9_]+$/')
 	 */
 	public static function string(): ValidateStringGroup {
+		/** @inheritDoc */
 		return new ValidateStringGroup();
 	}
 
@@ -145,6 +148,7 @@ final class Validate {
 	 * @example Validate::collection()->listOf(Validate::basic()->isString())
 	 */
 	public static function collection(): ValidateCollectionGroup {
+		/** @inheritDoc */
 		return new ValidateCollectionGroup();
 	}
 
@@ -158,6 +162,7 @@ final class Validate {
 	 * @example Validate::enums()->backed(Mode::class)
 	 */
 	public static function enums(): ValidateEnumGroup {
+		/** @inheritDoc */
 		return new ValidateEnumGroup();
 	}
 
@@ -172,6 +177,7 @@ final class Validate {
 	 * @example Validate::compose()->nullable(Validate::basic()->isString())
 	 */
 	public static function compose(): ValidateComposeGroup {
+		/** @inheritDoc */
 		return new ValidateComposeGroup();
 	}
 
@@ -185,6 +191,7 @@ final class Validate {
 	 * @example Validate::format()->email()
 	 */
 	public static function format(): ValidateFormatGroup {
+		/** @inheritDoc */
 		return new ValidateFormatGroup();
 	}
 }
@@ -300,6 +307,24 @@ final class ValidateBasicGroup {
 	 */
 	public function isCallable(): callable {
 		return static fn(mixed $v): bool => \is_callable($v);
+	}
+
+	/**
+	 * Predicate: value is empty.
+	 *
+	 * @return callable(mixed):bool Closure that returns true if $value is empty
+	 */
+	public function isEmpty(): callable {
+		return static fn(mixed $v): bool => $v === '' || $v === null || $v === false;
+	}
+
+	/**
+	 * Predicate: value is not empty.
+	 *
+	 * @return callable(mixed):bool Closure that returns true if $value is not empty
+	 */
+	public function isNotEmpty(): callable {
+		return static fn(mixed $v): bool => !$this->isEmpty($v);
 	}
 }
 
