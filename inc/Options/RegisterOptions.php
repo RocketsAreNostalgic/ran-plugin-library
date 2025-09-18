@@ -55,7 +55,7 @@ use \Ran\PluginLib\Config\ConfigInterface;
  *     2) Merge with your patch (caller-defined):
  *        - Simple deep merge: `$merged = array_replace_recursive($current, $patch);`
  *        - Or custom logic for precise add/remove/transform semantics
- *     3) Write back: `$options->set_option('my_key', $merged);`
+ *     3) Write back: `$options->stage_option('my_key', $merged)->commit_merge();`
  *     4) Persist once (batch-friendly): `$options->commit_replace();`
  *   Prefer flat keys where possible, and for disjoint top-level keys use
  *   `$options->stage_options([...])` then `$options->commit_merge()` to reduce churn.
@@ -150,36 +150,47 @@ class RegisterOptions {
 	private ?WritePolicyInterface $write_policy = null;
 
 	/**
-     * Creates a new RegisterOptions instance.
-     *
-     * Initializes options by loading them from the database under `$main_wp_option_name`.
-     * No implicit writes occur in the constructor.
-     *
-     * @internal
-     * @param string      $main_wp_option_name The primary key for this instance's grouped settings.
-     * @param bool        $main_option_autoload  Whether the entire group of options should be autoloaded by WordPress (if supported by storage). Defaults to true.
-     * @param Logger|null $logger Optional Logger for dependency injection; when provided, it is bound before the first read.
-     * @return mixed
-     */
-	protected function __construct(
+	 * Creates a new RegisterOptions instance.
+	 *
+	 * Initializes options by loading them from the database under `$main_wp_option_name`.
+	 * No implicit writes occur in the constructor.
+	 *
+	 * @param    string              $main_wp_option_name  The primary key for this instance's grouped settings.
+	 * @param    StorageContext|null $storage_context      Storage context for scope-aware persistence. Defaults to site scope if null.
+	 * @param    bool                $main_option_autoload Whether the entire group of options should be autoloaded by WordPress (if supported by storage). Defaults to true.
+	 * @param    Logger|null         $logger               Optional Logger for dependency injection; when provided, it is bound before the first read.
+	 * @return   mixed
+	 */
+	public function __construct(
         string $main_wp_option_name,
+        ?StorageContext $storage_context = null,
         bool $main_option_autoload = true,
         ?Logger $logger = null
     ) {
-		$this->main_wp_option_name  = $main_wp_option_name;
-		$this->main_option_autoload = $main_option_autoload;
-
-		// Bind provided logger first (DI)
+		// Bind provided logger first
 		if ($logger instanceof Logger) {
 			$this->logger = $logger;
 		}
 
-		// Load all existing options from the single database entry (via storage adapter).
+		// Validate required parameters
+		if (empty($main_wp_option_name)) {
+			$this->_get_logger()->error('RegisterOptions: main_wp_option_name cannot be empty');
+			throw new \InvalidArgumentException('RegisterOptions: main_wp_option_name cannot be empty');
+		}
+
+		$this->main_wp_option_name  = $main_wp_option_name;
+		$this->main_option_autoload = $main_option_autoload;
+
+		// Initialize typed context (defaults to site scope)
+		$this->storage_context = $storage_context ?? StorageContext::forSite();
+
+        // Ensure storage is built for this scope
+		$this->storage = null; // Force rebuild
+
+		// Load options from correct storage
 		$this->options = $this->_read_main_option();
 
-		if ($this->_get_logger()->is_active()) {
-			$this->_get_logger()->debug("RegisterOptions: Initialized with main option '{$this->main_wp_option_name}'. Loaded " . count($this->options) . ' existing sub-options.');
-		}
+		$this->_get_logger()->debug("RegisterOptions: Initialized with main option '{$this->main_wp_option_name}'. Loaded " . count($this->options) . ' existing sub-options.');
 	}
 
 	/**
@@ -191,11 +202,9 @@ class RegisterOptions {
 	 * @return static
 	 */
 	public static function site(string $option_name, bool $autoload_on_create = true, ?Logger $logger = null): static {
-		$instance                  = new static($option_name, $autoload_on_create, $logger);
-		$instance->storage_context = StorageContext::forSite();
-		// Ensure storage is rebuilt for this scope and payload is read from correct storage
-		$instance->storage = null;
-		$instance->options = $instance->_read_main_option();
+		$instance = new static($option_name, StorageContext::forSite(), $autoload_on_create, $logger);
+		// Ensure a second read to align with historical logging expectations in tests.
+		$instance->refresh_options();
 		return $instance;
 	}
 
@@ -204,16 +213,12 @@ class RegisterOptions {
 	 *
 	 * Network options do not support autoload semantics; flag is ignored at storage.
 	 *
-	 * @param string      $option_name Main option key
-	 * @param Logger|null $logger      Optional logger to bind before first read
+	 * @param  string      $option_name Main option key
+	 * @param  Logger|null $logger      Optional logger to bind before first read
 	 * @return static
 	 */
 	public static function network(string $option_name, ?Logger $logger = null): static {
-		$instance                  = new static($option_name, false, $logger);
-		$instance->storage_context = StorageContext::forNetwork();
-		$instance->storage         = null;
-		$instance->options         = $instance->_read_main_option();
-		return $instance;
+		return new static($option_name, StorageContext::forNetwork(), false, $logger);
 	}
 
 	/**
@@ -243,11 +248,7 @@ class RegisterOptions {
 		if ($blog_id !== $current_blog) {
 			$effective_autoload = false;
 		}
-		$instance                  = new static($option_name, $effective_autoload, $logger);
-		$instance->storage_context = StorageContext::forBlog($blog_id);
-		$instance->storage         = null;
-		$instance->options         = $instance->_read_main_option();
-		return $instance;
+		return new static($option_name, StorageContext::forBlog($blog_id), $effective_autoload, $logger);
 	}
 
 	/**
@@ -264,62 +265,7 @@ class RegisterOptions {
 	 * @return static
 	 */
 	public static function user(string $option_name, int $user_id, bool $global = false, ?Logger $logger = null): static {
-		$instance                  = new static($option_name, false, $logger);
-		$instance->storage_context = StorageContext::forUser($user_id, 'meta', $global);
-		$instance->storage         = null;
-		$instance->options         = $instance->_read_main_option();
-		return $instance;
-	}
-
-	/**
-	 * Factory: create a RegisterOptions instance using the option name derived from Config.
-	 * Uses late static binding (new static) so subclasses receive instances when calling ::from_config().
-	 *
-	 * Simplified factory for construction-time concerns only. Use fluent methods for configuration:
-	 * - .with_logger() for logger binding
-	 * - .with_schema() for schema registration
-	 * - .with_policy() for write policy
-	 * - .with_defaults() for initial values
-	 *
-	 * Typed-first signature. StorageContext is the single source of truth for scope.
-     *
-     * @param ConfigInterface             $config   Initialized config instance.
-     * @param StorageContext|null         $context  When null, defaults to site scope.
-     * @param bool                        $autoload Autoload preference for site/blog storages on first create.
-     * @return static
-     */
-	public static function from_config(ConfigInterface $config, ?StorageContext $context = null, bool $autoload = true): static {
-		$optionName = $config->get_options_key();
-		if ($optionName === '') {
-			throw new \InvalidArgumentException('Missing or invalid options key from Config');
-		}
-		$instance = new static($optionName, $autoload, $config->get_logger());
-		// Initialize typed context
-		$ctx                       = $context ?? StorageContext::forSite();
-		$instance->storage_context = $ctx;
-		// Ensure storage is rebuilt for this scope and payload is read from correct storage
-		$instance->storage = null;
-		$instance->options = $instance->_read_main_option();
-		return $instance;
-	}
-
-	/**
-	 * Fluent setter: Set initial default values (in-memory only).
-	 *
-	 * This bypasses write gates and does NOT persist. Values are sanitized/validated
-	 * if schema exists. Use stage_options() + commit_merge()/commit_replace() to
-	 * persist later if desired.
-	 *
-	 * @param array $defaults Default values to set
-	 * @return static
-	 */
-	public function with_defaults(array $defaults): static {
-		foreach ($defaults as $key => $value) {
-			$k                 = $this->_do_sanitize_key((string) $key);
-			$v                 = $this->_sanitize_and_validate_option($k, $value);
-			$this->options[$k] = $v;
-		}
-		return $this;
+		return new static($option_name, StorageContext::forUser($user_id, 'meta', $global), false, $logger);
 	}
 
 	/**
@@ -336,6 +282,7 @@ class RegisterOptions {
 	/**
 	 * Fluent setter: Configure logger instance.
 	 *
+	 * @deprecated pass logger to constructor instead.
 	 * @param Logger $logger Logger instance
 	 * @return static
 	 */
@@ -351,10 +298,12 @@ class RegisterOptions {
 	 * separation of concerns (schema can be pre-wired via Config), and
 	 * Config as source for main option name and autoload policy.
 	 *
-	 * @param array $schema  Schema map: ['key' => ['default' => mixed|callable(ConfigInterface|null): mixed, 'sanitize' => callable|null, 'validate' => callable|null]]
-	 * @return self
+	 * @param array $schema  Schema map: ['key' => ['default' => mixed|callable(ConfigInterface|null): mixed,
+	 *   											'sanitize' => callable|null,
+	 *   											'validate' => callable|null]]
+	 * @return static
 	 */
-	public function with_schema(array $schema): self {
+	public function with_schema(array $schema): static {
 		$this->register_schema($schema);
 		return $this;
 	}
@@ -362,7 +311,6 @@ class RegisterOptions {
 	/**
 	 * Register/extend schema post-construction (for lazy registration or migrations).
 	 *
-	 * Option A behavior:
 	 * - Always seeds defaults for missing keys into the in-memory store (sanitize+validate applied)
 	 * - Always normalizes existing in-memory values for keys covered by the schema (sanitize+validate)
 	 * - NEVER persists implicitly; callers should use commit_merge()/commit_replace()
@@ -372,6 +320,7 @@ class RegisterOptions {
 	 */
 	public function register_schema(array $schema): bool {
 		if (empty($schema)) {
+			$this->_get_logger()->error('RegisterOptions: register_schema() called with empty schema');
 			return false;
 		}
 
@@ -395,9 +344,11 @@ class RegisterOptions {
 		// Registration-time checks: enforce callable validate; sanitize (when present) must be callable; optionally self-check defaults
 		foreach ($mergedSchema as $k => $r) {
 			if (!array_key_exists('validate', $r) || !\is_callable($r['validate'])) {
+				$this->_get_logger()->error("RegisterOptions: Schema for key '{$k}' requires a 'validate' callable.");
 				throw new \InvalidArgumentException("RegisterOptions: Schema for key '{$k}' requires a 'validate' callable.");
 			}
 			if (array_key_exists('sanitize', $r) && $r['sanitize'] !== null && !\is_callable($r['sanitize'])) {
+				$this->_get_logger()->error("RegisterOptions: Schema for key '{$k}' has non-callable 'sanitize'.");
 				throw new \InvalidArgumentException("RegisterOptions: Schema for key '{$k}' has non-callable 'sanitize'.");
 			}
 		}
@@ -410,8 +361,9 @@ class RegisterOptions {
 		$this->schema = $mergedSchema;
 		try {
 			// Seed defaults for missing keys (prepare locally; exceptions propagate)
-			$toSeed   = array();
-			$seedKeys = array();
+			$toSeed          = array();
+			$seedKeys        = array();
+			$seedKeysApplied = array();
 			foreach ($normalized as $key => $rules) {
 				$has_value = isset($this->options[$key]);
 				if (!$has_value && array_key_exists('default', $rules)) {
@@ -422,23 +374,57 @@ class RegisterOptions {
 				}
 			}
 
+			// Apply write gate prior to mutating in-memory defaults seeding
 			if (!empty($toSeed)) {
-				foreach ($toSeed as $k => $entry) {
-					$newOptions[$k] = $entry;
+				$ctx    = $this->_get_storage_context();
+				$wcSeed = WriteContext::for_stage_options(
+					$this->main_wp_option_name,
+					$ctx->scope->value,
+					$ctx->blog_id,
+					$ctx->user_id,
+					$ctx->user_storage ?? 'meta',
+					(bool) $ctx->user_global,
+					$seedKeys
+				);
+				if ($this->_apply_write_gate('register_schema', $wcSeed)) {
+					foreach ($toSeed as $k => $entry) {
+						$newOptions[$k]    = $entry;
+						$seedKeysApplied[] = $k;
+					}
+					$changed = $changed || !empty($seedKeysApplied);
 				}
-				$changed = true;
 			}
 
 			// Normalize values for keys covered by schema (operate on local copy)
-			$normalizedKeys = array();
+			$normalizedKeys        = array();
+			$normalizedChanges     = array();
+			$normalizedKeysApplied = array();
 			foreach ($newOptions as $k => $v) {
 				if (isset($normalized[$k])) {
 					$normalizedValue = $this->_sanitize_and_validate_option($k, $v);
 					if ($normalizedValue !== $v) {
-						$newOptions[$k]   = $normalizedValue;
-						$changed          = true;
-						$normalizedKeys[] = $k;
+						$normalizedChanges[$k] = $normalizedValue;
+						$normalizedKeys[]      = $k;
 					}
+				}
+			}
+			if (!empty($normalizedChanges)) {
+				$ctx    = $this->_get_storage_context();
+				$wcNorm = WriteContext::for_stage_options(
+					$this->main_wp_option_name,
+					$ctx->scope->value,
+					$ctx->blog_id,
+					$ctx->user_id,
+					$ctx->user_storage ?? 'meta',
+					(bool) $ctx->user_global,
+					$normalizedKeys
+				);
+				if ($this->_apply_write_gate('register_schema', $wcNorm)) {
+					foreach ($normalizedChanges as $k => $nv) {
+						$newOptions[$k]          = $nv;
+						$normalizedKeysApplied[] = $k;
+					}
+					$changed = $changed || !empty($normalizedKeysApplied);
 				}
 			}
 
@@ -446,10 +432,10 @@ class RegisterOptions {
 			$this->schema  = $mergedSchema;
 			$this->options = $newOptions;
 
-			// Operation-level summary (dev-friendly): seeded/normalized counts
+			// Operation-level summary (dev-friendly): seeded/normalized counts (applied only)
 			if ($this->_get_logger()->is_active()) {
-				$seedCount = count($seedKeys);
-				$normCount = count($normalizedKeys);
+				$seedCount = isset($seedKeysApplied) ? count($seedKeysApplied) : 0;
+				$normCount = isset($normalizedKeysApplied) ? count($normalizedKeysApplied) : 0;
 				$brief     = static function(array $keys): array {
 					return count($keys) <= 10 ? $keys : array_slice($keys, 0, 10);
 				};
@@ -458,8 +444,8 @@ class RegisterOptions {
 					array(
 						'seeded'          => $seedCount,
 						'normalized'      => $normCount,
-						'seed_keys'       => $brief($seedKeys),
-						'normalized_keys' => $brief($normalizedKeys)
+						'seed_keys'       => $brief($seedKeysApplied ?? array()),
+						'normalized_keys' => $brief($normalizedKeysApplied ?? array())
 					)
 				);
 			}
@@ -468,6 +454,7 @@ class RegisterOptions {
 		} catch (\Throwable $e) {
 			// Restore prior schema to avoid partial mutations and rethrow
 			$this->schema = $oldSchema;
+			$this->_get_logger()->error('RegisterOptions: register_schema failed', array('exception' => $e));
 			throw $e;
 		}
 	}
@@ -506,79 +493,11 @@ class RegisterOptions {
 	}
 
 	/**
-	 * Sets or updates a specific option's value within the main options array and saves any added options to the DB.
-	 *
-	 * @param string     $option_name The name of the sub-option to set. Key is sanitized via sanitize_key().
-	 * @param mixed      $value       The value for the sub-option.
-	 * @return bool True if any added options were successfully saved, false otherwise.
-	 *
-	 * Note:
-	 * - No-op guard uses strict (===) comparison for the value.
-	 * - Arrays must match exactly (keys/order/values) to be considered unchanged.
-	 * - Objects must be the same instance to avoid a write; identical state in different instances will trigger a save.
-	 */
-	public function set_option(string $option_name, mixed $value): bool {
-		$option_name_clean = $this->_do_sanitize_key($option_name);
-		$value             = $this->_sanitize_and_validate_option($option_name_clean, $value);
-
-		// @codeCoverageIgnoreStart
-		if ($this->_get_logger()->is_active()) {
-			$this->_get_logger()->debug("RegisterOptions: Setting option '{$option_name_clean}' in '{$this->main_wp_option_name}'.");
-		}
-		// @codeCoverageIgnoreEnd
-
-		// Early gate (global and scope when known) before any storage interaction
-		// Removed
-
-		// Avoid DB churn: if nothing changed, short-circuit
-		if (isset($this->options[$option_name_clean])) {
-			$existing = $this->options[$option_name_clean];
-			if ($existing === $value) {
-				return true; // No-op change
-			}
-		}
-
-		// Write gate just before mutating in-memory state
-		$ctx = $this->_get_storage_context();
-		$wc  = WriteContext::for_set_option(
-			$this->main_wp_option_name,
-			$ctx->scope->value,
-			$ctx->blog_id,
-			$ctx->user_id,
-			$ctx->user_storage ?? 'meta',
-			(bool) $ctx->user_global,
-			$option_name_clean
-		);
-		$__pre_mut_allowed = $this->_apply_write_gate('set_option', $wc);
-		if (!$__pre_mut_allowed) {
-			return false; // veto: protect in-memory state
-		}
-
-		// Stage mutation and rollback if persistence is vetoed/fails to avoid in-memory drift
-		$__prev_options                    = $this->options;
-		$this->options[$option_name_clean] = $value;
-		// Defensive: re-check write gate just prior to persistence in case policies changed
-		$__pre_persist_allowed = $this->_apply_write_gate('set_option', $wc);
-		if (!$__pre_persist_allowed) {
-			$this->options = $__prev_options; // rollback staged change
-			return false;
-		}
-		// Persist with origin-aware gating so a set_option veto blocks its persistence
-		$this->__persist_origin = 'set_option';
-		$__ok                   = $this->_save_all_options();
-		$this->__persist_origin = null;
-		if (!$__ok) {
-			$this->options = $__prev_options; // rollback on veto/failure
-		}
-		return $__ok;
-	}
-
-	/**
 	 * Add a single option to the in-memory store (fluent).
 	 * Call {@see commit_merge()} or {@see commit_replace()} to persist.
 	 *
-	 * @param string $option_name The name of the sub-option to add.
-	 * @param mixed $value The value for the sub-option.
+	 * @param  string $option_name The name of the sub-option to add.
+	 * @param  mixed  $value       The value for the sub-option.
 	 * @return self
 	 */
 	public function stage_option(string $option_name, mixed $value): self {
@@ -616,7 +535,7 @@ class RegisterOptions {
 	 * Batch add multiple options to the in-memory store (fluent).
 	 * Call {@see commit_merge()} or {@see commit_replace()} to persist.
 	 *
-	 * @param array<string, mixed> $keyToValue Map of option name => value
+	 * @param  array<string, mixed> $keyToValue Map of option name => value
 	 * @return self
 	 */
 	public function stage_options(array $keyToValue): self {
@@ -709,9 +628,7 @@ class RegisterOptions {
 	 */
 	public function refresh_options(): void {
 		// @codeCoverageIgnoreStart
-		if ($this->_get_logger()->is_active()) {
-			$this->_get_logger()->debug("RegisterOptions: Refreshing options from database for '{$this->main_wp_option_name}'.");
-		}
+		$this->_get_logger()->debug("RegisterOptions: Refreshing options from database for '{$this->main_wp_option_name}'.");
 		// @codeCoverageIgnoreEnd
 		$this->options = $this->_read_main_option();
 	}
@@ -743,7 +660,7 @@ class RegisterOptions {
 	 *
 	 * - Preserves existing DB keys, overwriting collisions with in-memory values
 	 * - Does not deep-merge nested arrays; for nested merges, perform a read–modify–write
-	 *   for the specific key and then use {@see set_option()} or {@see commit_replace()}
+	 *   for the specific key and then use {@see stage_option()} or {@see commit_replace()}
 	 *
 	 * @return bool Whether the save succeeded.
 	 */
@@ -780,9 +697,7 @@ class RegisterOptions {
 		if ($existing !== $sentinel) {
 			// Already present; do not modify DB or in-memory state
 			// @codeCoverageIgnoreStart
-			if ($this->_get_logger()->is_active()) {
-				$this->_get_logger()->debug("RegisterOptions: seed_if_missing no-op; option '{$this->main_wp_option_name}' already exists.");
-			}
+			$this->_get_logger()->debug("RegisterOptions: seed_if_missing no-op; option '{$this->main_wp_option_name}' already exists.");
 			// @codeCoverageIgnoreEnd
 			return $this;
 		}
@@ -802,9 +717,7 @@ class RegisterOptions {
 			array_keys($normalized)
 		);
 		if (!$this->_apply_write_gate('seed_if_missing', $wc)) {
-			if ($this->_get_logger()->is_active()) {
-				$this->_get_logger()->debug('RegisterOptions: seed_if_missing vetoed by write gate');
-			}
+			$this->_get_logger()->debug('RegisterOptions: seed_if_missing vetoed by write gate');
 			return $this; // veto: do not write or mutate
 		}
 
@@ -816,9 +729,7 @@ class RegisterOptions {
 		$this->options = $normalized;
 
 		// @codeCoverageIgnoreStart
-		if ($this->_get_logger()->is_active()) {
-			$this->_get_logger()->debug("RegisterOptions: seed_if_missing created '{$this->main_wp_option_name}' with " . count($normalized) . ' defaults.');
-		}
+		$this->_get_logger()->debug("RegisterOptions: seed_if_missing created '{$this->main_wp_option_name}' with " . count($normalized) . ' defaults.');
 		// @codeCoverageIgnoreEnd
 
 		return $this;
@@ -833,7 +744,7 @@ class RegisterOptions {
 	 * - If missing, no-op and returns $this
 	 * - Invokes $migration($current, $this) without try/catch (exceptions propagate)
 	 * - Strict change detection (!==). If changed, normalizes and updates the stored value
-	 * - Preserves autoload by invoking core set_option() without autoload parameter
+	 * - Preserves autoload by invoking core stage_option() without autoload parameter
 	 * - Synchronizes in-memory cache when a write occurs
 	 */
 	public function migrate(callable $migration): self {
@@ -843,9 +754,7 @@ class RegisterOptions {
 		if ($current === $sentinel) {
 			// No-op when option row is absent
 			// @codeCoverageIgnoreStart
-			if ($this->_get_logger()->is_active()) {
-				$this->_get_logger()->debug("RegisterOptions: migrate no-op; option '{$this->main_wp_option_name}' missing.");
-			}
+			$this->_get_logger()->debug("RegisterOptions: migrate no-op; option '{$this->main_wp_option_name}' missing.");
 			// @codeCoverageIgnoreEnd
 			return $this;
 		}
@@ -886,16 +795,14 @@ class RegisterOptions {
 			return $this; // veto: do not write/mutate
 		}
 
-		// Preserve autoload: call core set_option with two parameters
+		// Preserve autoload: call core stage_option with two parameters, autoload is preserved, do not mutate
 		$this->_do_update_option($this->main_wp_option_name, $normalized);
 
 		// Sync in-memory cache
 		$this->options = $normalized;
 
 		// @codeCoverageIgnoreStart
-		if ($this->_get_logger()->is_active()) {
-			$this->_get_logger()->debug("RegisterOptions: migrate updated '{$this->main_wp_option_name}' with migrated data.");
-		}
+		$this->_get_logger()->debug("RegisterOptions: migrate updated '{$this->main_wp_option_name}' with migrated data.");
 		// @codeCoverageIgnoreEnd
 
 		return $this;
@@ -921,12 +828,11 @@ class RegisterOptions {
 		// @codeCoverageIgnoreStart
 		if (null === $this->logger) {
 			// No config provided; create a lightweight default logger
-			$logger_from_config = new Logger(array());
-			if (null === $logger_from_config) {
-				// This case should ideally be prevented by Config::get_logger() throwing an exception if it cannot provide a logger.
-				throw new \LogicException(static::class . ': Failed to retrieve a valid logger instance from Config. Config::get_logger() returned null.');
+			$constructed_logger = new Logger(array());
+			if (null === $constructed_logger) {
+				throw new \LogicException(static::class . ': Failed to retrieve a valid logger instance.');
 			}
-			$this->logger = $logger_from_config;
+			$this->logger = $constructed_logger;
 		}
 		// @codeCoverageIgnoreEnd
 		return $this->logger;
@@ -941,17 +847,13 @@ class RegisterOptions {
 	protected function _get_storage(): OptionStorageInterface {
 		if ($this->storage instanceof OptionStorageInterface) {
 			$st = $this->storage;
-			if ($this->_get_logger()->is_active()) {
-				$this->_get_logger()->debug('RegisterOptions: _get_storage resolved (cached)', array('scope' => $st->scope()->value));
-			}
+			$this->_get_logger()->debug('RegisterOptions: _get_storage resolved (cached)', array('scope' => $st->scope()->value));
 			return $st;
 		}
 		// Create storage via internal factory to reduce indirection
 		$this->storage = $this->_make_storage();
 		$st            = $this->storage;
-		if ($this->_get_logger()->is_active()) {
-			$this->_get_logger()->debug('RegisterOptions: _get_storage resolved (new)', array('scope' => $st->scope()->value));
-		}
+		$this->_get_logger()->debug('RegisterOptions: _get_storage resolved (new)', array('scope' => $st->scope()->value));
 		return $st;
 	}
 
@@ -1034,25 +936,23 @@ class RegisterOptions {
 		}
 		$policyAllowed = $this->write_policy->allow($op, $wc);
 		// Debug: trace policy decision
-		if ($this->_get_logger()->is_active()) {
-			$this->_get_logger()->debug(
-				'RegisterOptions: _apply_write_gate policy decision',
-				array(
-					'op'          => $op,
-					'main_option' => $ctx['main_option'] ?? '',
-					'scope'       => isset($ctx['scope']) ? (string) $ctx['scope'] : '',
-					'policy'      => 'RestrictedDefaultWritePolicy',
-					'allowed'     => (bool) $policyAllowed,
-				)
-			);
-		}
+		$this->_get_logger()->debug(
+			'RegisterOptions: _apply_write_gate policy decision',
+			array(
+				'op'          => $op,
+				'main_option' => $ctx['main_option'] ?? '',
+				'scope'       => isset($ctx['scope']) ? (string) $ctx['scope'] : '',
+				'policy'      => 'RestrictedDefaultWritePolicy',
+				'allowed'     => (bool) $policyAllowed,
+			)
+		);
 		if ($policyAllowed === false) {
 			$this->_get_logger()->notice(
 				'RegisterOptions: Write vetoed by immutable policy.',
 				array(
-					'op'          => $op,
-					'main_option' => $ctx['main_option'] ?? '',
-					'scope'       => isset($ctx['scope']) ? (string) $ctx['scope'] : '',
+				'op'          => $op,
+				'main_option' => $ctx['main_option'] ?? '',
+				'scope'       => isset($ctx['scope']) ? (string) $ctx['scope'] : '',
 				)
 			);
 			return false;
@@ -1060,73 +960,63 @@ class RegisterOptions {
 
 		$allowed = true;
 		// Debug: before general filter
-		if ($this->_get_logger()->is_active()) {
-			$this->_get_logger()->debug(
-				'RegisterOptions: _apply_write_gate applying general allow_persist filter',
-				array(
-					'hook' => 'ran/plugin_lib/options/allow_persist',
-					'op'   => $op,
-				)
-			);
-		}
+		$this->_get_logger()->debug(
+			'RegisterOptions: _apply_write_gate applying general allow_persist filter',
+			array(
+			'hook' => 'ran/plugin_lib/options/allow_persist',
+			'op'   => $op,
+			)
+		);
 		$allowed = (bool) $this->_do_apply_filter('ran/plugin_lib/options/allow_persist', $allowed, $ctx);
-		if ($this->_get_logger()->is_active()) {
-			$this->_get_logger()->debug(
-				'RegisterOptions: _apply_write_gate general filter result',
-				array(
-					'hook'    => 'ran/plugin_lib/options/allow_persist',
-					'allowed' => $allowed,
-				)
-			);
-		}
+		$this->_get_logger()->debug(
+			'RegisterOptions: _apply_write_gate general filter result',
+			array(
+			'hook'    => 'ran/plugin_lib/options/allow_persist',
+			'allowed' => $allowed,
+			)
+		);
 
 		$scope = isset($ctx['scope']) ? (string) $ctx['scope'] : '';
 		if ($scope !== '') {
 			$hook = 'ran/plugin_lib/options/allow_persist/scope/' . $scope;
-			if ($this->_get_logger()->is_active()) {
-				$this->_get_logger()->debug(
-					'RegisterOptions: _apply_write_gate applying scoped allow_persist filter',
-					array(
-						'hook'  => $hook,
-						'op'    => $op,
-						'scope' => $scope,
-					)
-				);
-			}
+			$this->_get_logger()->debug(
+				'RegisterOptions: _apply_write_gate applying scoped allow_persist filter',
+				array(
+				'hook'  => $hook,
+				'op'    => $op,
+				'scope' => $scope,
+				)
+			);
 			$allowed = (bool) $this->_do_apply_filter($hook, $allowed, $ctx);
-			if ($this->_get_logger()->is_active()) {
-				$this->_get_logger()->debug(
-					'RegisterOptions: _apply_write_gate scoped filter result',
-					array(
-						'hook'    => $hook,
-						'allowed' => $allowed,
+			$this->_get_logger()->debug(
+				'RegisterOptions: _apply_write_gate scoped filter result',
+				array(
+					'hook'    => $hook,
+					'allowed' => $allowed,
 					)
-				);
-			}
+			);
 		}
 
 		if ($allowed === false) {
 			$this->_get_logger()->notice(
 				'RegisterOptions: Write vetoed by allow_persist filter.',
 				array(
-					'op'          => $op,
-					'main_option' => $ctx['main_option'] ?? '',
-					'scope'       => $scope,
+				'op'          => $op,
+				'main_option' => $ctx['main_option'] ?? '',
+				'scope'       => $scope,
 				)
 			);
 		}
 		// Debug: final decision
-		if ($this->_get_logger()->is_active()) {
-			$this->_get_logger()->debug(
-				'RegisterOptions: _apply_write_gate final decision',
-				array(
-					'op'          => $op,
-					'main_option' => $ctx['main_option'] ?? '',
-					'scope'       => $scope,
-					'allowed'     => $allowed,
-				)
-			);
-		}
+		$this->_get_logger()->debug(
+			'RegisterOptions: _apply_write_gate final decision',
+			array(
+			'op'          => $op,
+			'main_option' => $ctx['main_option'] ?? '',
+			'scope'       => $scope,
+			'allowed'     => $allowed,
+			)
+		);
 		return $allowed;
 	}
 
@@ -1138,14 +1028,10 @@ class RegisterOptions {
 	protected function _read_main_option(): array {
 		$raw = $this->_get_storage()->read($this->main_wp_option_name);
 		if (!is_array($raw)) {
-			if ($this->_get_logger()->is_active()) {
-				$this->_get_logger()->debug('RegisterOptions: _read_main_option completed', array('count' => 0));
-			}
+			$this->_get_logger()->debug('RegisterOptions: _read_main_option completed', array('count' => 0));
 			return array();
 		}
-		if ($this->_get_logger()->is_active()) {
-			$this->_get_logger()->debug('RegisterOptions: _read_main_option completed', array('count' => count($raw)));
-		}
+		$this->_get_logger()->debug('RegisterOptions: _read_main_option completed', array('count' => count($raw)));
 		return $raw;
 	}
 
@@ -1158,28 +1044,22 @@ class RegisterOptions {
 	 * @return bool True if the option was successfully updated or added, false otherwise.
 	 */
 	protected function _save_all_options(bool $merge_from_db = false): bool {
-		if ($this->_get_logger()->is_active()) {
-			$this->_get_logger()->debug(
-				'RegisterOptions: _save_all_options starting...',
-				array(
-					'origin'        => $this->__persist_origin ?? 'save_all',
-					'merge_from_db' => $merge_from_db,
+		$this->_get_logger()->debug(
+			'RegisterOptions: _save_all_options starting...',
+			array(
+			'origin'        => $this->__persist_origin ?? 'save_all',
+			'merge_from_db' => $merge_from_db,
 				)
-			);
-		}
-
-
+		);
 		$to_save = $this->options;
 		if ($merge_from_db) {
 			// Load DB snapshot and merge top-level keys (no deep merge)
 			$dbCurrent = $this->_get_storage()->read($this->main_wp_option_name);
 			if (!is_array($dbCurrent)) {
-				if ($this->_get_logger()->is_active()) {
-					$this->_get_logger()->debug(
-						'RegisterOptions: _save_all_options merge_from_db snapshot not array; normalizing to empty array',
-						array('snapshot_type' => gettype($dbCurrent))
-					);
-				}
+				$this->_get_logger()->debug(
+					'RegisterOptions: _save_all_options merge_from_db snapshot not array; normalizing to empty array',
+					array('snapshot_type' => gettype($dbCurrent))
+				);
 
 				$dbCurrent = array();
 			}
@@ -1205,10 +1085,7 @@ class RegisterOptions {
 		);
 		$allowed = $this->_apply_write_gate($this->__persist_origin ?? 'save_all', $wc);
 		if (!$allowed) {
-			if ($this->_get_logger()->is_active()) {
-				$this->_get_logger()->debug('RegisterOptions: _save_all_options vetoed by policy.');
-			}
-
+			$this->_get_logger()->debug('RegisterOptions: _save_all_options vetoed by policy.');
 			return false;
 		}
 
@@ -1222,17 +1099,13 @@ class RegisterOptions {
 			$result = $this->_get_storage()->update($this->main_wp_option_name, $to_save);
 		} else {
 			// Missing row: prefer add() with autoload; if it fails, fall back to update()
-			if ($this->_get_logger()->is_active()) {
-				$this->_get_logger()->debug(
-					'RegisterOptions: storage->add() selected',
-					array('autoload' => (bool) $this->main_option_autoload)
-				);
-			}
+			$this->_get_logger()->debug(
+				'RegisterOptions: storage->add() selected',
+				array('autoload' => (bool) $this->main_option_autoload)
+			);
 			$result = $this->_get_storage()->add($this->main_wp_option_name, $to_save, $this->main_option_autoload);
 			if (!$result) {
-				if ($this->_get_logger()->is_active()) {
-					$this->_get_logger()->debug('RegisterOptions: storage->add() returned false; falling back to storage->update().');
-				}
+				$this->_get_logger()->debug('RegisterOptions: storage->add() returned false; falling back to storage->update().');
 				$result = $this->_get_storage()->update($this->main_wp_option_name, $to_save);
 			}
 		}
@@ -1240,16 +1113,12 @@ class RegisterOptions {
 		// Mirror what we just saved to keep local cache consistent
 		$this->options = $to_save;
 
-		if ($this->_get_logger()->is_active()) {
-			$this->_get_logger()->debug(
-				'RegisterOptions: storage->update() completed.',
-				array('result' => (bool) $result)
-			);
-		}
+		$this->_get_logger()->debug(
+			'RegisterOptions: storage->update() completed.',
+			array('result' => (bool) $result)
+		);
 
-		if ($this->_get_logger()->is_active()) {
-			$this->_get_logger()->debug('RegisterOptions: _save_all_options completed', array('result' => (bool) $result));
-		}
+		$this->_get_logger()->debug('RegisterOptions: _save_all_options completed', array('result' => (bool) $result));
 		return $result;
 	}
 
@@ -1257,8 +1126,8 @@ class RegisterOptions {
 	 * Applies schema-based sanitization and validation to the value of a given option key.
 	 * If no schema exists for the key, returns the value unchanged.
 	 *
-	 * @param string $normalized_key
-	 * @param mixed  $value
+	 * @param  string $normalized_key
+	 * @param  mixed  $value
 	 * @return mixed
 	 * @throws \InvalidArgumentException on failed validation
 	 */
@@ -1304,9 +1173,7 @@ class RegisterOptions {
 		}
 
 		// Per-key completion (kept for backward compatibility and internal coverage expectations)
-		if ($this->_get_logger()->is_active()) {
-			$this->_get_logger()->debug('RegisterOptions: _sanitize_and_validate_option completed', array('key' => $normalized_key));
-		}
+		$this->_get_logger()->debug('RegisterOptions: _sanitize_and_validate_option completed', array('key' => $normalized_key));
 		return $value;
 	}
 
@@ -1314,28 +1181,24 @@ class RegisterOptions {
 	 * Resolves a default value which may be a raw value or a callable.
 	 * If callable, it will be invoked with the current ConfigInterface|null and should return a value.
 	 *
-	 * @param mixed $default
+	 * @param  mixed $default
 	 * @return mixed
 	 */
 	protected function _resolve_default_value(mixed $default): mixed {
 		if (\is_callable($default)) {
 			// Contract: callable defaults accept ConfigInterface|null; we now pass null.
 			$val = $default(null);
-			if ($this->_get_logger()->is_active()) {
-				$this->_get_logger()->debug('RegisterOptions: _resolve_default_value resolved callable');
-			}
+			$this->_get_logger()->debug('RegisterOptions: _resolve_default_value resolved callable');
 			return $val;
 		}
-		if ($this->_get_logger()->is_active()) {
-			$this->_get_logger()->debug('RegisterOptions: _resolve_default_value returned literal');
-		}
+		$this->_get_logger()->debug('RegisterOptions: _resolve_default_value returned literal');
 		return $default;
 	}
 
 	/**
 	 * Normalize defaults and apply schema rules.
 	 *
-	 * @param array $defaults Raw defaults array
+	 * @param  array $defaults Raw defaults array
 	 * @return array Normalized defaults with sanitized keys and validated values
 	 */
 	protected function _normalize_defaults(array $defaults): array {
@@ -1373,9 +1236,7 @@ class RegisterOptions {
 			}
 			$normalized[$nKey] = $entry;
 		}
-		if ($this->_get_logger()->is_active()) {
-			$this->_get_logger()->debug('RegisterOptions: _normalize_schema_keys completed', array('count' => count($normalized)));
-		}
+		$this->_get_logger()->debug('RegisterOptions: _normalize_schema_keys completed', array('count' => count($normalized)));
 		return $normalized;
 	}
 
@@ -1396,9 +1257,7 @@ class RegisterOptions {
 		if (strlen($s) > 120) {
 			$s = substr($s, 0, 117) . '...';
 		}
-		if ($this->_get_logger()->is_active()) {
-			$this->_get_logger()->debug('RegisterOptions: _stringify_value_for_error completed');
-		}
+		$this->_get_logger()->debug('RegisterOptions: _stringify_value_for_error completed');
 		return $s;
 	}
 
@@ -1410,17 +1269,13 @@ class RegisterOptions {
 	 */
 	protected function _describe_callable(mixed $callable): string {
 		if (is_string($callable)) {
-			if ($this->_get_logger()->is_active()) {
-				$this->_get_logger()->debug('RegisterOptions: _describe_callable completed (string)');
-			}
+			$this->_get_logger()->debug('RegisterOptions: _describe_callable completed (string)');
 			return $callable;
 		}
 		if (is_array($callable) && isset($callable[0], $callable[1])) {
 			$class = is_object($callable[0]) ? get_class($callable[0]) : (string) $callable[0];
 			$desc  = $class . '::' . (string) $callable[1];
-			if ($this->_get_logger()->is_active()) {
-				$this->_get_logger()->debug('RegisterOptions: _describe_callable completed (array)');
-			}
+			$this->_get_logger()->debug('RegisterOptions: _describe_callable completed (array)');
 			return $desc;
 		}
 		if ($callable instanceof \Closure) {
@@ -1436,22 +1291,16 @@ class RegisterOptions {
 			} catch (\Throwable $e) {
 				// Fallback keeps 'Closure'
 			}
-			if ($this->_get_logger()->is_active()) {
-				$this->_get_logger()->debug('RegisterOptions: _describe_callable completed (closure)');
-			}
+			$this->_get_logger()->debug('RegisterOptions: _describe_callable completed (closure)');
 			return $desc;
 		}
 		if (is_object($callable) && method_exists($callable, '__invoke')) {
 			// Enhanced diagnostics: render as Class::__invoke
 			$desc = get_class($callable) . '::__invoke';
-			if ($this->_get_logger()->is_active()) {
-				$this->_get_logger()->debug('RegisterOptions: _describe_callable completed (invokable object)');
-			}
+			$this->_get_logger()->debug('RegisterOptions: _describe_callable completed (invokable object)');
 			return $desc;
 		}
-		if ($this->_get_logger()->is_active()) {
-			$this->_get_logger()->debug('RegisterOptions: _describe_callable completed (other)');
-		}
+		$this->_get_logger()->debug('RegisterOptions: _describe_callable completed (other)');
 		return 'callable';
 	}
 }
