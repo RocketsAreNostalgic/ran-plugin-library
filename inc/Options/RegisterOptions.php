@@ -579,7 +579,7 @@ class RegisterOptions {
 			);
 		}
 
-		// Return self for fluent chaining (flush separately)
+		// Return self for fluent chaining (commit_merge or commit_replace separately)
 		return $this;
 	}
 
@@ -627,9 +627,6 @@ class RegisterOptions {
 	 * @return void
 	 */
 	public function refresh_options(): void {
-		// @codeCoverageIgnoreStart
-		$this->_get_logger()->debug("RegisterOptions: Refreshing options from database for '{$this->main_wp_option_name}'.");
-		// @codeCoverageIgnoreEnd
 		$this->options = $this->_read_main_option();
 	}
 
@@ -935,7 +932,6 @@ class RegisterOptions {
 			$this->write_policy = new RestrictedDefaultWritePolicy();
 		}
 		$policyAllowed = $this->write_policy->allow($op, $wc);
-		// Debug: trace policy decision
 		$this->_get_logger()->debug(
 			'RegisterOptions: _apply_write_gate policy decision',
 			array(
@@ -959,7 +955,6 @@ class RegisterOptions {
 		}
 
 		$allowed = true;
-		// Debug: before general filter
 		$this->_get_logger()->debug(
 			'RegisterOptions: _apply_write_gate applying general allow_persist filter',
 			array(
@@ -1091,32 +1086,50 @@ class RegisterOptions {
 
 		// Honor initial autoload preference only on creation.
 		// Determine existence via WordPress get_option sentinel (legacy-compatible, testable via WP_Mock).
-		$__sentinel     = new \stdClass();
+		$__sentinel     = new \stdClass(); // Allows us to differentiate between a missing option and an option set to nullish (e.g. false, 0, '', null)
 		$__raw_existing = $this->_do_get_option($this->main_wp_option_name, $__sentinel);
 		$__exists       = ($__raw_existing !== $__sentinel);
 		if ($__exists) {
 			// Existing row: use update() without autoload
 			$result = $this->_get_storage()->update($this->main_wp_option_name, $to_save);
+			if (!$result) {
+				// Retry once for transient conditions, then verify DB state
+				$this->_get_logger()->debug('RegisterOptions: storage->update() returned false; retrying once.');
+				$result = $this->_get_storage()->update($this->main_wp_option_name, $to_save);
+				if (!$result) {
+					$__verify = $this->_do_get_option($this->main_wp_option_name, $__sentinel);
+					if ($__verify !== $__sentinel && $__verify === $to_save) {
+						$this->_get_logger()->warning('RegisterOptions: storage->update() returned false but DB matches desired state; treating as success.');
+						$result = true;
+					} else {
+						$this->_get_logger()->warning('RegisterOptions: storage->update() failed and DB does not match desired state.');
+					}
+				}
+			}
 		} else {
 			// Missing row: prefer add() with autoload; if it fails, fall back to update()
 			$this->_get_logger()->debug(
-				'RegisterOptions: storage->add() selected',
+				'RegisterOptions: storage->add() selected, as option did not exist in DB',
 				array('autoload' => (bool) $this->main_option_autoload)
 			);
 			$result = $this->_get_storage()->add($this->main_wp_option_name, $to_save, $this->main_option_autoload);
 			if (!$result) {
 				$this->_get_logger()->debug('RegisterOptions: storage->add() returned false; falling back to storage->update().');
 				$result = $this->_get_storage()->update($this->main_wp_option_name, $to_save);
+				if (!$result) {
+					$__verify = $this->_do_get_option($this->main_wp_option_name, $__sentinel);
+					if ($__verify !== $__sentinel && $__verify === $to_save) {
+						$this->_get_logger()->warning('RegisterOptions: storage->update() also failed but DB matches desired state; treating as success.');
+						$result = true;
+					} else {
+						$this->_get_logger()->warning('RegisterOptions: storage->update() also failed and DB does not match desired state.');
+					}
+				}
 			}
 		}
 
 		// Mirror what we just saved to keep local cache consistent
 		$this->options = $to_save;
-
-		$this->_get_logger()->debug(
-			'RegisterOptions: storage->update() completed.',
-			array('result' => (bool) $result)
-		);
 
 		$this->_get_logger()->debug('RegisterOptions: _save_all_options completed', array('result' => (bool) $result));
 		return $result;
@@ -1133,10 +1146,21 @@ class RegisterOptions {
 	 */
 	protected function _sanitize_and_validate_option(string $normalized_key, mixed $value): mixed {
 		if (!isset($this->schema[$normalized_key])) {
+			$this->_get_logger()->warning('RegisterOptions: _sanitize_and_validate_option no schema', array('key' => $normalized_key));
 			throw new \InvalidArgumentException(static::class . ": No schema defined for option '{$normalized_key}'.");
 		}
 
 		$rules = $this->schema[$normalized_key];
+
+		// Defense-in-depth: runtime guard to mirror register-time contract
+		if (array_key_exists('sanitize', $rules) && $rules['sanitize'] !== null && !\is_callable($rules['sanitize'])) {
+			$this->_get_logger()->warning('RegisterOptions: _sanitize_and_validate_option runtime non-callable sanitize', array('key' => $normalized_key));
+			throw new \InvalidArgumentException(static::class . ": Schema for key '{$normalized_key}' has non-callable 'sanitize' at runtime.");
+		}
+		if (!array_key_exists('validate', $rules) || !\is_callable($rules['validate'])) {
+			$this->_get_logger()->warning('RegisterOptions: _sanitize_and_validate_option runtime missing/non-callable validate', array('key' => $normalized_key));
+			throw new \InvalidArgumentException(static::class . ": Schema for key '{$normalized_key}' requires a 'validate' callable at runtime.");
+		}
 
 		if (isset($rules['sanitize']) && \is_callable($rules['sanitize'])) {
 			$sanitizer = $rules['sanitize'];
@@ -1146,6 +1170,7 @@ class RegisterOptions {
 				$valStr1      = $this->_stringify_value_for_error($once);
 				$valStr2      = $this->_stringify_value_for_error($twice);
 				$sanitizerStr = $this->_describe_callable($sanitizer);
+				$this->_get_logger()->warning('RegisterOptions: _sanitize_and_validate_option sanitizer not idempotent', array('key' => $normalized_key, 'value' => $value, 'sanitizer' => $sanitizerStr, 'valStr1' => $valStr1, 'valStr2' => $valStr2));
 				throw new \InvalidArgumentException(
 					static::class . ": Sanitizer for option '{$normalized_key}' must be idempotent. First result {$valStr1} differs from second {$valStr2}. Sanitizer {$sanitizerStr}."
 				);
@@ -1159,6 +1184,7 @@ class RegisterOptions {
 				$valStr       = $this->_stringify_value_for_error($value);
 				$validatorStr = $this->_describe_callable($validator);
 				$gotType      = gettype($valid);
+				$this->_get_logger()->warning('RegisterOptions: _sanitize_and_validate_option validator returned non-bool', array('key' => $normalized_key, 'value' => $value, 'validator' => $validatorStr, 'gotType' => $gotType));
 				throw new \InvalidArgumentException(
 					static::class . ": Validator for option '{$normalized_key}' must return strict bool; got {$gotType}. Value {$valStr}; validator {$validatorStr}."
 				);
@@ -1166,13 +1192,13 @@ class RegisterOptions {
 			if ($valid !== true) {
 				$valStr       = $this->_stringify_value_for_error($value);
 				$validatorStr = $this->_describe_callable($validator);
+				$this->_get_logger()->warning('RegisterOptions: _sanitize_and_validate_option validation failed', array('key' => $normalized_key, 'value' => $value, 'validator' => $validatorStr));
 				throw new \InvalidArgumentException(
 					static::class . ": Validation failed for option '{$normalized_key}' with value {$valStr} using validator {$validatorStr}."
 				);
 			}
 		}
 
-		// Per-key completion (kept for backward compatibility and internal coverage expectations)
 		$this->_get_logger()->debug('RegisterOptions: _sanitize_and_validate_option completed', array('key' => $normalized_key));
 		return $value;
 	}
@@ -1288,9 +1314,15 @@ class RegisterOptions {
 				if ($file !== '') {
 					$desc = 'Closure(' . basename($file) . ':' . $line . ')';
 				}
+				// @codeCoverageIgnoreStart
 			} catch (\Throwable $e) {
-				// Fallback keeps 'Closure'
+				// Fallback keeps 'Closure'; log for diagnostics. This catch is intentionally hard to
+				// exercise in unit tests without invasive tooling, since ReflectionFunction rarely
+				// throws for valid closures. We log a warning to surface any unexpected failures in
+				// real environments, but exclude this block from coverage metrics.
+				$this->_get_logger()->warning('RegisterOptions: _describe_callable closure reflection failed', array('exception' => $e));
 			}
+			// @codeCoverageIgnoreEnd
 			$this->_get_logger()->debug('RegisterOptions: _describe_callable completed (closure)');
 			return $desc;
 		}
