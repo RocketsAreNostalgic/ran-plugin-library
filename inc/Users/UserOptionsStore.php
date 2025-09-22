@@ -52,7 +52,7 @@ final class UserOptionsStore implements UserOptionsStoreInterface {
 
 	public function set(string $key, mixed $value): bool {
 		$this->ensure_opts();
-		return $this->opts->set_option($key, $value);
+		return (bool) $this->opts->stage_option($key, $value)->commit_merge();
 	}
 
 	/**
