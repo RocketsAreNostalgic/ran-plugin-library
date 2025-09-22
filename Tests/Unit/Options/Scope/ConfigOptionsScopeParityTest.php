@@ -41,7 +41,7 @@ final class ConfigOptionsScopeParityTest extends PluginLibTestCase {
 		$cfg = $this->makeProdConfig();
 
 		$optsViaConfig  = $cfg->options();
-		$optsViaFactory = RegisterOptions::from_config($cfg, StorageContext::forSite());
+		$optsViaFactory = new RegisterOptions($cfg->get_options_key(), StorageContext::forSite());
 
 		// Behavior parity: both support autoload at site scope
 		$this->assertTrue($optsViaConfig->supports_autoload());
@@ -52,7 +52,7 @@ final class ConfigOptionsScopeParityTest extends PluginLibTestCase {
 		$cfg = $this->makeProdConfig();
 
 		$optsViaConfig  = $cfg->options(StorageContext::forNetwork());
-		$optsViaFactory = RegisterOptions::from_config($cfg, StorageContext::forNetwork());
+		$optsViaFactory = new RegisterOptions($cfg->get_options_key(), StorageContext::forNetwork());
 
 		$this->assertFalse($optsViaConfig->supports_autoload());
 		$this->assertFalse($optsViaFactory->supports_autoload());
@@ -63,7 +63,7 @@ final class ConfigOptionsScopeParityTest extends PluginLibTestCase {
 		$entity = new BlogEntity(123);
 
 		$optsViaConfig  = $cfg->options(StorageContext::forBlog(123));
-		$optsViaFactory = RegisterOptions::from_config($cfg, StorageContext::forBlog(123));
+		$optsViaFactory = new RegisterOptions($cfg->get_options_key(), StorageContext::forBlog(123));
 
 		$this->assertInstanceOf(RegisterOptions::class, $optsViaConfig);
 		$this->assertInstanceOf(RegisterOptions::class, $optsViaFactory);
@@ -74,7 +74,7 @@ final class ConfigOptionsScopeParityTest extends PluginLibTestCase {
 		$entity = new UserEntity(5, true, 'option');
 
 		$optsViaConfig  = $cfg->options(StorageContext::forUser(5, 'option', true));
-		$optsViaFactory = RegisterOptions::from_config($cfg, StorageContext::forUser(5, 'option', true));
+		$optsViaFactory = new RegisterOptions($cfg->get_options_key(), StorageContext::forUser(5, 'option', true));
 
 		$this->assertInstanceOf(RegisterOptions::class, $optsViaConfig);
 		$this->assertInstanceOf(RegisterOptions::class, $optsViaFactory);
@@ -84,7 +84,7 @@ final class ConfigOptionsScopeParityTest extends PluginLibTestCase {
 		$cfg = $this->makeProdConfig();
 
 		$optsViaConfig  = $cfg->options();
-		$optsViaFactory = RegisterOptions::from_config($cfg, StorageContext::forSite());
+		$optsViaFactory = new RegisterOptions($cfg->get_options_key(), StorageContext::forSite());
 
 		$this->assertTrue($optsViaConfig->supports_autoload());
 		$this->assertTrue($optsViaFactory->supports_autoload());
