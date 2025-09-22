@@ -24,6 +24,18 @@ final class ConfigOptionsNoWritesTest extends PluginLibTestCase {
 				return trim($s, '_');
 			})
 			->byDefault();
+
+		// Ensure capability and filters allow in-memory mutations for schema seeding/staging in this suite
+		WP_Mock::userFunction('current_user_can')->andReturn(true)->byDefault();
+		WP_Mock::userFunction('apply_filters')->andReturnUsing(function($hook,$value) {
+			return $value;
+		});
+		\WP_Mock::onFilter('ran/plugin_lib/options/allow_persist')
+			->with(\WP_Mock\Functions::type('bool'), \WP_Mock\Functions::type('array'))
+			->reply(true);
+		\WP_Mock::onFilter('ran/plugin_lib/options/allow_persist/scope/site')
+			->with(\WP_Mock\Functions::type('bool'), \WP_Mock\Functions::type('array'))
+			->reply(true);
 	}
 
 	/**
@@ -208,6 +220,6 @@ final class ConfigOptionsNoWritesTest extends PluginLibTestCase {
 		$opts->with_schema(array('k' => array('validate' => function ($v) {
 			return is_int($v);
 		})));
-		$this->assertTrue($opts->set_option('k', 2));
+		$this->assertTrue($opts->stage_option('k', 2)->commit_merge());
 	}
 }

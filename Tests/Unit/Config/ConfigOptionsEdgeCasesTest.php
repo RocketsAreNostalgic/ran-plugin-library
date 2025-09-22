@@ -309,7 +309,7 @@ final class ConfigOptionsEdgeCasesTest extends PluginLibTestCase {
 		// Use flexible mock that accepts any parameters
 		WP_Mock::userFunction('get_option')->andReturn(array());
 
-		$opts = $cfg->options()->with_defaults((array) $initial_values);
+		$opts = $cfg->options();
 
 		$this->assertInstanceOf(\Ran\PluginLib\Options\RegisterOptions::class, $opts);
 	}
@@ -344,7 +344,7 @@ final class ConfigOptionsEdgeCasesTest extends PluginLibTestCase {
 				return is_string($v);
 			}),
 		));
-		$opts = $opts->with_defaults($initial_values);
+		$opts = $opts->stage_options($initial_values);
 
 		$this->assertInstanceOf(\Ran\PluginLib\Options\RegisterOptions::class, $opts);
 	}

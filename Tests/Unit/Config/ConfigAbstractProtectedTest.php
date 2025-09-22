@@ -127,7 +127,7 @@ final class ConfigAbstractProbe extends ConfigAbstract {
 	 * Provide options accessor required by ConfigInterface for this probe (typed-first).
 	 */
 	public function options(?\Ran\PluginLib\Options\Storage\StorageContext $context = null, bool $autoload = true): \Ran\PluginLib\Options\RegisterOptions {
-		return \Ran\PluginLib\Options\RegisterOptions::from_config($this, $context, $autoload);
+		return new \Ran\PluginLib\Options\RegisterOptions($this->get_options_key(), $context, $autoload);
 	}
 }
 
