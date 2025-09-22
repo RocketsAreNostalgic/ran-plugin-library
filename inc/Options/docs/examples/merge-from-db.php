@@ -36,7 +36,7 @@ use Ran\PluginLib\Options\RegisterOptions;
 use Ran\PluginLib\Options\Storage\StorageContext;
 
 $config  = Config::fromPluginFile(__FILE__);
-$options = RegisterOptions::from_config($config);
+$options = new RegisterOptions($config->get_options_key());
 
 // SCENARIO: Plugin activation while admin is changing settings
 // Your activation script needs to set version info without losing user settings
@@ -57,7 +57,7 @@ $options->commit_merge();
 
 // REAL-WORLD EXAMPLE: Cron job updating cache while user modifies settings
 register_activation_hook(__FILE__, function() {
-	$options = RegisterOptions::from_config(Config::fromPluginFile(__FILE__));
+	$options = new RegisterOptions((Config::fromPluginFile(__FILE__))->get_options_key());
 
 	// Set activation defaults without losing existing user settings
 	$options->stage_options(array(
@@ -71,7 +71,7 @@ register_activation_hook(__FILE__, function() {
 
 // CRON JOB EXAMPLE: Update analytics data without losing user settings
 add_action('my_plugin_daily_stats', function() {
-	$options = RegisterOptions::from_config(Config::fromPluginFile(__FILE__));
+	$options = new RegisterOptions((Config::fromPluginFile(__FILE__))->get_options_key());
 	// Define config in this scope for scoped storage operations below
 	$config = Config::fromPluginFile(__FILE__);
 
@@ -104,7 +104,7 @@ add_action('my_plugin_daily_stats', function() {
 
 // AJAX FORM EXAMPLE: Handle overlapping form submissions
 add_action('wp_ajax_save_plugin_settings', function() {
-	$options = RegisterOptions::from_config(Config::fromPluginFile(__FILE__));
+	$options = new RegisterOptions((Config::fromPluginFile(__FILE__))->get_options_key());
 
 	// User submitted form data
 	$options->stage_options(array(

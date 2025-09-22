@@ -30,7 +30,7 @@ use Ran\PluginLib\Options\RegisterOptions;
 use Ran\PluginLib\Options\Storage\StorageContext;
 
 $config  = Config::fromPluginFile(__FILE__);
-$options = RegisterOptions::from_config($config);
+$options = new RegisterOptions($config->get_options_key());
 
 // BATCH PATTERN: Stage multiple changes in memory first, then commit once
 // Note: You can mix simple values and structured definitions

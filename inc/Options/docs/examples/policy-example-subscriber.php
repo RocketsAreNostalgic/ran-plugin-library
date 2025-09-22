@@ -27,19 +27,41 @@ $opts = $config->options(
 $opts->with_policy(new ExampleUserSelfServiceWhitelistPolicy());
 
 // 3) Safe writes (allowed by ExampleUserSelfServiceWhitelistPolicy):
-$opts->set_option('preferences', array('theme' => 'dark'));
-$opts->set_option('profile_bio', 'Hi! I love this site.');
+$opts->stage_option('preferences', array('theme' => 'dark'))->commit_merge();
+$opts->stage_option('profile_bio', 'Hi! I love this site.')->commit_merge();
 $opts->stage_options(array(
     'newsletter_opt_in' => true,
-));
+))->commit_merge();
 
 // 4) Unsafe writes (blocked by policy):
 //    - Non‑whitelisted key
 //    - Or writes for a different user
-$opts->set_option('admin_only', true); // Will be vetoed by the policy
+$opts->stage_option('admin_only', true)->commit_merge(); // Will be vetoed by the policy
 
 // Notes
 // - See Also: inc/Options/Policy/ExampleUserSelfServiceWhitelistPolicy.php
 // - Policy is evaluated using a typed WriteContext (see TFS‑005)
+// - For atomic batch enforcement with stage_options, a policy can inspect WriteContext->keys()
+//   and veto the entire batch if any key is disallowed. For single-key ops, inspect WriteContext->key().
+//   Example policy skeleton:
+//   final class UserSelfServiceWhitelistPolicy implements \Ran\PluginLib\Options\Policy\WritePolicyInterface {
+//       /** @var array<int,string> */
+//       private array $whitelist;
+//       public function __construct(array $whitelist) { $this->whitelist = array_values(array_map('strval', $whitelist)); }
+//       public function allow(string $op, \Ran\PluginLib\Options\WriteContext $wc): bool {
+//           if ($op === 'add_option' && $wc->key() !== null) {
+//               return in_array((string) $wc->key(), $this->whitelist, true);
+//           }
+//           if ($op === 'stage_options' && is_array($wc->keys())) {
+//               foreach ($wc->keys() as $k) {
+//                   if (!in_array((string) $k, $this->whitelist, true)) {
+//                       return false; // atomic veto
+//                   }
+//               }
+//               return true;
+//           }
+//           return true;
+//       }
+//   }
 // - You can swap policies per manager instance as needed:
 //     $opts->with_policy(new YourCustomPolicy());

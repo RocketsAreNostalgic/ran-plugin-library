@@ -40,11 +40,11 @@ if ($options->supports_autoload() === false) {
 }
 
 // Write some user preferences
-$options->set_option('dashboard_prefs', array(
+$options->stage_option('dashboard_prefs', array(
     'layout' => 'compact',
     'cards'  => array('stats', 'news'),
-));
-$options->set_option('feature_x_enabled', true);
+))->commit_merge();
+$options->stage_option('feature_x_enabled', true)->commit_merge();
 
 // Read them back with safe defaults
 $prefs     = $options->get_option('dashboard_prefs', array());
@@ -60,9 +60,9 @@ $options->stage_options(array(
 ));
 $options->commit_merge(); // single DB write (shallow merge with DB)
 
-// Optional: Explicit construction via RegisterOptions::from_config() (typed context)
-$explicit = RegisterOptions::from_config(
-	$config,
+// Optional: Explicit construction via RegisterOptions (typed context)
+$explicit = new RegisterOptions(
+	$config->get_options_key(),
 	StorageContext::forUser((int) $userId, 'meta', true), // network-wide user meta
 	false // autoload not applicable for user scope
 );
@@ -74,5 +74,5 @@ $optionsOption = $config->options(
 );
 
 // Usage is identical regardless of backend:
-$optionsOption->set_option('onboarding_state', array('step' => 2));
+$optionsOption->stage_option('onboarding_state', array('step' => 2))->commit_merge();
 $onboarding = $optionsOption->get_option('onboarding_state', array());

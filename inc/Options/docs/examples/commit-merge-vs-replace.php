@@ -19,9 +19,8 @@ $patch = array( 'level1' => array( 'existing' => 'b', 'added' => 'x' ) );
 //    - Overwrites entire value for 'complex_map' with $patch merged into current in-memory value
 $current = $opts->get_option('complex_map', array());
 $merged  = array_replace_recursive(is_array($current) ? $current : array(), $patch);
-$opts->set_option('complex_map', $merged);   // persists immediately
-// If batching multiple keys before final write, prefer staging + commit_replace() instead:
-// $opts->stage_option('complex_map', $merged)->commit_replace();
+$opts->stage_option('complex_map', $merged)
+	->commit_replace();
 
 // 2) Shallow, top-level merge from DB (keeps unrelated DB keys)
 //    - Stage multiple additions, then persist once with commit_merge()
@@ -35,6 +34,6 @@ $opts
 /*
 Notes:
 - commit_merge() merges top-level keys from DB and in-memory; nested structures are not deep-merged.
-- For precise nested semantics, prefer read–modify–write on individual keys, then either rely on
-  set_option() immediate persistence or stage with stage_option() + commit_replace().
+- For precise nested semantics, prefer read–modify–write on individual keys, then rely on
+  stage_option() + commit_replace() for immediate persistence.
 */

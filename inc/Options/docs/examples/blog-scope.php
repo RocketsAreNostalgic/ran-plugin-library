@@ -34,8 +34,11 @@ if ($options->supports_autoload()) {
 }
 
 // Example writes
-$options->set_option('maintenance_mode', false);
-$options->set_option('homepage_layout', 'magazine');
+$options->stage_option('maintenance_mode', false);
+$options->stage_option('homepage_layout', 'magazine');
+
+// Commit changes to the DB
+$options->commit_merge();
 
 // Reads with defaults
 $mm   = $options->get_option('maintenance_mode', false);

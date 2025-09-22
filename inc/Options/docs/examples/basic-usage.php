@@ -31,13 +31,14 @@ $config = Config::fromPluginFile(__FILE__);
 // Create options group using plugin's primary option name
 // RATIONALE: from_config() uses your plugin's configured option name from Config,
 // ensuring consistency across your plugin and avoiding hardcoded strings.
-$options = RegisterOptions::from_config($config, StorageContext::forSite(), true);
+$options = new RegisterOptions($config->get_options_key(), StorageContext::forSite(), true);
 
-// Set individual options - each call writes to database immediately
-// PERFORMANCE NOTE: Each set_option() call triggers a database write.
-// For multiple options, prefer stage_option(s) + commit_replace() (see batch-and-flush.php)
-$options->set_option('api_key', 'abc123');
-$options->set_option('enabled', true);
+// Set individual options to memory
+$options->stage_option('api_key', 'abc123');
+$options->stage_option('enabled', true);
+
+// Commit changes to the DB
+$options->commit_replace();
 
 // Read them back with sensible defaults
 // BEST PRACTICE: Always provide defaults that won't break your plugin
@@ -49,9 +50,10 @@ $values = $options->get_options(); // ['api_key' => 'abc123', 'enabled' => true]
 
 // REAL-WORLD EXAMPLE: Plugin activation
 if (!$options->has_option('version')) {
-	$options->set_option('version', '1.0.0');
-	$options->set_option('activation_date', current_time('mysql'));
-	$options->set_option('initial_setup_complete', false);
+	$options->stage_option('version', '1.0.0');
+	$options->stage_option('activation_date', current_time('mysql'));
+	$options->stage_option('initial_setup_complete', false);
+	$options->commit_replace();
 }
 
 // ------------------------------------------------------------
@@ -66,8 +68,9 @@ $userOptions = $config->options(
 	StorageContext::forUser((int) get_current_user_id(), 'meta', false),
 	false
 );
-$userOptions->set_option('dashboard_prefs', array('layout' => 'compact'));
+$userOptions->stage_option('dashboard_prefs', array('layout' => 'compact'));
 $prefs = $userOptions->get_option('dashboard_prefs', array());
+$userOptions->commit_replace();
 
 // Blog scope (multisite)
 // Autoload is supported only when blog_id equals the current blog.
@@ -76,12 +79,13 @@ $blogOptions = $config->options(
 	false // explicit preference (ignored for non-current blog)
 );
 if ($blogOptions->supports_autoload()) {
-	// safe to rely on autoload
+	// safe to rely on autoload, we know blog_id matches current blog
 }
 
-// Alternate construction via RegisterOptions::from_config() (typed context)
-$explicit = RegisterOptions::from_config(
-	$config,
+// Alternate construction via new RegisterOptions() with typed context
+$explicit = new RegisterOptions(
+	$config->get_options_key(),
 	StorageContext::forUser((int) get_current_user_id(), 'option', true),
-	false // autoload not applicable for user scope
+	false,
+	$config->get_logger()
 );

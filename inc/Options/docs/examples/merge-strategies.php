@@ -13,7 +13,7 @@
 
 declare(strict_types=1);
 
-use Ran\PluginLib\Options\Sanitize;
+use Ran\PluginLib\Util\Sanitize;
 use Ran\PluginLib\Options\RegisterOptions;
 
 /** @var RegisterOptions $options */
@@ -36,7 +36,7 @@ function merge_tags(RegisterOptions $options, mixed $incoming): void {
 	// Optional: canonicalize when order is not semantically meaningful
 	// $merged = (Sanitize::canonical()->orderInsensitiveShallow())($merged);
 
-	$options->set_option('tags', $merged);
+	$options->stage_option('tags', $merged)->commit_merge();
 }
 
 // ------------------------------------------------------------
@@ -65,7 +65,7 @@ function merge_items_by_id(RegisterOptions $options, mixed $incoming): void {
 	ksort($byId, SORT_NATURAL);
 	$merged = array_values($byId);
 
-	$options->set_option('items', $merged);
+	$options->stage_option('items', $merged)->commit_merge();
 }
 
 // ------------------------------------------------------------
@@ -79,5 +79,5 @@ function merge_settings_assoc(RegisterOptions $options, mixed $patch): void {
 	// array_replace_recursive focuses on associative keys; numeric-keyed lists will be replaced wholesale.
 	$merged = array_replace_recursive($dbArr, $stArr);
 
-	$options->set_option('settings', $merged);
+	$options->stage_option('settings', $merged)->commit_merge();
 }

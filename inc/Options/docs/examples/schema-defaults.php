@@ -29,6 +29,7 @@
 declare(strict_types=1);
 
 use Ran\PluginLib\Config\Config;
+use Ran\PluginLib\Util\Validate;
 use Ran\PluginLib\Options\RegisterOptions;
 use Ran\PluginLib\Options\Storage\StorageContext;
 
@@ -39,13 +40,18 @@ $schema = array(
     // Simple boolean default - same for all environments
     'analytics_enabled' => array(
         'default'  => false, // Default to disabled for privacy
-        'validate' => fn($v) => is_bool($v),
+        'validate' => Validate::compose()->all(array(
+            Validate::basic()->isBool(),
+        )),
     ),
 
     // Environment-specific timeout - shorter for development
     'api_timeout' => array(
         'default'  => fn($cfg) => $cfg && $cfg->is_dev_environment() ? 5 : 30,
-        'validate' => fn($v) => is_int($v) && $v > 0 && $v <= 300,
+        'validate' => Validate::compose()->all(array(
+            Validate::basic()->isInt(),
+            Validate::number()->between(0, 300),
+        )),
     ),
 
     // Cache duration based on environment
@@ -62,7 +68,10 @@ $schema = array(
         	} // 5 min in staging
         	return 3600; // 1 hour in production
         },
-        'validate' => fn($v) => is_int($v) && $v >= 0,
+        'validate' => Validate::compose()->all(array(
+            Validate::basic()->isInt(),
+			Validate::number()->min(0),
+        )),
     ),
 
     // Debug level based on environment
@@ -79,13 +88,16 @@ $schema = array(
         	}
         	return 'error'; // Production: errors only
         },
-        'validate' => fn($v) => in_array($v, array('debug', 'info', 'warning', 'error')),
+        'validate' => Validate::compose()->all(array(
+            Validate::basic()->isString(),
+			Validate::enums()->enum(array('debug', 'info', 'warning', 'error')),
+        )),
     ),
 
     // Feature availability based on server capabilities
     'image_processing_enabled' => array(
         'default'  => fn($cfg) => extension_loaded('gd') || extension_loaded('imagick'),
-        'validate' => fn($v) => is_bool($v),
+        'validate' => Validate::basic()->isBool(),
     ),
 
     // Upload directory with site-specific path
@@ -95,25 +107,28 @@ $schema = array(
         	$plugin_name = $cfg ? $cfg->get_plugin_config()['TextDomain'] : 'my-plugin';
         	return $upload_dir['basedir'] . '/' . $plugin_name;
         },
-        'validate' => fn($v) => is_string($v) && !empty($v),
+        'validate' => Validate::compose()->all(array(
+            Validate::basic()->isString(),
+			Validate::basic()->isNotEmpty(),
+        )),
     ),
 
     // User role-based default permissions
     'admin_features_enabled' => array(
         'default'  => fn($cfg) => current_user_can('manage_options'),
-        'validate' => fn($v) => is_bool($v),
+        'validate' => Validate::basic()->isBool(),
     ),
 
     // Multisite-aware defaults
     'network_mode' => array(
         'default'  => fn($cfg) => is_multisite(),
-        'validate' => fn($v) => is_bool($v),
+        'validate' => Validate::basic()->isBool(),
     ),
 );
 
 // Create RegisterOptions with schema - defaults will be seeded in-memory automatically
 // Construct with autoload preference; bind schema via fluent
-$options = RegisterOptions::from_config($config, StorageContext::forSite(), true)
+$options = $config->options(StorageContext::forSite(), true)
     ->with_schema($schema);
 
 // Persist seeded defaults explicitly (single write)
@@ -143,27 +158,35 @@ register_activation_hook(__FILE__, function() {
 	$activation_schema = array(
 	    'version' => array(
 	        'default'  => '1.0.0',
-	        'validate' => fn($v) => is_string($v) && !empty($v),
+	        'validate' => Validate::compose()->all(array(
+	            Validate::basic()->isString(),
+	            Validate::basic()->isNotEmpty(),
+	        )),
 	    ),
 	    'installed_date' => array(
 	        'default'  => fn($cfg) => current_time('mysql'),
-	        'validate' => fn($v) => is_string($v),
+	        'validate' => Validate::compose()->all(array(
+	            Validate::basic()->isString(),
+	            Validate::basic()->isNotEmpty(),
+	        )),
 	    ),
 	    'needs_welcome_screen' => array(
 	        'default'  => true,
-	        'validate' => fn($v) => is_bool($v),
+	        'validate' => Validate::basic()->isBool(),
 	    ),
 	    'performance_mode' => array(
 	        'default'  => fn($cfg) => wp_get_environment_type() === 'production' ? 'optimized' : 'standard',
-	        'validate' => fn($v) => in_array($v, array('standard', 'optimized')),
+	        'validate' => Validate::compose()->all(array(
+	            Validate::basic()->isString(),
+	            Validate::enums()->enum(array('standard', 'optimized')),
+	        )),
 	    ),
 	);
 
 	// Seed defaults in-memory via fluent, then persist in one write
-	$options = RegisterOptions::from_config($config, StorageContext::forSite(), true)
-        ->with_schema($activation_schema);
-	$options->commit_replace();
-
+	$config->options(StorageContext::forSite(), true)
+		->with_schema($activation_schema)
+		->commit_replace();
 	// Plugin is now properly initialized with environment-appropriate defaults
 });
 

@@ -29,8 +29,8 @@
 declare(strict_types=1);
 
 use Ran\PluginLib\Config\Config;
-use Ran\PluginLib\Options\Sanitize;
-use Ran\PluginLib\Options\Validate;
+use Ran\PluginLib\Util\Sanitize;
+use Ran\PluginLib\Util\Validate;
 use Ran\PluginLib\Options\RegisterOptions;
 use Ran\PluginLib\Options\Storage\StorageContext;
 
@@ -112,14 +112,18 @@ $schema = array(
 );
 
 // Construct with autoload preference and attach schema via fluent
-$options = RegisterOptions::from_config($config, StorageContext::forSite(), true)
-    ->with_schema($schema);
+$options = (new RegisterOptions(
+	$config->get_options_key(),
+	StorageContext::forSite(),
+	true,
+	$config->get_logger()
+))->with_schema($schema);
 
 // EXAMPLES OF SANITIZATION AND VALIDATION IN ACTION:
 
 try {
 	// This will be trimmed and validated
-	$options->set_option('stripe_api_key', '  sk_test_redacted  ');
+	$options->stage_option('stripe_api_key', '  sk_test_redacted  ')->commit_merge();
 	echo "✓ API key saved successfully\n";
 } catch (InvalidArgumentException $e) {
 	echo '✗ API key validation failed: ' . $e->getMessage() . "\n";
@@ -127,7 +131,7 @@ try {
 
 try {
 	// This will be sanitized to a valid email
-	$options->set_option('notification_email', ' admin@example.com ');
+	$options->stage_option('notification_email', ' admin@example.com ')->commit_merge();
 	echo "✓ Email saved successfully\n";
 } catch (InvalidArgumentException $e) {
 	echo '✗ Email validation failed: ' . $e->getMessage() . "\n";
@@ -135,7 +139,7 @@ try {
 
 try {
 	// This will fail validation (invalid URL)
-	$options->set_option('webhook_url', 'not-a-valid-url');
+	$options->stage_option('webhook_url', 'not-a-valid-url')->commit_merge();
 	echo "✓ Webhook URL saved successfully\n";
 } catch (InvalidArgumentException $e) {
 	echo '✗ Webhook URL validation failed: ' . $e->getMessage() . "\n";
@@ -143,7 +147,7 @@ try {
 
 try {
     // This will be clamped to valid range by sanitizer
-	$options->set_option('image_quality', 150); // Will become 100
+	$options->stage_option('image_quality', 150)->commit_merge(); // Will become 100
 	echo '✓ Image quality saved as: ' . $options->get_option('image_quality') . "\n";
 } catch (InvalidArgumentException $e) {
 	echo '✗ Image quality validation failed: ' . $e->getMessage() . "\n";

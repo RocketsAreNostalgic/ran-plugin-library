@@ -26,7 +26,7 @@ use Ran\PluginLib\Options\Storage\StorageContext;
 
 // Initialize config and options
 $config  = Config::fromPluginFile(__FILE__);
-$options = RegisterOptions::from_config($config); // site scope by default
+$options = new RegisterOptions($config->get_options_key()); // site scope by default
 
 // Guard: ensure we're in a scope that supports autoload.
 if (!$options->supports_autoload()) {

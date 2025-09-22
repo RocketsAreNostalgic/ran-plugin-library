@@ -3,7 +3,7 @@
  * Example: Logger injection for options
  *
  * Shows how to initialize Config with a logger and have that logger used by
- * options instances created via Config::options() or RegisterOptions::from_config().
+ * options instances created via Config::options() or new RegisterOptions.
  * Useful for debugging, testing, or capturing operational telemetry.
  */
 
@@ -22,21 +22,21 @@ $config = Config::fromPluginFileWithLogger(__FILE__, $logger);
 
 // Default site-scoped options using the injected logger
 $siteOptions = $config->options(StorageContext::forSite(), true);
-$siteOptions->set_option('feature_enabled', true);
+$siteOptions->stage_option('feature_enabled', true)->commit_replace();
 
 // User-scoped options using the same logger
 $userOptions = $config->options(
 	StorageContext::forUser((int) get_current_user_id(), 'meta', false),
 	false
 );
-$userOptions->set_option('dashboard_prefs', array('layout' => 'compact'));
+$userOptions->stage_option('dashboard_prefs', array('layout' => 'compact'))->commit_replace();
 
 // Later (e.g., in tests), inspect logs
 var_dump($logger->collected_logs);
 
 // Alternate: construct explicitly with typed context (logger comes from Config)
-$explicit = RegisterOptions::from_config(
-	$config,
+$explicit = new RegisterOptions(
+	$config->get_options_key(),
 	StorageContext::forUser((int) get_current_user_id(), 'meta', true),
 	false
 );
