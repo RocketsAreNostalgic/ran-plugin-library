@@ -256,7 +256,7 @@ Non-breaking expansion to add explicit option scope support. See PRD-003: [PRD-0
 
 - Extend `Config::options(array $args = [])` to accept `scope` (default `'site'`) and optional `blog_id` (required for `'blog'`).
 
-- Provide `RegisterOptions::from_config(\Ran\PluginLib\Config\ConfigInterface $cfg, array $args = [])`.
+- Provide `new RegisterOptions(\Ran\PluginLib\Config\ConfigInterface $cfg->get_options_key(), array $args = [])`.
 - Implement internal adapters mapping to `get_option` / `get_site_option` / `get_blog_option`.
 - Documentation: add an “Option Scope” section (scopes, permissions, autoload limits). Explicitly discourage implicit detection; optionally allow header default (`RAN.OptionScope`) as opt-in.
 - Migration: document a WP-CLI recipe for site→network migration (dry-run, progress, rollback notes).

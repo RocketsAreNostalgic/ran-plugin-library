@@ -13,9 +13,12 @@ use Ran\PluginLib\Options\RegisterOptions;
 // Site scope (default)
 $opts = $config->options();
 
-// Set
-$opts->set_option('enabled', true);
-$opts->set_option('api_key', 'abc123');
+// Stage changes (in memory)
+$opts->stage_option('enabled', true);
+$opts->stage_option('api_key', 'abc123');
+
+// Commit changes (to DB)
+$opts->commit_replace();
 
 // Get (with safe defaults)
 $enabled = $opts->get_option('enabled', false);
@@ -48,9 +51,9 @@ $networkOpts = RegisterOptions::network('my_plugin_network_option');
 $blogOpts    = RegisterOptions::blog('my_plugin_blog_option', 123 /* blog_id */);
 $userOpts    = RegisterOptions::user('my_plugin_user_option', 456 /* user_id */, true /* global? */);
 
-// Factory from Config (construction-only args, typed context)
+// Constructor using Config or arbitrary string key (string, typed context)
 use Ran\PluginLib\Options\Storage\StorageContext;
-$opts = RegisterOptions::from_config($config, StorageContext::forSite(), true);
+$opts = new RegisterOptions($config->get_options_key(), StorageContext::forSite(), true, $config->get_logger());
 ```
 
 #### Typed StorageContext (recommended)
@@ -85,13 +88,13 @@ $opts
 
 ### Choosing an entry point
 
-Most callers should start with `Config::options()` and then use fluent methods to attach schema/defaults/policy. Use `RegisterOptions::from_config()` only when you must control construction-time concerns (e.g., explicit typed `StorageContext` or autoload preference for first-create) at creation.
+Most callers should start with `Config::options()` and then use fluent methods to attach schema/defaults/policy. Use `new RegisterOptions()` only when you must control construction-time concerns (e.g., explicit typed `StorageContext` or autoload preference for first-create) at creation.
 
 - `Config::options(StorageContext $ctx = StorageContext::forSite())`
   - No writes during construction
   - Binds logger from `ConfigInterface::get_logger()` when available
   - Preferred entry point for application code
-- `RegisterOptions::from_config(ConfigInterface $config, ?StorageContext $ctx = null, bool $autoload = true)`
+- `new RegisterOptions(ConfigInterface $config->get_options_key(), ?StorageContext $ctx = null, bool $autoload = true)`
   - Construction-only concerns (scope via typed context, autoload preference)
   - No implicit writes; still configure schema/defaults/policy via fluents after creation
 - Named factories (e.g., `RegisterOptions::site|network|blog|user`) are available for low-level cases when you don’t have a `Config` instance.
@@ -295,7 +298,8 @@ How to flip safely (escape hatch):
 $current = $opts->get_option('complex_map', []);
 $patch   = ['level1' => ['added' => 'x']];
 $merged  = array_replace_recursive(is_array($current) ? $current : [], $patch);
-$opts->set_option('complex_map', $merged);
+$opts->stage_option('complex_map', $merged);
+$opts->commit_replace();
 ```
 
 ### Memory vs Persistence

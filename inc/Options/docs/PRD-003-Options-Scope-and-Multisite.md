@@ -50,7 +50,7 @@ enum OptionScope: string { case Site = 'site'; case Network = 'network'; case Bl
 ```php
 namespace Ran\PluginLib\Options\Storage;
 
-use Ran\PluginLib\Options\OptionScope;
+use Ran\PluginLib\Config\Config;
 
 interface OptionStorageInterface {
     public function scope(): OptionScope;
@@ -69,7 +69,7 @@ interface OptionStorageInterface {
   - NetworkOptionStorage → `get_site_option` / `update_site_option` / `add_site_option` / `delete_site_option`; autoload N/A
   - BlogOptionStorage → `get_blog_option` / `update_blog_option` / `add_blog_option` / `delete_blog_option`; requires `blog_id`; autoload only when targeting current blog
 
-A small factory selects the adapter from the typed `StorageContext` and is used by both `Config::options()` and `RegisterOptions::from_config()`.
+A small factory selects the adapter from the typed `StorageContext` and is used by both `Config::options()` and `new RegisterOptions()`.
 
 ## Proposed Additions
 
@@ -80,9 +80,9 @@ A small factory selects the adapter from the typed `StorageContext` and is used 
 - `StorageContext` selects scope: `forSite()`, `forNetwork()`, `forBlog(int)`, `forUser(int, 'meta'|'option', bool)`
 - Side‑effect free; returns a pre‑wired `RegisterOptions`.
 
-### 2) Scope‑aware factory on RegisterOptions
+### 2) Constructor on RegisterOptions
 
-`RegisterOptions::from_config(\Ran\PluginLib\Config\ConfigInterface $cfg, ?StorageContext $context = null, bool $autoload = true): static`.
+`new RegisterOptions(\Ran\PluginLib\Config\ConfigInterface $cfg, ?StorageContext $context = null, bool $autoload = true): static`.
 
 - Wires an appropriate `OptionStorageInterface` via the internal factory using the typed `StorageContext`.
 - Binds to `$cfg->get_options_key()` with the requested scope.
@@ -134,7 +134,7 @@ add_option($option_name, $current, '', $newAutoload); // true|false|null
 ### Plugin (default: site scope)
 
 ```php
-use Ran\PluginLib\Config\Config;
+use Ran\PluginLib\Options\OptionScope;
 
 $config = Config::fromPluginFile(__FILE__);
 $opts   = $config->options(); // defaults to site (StorageContext::forSite())
@@ -167,7 +167,7 @@ $blog_id = 123; // known site ID
 $opts = $config->options(StorageContext::forBlog($blog_id));
 $blog_settings = $opts->get_options();
 // Alternatively:
-// $opts = \Ran\PluginLib\Options\RegisterOptions::from_config($config, StorageContext::forBlog($blog_id));
+// $opts = \Ran\PluginLib\Options\RegisterOptions::($config->get_options_key(), StorageContext::forBlog($blog_id));
 // $blog_settings = $opts->get_options();
 ```
 
@@ -190,12 +190,18 @@ Context fields:
 
 - **op (string)** — operation attempted: `save_all`, `set_option`, `stage_options`, etc.
 - **main_option (string)** — main WordPress option key this manager writes to.
-- **options (array)** — associative values to be persisted (treat as read‑only).
+- **key (string)** — for single‑key operations such as `add_option`, `set_option`, `delete_option`.
+- **keys (string[])** — for batch operations such as `stage_options` (list of normalized keys to be staged).
+- **options (array)** — for `save_all`: associative values to be persisted (treat as read‑only).
+- **merge_from_db (bool)** — only for `op='save_all'`; whether values will merge with DB vs replace.
 - **scope ('site'|'network'|'blog'|'user')** — target storage context for the operation.
 - **blog_id (?int)** — when `scope='blog'`: defaults to current blog if omitted; otherwise set to the target blog ID. Null otherwise.
 - **user_id (?int)** — when `scope='user'`: the target user ID.
-- **merge_from_db (bool)** — only for `op='save_all'`; whether values will merge with DB vs replace.
 - **config (array|null)** — optional library config snapshot for policy decisions.
+
+Atomic batch note:
+
+- `stage_options` is atomic by default. Policy and/or filter callbacks should inspect `keys` and veto the entire batch when any key is disallowed. This preserves predictable behavior and prevents partial mutations. If partial staging is desired, introduce an explicit alternative API or feature flag rather than changing the default.
 
 ```php
 // Generic gate: allow network writes only to admins with manage_network_options
@@ -347,7 +353,7 @@ Notes:
 ## Acceptance Criteria
 
 - `Config::options(?StorageContext $context = null, bool $autoload = true)` selects scope via typed `StorageContext` (defaults to site when null).
-- `RegisterOptions::from_config($cfg, ?StorageContext $context = null, bool $autoload = true)` available and uses the storage factory internally.
+- `new RegisterOptions($cfg->get_options_key(), ?StorageContext $context = null, bool $autoload = true)` available and uses the storage factory internally.
 - `OptionScope` enum defined with values `site`, `network`, `blog` (library‑internal, referenced in docs/examples).
 - `OptionStorageInterface` defined and implemented by `SiteOptionStorage`, `NetworkOptionStorage`, `BlogOptionStorage`.
   - Internal storage adapters route calls to correct WP APIs, honoring autoload only when `supports_autoload()` is true.

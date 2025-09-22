@@ -151,8 +151,8 @@ Define a strict, explicit schema process for `RegisterOptions` covering default 
 Quick examples:
 
 ```php
-use Ran\PluginLib\Options\Sanitize;
-use Ran\PluginLib\Options\Validate;
+use Ran\PluginLib\Util\Sanitize;
+use Ran\PluginLib\Util\Validate;
 
 $schema['username'] = [
   'default'  => '',

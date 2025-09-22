@@ -323,7 +323,7 @@ $configWithGetLogger = new class($logger) implements \Ran\PluginLib\Config\Confi
     // ...other required ConfigInterface methods...
 };
 
-$optsFromConfig = RegisterOptions::from_config($configWithGetLogger, [
+$optsFromConfig = new RegisterOptions($configWithGetLogger->get_options_key(), [
     'autoload' => true,
     'scope'    => 'site',
 ]);

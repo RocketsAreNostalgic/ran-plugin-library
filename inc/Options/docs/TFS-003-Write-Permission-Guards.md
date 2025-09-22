@@ -31,7 +31,6 @@ It covers control flow, filters, rollback guarantees, and extension points. Diag
 - **Default**: If no policy is supplied, `RegisterOptions` lazily applies `RestrictedDefaultWritePolicy`.
 - **Injection points**:
   - Constructor: `new RegisterOptions(..., ?WritePolicyInterface $policy = null)`
-  - Factory: `RegisterOptions::from_config(ConfigInterface $config, ?StorageContext $context = null, bool $autoload = true)`
   - Fluent on the returned manager: `$config->options(StorageContext::forSite())->with_policy($customPolicy)`
 
 Example via fluent API on the returned manager:

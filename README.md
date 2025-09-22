@@ -415,7 +415,7 @@ $opts->commit_replace(); // explicit write
 // or seed schema defaults and persist immediately (use fluent API on RegisterOptions)
 $opts->register_schema(['enabled' => ['default' => true]], seed_defaults: true, flush: true);
 
-> Note: For construction-only scenarios, `RegisterOptions::from_config($config, ['autoload' => ..., 'scope' => ..., 'entity' => ...])` is available. Prefer `Config::options()`. Both use typed entities for scope handling. Customization can be applied via fluent methods (schema/defaults/policy). These accessors perform no writes.
+> Note: For construction-only scenarios, `new RegisterOptions($config->get_options_key(), ['autoload' => ..., 'scope' => ..., 'entity' => ...])` is available. Prefer `Config::options()`. Both use typed entities for scope handling. Customization can be applied via fluent methods (schema/defaults/policy). These accessors perform no writes.
 ```
 
 Examples:
