@@ -191,6 +191,11 @@ trait WPWrappersTrait {
 	 * @return bool
 	 */
 	public function _do_update_option(string $option, mixed $value, mixed $autoload = null): bool {
+		// Availability guard: in tests/CLI WP may not be loaded. Mirror behavior of other
+		// wrappers by avoiding fatals and returning a strict bool.
+		if (!\function_exists('update_option')) {
+			return true;
+		}
 		// Preserve legacy two-argument behavior when $autoload is null so callers/tests
 		// expecting the 2-arg signature still match. When explicitly provided, forward
 		// the third parameter.
@@ -661,5 +666,119 @@ trait WPWrappersTrait {
 	 */
 	public function _do_get_stylesheet_directory_uri(): string {
 		return \function_exists('get_stylesheet_directory_uri') ? (string) \get_stylesheet_directory_uri() : '';
+	}
+
+	/**
+	 * Public wrapper for WordPress is_network_admin()
+	 *
+	 * Availability-guarded: Yes
+	 * @return bool
+	 * @codeCoverageIgnore
+	 */
+	public function _do_is_network_admin(): bool {
+		return \function_exists('is_network_admin') ? (bool) \is_network_admin() : false;
+	}
+
+	/**
+	 * Public wrapper for WordPress register_setting()
+	 *
+	 * Direct-forward: Yes (requires WP loaded)
+	 * @param string $option_group
+	 * @param string $option_name
+	 * @param array  $args
+	 * @return void
+	 * @codeCoverageIgnore
+	 */
+	public function _do_register_setting(string $option_group, string $option_name, array $args = array()): void {
+		if (\function_exists('register_setting')) {
+			\register_setting($option_group, $option_name, $args);
+		}
+	}
+
+	/**
+	 * Public wrapper for WordPress add_options_page()
+	 *
+	 * Direct-forward: Yes (requires WP loaded)
+	 * @param string   $page_title
+	 * @param string   $menu_title
+	 * @param string   $capability
+	 * @param string   $menu_slug
+	 * @param callable $callback
+	 * @param ?int     $position
+	 * @return void
+	 * @codeCoverageIgnore
+	 */
+	public function _do_add_options_page(string $page_title, string $menu_title, string $capability, string $menu_slug, callable $callback, ?int $position = null): void {
+		if (\function_exists('add_options_page')) {
+			// add_options_page signature ignores position; using parent menu API normally controls ordering.
+			\add_options_page($page_title, $menu_title, $capability, $menu_slug, $callback);
+		}
+	}
+
+	/**
+	 * Public wrapper for WordPress add_settings_section()
+	 * @param string   $id
+	 * @param string   $title
+	 * @param callable $callback
+	 * @param string   $page
+	 * @return void
+	 * @codeCoverageIgnore
+	 */
+	public function _do_add_settings_section(string $id, string $title, callable $callback, string $page): void {
+		if (\function_exists('add_settings_section')) {
+			\add_settings_section($id, $title, $callback, $page);
+		}
+	}
+
+	/**
+	 * Public wrapper for WordPress add_settings_field()
+	 * @param string   $id
+	 * @param string   $title
+	 * @param callable $callback
+	 * @param string   $page
+	 * @param string   $section
+	 * @return void
+	 * @codeCoverageIgnore
+	 */
+	public function _do_add_settings_field(string $id, string $title, callable $callback, string $page, string $section): void {
+		if (\function_exists('add_settings_field')) {
+			\add_settings_field($id, $title, $callback, $page, $section);
+		}
+	}
+
+	/**
+	 * Public wrapper for WordPress settings_fields()
+	 * @param string $option_group
+	 * @return void
+	 * @codeCoverageIgnore
+	 */
+	public function _do_settings_fields(string $option_group): void {
+		if (\function_exists('settings_fields')) {
+			\settings_fields($option_group);
+		}
+	}
+
+	/**
+	 * Public wrapper for WordPress do_settings_sections()
+	 * @param string $page
+	 * @return void
+	 * @codeCoverageIgnore
+	 */
+	public function _do_do_settings_sections(string $page): void {
+		if (\function_exists('do_settings_sections')) {
+			\do_settings_sections($page);
+		}
+	}
+
+	/**
+	 * Public wrapper for WordPress submit_button()
+	 * @param string $text
+	 * @return void
+	 * @codeCoverageIgnore
+	 */
+	public function _do_submit_button(string $text = 'Save Changes'): void {
+		if (\function_exists('submit_button')) {
+			\submit_button($text);
+		}
 	}
 }
