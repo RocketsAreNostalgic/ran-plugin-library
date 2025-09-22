@@ -3,19 +3,46 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\Util;
 
+use Ran\PluginLib\Util\Sanitize\SanitizeJsonGroup;
+use Ran\PluginLib\Util\Sanitize\SanitizeArrayGroup;
+use Ran\PluginLib\Util\Sanitize\SanitizeNumberGroup;
+use Ran\PluginLib\Util\Sanitize\SanitizeStringGroup;
+use Ran\PluginLib\Util\Sanitize\SanitizeComposeGroup;
+use Ran\PluginLib\Util\Sanitize\SanitizeCanonicalGroup;
+
 /**
- * Utility helpers for schema sanitization and canonicalization.
+ * Sanitization utilities (nested namespace facade).
  *
- * Primary goal: provide order-insensitive deep normalization so that
- * semantically equivalent inputs normalize to an identical canonical
- * structure, enabling strict (===) equality checks to behave as a
- * robust no-op guard and reduce needless DB writes.
+ * This facade lives under the new nested namespace per Option B. Group classes
+ * are being migrated gradually; combine() already returns the new namespaced
+ * group. Others temporarily return the legacy groups until migration completes.
+ *
+ * @example
+ *  use Ran\PluginLib\Util\Sanitize\Sanitize;
+ *  $clean = (Sanitize::combine()->pipe(
+ *    Sanitize::string()->trim(),
+ *    Sanitize::string()->toLower(),
+ *    Sanitize::string()->stripTags()
+ *  ))($value);
+ *
+ * @method static SanitizeStringGroup string()
+ * @method static SanitizeNumberGroup number()
+ * @method static SanitizeArrayGroup array()
+ * @method static SanitizeJsonGroup json()
+ * @method static SanitizeComposeGroup combine()
+ * @method static SanitizeCanonicalGroup canonical()
  */
 final class Sanitize {
 	/**
 	 * Access string sanitizers (lightweight, pure, idempotent).
 	 *
-	 * @return SanitizeStringGroup
+	 * @example  $clean = (Sanitize::string()->trim())($value);
+	 *
+	 * @return \Ran\PluginLib\Util\Sanitize\SanitizeStringGroup
+	 * @method callable(mixed):mixed trim()
+	 * @method callable(mixed):mixed toLower()
+	 * @method callable(mixed):mixed toUpper()
+	 * @method callable(mixed):mixed stripTags()
 	 */
 	public static function string(): SanitizeStringGroup {
 		return new SanitizeStringGroup();
@@ -24,7 +51,12 @@ final class Sanitize {
 	/**
 	 * Access number/boolean sanitizers.
 	 *
-	 * @return SanitizeNumberGroup
+	 * @example  $clean = (Sanitize::number()->toInt())($value);
+	 *
+	 * @return \Ran\PluginLib\Util\Sanitize\SanitizeNumberGroup
+	 * @method callable(mixed):mixed toInt()
+	 * @method callable(mixed):mixed toFloat()
+	 * @method callable(mixed):mixed toBoolStrict()
 	 */
 	public static function number(): SanitizeNumberGroup {
 		return new SanitizeNumberGroup();
@@ -33,7 +65,12 @@ final class Sanitize {
 	/**
 	 * Access array/list/map sanitizers.
 	 *
-	 * @return SanitizeArrayGroup
+	 * @example  $clean = (Sanitize::array()->ensureList())($value);
+	 *
+	 * @return \Ran\PluginLib\Util\Sanitize\SanitizeArrayGroup
+	 * @method callable(mixed):mixed ensureList()
+	 * @method callable(mixed):mixed uniqueList()
+	 * @method callable(mixed):mixed ksortAssoc()
 	 */
 	public static function array(): SanitizeArrayGroup {
 		return new SanitizeArrayGroup();
@@ -42,7 +79,12 @@ final class Sanitize {
 	/**
 	 * Access JSON sanitizers.
 	 *
-	 * @return SanitizeJsonGroup
+	 * @example  $clean = (Sanitize::json()->decodeToValue())($value);
+	 *
+	 * @return \Ran\PluginLib\Util\Sanitize\SanitizeJsonGroup
+	 * @method callable(mixed):mixed decodeToValue()
+	 * @method callable(mixed):mixed decodeObject()
+	 * @method callable(mixed):mixed decodeArray()
 	 */
 	public static function json(): SanitizeJsonGroup {
 		return new SanitizeJsonGroup();
@@ -51,7 +93,18 @@ final class Sanitize {
 	/**
 	 * Access sanitizer combinators (composition helpers).
 	 *
-	 * @return SanitizeComposeGroup
+	 * @example  $clean = (Sanitize::combine()->pipe(
+	 *   Sanitize::string()->trim(),
+	 *   Sanitize::string()->toLower(),
+	 *   Sanitize::string()->stripTags()
+	 * ))($value);
+	 *
+	 * @return \Ran\PluginLib\Util\Sanitize\SanitizeComposeGroup
+	 * @method callable(mixed):mixed pipe(callable ...$sanitizers)
+	 * @method callable(mixed):mixed nullable(callable $sanitizer)
+	 * @method callable(mixed):mixed optional(callable $sanitizer)
+	 * @method callable(mixed):mixed when(callable $predicate, callable $sanitizer)
+	 * @method callable(mixed):mixed unless(callable $predicate, callable $sanitizer)
 	 */
 	public static function combine(): SanitizeComposeGroup {
 		return new SanitizeComposeGroup();
@@ -59,401 +112,14 @@ final class Sanitize {
 
 	/**
 	 * Access canonicalizers (order-insensitive helpers) as callables.
-	 * Keeps existing static methods for backward compatibility.
+  	 *
+	 * @example  $clean = (Sanitize::canonical()->orderInsensitiveDeep())($value);
 	 *
-	 * @return SanitizeCanonicalGroup
+	 * @return \Ran\PluginLib\Util\Sanitize\SanitizeCanonicalGroup
+	 * @method callable(mixed):mixed orderInsensitiveDeep()
+	 * @method callable(mixed):mixed orderInsensitiveShallow()
 	 */
 	public static function canonical(): SanitizeCanonicalGroup {
 		return new SanitizeCanonicalGroup();
-	}
-	/**
-	 * Canonicalize values deeply:
-	 * - Objects are converted to arrays (prefers JsonSerializable where available)
-	 * - Associative arrays have their keys sorted (ksort), values normalized recursively
-	 * - List arrays are normalized element-wise, then sorted by JSON representation (stable)
-	 *
-	 * Note: Only use for keys where list order is not semantically meaningful.
-	 * For order-sensitive data, do not apply this sanitizer.
-	 */
-	public static function orderInsensitiveDeep(mixed $value): mixed {
-		// Convert objects to arrays for comparison
-		if (\is_object($value)) {
-			if ($value instanceof \JsonSerializable) {
-				$value = $value->jsonSerialize();
-			} else {
-				// Best-effort conversion of public properties
-				$value = get_object_vars($value);
-			}
-		}
-
-		if (!\is_array($value)) {
-			return $value;
-		}
-
-		// Distinguish list vs associative
-		$is_list = array_keys($value) === range(0, count($value) - 1);
-
-		if ($is_list) {
-			// Normalize each element first
-			$normalized = array_map(array(self::class, 'orderInsensitiveDeep'), $value);
-			// Stable sort by JSON representation to obtain a canonical order
-			usort($normalized, static function ($a, $b): int {
-				$ja = json_encode($a, JSON_UNESCAPED_UNICODE);
-				$jb = json_encode($b, JSON_UNESCAPED_UNICODE);
-				return strcmp((string) $ja, (string) $jb);
-			});
-			return $normalized;
-		}
-
-		// Associative map: normalize values and sort by key
-		foreach ($value as $k => $v) {
-			$value[$k] = self::orderInsensitiveDeep($v);
-		}
-		ksort($value);
-		return $value;
-	}
-
-	/**
-	 * Canonicalize values at the top level only (shallow):
-	 * - Objects are converted to arrays (prefers JsonSerializable where available)
-	 * - If the top-level is an associative array: keys are sorted (ksort); nested arrays are left untouched
-	 * - If the top-level is a list: elements are left as-is except for a stable top-level sort by JSON representation
-	 *
-	 * Use when only the top-level ordering should be ignored while preserving
-	 * the original ordering semantics of nested structures.
-	 */
-	public static function orderInsensitiveShallow(mixed $value): mixed {
-		// Convert objects to arrays for comparison
-		if (\is_object($value)) {
-			if ($value instanceof \JsonSerializable) {
-				$value = $value->jsonSerialize();
-			} else {
-				$value = get_object_vars($value);
-			}
-		}
-
-		if (!\is_array($value)) {
-			return $value;
-		}
-
-		$is_list = array_keys($value) === range(0, count($value) - 1);
-
-		if ($is_list) {
-			// Top-level list: do not recurse; provide stable ordering only if order is irrelevant
-			$copy = $value;
-			usort($copy, static function ($a, $b): int {
-				$ja = json_encode($a, JSON_UNESCAPED_UNICODE);
-				$jb = json_encode($b, JSON_UNESCAPED_UNICODE);
-				return strcmp((string) $ja, (string) $jb);
-			});
-			return $copy;
-		}
-
-		// Top-level assoc: sort keys only; do not recurse into nested arrays
-		ksort($value);
-		return $value;
-	}
-}
-
-// --- Grouped sanitizer classes (return callables) ---
-
-final class SanitizeStringGroup {
-	/**
-	 * Trim leading and trailing whitespace for strings; pass-through otherwise.
-	 *
-	 * @return callable(mixed):mixed
-	 */
-	public function trim(): callable {
-		return static function (mixed $v): mixed {
-			return \is_string($v) ? \trim($v) : $v;
-		};
-	}
-
-	/**
-	 * Lowercase strings; pass-through otherwise.
-	 *
-	 * @return callable(mixed):mixed
-	 */
-	public function toLower(): callable {
-		return static function (mixed $v): mixed {
-			return \is_string($v) ? \mb_strtolower($v) : $v;
-		};
-	}
-
-	/**
-	 * strip_tags on strings; pass-through otherwise.
-	 *
-	 * @return callable(mixed):mixed
-	 */
-	public function stripTags(): callable {
-		return static function (mixed $v): mixed {
-			return \is_string($v) ? \strip_tags($v) : $v;
-		};
-	}
-}
-
-final class SanitizeNumberGroup {
-	/**
-	 * Cast numeric-like values to int; pass-through otherwise.
-	 *
-	 * @return callable(mixed):mixed
-	 */
-	public function toInt(): callable {
-		return static function (mixed $v): mixed {
-			if (\is_int($v)) {
-				return $v;
-			}
-			if (\is_float($v)) {
-				return (int) $v;
-			}
-			if (\is_string($v) && is_numeric($v)) {
-				return (int) $v;
-			}
-			return $v;
-		};
-	}
-
-	/**
-	 * Cast numeric-like values to float; pass-through otherwise.
-	 *
-	 * @return callable(mixed):mixed
-	 */
-	public function toFloat(): callable {
-		return static function (mixed $v): mixed {
-			if (\is_float($v)) {
-				return $v;
-			}
-			if (\is_int($v)) {
-				return (float) $v;
-			}
-			if (\is_string($v) && is_numeric($v)) {
-				return (float) $v;
-			}
-			return $v;
-		};
-	}
-
-	/**
-	 * Coerce only strict boolean-like string literals to bool; pass-through otherwise.
-	 * Accepted: true,false (lowercase), 1,0 (int), true/false (bool).
-	 *
-	 * @return callable(mixed):mixed
-	 */
-	public function toBoolStrict(): callable {
-		return static function (mixed $v): mixed {
-			if (\is_bool($v)) {
-				return $v;
-			}
-			if ($v === 1 || $v === 0) {
-				return (bool) $v;
-			}
-			if ($v === 'true') {
-				return true;
-			}
-			if ($v === 'false') {
-				return false;
-			}
-			return $v;
-		};
-	}
-}
-
-final class SanitizeArrayGroup {
-	/**
-	 * Ensure an array is a list: if associative, return values reindexed; if list, return as-is; pass-through otherwise.
-	 *
-	 * @return callable(mixed):mixed
-	 */
-	public function ensureList(): callable {
-		return static function (mixed $v): mixed {
-			if (!\is_array($v)) {
-				return $v;
-			}
-			$is_list = array_keys($v) === range(0, count($v) - 1);
-			return $is_list ? $v : array_values($v);
-		};
-	}
-
-	/**
-	 * Remove duplicate elements from a list while preserving original order; pass-through for non-arrays.
-	 *
-	 * @return callable(mixed):mixed
-	 */
-	public function uniqueList(): callable {
-		return static function (mixed $v): mixed {
-			if (!\is_array($v)) {
-				return $v;
-			}
-			$seen = array();
-			$out  = array();
-			foreach ($v as $item) {
-				$key = json_encode($item, JSON_UNESCAPED_UNICODE);
-				if (!array_key_exists((string) $key, $seen)) {
-					$seen[(string) $key] = true;
-					$out[]               = $item;
-				}
-			}
-			return $out;
-		};
-	}
-
-	/**
-	 * Sort associative arrays by key; pass-through for non-arrays and lists.
-	 *
-	 * @return callable(mixed):mixed
-	 */
-	public function ksortAssoc(): callable {
-		return static function (mixed $v): mixed {
-			if (!\is_array($v)) {
-				return $v;
-			}
-			$is_list = array_keys($v) === range(0, count($v) - 1);
-			if ($is_list) {
-				return $v;
-			}
-			$copy = $v;
-			ksort($copy);
-			return $copy;
-		};
-	}
-}
-
-final class SanitizeJsonGroup {
-	/**
-	 * Decode valid JSON strings to PHP values; pass-through otherwise.
-	 *
-	 * @return callable(mixed):mixed
-	 */
-	public function decodeToValue(): callable {
-		return static function (mixed $v): mixed {
-			if (!\is_string($v)) {
-				return $v;
-			}
-			$decoded = json_decode($v, true);
-			return (json_last_error() === JSON_ERROR_NONE) ? $decoded : $v;
-		};
-	}
-
-	/**
-	 * Decode to associative array (JSON object); pass-through if not a JSON object string.
-	 *
-	 * @return callable(mixed):mixed
-	 */
-	public function decodeObject(): callable {
-		return static function (mixed $v): mixed {
-			if (!\is_string($v)) {
-				return $v;
-			}
-			$decoded = json_decode($v, true);
-			return (json_last_error() === JSON_ERROR_NONE && \is_array($decoded) && array_keys($decoded) !== range(0, count($decoded) - 1)) ? $decoded : $v;
-		};
-	}
-
-	/**
-	 * Decode to list array (JSON array); pass-through if not a JSON array string.
-	 *
-	 * @return callable(mixed):mixed
-	 */
-	public function decodeArray(): callable {
-		return static function (mixed $v): mixed {
-			if (!\is_string($v)) {
-				return $v;
-			}
-			$decoded = json_decode($v, true);
-			return (json_last_error() === JSON_ERROR_NONE && \is_array($decoded) && array_keys($decoded) === range(0, count($decoded) - 1)) ? $decoded : $v;
-		};
-	}
-}
-
-final class SanitizeComposeGroup {
-	/**
-	 * Combine multiple sanitizers into one by piping the output of each into the next.
-	 *
-	 * @param callable(mixed):mixed ...$sanitizers
-	 * @return callable(mixed):mixed
-	 */
-	public function pipe(callable ...$sanitizers): callable {
-		return static function (mixed $v) use ($sanitizers): mixed {
-			$out = $v;
-			foreach ($sanitizers as $s) {
-				$out = $s($out);
-			}
-			return $out;
-		};
-	}
-
-	/**
-	 * Apply a sanitizer only when value is not null; pass-through null.
-	 *
-	 * @param callable(mixed):mixed $sanitizer
-	 * @return callable(mixed):mixed
-	 */
-	public function nullable(callable $sanitizer): callable {
-		return static function (mixed $v) use ($sanitizer): mixed {
-			if ($v === null) {
-				return null;
-			}
-			return $sanitizer($v);
-		};
-	}
-
-	/**
-	 * Alias of nullable(...) for ergonomics; null is treated as absent and passed through.
-	 *
-	 * @param callable(mixed):mixed $sanitizer
-	 * @return callable(mixed):mixed
-	 */
-	public function optional(callable $sanitizer): callable {
-		return $this->nullable($sanitizer);
-	}
-
-	/**
-	 * Conditionally apply a sanitizer when predicate returns true; otherwise pass-through.
-	 *
-	 * @param callable(mixed):bool   $predicate Pure predicate receiving the current value
-	 * @param callable(mixed):mixed  $sanitizer Sanitizer to apply when predicate is true
-	 * @return callable(mixed):mixed
-	 */
-	public function when(callable $predicate, callable $sanitizer): callable {
-		return static function (mixed $v) use ($predicate, $sanitizer): mixed {
-			return $predicate($v) ? $sanitizer($v) : $v;
-		};
-	}
-
-	/**
-	 * Conditionally apply a sanitizer when predicate returns false; otherwise pass-through.
-	 *
-	 * @param callable(mixed):bool   $predicate Pure predicate receiving the current value
-	 * @param callable(mixed):mixed  $sanitizer Sanitizer to apply when predicate is false
-	 * @return callable(mixed):mixed
-	 */
-	public function unless(callable $predicate, callable $sanitizer): callable {
-		return static function (mixed $v) use ($predicate, $sanitizer): mixed {
-			return $predicate($v) ? $v : $sanitizer($v);
-		};
-	}
-}
-
-final class SanitizeCanonicalGroup {
-	/**
-	 * Wrap orderInsensitiveDeep as a callable sanitizer.
-	 *
-	 * @return callable(mixed):mixed
-	 */
-	public function orderInsensitiveDeep(): callable {
-		return static function (mixed $v): mixed {
-			return Sanitize::orderInsensitiveDeep($v);
-		};
-	}
-
-	/**
-	 * Wrap orderInsensitiveShallow as a callable sanitizer.
-	 *
-	 * @return callable(mixed):mixed
-	 */
-	public function orderInsensitiveShallow(): callable {
-		return static function (mixed $v): mixed {
-			return Sanitize::orderInsensitiveShallow($v);
-		};
 	}
 }
