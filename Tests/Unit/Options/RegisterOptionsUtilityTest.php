@@ -6,6 +6,7 @@ namespace Ran\PluginLib\Tests\Unit\Options;
 
 use WP_Mock;
 use Ran\PluginLib\Util\Logger;
+use Ran\PluginLib\Util\Validate;
 use Ran\PluginLib\Options\OptionScope;
 use Ran\PluginLib\Util\ExpectLogTrait;
 use Ran\PluginLib\Options\RegisterOptions;
@@ -54,19 +55,19 @@ final class RegisterOptionsUtilityTest extends PluginLibTestCase {
 
 	/**
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::__construct
-	 * @covers \Ran\PluginLib\Options\RegisterOptions::with_defaults
 	 */
 	public function test_with_defaults_sets_default_values(): void {
 		$opts = RegisterOptions::site('test_options');
 
+		// Allow in-memory staging in this test
+		$policy = $this->getMockBuilder(\Ran\PluginLib\Options\Policy\WritePolicyInterface::class)->getMock();
+		$policy->method('allow')->willReturn(true);
+		$opts->with_policy($policy);
+
 		// Phase 4: require schema for all mutated keys
 		$opts->with_schema(array(
-			'default_key1' => array('validate' => function ($v) {
-				return is_string($v);
-			}),
-			'default_key2' => array('validate' => function ($v) {
-				return is_string($v);
-			}),
+			'default_key1' => array('validate' => Validate::basic()->isString()),
+			'default_key2' => array('validate' => Validate::basic()->isString()),
 		));
 
 		$defaults = array(
@@ -74,7 +75,7 @@ final class RegisterOptionsUtilityTest extends PluginLibTestCase {
 			'default_key2' => 'default_value2'
 		);
 
-		$result = $opts->with_defaults($defaults);
+		$result = $opts->stage_options($defaults);
 
 		// Should return self for fluent interface
 		$this->assertSame($opts, $result);
@@ -127,34 +128,32 @@ final class RegisterOptionsUtilityTest extends PluginLibTestCase {
 
 	/**
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::__construct
-	 * @covers \Ran\PluginLib\Options\RegisterOptions::with_defaults
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::with_policy
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::with_logger
 	 */
 	public function test_fluent_interface_method_chaining(): void {
-		$opts = RegisterOptions::site('test_options');
-
-		// Phase 4: schema required for defaults
-		$opts->with_schema(array(
-			'chained_key' => array('validate' => function ($v) {
-				return is_string($v);
-			}),
-		));
-
 		// Create mock objects
 		$mockPolicy = $this->getMockBuilder(\Ran\PluginLib\Options\Policy\WritePolicyInterface::class)
 			->getMock();
 		$mockLogger = $this->getMockBuilder(\Ran\PluginLib\Util\Logger::class)
 			->disableOriginalConstructor()
 			->getMock();
-
 		$defaults = array('chained_key' => 'chained_value');
 
+		$opts = RegisterOptions::site('test_options');
+
+		// Allow in-memory staging in this test
+		$policy = $this->getMockBuilder(\Ran\PluginLib\Options\Policy\WritePolicyInterface::class)->getMock();
+		$policy->method('allow')->willReturn(true);
+		$opts->with_policy($policy);
+
 		// Test method chaining
-		$result = $opts
-			->with_defaults($defaults)
+		$result = $opts->with_schema(array(
+			'chained_key' => array('validate' => Validate::basic()->isString()),
+		))
 			->with_policy($mockPolicy)
-			->with_logger($mockLogger);
+			->with_logger($mockLogger)
+			->stage_options($defaults);
 
 		// Should return self after chaining
 		$this->assertSame($opts, $result);
@@ -457,7 +456,7 @@ final class RegisterOptionsUtilityTest extends PluginLibTestCase {
 
 	/**
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::__construct
-	 * @covers \Ran\PluginLib\Options\RegisterOptions::set_option
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::stage_option
 	 */
 	public function test_set_option_with_string_scope_override(): void {
 		$opts = RegisterOptions::site('test_options', true, $this->logger_mock);
@@ -494,7 +493,7 @@ final class RegisterOptionsUtilityTest extends PluginLibTestCase {
 		WP_Mock::userFunction('update_blog_option')->andReturn(true);
 
 		// Set an option - should use blog storage and succeed
-		$result = $opts->set_option('test_key', 'test_value');
+		$result = $opts->stage_option('test_key', 'test_value')->commit_merge();
 		$this->assertTrue($result);
 		$this->assertEquals('test_value', $opts->get_option('test_key'));
 	}

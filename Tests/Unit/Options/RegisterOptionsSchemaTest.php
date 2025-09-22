@@ -71,7 +71,7 @@ final class RegisterOptionsSchemaTest extends PluginLibTestCase {
 			->reply(true);
 		WP_Mock::userFunction('update_option')->andReturn(true);
 
-		$result = $opts->set_option('test_key', 'test_value');
+		$result = $opts->stage_option('test_key', 'test_value')->commit_merge();
 		$this->assertTrue($result);
 	}
 
@@ -91,6 +91,11 @@ final class RegisterOptionsSchemaTest extends PluginLibTestCase {
 	 */
 	public function test_register_schema_merges_existing_keys(): void {
 		$opts = RegisterOptions::site('test_options');
+
+		// Ensure policy allows schema mutations for this test
+		$policy = $this->getMockBuilder(\Ran\PluginLib\Options\Policy\WritePolicyInterface::class)->getMock();
+		$policy->method('allow')->willReturn(true);
+		$opts->with_policy($policy);
 
 		// First register a schema with some keys
 		$initialSchema = array(
@@ -261,6 +266,11 @@ final class RegisterOptionsSchemaTest extends PluginLibTestCase {
 			),
 		);
 
+		// Ensure policy allows schema mutations for this test
+		$policy = $this->getMockBuilder(\Ran\PluginLib\Options\Policy\WritePolicyInterface::class)->getMock();
+		$policy->method('allow')->willReturn(true);
+		$opts->with_policy($policy);
+		
 		$changed = $opts->register_schema($schema);
 
 		// Expect changes due to normalization.

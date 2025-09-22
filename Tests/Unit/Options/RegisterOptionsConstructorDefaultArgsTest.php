@@ -15,11 +15,11 @@ use Ran\PluginLib\Tests\Unit\PluginLibTestCase;
 use Ran\PluginLib\Options\Storage\StorageContext;
 
 /**
- * Tests for RegisterOptions::from_config factory.
+ * Tests for RegisterOptions::__construct.
  *
  * Covers default args handling and typed StorageContext usage for scope selection.
  */
-final class RegisterOptionsFromConfigTest extends PluginLibTestCase {
+final class RegisterOptionsConstructorDefaultArgsTest extends PluginLibTestCase {
 	use ExpectLogTrait;
 
 	public function setUp(): void {
@@ -104,7 +104,7 @@ final class RegisterOptionsFromConfigTest extends PluginLibTestCase {
 				return array();
 			}
 			public function options(?StorageContext $context = null, bool $autoload = true): RegisterOptions {
-				return RegisterOptions::from_config($this, $context, $autoload);
+				return new RegisterOptions($this->get_options_key(), $context ?? StorageContext::forSite(), $autoload, $this->get_logger());
 			}
 			public function is_dev_environment(): bool {
 				return false;
@@ -116,11 +116,11 @@ final class RegisterOptionsFromConfigTest extends PluginLibTestCase {
 	}
 
 	/**
-	 * @covers \Ran\PluginLib\Options\RegisterOptions::from_config
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::__construct
 	 */
-	public function test_from_config_defaults_to_site_scope(): void {
+	public function test_constructor_defaults_to_site_scope(): void {
 		$cfg  = $this->makeConfig();
-		$opts = RegisterOptions::from_config($cfg);
+		$opts = new RegisterOptions($cfg->get_options_key(), StorageContext::forSite(), true, $this->logger_mock);
 
 		// Expect constructor initialization log captured via Config-provided logger
 		$this->expectLog('debug', "RegisterOptions: Initialized with main option 'test_plugin_options'. Loaded 0 existing sub-options.", 1);
@@ -132,53 +132,53 @@ final class RegisterOptionsFromConfigTest extends PluginLibTestCase {
 	}
 
 	/**
-	 * @covers \Ran\PluginLib\Options\RegisterOptions::from_config
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::__construct
 	 */
-	public function test_from_config_network_scope_context(): void {
+	public function test_constructor_network_scope_context(): void {
 		$cfg  = $this->makeConfig();
-		$opts = RegisterOptions::from_config($cfg, StorageContext::forNetwork());
+		$opts = new RegisterOptions($cfg->get_options_key(), StorageContext::forNetwork(), true, $this->logger_mock);
 		// Network storage does not support autoload
 		$this->assertFalse($opts->supports_autoload());
 	}
 
 	/**
-	 * @covers \Ran\PluginLib\Options\RegisterOptions::from_config
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::__construct
 	 */
-	public function test_from_config_blog_scope_invalid_id_throws(): void {
+	public function test_constructor_blog_scope_invalid_id_throws(): void {
 		$cfg = $this->makeConfig();
 		$this->expectException(\InvalidArgumentException::class);
 		// Invalid blog id (0) should throw from StorageContext
-		RegisterOptions::from_config($cfg, StorageContext::forBlog(0));
+		new RegisterOptions($cfg->get_options_key(), StorageContext::forBlog(0), true, $this->logger_mock);
 	}
 
 	/**
-	 * @covers \Ran\PluginLib\Options\RegisterOptions::from_config
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::__construct
 	 */
-	public function test_from_config_blog_with_entity(): void {
+	public function test_constructor_blog_with_entity(): void {
 		$cfg  = $this->makeConfig();
-		$opts = RegisterOptions::from_config($cfg, StorageContext::forBlog(123));
+		$opts = new RegisterOptions($cfg->get_options_key(), StorageContext::forBlog(123), true, $this->logger_mock);
 		// supports_autoload may be false if not current blog; this test focuses on construction success
 		$this->assertInstanceOf(RegisterOptions::class, $opts);
 	}
 
 	/**
-	 * @covers \Ran\PluginLib\Options\RegisterOptions::from_config
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::__construct
 	 */
-	public function test_from_config_user_with_context(): void {
+	public function test_constructor_user_with_context(): void {
 		$cfg  = $this->makeConfig();
 		$ctx  = StorageContext::forUser(7, 'option', true);
-		$opts = RegisterOptions::from_config($cfg, $ctx);
+		$opts = new RegisterOptions($cfg->get_options_key(), $ctx, true, $this->logger_mock);
 		$this->assertInstanceOf(RegisterOptions::class, $opts);
 	}
 
 	/**
-	 * @covers \Ran\PluginLib\Options\RegisterOptions::from_config
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::__construct
 	 */
-	public function test_from_config_throws_on_empty_options_key(): void {
+	public function test_constructor_throws_on_empty_options_key(): void {
 		$cfg = $this->getMockBuilder(ConfigInterface::class)->getMock();
 		$cfg->method('get_options_key')->willReturn('');
 		$this->expectException(\InvalidArgumentException::class);
-		$this->expectExceptionMessage('Missing or invalid options key from Config');
-		RegisterOptions::from_config($cfg, StorageContext::forSite(), true);
+		$this->expectExceptionMessage('RegisterOptions: main_wp_option_name cannot be empty');
+		new RegisterOptions($cfg->get_options_key(), StorageContext::forSite(), true, $this->logger_mock);
 	}
 }

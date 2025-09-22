@@ -108,7 +108,7 @@ final class RegisterOptionsAdditionalCoverageTest extends PluginLibTestCase {
 		if (method_exists($config, 'get_logger')) {
 			$config->method('get_logger')->willReturn($this->logger_mock);
 		}
-		$sut = RegisterOptions::from_config($config, StorageContext::forSite(), true);
+		$sut = new RegisterOptions($config->get_options_key(), StorageContext::forSite(), true, $this->logger_mock);
 		// After construction, the constructor logs an initialization message (exact string)
 		$this->expectLog('debug', "RegisterOptions: Initialized with main option 'ctor_log'. Loaded 0 existing sub-options.", 1);
 		// Sanity: no options initially
@@ -118,7 +118,7 @@ final class RegisterOptionsAdditionalCoverageTest extends PluginLibTestCase {
 	/**
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::__construct
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::network
-	 * @covers \Ran\PluginLib\Options\RegisterOptions::set_option
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::stage_option
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::supports_autoload
 	 */
 	public function test_network_scope_set_option_and_autoload_false(): void {
@@ -142,8 +142,8 @@ final class RegisterOptionsAdditionalCoverageTest extends PluginLibTestCase {
 		    ->reply(true);
 		WP_Mock::userFunction('update_site_option')->andReturn(true);
 
-		// Even though update_site_option is mocked, SUT uses storage adapters; ensure set_option returns true
-		$this->assertTrue($opts->set_option('k', 'v'));
+		// Even though update_site_option is mocked, SUT uses storage adapters; ensure stage_option()->commit_merge() returns true
+		$this->assertTrue($opts->stage_option('k', 'v')->commit_merge());
 		$this->assertSame('v', $opts->get_option('k'));
 	}
 
@@ -201,6 +201,11 @@ final class RegisterOptionsAdditionalCoverageTest extends PluginLibTestCase {
 		    ),
 		);
 
+		// Allow in-memory schema mutations
+		$policy = $this->getMockBuilder(\Ran\PluginLib\Options\Policy\WritePolicyInterface::class)->getMock();
+		$policy->method('allow')->willReturn(true);
+		$opts->with_policy($policy);
+
 		$changed = $opts->register_schema($schema);
 		$this->assertTrue($changed);
 
@@ -222,16 +227,20 @@ final class RegisterOptionsAdditionalCoverageTest extends PluginLibTestCase {
 		$config = $this->getMockBuilder(\Ran\PluginLib\Config\ConfigInterface::class)->getMock();
 		$config->method('get_options_key')->willReturn('ctor_initial');
 		$config->method('get_logger')->willReturn($this->logger_mock);
-		$sut = RegisterOptions::from_config($config, StorageContext::forSite(), true)
+		$sut = (new RegisterOptions($config->get_options_key(), StorageContext::forSite(), true, $this->logger_mock));
+		// Ensure policy allows schema mutations and staging for initial merge
+		$__policy = $this->getMockBuilder(\Ran\PluginLib\Options\Policy\WritePolicyInterface::class)->getMock();
+		$__policy->method('allow')->willReturn(true);
+		$sut->with_policy($__policy)
 			->with_schema(array(
-				'mixed-case_key' => array('validate' => function ($v) {
-					return is_string($v);
-				}),
-				'arr-key' => array('validate' => function ($v) {
-					return is_array($v);
-				}),
-			))
-			->with_defaults($initial);
+			'mixed-case_key' => array('validate' => function ($v) {
+				return is_string($v);
+			}),
+			'arr-key' => array('validate' => function ($v) {
+				return is_array($v);
+			}),
+		))
+		->stage_options($initial);
 		// Keys are normalized and values set in-memory only
 		$this->assertSame('val1', $sut->get_option('mixed-case_key'));
 		// Array remains as provided with array validator
@@ -261,7 +270,12 @@ final class RegisterOptionsAdditionalCoverageTest extends PluginLibTestCase {
 		$config = $this->getMockBuilder(\Ran\PluginLib\Config\ConfigInterface::class)->getMock();
 		$config->method('get_options_key')->willReturn('ctor_schema');
 		$config->method('get_logger')->willReturn($this->logger_mock);
-		$sut = RegisterOptions::from_config($config, StorageContext::forSite(), true)->with_schema($schema);
+		$sut = (new RegisterOptions($config->get_options_key(), StorageContext::forSite(), true, $this->logger_mock));
+		// Ensure policy allows schema mutations and staging
+		$policy = $this->getMockBuilder(\Ran\PluginLib\Options\Policy\WritePolicyInterface::class)->getMock();
+		$policy->method('allow')->willReturn(true);
+		$sut->with_policy($policy);
+		$sut->with_schema($schema);
 		// Normalized key should be present with sanitized/validated default value
 		$this->assertSame('ABC', $sut->get_option('mixed_key'));
 		$this->expectLog('debug', '_resolve_default_value', 1);
@@ -286,7 +300,7 @@ final class RegisterOptionsAdditionalCoverageTest extends PluginLibTestCase {
 		));
 
 		// Should not throw
-		$this->assertTrue($opts->set_option('num', '123'));
+		$this->assertTrue($opts->stage_option('num', '123')->commit_merge());
 		$this->assertSame('123', $opts->get_option('num'));
 	}
 

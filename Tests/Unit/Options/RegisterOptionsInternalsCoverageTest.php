@@ -16,7 +16,7 @@ use Ran\PluginLib\Options\Storage\StorageContext;
  * @covers \Ran\PluginLib\Options\RegisterOptions::__construct
  * @covers \Ran\PluginLib\Options\RegisterOptions::refresh_options
  * @covers \Ran\PluginLib\Options\RegisterOptions::commit_replace
- * @covers \Ran\PluginLib\Options\RegisterOptions::set_option
+ * @covers \Ran\PluginLib\Options\RegisterOptions::stage_option
  * @covers \Ran\PluginLib\Options\RegisterOptions::register_schema
  * @uses \Ran\PluginLib\Config\ConfigInterface
  * @uses \Ran\PluginLib\Options\RegisterOptions::__construct
@@ -67,7 +67,7 @@ final class RegisterOptionsInternalsCoverageTest extends PluginLibTestCase {
 		$config = $this->getMockBuilder(ConfigInterface::class)->getMock();
 		$config->method('get_options_key')->willReturn('test_options');
 		$config->method('get_logger')->willReturn($this->logger_mock);
-		$opts = RegisterOptions::from_config($config, StorageContext::forSite(), true);
+		$opts = new RegisterOptions($config->get_options_key(), StorageContext::forSite(), true, $this->logger_mock);
 
 		$schema = array(
 			'num' => array(
@@ -96,12 +96,17 @@ final class RegisterOptionsInternalsCoverageTest extends PluginLibTestCase {
 		);
 
 		// Register schema (Option A seeds defaults and normalizes in-memory by default)
+		// Allow in-memory schema mutations
+		$policy = $this->getMockBuilder(\Ran\PluginLib\Options\Policy\WritePolicyInterface::class)->getMock();
+		$policy->method('allow')->willReturn(true);
+		$opts->with_policy($policy);
+
 		$changed = $opts->register_schema($schema);
 		$this->assertTrue($changed);
 		$this->assertSame(5, $opts->get_option('num'));
 		$this->assertSame('Hello', $opts->get_option('label'));
 		// Assert logs after SUT ran
-		$this->expectLog('debug', "Getting option 'num'");
+		$this->expectLog('debug', '_get_storage resolved', 1);
 		$this->expectLog('debug', "Getting option 'label'");
 		$this->expectLog('debug', '_normalize_schema_keys completed');
 		$this->expectLog('debug', '_resolve_default_value resolved callable', 1);
@@ -110,7 +115,7 @@ final class RegisterOptionsInternalsCoverageTest extends PluginLibTestCase {
 	}
 
 	/**
-	 * @covers \Ran\PluginLib\Options\RegisterOptions::set_option
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::stage_option
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::_sanitize_and_validate_option
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::_stringify_value_for_error
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::_describe_callable
@@ -119,7 +124,7 @@ final class RegisterOptionsInternalsCoverageTest extends PluginLibTestCase {
 		$config = $this->getMockBuilder(ConfigInterface::class)->getMock();
 		$config->method('get_options_key')->willReturn('test_options');
 		$config->method('get_logger')->willReturn($this->logger_mock);
-		$opts = RegisterOptions::from_config($config, StorageContext::forSite(), true);
+		$opts = new RegisterOptions($config->get_options_key(), StorageContext::forSite(), true, $this->logger_mock);
 
 		$schema = array(
 			'age' => array(
@@ -135,7 +140,7 @@ final class RegisterOptionsInternalsCoverageTest extends PluginLibTestCase {
 
 		$this->expectException(\InvalidArgumentException::class);
 		$this->expectExceptionMessageMatches('/Validation failed/');
-		$opts->set_option('age', 10); // should fail validate, triggering _stringify_value_for_error + _describe_callable
+		$opts->stage_option('age', 10)->commit_merge(); // should fail validate, triggering _stringify_value_for_error + _describe_callable
 		// End-of-method logs produced during failure path
 		$this->expectLog('debug', '_stringify_value_for_error completed');
 		$this->expectLog('debug', '_describe_callable completed');
@@ -151,7 +156,7 @@ final class RegisterOptionsInternalsCoverageTest extends PluginLibTestCase {
 		$config = $this->getMockBuilder(ConfigInterface::class)->getMock();
 		$config->method('get_options_key')->willReturn('test_options');
 		$config->method('get_logger')->willReturn($this->logger_mock);
-		$opts = RegisterOptions::from_config($config, StorageContext::forSite(), true);
+		$opts = new RegisterOptions($config->get_options_key(), StorageContext::forSite(), true, $this->logger_mock);
 		// Allow all writes for this test
 		$policy = $this->getMockBuilder(\Ran\PluginLib\Options\Policy\WritePolicyInterface::class)->getMock();
 		$policy->method('allow')->willReturn(true);
@@ -185,7 +190,7 @@ final class RegisterOptionsInternalsCoverageTest extends PluginLibTestCase {
 		$this->expectLog('debug', '_apply_write_gate scoped filter result', 2);
 		$this->expectLog('debug', '_apply_write_gate final decision', 2);
 		$this->expectLog('debug', '_save_all_options starting');
-		$this->expectLog('debug', 'storage->update() completed.');
+		
 		$this->expectLog('debug', '_save_all_options completed');
 	}
 
@@ -198,7 +203,7 @@ final class RegisterOptionsInternalsCoverageTest extends PluginLibTestCase {
 		$config = $this->getMockBuilder(ConfigInterface::class)->getMock();
 		$config->method('get_options_key')->willReturn('test_options');
 		$config->method('get_logger')->willReturn($this->logger_mock);
-		$opts = RegisterOptions::from_config($config, StorageContext::forSite(), true);
+		$opts = new RegisterOptions($config->get_options_key(), StorageContext::forSite(), true, $this->logger_mock);
 
 		// In-memory different from storage
 		$this->_set_protected_property_value($opts, 'options', array('foo' => 'mem'));
@@ -212,26 +217,26 @@ final class RegisterOptionsInternalsCoverageTest extends PluginLibTestCase {
 		$this->assertSame('db', $opts->get_option('foo'));
 		$this->assertSame(1, $opts->get_option('bar'));
 		// Assert logs after SUT ran
-		$this->expectLog('debug', 'Refreshing options from database');
+		
 		$this->expectLog('debug', "Getting option 'foo'");
 		$this->expectLog('debug', "Getting option 'bar'");
-		$this->expectLog('debug', '_get_storage resolved', 3);
+		$this->expectLog('debug', '_get_storage resolved', 2);
 	}
 
 	/**
-	 * Micro-test to exercise logger resolution path via set_option callsite
+	 * Micro-test to exercise logger resolution path via stage_option callsite
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::__construct
-	 * @covers \Ran\PluginLib\Options\RegisterOptions::set_option
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::stage_option
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::_get_logger
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::_apply_write_gate
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::_save_all_options
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::_get_storage
 	 */
-	public function test_logger_resolution_exercised_via_set_option(): void {
+	public function test_logger_resolution_exercised_via_stage_option(): void {
 		$config = $this->getMockBuilder(ConfigInterface::class)->getMock();
 		$config->method('get_options_key')->willReturn('test_options');
 		$config->method('get_logger')->willReturn($this->logger_mock);
-		$opts = RegisterOptions::from_config($config, StorageContext::forSite(), true);
+		$opts = new RegisterOptions($config->get_options_key(), StorageContext::forSite(), true, $this->logger_mock);
 		// Allow all writes for this test
 		$policy = $this->getMockBuilder(\Ran\PluginLib\Options\Policy\WritePolicyInterface::class)->getMock();
 		$policy->method('allow')->willReturn(true);
@@ -244,36 +249,36 @@ final class RegisterOptionsInternalsCoverageTest extends PluginLibTestCase {
 			->reply(true);
 		WP_Mock::userFunction('update_option')->andReturn(true);
 
-		// Phase 4: schema required for set_option keys
+		// Phase 4: schema required for stage_option keys
 		$opts->with_schema(array('lg_key' => array('validate' => function ($v) {
 			return is_string($v);
 		})));
 
-		$this->assertTrue($opts->set_option('lg_key', 'lg_value'));
+		$this->assertTrue($opts->stage_option('lg_key', 'lg_value')->commit_merge());
 		$this->assertSame('lg_value', $opts->get_option('lg_key'));
 		// Assert logs after SUT ran
 		// Expect three write-gate sequences (pre-mutation, pre-persist, inside _save_all_options)
-		$this->expectLog('debug', '_apply_write_gate policy decision', 3);
-		$this->expectLog('debug', '_apply_write_gate applying general allow_persist filter', 3);
-		$this->expectLog('debug', '_apply_write_gate general filter result', 3);
-		$this->expectLog('debug', '_apply_write_gate applying scoped allow_persist filter', 3);
-		$this->expectLog('debug', '_apply_write_gate scoped filter result', 3);
-		$this->expectLog('debug', '_apply_write_gate final decision', 3);
-		$this->expectLog('debug', 'storage->update() completed.');
+		$this->expectLog('debug', '_apply_write_gate policy decision', 2);
+		$this->expectLog('debug', '_apply_write_gate applying general allow_persist filter', 2);
+		$this->expectLog('debug', '_apply_write_gate general filter result', 2);
+		$this->expectLog('debug', '_apply_write_gate applying scoped allow_persist filter', 2);
+		$this->expectLog('debug', '_apply_write_gate scoped filter result', 2);
+		$this->expectLog('debug', '_apply_write_gate final decision', 2);
+		
 		$this->expectLog('debug', '_save_all_options completed');
 		$this->expectLog('debug', "Getting option 'lg_key'");
 		$this->expectLog('debug', "Getting option 'lg_key'");
 	}
 
 	/**
-	 * @covers \Ran\PluginLib\Options\RegisterOptions::set_option
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::stage_option
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::_sanitize_and_validate_option
 	 */
-	public function test_set_option_unknown_key_without_schema_throws(): void {
+	public function test_stage_option_unknown_key_without_schema_throws(): void {
 		$config = $this->getMockBuilder(ConfigInterface::class)->getMock();
 		$config->method('get_options_key')->willReturn('test_options');
 		$config->method('get_logger')->willReturn($this->logger_mock);
-		$opts = RegisterOptions::from_config($config, StorageContext::forSite(), true);
+		$opts = new RegisterOptions($config->get_options_key(), StorageContext::forSite(), true, $this->logger_mock);
 		// Allow all writes for this test
 		$policy = $this->getMockBuilder(\Ran\PluginLib\Options\Policy\WritePolicyInterface::class)->getMock();
 		$policy->method('allow')->willReturn(true);
@@ -289,7 +294,7 @@ final class RegisterOptionsInternalsCoverageTest extends PluginLibTestCase {
 
 		$this->expectException(\InvalidArgumentException::class);
 		try {
-			$opts->set_option('unknown_key', 'val');
+			$opts->stage_option('unknown_key', 'val')->commit_merge();
 		} finally {
 			$this->assertFalse($opts->get_option('unknown_key'));
 		}
@@ -303,7 +308,7 @@ final class RegisterOptionsInternalsCoverageTest extends PluginLibTestCase {
 		$config = $this->getMockBuilder(ConfigInterface::class)->getMock();
 		$config->method('get_options_key')->willReturn('opts_call_string');
 		$config->method('get_logger')->willReturn($this->logger_mock);
-		$opts = RegisterOptions::from_config($config, StorageContext::forSite(), true);
+		$opts = new RegisterOptions($config->get_options_key(), StorageContext::forSite(), true, $this->logger_mock);
 
 		$opts->register_schema(array(
 			'age' => array(
@@ -314,7 +319,7 @@ final class RegisterOptionsInternalsCoverageTest extends PluginLibTestCase {
 		$this->expectException(\InvalidArgumentException::class);
 		$this->expectExceptionMessageMatches('/using validator is_int\./');
 		try {
-			$opts->set_option('age', '10');
+			$opts->stage_option('age', '10')->commit_merge();
 		} finally {
 			$this->expectLog('debug', '_describe_callable completed (string)');
 		}
@@ -334,7 +339,7 @@ final class RegisterOptionsInternalsCoverageTest extends PluginLibTestCase {
 		$config = $this->getMockBuilder(ConfigInterface::class)->getMock();
 		$config->method('get_options_key')->willReturn('opts_call_array');
 		$config->method('get_logger')->willReturn($this->logger_mock);
-		$opts = RegisterOptions::from_config($config, StorageContext::forSite(), true);
+		$opts = new RegisterOptions($config->get_options_key(), StorageContext::forSite(), true, $this->logger_mock);
 
 		$opts->register_schema(array(
 			'age' => array(
@@ -346,7 +351,7 @@ final class RegisterOptionsInternalsCoverageTest extends PluginLibTestCase {
 		$this->expectException(\InvalidArgumentException::class);
 		$this->expectExceptionMessageMatches('/using validator ' . preg_quote($fqcn, '/') . '::validateFalse\./');
 		try {
-			$opts->set_option('age', 10);
+			$opts->stage_option('age', 10)->commit_merge();
 		} finally {
 			$this->expectLog('debug', '_describe_callable completed (array)');
 		}
@@ -360,7 +365,7 @@ final class RegisterOptionsInternalsCoverageTest extends PluginLibTestCase {
 		$config = $this->getMockBuilder(ConfigInterface::class)->getMock();
 		$config->method('get_options_key')->willReturn('opts_call_closure');
 		$config->method('get_logger')->willReturn($this->logger_mock);
-		$opts = RegisterOptions::from_config($config, StorageContext::forSite(), true);
+		$opts = new RegisterOptions($config->get_options_key(), StorageContext::forSite(), true, $this->logger_mock);
 
 		$opts->register_schema(array(
 			'flag' => array(
@@ -374,7 +379,7 @@ final class RegisterOptionsInternalsCoverageTest extends PluginLibTestCase {
 		// Accept enhanced closure description: Closure or Closure(file:line)
 		$this->expectExceptionMessageMatches('/using validator Closure(\([^\)]*\))?\./');
 		try {
-			$opts->set_option('flag', 1);
+			$opts->stage_option('flag', 1)->commit_merge();
 		} finally {
 			$this->expectLog('debug', '_describe_callable completed (closure)');
 		}
@@ -388,7 +393,7 @@ final class RegisterOptionsInternalsCoverageTest extends PluginLibTestCase {
 		$config = $this->getMockBuilder(ConfigInterface::class)->getMock();
 		$config->method('get_options_key')->willReturn('opts_call_other');
 		$config->method('get_logger')->willReturn($this->logger_mock);
-		$opts = RegisterOptions::from_config($config, StorageContext::forSite(), true);
+		$opts = new RegisterOptions($config->get_options_key(), StorageContext::forSite(), true, $this->logger_mock);
 
 		$validator = new class {
 			public function __invoke($v): bool {
@@ -406,7 +411,7 @@ final class RegisterOptionsInternalsCoverageTest extends PluginLibTestCase {
 		// Enhanced invokable description now prints Class::__invoke
 		$this->expectExceptionMessageMatches('/using validator .*::__invoke\./');
 		try {
-			$opts->set_option('age', 10);
+			$opts->stage_option('age', 10)->commit_merge();
 		} finally {
 			$this->expectLog('debug', '_describe_callable completed (invokable object)');
 		}
@@ -421,7 +426,7 @@ final class RegisterOptionsInternalsCoverageTest extends PluginLibTestCase {
 		$config = $this->getMockBuilder(ConfigInterface::class)->getMock();
 		$config->method('get_options_key')->willReturn('opts_inferred_str');
 		$config->method('get_logger')->willReturn($this->logger_mock);
-		$opts = RegisterOptions::from_config($config, StorageContext::forSite(), true);
+		$opts = new RegisterOptions($config->get_options_key(), StorageContext::forSite(), true, $this->logger_mock);
 
 		// With strict validator-required, provide an explicit validator that mimics the old inferred 'int' expectation.
 		$opts->register_schema(array(
@@ -437,7 +442,7 @@ final class RegisterOptionsInternalsCoverageTest extends PluginLibTestCase {
 		$this->expectExceptionMessageMatches('/Validation failed/');
 		try {
 			// Non-int value should fail validator and trigger stringify before throw
-			$opts->set_option('count', 'not-an-int');
+			$opts->stage_option('count', 'not-an-int')->commit_merge();
 		} finally {
 			$this->expectLog('debug', '_stringify_value_for_error completed');
 		}

@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\Tests\Unit\Options;
 
+use Ran\PluginLib\Util\Validate;
 use Ran\PluginLib\Options\RegisterOptions;
-use Ran\PluginLib\Options\Validate;
 use Ran\PluginLib\Tests\Unit\PluginLibTestCase;
 
 final class RegisterOptionsStrictPlanTest extends PluginLibTestCase {
@@ -15,7 +15,7 @@ final class RegisterOptionsStrictPlanTest extends PluginLibTestCase {
 	private static function makeOptions(string $key = 'strict_plan_opts'): RegisterOptions {
 		return new class($key) extends RegisterOptions {
 			public function __construct(string $k) {
-				parent::__construct($k, true, null);
+				parent::__construct($k, null, true, null);
 			}
 			protected function _read_main_option(): array {
 				return array();
@@ -32,7 +32,7 @@ final class RegisterOptionsStrictPlanTest extends PluginLibTestCase {
 	}
 
 	/**
-	 * @covers \Ran\PluginLib\Options\RegisterOptions::set_option
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::stage_option
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::_sanitize_and_validate_option
 	 */
 	public function test_set_option_rejects_unknown_key_without_schema(): void {
@@ -41,7 +41,7 @@ final class RegisterOptionsStrictPlanTest extends PluginLibTestCase {
 		$this->expectException(\InvalidArgumentException::class);
 		$this->expectExceptionMessageMatches("/No schema defined for option 'unknown'/");
 
-		$opts->set_option('unknown', 'x');
+		$opts->stage_option('unknown', 'x')->commit_merge();
 	}
 
 	/**
@@ -72,9 +72,9 @@ final class RegisterOptionsStrictPlanTest extends PluginLibTestCase {
 
 	/**
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::register_schema
-	 * @covers \Ran\PluginLib\Options\RegisterOptions::set_option
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::stage_option
 	 */
-	public function test_set_option_succeeds_with_explicit_schema_and_no_inference(): void {
+	public function test_stage_option_succeeds_with_explicit_schema_and_no_inference(): void {
 		$opts = self::makeOptions();
 
 		// Register an explicit schema with strict validator; no type inference should be needed/used
@@ -86,12 +86,12 @@ final class RegisterOptionsStrictPlanTest extends PluginLibTestCase {
 		    ),
 		));
 
-		// set_option for a known key passes through validation
-		$this->assertTrue($opts->set_option('port', 8080));
+		// stage_option for a known key passes through validation
+		$this->assertTrue($opts->stage_option('port', 8080)->commit_merge());
 
 		// Unknown key should still be rejected
 		$this->expectException(\InvalidArgumentException::class);
 		$this->expectExceptionMessageMatches("/No schema defined for option 'host'/");
-		$opts->set_option('host', 'example.com');
+		$opts->stage_option('host', 'example.com')->commit_merge();
 	}
 }

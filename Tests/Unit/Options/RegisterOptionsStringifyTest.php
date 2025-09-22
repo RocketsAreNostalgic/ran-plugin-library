@@ -39,14 +39,14 @@ final class RegisterOptionsStringifyTest extends PluginLibTestCase {
 
 	/**
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::__construct
-	 * @covers \Ran\PluginLib\Options\RegisterOptions::set_option
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::stage_option
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::_stringify_value_for_error
 	 */
 	public function test_stringify_handles_array_input(): void {
 		$config = $this->getMockBuilder(ConfigInterface::class)->getMock();
 		$config->method('get_options_key')->willReturn('test_options');
 		$config->method('get_logger')->willReturn($this->logger_mock);
-		$opts   = RegisterOptions::from_config($config, StorageContext::forSite(), true);
+		$opts   = new RegisterOptions($config->get_options_key(), StorageContext::forSite(), true, $this->logger_mock);
 		$schema = array(
 			'arr' => array(
 				'validate' => function ($v) {
@@ -57,20 +57,20 @@ final class RegisterOptionsStringifyTest extends PluginLibTestCase {
 		$opts->register_schema($schema);
 		$this->expectException(\InvalidArgumentException::class);
 		$this->expectExceptionMessageMatches('/Array\(3\)/');
-		$opts->set_option('arr', array(1, 2, 3));
+		$opts->stage_option('arr', array(1, 2, 3))->commit_merge();
 		$this->expectLog('debug', '_stringify_value_for_error completed');
 	}
 
 	/**
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::__construct
-	 * @covers \Ran\PluginLib\Options\RegisterOptions::set_option
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::stage_option
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::_stringify_value_for_error
 	 */
 	public function test_stringify_truncates_long_scalar(): void {
 		$config = $this->getMockBuilder(ConfigInterface::class)->getMock();
 		$config->method('get_options_key')->willReturn('test_options');
 		$config->method('get_logger')->willReturn($this->logger_mock);
-		$opts   = RegisterOptions::from_config($config, StorageContext::forSite(), true);
+		$opts   = new RegisterOptions($config->get_options_key(), StorageContext::forSite(), true, $this->logger_mock);
 		$schema = array(
 			'long' => array(
 				'validate' => function ($v) {
@@ -82,7 +82,7 @@ final class RegisterOptionsStringifyTest extends PluginLibTestCase {
 		$long = str_repeat('A', 500);
 		$this->expectException(\InvalidArgumentException::class);
 		$this->expectExceptionMessageMatches('/\.\.\./');
-		$opts->set_option('long', $long);
+		$opts->stage_option('long', $long)->commit_merge();
 		$this->expectLog('debug', '_stringify_value_for_error completed');
 	}
 }
