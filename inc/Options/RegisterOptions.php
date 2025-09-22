@@ -1111,7 +1111,7 @@ class RegisterOptions {
 				$result = $this->_get_storage()->update($this->main_wp_option_name, $to_save);
 				if (!$result) {
 					$__verify = $this->_do_get_option($this->main_wp_option_name, $__sentinel);
-					if ($__verify !== $__sentinel && Sanitize::orderInsensitiveShallow($__verify) === Sanitize::orderInsensitiveShallow($to_save)) {
+					if ($__verify !== $__sentinel && Sanitize::canonical()->orderInsensitiveShallow($__verify) === Sanitize::canonical()->orderInsensitiveShallow($to_save)) {
 						$this->_get_logger()->warning('RegisterOptions: storage->update() returned false but DB matches desired state; treating as success.');
 						$result = true;
 					} else {
@@ -1135,7 +1135,7 @@ class RegisterOptions {
 					$result = $this->_get_storage()->update($this->main_wp_option_name, $to_save);
 					if (!$result) {
 						$__verify = $this->_do_get_option($this->main_wp_option_name, $__sentinel);
-						if ($__verify !== $__sentinel && Sanitize::orderInsensitiveShallow($__verify) === Sanitize::orderInsensitiveShallow($to_save)) {
+						if ($__verify !== $__sentinel && Sanitize::canonical()->orderInsensitiveShallow($__verify) === Sanitize::canonical()->orderInsensitiveShallow($to_save)) {
 							$this->_get_logger()->warning('RegisterOptions: storage->update() also failed but DB matches desired state; treating as success.');
 							$result = true;
 						} else {
