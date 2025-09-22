@@ -25,8 +25,7 @@ use Ran\PluginLib\Options\OptionScope;
 use Ran\PluginLib\Options\Policy\WritePolicyInterface;
 use Ran\PluginLib\Options\WriteContext;
 use Ran\PluginLib\Options\Policy\RestrictedDefaultWritePolicy;
-use Ran\PluginLib\Options\Validate;
-use \Ran\PluginLib\Config\ConfigInterface;
+use \Ran\PluginLib\Util\Sanitize;
 
 /**
  * Manages grouped settings via a scope-aware storage adapter (site, network, blog, or user).
@@ -893,27 +892,40 @@ class RegisterOptions {
 	}
 
 	/**
-	 * Apply write-gating filters with rich context. Returns true when allowed.
-	 *
-	 * Filters applied (in order):
-	 * - ran/plugin_lib/options/allow_persist
-	 * - ran/plugin_lib/options/allow_persist/scope/{scope}
-	 *
-	 * @param string $op  Operation name (e.g., 'save_all', 'set_option', 'stage_options')
-	 * @param WriteContext $wc
-	 * @return bool
-	 */
+		* Apply write-gating filters with rich context. Returns true when allowed.
+		*
+		* Filters applied (in order):
+		* - ran/plugin_lib/options/allow_persist
+		* - ran/plugin_lib/options/allow_persist/scope/{scope}
+		*
+		* Context enrichment notes:
+		* - For single-key operations (e.g., 'add_option', 'set_option', 'delete_option'), the context includes 'key'.
+		* - For batch operations (e.g., 'stage_options'), the context includes 'keys' (array of strings).
+		* - For 'save_all', the context includes 'options' (full map) and 'merge_from_db' flag.
+		* - stage_options is atomic by default: policy callbacks should inspect 'keys' and veto the batch if any key is disallowed.
+		*
+		* @param string $op  Operation name (e.g., 'save_all', 'set_option', 'stage_options')
+		* @param WriteContext $wc
+		* @return bool
+		*/
 	protected function _apply_write_gate(string $op, WriteContext $wc): bool {
 		// Derive array ctx for filters/logging from WriteContext
 		$ctx = array(
-		    'op'           => $op,
-		    'main_option'  => $wc->main_option(),
-		    'scope'        => $wc->scope(),
-		    'blog_id'      => $wc->blogId(),
-		    'user_id'      => $wc->userId(),
-		    'user_storage' => $wc->user_storage() ?? 'meta',
-		    'user_global'  => (bool) $wc->user_global(),
+			'op'           => $op,
+			'main_option'  => $wc->main_option(),
+			'scope'        => $wc->scope(),
+			'blog_id'      => $wc->blogId(),
+			'user_id'      => $wc->userId(),
+			'user_storage' => $wc->user_storage() ?? 'meta',
+			'user_global'  => (bool) $wc->user_global(),
 		);
+		// Enrich context with op-specific identifiers for policy decisions
+		if (method_exists($wc, 'key') && null !== $wc->key()) {
+			$ctx['key'] = (string) $wc->key();
+		}
+		if (method_exists($wc, 'keys') && is_array($wc->keys())) {
+			$ctx['keys'] = array_values(array_map('strval', $wc->keys()));
+		}
 		if ($wc->key() !== null) {
 			$ctx['key'] = $wc->key();
 		}
@@ -1081,6 +1093,7 @@ class RegisterOptions {
 		$allowed = $this->_apply_write_gate($this->__persist_origin ?? 'save_all', $wc);
 		if (!$allowed) {
 			$this->_get_logger()->debug('RegisterOptions: _save_all_options vetoed by policy.');
+			$this->_get_logger()->debug('RegisterOptions: _save_all_options completed', array('result' => false));
 			return false;
 		}
 
@@ -1098,7 +1111,7 @@ class RegisterOptions {
 				$result = $this->_get_storage()->update($this->main_wp_option_name, $to_save);
 				if (!$result) {
 					$__verify = $this->_do_get_option($this->main_wp_option_name, $__sentinel);
-					if ($__verify !== $__sentinel && $__verify === $to_save) {
+					if ($__verify !== $__sentinel && Sanitize::orderInsensitiveShallow($__verify) === Sanitize::orderInsensitiveShallow($to_save)) {
 						$this->_get_logger()->warning('RegisterOptions: storage->update() returned false but DB matches desired state; treating as success.');
 						$result = true;
 					} else {
@@ -1117,19 +1130,26 @@ class RegisterOptions {
 				$this->_get_logger()->debug('RegisterOptions: storage->add() returned false; falling back to storage->update().');
 				$result = $this->_get_storage()->update($this->main_wp_option_name, $to_save);
 				if (!$result) {
-					$__verify = $this->_do_get_option($this->main_wp_option_name, $__sentinel);
-					if ($__verify !== $__sentinel && $__verify === $to_save) {
-						$this->_get_logger()->warning('RegisterOptions: storage->update() also failed but DB matches desired state; treating as success.');
-						$result = true;
-					} else {
-						$this->_get_logger()->warning('RegisterOptions: storage->update() also failed and DB does not match desired state.');
+					// Retry once for transient conditions before verifying DB state
+					$this->_get_logger()->debug('RegisterOptions: storage->update() returned false; retrying once.');
+					$result = $this->_get_storage()->update($this->main_wp_option_name, $to_save);
+					if (!$result) {
+						$__verify = $this->_do_get_option($this->main_wp_option_name, $__sentinel);
+						if ($__verify !== $__sentinel && Sanitize::orderInsensitiveShallow($__verify) === Sanitize::orderInsensitiveShallow($to_save)) {
+							$this->_get_logger()->warning('RegisterOptions: storage->update() also failed but DB matches desired state; treating as success.');
+							$result = true;
+						} else {
+							$this->_get_logger()->warning('RegisterOptions: storage->update() also failed and DB does not match desired state.');
+						}
 					}
 				}
 			}
 		}
 
-		// Mirror what we just saved to keep local cache consistent
-		$this->options = $to_save;
+		// Mirror what we just saved to keep local cache consistent on success.
+		if ($result) {
+			$this->options = $to_save;
+		}
 
 		$this->_get_logger()->debug('RegisterOptions: _save_all_options completed', array('result' => (bool) $result));
 		return $result;
