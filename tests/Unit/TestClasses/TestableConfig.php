@@ -11,6 +11,7 @@ namespace Ran\PluginLib\Tests\Unit\TestClasses;
 
 use Ran\PluginLib\Config\ConfigAbstract;
 use Ran\PluginLib\Options\RegisterOptions;
+use Ran\PluginLib\Options\Storage\StorageContext;
 
 /**
 	* TestableConfig class for testing ConfigAbstract methods.
@@ -221,7 +222,7 @@ class TestableConfig extends ConfigAbstract {
 	/**
     	 * Provide options accessor required by ConfigInterface for this test class (typed-first).
     	 */
-	public function options(?\Ran\PluginLib\Options\Storage\StorageContext $context = null, bool $autoload = true): \Ran\PluginLib\Options\RegisterOptions {
+	public function options(?StorageContext $context = null, bool $autoload = true): RegisterOptions {
 		$opts = new RegisterOptions($this->get_options_key(), $context, $autoload, $this->get_logger());
 		// Align with tests expecting two reads during initial access
 		$opts->refresh_options();
