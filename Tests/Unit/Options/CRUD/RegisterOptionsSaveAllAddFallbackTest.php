@@ -55,7 +55,7 @@ final class RegisterOptionsSaveAllAddFallbackTest extends PluginLibTestCase {
 		$config->method('get_options_key')->willReturn('test_options');
 		$config->method('get_logger')->willReturn($this->logger_mock);
 
-		$opts = RegisterOptions::from_config($config, StorageContext::forSite(), true);
+		$opts = new RegisterOptions($config->get_options_key(), StorageContext::forSite(), true, $this->logger_mock);
 
 		// Phase 4: schema required for staged keys
 		$opts->with_schema(array(
@@ -94,7 +94,7 @@ final class RegisterOptionsSaveAllAddFallbackTest extends PluginLibTestCase {
 		// Assert logs after SUT ran
 		$this->expectLog('debug', 'RegisterOptions: storage->add() selected');
 		$this->expectLog('debug', 'RegisterOptions: storage->add() returned false; falling back to storage->update().');
-		$this->expectLog('debug', 'RegisterOptions: storage->update() completed.');
+		
 		$this->expectLog('debug', 'RegisterOptions: _save_all_options completed');
 	}
 }

@@ -44,14 +44,26 @@ final class RegisterOptionsSaveAllStorageOverrideTest extends PluginLibTestCase 
 	public function test_save_all_options_uses_forced_storage_and_logs_non_array_normalization(): void {
 		// Core WP lookups
 		WP_Mock::userFunction('get_option')->andReturn(array());
+		WP_Mock::userFunction('current_user_can')->andReturn(true)->byDefault();
+		// Ensure apply_filters is passthrough so onFilter hooks behave as expected
+		WP_Mock::userFunction('apply_filters')->andReturnUsing(function($hook,$value) {
+			return $value;
+		});
 		WP_Mock::userFunction('wp_load_alloptions')->andReturn(array());
+		// Allow write gate via filters for this test instance
+		WP_Mock::onFilter('ran/plugin_lib/options/allow_persist')
+			->with(\WP_Mock\Functions::type('bool'), \WP_Mock\Functions::type('array'))
+			->reply(true);
+		WP_Mock::onFilter('ran/plugin_lib/options/allow_persist/scope/site')
+			->with(\WP_Mock\Functions::type('bool'), \WP_Mock\Functions::type('array'))
+			->reply(true);
 
 		$config = $this->getMockBuilder(ConfigInterface::class)->getMock();
 		$main   = 'override_storage_opts';
 		$config->method('get_options_key')->willReturn($main);
 		$config->method('get_logger')->willReturn($this->logger_mock);
 
-		$opts = TestableSaveAllRegisterOptions::from_config($config, StorageContext::forSite(), true);
+		$opts = new TestableSaveAllRegisterOptions($config->get_options_key(), StorageContext::forSite(), true, $this->logger_mock);
 
 		// In-memory options to ensure foreach merge runs
 		$this->_set_protected_property_value($opts, 'options', array('a1' => 1, 'a2' => 2));
@@ -80,18 +92,30 @@ final class RegisterOptionsSaveAllStorageOverrideTest extends PluginLibTestCase 
 	 */
 	public function test_save_all_options_add_branch_with_forced_storage_and_logs(): void {
 		// Core WP lookups
+		WP_Mock::userFunction('current_user_can')->andReturn(true)->byDefault();
+		// Ensure apply_filters is passthrough so onFilter hooks behave as expected
+		WP_Mock::userFunction('apply_filters')->andReturnUsing(function($hook,$value) {
+			return $value;
+		});
 		WP_Mock::userFunction('get_option')->andReturnUsing(function ($name, $default = null) {
 			// When default provided, return it to simulate missing row (sentinel will flow through)
 			return func_num_args() >= 2 ? $default : false;
 		});
 		WP_Mock::userFunction('wp_load_alloptions')->andReturn(array());
+		// Allow write gate via filters for this test instance
+		WP_Mock::onFilter('ran/plugin_lib/options/allow_persist')
+			->with(\WP_Mock\Functions::type('bool'), \WP_Mock\Functions::type('array'))
+			->reply(true);
+		WP_Mock::onFilter('ran/plugin_lib/options/allow_persist/scope/site')
+			->with(\WP_Mock\Functions::type('bool'), \WP_Mock\Functions::type('array'))
+			->reply(true);
 
 		$config = $this->getMockBuilder(ConfigInterface::class)->getMock();
 		$main   = 'override_add_opts';
 		$config->method('get_options_key')->willReturn($main);
 		$config->method('get_logger')->willReturn($this->logger_mock);
 
-		$opts = TestableSaveAllRegisterOptions::from_config($config, StorageContext::forSite(), true)
+		$opts = (new TestableSaveAllRegisterOptions($config->get_options_key(), StorageContext::forSite(), true))
 			->with_logger($this->logger_mock);
 
 		// In-memory payload to persist

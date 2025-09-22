@@ -22,6 +22,17 @@ final class RegisterOptionsReadTest extends PluginLibTestCase {
 		WP_Mock::userFunction('get_user_option')->andReturn(array())->byDefault();
 		WP_Mock::userFunction('get_user_meta')->andReturn(array())->byDefault();
 		WP_Mock::userFunction('wp_load_alloptions')->andReturn(array())->byDefault();
+		WP_Mock::userFunction('current_user_can')->andReturn(true)->byDefault();
+		// Ensure apply_filters passthrough and allow persist for this suite
+		WP_Mock::userFunction('apply_filters')->andReturnUsing(function($hook,$value) {
+			return $value;
+		});
+		\WP_Mock::onFilter('ran/plugin_lib/options/allow_persist')
+			->with(\WP_Mock\Functions::type('bool'), \WP_Mock\Functions::type('array'))
+			->reply(true);
+		\WP_Mock::onFilter('ran/plugin_lib/options/allow_persist/scope/site')
+			->with(\WP_Mock\Functions::type('bool'), \WP_Mock\Functions::type('array'))
+			->reply(true);
 
 		// Mock sanitize_key to properly handle key normalization
 		WP_Mock::userFunction('sanitize_key')->andReturnUsing(function($key) {

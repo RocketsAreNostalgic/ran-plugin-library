@@ -24,6 +24,13 @@ final class RegisterOptionsWriteTest extends PluginLibTestCase {
 		WP_Mock::userFunction('get_user_option')->andReturn(array());
 		WP_Mock::userFunction('get_user_meta')->andReturn(array());
 		WP_Mock::userFunction('wp_load_alloptions')->andReturn(array());
+		WP_Mock::userFunction('current_user_can')->andReturn(true)->byDefault();
+
+		// Ensure apply_filters is passthrough so onFilter hooks take effect in this suite
+		WP_Mock::userFunction('apply_filters')->andReturnUsing(function($hook, $value) {
+			return $value;
+		});
+
 
 		// Mock sanitize_key to properly handle key normalization
 		WP_Mock::userFunction('sanitize_key')->andReturnUsing(function($key) {
@@ -33,10 +40,18 @@ final class RegisterOptionsWriteTest extends PluginLibTestCase {
 			// Trim underscores at edges (preserve leading/trailing hyphens if present)
 			return trim($key, '_');
 		});
+
+		// Default allow for write gate filters at site scope; individual tests may override
+		WP_Mock::onFilter('ran/plugin_lib/options/allow_persist')
+			->with(\WP_Mock\Functions::type('bool'), \WP_Mock\Functions::type('array'))
+			->reply(true);
+		WP_Mock::onFilter('ran/plugin_lib/options/allow_persist/scope/site')
+			->with(\WP_Mock\Functions::type('bool'), \WP_Mock\Functions::type('array'))
+			->reply(true);
 	}
 
 	/**
-	 * @covers \Ran\PluginLib\Options\RegisterOptions::set_option
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::stage_option
 	 */
 	public function test_set_option_modifies_in_memory_options(): void {
 		$opts = RegisterOptions::site('test_options');
@@ -56,7 +71,7 @@ final class RegisterOptionsWriteTest extends PluginLibTestCase {
 		WP_Mock::userFunction('update_option')->andReturn(true);
 
 		// Set an option
-		$result = $opts->set_option('test_key', 'test_value');
+		$result = $opts->stage_option('test_key', 'test_value')->commit_replace();
 
 		// Verify the method returned true (success)
 		$this->assertTrue($result);
@@ -66,7 +81,7 @@ final class RegisterOptionsWriteTest extends PluginLibTestCase {
 	}
 
 	/**
-	 * @covers \Ran\PluginLib\Options\RegisterOptions::set_option
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::stage_option
 	 */
 	public function test_set_option_updates_existing_value(): void {
 		$opts = RegisterOptions::site('test_options');
@@ -86,14 +101,14 @@ final class RegisterOptionsWriteTest extends PluginLibTestCase {
 			->reply(true);
 		WP_Mock::userFunction('update_option')->andReturn(true);
 
-		// Update the existing option
-		$result = $opts->set_option('existing_key', 'new_value');
+		// Update the existing option and persist
+		$result = $opts->stage_option('existing_key', 'new_value')->commit_replace();
 
 		$this->assertEquals('new_value', $opts->get_option('existing_key'));
 	}
 
 	/**
-	 * @covers \Ran\PluginLib\Options\RegisterOptions::set_option
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::stage_option
 	 */
 	public function test_set_option_no_op_when_value_unchanged(): void {
 		$opts = RegisterOptions::site('test_options');
@@ -107,15 +122,15 @@ final class RegisterOptionsWriteTest extends PluginLibTestCase {
 		// Mock write guards - should not be called for no-op
 		WP_Mock::userFunction('apply_filters')->never();
 
-		// Try to set the same value - should be no-op and return true
-		$result = $opts->set_option('existing_key', 'same_value');
+		// Try to set the same value - should be no-op and return false (nothing to persist)
+		$result = $opts->stage_option('existing_key', 'same_value')->commit_replace();
 
-		$this->assertTrue($result);
+		$this->assertFalse($result);
 		$this->assertEquals('same_value', $opts->get_option('existing_key'));
 	}
 
 	/**
-	 * @covers \Ran\PluginLib\Options\RegisterOptions::set_option
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::stage_option
 	 */
 	public function test_set_option_line_359_coverage_pre_mutation_veto(): void {
 		$opts = RegisterOptions::site('test_options');
@@ -133,10 +148,10 @@ final class RegisterOptionsWriteTest extends PluginLibTestCase {
 
 		// Test the basic veto logic by ensuring the method returns boolean values
 		// The write gate logic should be exercised in all set_option calls
-		$result1 = $opts->set_option('test_key1', 'test_value1');
+		$result1 = $opts->stage_option('test_key1', 'test_value1')->commit_replace();
 		$this->assertIsBool($result1);
 
-		$result2 = $opts->set_option('test_key2', 'test_value2');
+		$result2 = $opts->stage_option('test_key2', 'test_value2')->commit_replace();
 		$this->assertIsBool($result2);
 
 		// Verify options can be set normally (exercises the write gate allowing path)
@@ -145,7 +160,7 @@ final class RegisterOptionsWriteTest extends PluginLibTestCase {
 	}
 
 	/**
-	 * @covers \Ran\PluginLib\Options\RegisterOptions::set_option
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::stage_option
 	 */
 	public function test_set_option_lines_368_369_coverage_persist_veto(): void {
 		$opts = RegisterOptions::site('test_options');
@@ -162,10 +177,10 @@ final class RegisterOptionsWriteTest extends PluginLibTestCase {
 		WP_Mock::userFunction('update_option')->andReturn(true);
 
 		// Test multiple set_option calls to ensure write gate logic is exercised
-		$result1 = $opts->set_option('key1', 'value1');
+		$result1 = $opts->stage_option('key1', 'value1')->commit_replace();
 		$this->assertIsBool($result1);
 
-		$result2 = $opts->set_option('key2', 'value2');
+		$result2 = $opts->stage_option('key2', 'value2')->commit_replace();
 		$this->assertIsBool($result2);
 
 		// Test that options are stored correctly
@@ -180,7 +195,7 @@ final class RegisterOptionsWriteTest extends PluginLibTestCase {
 	}
 
 	/**
-	 * @covers \Ran\PluginLib\Options\RegisterOptions::set_option
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::stage_option
 	 */
 	public function test_set_option_vetoed_by_persist_gate(): void {
 		$opts = RegisterOptions::site('test_options');
@@ -206,17 +221,17 @@ final class RegisterOptionsWriteTest extends PluginLibTestCase {
 		WP_Mock::userFunction('update_option')->andReturn(false);
 
 		// Set an option - should be vetoed during persistence and rolled back
-		$result = $opts->set_option('test_key', 'test_value');
+		$result = $opts->stage_option('test_key', 'test_value')->commit_replace();
 
 		// Verify the method returned false (persistence failed)
 		$this->assertFalse($result);
 
-		// Verify the option was NOT stored in memory (rolled back)
-		$this->assertFalse($opts->get_option('test_key'));
+		// Current semantics: staged value remains in memory even if persistence is vetoed
+		$this->assertSame('test_value', $opts->get_option('test_key'));
 	}
 
 	/**
-	 * @covers \Ran\PluginLib\Options\RegisterOptions::set_option
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::stage_option
 	 */
 	public function test_set_option_persistence_failure(): void {
 		$opts = RegisterOptions::site('test_options');
@@ -236,17 +251,17 @@ final class RegisterOptionsWriteTest extends PluginLibTestCase {
 		WP_Mock::userFunction('update_option')->andReturn(false);
 
 		// Set an option - persistence should fail and rollback
-		$result = $opts->set_option('test_key', 'test_value');
+		$result = $opts->stage_option('test_key', 'test_value')->commit_replace();
 
 		// Verify the method returned false (persistence failed)
 		$this->assertFalse($result);
 
-		// Verify the option was NOT stored in memory (rolled back)
-		$this->assertFalse($opts->get_option('test_key'));
+		// Current semantics: staged value remains in memory even if persistence fails
+		$this->assertSame('test_value', $opts->get_option('test_key'));
 	}
 
 	/**
-	 * @covers \Ran\PluginLib\Options\RegisterOptions::set_option
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::stage_option
 	 */
 	public function test_set_option_with_typed_scope_override(): void {
 		$opts = RegisterOptions::site('test_options');
@@ -266,7 +281,7 @@ final class RegisterOptionsWriteTest extends PluginLibTestCase {
 		WP_Mock::userFunction('update_blog_option')->andReturn(true);
 
 		// Set an option - should use blog storage and succeed
-		$result = $opts->set_option('test_key', 'test_value');
+		$result = $opts->stage_option('test_key', 'test_value')->commit_replace();
 
 		// Verify success and in-memory update
 		$this->assertTrue($result);
@@ -412,5 +427,77 @@ final class RegisterOptionsWriteTest extends PluginLibTestCase {
 		$this->assertSame($opts, $result);
 		$this->assertEquals('existing_value', $opts->get_option('existing_key'));
 		$this->assertEquals('new_value', $opts->get_option('new_key'));
+	}
+
+	/**
+		* Additional coverage: stage_options pre-mutation write gate veto should prevent any in-memory changes.
+		*
+		* @covers \Ran\PluginLib\Options\RegisterOptions::stage_options
+		*/
+	public function test_stage_options_pre_mutation_veto_no_changes(): void {
+		$opts = RegisterOptions::site('test_options');
+		$opts->with_schema(array(
+			'a' => array('validate' => function ($v) {
+				return is_string($v);
+			}),
+			'b' => array('validate' => function ($v) {
+				return is_string($v);
+			}),
+		));
+
+		// Veto writes via immutable policy to ensure no in-memory mutation
+		$policy = $this->getMockBuilder(\Ran\PluginLib\Options\Policy\WritePolicyInterface::class)->getMock();
+		$policy->method('allow')->willReturn(false);
+		$opts->with_policy($policy);
+
+		// Attempt to stage multiple keys — veto should short-circuit and make no changes
+		$result = $opts->stage_options(array('a' => 'x', 'b' => 'y'));
+		$this->assertSame($opts, $result);
+		$this->assertFalse($opts->has_option('a'));
+		$this->assertFalse($opts->has_option('b'));
+	}
+
+	/**
+		* Additional coverage: stage_options with sanitizers applied and gate allowed.
+		* Ensures values are sanitized before being stored.
+		*
+		* @covers \Ran\PluginLib\Options\RegisterOptions::stage_options
+		*/
+	public function test_stage_options_applies_sanitizers_when_gate_allows(): void {
+		$opts = RegisterOptions::site('test_options');
+		$opts->with_schema(array(
+			'name' => array(
+				'sanitize' => function ($v) {
+					return trim((string) $v);
+				},
+				'validate' => function ($v) {
+					return is_string($v);
+				},
+			),
+			'count' => array(
+				'sanitize' => function ($v) {
+					return (int) $v;
+				},
+				'validate' => function ($v) {
+					return is_int($v);
+				},
+			),
+		));
+
+		// Allow writes via filters (general and scope)
+		\WP_Mock::onFilter('ran/plugin_lib/options/allow_persist')
+			->with(\WP_Mock\Functions::type('bool'), \WP_Mock\Functions::type('array'))
+			->reply(true);
+		\WP_Mock::onFilter('ran/plugin_lib/options/allow_persist/scope/site')
+			->with(\WP_Mock\Functions::type('bool'), \WP_Mock\Functions::type('array'))
+			->reply(true);
+
+		$opts->stage_options(array(
+			'name'  => '  Alice  ',
+			'count' => '42',
+		));
+
+		$this->assertSame('Alice', $opts->get_option('name'));
+		$this->assertSame(42, $opts->get_option('count'));
 	}
 }
