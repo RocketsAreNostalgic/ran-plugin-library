@@ -4,15 +4,15 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\Tests\Unit\Options;
 
-use Ran\PluginLib\Options\Sanitize;
+use Ran\PluginLib\Util\Sanitize;
 use Ran\PluginLib\Tests\Unit\PluginLibTestCase;
 
 final class SanitizeTest extends PluginLibTestCase {
 	/**
-	 * @covers \Ran\PluginLib\Options\Sanitize::string
-	 * @covers \Ran\PluginLib\Options\SanitizeStringGroup::trim
-	 * @covers \Ran\PluginLib\Options\SanitizeStringGroup::toLower
-	 * @covers \Ran\PluginLib\Options\SanitizeStringGroup::stripTags
+	 * @covers \Ran\PluginLib\Util\Sanitize::string
+	 * @covers \Ran\PluginLib\Util\SanitizeStringGroup::trim
+	 * @covers \Ran\PluginLib\Util\SanitizeStringGroup::toLower
+	 * @covers \Ran\PluginLib\Util\SanitizeStringGroup::stripTags
 	 */
 	public function test_string_sanitizers(): void {
 		$trim = Sanitize::string()->trim();
@@ -29,10 +29,10 @@ final class SanitizeTest extends PluginLibTestCase {
 	}
 
 	/**
-	 * @covers \Ran\PluginLib\Options\Sanitize::number
-	 * @covers \Ran\PluginLib\Options\SanitizeNumberGroup::toInt
-	 * @covers \Ran\PluginLib\Options\SanitizeNumberGroup::toFloat
-	 * @covers \Ran\PluginLib\Options\SanitizeNumberGroup::toBoolStrict
+	 * @covers \Ran\PluginLib\Util\Sanitize::number
+	 * @covers \Ran\PluginLib\Util\SanitizeNumberGroup::toInt
+	 * @covers \Ran\PluginLib\Util\SanitizeNumberGroup::toFloat
+	 * @covers \Ran\PluginLib\Util\SanitizeNumberGroup::toBoolStrict
 	 */
 	public function test_number_sanitizers(): void {
 		$toInt = Sanitize::number()->toInt();
@@ -56,10 +56,10 @@ final class SanitizeTest extends PluginLibTestCase {
 	}
 
 	/**
-	 * @covers \Ran\PluginLib\Options\Sanitize::array
-	 * @covers \Ran\PluginLib\Options\SanitizeArrayGroup::ensureList
-	 * @covers \Ran\PluginLib\Options\SanitizeArrayGroup::uniqueList
-	 * @covers \Ran\PluginLib\Options\SanitizeArrayGroup::ksortAssoc
+	 * @covers \Ran\PluginLib\Util\Sanitize::array
+	 * @covers \Ran\PluginLib\Util\SanitizeArrayGroup::ensureList
+	 * @covers \Ran\PluginLib\Util\SanitizeArrayGroup::uniqueList
+	 * @covers \Ran\PluginLib\Util\SanitizeArrayGroup::ksortAssoc
 	 */
 	public function test_array_sanitizers(): void {
 		$ensureList = Sanitize::array()->ensureList();
@@ -77,10 +77,10 @@ final class SanitizeTest extends PluginLibTestCase {
 	}
 
 	/**
-	 * @covers \Ran\PluginLib\Options\Sanitize::json
-	 * @covers \Ran\PluginLib\Options\SanitizeJsonGroup::decodeToValue
-	 * @covers \Ran\PluginLib\Options\SanitizeJsonGroup::decodeObject
-	 * @covers \Ran\PluginLib\Options\SanitizeJsonGroup::decodeArray
+	 * @covers \Ran\PluginLib\Util\Sanitize::json
+	 * @covers \Ran\PluginLib\Util\SanitizeJsonGroup::decodeToValue
+	 * @covers \Ran\PluginLib\Util\SanitizeJsonGroup::decodeObject
+	 * @covers \Ran\PluginLib\Util\SanitizeJsonGroup::decodeArray
 	 */
 	public function test_json_sanitizers(): void {
 		$toVal = Sanitize::json()->decodeToValue();
@@ -97,8 +97,8 @@ final class SanitizeTest extends PluginLibTestCase {
 	}
 
 	/**
-	 * @covers \Ran\PluginLib\Options\Sanitize::combine
-	 * @covers \Ran\PluginLib\Options\SanitizeComposeGroup::pipe
+	 * @covers \Ran\PluginLib\Util\Sanitize::combine
+	 * @covers \Ran\PluginLib\Util\SanitizeComposeGroup::pipe
 	 */
 	public function test_combine_pipe(): void {
 		$pipe = Sanitize::combine()->pipe(
@@ -110,9 +110,9 @@ final class SanitizeTest extends PluginLibTestCase {
 	}
 
 	/**
-	 * @covers \Ran\PluginLib\Options\Sanitize::combine
-	 * @covers \Ran\PluginLib\Options\SanitizeComposeGroup::nullable
-	 * @covers \Ran\PluginLib\Options\SanitizeComposeGroup::optional
+	 * @covers \Ran\PluginLib\Util\Sanitize::combine
+	 * @covers \Ran\PluginLib\Util\SanitizeComposeGroup::nullable
+	 * @covers \Ran\PluginLib\Util\SanitizeComposeGroup::optional
 	 */
 	public function test_compose_nullable_and_optional(): void {
 		$nullableTrim = Sanitize::combine()->nullable(Sanitize::string()->trim());
@@ -126,9 +126,9 @@ final class SanitizeTest extends PluginLibTestCase {
 	}
 
 	/**
-	 * @covers \Ran\PluginLib\Options\Sanitize::combine
-	 * @covers \Ran\PluginLib\Options\SanitizeComposeGroup::when
-	 * @covers \Ran\PluginLib\Options\SanitizeComposeGroup::unless
+	 * @covers \Ran\PluginLib\Util\Sanitize::combine
+	 * @covers \Ran\PluginLib\Util\SanitizeComposeGroup::when
+	 * @covers \Ran\PluginLib\Util\SanitizeComposeGroup::unless
 	 */
 	public function test_compose_when_and_unless(): void {
 		$whenLower = Sanitize::combine()->when(static fn($v) => is_string($v), Sanitize::string()->toLower());
@@ -142,9 +142,9 @@ final class SanitizeTest extends PluginLibTestCase {
 	}
 
 	/**
-	 * @covers \Ran\PluginLib\Options\Sanitize::canonical
-	 * @covers \Ran\PluginLib\Options\SanitizeCanonicalGroup::orderInsensitiveDeep
-	 * @covers \Ran\PluginLib\Options\SanitizeCanonicalGroup::orderInsensitiveShallow
+	 * @covers \Ran\PluginLib\Util\Sanitize::canonical
+	 * @covers \Ran\PluginLib\Util\SanitizeCanonicalGroup::orderInsensitiveDeep
+	 * @covers \Ran\PluginLib\Util\SanitizeCanonicalGroup::orderInsensitiveShallow
 	 */
 	public function test_canonical_wrappers(): void {
 		$deep = Sanitize::canonical()->orderInsensitiveDeep();
@@ -155,7 +155,7 @@ final class SanitizeTest extends PluginLibTestCase {
 	}
 
 	/**
-	 * @covers \Ran\PluginLib\Options\Sanitize::orderInsensitiveDeep
+	 * @covers \Ran\PluginLib\Util\Sanitize::orderInsensitiveDeep
 	 */
 	public function test_order_insensitive_deep(): void {
 		// Scalars pass-through
@@ -206,7 +206,7 @@ final class SanitizeTest extends PluginLibTestCase {
 	}
 
 	/**
-	 * @covers \Ran\PluginLib\Options\Sanitize::orderInsensitiveShallow
+	 * @covers \Ran\PluginLib\Util\Sanitize::orderInsensitiveShallow
 	 */
 	public function test_order_insensitive_shallow(): void {
 		// Scalars pass-through

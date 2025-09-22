@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-namespace Ran\PluginLib\Options;
+namespace Ran\PluginLib\Util;
 
 /**
  * Utility helpers for schema sanitization and canonicalization.

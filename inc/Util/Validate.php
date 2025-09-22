@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-namespace Ran\PluginLib\Options;
+namespace Ran\PluginLib\Util;
 
 /**
  * Validation utilities for schema-driven option values.
@@ -324,7 +324,8 @@ final class ValidateBasicGroup {
 	 * @return callable(mixed):bool Closure that returns true if $value is not empty
 	 */
 	public function isNotEmpty(): callable {
-		return static fn(mixed $v): bool => !$this->isEmpty($v);
+		$empty = $this->isEmpty();
+		return static fn(mixed $v): bool => !$empty($v);
 	}
 }
 
