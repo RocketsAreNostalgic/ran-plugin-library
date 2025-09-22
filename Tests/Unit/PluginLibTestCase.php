@@ -10,8 +10,10 @@ use RanTestCase;
 use Mockery\MockInterface;
 use Ran\PluginLib\Config\ConfigAbstract;
 use Ran\PluginLib\Util\CollectingLogger;
+use \Ran\PluginLib\Options\RegisterOptions;
 use PHPUnit\Framework\MockObject\MockObject;
 use Ran\PluginLib\EnqueueAccessory\AssetType;
+use \Ran\PluginLib\Options\Storage\StorageContext;
 
 /**
  * Minimal concrete class for testing ConfigAbstract initialization.
@@ -29,8 +31,8 @@ class ConcreteConfigForTesting extends ConfigAbstract {
 	/**
 	 * Provide options accessor required by ConfigInterface for this test concrete (typed-first).
 	 */
-	public function options(?\Ran\PluginLib\Options\Storage\StorageContext $context = null, bool $autoload = true): \Ran\PluginLib\Options\RegisterOptions {
-		return \Ran\PluginLib\Options\RegisterOptions::from_config($this, $context, $autoload);
+	public function options(?StorageContext $context = null, bool $autoload = true): \Ran\PluginLib\Options\RegisterOptions {
+		return new RegisterOptions($this->get_options_key(), $context, $autoload);
 	}
 }
 
