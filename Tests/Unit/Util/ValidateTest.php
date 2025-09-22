@@ -21,7 +21,7 @@ final class ValidateTest extends PluginLibTestCase {
 
 	/**
 	 * @covers \Ran\PluginLib\Util\Validate::format
-	 * @covers \Ran\PluginLib\Util\ValidateFormatGroup::jsonString
+	 * @covers \Ran\PluginLib\Util\Validate\ValidateFormatGroup::jsonString
 	 */
 	public function test_format_json_string(): void {
 		$json = Validate::format()->jsonString();
@@ -40,7 +40,7 @@ final class ValidateTest extends PluginLibTestCase {
 
 	/**
 	 * @covers \Ran\PluginLib\Util\Validate::format
-	 * @covers \Ran\PluginLib\Util\ValidateFormatGroup::email
+	 * @covers \Ran\PluginLib\Util\Validate\ValidateFormatGroup::email
 	 */
 	public function test_format_email(): void {
 		$email = Validate::format()->email();
@@ -55,7 +55,7 @@ final class ValidateTest extends PluginLibTestCase {
 
 	/**
 	 * @covers \Ran\PluginLib\Util\Validate::format
-	 * @covers \Ran\PluginLib\Util\ValidateFormatGroup::phone
+	 * @covers \Ran\PluginLib\Util\Validate\ValidateFormatGroup::phone
 	 */
 	public function test_format_phone(): void {
 		$phone = Validate::format()->phone();
@@ -72,7 +72,7 @@ final class ValidateTest extends PluginLibTestCase {
 
 	/**
 	 * @covers \Ran\PluginLib\Util\Validate::format
-	 * @covers \Ran\PluginLib\Util\ValidateFormatGroup::url
+	 * @covers \Ran\PluginLib\Util\Validate\ValidateFormatGroup::url
 	 */
 	public function test_format_url(): void {
 		$url = Validate::format()->url();
@@ -87,7 +87,7 @@ final class ValidateTest extends PluginLibTestCase {
 
 	/**
 	 * @covers \Ran\PluginLib\Util\Validate::format
-	 * @covers \Ran\PluginLib\Util\ValidateFormatGroup::domain
+	 * @covers \Ran\PluginLib\Util\Validate\ValidateFormatGroup::domain
 	 */
 	public function test_format_domain(): void {
 		$domain = Validate::format()->domain();
@@ -103,7 +103,7 @@ final class ValidateTest extends PluginLibTestCase {
 
 	/**
 	 * @covers \Ran\PluginLib\Util\Validate::format
-	 * @covers \Ran\PluginLib\Util\ValidateFormatGroup::hostname
+	 * @covers \Ran\PluginLib\Util\Validate\ValidateFormatGroup::hostname
 	 */
 	public function test_format_hostname(): void {
 		$hostname = Validate::format()->hostname();
@@ -119,7 +119,7 @@ final class ValidateTest extends PluginLibTestCase {
 
 	/**
 	 * @covers \Ran\PluginLib\Util\Validate::format
-	 * @covers \Ran\PluginLib\Util\ValidateFormatGroup::origin
+	 * @covers \Ran\PluginLib\Util\Validate\ValidateFormatGroup::origin
 	 */
 	public function test_format_origin(): void {
 		$origin = Validate::format()->origin();
@@ -272,13 +272,13 @@ final class ValidateTest extends PluginLibTestCase {
 
 	/**
 	 * @covers \Ran\PluginLib\Util\Validate::basic
-	 * @covers \Ran\PluginLib\Util\ValidateBasicGroup::isBool
-	 * @covers \Ran\PluginLib\Util\ValidateBasicGroup::isInt
-	 * @covers \Ran\PluginLib\Util\ValidateBasicGroup::isFloat
-	 * @covers \Ran\PluginLib\Util\ValidateBasicGroup::isString
-	 * @covers \Ran\PluginLib\Util\ValidateBasicGroup::isArray
-	 * @covers \Ran\PluginLib\Util\ValidateBasicGroup::isObject
-	 * @covers \Ran\PluginLib\Util\ValidateBasicGroup::isNull
+	 * @covers \Ran\PluginLib\Util\Validate\ValidateBasicGroup::isBool
+	 * @covers \Ran\PluginLib\Util\Validate\ValidateBasicGroup::isInt
+	 * @covers \Ran\PluginLib\Util\Validate\ValidateBasicGroup::isFloat
+	 * @covers \Ran\PluginLib\Util\Validate\ValidateBasicGroup::isString
+	 * @covers \Ran\PluginLib\Util\Validate\ValidateBasicGroup::isArray
+	 * @covers \Ran\PluginLib\Util\Validate\ValidateBasicGroup::isObject
+	 * @covers \Ran\PluginLib\Util\Validate\ValidateBasicGroup::isNull
 	 */
 	public function test_basic_validators_via_groups(): void {
 		$basic = Validate::basic();
@@ -314,10 +314,10 @@ final class ValidateTest extends PluginLibTestCase {
 
 	/**
 	 * @covers \Ran\PluginLib\Util\Validate::basic
-	 * @covers \Ran\PluginLib\Util\ValidateBasicGroup::isScalar
-	 * @covers \Ran\PluginLib\Util\ValidateBasicGroup::isNumeric
-	 * @covers \Ran\PluginLib\Util\ValidateBasicGroup::isNullable
-	 * @covers \Ran\PluginLib\Util\ValidateBasicGroup::isCallable
+	 * @covers \Ran\PluginLib\Util\Validate\ValidateBasicGroup::isScalar
+	 * @covers \Ran\PluginLib\Util\Validate\ValidateBasicGroup::isNumeric
+	 * @covers \Ran\PluginLib\Util\Validate\ValidateBasicGroup::isNullable
+	 * @covers \Ran\PluginLib\Util\Validate\ValidateBasicGroup::isCallable
 	 */
 	public function test_basic_additional_predicates(): void {
 		$basic = Validate::basic();
@@ -351,9 +351,9 @@ final class ValidateTest extends PluginLibTestCase {
 
 	/**
 	 * @covers \Ran\PluginLib\Util\Validate::enums
-	 * @covers \Ran\PluginLib\Util\ValidateEnumGroup::enum
-	 * @covers \Ran\PluginLib\Util\ValidateEnumGroup::backed
-	 * @covers \Ran\PluginLib\Util\ValidateEnumGroup::unit
+	 * @covers \Ran\PluginLib\Util\Validate\ValidateEnumGroup::enum
+	 * @covers \Ran\PluginLib\Util\Validate\ValidateEnumGroup::backed
+	 * @covers \Ran\PluginLib\Util\Validate\ValidateEnumGroup::unit
 	 */
 	public function test_enums_helpers_in_main_suite(): void {
 		// oneOf
@@ -374,8 +374,8 @@ final class ValidateTest extends PluginLibTestCase {
 
 	/**
 	 * @covers \Ran\PluginLib\Util\Validate::collection
-	 * @covers \Ran\PluginLib\Util\ValidateCollectionGroup::hasKeys
-	 * @covers \Ran\PluginLib\Util\ValidateCollectionGroup::exactKeys
+	 * @covers \Ran\PluginLib\Util\Validate\ValidateCollectionGroup::hasKeys
+	 * @covers \Ran\PluginLib\Util\Validate\ValidateCollectionGroup::exactKeys
 	 */
 	public function test_collection_has_keys_and_exact_keys(): void {
 		$hasXY = Validate::collection()->hasKeys(array('x', 'y'));
@@ -393,7 +393,7 @@ final class ValidateTest extends PluginLibTestCase {
 
 	/**
 	 * @covers \Ran\PluginLib\Util\Validate::collection
-	 * @covers \Ran\PluginLib\Util\ValidateCollectionGroup::strictShape
+	 * @covers \Ran\PluginLib\Util\Validate\ValidateCollectionGroup::strictShape
 	 */
 	public function test_collection_strict_shape(): void {
 		$shape = Validate::collection()->strictShape(array(
@@ -410,8 +410,8 @@ final class ValidateTest extends PluginLibTestCase {
 
 	/**
 	 * @covers \Ran\PluginLib\Util\Validate::collection
-	 * @covers \Ran\PluginLib\Util\ValidateCollectionGroup::minItems
-	 * @covers \Ran\PluginLib\Util\ValidateCollectionGroup::maxItems
+	 * @covers \Ran\PluginLib\Util\Validate\ValidateCollectionGroup::minItems
+	 * @covers \Ran\PluginLib\Util\Validate\ValidateCollectionGroup::maxItems
 	 */
 	public function test_collection_min_max_items(): void {
 		$nonEmpty = Validate::collection()->minItems(1);
@@ -428,9 +428,9 @@ final class ValidateTest extends PluginLibTestCase {
 
 	/**
 	 * @covers \Ran\PluginLib\Util\Validate::number
-	 * @covers \Ran\PluginLib\Util\ValidateNumberGroup::min
-	 * @covers \Ran\PluginLib\Util\ValidateNumberGroup::max
-	 * @covers \Ran\PluginLib\Util\ValidateNumberGroup::between
+	 * @covers \Ran\PluginLib\Util\Validate\ValidateNumberGroup::min
+	 * @covers \Ran\PluginLib\Util\Validate\ValidateNumberGroup::max
+	 * @covers \Ran\PluginLib\Util\Validate\ValidateNumberGroup::between
 	 */
 	public function test_number_group_helpers(): void {
 		$min = Validate::number()->min(10);
@@ -456,10 +456,10 @@ final class ValidateTest extends PluginLibTestCase {
 
 	/**
 	 * @covers \Ran\PluginLib\Util\Validate::string
-	 * @covers \Ran\PluginLib\Util\ValidateStringGroup::minLength
-	 * @covers \Ran\PluginLib\Util\ValidateStringGroup::maxLength
-	 * @covers \Ran\PluginLib\Util\ValidateStringGroup::lengthBetween
-	 * @covers \Ran\PluginLib\Util\ValidateStringGroup::pattern
+	 * @covers \Ran\PluginLib\Util\Validate\ValidateStringGroup::minLength
+	 * @covers \Ran\PluginLib\Util\Validate\ValidateStringGroup::maxLength
+	 * @covers \Ran\PluginLib\Util\Validate\ValidateStringGroup::lengthBetween
+	 * @covers \Ran\PluginLib\Util\Validate\ValidateStringGroup::pattern
 	 */
 	public function test_string_group_helpers(): void {
 		$minLen = Validate::string()->minLength(2);
@@ -487,8 +487,8 @@ final class ValidateTest extends PluginLibTestCase {
 
 	/**
 	 * @covers \Ran\PluginLib\Util\Validate::collection
-	 * @covers \Ran\PluginLib\Util\ValidateCollectionGroup::listOf
-	 * @covers \Ran\PluginLib\Util\ValidateCollectionGroup::shape
+	 * @covers \Ran\PluginLib\Util\Validate\ValidateCollectionGroup::listOf
+	 * @covers \Ran\PluginLib\Util\Validate\ValidateCollectionGroup::shape
 	 */
 	public function test_collection_listOf_and_shape(): void {
 		$listOfInts = Validate::collection()->listOf(Validate::basic()->isInt());
@@ -508,11 +508,11 @@ final class ValidateTest extends PluginLibTestCase {
 
 	/**
 	 * @covers \Ran\PluginLib\Util\Validate::compose
-	 * @covers \Ran\PluginLib\Util\ValidateComposeGroup::nullable
-	 * @covers \Ran\PluginLib\Util\ValidateComposeGroup::optional
-	 * @covers \Ran\PluginLib\Util\ValidateComposeGroup::union
-	 * @covers \Ran\PluginLib\Util\ValidateComposeGroup::all
-	 * @covers \Ran\PluginLib\Util\ValidateComposeGroup::none
+	 * @covers \Ran\PluginLib\Util\Validate\ValidateComposeGroup::nullable
+	 * @covers \Ran\PluginLib\Util\Validate\ValidateComposeGroup::optional
+	 * @covers \Ran\PluginLib\Util\Validate\ValidateComposeGroup::union
+	 * @covers \Ran\PluginLib\Util\Validate\ValidateComposeGroup::all
+	 * @covers \Ran\PluginLib\Util\Validate\ValidateComposeGroup::none
 	 */
 	public function test_compose_helpers(): void {
 		$nullableString = Validate::compose()->nullable(Validate::basic()->isString());
@@ -550,7 +550,7 @@ final class ValidateTest extends PluginLibTestCase {
 
 	/**
 		* @covers \Ran\PluginLib\Util\Validate::basic
-		* @covers \Ran\PluginLib\Util\ValidateBasicGroup::isEmpty
+		* @covers \Ran\PluginLib\Util\Validate\ValidateBasicGroup::isEmpty
 		*/
 	public function test_basic_is_empty(): void {
 		$empty = Validate::basic()->isEmpty();
@@ -567,7 +567,7 @@ final class ValidateTest extends PluginLibTestCase {
 
 	/**
 		* @covers \Ran\PluginLib\Util\Validate::basic
-		* @covers \Ran\PluginLib\Util\ValidateBasicGroup::isNotEmpty
+		* @covers \Ran\PluginLib\Util\Validate\ValidateBasicGroup::isNotEmpty
 		*/
 	public function test_basic_is_not_empty(): void {
 		$notEmpty = Validate::basic()->isNotEmpty();
@@ -598,7 +598,7 @@ enum VTFlag {
 final class ValidateEnumHelpersTest extends PluginLibTestCase {
 	/**
 	 * @covers \Ran\PluginLib\Util\Validate::enums
-	 * @covers \Ran\PluginLib\Util\ValidateEnumGroup::enum
+	 * @covers \Ran\PluginLib\Util\Validate\ValidateEnumGroup::enum
 	 */
 	public function test_enums_enum(): void {
 		$oneOf = Validate::enums()->enum(array('a', 'b', 'c'));
@@ -608,7 +608,7 @@ final class ValidateEnumHelpersTest extends PluginLibTestCase {
 
 	/**
 	 * @covers \Ran\PluginLib\Util\Validate::enums
-	 * @covers \Ran\PluginLib\Util\ValidateEnumGroup::backed
+	 * @covers \Ran\PluginLib\Util\Validate\ValidateEnumGroup::backed
 	 */
 	public function test_enums_backed(): void {
 		$backed = Validate::enums()->backed(\VTMode::class);
@@ -619,7 +619,7 @@ final class ValidateEnumHelpersTest extends PluginLibTestCase {
 
 	/**
 	 * @covers \Ran\PluginLib\Util\Validate::enums
-	 * @covers \Ran\PluginLib\Util\ValidateEnumGroup::unit
+	 * @covers \Ran\PluginLib\Util\Validate\ValidateEnumGroup::unit
 	 */
 	public function test_enums_unit(): void {
 		$unit = Validate::enums()->unit(\VTFlag::class);
