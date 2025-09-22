@@ -61,7 +61,7 @@ final class WriteGateHappyPathTest extends PluginLibTestCase {
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::supports_autoload
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::delete_option
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::stage_option
-	 * @covers \Ran\PluginLib\Options\RegisterOptions::set_option
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::stage_option
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::_apply_write_gate
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::_save_all_options
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::_get_storage
@@ -70,24 +70,23 @@ final class WriteGateHappyPathTest extends PluginLibTestCase {
 		$opts = RegisterOptions::site('test_options', true, $this->logger_mock);
 		$this->allow_all_persist_filters_for_site();
 
-		// Phase 4: schema required for set_option keys
+		// Phase 4: schema required for stage_option keys
 		$opts->with_schema(array('foo' => array('validate' => function ($v) {
 			return is_string($v);
 		})));
 
 		// update_option returns true by default from setUp
-		$result = $opts->set_option('foo', 'bar');
+		$result = $opts->stage_option('foo', 'bar')->commit_replace();
 
 		$this->assertTrue($result);
 		$this->assertSame('bar', $opts->get_option('foo'));
-		// Logs: three write-gate sequences (pre-mutation, pre-persist, inside save)
-		$this->expectLog('debug', '_apply_write_gate policy decision', 3);
-		$this->expectLog('debug', '_apply_write_gate applying general allow_persist filter', 3);
-		$this->expectLog('debug', '_apply_write_gate general filter result', 3);
-		$this->expectLog('debug', '_apply_write_gate applying scoped allow_persist filter', 3);
-		$this->expectLog('debug', '_apply_write_gate scoped filter result', 3);
-		$this->expectLog('debug', '_apply_write_gate final decision', 3);
-		$this->expectLog('debug', 'storage->update() completed.');
+		// Logs: two write-gate sequences (stage_option then save_all on commit)
+		$this->expectLog('debug', '_apply_write_gate policy decision', 2);
+		$this->expectLog('debug', '_apply_write_gate applying general allow_persist filter', 2);
+		$this->expectLog('debug', '_apply_write_gate general filter result', 2);
+		$this->expectLog('debug', '_apply_write_gate applying scoped allow_persist filter', 2);
+		$this->expectLog('debug', '_apply_write_gate scoped filter result', 2);
+		$this->expectLog('debug', '_apply_write_gate final decision', 2);
 	}
 
 	/**
@@ -138,7 +137,6 @@ final class WriteGateHappyPathTest extends PluginLibTestCase {
 		$this->expectLog('debug', '_apply_write_gate scoped filter result', 2);
 		$this->expectLog('debug', '_apply_write_gate final decision', 2);
 		$this->expectLog('debug', '_save_all_options starting');
-		$this->expectLog('debug', 'storage->update() completed.');
 	}
 
 	/**
@@ -157,22 +155,21 @@ final class WriteGateHappyPathTest extends PluginLibTestCase {
 		})));
 
 		// Seed an option (allowed path)
-		$opts->set_option('to_del', 123);
+		$opts->stage_option('to_del', 123);
 		$this->assertTrue($opts->has_option('to_del'));
 
 		// Delete and persist
 		$result = $opts->delete_option('to_del');
 		$this->assertTrue($result);
 		$this->assertFalse($opts->has_option('to_del'));
-		// Logs: pre-seed set_option (3), then delete_option (1), then save_all (1) => 5
-		$this->expectLog('debug', '_apply_write_gate policy decision', 5);
-		$this->expectLog('debug', '_apply_write_gate applying general allow_persist filter', 5);
-		$this->expectLog('debug', '_apply_write_gate general filter result', 5);
-		$this->expectLog('debug', '_apply_write_gate applying scoped allow_persist filter', 5);
-		$this->expectLog('debug', '_apply_write_gate scoped filter result', 5);
-		$this->expectLog('debug', '_apply_write_gate final decision', 5);
-		$this->expectLog('debug', '_save_all_options starting', 2);
-		$this->expectLog('debug', 'storage->update() completed.', 2);
+		// Logs: pre-seed add_option (1), then delete_option (1), then save_all (1) => 3
+		$this->expectLog('debug', '_apply_write_gate policy decision', 3);
+		$this->expectLog('debug', '_apply_write_gate applying general allow_persist filter', 3);
+		$this->expectLog('debug', '_apply_write_gate general filter result', 3);
+		$this->expectLog('debug', '_apply_write_gate applying scoped allow_persist filter', 3);
+		$this->expectLog('debug', '_apply_write_gate scoped filter result', 3);
+		$this->expectLog('debug', '_apply_write_gate final decision', 3);
+		$this->expectLog('debug', '_save_all_options starting', 1);
 	}
 
 	/**

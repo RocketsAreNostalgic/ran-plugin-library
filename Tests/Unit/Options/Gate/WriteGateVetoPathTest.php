@@ -63,7 +63,7 @@ final class WriteGateVetoPathTest extends PluginLibTestCase {
 		$config = $this->getMockBuilder(ConfigInterface::class)->getMock();
 		$config->method('get_options_key')->willReturn('test_options');
 		$config->method('get_logger')->willReturn($this->logger_mock);
-		$opts = RegisterOptions::from_config($config, StorageContext::forSite(), true);
+		$opts = new RegisterOptions($config->get_options_key(), StorageContext::forSite(), true, $this->logger_mock);
 		// Phase 4: schema required for migration-changed keys
 		$opts->with_schema(array('new_key' => array('validate' => function ($v) {
 			return is_string($v);
@@ -107,7 +107,7 @@ final class WriteGateVetoPathTest extends PluginLibTestCase {
 		$config = $this->getMockBuilder(ConfigInterface::class)->getMock();
 		$config->method('get_options_key')->willReturn('test_options');
 		$config->method('get_logger')->willReturn($this->logger_mock);
-		$opts = RegisterOptions::from_config($config, StorageContext::forSite(), true);
+		$opts = new RegisterOptions($config->get_options_key(), StorageContext::forSite(), true, $this->logger_mock);
 		// Phase 4: schema required for set_option key
 		$opts->with_schema(array('foo' => array('validate' => function ($v) {
 			return is_string($v);
@@ -123,7 +123,7 @@ final class WriteGateVetoPathTest extends PluginLibTestCase {
 	}
 
 	/**
-	 * @covers \Ran\PluginLib\Options\RegisterOptions::set_option
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::stage_option
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::_apply_write_gate
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::_save_all_options
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::_get_storage
@@ -133,7 +133,7 @@ final class WriteGateVetoPathTest extends PluginLibTestCase {
 		$config = $this->getMockBuilder(ConfigInterface::class)->getMock();
 		$config->method('get_options_key')->willReturn('test_options');
 		$config->method('get_logger')->willReturn($this->logger_mock);
-		$opts = RegisterOptions::from_config($config, StorageContext::forSite(), true);
+		$opts = new RegisterOptions($config->get_options_key(), StorageContext::forSite(), true, $this->logger_mock);
 		// Phase 4: schema required for keys
 		$opts->with_schema(array(
 			'a' => array('validate' => function ($v) {
@@ -153,7 +153,7 @@ final class WriteGateVetoPathTest extends PluginLibTestCase {
 
 		// Ensure pre-state empty
 		$this->assertFalse($opts->has_option('foo'));
-		$res = $opts->set_option('foo', 'bar');
+		$res = $opts->stage_option('foo', 'bar')->commit_replace();
 		$this->assertFalse($res);
 		$this->assertFalse($opts->has_option('foo'));
 	}
@@ -169,7 +169,7 @@ final class WriteGateVetoPathTest extends PluginLibTestCase {
 		$config = $this->getMockBuilder(ConfigInterface::class)->getMock();
 		$config->method('get_options_key')->willReturn('test_options');
 		$config->method('get_logger')->willReturn($this->logger_mock);
-		$opts = RegisterOptions::from_config($config, StorageContext::forSite(), true);
+		$opts = new RegisterOptions($config->get_options_key(), StorageContext::forSite(), true, $this->logger_mock);
 		// Phase 4: schema required for stage_option key
 		$opts->with_schema(array('a' => array('validate' => function ($v) {
 			return is_int($v);
@@ -194,7 +194,7 @@ final class WriteGateVetoPathTest extends PluginLibTestCase {
 		$config = $this->getMockBuilder(ConfigInterface::class)->getMock();
 		$config->method('get_options_key')->willReturn('test_options');
 		$config->method('get_logger')->willReturn($this->logger_mock);
-		$opts = RegisterOptions::from_config($config, StorageContext::forSite(), true);
+		$opts = new RegisterOptions($config->get_options_key(), StorageContext::forSite(), true, $this->logger_mock);
 		// Phase 4: schema required for stage_option key
 		$opts->with_schema(array('a' => array('validate' => function ($v) {
 			return is_int($v);
@@ -220,7 +220,7 @@ final class WriteGateVetoPathTest extends PluginLibTestCase {
 		$config = $this->getMockBuilder(ConfigInterface::class)->getMock();
 		$config->method('get_options_key')->willReturn('test_options');
 		$config->method('get_logger')->willReturn($this->logger_mock);
-		$opts = RegisterOptions::from_config($config, StorageContext::forSite(), true);
+		$opts = new RegisterOptions($config->get_options_key(), StorageContext::forSite(), true, $this->logger_mock);
 		// Phase 4: schema required for delete key
 		$opts->with_schema(array('k' => array('validate' => function ($v) {
 			return is_string($v);
@@ -249,7 +249,7 @@ final class WriteGateVetoPathTest extends PluginLibTestCase {
 		$config = $this->getMockBuilder(ConfigInterface::class)->getMock();
 		$config->method('get_options_key')->willReturn('test_options');
 		$config->method('get_logger')->willReturn($this->logger_mock);
-		$opts = RegisterOptions::from_config($config, StorageContext::forSite(), true);
+		$opts = new RegisterOptions($config->get_options_key(), StorageContext::forSite(), true, $this->logger_mock);
 		// seed in-memory
 		$this->_set_protected_property_value($opts, 'options', array('a' => 1, 'b' => 2));
 		$this->assertTrue($opts->has_option('a'));
@@ -290,7 +290,7 @@ final class WriteGateVetoPathTest extends PluginLibTestCase {
 
 		// Use Site scope so existence checks use get_option
 		$config->method('get_logger')->willReturn($this->logger_mock);
-		$opts = RegisterOptions::from_config($config, StorageContext::forSite(), true);
+		$opts = new RegisterOptions($config->get_options_key(), StorageContext::forSite(), true, $this->logger_mock);
 		// Phase 4: schema required for seed_if_missing keys
 		$opts->with_schema(array('x' => array('validate' => function ($v) {
 			return is_int($v);
@@ -334,7 +334,7 @@ final class WriteGateVetoPathTest extends PluginLibTestCase {
 			return true;
 		});
 
-		$opts = RegisterOptions::from_config($config, StorageContext::forSite(), true);
+		$opts = new RegisterOptions($config->get_options_key(), StorageContext::forSite(), true, $this->logger_mock);
 
 		// Phase 4: schema required for seed_if_missing keys
 		$opts->with_schema(array('z' => array('validate' => function ($v) {
@@ -376,7 +376,7 @@ final class WriteGateVetoPathTest extends PluginLibTestCase {
 			return true;
 		});
 
-		$opts = RegisterOptions::from_config($config, StorageContext::forSite(), true)->with_logger($this->logger_mock);
+		$opts = (new RegisterOptions($config->get_options_key(), StorageContext::forSite(), true, $this->logger_mock));
 
 		// Migration function should never be invoked; throw if it is
 		$migration = function($current) {
@@ -415,7 +415,7 @@ final class WriteGateVetoPathTest extends PluginLibTestCase {
 			return true;
 		});
 
-		$opts = RegisterOptions::from_config($config, StorageContext::forSite(), true)->with_logger($this->logger_mock);
+		$opts = (new RegisterOptions($config->get_options_key(), StorageContext::forSite(), true, $this->logger_mock));
 
 		// Identity migration returns a strictly equal array
 		$migration = function($current) use ($existing) {
@@ -451,7 +451,7 @@ final class WriteGateVetoPathTest extends PluginLibTestCase {
 
 		// Construct SUT with collecting logger provided via Config
 		$config->method('get_logger')->willReturn($this->logger_mock);
-		$opts = RegisterOptions::from_config($config, StorageContext::forSite(), true);
+		$opts = new RegisterOptions($config->get_options_key(), StorageContext::forSite(), true, $this->logger_mock);
 
 		// Force filter veto deterministically
 		WP_Mock::onFilter('ran/plugin_lib/options/allow_persist')

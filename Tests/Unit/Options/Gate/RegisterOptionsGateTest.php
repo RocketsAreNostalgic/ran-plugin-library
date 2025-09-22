@@ -6,8 +6,8 @@ namespace Ran\PluginLib\Tests\Unit\Options;
 
 use WP_Mock;
 use Ran\PluginLib\Options\RegisterOptions;
-use Ran\PluginLib\Options\Policy\WritePolicyInterface;
 use Ran\PluginLib\Tests\Unit\PluginLibTestCase;
+use Ran\PluginLib\Options\Policy\WritePolicyInterface;
 
 /**
  * Tests for RegisterOptions write gate and policy mechanisms.
@@ -35,7 +35,7 @@ final class RegisterOptionsGateTest extends PluginLibTestCase {
 	}
 
 	/**
-	 * @covers \Ran\PluginLib\Options\RegisterOptions::set_option
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::stage_option
 	 */
 	public function test_set_option_write_gate_veto_before_mutation(): void {
 		// Create a partial mock with constructor disabled
@@ -59,19 +59,16 @@ final class RegisterOptionsGateTest extends PluginLibTestCase {
 				return is_string($v);
 			}),
 		));
-	
-		// Attempt to set option - should be vetoed before mutation
-		$result = $mockOpts->set_option('test_key', 'test_value');
 
-		// Should return false due to veto
-		$this->assertFalse($result);
+		// Attempt to set option - should be vetoed before mutation
+		$mockOpts->stage_option('test_key', 'test_value');
 
 		// Verify option was not set (protected in-memory state)
 		$this->assertFalse($mockOpts->has_option('test_key'));
 	}
 
 	/**
-	 * @covers \Ran\PluginLib\Options\RegisterOptions::set_option
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::stage_option
 	 */
 	public function test_set_option_write_gate_veto_after_mutation(): void {
 		// Create a partial mock with constructor disabled
@@ -95,24 +92,21 @@ final class RegisterOptionsGateTest extends PluginLibTestCase {
 				return is_string($v);
 			}),
 		));
-	
-		// Attempt to set option - should be vetoed after mutation
-		$result = $mockOpts->set_option('test_key', 'test_value');
 
-		// Should return false due to veto after rollback
-		$this->assertFalse($result);
+		// Attempt to set option - gate allows pre-mutation but vetoes later paths; stage_option remains fluent
+		$mockOpts->stage_option('test_key', 'test_value');
 
 		// Verify option was rolled back (lines 368-369)
 		$this->assertFalse($mockOpts->has_option('test_key'));
 	}
 
 	/**
-	 * @covers \Ran\PluginLib\Options\RegisterOptions::set_option
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::stage_option
 	 */
 	public function test_set_option_write_gate_veto_after_mutation_with_policy(): void {
 		$opts = RegisterOptions::site('test_options');
 
-		// Phase 4: schema required for set_option key
+		// Phase 4: schema required for stage_option key
 		$opts->with_schema(array('test_key' => array('validate' => function ($v) {
 			return is_string($v);
 		})));
@@ -126,23 +120,23 @@ final class RegisterOptionsGateTest extends PluginLibTestCase {
 		// Set the mock policy on the options instance
 		$this->_set_protected_property_value($opts, 'write_policy', $mockPolicy);
 
-		// Attempt to set option - should be vetoed after mutation by policy
-		$result = $opts->set_option('test_key', 'test_value');
-
-		// Should return false due to veto after rollback
+		// Attempt to set option (stage only), then persist where policy vetoes the second check
+		$opts->stage_option('test_key', 'test_value');
+		$result = $opts->commit_merge();
+		// Should return false due to veto during persistence
 		$this->assertFalse($result);
-
-		// Verify option was rolled back (lines 368-369)
+		// Reload from storage to ensure in-memory reflects persisted state (no write occurred)
+		$opts->refresh_options();
 		$this->assertFalse($opts->has_option('test_key'));
 	}
 
 	/**
-	 * @covers \Ran\PluginLib\Options\RegisterOptions::set_option
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::stage_option
 	 */
 	public function test_set_option_vetoed_by_persist_gate(): void {
 		$opts = RegisterOptions::site('test_options');
 
-		// Phase 4: schema required for set_option key
+		// Phase 4: schema required for stage_option key
 		$opts->with_schema(array('test_key' => array('validate' => function ($v) {
 			return is_string($v);
 		})));
@@ -163,13 +157,13 @@ final class RegisterOptionsGateTest extends PluginLibTestCase {
 		// Mock storage to return failure
 		WP_Mock::userFunction('update_option')->andReturn(false);
 
-		// Set an option - should be vetoed during persistence and rolled back
-		$result = $opts->set_option('test_key', 'test_value');
-
+		// Stage then attempt to persist - veto occurs during persistence
+		$opts->stage_option('test_key', 'test_value');
+		$result = $opts->commit_merge();
 		// Verify the method returned false (persistence failed)
 		$this->assertFalse($result);
-
-		// Verify the option was NOT stored in memory (rolled back)
+		// Refresh from storage; no write should have occurred
+		$opts->refresh_options();
 		$this->assertFalse($opts->get_option('test_key'));
 	}
 }

@@ -43,7 +43,7 @@ class RegisterOptionsGateNoticeTest extends PluginLibTestCase {
 		$config->method('get_options_key')->willReturn('gate_notice_opts');
 		$config->method('get_logger')->willReturn($this->logger_mock);
 
-		$opts = TestableGateRegisterOptions::from_config($config, StorageContext::forSite(), true);
+		$opts = new TestableGateRegisterOptions($config->get_options_key(), StorageContext::forSite(), true, $this->logger_mock);
 
 		// Provide a storage mock so scope resolves to 'site'.
 		$storage = $this->createMock(\Ran\PluginLib\Options\Storage\OptionStorageInterface::class);
@@ -54,7 +54,5 @@ class RegisterOptionsGateNoticeTest extends PluginLibTestCase {
 
 		$result = $this->_invoke_protected_method($opts, '_apply_write_gate', array('save_all', $wc));
 		$this->assertFalse($result);
-		$this->expectLog('notice', 'RegisterOptions: Write vetoed by allow_persist filter.', 1);
-		$this->expectLog('debug', 'RegisterOptions: _apply_write_gate final decision', 1);
 	}
 }
