@@ -226,7 +226,7 @@ final class RegisterOptionsConstructorTest extends PluginLibTestCase {
 			}
 
 			public function options(?StorageContext $context = null, bool $autoload = true): RegisterOptions {
-				return RegisterOptions::from_config($this, $context, $autoload);
+				return new RegisterOptions($this->get_options_key(), $context, $autoload);
 			}
 
 			public function is_dev_environment(): bool {
@@ -238,7 +238,7 @@ final class RegisterOptionsConstructorTest extends PluginLibTestCase {
 			}
 		};
 
-		$opts = RegisterOptions::from_config($config, StorageContext::forSite(), true);
+		$opts = new RegisterOptions($config->get_options_key(), StorageContext::forSite(), true, $this->logger_mock);
 		// Expect constructor initialization log captured via Config-provided logger
 		$this->expectLog('debug', "RegisterOptions: Initialized with main option 'test_plugin_options'. Loaded 0 existing sub-options.", 1);
 		$this->assertInstanceOf(RegisterOptions::class, $opts);
@@ -327,7 +327,7 @@ final class RegisterOptionsConstructorTest extends PluginLibTestCase {
 			}
 
 			public function options(?StorageContext $context = null, bool $autoload = true): RegisterOptions {
-				return RegisterOptions::from_config($this, $context, $autoload);
+				return new RegisterOptions($this->get_options_key(), $context, $autoload);
 			}
 
 			public function is_dev_environment(): bool {
@@ -342,7 +342,7 @@ final class RegisterOptionsConstructorTest extends PluginLibTestCase {
 		TestableRegisterOptions::$currentBlogId = 1;
 		WP_Mock::userFunction('get_current_blog_id')->andReturn(1);
 
-		$opts = RegisterOptions::from_config($config, StorageContext::forBlog(123), true);
+		$opts = new RegisterOptions($config->get_options_key(), StorageContext::forBlog(123), true, $this->logger_mock);
 		// Expect constructor initialization log captured via Config-provided logger
 		$this->expectLog('debug', "RegisterOptions: Initialized with main option 'test_plugin_options'. Loaded 0 existing sub-options.", 1);
 		$this->assertInstanceOf(RegisterOptions::class, $opts);
@@ -431,7 +431,7 @@ final class RegisterOptionsConstructorTest extends PluginLibTestCase {
 			}
 
 			public function options(?StorageContext $context = null, bool $autoload = true): RegisterOptions {
-				return RegisterOptions::from_config($this, $context, $autoload);
+				return new RegisterOptions($this->get_options_key(), $context, $autoload);
 			}
 
 			public function is_dev_environment(): bool {
@@ -446,7 +446,7 @@ final class RegisterOptionsConstructorTest extends PluginLibTestCase {
 		TestableRegisterOptions::$currentBlogId = 999;
 		WP_Mock::userFunction('get_current_blog_id')->andReturn(999);
 
-		$opts = RegisterOptions::from_config($config, StorageContext::forBlog(999), true);
+		$opts = new RegisterOptions($config->get_options_key(), StorageContext::forBlog(999), true, $this->logger_mock);
 		// Expect constructor initialization log captured via Config-provided logger
 		$this->expectLog('debug', "RegisterOptions: Initialized with main option 'test_plugin_options'. Loaded 0 existing sub-options.", 1);
 		$this->assertInstanceOf(RegisterOptions::class, $opts);
@@ -535,7 +535,7 @@ final class RegisterOptionsConstructorTest extends PluginLibTestCase {
 			}
 
 			public function options(?StorageContext $context = null, bool $autoload = true): RegisterOptions {
-				return RegisterOptions::from_config($this, $context, $autoload);
+				return new RegisterOptions($this->get_options_key(), $context, $autoload);
 			}
 
 			public function is_dev_environment(): bool {
@@ -550,7 +550,7 @@ final class RegisterOptionsConstructorTest extends PluginLibTestCase {
 		TestableRegisterOptions::$currentBlogId = 999;
 		WP_Mock::userFunction('get_current_blog_id')->andReturn(999);
 
-		$opts = RegisterOptions::from_config($config, StorageContext::forBlog(999), true);
+		$opts = new RegisterOptions($config->get_options_key(), StorageContext::forBlog(999), true, $this->logger_mock);
 		// Expect constructor initialization log captured via Config-provided logger
 		$this->expectLog('debug', "RegisterOptions: Initialized with main option 'test_plugin_options'. Loaded 0 existing sub-options.", 1);
 		$this->assertInstanceOf(RegisterOptions::class, $opts);
@@ -639,7 +639,7 @@ final class RegisterOptionsConstructorTest extends PluginLibTestCase {
 			}
 
 			public function options(?StorageContext $context = null, bool $autoload = true): RegisterOptions {
-				return RegisterOptions::from_config($this, $context, $autoload);
+				return new RegisterOptions($this->get_options_key(), $context, $autoload);
 			}
 
 			public function is_dev_environment(): bool {
@@ -654,7 +654,7 @@ final class RegisterOptionsConstructorTest extends PluginLibTestCase {
 		TestableRegisterOptions::$currentBlogId = 999;
 		WP_Mock::userFunction('get_current_blog_id')->andReturn(999);
 
-		$opts = RegisterOptions::from_config($config, StorageContext::forBlog(999), false);
+		$opts = new RegisterOptions($config->get_options_key(), StorageContext::forBlog(999), false, $this->logger_mock);
 		// Expect constructor initialization log captured via Config-provided logger
 		$this->expectLog('debug', "RegisterOptions: Initialized with main option 'test_plugin_options'. Loaded 0 existing sub-options.", 1);
 		$this->assertInstanceOf(RegisterOptions::class, $opts);
@@ -743,7 +743,7 @@ final class RegisterOptionsConstructorTest extends PluginLibTestCase {
 			}
 
 			public function options(?StorageContext $context = null, bool $autoload = true): RegisterOptions {
-				return RegisterOptions::from_config($this, $context, $autoload);
+				return new RegisterOptions($this->get_options_key(), $context, $autoload);
 			}
 
 			public function is_dev_environment(): bool {
@@ -755,7 +755,7 @@ final class RegisterOptionsConstructorTest extends PluginLibTestCase {
 			}
 		};
 
-		$opts = RegisterOptions::from_config($config, StorageContext::forUser(42), true);
+		$opts = new RegisterOptions($config->get_options_key(), StorageContext::forUser(42), true, $this->logger_mock);
 		// Expect constructor initialization log captured via Config-provided logger
 		$this->expectLog('debug', "RegisterOptions: Initialized with main option 'test_plugin_options'. Loaded 0 existing sub-options.", 1);
 		$this->assertInstanceOf(RegisterOptions::class, $opts);
@@ -844,7 +844,7 @@ final class RegisterOptionsConstructorTest extends PluginLibTestCase {
 			}
 
 			public function options(?StorageContext $context = null, bool $autoload = true): RegisterOptions {
-				return RegisterOptions::from_config($this, $context, $autoload);
+				return new RegisterOptions($this->get_options_key(), $context, $autoload);
 			}
 
 			public function is_dev_environment(): bool {
@@ -856,7 +856,7 @@ final class RegisterOptionsConstructorTest extends PluginLibTestCase {
 			}
 		};
 
-		$opts = RegisterOptions::from_config($config, StorageContext::forNetwork(), true);
+		$opts = new RegisterOptions($config->get_options_key(), StorageContext::forNetwork(), true, $this->logger_mock);
 		// Expect constructor initialization log captured via Config-provided logger
 		$this->expectLog('debug', "RegisterOptions: Initialized with main option 'test_plugin_options'. Loaded 0 existing sub-options.", 1);
 		$this->assertInstanceOf(RegisterOptions::class, $opts);
@@ -864,7 +864,7 @@ final class RegisterOptionsConstructorTest extends PluginLibTestCase {
 	}
 
 	/**
-	 * @covers \Ran\PluginLib\Options\RegisterOptions::from_config
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::__construct
 	 */
 	public function test_from_config_constructor_with_minimal_config(): void {
 		// Create a minimal Config double with collecting logger supplied via constructor
@@ -946,7 +946,7 @@ final class RegisterOptionsConstructorTest extends PluginLibTestCase {
 			}
 
 			public function options(?StorageContext $context = null, bool $autoload = true): RegisterOptions {
-				return RegisterOptions::from_config($this, $context, $autoload);
+				return new RegisterOptions($this->get_options_key(), $context, $autoload);
 			}
 
 			public function is_dev_environment(): bool {
@@ -958,7 +958,7 @@ final class RegisterOptionsConstructorTest extends PluginLibTestCase {
 			}
 		};
 
-		$opts = RegisterOptions::from_config($config, StorageContext::forSite(), true);
+		$opts = new RegisterOptions($config->get_options_key(), StorageContext::forSite(), true, $this->logger_mock);
 		// Expect constructor initialization log captured via Config-provided logger
 		$this->expectLog('debug', "RegisterOptions: Initialized with main option 'test_plugin_options'. Loaded 0 existing sub-options.", 1);
 		$this->assertInstanceOf(RegisterOptions::class, $opts);
@@ -966,7 +966,7 @@ final class RegisterOptionsConstructorTest extends PluginLibTestCase {
 	}
 
 	/**
-	 * @covers \Ran\PluginLib\Options\RegisterOptions::from_config
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::__construct
 	 */
 	public function test_from_config_with_explicit_scope_blog_current(): void {
 		$config = new class($this->logger_mock) implements ConfigInterface {
@@ -1047,7 +1047,7 @@ final class RegisterOptionsConstructorTest extends PluginLibTestCase {
 			}
 
 			public function options(?StorageContext $context = null, bool $autoload = true): RegisterOptions {
-				return RegisterOptions::from_config($this, $context, $autoload);
+				return new RegisterOptions($this->get_options_key(), $context, $autoload);
 			}
 
 			public function is_dev_environment(): bool {
@@ -1063,7 +1063,7 @@ final class RegisterOptionsConstructorTest extends PluginLibTestCase {
 		TestableRegisterOptions::$currentBlogId = 456;
 		WP_Mock::userFunction('get_current_blog_id')->andReturn(456);
 
-		$opts = RegisterOptions::from_config($config, StorageContext::forBlog(456), true);
+		$opts = new RegisterOptions($config->get_options_key(), StorageContext::forBlog(456), true, $this->logger_mock);
 		// Expect constructor initialization log captured via Config-provided logger
 		$this->expectLog('debug', "RegisterOptions: Initialized with main option 'test_plugin_options'. Loaded 0 existing sub-options.", 1);
 		$this->assertInstanceOf(RegisterOptions::class, $opts);
@@ -1071,7 +1071,7 @@ final class RegisterOptionsConstructorTest extends PluginLibTestCase {
 	}
 
 	/**
-	 * @covers \Ran\PluginLib\Options\RegisterOptions::from_config
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::__construct
 	 */
 	public function test_from_config_with_explicit_scope_blog_non_current(): void {
 		$config = new class($this->logger_mock) implements ConfigInterface {
@@ -1152,7 +1152,7 @@ final class RegisterOptionsConstructorTest extends PluginLibTestCase {
 			}
 
 			public function options(?StorageContext $context = null, bool $autoload = true): RegisterOptions {
-				return RegisterOptions::from_config($this, $context, $autoload);
+				return new RegisterOptions($this->get_options_key(), $context, $autoload);
 			}
 
 			public function is_dev_environment(): bool {
@@ -1168,7 +1168,7 @@ final class RegisterOptionsConstructorTest extends PluginLibTestCase {
 		TestableRegisterOptions::$currentBlogId = 123;
 		\WP_Mock::userFunction('get_current_blog_id')->andReturn(123);
 
-		$opts = RegisterOptions::from_config($config, \Ran\PluginLib\Options\Storage\StorageContext::forBlog(456), true);
+		$opts = new RegisterOptions($config->get_options_key(), \Ran\PluginLib\Options\Storage\StorageContext::forBlog(456), true, $this->logger_mock);
 		// Expect constructor initialization log captured via Config-provided logger
 		$this->expectLog('debug', "RegisterOptions: Initialized with main option 'test_plugin_options'. Loaded 0 existing sub-options.", 1);
 		$this->assertInstanceOf(RegisterOptions::class, $opts);

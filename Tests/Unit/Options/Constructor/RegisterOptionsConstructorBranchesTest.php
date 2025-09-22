@@ -36,7 +36,7 @@ final class TestableRegisterOptions extends RegisterOptions {
     ): static {
 		// Call the protected constructor in the parent via late static binding,
 		// passing logger via DI so constructor-time logs are captured when provided.
-		$instance = new static($main, $autoload, null, $logger);
+		$instance = new static($main, null, $autoload, $logger);
 		if (!empty($schema)) {
 			// Register schema and seed defaults
 			$instance->with_schema($schema);
@@ -47,7 +47,7 @@ final class TestableRegisterOptions extends RegisterOptions {
 			foreach ($initial as $k => $def) {
 				$defaults[(string) $k] = is_array($def) && array_key_exists('value', $def) ? $def['value'] : $def;
 			}
-			$instance->with_defaults($defaults);
+			$instance->stage_options($defaults);
 		}
 		if ($policy instanceof WritePolicyInterface) {
 			$instance->with_policy($policy);
@@ -77,6 +77,17 @@ final class RegisterOptionsConstructorBranchesTest extends PluginLibTestCase {
 		// Minimal WP stubs used along constructor path
 		WP_Mock::userFunction('get_option')->andReturn(array());
 		WP_Mock::userFunction('wp_load_alloptions')->andReturn(array());
+		WP_Mock::userFunction('current_user_can')->andReturn(true)->byDefault();
+		// Ensure apply_filters passthrough and allow gate filters for constructor paths
+		WP_Mock::userFunction('apply_filters')->andReturnUsing(function($hook,$value) {
+			return $value;
+		});
+		\WP_Mock::onFilter('ran/plugin_lib/options/allow_persist')
+			->with(\WP_Mock\Functions::type('bool'), \WP_Mock\Functions::type('array'))
+			->reply(true);
+		\WP_Mock::onFilter('ran/plugin_lib/options/allow_persist/scope/site')
+			->with(\WP_Mock\Functions::type('bool'), \WP_Mock\Functions::type('array'))
+			->reply(true);
 		WP_Mock::userFunction('sanitize_key')->andReturnUsing(function ($key) {
 			$key = strtolower((string) $key);
 			$key = preg_replace('/[^a-z0-9_\-]+/i', '_', $key) ?? '';
