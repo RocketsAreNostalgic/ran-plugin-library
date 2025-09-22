@@ -25,12 +25,18 @@
   "autoload": {
     "psr-4": {
       "Ran\\PluginLib\\": "inc/"
-    }
+    },
+    "exclude-from-classmap": [
+      "inc/**/docs/**"
+    ]
   },
   "autoload-dev": {
     "psr-4": {
       "Ran\\PluginLib\\Tests\\": "Tests/"
-    }
+    },
+    "exclude-from-classmap": [
+      "Tests/"
+    ]
   },
   "require-dev": {
     "php": ">=8.1",
