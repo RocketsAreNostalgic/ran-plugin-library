@@ -52,6 +52,7 @@ trait StylesEnqueueTrait {
 	 * `stage()` is called. This method is chainable.
 	 *
 	 * @param array<string, mixed>|array<int, array<string, mixed>> $styles_to_add A single style definition array or an array of style definition arrays.
+	 *     Arrays are normalized via `StyleDefinition::from_array()` before storage; you may also pass `StyleDefinition` instances directly.
 	 *     Each style definition array can include the following keys:
 	 *     - 'handle'     (string, required): The unique name of the stylesheet.
 	 *     - 'src'        (string, required): The URL of the stylesheet resource.

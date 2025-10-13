@@ -53,6 +53,7 @@ trait ScriptsEnqueueTrait {
 	 * `enqueue_scripts()` is called. This method is chainable.
 	 *
 	 * @param array<string, mixed>|array<int, array<string, mixed>> $scripts_to_add A single script definition array or an array of script definition arrays.
+	 *     Arrays are normalized via `ScriptDefinition::from_array()` before storage; you may also pass `ScriptDefinition` instances directly.
 	 *     Each script definition array should include:
 	 *     - 'handle' (string, required): The unique name of the script.
 	 *     - 'src' (string, required): URL to the script resource.

@@ -3,7 +3,7 @@
  * MediaEnqueueTrait.php
  *
  * @package Ran\PluginLib\EnqueueAccessory
- * @author  Ran Plugin Lib <support@ran.org>
+ * @author  Ran Plugin Lib <bnjmnrsh@gmail.com>
  * @license GPL-2.0+ <http://www.gnu.org/licenses/gpl-2.0.txt>
  * @link    https://github.com/RocketsAreNostalgic
  * @since   0.1.0
@@ -93,7 +93,7 @@ trait MediaEnqueueTrait {
 	 * @param  array<int, array<string, mixed>> $tool_configs The array of media tool configurations.
 	 * @return self Returns the instance of this class for method chaining.
 	 */
-	public function stage_media( array $tool_configs ): self {
+	public function stage( array $tool_configs ): self {
 		$logger  = $this->get_logger();
 		$context = __TRAIT__ . '::' . __FUNCTION__;
 		if ( $logger->is_active() ) {
