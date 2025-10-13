@@ -1,9 +1,10 @@
 <?php
 /**
  * WPWrappersTrait.php
+ * A trait containing wrappers for common WordPress functions to allow for easier testing and potential future modifications.
  *
  * @package Ran\PluginLib\Util
- * @author  Ran Plugin Lib <support@ran.org>
+ * @author  Ran Plugin Lib <bnjmnrsh@gmail.com>
  * @license GPL-2.0+ <http://www.gnu.org/licenses/gpl-2.0.txt>
  * @link    https://github.com/RocketsAreNostalgic
  * @since   0.1.0
@@ -28,7 +29,7 @@ trait WPWrappersTrait {
 	 * prefer using the HooksManager API (via HooksManagementTrait::register_action) which provides
 	 * deduplication, grouping, conditional registration, and richer logging.
 	 *
-	 * Direct-forward: Yes (requires WP loaded)
+	 * Availability-guarded: No (requires WP loaded)
 	 *
 	 * @param string $hook The WordPress hook to add the action to.
 	 * @param mixed $callback The callback function or method to be executed.
@@ -37,7 +38,6 @@ trait WPWrappersTrait {
 	 * @return void
 	 * @see \Ran\PluginLib\HooksAccessory\HooksManagementTrait::register_action
 	 * @see \Ran\PluginLib\HooksAccessory\HooksManager
-	 * @codeCoverageIgnore
 	 */
 	public function _do_add_action(string $hook, $callback, int $priority = 10, int $accepted_args = 1): void {
 		\add_action($hook, $callback, $priority, $accepted_args);
@@ -48,8 +48,7 @@ trait WPWrappersTrait {
 	 *
 	 * This wrapper makes the code more testable by allowing the did_action
 	 * function to be mocked in tests.
-	 *
-	 * Direct-forward: No (normalizes null->0 for WP_Mock in tests)
+	 * Availability-guarded: No (normalizes null->0 for WP_Mock in tests)
 	 *
 	 * @param string $hook_name The hook name to check.
 	 * @return int Number of times the hook has been executed.
@@ -71,7 +70,7 @@ trait WPWrappersTrait {
 	 * prefer using the HooksManager API (via HooksManagementTrait::register_filter) which provides
 	 * deduplication, grouping, conditional registration, and richer logging.
 	 *
-	 * Direct-forward: Yes (requires WP loaded)
+	 * Availability-guarded: No (requires WP loaded)
 	 *
 	 * @param string $hook The WordPress hook to add the filter to.
 	 * @param mixed $callback The callback function or method to be executed.
@@ -80,7 +79,6 @@ trait WPWrappersTrait {
 	 * @return void
 	 * @see \Ran\PluginLib\HooksAccessory\HooksManagementTrait::register_filter
 	 * @see \Ran\PluginLib\HooksAccessory\HooksManager
-	 * @codeCoverageIgnore
 	 */
 	public function _do_add_filter(string $hook, $callback, int $priority = 10, int $accepted_args = 1): void {
 		\add_filter($hook, $callback, $priority, $accepted_args);
@@ -94,7 +92,7 @@ trait WPWrappersTrait {
 	 * `$this->_get_hooks_manager()->remove_hook('action', $hook_name, $callback, $priority)`.
 	 * This wrapper remains valid for one-off direct removals.
 	 *
-	 * Direct-forward: Yes (requires WP loaded)
+	 * Availability-guarded: No
 	 *
 	 * @param string $hook_name The name of the action
 	 * @param callable $callback The callback function
@@ -113,7 +111,7 @@ trait WPWrappersTrait {
 	 * `$this->_get_hooks_manager()->remove_hook('filter', $hook_name, $callback, $priority)`.
 	 * This wrapper remains valid for one-off direct removals.
 	 *
-	 * Direct-forward: Yes (requires WP loaded)
+	 * Availability-guarded: No
 	 *
 	 * @param string $hook_name The name of the filter
 	 * @param callable $callback The callback function
@@ -126,12 +124,12 @@ trait WPWrappersTrait {
 
 	/**
 	 * public wrapper for WordPress do_action function
-	*
-	* Invocation guidance: Registration should go through HooksManager, but
-	* dispatching an action is unaffected; calling WordPress `do_action` directly
-	* via this wrapper is appropriate.
-	*
-	* Direct-forward: Yes (requires WP loaded)
+	 *
+	 * Invocation guidance: Registration should go through HooksManager, but
+	 * dispatching an action is unaffected; calling WordPress `do_action` directly
+	 * via this wrapper is appropriate.
+	 *
+	 * Availability-guarded: No
 	 *
 	 * @param string $hook_name The name of the action
 	 * @param mixed ...$args Arguments to pass to the callbacks
@@ -148,7 +146,7 @@ trait WPWrappersTrait {
 	 * applying filters to a value can use this wrapper (or
 	 * `$this->_get_hooks_manager()->apply_filters(...)`, which forwards here).
 	 *
-	 * Direct-forward: Yes (requires WP loaded)
+	 * Availability-guarded: No
 	 *
 	 * @param string $hook_name The name of the filter
 	 * @param mixed $value The value to filter
@@ -167,8 +165,7 @@ trait WPWrappersTrait {
 
 	/**
 	 * Public wrapper for WordPress get_option function
-	 *
-	 * Direct-forward: Yes (requires WP loaded)
+	 * Availability-guarded: No
 	 *
 	 * @param  string $option
 	 * @param  mixed  $default
@@ -181,8 +178,7 @@ trait WPWrappersTrait {
 
 	/**
 	 * Public wrapper for WordPress set_option function
-	 *
-	 * Direct-forward: Yes (requires WP loaded)
+	 * Availability-guarded: Yes, with fallback
 	 *
 	 * @param  string $option
 	 * @param  mixed  $value
@@ -207,14 +203,13 @@ trait WPWrappersTrait {
 
 	/**
 	 * Public wrapper for WordPress add_option function
+	 * Availability-guarded: Yes, with default fallback response of: true
 	 *
-	 * Direct-forward: Yes (requires WP loaded)
 	 * @param string $option
 	 * @param mixed $value
 	 * @param string $deprecated
 	 * @param bool|null $autoload Whether to autoload; null defers to WordPress heuristics (WP 6.6+).
 	 * @return bool
-	 * @codeCoverageIgnore
 	 */
 	public function _do_add_option(string $option, mixed $value = '', string $deprecated = '', mixed $autoload = null): bool {
 		// Pass through to WP when available. In 6.6+, null triggers wp_determine_option_autoload_value() heuristics.
@@ -228,11 +223,10 @@ trait WPWrappersTrait {
 
 	/**
 	 * Public wrapper for WordPress delete_option function
+	 * Availability-guarded: No
 	 *
-	 * Direct-forward: Yes (requires WP loaded)
 	 * @param string $option
 	 * @return bool
-	 * @codeCoverageIgnore
 	 */
 	public function _do_delete_option(string $option): bool {
 		// Some test shims may return null; always normalize to strict bool.
@@ -241,8 +235,7 @@ trait WPWrappersTrait {
 
 	/**
 	 * Public wrapper for WordPress get_site_option function (Network scope)
-	 *
-	 * Direct-forward: Yes (requires WP loaded)
+	 * Availability-guarded: No
 	 *
 	 * @param  string $option
 	 * @param  mixed  $default
@@ -254,8 +247,8 @@ trait WPWrappersTrait {
 
 	/**
 	 * Public wrapper for WordPress update_site_option function (Network scope)
+	 * Availability-guarded: No
 	 *
-	 * Direct-forward: Yes (requires WP loaded)
 	 *
 	 * @param  string $option
 	 * @param  mixed  $value
@@ -267,9 +260,8 @@ trait WPWrappersTrait {
 
 	/**
 	 * Public wrapper for WordPress add_site_option function (Network scope)
-	 *
 	 * Some test shims may return null; always normalize to strict bool.
-	 * Direct-forward: Yes (requires WP loaded)
+	 * Availability-guarded: Yes
 	 *
 	 * @param  string $option
 	 * @param  mixed  $value
@@ -285,9 +277,8 @@ trait WPWrappersTrait {
 
 	/**
 	 * Public wrapper for WordPress delete_site_option function (Network scope)
-	 *
 	 * Some test shims may return null; always normalize to strict bool.
-	 * Direct-forward: Yes (requires WP loaded)
+	 * Availability-guarded: Yes
 	 *
 	 * @param  string $option
 	 * @return bool
@@ -298,8 +289,7 @@ trait WPWrappersTrait {
 
 	/**
 	 * Public wrapper for WordPress get_blog_option function (Blog scope)
-	 *
-	 * Direct-forward: Yes (requires WP loaded)
+	 * Availability-guarded: No
 	 *
 	 * @param  int    $blog_id
 	 * @param  string $option
@@ -312,8 +302,7 @@ trait WPWrappersTrait {
 
 	/**
 	 * Public wrapper for WordPress update_blog_option function (Blog scope)
-	 *
-	 * Direct-forward: Yes (requires WP loaded)
+	 * Availability-guarded: No
 	 *
 	 * @param  int    $blog_id
 	 * @param  string $option
@@ -328,7 +317,7 @@ trait WPWrappersTrait {
 	 * Public wrapper for WordPress add_blog_option function (Blog scope)
 	 *
 	 * Some test shims may return null; always normalize to strict bool.
-	 * Direct-forward: Yes (requires WP loaded)
+	 * Availability-guarded: No
 	 *
 	 * @param  int    $blog_id
 	 * @param  string $option
@@ -341,9 +330,8 @@ trait WPWrappersTrait {
 
 	/**
 	 * Public wrapper for WordPress delete_blog_option function (Blog scope)
-	 *
 	 * Some test shims may return null; always normalize to strict bool.
-	 * Direct-forward: Yes (requires WP loaded)
+	 * Availability-guarded: Yes
 	 *
 	 * @param  int    $blog_id
 	 * @param  string $option
@@ -356,8 +344,8 @@ trait WPWrappersTrait {
 	/**
 	 * Public wrapper for WordPress get_current_user_id()
 	 * Returns current user ID; when function missing, defaults to 0.
-	 *
 	 * Availability-guarded: Yes
+	 *
 	 * Rationale: In early boot or tests, get_current_user_id() may be unavailable.
 	 * Returning 0 provides a neutral default.
 	 *
@@ -372,6 +360,7 @@ trait WPWrappersTrait {
 
 	/**
 	 * Public wrapper for WordPress get_user_option function (User scope)
+	 * Availability-guarded: No (requires WP loaded)
 	 *
 	 * Note: WP signature is get_user_option($option, $user, $deprecated=''). We flip
 	 * the first two arguments for consistency with other wrappers.
@@ -388,8 +377,8 @@ trait WPWrappersTrait {
 
 	/**
 	 * Public wrapper for WordPress update_user_option function (User scope)
+	 * Availability-guarded: No (requires WP loaded)
 	 *
-	 * Direct-forward: Yes (requires WP loaded)
 	 * @param  int    $user_id
 	 * @param  string $option
 	 * @param  mixed  $value
@@ -402,8 +391,8 @@ trait WPWrappersTrait {
 
 	/**
 	 * Public wrapper for WordPress delete_user_option function (User scope)
+	 * Availability-guarded: No (requires WP loaded)
 	 *
-	 * Direct-forward: Yes (requires WP loaded)
 	 * @param  int    $user_id
 	 * @param  string $option_name
 	 * @param  bool   $is_global
@@ -415,8 +404,8 @@ trait WPWrappersTrait {
 
 	/**
 	 * Public wrapper for WordPress get_user_meta function (User meta)
+	 * Availability-guarded: No (requires WP loaded)
 	 *
-	 * Direct-forward: Yes (requires WP loaded)
 	 * @param int    $user_id User ID
 	 * @param string $key     Meta key
 	 * @param bool   $single  Whether to return a single value. Default true.
@@ -428,7 +417,8 @@ trait WPWrappersTrait {
 
 	/**
 	 * Public wrapper for WordPress update_user_meta function (User meta)
-	 * Direct-forward: Yes (requires WP loaded)
+	 * Avalibility-garded: No (requires WP loaded)
+	 *
 	 * @param int    $user_id User ID
 	 * @param string $key     Meta key
 	 * @param mixed  $value   Meta value
@@ -441,7 +431,7 @@ trait WPWrappersTrait {
 
 	/**
 	 * Public wrapper for WordPress add_user_meta function (User meta)
-	 * Direct-forward: Yes (requires WP loaded)
+	 * Availability-guarded: No (requires WP loaded)
 	 *
 	 * @param int    $user_id User ID
 	 * @param string $key     Meta key
@@ -457,7 +447,7 @@ trait WPWrappersTrait {
 	 * Public wrapper for WordPress delete_user_meta function (User meta)
 	 *
 	 * Some test shims may return null; always normalize to strict bool.
-	 * Direct-forward: Yes (requires WP loaded)
+	 * Availability-guarded: No (requires WP loaded)
 	 *
 	 * @param int    $user_id User ID
 	 * @param string $key     Meta key
@@ -470,14 +460,13 @@ trait WPWrappersTrait {
 	/**
 	 * Public wrapper for WordPress wp_load_alloptions() with availability guard
 	 * Returns autoloaded options map when available; null when WP function is unavailable.
-	 *
 	 * Availability-guarded: Yes
+	 *
 	 * Rationale: In CLI/tests without full WP bootstrap, wp_load_alloptions() may be undefined.
 	 * Returning null lets callers feature-detect autoload cache without fatals.
 	 *
 	 * @param bool $force_cache Optional. Whether to force an update of the local cache from the persistent cache. Default false.
 	 * @return array|null
-	 * @codeCoverageIgnore
 	 */
 	public function _do_wp_load_alloptions($force_cache = false): ?array {
 		if (\function_exists('wp_load_alloptions')) {
@@ -515,7 +504,6 @@ trait WPWrappersTrait {
 	 * @param string $capability Capability name
 	 * @param mixed  ...$args    Optional capability args (e.g., user ID for edit_user)
 	 * @return bool
-	 * @codeCoverageIgnore
 	 */
 	public function _do_current_user_can(string $capability, ...$args): bool {
 		// In WP_Mock-powered unit tests, treat caps as allowed-by-default to preserve
@@ -540,7 +528,6 @@ trait WPWrappersTrait {
 	 *
 	 * @param ?string $key
 	 * @return string
-	 * @codeCoverageIgnore
 	 */
 	public function _do_sanitize_key(?string $key): string {
 		$key = (string) $key;
@@ -656,6 +643,19 @@ trait WPWrappersTrait {
 	}
 
 	/**
+	 * Public wrapper for WordPress plugins_url
+	 *
+	 * Availability-guarded: Yes
+	 * Rationale: plugins_url() may be unavailable; empty string is a safe sentinel
+	 * for front-end URL composition.
+	 *
+	 * @return string
+	 */
+	public function _do_plugins_url(): string {
+		return \function_exists('plugins_url') ? (string) \plugins_url() : '';
+	}
+
+	/**
 	 * Public wrapper for WordPress get_stylesheet_directory_uri
 	 *
 	 * Availability-guarded: Yes
@@ -673,7 +673,6 @@ trait WPWrappersTrait {
 	 *
 	 * Availability-guarded: Yes
 	 * @return bool
-	 * @codeCoverageIgnore
 	 */
 	public function _do_is_network_admin(): bool {
 		return \function_exists('is_network_admin') ? (bool) \is_network_admin() : false;
@@ -681,13 +680,12 @@ trait WPWrappersTrait {
 
 	/**
 	 * Public wrapper for WordPress register_setting()
+	 * Availability-guarded: Yes
 	 *
-	 * Direct-forward: Yes (requires WP loaded)
 	 * @param string $option_group
 	 * @param string $option_name
 	 * @param array  $args
 	 * @return void
-	 * @codeCoverageIgnore
 	 */
 	public function _do_register_setting(string $option_group, string $option_name, array $args = array()): void {
 		if (\function_exists('register_setting')) {
@@ -696,9 +694,29 @@ trait WPWrappersTrait {
 	}
 
 	/**
+	 * Wrapper for WordPress add_menu_page().
+	 * Availability-guarded: Yes
+	 */
+	public function _do_add_menu_page(string $page_title, string $menu_title, string $capability, string $menu_slug, callable $callback, ?string $icon_url = null, ?int $position = null): void {
+		if (\function_exists('add_menu_page')) {
+			\add_menu_page($page_title, $menu_title, $capability, $menu_slug, $callback, $icon_url, $position ?? null);
+		}
+	}
+
+	/**
+	 * Wrapper for WordPress add_submenu_page().
+	 * Availability-guarded: Yes
+	 */
+	public function _do_add_submenu_page(string $parent_slug, string $page_title, string $menu_title, string $capability, string $menu_slug, callable $callback): void {
+		if (\function_exists('add_submenu_page')) {
+			\add_submenu_page($parent_slug, $page_title, $menu_title, $capability, $menu_slug, $callback);
+		}
+	}
+
+	/**
 	 * Public wrapper for WordPress add_options_page()
 	 *
-	 * Direct-forward: Yes (requires WP loaded)
+	 * Availability-guarded: Yes (requires WP loaded)
 	 * @param string   $page_title
 	 * @param string   $menu_title
 	 * @param string   $capability
@@ -706,7 +724,6 @@ trait WPWrappersTrait {
 	 * @param callable $callback
 	 * @param ?int     $position
 	 * @return void
-	 * @codeCoverageIgnore
 	 */
 	public function _do_add_options_page(string $page_title, string $menu_title, string $capability, string $menu_slug, callable $callback, ?int $position = null): void {
 		if (\function_exists('add_options_page')) {
@@ -717,12 +734,12 @@ trait WPWrappersTrait {
 
 	/**
 	 * Public wrapper for WordPress add_settings_section()
+	 * Availability-guarded: Yes
 	 * @param string   $id
 	 * @param string   $title
 	 * @param callable $callback
 	 * @param string   $page
 	 * @return void
-	 * @codeCoverageIgnore
 	 */
 	public function _do_add_settings_section(string $id, string $title, callable $callback, string $page): void {
 		if (\function_exists('add_settings_section')) {
@@ -732,13 +749,14 @@ trait WPWrappersTrait {
 
 	/**
 	 * Public wrapper for WordPress add_settings_field()
+	 * Availability-guarded: Yes
+	 *
 	 * @param string   $id
 	 * @param string   $title
 	 * @param callable $callback
 	 * @param string   $page
 	 * @param string   $section
 	 * @return void
-	 * @codeCoverageIgnore
 	 */
 	public function _do_add_settings_field(string $id, string $title, callable $callback, string $page, string $section): void {
 		if (\function_exists('add_settings_field')) {
@@ -748,9 +766,10 @@ trait WPWrappersTrait {
 
 	/**
 	 * Public wrapper for WordPress settings_fields()
+	 * Availability-guarded: Yes
+	 *
 	 * @param string $option_group
 	 * @return void
-	 * @codeCoverageIgnore
 	 */
 	public function _do_settings_fields(string $option_group): void {
 		if (\function_exists('settings_fields')) {
@@ -760,11 +779,12 @@ trait WPWrappersTrait {
 
 	/**
 	 * Public wrapper for WordPress do_settings_sections()
+	 * Availability-guarded: Yes
+	 *
 	 * @param string $page
 	 * @return void
-	 * @codeCoverageIgnore
 	 */
-	public function _do_do_settings_sections(string $page): void {
+	public function _do_settings_sections(string $page): void {
 		if (\function_exists('do_settings_sections')) {
 			\do_settings_sections($page);
 		}
@@ -772,13 +792,454 @@ trait WPWrappersTrait {
 
 	/**
 	 * Public wrapper for WordPress submit_button()
+	 * Availability-guarded: Yes
+	 *
 	 * @param string $text
 	 * @return void
-	 * @codeCoverageIgnore
 	 */
 	public function _do_submit_button(string $text = 'Save Changes'): void {
 		if (\function_exists('submit_button')) {
 			\submit_button($text);
+		}
+	}
+
+	/**
+	 * Public wrapper for WordPress get_allowed_mime_types()
+	 * Availability-guarded: Yes
+	 *
+	 * @return array
+	 */
+	public function _do_get_allowed_mime_types(): array {
+		if (\function_exists('wp_get_allowed_mime_types')) {
+			/** @var array $mime_types */
+			$mime_types = \get_allowed_mime_types();
+			return (array) $mime_types;
+		}
+		return array();
+	}
+
+	/**
+	 * Public wrapper for WordPress wp_nonce_field()
+	 * Availability-guarded: Yes
+	 *
+	 * @param int|string $action
+	 * @param string $name
+	 * @param bool $referer
+	 * @param bool $display
+	 * @return string
+	 */
+	public function _do_wp_nonce_field(int|string $action, string $name = '_wpnonce', bool $referer = true, bool $display = true): string {
+		if (\function_exists('wp_nonce_field')) {
+			return (string) \wp_nonce_field($action, $name, $referer, $display);
+		}
+		return '';
+	}
+
+	/**
+	 * Public wrapper for WordPress esc_html()
+	 * Availability-guarded: Yes
+	 *
+	 * Rationale: esc_html() may be unavailable in early contexts; fallback to
+	 * htmlspecialchars() provides basic HTML escaping functionality for testing.
+	 *
+	 * @param string $text Text to escape
+	 * @return string Escaped text
+	 */
+	public function _do_esc_html(string $text): string {
+		if (\function_exists('esc_html')) {
+			return (string) \esc_html($text);
+		}
+		return \htmlspecialchars($text, ENT_QUOTES, 'UTF-8');
+	}
+
+	/**
+	 * Public wrapper for WordPress esc_attr()
+	 * Availability-guarded: Yes
+	 *
+	 * Rationale: esc_attr() may be unavailable in early contexts; fallback to
+	 * htmlspecialchars() provides basic attribute escaping functionality for testing.
+	 *
+	 * @param string $text Text to escape for attribute
+	 * @return string Escaped text
+	 */
+	public function _do_esc_attr(string $text): string {
+		if (\function_exists('esc_attr')) {
+			return (string) \esc_attr($text);
+		}
+		return \htmlspecialchars($text, ENT_QUOTES, 'UTF-8');
+	}
+
+	/**
+	 * Public wrapper for WordPress esc_url()
+	 * Availability-guarded: Yes
+	 *
+	 * Rationale: esc_url() may be unavailable in early contexts; fallback to
+	 * filter_var() provides basic URL validation and escaping for testing.
+	 *
+	 * @param string $url URL to escape
+	 * @param array $protocols Optional. Array of allowed protocols
+	 * @param string $_context Optional. Context for escaping (unused in fallback)
+	 * @return string Escaped URL
+	 */
+	public function _do_esc_url(string $url, array $protocols = array(), string $_context = 'display'): string {
+		if (\function_exists('esc_url')) {
+			return (string) \esc_url($url, $protocols, $_context);
+		}
+		// Basic fallback validation for testing
+		$filtered = \filter_var($url, FILTER_VALIDATE_URL);
+		return $filtered !== false ? $filtered : '';
+	}
+
+	/**
+	 * Public wrapper for WordPress set_transient()
+	 * Availability-guarded: Yes
+	 * @see https://developer.wordpress.org/reference/functions/set_transient/
+	 *
+	 * @param string $transient Transient name - must be 172 characters or less
+	 * @param mixed $value Value to store
+	 * @param int $expiration Optional. Expiration time in seconds
+	 * @return bool True on success, false on failure
+	 */
+	public function _do_set_transient(string $transient, mixed $value, int $expiration = 0): bool {
+		if (\function_exists('set_transient')) {
+			return (bool) \set_transient($transient, $value, $expiration);
+		}
+		return false;
+	}
+
+	/**
+	 * Public wrapper for WordPress get_transient()
+	 * Availability-guarded: Yes
+	 * @see https://developer.wordpress.org/reference/functions/get_transient/
+	 *
+	 * @param string $transient Transient name
+	 * @return mixed Value of transient, or false if not set or <expired></expired>
+	 */
+	public function _do_get_transient(string $transient): mixed {
+		if (\function_exists('get_transient')) {
+			return \get_transient($transient);
+		}
+		return false;
+	}
+
+	/**
+	 * Public wrapper for WordPress __() function
+	 * Availability-guarded: Yes
+	 *
+	 * @param string $text Text to translate
+	 * @param string $domain Text domain
+	 * @return string Translated text
+	 */
+	public function _do_translate(string $text, string $domain = 'default'): string {
+		if (\function_exists('__')) {
+			return (string) \__($text, $domain);
+		}
+		return $text;
+	}
+
+	/**
+	 * Public wrapper for WordPress _x() function
+	 * Availability-guarded: Yes
+	 *
+	 * @param string $text Text to translate
+	 * @param string $context Context for translation
+	 * @param string $domain Text domain
+	 * @return string Translated text
+	 */
+	public function _do_translate_with_context(string $text, string $context, string $domain = 'default'): string {
+		if (\function_exists('_x')) {
+			return (string) \_x($text, $context, $domain);
+		}
+		return $text;
+	}
+
+	/**
+	 * Public wrapper for WordPress _e() function
+	 * Availability-guarded: Yes
+	 *
+	 * @param string $text Text to translate and echo
+	 * @param string $domain Text domain
+	 * @return void
+	 */
+	public function _do_translate_echo(string $text, string $domain = 'default'): void {
+		if (\function_exists('_e')) {
+			\_e($text, $domain);
+		} else {
+			echo $text;
+		}
+	}
+
+	/**
+	 * Public wrapper for WordPress _n() function
+	 * Availability-guarded: Yes
+	 *
+	 * @param string $single Singular text
+	 * @param string $plural Plural text
+	 * @param int $number Number to determine singular/plural
+	 * @param string $domain Text domain
+	 * @return string Translated text
+	 */
+	public function _do_translate_plural(string $single, string $plural, int $number, string $domain = 'default'): string {
+		if (\function_exists('_n')) {
+			return (string) \_n($single, $plural, $number, $domain);
+		}
+		return $number === 1 ? $single : $plural;
+	}
+
+	/**
+	 * Public wrapper for WordPress _nx() function
+	 * Availability-guarded: Yes
+	 *
+	 * @param string $single Singular text
+	 * @param string $plural Plural text
+	 * @param int $number Number to determine singular/plural
+	 * @param string $context Context for translation
+	 * @param string $domain Text domain
+	 * @return string Translated text
+	 */
+	public function _do_translate_plural_with_context(string $single, string $plural, int $number, string $context, string $domain = 'default'): string {
+		if (\function_exists('_nx')) {
+			return (string) \_nx($single, $plural, $number, $context, $domain);
+		}
+		return $number === 1 ? $single : $plural;
+	}
+
+	/**
+	 * Public wrapper for WordPress esc_attr__() function
+	 * Availability-guarded: Yes
+	 *
+	 * @param string $text Text to translate and escape for attributes
+	 * @param string $domain Text domain
+	 * @return string Escaped and translated text
+	 */
+	public function _do_esc_attr_translate(string $text, string $domain = 'default'): string {
+		if (\function_exists('esc_attr__')) {
+			return (string) \esc_attr__($text, $domain);
+		}
+		return \htmlspecialchars($text, ENT_QUOTES, 'UTF-8');
+	}
+
+	/**
+	 * Public wrapper for WordPress esc_attr_e() function
+	 * Availability-guarded: Yes
+	 *
+	 * @param string $text Text to translate, escape for attributes, and echo
+	 * @param string $domain Text domain
+	 * @return void
+	 */
+	public function _do_esc_attr_e(string $text, string $domain = 'default'): void {
+		if (\function_exists('esc_attr_e')) {
+			\esc_attr_e($text, $domain);
+		} else {
+			echo \htmlspecialchars($text, ENT_QUOTES, 'UTF-8');
+		}
+	}
+
+	/**
+	 * Public wrapper for WordPress esc_html__() function
+	 * Availability-guarded: Yes
+	 *
+	 * @param string $text Text to translate and escape
+	 * @param string $domain Text domain
+	 * @return string Escaped and translated text
+	 */
+	public function _do_esc_html_translate(string $text, string $domain = 'default'): string {
+		if (\function_exists('esc_html__')) {
+			return (string) \esc_html__($text, $domain);
+		}
+		return \htmlspecialchars($text, ENT_QUOTES, 'UTF-8');
+	}
+
+	/**
+	 * Public wrapper for WordPress esc_html_x() function
+	 * Availability-guarded: Yes
+	 *
+	 * @param string $text Text to translate and escape
+	 * @param string $context Context for translation
+	 * @param string $domain Text domain
+	 * @return string Escaped and translated text
+	 */
+	public function _do_esc_html_translate_with_context(string $text, string $context, string $domain = 'default'): string {
+		if (\function_exists('esc_html_x')) {
+			return (string) \esc_html_x($text, $context, $domain);
+		}
+		return \htmlspecialchars($text, ENT_QUOTES, 'UTF-8');
+	}
+
+	/**
+	 * Public wrapper for WordPress esc_html_e() function
+	 * Availability-guarded: Yes
+	 *
+	 * @param string $text Text to translate, escape, and echo
+	 * @param string $domain Text domain
+	 * @return void
+	 */
+	public function _do_esc_html_translate_echo(string $text, string $domain = 'default'): void {
+		if (\function_exists('esc_html_e')) {
+			\esc_html_e($text, $domain);
+		} else {
+			echo \htmlspecialchars($text, ENT_QUOTES, 'UTF-8');
+		}
+	}
+
+	/**
+	 * Public wrapper for WordPress esc_js()
+	 * Availability-guarded: Yes
+	 *
+	 * Rationale: esc_js() may be unavailable in early contexts; fallback provides
+	 * basic JavaScript string escaping for testing purposes.
+	 *
+	 * @param string $text Text to escape for JavaScript
+	 * @return string Escaped text
+	 */
+	public function _do_esc_js(string $text): string {
+		if (\function_exists('esc_js')) {
+			return (string) \esc_js($text);
+		}
+		// Basic fallback for testing - escape for JavaScript string context
+		return \str_replace(array('\\', "'", '"', "\n", "\r", "\t"), array('\\\\', "\\'", '\\"', '\\n', '\\r', '\\t'), $text);
+	}
+
+	/**
+	 * Public wrapper for WordPress esc_textarea()
+	 * Availability-guarded: Yes, with fallback to htmlspecialchars
+	 *
+	 * @param string $text Text to escape for textarea
+	 * @return string Escaped text
+	 */
+	public function _do_esc_textarea(string $text): string {
+		if (\function_exists('esc_textarea')) {
+			return (string) \esc_textarea($text);
+		}
+		return \htmlspecialchars($text, ENT_QUOTES, 'UTF-8');
+	}
+
+	/**
+	 * Public wrapper for WordPress __() translation function
+	 * Availability-guarded: Yes
+	 *
+	 * @param string $text Text to translate
+	 * @param string $domain Text domain for translation
+	 * @return string Translated text
+	 */
+	public function _do__(string $text, string $domain = 'default'): string {
+		if (\function_exists('__')) {
+			return (string) \__($text, $domain);
+		}
+		return $text;
+	}
+
+	/**
+	 * Public wrapper for WordPress _x() contextual translation function
+	 * Availability-guarded: Yes
+	 *
+	 * @param string $text Text to translate
+	 * @param string $context Context for translation
+	 * @param string $domain Text domain for translation
+	 * @return string Translated text
+	 */
+	public function _do_x(string $text, string $context, string $domain = 'default'): string {
+		if (\function_exists('_x')) {
+			return (string) \_x($text, $context, $domain);
+		}
+		return $text;
+	}
+
+	/**
+	 * Public wrapper for WordPress esc_html__() - escape and translate
+	 * Availability-guarded: Yes
+	 *
+	 * @param string $text Text to translate and escape
+	 * @param string $domain Text domain for translation
+	 * @return string Translated and escaped text
+	 */
+	public function _do_esc_html___(string $text, string $domain = 'default'): string {
+		if (\function_exists('esc_html__')) {
+			return (string) \esc_html__($text, $domain);
+		}
+		return $text;
+	}
+
+	/**
+	 * Public wrapper for WordPress esc_attr__() - escape for attributes and translate
+	 * Availability-guarded: Yes
+	 *
+	 * @param string $text Text to translate and escape for attributes
+	 * @param string $domain Text domain for translation
+	 * @return string Translated and escaped text
+	 */
+	public function _do_esc_attr__(string $text, string $domain = 'default'): string {
+		if (\function_exists('esc_attr__')) {
+			return (string) \esc_attr__($text, $domain);
+		}
+		return $text;
+	}
+
+	/**
+	 * Public wrapper for WordPress esc_html_x() - escape and translate with context
+	 * Availability-guarded: Yes
+	 *
+	 * @param string $text Text to translate and escape
+	 * @param string $context Context for translation
+	 * @param string $domain Text domain for translation
+	 * @return string Translated and escaped text
+	 */
+	public function _do_esc_html_x(string $text, string $context, string $domain = 'default'): string {
+		if (\function_exists('esc_html_x')) {
+			return (string) \esc_html_x($text, $context, $domain);
+		}
+		return $text;
+	}
+
+	/**
+	 * Public wrapper for WordPress esc_html_e() - Displays translated text that has been escaped for safe use in HTML output.
+	 * Availability-guarded: Yes
+	 *
+	 * @param string $text Text to translate and escape
+	 * @param string $context Context for translation
+	 * @param string $domain Text domain for translation
+	 * @return string Translated and escaped text
+	 */
+	public function _do_esc_html_e(string $text, string $domain = 'default'): string {
+		if (\function_exists('esc_html_e')) {
+			return (string) \esc_html_e($text, $domain);
+		}
+		return $text;
+	}
+
+	/**
+	 * Public wrapper for WordPress esc_attr_x() - escape for attributes and translate with context
+	 * Availability-guarded: Yes
+	 *
+	 * @param string $text Text to translate and escape for attributes
+	 * @param string $context Context for translation
+	 * @param string $domain Text domain for translation
+	 * @return string Translated and escaped text
+	 */
+	public function _do_esc_attr_x(string $text, string $context, string $domain = 'default'): string {
+		if (\function_exists('esc_attr_x')) {
+			return (string) \esc_attr_x($text, $context, $domain);
+		}
+		return $text;
+	}
+
+	/**
+	 * Public wrapper for WordPress wp_enqueue_style()
+	 * Availability-guarded: Yes
+	 *
+	 * Rationale: wp_enqueue_style() may be unavailable in early contexts or tests;
+	 * graceful degradation allows code to continue without fatals.
+	 *
+	 * @param string      $handle Name of the stylesheet. Should be unique.
+	 * @param string      $src    Full URL of the stylesheet, or path of the stylesheet relative to the WordPress root directory.
+	 * @param array       $deps   Optional. An array of registered stylesheet handles this stylesheet depends on. Default empty array.
+	 * @param string|bool $ver    Optional. String specifying stylesheet version number, if it has one, which is added to the URL as a query string for cache busting purposes. If version is set to false, a version number is automatically added equal to current installed WordPress version. If set to null, no version is added.
+	 * @param string      $media  Optional. The media for which this stylesheet has been defined. Accepts media types like 'all', 'print' and 'screen', or media queries like '(orientation: portrait)' and '(max-width: 640px)'. Default 'all'.
+	 * @return void
+	 */
+	public function _do_wp_enqueue_style(string $handle, string $src = '', array $deps = array(), string|bool|null $ver = false, string $media = 'all'): void {
+		if (\function_exists('wp_enqueue_style')) {
+			\wp_enqueue_style($handle, $src, $deps, $ver, $media);
 		}
 	}
 }
