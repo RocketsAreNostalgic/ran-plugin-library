@@ -55,7 +55,7 @@ final class RegisterOptionsRuntimeGuardsTest extends PluginLibTestCase {
 		try {
 			$meth->invoke($opts, 'bad1', 'value');
 		} finally {
-			$this->expectLog('warning', 'runtime non-callable sanitize');
+			$this->expectLog('warning', 'runtime non-array sanitize');
 		}
 	}
 
@@ -83,7 +83,7 @@ final class RegisterOptionsRuntimeGuardsTest extends PluginLibTestCase {
 		try {
 			$meth->invoke($opts, 'bad2', 'value');
 		} finally {
-			$this->expectLog('warning', 'runtime missing/non-callable validate');
+			$this->expectLog('warning', 'runtime missing/non-array validate');
 		}
 	}
 }

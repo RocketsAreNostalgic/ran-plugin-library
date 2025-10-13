@@ -21,10 +21,10 @@ final class ValidateTest extends PluginLibTestCase {
 
 	/**
 	 * @covers \Ran\PluginLib\Util\Validate::format
-	 * @covers \Ran\PluginLib\Util\Validate\ValidateFormatGroup::jsonString
+	 * @covers \Ran\PluginLib\Util\Validate\ValidateFormatGroup::json_string
 	 */
 	public function test_format_json_string(): void {
-		$json = Validate::format()->jsonString();
+		$json = Validate::format()->json_string();
 		// Valid JSON (various types)
 		$this->assertTrue($json('{"a":1}'));
 		$this->assertTrue($json('[1,2,3]'));
@@ -272,87 +272,87 @@ final class ValidateTest extends PluginLibTestCase {
 
 	/**
 	 * @covers \Ran\PluginLib\Util\Validate::basic
-	 * @covers \Ran\PluginLib\Util\Validate\ValidateBasicGroup::isBool
-	 * @covers \Ran\PluginLib\Util\Validate\ValidateBasicGroup::isInt
-	 * @covers \Ran\PluginLib\Util\Validate\ValidateBasicGroup::isFloat
-	 * @covers \Ran\PluginLib\Util\Validate\ValidateBasicGroup::isString
-	 * @covers \Ran\PluginLib\Util\Validate\ValidateBasicGroup::isArray
-	 * @covers \Ran\PluginLib\Util\Validate\ValidateBasicGroup::isObject
-	 * @covers \Ran\PluginLib\Util\Validate\ValidateBasicGroup::isNull
+	 * @covers \Ran\PluginLib\Util\Validate\ValidateBasicGroup::is_bool
+	 * @covers \Ran\PluginLib\Util\Validate\ValidateBasicGroup::is_int
+	 * @covers \Ran\PluginLib\Util\Validate\ValidateBasicGroup::is_float
+	 * @covers \Ran\PluginLib\Util\Validate\ValidateBasicGroup::is_string
+	 * @covers \Ran\PluginLib\Util\Validate\ValidateBasicGroup::is_array
+	 * @covers \Ran\PluginLib\Util\Validate\ValidateBasicGroup::is_object
+	 * @covers \Ran\PluginLib\Util\Validate\ValidateBasicGroup::is_null
 	 */
 	public function test_basic_validators_via_groups(): void {
 		$basic = Validate::basic();
 
-		$isBool = $basic->isBool();
-		$this->assertTrue($isBool(true));
-		$this->assertFalse($isBool(1));
+		$is_bool = $basic->is_bool();
+		$this->assertTrue($is_bool(true));
+		$this->assertFalse($is_bool(1));
 
-		$isInt = $basic->isInt();
-		$this->assertTrue($isInt(10));
-		$this->assertFalse($isInt('10'));
+		$is_int = $basic->is_int();
+		$this->assertTrue($is_int(10));
+		$this->assertFalse($is_int('10'));
 
-		$isFloat = $basic->isFloat();
+		$isFloat = $basic->is_float();
 		$this->assertTrue($isFloat(1.23));
 		$this->assertFalse($isFloat('1.23'));
 
-		$isString = $basic->isString();
-		$this->assertTrue($isString('abc'));
-		$this->assertFalse($isString(123));
+		$is_string = $basic->is_string();
+		$this->assertTrue($is_string('abc'));
+		$this->assertFalse($is_string(123));
 
-		$isArray = $basic->isArray();
+		$isArray = $basic->is_array();
 		$this->assertTrue($isArray(array('k' => 'v')));
 		$this->assertFalse($isArray(new \stdClass()));
 
-		$isObject = $basic->isObject();
-		$this->assertTrue($isObject(new \stdClass()));
-		$this->assertFalse($isObject(array()));
+		$is_object = $basic->is_object();
+		$this->assertTrue($is_object(new \stdClass()));
+		$this->assertFalse($is_object(array()));
 
-		$isNull = $basic->isNull();
-		$this->assertTrue($isNull(null));
-		$this->assertFalse($isNull('not-null'));
+		$is_null = $basic->is_null();
+		$this->assertTrue($is_null(null));
+		$this->assertFalse($is_null('not-null'));
 	}
 
 	/**
 	 * @covers \Ran\PluginLib\Util\Validate::basic
-	 * @covers \Ran\PluginLib\Util\Validate\ValidateBasicGroup::isScalar
-	 * @covers \Ran\PluginLib\Util\Validate\ValidateBasicGroup::isNumeric
-	 * @covers \Ran\PluginLib\Util\Validate\ValidateBasicGroup::isNullable
-	 * @covers \Ran\PluginLib\Util\Validate\ValidateBasicGroup::isCallable
+	 * @covers \Ran\PluginLib\Util\Validate\ValidateBasicGroup::is_scalar
+	 * @covers \Ran\PluginLib\Util\Validate\ValidateBasicGroup::is_numeric
+	 * @covers \Ran\PluginLib\Util\Validate\ValidateBasicGroup::is_nullable
+	 * @covers \Ran\PluginLib\Util\Validate\ValidateBasicGroup::is_callable
 	 */
 	public function test_basic_additional_predicates(): void {
 		$basic = Validate::basic();
 
-		$isScalar = $basic->isScalar();
-		$this->assertTrue($isScalar(1));
-		$this->assertTrue($isScalar(1.5));
-		$this->assertTrue($isScalar('x'));
-		$this->assertTrue($isScalar(true));
-		$this->assertFalse($isScalar(array()));
-		$this->assertFalse($isScalar(new \stdClass()));
+		$is_scalar = $basic->is_scalar();
+		$this->assertTrue($is_scalar(1));
+		$this->assertTrue($is_scalar(1.5));
+		$this->assertTrue($is_scalar('x'));
+		$this->assertTrue($is_scalar(true));
+		$this->assertFalse($is_scalar(array()));
+		$this->assertFalse($is_scalar(new \stdClass()));
 
-		$isNumeric = $basic->isNumeric();
-		$this->assertTrue($isNumeric(123));
-		$this->assertTrue($isNumeric('123')); // numeric string
-		$this->assertFalse($isNumeric('abc'));
-		$this->assertFalse($isNumeric(array()));
+		$is_numeric = $basic->is_numeric();
+		$this->assertTrue($is_numeric(123));
+		$this->assertTrue($is_numeric('123')); // numeric string
+		$this->assertFalse($is_numeric('abc'));
+		$this->assertFalse($is_numeric(array()));
 
-		$isNullable = $basic->isNullable();
-		$this->assertTrue($isNullable(null));
-		$this->assertTrue($isNullable('string')); // scalar passes
-		$this->assertFalse($isNullable(array())); // non-scalar non-null fails
+		$is_nullable = $basic->is_nullable();
+		$this->assertTrue($is_nullable(null));
+		$this->assertTrue($is_nullable('string')); // scalar passes
+		$this->assertFalse($is_nullable(array())); // non-scalar non-null fails
 
-		$isCallable = $basic->isCallable();
-		$this->assertTrue($isCallable('strlen'));
-		$this->assertTrue($isCallable(function () {
+		$is_callable = $basic->is_callable();
+		$this->assertTrue($is_callable('strlen'));
+		$this->assertTrue($is_callable(function () {
 		}));
-		$this->assertFalse($isCallable('not_a_function'));
-		$this->assertFalse($isCallable(123));
+		$this->assertFalse($is_callable('not_a_function'));
+		$this->assertFalse($is_callable(123));
 	}
 
 	/**
 	 * @covers \Ran\PluginLib\Util\Validate::enums
 	 * @covers \Ran\PluginLib\Util\Validate\ValidateEnumGroup::enum
-	 * @covers \Ran\PluginLib\Util\Validate\ValidateEnumGroup::backed
+	 * @covers \Ran\PluginLib\Util\Validate\ValidateEnumGroup::backed_enum
 	 * @covers \Ran\PluginLib\Util\Validate\ValidateEnumGroup::unit
 	 */
 	public function test_enums_helpers_in_main_suite(): void {
@@ -362,7 +362,7 @@ final class ValidateTest extends PluginLibTestCase {
 		$this->assertFalse($oneOf('c'));
 
 		// backed enum by value
-		$backed = Validate::enums()->backed(VTMode::class);
+		$backed = Validate::enums()->backed_enum(VTMode::class);
 		$this->assertTrue($backed('basic'));
 		$this->assertFalse($backed('On')); // unit enum case name should fail here
 
@@ -374,17 +374,17 @@ final class ValidateTest extends PluginLibTestCase {
 
 	/**
 	 * @covers \Ran\PluginLib\Util\Validate::collection
-	 * @covers \Ran\PluginLib\Util\Validate\ValidateCollectionGroup::hasKeys
-	 * @covers \Ran\PluginLib\Util\Validate\ValidateCollectionGroup::exactKeys
+	 * @covers \Ran\PluginLib\Util\Validate\ValidateCollectionGroup::has_keys
+	 * @covers \Ran\PluginLib\Util\Validate\ValidateCollectionGroup::exact_keys
 	 */
 	public function test_collection_has_keys_and_exact_keys(): void {
-		$hasXY = Validate::collection()->hasKeys(array('x', 'y'));
+		$hasXY = Validate::collection()->has_keys(array('x', 'y'));
 		$this->assertTrue($hasXY(array('x' => 1, 'y' => 2)));
 		$this->assertTrue($hasXY(array('x' => 1, 'y' => 2, 'z' => 3)));
 		$this->assertFalse($hasXY(array('x' => 1)));
 		$this->assertFalse($hasXY('not-array'));
 
-		$exactXY = Validate::collection()->exactKeys(array('x', 'y'));
+		$exactXY = Validate::collection()->exact_keys(array('x', 'y'));
 		$this->assertTrue($exactXY(array('x' => 1, 'y' => 2)));
 		$this->assertFalse($exactXY(array('x' => 1, 'y' => 2, 'z' => 3)));
 		$this->assertFalse($exactXY(array('x' => 1)));
@@ -393,12 +393,12 @@ final class ValidateTest extends PluginLibTestCase {
 
 	/**
 	 * @covers \Ran\PluginLib\Util\Validate::collection
-	 * @covers \Ran\PluginLib\Util\Validate\ValidateCollectionGroup::strictShape
+	 * @covers \Ran\PluginLib\Util\Validate\ValidateCollectionGroup::strict_shape
 	 */
 	public function test_collection_strict_shape(): void {
-		$shape = Validate::collection()->strictShape(array(
-		    'x' => Validate::basic()->isInt(),
-		    'y' => Validate::basic()->isInt(),
+		$shape = Validate::collection()->strict_shape(array(
+		    'x' => Validate::basic()->is_int(),
+		    'y' => Validate::basic()->is_int(),
 		));
 
 		$this->assertTrue($shape(array('x' => 1, 'y' => 2)));
@@ -410,16 +410,16 @@ final class ValidateTest extends PluginLibTestCase {
 
 	/**
 	 * @covers \Ran\PluginLib\Util\Validate::collection
-	 * @covers \Ran\PluginLib\Util\Validate\ValidateCollectionGroup::minItems
-	 * @covers \Ran\PluginLib\Util\Validate\ValidateCollectionGroup::maxItems
+	 * @covers \Ran\PluginLib\Util\Validate\ValidateCollectionGroup::min_items
+	 * @covers \Ran\PluginLib\Util\Validate\ValidateCollectionGroup::max_items
 	 */
 	public function test_collection_min_max_items(): void {
-		$nonEmpty = Validate::collection()->minItems(1);
+		$nonEmpty = Validate::collection()->min_items(1);
 		$this->assertFalse($nonEmpty(array()));
 		$this->assertTrue($nonEmpty(array(1)));
 		$this->assertFalse($nonEmpty('not-array'));
 
-		$maxTwo = Validate::collection()->maxItems(2);
+		$maxTwo = Validate::collection()->max_items(2);
 		$this->assertTrue($maxTwo(array(1)));
 		$this->assertTrue($maxTwo(array(1, 2)));
 		$this->assertFalse($maxTwo(array(1, 2, 3)));
@@ -456,23 +456,23 @@ final class ValidateTest extends PluginLibTestCase {
 
 	/**
 	 * @covers \Ran\PluginLib\Util\Validate::string
-	 * @covers \Ran\PluginLib\Util\Validate\ValidateStringGroup::minLength
-	 * @covers \Ran\PluginLib\Util\Validate\ValidateStringGroup::maxLength
-	 * @covers \Ran\PluginLib\Util\Validate\ValidateStringGroup::lengthBetween
+	 * @covers \Ran\PluginLib\Util\Validate\ValidateStringGroup::min_length
+	 * @covers \Ran\PluginLib\Util\Validate\ValidateStringGroup::max_length
+	 * @covers \Ran\PluginLib\Util\Validate\ValidateStringGroup::length_between
 	 * @covers \Ran\PluginLib\Util\Validate\ValidateStringGroup::pattern
 	 */
 	public function test_string_group_helpers(): void {
-		$minLen = Validate::string()->minLength(2);
+		$minLen = Validate::string()->min_length(2);
 		$this->assertTrue($minLen('ab'));
 		$this->assertFalse($minLen('a'));
 		$this->assertFalse($minLen(123));
 
-		$maxLen = Validate::string()->maxLength(2);
+		$maxLen = Validate::string()->max_length(2);
 		$this->assertTrue($maxLen('ab'));
 		$this->assertTrue($maxLen('a'));
 		$this->assertFalse($maxLen('abc'));
 
-		$lenBetween = Validate::string()->lengthBetween(1, 3);
+		$lenBetween = Validate::string()->length_between(1, 3);
 		$this->assertTrue($lenBetween('a'));
 		$this->assertTrue($lenBetween('abc'));
 		$this->assertFalse($lenBetween(''));
@@ -487,18 +487,18 @@ final class ValidateTest extends PluginLibTestCase {
 
 	/**
 	 * @covers \Ran\PluginLib\Util\Validate::collection
-	 * @covers \Ran\PluginLib\Util\Validate\ValidateCollectionGroup::listOf
+	 * @covers \Ran\PluginLib\Util\Validate\ValidateCollectionGroup::list_of
 	 * @covers \Ran\PluginLib\Util\Validate\ValidateCollectionGroup::shape
 	 */
 	public function test_collection_listOf_and_shape(): void {
-		$listOfInts = Validate::collection()->listOf(Validate::basic()->isInt());
+		$listOfInts = Validate::collection()->list_of(Validate::basic()->is_int());
 		$this->assertTrue($listOfInts(array(1, 2, 3)));
 		$this->assertFalse($listOfInts(array(1, '2', 3)));
 		$this->assertFalse($listOfInts('not-array'));
 
 		$shape = Validate::collection()->shape(array(
-		    'x' => Validate::basic()->isInt(),
-		    'y' => Validate::basic()->isInt(),
+		    'x' => Validate::basic()->is_int(),
+		    'y' => Validate::basic()->is_int(),
 		));
 		$this->assertTrue($shape(array('x' => 1, 'y' => 2)));
 		$this->assertTrue($shape(array('x' => 1, 'y' => 2, 'z' => 3))); // extras allowed
@@ -515,27 +515,27 @@ final class ValidateTest extends PluginLibTestCase {
 	 * @covers \Ran\PluginLib\Util\Validate\ValidateComposeGroup::none
 	 */
 	public function test_compose_helpers(): void {
-		$nullableString = Validate::compose()->nullable(Validate::basic()->isString());
+		$nullableString = Validate::compose()->nullable(Validate::basic()->is_string());
 		$this->assertTrue($nullableString(null));
 		$this->assertTrue($nullableString('abc'));
 		$this->assertFalse($nullableString(123));
 
-		$optionalInt = Validate::compose()->optional(Validate::basic()->isInt());
+		$optionalInt = Validate::compose()->optional(Validate::basic()->is_int());
 		$this->assertTrue($optionalInt(null));
 		$this->assertTrue($optionalInt(5));
 		$this->assertFalse($optionalInt('5'));
 
 		$unionIntFloat = Validate::compose()->union(
-			Validate::basic()->isInt(),
-			Validate::basic()->isFloat()
+			Validate::basic()->is_int(),
+			Validate::basic()->is_float()
 		);
 		$this->assertTrue($unionIntFloat(1));
 		$this->assertTrue($unionIntFloat(1.5));
 		$this->assertFalse($unionIntFloat('1.5'));
 
 		$allStringLen = Validate::compose()->all(
-			Validate::basic()->isString(),
-			Validate::string()->minLength(1)
+			Validate::basic()->is_string(),
+			Validate::string()->min_length(1)
 		);
 		$this->assertTrue($allStringLen('a'));
 		$this->assertFalse($allStringLen(''));
@@ -550,10 +550,10 @@ final class ValidateTest extends PluginLibTestCase {
 
 	/**
 		* @covers \Ran\PluginLib\Util\Validate::basic
-		* @covers \Ran\PluginLib\Util\Validate\ValidateBasicGroup::isEmpty
+		* @covers \Ran\PluginLib\Util\Validate\ValidateBasicGroup::is_empty
 		*/
 	public function test_basic_is_empty(): void {
-		$empty = Validate::basic()->isEmpty();
+		$empty = Validate::basic()->is_empty();
 		// True cases
 		$this->assertTrue($empty(''));
 		$this->assertTrue($empty(null));
@@ -567,10 +567,10 @@ final class ValidateTest extends PluginLibTestCase {
 
 	/**
 		* @covers \Ran\PluginLib\Util\Validate::basic
-		* @covers \Ran\PluginLib\Util\Validate\ValidateBasicGroup::isNotEmpty
+		* @covers \Ran\PluginLib\Util\Validate\ValidateBasicGroup::is_not_empty
 		*/
 	public function test_basic_is_not_empty(): void {
-		$notEmpty = Validate::basic()->isNotEmpty();
+		$notEmpty = Validate::basic()->is_not_empty();
 		// False cases
 		$this->assertFalse($notEmpty(''));
 		$this->assertFalse($notEmpty(null));
@@ -611,7 +611,7 @@ final class ValidateEnumHelpersTest extends PluginLibTestCase {
 	 * @covers \Ran\PluginLib\Util\Validate\ValidateEnumGroup::backed
 	 */
 	public function test_enums_backed(): void {
-		$backed = Validate::enums()->backed(\VTMode::class);
+		$backed = Validate::enums()->backed_enum(\VTMode::class);
 		$this->assertTrue($backed('basic'));
 		$this->assertFalse($backed('On'));
 		$this->assertFalse($backed('unknown'));

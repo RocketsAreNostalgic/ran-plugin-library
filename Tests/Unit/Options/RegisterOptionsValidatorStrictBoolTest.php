@@ -46,7 +46,7 @@ final class RegisterOptionsValidatorStrictBoolTest extends PluginLibTestCase {
 		));
 
 		$this->expectException(\InvalidArgumentException::class);
-		$this->expectExceptionMessageMatches('/Validator for option \'y\' must return strict bool; got string\./');
+		$this->expectExceptionMessageMatches('/Validator for option \'y\' at index 0 must return strict bool; got string\./');
 
 		// Triggers _sanitize_and_validate_option() and non-bool validator path
 		$opts->stage_option('y', 'anything');

@@ -38,8 +38,8 @@ final class RegisterOptionsStageOptionsGateSecurityTest extends PluginLibTestCas
 	public function test_batch_vetoes_when_any_key_disallowed(): void {
 		$opts = RegisterOptions::site('opts_gate_batch', true, $this->logger_mock);
 		$opts->with_schema(array(
-			'allowed' => array('validate' => Validate::basic()->isString()),
-			'denied'  => array('validate' => Validate::basic()->isString()),
+			'allowed' => array('validate' => Validate::basic()->is_string()),
+			'denied'  => array('validate' => Validate::basic()->is_string()),
 		));
 
 		// Policy: deny when 'denied' appears in batch keys
@@ -68,8 +68,8 @@ final class RegisterOptionsStageOptionsGateSecurityTest extends PluginLibTestCas
 	public function test_single_key_veto_with_add_option_gate(): void {
 		$opts = RegisterOptions::site('opts_gate_single', true, $this->logger_mock);
 		$opts->with_schema(array(
-			'allow' => array('validate' => Validate::basic()->isString()),
-			'deny'  => array('validate' => Validate::basic()->isString()),
+			'allow' => array('validate' => Validate::basic()->is_string()),
+			'deny'  => array('validate' => Validate::basic()->is_string()),
 		));
 
 		// Policy: veto single key 'deny' on add_option

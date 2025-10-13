@@ -41,6 +41,12 @@ class EnqueuePublicTest extends PluginLibTestCase {
 
 		$this->config_mock = Mockery::mock(ConfigInterface::class);
 		$this->config_mock->shouldReceive('get_logger')->andReturn($this->logger)->byDefault();
+		$this->config_mock->shouldReceive('get_config')->andReturn(
+			array(
+			    'URL'     => 'https://example.com/wp-content/plugins/ran-plugin-lib',
+			    'Version' => '1.0.0',
+			)
+		)->byDefault();
 
 		// Mock WordPress functions
 		WP_Mock::userFunction('is_admin')->andReturn(false)->byDefault();
@@ -142,12 +148,12 @@ class EnqueuePublicTest extends PluginLibTestCase {
 	 * @test
 	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueuePublic::stage
 	 */
-	public function test_stage_delegates_to_handlers(): void {
-		// Arrange
+	public function test_stage_delegates_and_stages_owned_media_assets(): void {
 		WP_Mock::userFunction('is_admin')->andReturn(false);
 
 		$scripts_mock = Mockery::mock(ScriptsHandler::class);
 		$scripts_mock->shouldReceive('stage')->once();
+		$scripts_mock->shouldReceive('add')->once()->with(Mockery::type('array'))->andReturnSelf();
 
 		$script_modules_mock = Mockery::mock(ScriptModulesHandler::class);
 		$script_modules_mock->shouldReceive('stage')->once();
@@ -157,10 +163,15 @@ class EnqueuePublicTest extends PluginLibTestCase {
 
 		$this->instance = new EnqueuePublic($this->config_mock, $scripts_mock, $script_modules_mock, $styles_mock);
 
-		// Act
+		$media_mock = Mockery::mock(MediaHandler::class);
+		$media_mock->shouldReceive('get_info')->once()->andReturn(array('assets' => array(array('handle' => 'asset-one'))));
+		$media_mock->shouldReceive('stage')->once()->with(array(array('handle' => 'asset-one')));
+
+		$this->_set_protected_property_value($this->instance, 'media_handler', $media_mock);
+		$this->_set_protected_property_value($this->instance, 'owns_media_handler', true);
+
 		$this->instance->stage();
 
-		// Assert - Mockery will verify the expectations
 		$this->assertTrue(method_exists($this->instance, 'stage'));
 	}
 
@@ -169,6 +180,7 @@ class EnqueuePublicTest extends PluginLibTestCase {
 	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueuePublic::scripts
 	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueuePublic::script_modules
 	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueuePublic::styles
+	 * @covers \Ran\PluginLib\EnqueueAccessory\EnqueuePublic::media
 	 */
 	public function test_accessor_methods_return_handlers(): void {
 		// Arrange
@@ -179,5 +191,6 @@ class EnqueuePublicTest extends PluginLibTestCase {
 		$this->assertInstanceOf(ScriptsHandler::class, $this->instance->scripts());
 		$this->assertInstanceOf(ScriptModulesHandler::class, $this->instance->script_modules());
 		$this->assertInstanceOf(StylesHandler::class, $this->instance->styles());
+		$this->assertInstanceOf(MediaHandler::class, $this->instance->media());
 	}
 }

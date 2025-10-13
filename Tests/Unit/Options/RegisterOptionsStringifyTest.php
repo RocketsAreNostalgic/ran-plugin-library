@@ -55,9 +55,17 @@ final class RegisterOptionsStringifyTest extends PluginLibTestCase {
 			),
 		);
 		$opts->register_schema($schema);
-		$this->expectException(\InvalidArgumentException::class);
-		$this->expectExceptionMessageMatches('/Array\(3\)/');
-		$opts->stage_option('arr', array(1, 2, 3))->commit_merge();
+		// Validation should fail and commit_merge should return false
+		$result = $opts->stage_option('arr', array(1, 2, 3))->commit_merge();
+		$this->assertFalse($result); // commit_merge should return false due to validation failure
+
+		// Check that validation messages were recorded and contain the stringified array
+		$messages = $opts->take_messages();
+		$this->assertArrayHasKey('arr', $messages);
+		$this->assertArrayHasKey('warnings', $messages['arr']);
+		$this->assertNotEmpty($messages['arr']['warnings']);
+		$this->assertStringContainsString('Array(3)', $messages['arr']['warnings'][0]);
+
 		$this->expectLog('debug', '_stringify_value_for_error completed');
 	}
 
@@ -80,9 +88,18 @@ final class RegisterOptionsStringifyTest extends PluginLibTestCase {
 		);
 		$opts->register_schema($schema);
 		$long = str_repeat('A', 500);
-		$this->expectException(\InvalidArgumentException::class);
-		$this->expectExceptionMessageMatches('/\.\.\./');
-		$opts->stage_option('long', $long)->commit_merge();
+
+		// Validation should fail and commit_merge should return false
+		$result = $opts->stage_option('long', $long)->commit_merge();
+		$this->assertFalse($result); // commit_merge should return false due to validation failure
+
+		// Check that validation messages were recorded and contain the truncated string
+		$messages = $opts->take_messages();
+		$this->assertArrayHasKey('long', $messages);
+		$this->assertArrayHasKey('warnings', $messages['long']);
+		$this->assertNotEmpty($messages['long']['warnings']);
+		$this->assertStringContainsString('...', $messages['long']['warnings'][0]); // Should be truncated
+
 		$this->expectLog('debug', '_stringify_value_for_error completed');
 	}
 }

@@ -48,7 +48,7 @@ final class RegisterOptionsSanitizerIdempotenceTest extends PluginLibTestCase {
 
 		$opts->register_schema(array(
 			'name' => array(
-				'sanitize' => array($sanitizerClass, 'appendX'),
+				'sanitize' => array(array($sanitizerClass, 'appendX')),
 				'validate' => function ($v) {
 					return is_string($v);
 				},
@@ -57,7 +57,7 @@ final class RegisterOptionsSanitizerIdempotenceTest extends PluginLibTestCase {
 
 		$this->expectException(\InvalidArgumentException::class);
 		$this->expectExceptionMessageMatches(
-			'/Sanitizer for option \'name\' must be idempotent.*Sanitizer ' . preg_quote($sanitizerFqcn, '/') . '::appendX\./'
+			'/Sanitizer for option \'name\' at index 0 must be idempotent.*Sanitizer ' . preg_quote($sanitizerFqcn, '/') . '::appendX\./'
 		);
 
 		$opts->stage_option('name', 'A');

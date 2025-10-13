@@ -72,6 +72,6 @@ class MediaHandlerTest extends PluginLibTestCase {
 		// Assert - check that trait methods are available
 		$this->assertTrue(method_exists($this->instance, 'add'));
 		$this->assertTrue(method_exists($this->instance, 'get_info'));
-		$this->assertTrue(method_exists($this->instance, 'stage_media'));
+		$this->assertTrue(method_exists($this->instance, 'stage'));
 	}
 }

@@ -270,7 +270,7 @@ final class RegisterOptionsSchemaTest extends PluginLibTestCase {
 		$policy = $this->getMockBuilder(\Ran\PluginLib\Options\Policy\WritePolicyInterface::class)->getMock();
 		$policy->method('allow')->willReturn(true);
 		$opts->with_policy($policy);
-		
+
 		$changed = $opts->register_schema($schema);
 
 		// Expect changes due to normalization.

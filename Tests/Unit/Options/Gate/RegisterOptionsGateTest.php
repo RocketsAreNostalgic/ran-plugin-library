@@ -53,11 +53,11 @@ final class RegisterOptionsGateTest extends PluginLibTestCase {
 		$mockOpts->method('_do_apply_filter')
 			->willReturn(false); // Veto the write
 
-		// Provide minimal schema to satisfy Phase 4
+		// Provide minimal schema to satisfy Phase 4 (using array format)
 		$this->_set_protected_property_value($mockOpts, 'schema', array(
-			'test_key' => array('validate' => function ($v) {
+			'test_key' => array('validate' => array(function ($v) {
 				return is_string($v);
-			}),
+			})),
 		));
 
 		// Attempt to set option - should be vetoed before mutation
@@ -86,11 +86,11 @@ final class RegisterOptionsGateTest extends PluginLibTestCase {
 		$mockOpts->method('_do_apply_filter')
 			->willReturnOnConsecutiveCalls(true, false); // Allow first, veto second
 
-		// Provide minimal schema to satisfy Phase 4
+		// Provide minimal schema to satisfy Phase 4 (using array format)
 		$this->_set_protected_property_value($mockOpts, 'schema', array(
-			'test_key' => array('validate' => function ($v) {
+			'test_key' => array('validate' => array(function ($v) {
 				return is_string($v);
-			}),
+			})),
 		));
 
 		// Attempt to set option - gate allows pre-mutation but vetoes later paths; stage_option remains fluent

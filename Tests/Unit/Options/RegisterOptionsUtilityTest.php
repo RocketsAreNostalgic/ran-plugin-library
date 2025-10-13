@@ -66,8 +66,8 @@ final class RegisterOptionsUtilityTest extends PluginLibTestCase {
 
 		// Phase 4: require schema for all mutated keys
 		$opts->with_schema(array(
-			'default_key1' => array('validate' => Validate::basic()->isString()),
-			'default_key2' => array('validate' => Validate::basic()->isString()),
+			'default_key1' => array('validate' => Validate::basic()->is_string()),
+			'default_key2' => array('validate' => Validate::basic()->is_string()),
 		));
 
 		$defaults = array(
@@ -149,7 +149,7 @@ final class RegisterOptionsUtilityTest extends PluginLibTestCase {
 
 		// Test method chaining
 		$result = $opts->with_schema(array(
-			'chained_key' => array('validate' => Validate::basic()->isString()),
+			'chained_key' => array('validate' => Validate::basic()->is_string()),
 		))
 			->with_policy($mockPolicy)
 			->with_logger($mockLogger)
@@ -452,6 +452,129 @@ final class RegisterOptionsUtilityTest extends PluginLibTestCase {
 
 		$opts = RegisterOptions::network('test_options');
 		$this->assertFalse($opts->supports_autoload()); // Network scope doesn't support autoload
+	}
+
+	/**
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::__construct
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::get_main_option_name
+	 */
+	public function test_get_main_option_name_returns_constructor_value(): void {
+		$opts = RegisterOptions::site('example_options');
+		$this->assertSame('example_options', $opts->get_main_option_name());
+	}
+
+	/**
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::__construct
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::get_storage_context
+	 */
+	public function test_get_storage_context_defaults_to_site_scope(): void {
+		$opts    = new RegisterOptions('storage_context_example');
+		$context = $opts->get_storage_context();
+
+		$this->assertInstanceOf(StorageContext::class, $context);
+		$this->assertSame(OptionScope::Site, $context->scope);
+	}
+
+	/**
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::__construct
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::register_schema
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::get_schema
+	 */
+	public function test_get_schema_returns_registered_schema(): void {
+		$opts = RegisterOptions::site('schema_example');
+
+		$policy = $this->createMock(WritePolicyInterface::class);
+		$policy->method('allow')->willReturn(true);
+		$opts->with_policy($policy);
+
+		$schema = array(
+			'alpha_key' => array(
+				'default'  => 'alpha',
+				'validate' => Validate::basic()->is_string(),
+				'sanitize' => null,
+			),
+		);
+
+		$opts->register_schema($schema);
+
+		// After registration, single callables are converted to arrays for backward compatibility
+		$expectedSchema = array(
+			'alpha_key' => array(
+				'default'  => 'alpha',
+				'validate' => array(Validate::basic()->is_string()),
+				'sanitize' => null,
+			),
+		);
+
+		$this->assertEquals($expectedSchema, $opts->get_schema());
+	}
+
+	/**
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::__construct
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::with_policy
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::get_write_policy
+	 */
+	public function test_get_write_policy_returns_injected_policy(): void {
+		$opts   = RegisterOptions::site('policy_example');
+		$policy = $this->createMock(WritePolicyInterface::class);
+
+		$opts->with_policy($policy);
+
+		$this->assertSame($policy, $opts->get_write_policy());
+	}
+
+	/**
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::__construct
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::get_logger
+	 */
+	public function test_get_logger_returns_bound_logger(): void {
+		$logger = $this->getMockBuilder(Logger::class)
+			->disableOriginalConstructor()
+			->getMock();
+
+		$opts = RegisterOptions::site('logger_example', true, $logger);
+
+		$this->assertSame($logger, $opts->get_logger());
+	}
+
+	/**
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::__construct
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::with_context
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::register_schema
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::get_storage_context
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::get_schema
+	 */
+	public function test_with_context_clones_configuration_for_new_scope(): void {
+		$logger = $this->getMockBuilder(Logger::class)
+			->disableOriginalConstructor()
+			->getMock();
+
+		WP_Mock::onFilter('ran/plugin_lib/options/allow_persist/scope/network')
+			->with(\WP_Mock\Functions::type('bool'), \WP_Mock\Functions::type('array'))
+			->reply(true);
+
+		$base = RegisterOptions::site('context_example', true, $logger);
+
+		$policy = $this->createMock(WritePolicyInterface::class);
+		$policy->method('allow')->willReturn(true);
+		$base->with_policy($policy);
+
+		$schema = array(
+			'gamma_key' => array(
+				'default'  => 'gamma',
+				'validate' => Validate::basic()->is_string(),
+			),
+		);
+		$base->register_schema($schema);
+
+		$clone = $base->with_context(StorageContext::forNetwork());
+
+		$this->assertNotSame($base, $clone);
+		$this->assertSame('context_example', $clone->get_main_option_name());
+		$this->assertSame(OptionScope::Network, $clone->get_storage_context()->scope);
+		$this->assertEquals($base->get_schema(), $clone->get_schema());
+		$this->assertSame($policy, $clone->get_write_policy());
+		$this->assertSame($logger, $clone->get_logger());
 	}
 
 	/**

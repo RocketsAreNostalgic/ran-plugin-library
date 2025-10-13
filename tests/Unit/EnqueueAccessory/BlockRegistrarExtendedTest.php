@@ -652,6 +652,53 @@ class BlockRegistrarExtendedTest extends TestCase {
 	}
 
 	/**
+	 * Ensure get_block_status surfaces registered/failed/pending states.
+	 *
+	 * @covers \Ran\PluginLib\EnqueueAccessory\BlockRegistrar::get_block_status
+	 */
+	public function test_get_block_status_covers_all_states(): void {
+		$reflection      = new ReflectionClass($this->block_registrar);
+		$blocks_property = $reflection->getProperty('blocks');
+		$blocks_property->setAccessible(true);
+		$blocks_property->setValue($this->block_registrar, array(
+			'init' => array(
+				10 => array(
+					array('block_name' => 'demo/registered'),
+					array('block_name' => 'demo/pending')
+				)
+			),
+			'custom_hook' => array(
+				20 => array(
+					array('block_name' => 'demo/failed')
+				)
+			)
+		));
+
+		$registered_property = $reflection->getProperty('registered_wp_block_types');
+		$registered_property->setAccessible(true);
+		$registered_type       = Mockery::mock('WP_Block_Type');
+		$registered_type->name = 'demo/registered';
+		$registered_property->setValue($this->block_registrar, array(
+			'demo/registered' => $registered_type
+		));
+
+		WP_Mock::userFunction('did_action', array(
+			'return' => static function(string $hook): int {
+				return $hook === 'custom_hook' ? 1 : 0;
+			}
+		));
+
+		$status = $this->block_registrar->get_block_status();
+
+		$this->assertArrayHasKey('demo/registered', $status);
+		$this->assertSame('registered', $status['demo/registered']['status']);
+		$this->assertArrayHasKey('demo/failed', $status);
+		$this->assertSame('failed', $status['demo/failed']['status']);
+		$this->assertArrayHasKey('demo/pending', $status);
+		$this->assertSame('pending', $status['demo/pending']['status']);
+	}
+
+	/**
 	 * Test _integrate_block_assets with comprehensive asset mapping.
 	 * Targets uncovered lines 389-415 in asset mapping logic.
 	 *
@@ -1233,38 +1280,6 @@ class BlockRegistrarExtendedTest extends TestCase {
 		$this->assertIsInt($result['condition']);
 		$this->assertIsInt($result['assets']);
 		$this->assertIsInt($result['preload']);
-	}
-
-	/**
-	 * Test _get_block_registry method using reflection for 100% coverage.
-	 * This method returns the WordPress Block Type Registry instance.
-	 *
-	 * @covers \Ran\PluginLib\EnqueueAccessory\BlockRegistrar::_get_block_registry
-	 *
-	 * @return void
-	 */
-	public function test_get_block_registry_reflection_coverage(): void {
-		// Create a mock registry instance
-		$mock_registry = Mockery::mock('WP_Block_Type_Registry');
-
-		// Create a partial mock of BlockRegistrar
-		$partial_mock = Mockery::mock($this->block_registrar)->makePartial();
-
-		// Override the _cache_for_request method to return our mock registry
-		$reflection   = new ReflectionClass($this->block_registrar);
-		$cache_method = $reflection->getMethod('_cache_for_request');
-		$cache_method->setAccessible(true);
-
-		// Call _cache_for_request with a callback that returns our mock registry
-		$result = $cache_method->invokeArgs($partial_mock, array(
-			'wp_block_registry',
-			function() use ($mock_registry) {
-				return $mock_registry;
-			}
-		));
-
-		// Verify the mock registry is returned
-		$this->assertSame($mock_registry, $result);
 	}
 
 	/**

@@ -112,12 +112,12 @@ class MediaEnqueueTraitTest extends PluginLibTestCase {
 		$this->assertArrayHasKey('assets', $result);
 		$this->assertArrayHasKey('deferred', $result);
 		$this->assertSame($media_configs, $result['assets']);
-		$this->assertEmpty($result['deferred']); // Should be empty until stage_media() is called
+		$this->assertEmpty($result['deferred']); // Should be empty until stage() is called
 	}
 
 	/**
 	 * @test
-	 * @covers \Ran\PluginLib\EnqueueAccessory\MediaEnqueueTrait::stage_media
+	 * @covers \Ran\PluginLib\EnqueueAccessory\MediaEnqueueTrait::stage
 	 */
 	public function test_stage_media_organizes_by_hook(): void {
 		// Arrange
@@ -146,7 +146,7 @@ class MediaEnqueueTraitTest extends PluginLibTestCase {
 		);
 
 		// Act
-		$this->instance->stage_media($media_configs);
+		$this->instance->stage($media_configs);
 		$result = $this->instance->get_info();
 
 		// Assert
@@ -188,7 +188,7 @@ class MediaEnqueueTraitTest extends PluginLibTestCase {
 		);
 
 		// Stage the media configs
-		$this->instance->stage_media($media_configs);
+		$this->instance->stage($media_configs);
 
 		// Set up expectations - wp_enqueue_media should be called once (for the first config only)
 		WP_Mock::userFunction('wp_enqueue_media')

@@ -165,6 +165,26 @@ class AssetEnqueueBaseAbstractTest extends PluginLibTestCase {
 		$this->assertSame($logger_mock, $result);
 	}
 
+	/**
+	 * @test
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseAbstract::is_dev_environment
+	 */
+	public function test_is_dev_environment_returns_true_from_config(): void {
+		$this->config_mock->shouldReceive('is_dev_environment')->once()->andReturn(true);
+
+		$this->assertTrue($this->instance->is_dev_environment());
+	}
+
+	/**
+	 * @test
+	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseAbstract::is_dev_environment
+	 */
+	public function test_is_dev_environment_returns_false_from_config(): void {
+		$this->config_mock->shouldReceive('is_dev_environment')->once()->andReturn(false);
+
+		$this->assertFalse($this->instance->is_dev_environment());
+	}
+
 	// ------------------------------------------------------------------------
 	// _process_single_asset() Tests
 	// This method is ignored as it is a placeholder meant to be overrideen by traits. It is not directly used in this class.
