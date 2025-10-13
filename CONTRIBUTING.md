@@ -4,16 +4,14 @@ Thank you for your interest in contributing to a Rocket Are Nostalgic project! W
 
 ## Table of Contents
 
-- [Code of Conduct](#code-of-conduct)
-- [Development Process](#development-process)
-  - [Branching Strategy](#branching-strategy)
-  - [Commit Guidelines](#commit-guidelines)
-  - [Pull Request Process](#pull-request-process)
-- [Coding Standards](#coding-standards)
-  - [TypeScript Guidelines](#typescript-guidelines)
-  - [Testing Requirements](#testing-requirements)
-  - [Documentation Requirements](#documentation-requirements)
-- [Guidelines](#guidelines)
+- [Contributing to Rockets Are Nostalgic projects](#contributing-to-rockets-are-nostalgic-projects)
+  - [Table of Contents](#table-of-contents)
+  - [Code of Conduct](#code-of-conduct)
+  - [Development Process](#development-process) - [Branching Strategy](#branching-strategy) - [Commit Guidelines](#commit-guidelines) - [Pull Request Process](#pull-request-process)
+  - [Coding Standards](#coding-standards) - [TypeScript Guidelines](#typescript-guidelines) - [Basic Principles](#basic-principles) - [Naming Conventions](#naming-conventions) - [Function Guidelines](#function-guidelines) - [Testing Requirements](#testing-requirements) - [Documentation Requirements](#documentation-requirements)
+  - [Guidelines](#guidelines)
+  - [Questions or Problems?](#questions-or-problems)
+  - [License](#license)
 
 ## Code of Conduct
 
@@ -107,16 +105,16 @@ Example:
 
 ```typescript
 describe("Logger", () => {
-	it("should log messages at correct level", () => {
-		// Arrange
-		const logger = createDefaultLogger();
+  it("should log messages at correct level", () => {
+    // Arrange
+    const logger = createDefaultLogger();
 
-		// Act
-		logger.info("test message");
+    // Act
+    logger.info("test message");
 
-		// Assert
-		expect(/* ... */);
-	});
+    // Assert
+    expect(/* ... */);
+  });
 });
 ```
 
