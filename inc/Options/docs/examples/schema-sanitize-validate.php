@@ -62,7 +62,7 @@ $schema = array(
     // Numeric range validation - for timeouts, limits (optional sanitizer for null pass-through)
     'api_timeout' => array(
         'default'  => 30,
-        'sanitize' => Sanitize::combine()->optional(Sanitize::number()->toInt()),
+        'sanitize' => Sanitize::combine()->optional(Sanitize::number()->to_int()),
         'validate' => Validate::number()->between(5, 300), // 5-300 seconds
     ),
 
@@ -77,22 +77,22 @@ $schema = array(
     'enabled_features' => array(
         'default'  => array('basic'),
         'sanitize' => Sanitize::combine()->pipe(
-        	Sanitize::array()->ensureList(),
-        	Sanitize::array()->uniqueList()
+        	Sanitize::array()->ensure_list(),
+        	Sanitize::array()->unique_list()
         ),
-        'validate' => Validate::collection()->listOf(static fn($v) => in_array($v, array('basic', 'advanced', 'premium'), true)),
+        'validate' => Validate::collection()->list_of(static fn($v) => in_array($v, array('basic', 'advanced', 'premium'), true)),
     ),
 
     // JSON payload validations (decode to object/array, then validate)
     'json_object' => array(
         'default'  => '{}',
-        'sanitize' => Sanitize::json()->decodeObject(),
-        'validate' => Validate::basic()->isArray(),
+        'sanitize' => Sanitize::json()->decode_object(),
+        'validate' => Validate::basic()->is_array(),
     ),
     'json_array' => array(
         'default'  => '[]',
-        'sanitize' => Sanitize::json()->decodeArray(),
-        'validate' => Validate::basic()->isArray(),
+        'sanitize' => Sanitize::json()->decode_array(),
+        'validate' => Validate::basic()->is_array(),
     ),
 
     // File path validation - for upload directories, log files (pragmatic origin example too)

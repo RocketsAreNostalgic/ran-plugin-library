@@ -24,17 +24,17 @@ use Ran\PluginLib\Options\RegisterOptions;
 function merge_tags(RegisterOptions $options, mixed $incoming): void {
 	$current = $options->get_option('tags'); // e.g. ['a','b']
 
-	$ensureList = Sanitize::array()->ensureList();
-	$current    = is_array($current) ? $ensureList($current) : array();
-	$incoming   = is_array($incoming) ? $ensureList($incoming) : array();
+	$ensure_list = Sanitize::array()->ensure_list();
+	$current     = is_array($current) ? $ensure_list($current) : array();
+	$incoming    = is_array($incoming) ? $ensure_list($incoming) : array();
 
 	// DB order first, then staged; remove duplicates while preserving order
 	$merged = array_merge($current, $incoming);
-	$unique = Sanitize::array()->uniqueList();
+	$unique = Sanitize::array()->unique_list();
 	$merged = $unique($merged);
 
 	// Optional: canonicalize when order is not semantically meaningful
-	// $merged = (Sanitize::canonical()->orderInsensitiveShallow())($merged);
+	// $merged = (Sanitize::canonical()->order_insensitive_shallow())($merged);
 
 	$options->stage_option('tags', $merged)->commit_merge();
 }
@@ -43,11 +43,11 @@ function merge_tags(RegisterOptions $options, mixed $incoming): void {
 // 2) Merge a list of objects uniquely by `id` (staged wins on collision)
 // ------------------------------------------------------------
 function merge_items_by_id(RegisterOptions $options, mixed $incoming): void {
-	$current    = $options->get_option('items'); // e.g. [['id'=>1,'name'=>'A'], ['id'=>2,'name'=>'B']]
-	$ensureList = Sanitize::array()->ensureList();
+	$current     = $options->get_option('items'); // e.g. [['id'=>1,'name'=>'A'], ['id'=>2,'name'=>'B']]
+	$ensure_list = Sanitize::array()->ensure_list();
 
-	$current  = is_array($current) ? $ensureList($current) : array();
-	$incoming = is_array($incoming) ? $ensureList($incoming) : array();
+	$current  = is_array($current) ? $ensure_list($current) : array();
+	$incoming = is_array($incoming) ? $ensure_list($incoming) : array();
 
 	$byId = array();
 	foreach ($current as $it) {

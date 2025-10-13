@@ -41,7 +41,7 @@ $schema = array(
     'analytics_enabled' => array(
         'default'  => false, // Default to disabled for privacy
         'validate' => Validate::compose()->all(array(
-            Validate::basic()->isBool(),
+            Validate::basic()->is_bool(),
         )),
     ),
 
@@ -49,7 +49,7 @@ $schema = array(
     'api_timeout' => array(
         'default'  => fn($cfg) => $cfg && $cfg->is_dev_environment() ? 5 : 30,
         'validate' => Validate::compose()->all(array(
-            Validate::basic()->isInt(),
+            Validate::basic()->is_int(),
             Validate::number()->between(0, 300),
         )),
     ),
@@ -69,7 +69,7 @@ $schema = array(
         	return 3600; // 1 hour in production
         },
         'validate' => Validate::compose()->all(array(
-            Validate::basic()->isInt(),
+            Validate::basic()->is_int(),
 			Validate::number()->min(0),
         )),
     ),
@@ -89,7 +89,7 @@ $schema = array(
         	return 'error'; // Production: errors only
         },
         'validate' => Validate::compose()->all(array(
-            Validate::basic()->isString(),
+            Validate::basic()->is_string(),
 			Validate::enums()->enum(array('debug', 'info', 'warning', 'error')),
         )),
     ),
@@ -97,7 +97,7 @@ $schema = array(
     // Feature availability based on server capabilities
     'image_processing_enabled' => array(
         'default'  => fn($cfg) => extension_loaded('gd') || extension_loaded('imagick'),
-        'validate' => Validate::basic()->isBool(),
+        'validate' => Validate::basic()->is_bool(),
     ),
 
     // Upload directory with site-specific path
@@ -108,7 +108,7 @@ $schema = array(
         	return $upload_dir['basedir'] . '/' . $plugin_name;
         },
         'validate' => Validate::compose()->all(array(
-            Validate::basic()->isString(),
+            Validate::basic()->is_string(),
 			Validate::basic()->isNotEmpty(),
         )),
     ),
@@ -116,13 +116,13 @@ $schema = array(
     // User role-based default permissions
     'admin_features_enabled' => array(
         'default'  => fn($cfg) => current_user_can('manage_options'),
-        'validate' => Validate::basic()->isBool(),
+        'validate' => Validate::basic()->is_bool(),
     ),
 
     // Multisite-aware defaults
     'network_mode' => array(
         'default'  => fn($cfg) => is_multisite(),
-        'validate' => Validate::basic()->isBool(),
+        'validate' => Validate::basic()->is_bool(),
     ),
 );
 
@@ -159,25 +159,25 @@ register_activation_hook(__FILE__, function() {
 	    'version' => array(
 	        'default'  => '1.0.0',
 	        'validate' => Validate::compose()->all(array(
-	            Validate::basic()->isString(),
+	            Validate::basic()->is_string(),
 	            Validate::basic()->isNotEmpty(),
 	        )),
 	    ),
 	    'installed_date' => array(
 	        'default'  => fn($cfg) => current_time('mysql'),
 	        'validate' => Validate::compose()->all(array(
-	            Validate::basic()->isString(),
+	            Validate::basic()->is_string(),
 	            Validate::basic()->isNotEmpty(),
 	        )),
 	    ),
 	    'needs_welcome_screen' => array(
 	        'default'  => true,
-	        'validate' => Validate::basic()->isBool(),
+	        'validate' => Validate::basic()->is_bool(),
 	    ),
 	    'performance_mode' => array(
 	        'default'  => fn($cfg) => wp_get_environment_type() === 'production' ? 'optimized' : 'standard',
 	        'validate' => Validate::compose()->all(array(
-	            Validate::basic()->isString(),
+	            Validate::basic()->is_string(),
 	            Validate::enums()->enum(array('standard', 'optimized')),
 	        )),
 	    ),
