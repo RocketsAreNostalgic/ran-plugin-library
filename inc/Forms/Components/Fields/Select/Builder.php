@@ -1,0 +1,173 @@
+<?php
+/**
+ * Fluent select field definition.
+ */
+
+declare(strict_types=1);
+
+namespace Ran\PluginLib\Forms\Components\Fields\Select;
+
+use Ran\PluginLib\Forms\Component\Build\BuilderBase;
+
+final class Builder extends BuilderBase {
+	protected ?string $name          = null;
+	protected ?string $elementId     = null;
+	protected ?string $descriptionId = null;
+	protected ?string $value         = null;
+	protected ?string $default       = null;
+	protected bool $disabled         = false;
+	protected bool $required         = false;
+	/** @var array<int,array<string,mixed>> */
+	protected array $options = array();
+
+	public function __construct(string $id, string $label) {
+		parent::__construct($id, $label);
+	}
+
+	public function name(?string $name): self {
+		if ($name === null) {
+			$this->name = null;
+			unset($this->attributes['name']);
+			return $this;
+		}
+		$trimmed                  = trim($name);
+		$this->name               = $trimmed;
+		$this->attributes['name'] = $trimmed;
+		return $this;
+	}
+
+	public function elementId(?string $id): self {
+		if ($id === null) {
+			$this->elementId = null;
+			unset($this->attributes['id']);
+			return $this;
+		}
+		$trimmed                = trim($id);
+		$this->elementId        = $trimmed;
+		$this->attributes['id'] = $trimmed;
+		return $this;
+	}
+
+	// description() method inherited from BuilderBase
+
+	public function descriptionId(?string $descriptionId): self {
+		$this->descriptionId = $descriptionId;
+		return $this;
+	}
+
+	public function value(?string $value): self {
+		$this->value = $value;
+		return $this;
+	}
+
+	public function default(?string $default): self {
+		$this->default = $default;
+		return $this;
+	}
+
+	public function disabled(bool $disabled = true): self {
+		$this->disabled = $disabled;
+		return $this;
+	}
+
+	public function required(bool $required = true): self {
+		$this->required = $required;
+		return $this;
+	}
+
+	public function attribute(string $key, string $value): self {
+		parent::attribute($key, $value);
+		if ($key === 'name') {
+			$this->name = trim($value);
+		}
+		if ($key === 'id') {
+			$this->elementId = trim($value);
+		}
+		return $this;
+	}
+
+	public function option(
+		string $value,
+		string $label,
+		?string $group = null,
+		array $attributes = array(),
+		bool $selected = false,
+		bool $disabled = false
+	): self {
+		$this->options[] = array(
+		    'value'      => $value,
+		    'label'      => $label,
+		    'group'      => $group,
+		    'attributes' => array_map('strval', $attributes),
+		    'selected'   => $selected,
+		    'disabled'   => $disabled,
+		);
+		return $this;
+	}
+
+	public function options(array $options): self {
+		$this->options = array();
+		foreach ($options as $option) {
+			if (!is_array($option)) {
+				continue;
+			}
+			$this->options[] = array(
+			    'value'      => isset($option['value']) ? (string) $option['value'] : '',
+			    'label'      => isset($option['label']) ? (string) $option['label'] : (isset($option['value']) ? (string) $option['value'] : ''),
+			    'group'      => isset($option['group']) ? (string) $option['group'] : null,
+			    'attributes' => isset($option['attributes']) && is_array($option['attributes']) ? array_map('strval', $option['attributes']) : array(),
+			    'selected'   => !empty($option['selected']),
+			    'disabled'   => !empty($option['disabled']),
+			);
+		}
+		return $this;
+	}
+
+	protected function _build_component_context(): array {
+		// Start with base context (attributes, description)
+		$context = $this->_build_base_context();
+
+		// Add required properties
+		$context['options'] = $this->normalizeOptions();
+
+		// Add optional properties using base class helpers
+		$this->_add_if_not_empty($context, 'name', $this->name);
+		$this->_add_if_not_empty($context, 'id', $this->elementId);
+		$this->_add_if_not_empty($context, 'description_id', $this->descriptionId);
+		$this->_add_if_not_empty($context, 'value', $this->value);
+		$this->_add_if_not_empty($context, 'default', $this->default);
+		$this->_add_if_true($context, 'disabled', $this->disabled);
+		$this->_add_if_true($context, 'required', $this->required);
+
+		return $context;
+	}
+
+	protected function _get_component(): string {
+		return 'select';
+	}
+
+	/**
+	 * @return array<int,array<string,mixed>>
+	 */
+	private function normalizeOptions(): array {
+		$normalized = array();
+		foreach ($this->options as $option) {
+			$item = array(
+			    'value'      => $option['value'],
+			    'label'      => $option['label'],
+			    'attributes' => $option['attributes'],
+			);
+			if ($option['group'] !== null && $option['group'] !== '') {
+				$item['group'] = (string) $option['group'];
+			}
+			if ($option['selected']) {
+				$item['selected'] = true;
+			}
+			if ($option['disabled']) {
+				$item['disabled'] = true;
+			}
+			$normalized[] = $item;
+		}
+		return $normalized;
+	}
+}

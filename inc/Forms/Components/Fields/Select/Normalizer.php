@@ -1,0 +1,93 @@
+<?php
+/**
+ * Select field component normalizer.
+ */
+
+declare(strict_types=1);
+
+namespace Ran\PluginLib\Forms\Components\Fields\Select;
+
+use Ran\PluginLib\Forms\Component\Normalize\NormalizerBase;
+
+final class Normalizer extends NormalizerBase {
+	protected function _normalize_component_specific(array $context): array {
+		// Handle name and ID
+		$context                     = $this->_normalize_name($context);
+		$selectId                    = $this->_generate_and_reserve_id($context, 'select');
+		$context['attributes']['id'] = $selectId;
+
+		// Get selected value using base class string sanitization
+		$value = null;
+		if (array_key_exists('value', $context)) {
+			$value = $this->_sanitize_string($context['value'], 'value');
+		} elseif (array_key_exists('default', $context)) {
+			$value = $this->_sanitize_string($context['default'], 'default');
+		}
+
+		// Validate options array using base class method
+		$options = $this->_validate_config_array($context['options'] ?? null, 'options') ?? array();
+
+		// Build options HTML
+		$optionsMarkup = $this->_build_options($options, $value);
+
+		// Build template context
+		$context['select_attributes'] = $this->session->formatAttributes($context['attributes']);
+		$context['options_html']      = $optionsMarkup;
+
+		return $context;
+	}
+
+	/**
+	 * Build options HTML markup.
+	 */
+	private function _build_options(mixed $options, ?string $selectedValue): array {
+		if (!is_array($options)) {
+			return array();
+		}
+
+		$grouped = array();
+		foreach ($options as $option) {
+			if (!is_array($option)) {
+				continue;
+			}
+			$group             = isset($option['group']) && $option['group'] !== '' ? (string) $option['group'] : null;
+			$grouped[$group][] = $this->_render_option_markup($option, $selectedValue);
+		}
+
+		$markup = array();
+		foreach ($grouped as $groupLabel => $optionMarkupList) {
+			if ($groupLabel === null) {
+				foreach ($optionMarkupList as $optionMarkup) {
+					$markup[] = $optionMarkup;
+				}
+				continue;
+			}
+
+			$label    = esc_html($groupLabel);
+			$markup[] = sprintf('<optgroup label="%s">%s</optgroup>', $label, implode('', $optionMarkupList));
+		}
+
+		return $markup;
+	}
+
+	/**
+	 * Render individual option markup.
+	 */
+	private function _render_option_markup(array $option, ?string $selectedValue): string {
+		$attributes = isset($option['attributes']) && is_array($option['attributes']) ? $option['attributes'] : array();
+		$value      = $this->_sanitize_string($option['value'] ?? '', 'option value');
+		$label      = $this->_sanitize_string($option['label'] ?? $value, 'option label');
+
+		$attributes['value'] = $value;
+		if (!empty($option['disabled'])) {
+			$attributes['disabled'] = 'disabled';
+		}
+		$explicitSelected = $this->_sanitize_boolean($option['selected'] ?? false, 'option selected');
+		if ($explicitSelected || ($selectedValue !== null && $selectedValue === $value)) {
+			$attributes['selected'] = 'selected';
+		}
+
+		$attrString = $this->session->formatAttributes($attributes);
+		return sprintf('<option%s>%s</option>', $attrString !== '' ? ' ' . $attrString : '', esc_html($label));
+	}
+}
