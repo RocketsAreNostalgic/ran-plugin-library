@@ -38,9 +38,9 @@ Define a strict, explicit schema process for `RegisterOptions` covering default 
 
 - `inc/Options/Sanitize.php` (grouped sanitizers)
   - `Sanitize::string()->trim(), toLower(), stripTags()`
-  - `Sanitize::number()->toInt(), toFloat(), toBoolStrict()`
-  - `Sanitize::array()->ensureList(), uniqueList(), ksortAssoc()`
-  - `Sanitize::json()->decodeToValue(), decodeObject(), decodeArray()`
+  - `Sanitize::number()->to_int(), to_float(), to_bool_strict()`
+  - `Sanitize::array()->ensure_list(), unique_list(), ksort_assoc()`
+  - `Sanitize::json()->decode_to_value(), decode_object(), decode_array()`
   - `Sanitize::combine()` composition helpers:
     - `pipe(...$sanitizers)` — sequentially apply multiple sanitizers
     - `nullable($sanitizer)` — pass-through null, sanitize non-null
@@ -48,8 +48,8 @@ Define a strict, explicit schema process for `RegisterOptions` covering default 
     - `when($predicate, $sanitizer)` — apply when predicate returns true
     - `unless($predicate, $sanitizer)` — apply when predicate returns false
   - Canonicalizers (deterministic, order-insensitive):
-    - Static: `Sanitize::orderInsensitiveDeep(mixed $v): mixed`, `Sanitize::orderInsensitiveShallow(mixed $v): mixed`
-    - Callable wrappers: `Sanitize::canonical()->orderInsensitiveDeep()`, `...Shallow()`
+    - Static: `Sanitize::order_insensitive_deep(mixed $v): mixed`, `Sanitize::order_insensitive_shallow(mixed $v): mixed`
+    - Callable wrappers: `Sanitize::canonical()->order_insensitive_deep()`, `...Shallow()`
 
 ## Schema Contract
 
@@ -102,14 +102,14 @@ Define a strict, explicit schema process for `RegisterOptions` covering default 
 
 ## Canonicalization Guidance
 
-- `orderInsensitiveDeep`:
+- `order_insensitive_deep`:
 
   - Objects → arrays (prefers `JsonSerializable`)
   - Recursively normalizes associative maps and sorts keys
   - Lists: normalize each element, then stable sort by JSON representation
   - Caveat: list order is intentionally changed; use only when order is not meaningful
 
-- `orderInsensitiveShallow`:
+- `order_insensitive_shallow`:
   - Converts objects to arrays (prefers `JsonSerializable`)
   - Sorts top-level associative keys only; no recursion
   - Top-level lists: stable sort by JSON
@@ -121,7 +121,7 @@ Define a strict, explicit schema process for `RegisterOptions` covering default 
 - Pair `sanitize` and `validate` to express intent clearly, e.g. `trim()` + `minLength(1)`.
 - Use grouped helpers to keep schemas small and readable.
 - Avoid canonicalizers for order-sensitive data.
-- Prefer `collection()->listOf(...)` and `collection()->shape(...)` for structured data.
+- Prefer `collection()->list_of(...)` and `collection()->shape(...)` for structured data.
 
 ## Risks & Mitigations
 
@@ -160,22 +160,22 @@ $schema['username'] = [
     Sanitize::string()->trim(),
     Sanitize::string()->toLower(),
   ),
-  'validate' => Validate::string()->minLength(3),
+  'validate' => Validate::string()->min_length(3),
 ];
 
 $schema['timeout'] = [
   'default'  => 30,
-  'sanitize' => Sanitize::combine()->optional(Sanitize::number()->toInt()), // null passes through
+  'sanitize' => Sanitize::combine()->optional(Sanitize::number()->to_int()), // null passes through
   'validate' => Validate::number()->between(1, 300),
 ];
 
 $schema['tags'] = [
   'default'  => ['a','b'],
   'sanitize' => Sanitize::combine()->pipe(
-    Sanitize::array()->ensureList(),
-    Sanitize::array()->uniqueList(),
+    Sanitize::array()->ensure_list(),
+    Sanitize::array()->unique_list(),
   ),
-  'validate' => Validate::collection()->listOf(Validate::basic()->isString()),
+  'validate' => Validate::collection()->list_of(Validate::basic()->is_string()),
 ];
 
 $schema['origin'] = [
@@ -186,8 +186,8 @@ $schema['origin'] = [
 
 $schema['payload'] = [
   'default'  => '{}',
-  'sanitize' => Sanitize::json()->decodeObject(),
-  'validate' => Validate::basic()->isArray(),
+  'sanitize' => Sanitize::json()->decode_object(),
+  'validate' => Validate::basic()->is_array(),
 ];
 ```
 

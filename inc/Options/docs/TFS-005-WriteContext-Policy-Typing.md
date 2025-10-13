@@ -126,7 +126,7 @@ $allowed = $this->write_policy->allow($this->__persist_origin ?? 'save_all', $wc
 
 - Wiring a user-scope policy with `ExampleUserSelfServiceWhitelistPolicy`: `inc/Options/docs/examples/policy-example-subscriber.php`
 - Abstract helper base: `inc/Options/Policy/AbstractWritePolicy.php`
- - AND-composite for stacking multiple policies: `inc/Options/Policy/CompositeWritePolicy.php` (note: uses AND semantics by default; OR stacking can be added later)
+- AND-composite for stacking multiple policies: `inc/Options/Policy/CompositeWritePolicy.php` (note: uses AND semantics by default; OR stacking can be added later)
 
 ### Choose your path
 

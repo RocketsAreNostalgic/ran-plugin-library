@@ -171,11 +171,12 @@ $blog_settings = $opts->get_options();
 // $blog_settings = $opts->get_options();
 ```
 
-> Security note: `Config::options()` and related accessors do not perform capability checks.
-> Callers MUST gate network/blog-scoped reads and ALL writes (admin UI, REST, CLI)
-> with appropriate capabilities (e.g., `manage_network_options` for network, `manage_options` for site/blog).
-> In multisite, when checking capabilities for another blog/site you may need `switch_to_blog()` or
-> `user_can_for_blog()` as appropriate.
+- Security note: `Config::options()` and related accessors do not perform capability checks.
+- Callers MUST gate network/blog-scoped reads and ALL writes (admin UI, REST, CLI)
+  with appropriate capabilities (e.g., `manage_network_options` for network, `manage_options` for the current site/blog).
+- When targeting a different blog via `StorageContext::forBlog($blogId)` or `RegisterOptions::blog()`, enforce a network-level capability such as `manage_sites` **before** accepting the external blog ID. The library will honor whatever blog ID it is given; failing to gate access can result in privilege escalation (e.g., mutating another user-owned site).
+- In multisite, when checking capabilities for another blog/site you may need `switch_to_blog()` or `user_can_for_blog()` as appropriate.
+- Admin UI helpers like `AdminSettings` clone the injected `RegisterOptions` via `with_context()` inside their sanitize callbacks. This isolates validation from any staged-but-uncommitted data on the DI instance, so callers who stage programmatic changes must call `commit_merge()`/`commit_replace()` before wiring the instance into admin tooling.
 
 ### Per‑scope validation hooks (write‑gating)
 
