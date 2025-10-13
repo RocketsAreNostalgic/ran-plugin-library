@@ -8,12 +8,7 @@ use Ran\PluginLib\Options\OptionScope;
 
 /**
  * Internal, typed context for RegisterOptions storage selection.
- *
- * This replaces the fragile, stringly-typed $storage_args array with
- * an immutable value object carrying strongly-typed scope details.
- *
- * NOTE: This class is internal to the options subsystem. It is not part of the
- * public API and may change without notice.
+ * A strongly-typed value object carrying Options scope details.
  */
 final class StorageContext {
 	/** @var OptionScope */

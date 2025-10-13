@@ -5,13 +5,18 @@
  * This class manages Plugin/Theme options by storing them as a single array.
  * It uses a storage adapter to handle scope-aware persistence.
  *
- * @package  RanPluginLib
+ * @package  RanPluginLib\Options
+ * @author   Ran Plugin Lib <bnjmnrsh@gmail.com>
+ * @license  GPL-2.0+ <http://www.gnu.org/licenses/gpl-2.0.txt>
+ * @link     https://github.com/RocketsAreNostalgic
+ * @since    0.1.0
  */
 
 declare(strict_types=1);
 
 namespace Ran\PluginLib\Options;
 
+use Closure;
 use Ran\PluginLib\Util\Logger;
 use Ran\PluginLib\Util\WPWrappersTrait;
 use Ran\PluginLib\Options\Storage\OptionStorageInterface;
@@ -23,8 +28,11 @@ use Ran\PluginLib\Options\Storage\UserOptionStorage;
 use Ran\PluginLib\Options\Storage\StorageContext;
 use Ran\PluginLib\Options\OptionScope;
 use Ran\PluginLib\Options\Policy\WritePolicyInterface;
+use Ran\PluginLib\Forms\Renderer\FormMessageHandler;
 use Ran\PluginLib\Options\WriteContext;
 use Ran\PluginLib\Options\Policy\RestrictedDefaultWritePolicy;
+use Ran\PluginLib\Settings\Settings;
+use Ran\PluginLib\Settings\SettingsInterface;
 use \Ran\PluginLib\Util\Sanitize;
 
 /**
@@ -121,14 +129,21 @@ class RegisterOptions {
 	private ?StorageContext $storage_context = null;
 
 	/**
+	 * Form message handler for validation warnings and notices.
+	 *
+	 * @var FormMessageHandler
+	 */
+	private FormMessageHandler $message_handler;
+
+	/**
 	 * Option schema map for sanitization, validation, and defaults.
 	 * Keys are normalized option keys.
 	 * Structure per key:
 	 *   - 'default'  => mixed|null
-	 *   - 'sanitize' => callable|null
-	 *   - 'validate' => callable|null (returns true or throws/returns false)
+	 *   - 'sanitize' => array<callable>|callable|null (arrays supported, single callables auto-converted)
+	 *   - 'validate' => array<callable>|callable|null (arrays supported, single callables auto-converted)
 	 *
-	 * @var array<string, array{default:mixed|null, sanitize?:callable|null, validate?:callable|null}>
+	 * @var array<string, array{default:mixed|null, sanitize?:array<callable>|callable|null, validate?:array<callable>|callable|null}>
 	 */
 	private array $schema = array();
 
@@ -170,6 +185,9 @@ class RegisterOptions {
 		if ($logger instanceof Logger) {
 			$this->logger = $logger;
 		}
+
+		// Initialize message handler
+		$this->message_handler = new FormMessageHandler($this->logger);
 
 		// Validate required parameters
 		if (empty($main_wp_option_name)) {
@@ -268,6 +286,47 @@ class RegisterOptions {
 	}
 
 	/**
+	 * Clone this RegisterOptions configuration onto a different storage context.
+	 *
+	 * Preserves main option name, logger, schema, and write policy. The new
+	 * instance reloads options for the requested context so callers always work
+	 * with fresh data for that scope.
+	 *
+	 * @param StorageContext $context The new storage context.
+	 * @return static A new instance with the specified context.
+	 */
+	public function with_context(StorageContext $context): static {
+		$autoload = $this->main_option_autoload;
+		if ($context->scope === OptionScope::User) {
+			$autoload = false; // user storage does not support autoload semantics
+		}
+
+		$new = new static(
+			$this->main_wp_option_name,
+			$context,
+			$autoload,
+			$this->logger
+		);
+
+		if ($this->write_policy instanceof WritePolicyInterface) {
+			$new->with_policy($this->write_policy);
+		}
+
+		if (!empty($this->schema)) {
+			$new->register_schema($this->schema);
+		}
+
+		return $new;
+	}
+
+	/**
+	 * Instantiate a scope-aware Settings facade for this RegisterOptions instance.
+	 */
+	public function settings(?Logger $logger = null): SettingsInterface {
+		return new Settings($this, $logger);
+	}
+
+	/**
 	 * Fluent setter: Configure write policy.
 	 *
 	 * @param WritePolicyInterface $policy Write policy instance
@@ -276,6 +335,57 @@ class RegisterOptions {
 	public function with_policy(WritePolicyInterface $policy): static {
 		$this->write_policy = $policy;
 		return $this;
+	}
+
+	/**
+	 * Retrieve captured messages from the most recent staging pass.
+	 * Returns structured data with both warnings and notices.
+	 *
+	 * @return array<string, array{warnings: array<int, string>, notices: array<int, string>}>
+	 */
+	public function take_messages(): array {
+		$this->_ensure_message_handler();
+		$messages = $this->message_handler->get_all_messages();
+		$this->message_handler->clear();
+		return $messages;
+	}
+
+	/**
+	 * Retrieve captured warning messages from the most recent staging pass.
+	 *
+	 * @deprecated Use take_messages() instead for structured data with both warnings and notices
+	 * @return array<string, array<int, string>>
+	 */
+	public function take_warnings(): array {
+		$this->_ensure_message_handler();
+		$warnings     = array();
+		$all_messages = $this->message_handler->get_all_messages();
+		foreach ($all_messages as $field => $messages) {
+			if (!empty($messages['warnings'])) {
+				$warnings[$field] = $messages['warnings'];
+			}
+		}
+		$this->message_handler->clear();
+		return $warnings;
+	}
+
+	/**
+	 * Retrieve captured notice messages from the most recent staging pass.
+	 *
+	 * @deprecated Use take_messages() instead for structured data with both warnings and notices
+	 * @return array<string, array<int, string>>
+	 */
+	public function take_notices(): array {
+		$this->_ensure_message_handler();
+		$notices      = array();
+		$all_messages = $this->message_handler->get_all_messages();
+		foreach ($all_messages as $field => $messages) {
+			if (!empty($messages['notices'])) {
+				$notices[$field] = $messages['notices'];
+			}
+		}
+		$this->message_handler->clear();
+		return $notices;
 	}
 
 	/**
@@ -326,6 +436,7 @@ class RegisterOptions {
 		$normalized = $this->_normalize_schema_keys($schema);
 
 		// Shallow merge rules into existing schema map (prepare locally)
+		// Use normalized rules which have backward compatibility conversion applied
 		$mergedSchema = $this->schema;
 		foreach ($normalized as $key => $rules) {
 			if (!isset($mergedSchema[$key])) {
@@ -340,15 +451,32 @@ class RegisterOptions {
 			}
 		}
 
-		// Registration-time checks: enforce callable validate; sanitize (when present) must be callable; optionally self-check defaults
+		// Registration-time checks: enforce validate array with callables; sanitize (when present) must be array of callables
 		foreach ($mergedSchema as $k => $r) {
-			if (!array_key_exists('validate', $r) || !\is_callable($r['validate'])) {
-				$this->_get_logger()->error("RegisterOptions: Schema for key '{$k}' requires a 'validate' callable.");
-				throw new \InvalidArgumentException("RegisterOptions: Schema for key '{$k}' requires a 'validate' callable.");
+			// Validate array is required and contains callables
+			if (!array_key_exists('validate', $r) || $r['validate'] === null || !is_array($r['validate']) || empty($r['validate'])) {
+				$this->_get_logger()->error("RegisterOptions: Schema for key '{$k}' requires a non-empty 'validate' array.");
+				throw new \InvalidArgumentException("RegisterOptions: Schema for key '{$k}' requires a non-empty 'validate' array.");
 			}
-			if (array_key_exists('sanitize', $r) && $r['sanitize'] !== null && !\is_callable($r['sanitize'])) {
-				$this->_get_logger()->error("RegisterOptions: Schema for key '{$k}' has non-callable 'sanitize'.");
-				throw new \InvalidArgumentException("RegisterOptions: Schema for key '{$k}' has non-callable 'sanitize'.");
+			foreach ($r['validate'] as $index => $validator) {
+				if (!is_callable($validator)) {
+					$this->_get_logger()->error("RegisterOptions: Schema for key '{$k}' has non-callable validator at index {$index}.");
+					throw new \InvalidArgumentException("RegisterOptions: Schema for key '{$k}' has non-callable validator at index {$index}.");
+				}
+			}
+
+			// Sanitize array validation (when present)
+			if (array_key_exists('sanitize', $r) && $r['sanitize'] !== null) {
+				if (!is_array($r['sanitize'])) {
+					$this->_get_logger()->error("RegisterOptions: Schema for key '{$k}' has non-array 'sanitize'.");
+					throw new \InvalidArgumentException("RegisterOptions: Schema for key '{$k}' has non-array 'sanitize'.");
+				}
+				foreach ($r['sanitize'] as $index => $sanitizer) {
+					if (!is_callable($sanitizer)) {
+						$this->_get_logger()->error("RegisterOptions: Schema for key '{$k}' has non-callable sanitizer at index {$index}.");
+						throw new \InvalidArgumentException("RegisterOptions: Schema for key '{$k}' has non-callable sanitizer at index {$index}.");
+					}
+				}
 			}
 		}
 
@@ -500,13 +628,27 @@ class RegisterOptions {
 	 * @return self
 	 */
 	public function stage_option(string $option_name, mixed $value): self {
-		$key   = $this->_do_sanitize_key($option_name);
-		$value = $this->_sanitize_and_validate_option($key, $value);
+		$this->_ensure_message_handler();
+		$this->message_handler->clear();
+
+		$key = $this->_do_sanitize_key($option_name);
+
+		// Perform sanitization and validation
+		$sanitizedValue = $this->_sanitize_and_validate_option($key, $value);
+
+		// If validation failed (warnings were recorded), don't stage the value
+		if ($this->message_handler->has_validation_failures()) {
+			$this->_get_logger()->debug('RegisterOptions: stage_option validation failed', array(
+				'key'           => $key,
+				'warning_count' => $this->message_handler->get_warning_count()
+			));
+			return $this; // Don't stage invalid values
+		}
 
 		// No-op guard
 		if (isset($this->options[$key])) {
 			$existing = $this->options[$key];
-			if ($existing === $value) {
+			if ($existing === $sanitizedValue) {
 				return $this;
 			}
 		}
@@ -526,7 +668,7 @@ class RegisterOptions {
 			return $this; // veto: no mutation
 		}
 
-		$this->options[$key] = $value;
+		$this->options[$key] = $sanitizedValue;
 		return $this;
 	}
 
@@ -538,6 +680,8 @@ class RegisterOptions {
 	 * @return self
 	 */
 	public function stage_options(array $keyToValue): self {
+		$this->_ensure_message_handler();
+		$this->message_handler->clear();
 		$changed     = false;
 		$changedKeys = array();
 
@@ -661,6 +805,16 @@ class RegisterOptions {
 	 * @return bool Whether the save succeeded.
 	 */
 	public function commit_merge(): bool {
+		$this->_ensure_message_handler();
+		// Check if there are any validation warnings (not notices) from staging
+		if ($this->message_handler->has_validation_failures()) {
+			$this->_get_logger()->info('RegisterOptions: commit_merge aborted due to validation failures', array(
+				'warning_count' => $this->message_handler->get_warning_count(),
+				'messages'      => $this->message_handler->get_all_messages()
+			));
+			return false;
+		}
+
 		return $this->_save_all_options(true);
 	}
 
@@ -813,6 +967,168 @@ class RegisterOptions {
 	 */
 	public function supports_autoload(): bool {
 		return $this->_get_storage()->supports_autoload();
+	}
+
+	/**
+	 * Public accessor: return the main grouped option name for this instance.
+	 *
+	 * @return string The main grouped option name.
+	 */
+	public function get_main_option_name(): string {
+		return $this->main_wp_option_name;
+	}
+
+	/**
+	 * Public accessor: return the typed StorageContext for this instance.
+	 *
+	 * Defaults to Site when not explicitly set (same behavior as internals).
+	 *
+	 * @return StorageContext The storage context.
+	 */
+	public function get_storage_context(): StorageContext {
+		return $this->_get_storage_context();
+	}
+
+	/**
+	 * Public accessor: return the schema for this instance.
+	 *
+	 * @return array The schema.
+	 */
+	public function get_schema(): array {
+		return $this->schema;
+	}
+
+	/**
+	 * Prepend a validator to the beginning of the validator array for a specific option key.
+	 *
+	 * @param string   $key       The option key (will be normalized)
+	 * @param callable $validator The validator callable to prepend
+	 * @return self
+	 * @throws \InvalidArgumentException if key has no schema or validator is not callable
+	 */
+	public function prepend_validator(string $key, callable $validator): self {
+		$normalized_key = $this->_do_sanitize_key($key);
+
+		if (!isset($this->schema[$normalized_key])) {
+			throw new \InvalidArgumentException("RegisterOptions: No schema defined for option '{$normalized_key}'.");
+		}
+
+		if (!is_callable($validator)) {
+			throw new \InvalidArgumentException("RegisterOptions: Validator must be callable for option '{$normalized_key}'.");
+		}
+
+		// Ensure validate is an array
+		if (!is_array($this->schema[$normalized_key]['validate'])) {
+			$this->schema[$normalized_key]['validate'] = array();
+		}
+
+		array_unshift($this->schema[$normalized_key]['validate'], $validator);
+		return $this;
+	}
+
+	/**
+	 * Append a validator to the end of the validator array for a specific option key.
+	 *
+	 * @param string   $key       The option key (will be normalized)
+	 * @param callable $validator The validator callable to append
+	 * @return self
+	 * @throws \InvalidArgumentException if key has no schema or validator is not callable
+	 */
+	public function append_validator(string $key, callable $validator): self {
+		$normalized_key = $this->_do_sanitize_key($key);
+
+		if (!isset($this->schema[$normalized_key])) {
+			throw new \InvalidArgumentException("RegisterOptions: No schema defined for option '{$normalized_key}'.");
+		}
+
+		if (!is_callable($validator)) {
+			throw new \InvalidArgumentException("RegisterOptions: Validator must be callable for option '{$normalized_key}'.");
+		}
+
+		// Ensure validate is an array
+		if (!is_array($this->schema[$normalized_key]['validate'])) {
+			$this->schema[$normalized_key]['validate'] = array();
+		}
+
+		$this->schema[$normalized_key]['validate'][] = $validator;
+		return $this;
+	}
+
+	/**
+	 * Prepend a sanitizer to the beginning of the sanitizer array for a specific option key.
+	 *
+	 * @param string   $key       The option key (will be normalized)
+	 * @param callable $sanitizer The sanitizer callable to prepend
+	 * @return self
+	 * @throws \InvalidArgumentException if key has no schema or sanitizer is not callable
+	 */
+	public function prepend_sanitizer(string $key, callable $sanitizer): self {
+		$normalized_key = $this->_do_sanitize_key($key);
+
+		if (!isset($this->schema[$normalized_key])) {
+			throw new \InvalidArgumentException("RegisterOptions: No schema defined for option '{$normalized_key}'.");
+		}
+
+		if (!is_callable($sanitizer)) {
+			throw new \InvalidArgumentException("RegisterOptions: Sanitizer must be callable for option '{$normalized_key}'.");
+		}
+
+		// Ensure sanitize is an array (can be null initially)
+		if (!is_array($this->schema[$normalized_key]['sanitize'])) {
+			$this->schema[$normalized_key]['sanitize'] = array();
+		}
+
+		array_unshift($this->schema[$normalized_key]['sanitize'], $sanitizer);
+		return $this;
+	}
+
+	/**
+	 * Append a sanitizer to the end of the sanitizer array for a specific option key.
+	 *
+	 * @param string   $key       The option key (will be normalized)
+	 * @param callable $sanitizer The sanitizer callable to append
+	 * @return self
+	 * @throws \InvalidArgumentException if key has no schema or sanitizer is not callable
+	 */
+	public function append_sanitizer(string $key, callable $sanitizer): self {
+		$normalized_key = $this->_do_sanitize_key($key);
+
+		if (!isset($this->schema[$normalized_key])) {
+			throw new \InvalidArgumentException("RegisterOptions: No schema defined for option '{$normalized_key}'.");
+		}
+
+		if (!is_callable($sanitizer)) {
+			throw new \InvalidArgumentException("RegisterOptions: Sanitizer must be callable for option '{$normalized_key}'.");
+		}
+
+		// Ensure sanitize is an array (can be null initially)
+		if (!is_array($this->schema[$normalized_key]['sanitize'])) {
+			$this->schema[$normalized_key]['sanitize'] = array();
+		}
+
+		$this->schema[$normalized_key]['sanitize'][] = $sanitizer;
+		return $this;
+	}
+
+	/**
+	 * Public accessor: return the write policy for this instance.
+	 *
+	 * @return WritePolicyInterface The write policy.
+	 */
+	public function get_write_policy(): WritePolicyInterface {
+		if (!($this->write_policy instanceof WritePolicyInterface)) {
+			$this->write_policy = new RestrictedDefaultWritePolicy();
+		}
+		return $this->write_policy;
+	}
+
+	/**
+	 * Public accessor: return the bound Logger instance (creates default if missing).
+	 *
+	 * @return Logger The logger instance.
+	 */
+	public function get_logger(): Logger {
+		return $this->_get_logger();
 	}
 
 	/**
@@ -1111,7 +1427,7 @@ class RegisterOptions {
 				$result = $this->_get_storage()->update($this->main_wp_option_name, $to_save);
 				if (!$result) {
 					$__verify = $this->_do_get_option($this->main_wp_option_name, $__sentinel);
-					if ($__verify !== $__sentinel && Sanitize::canonical()->orderInsensitiveShallow($__verify) === Sanitize::canonical()->orderInsensitiveShallow($to_save)) {
+					if ($__verify !== $__sentinel && Sanitize::canonical()->order_insensitive_shallow($__verify) === Sanitize::canonical()->order_insensitive_shallow($to_save)) {
 						$this->_get_logger()->warning('RegisterOptions: storage->update() returned false but DB matches desired state; treating as success.');
 						$result = true;
 					} else {
@@ -1135,7 +1451,7 @@ class RegisterOptions {
 					$result = $this->_get_storage()->update($this->main_wp_option_name, $to_save);
 					if (!$result) {
 						$__verify = $this->_do_get_option($this->main_wp_option_name, $__sentinel);
-						if ($__verify !== $__sentinel && Sanitize::canonical()->orderInsensitiveShallow($__verify) === Sanitize::canonical()->orderInsensitiveShallow($to_save)) {
+						if ($__verify !== $__sentinel && Sanitize::canonical()->order_insensitive_shallow($__verify) === Sanitize::canonical()->order_insensitive_shallow($to_save)) {
 							$this->_get_logger()->warning('RegisterOptions: storage->update() also failed but DB matches desired state; treating as success.');
 							$result = true;
 						} else {
@@ -1173,49 +1489,99 @@ class RegisterOptions {
 		$rules = $this->schema[$normalized_key];
 
 		// Defense-in-depth: runtime guard to mirror register-time contract
-		if (array_key_exists('sanitize', $rules) && $rules['sanitize'] !== null && !\is_callable($rules['sanitize'])) {
-			$this->_get_logger()->warning('RegisterOptions: _sanitize_and_validate_option runtime non-callable sanitize', array('key' => $normalized_key));
-			throw new \InvalidArgumentException(static::class . ": Schema for key '{$normalized_key}' has non-callable 'sanitize' at runtime.");
+		if (array_key_exists('sanitize', $rules) && $rules['sanitize'] !== null && !is_array($rules['sanitize'])) {
+			$this->_get_logger()->warning('RegisterOptions: _sanitize_and_validate_option runtime non-array sanitize', array('key' => $normalized_key));
+			throw new \InvalidArgumentException(static::class . ": Schema for key '{$normalized_key}' has non-array 'sanitize' at runtime.");
 		}
-		if (!array_key_exists('validate', $rules) || !\is_callable($rules['validate'])) {
-			$this->_get_logger()->warning('RegisterOptions: _sanitize_and_validate_option runtime missing/non-callable validate', array('key' => $normalized_key));
-			throw new \InvalidArgumentException(static::class . ": Schema for key '{$normalized_key}' requires a 'validate' callable at runtime.");
+		if (!array_key_exists('validate', $rules) || !is_array($rules['validate']) || empty($rules['validate'])) {
+			$this->_get_logger()->warning('RegisterOptions: _sanitize_and_validate_option runtime missing/non-array validate', array('key' => $normalized_key));
+			throw new \InvalidArgumentException(static::class . ": Schema for key '{$normalized_key}' requires a non-empty 'validate' array at runtime.");
 		}
 
-		if (isset($rules['sanitize']) && \is_callable($rules['sanitize'])) {
-			$sanitizer = $rules['sanitize'];
-			$once      = $sanitizer($value);
-			$twice     = $sanitizer($once);
-			if ($twice !== $once) {
-				$valStr1      = $this->_stringify_value_for_error($once);
-				$valStr2      = $this->_stringify_value_for_error($twice);
-				$sanitizerStr = $this->_describe_callable($sanitizer);
-				$this->_get_logger()->warning('RegisterOptions: _sanitize_and_validate_option sanitizer not idempotent', array('key' => $normalized_key, 'value' => $value, 'sanitizer' => $sanitizerStr, 'valStr1' => $valStr1, 'valStr2' => $valStr2));
-				throw new \InvalidArgumentException(
-					static::class . ": Sanitizer for option '{$normalized_key}' must be idempotent. First result {$valStr1} differs from second {$valStr2}. Sanitizer {$sanitizerStr}."
-				);
+		// Process sanitizers array
+		if (isset($rules['sanitize']) && is_array($rules['sanitize'])) {
+			foreach ($rules['sanitize'] as $index => $sanitizer) {
+				if (!is_callable($sanitizer)) {
+					$this->_get_logger()->warning('RegisterOptions: _sanitize_and_validate_option runtime non-callable sanitizer', array('key' => $normalized_key, 'index' => $index));
+					throw new \InvalidArgumentException(static::class . ": Schema for key '{$normalized_key}' has non-callable sanitizer at index {$index} at runtime.");
+				}
+
+				// Try new signature first, fall back to old signature for backward compatibility
+				try {
+					$once = $sanitizer($value, function (string $message) use ($normalized_key): void {
+						$this->_record_message($normalized_key, $message, 'notice');
+					});
+					$twice = $sanitizer($once, function (string $message) use ($normalized_key): void {
+						$this->_record_message($normalized_key, $message, 'notice');
+					});
+				} catch (\ArgumentCountError $e) {
+					// Fallback for sanitizers that don't accept callback (like built-in PHP functions)
+					$once  = $sanitizer($value);
+					$twice = $sanitizer($once);
+				}
+
+				if ($twice !== $once) {
+					$valStr1      = $this->_stringify_value_for_error($once);
+					$valStr2      = $this->_stringify_value_for_error($twice);
+					$sanitizerStr = $this->_describe_callable($sanitizer);
+					$this->_get_logger()->warning('RegisterOptions: _sanitize_and_validate_option sanitizer not idempotent', array('key' => $normalized_key, 'value' => $value, 'sanitizer' => $sanitizerStr, 'valStr1' => $valStr1, 'valStr2' => $valStr2));
+					throw new \InvalidArgumentException(
+						static::class . ": Sanitizer for option '{$normalized_key}' at index {$index} must be idempotent. First result {$valStr1} differs from second {$valStr2}. Sanitizer {$sanitizerStr}."
+					);
+				}
+				$value = $once;
 			}
-			$value = $once;
 		}
-		if (isset($rules['validate']) && \is_callable($rules['validate'])) {
-			$validator = $rules['validate'];
-			$valid     = $validator($value);
-			if ($valid !== true && $valid !== false) {
-				$valStr       = $this->_stringify_value_for_error($value);
-				$validatorStr = $this->_describe_callable($validator);
-				$gotType      = gettype($valid);
-				$this->_get_logger()->warning('RegisterOptions: _sanitize_and_validate_option validator returned non-bool', array('key' => $normalized_key, 'value' => $value, 'validator' => $validatorStr, 'gotType' => $gotType));
-				throw new \InvalidArgumentException(
-					static::class . ": Validator for option '{$normalized_key}' must return strict bool; got {$gotType}. Value {$valStr}; validator {$validatorStr}."
-				);
-			}
-			if ($valid !== true) {
-				$valStr       = $this->_stringify_value_for_error($value);
-				$validatorStr = $this->_describe_callable($validator);
-				$this->_get_logger()->warning('RegisterOptions: _sanitize_and_validate_option validation failed', array('key' => $normalized_key, 'value' => $value, 'validator' => $validatorStr));
-				throw new \InvalidArgumentException(
-					static::class . ": Validation failed for option '{$normalized_key}' with value {$valStr} using validator {$validatorStr}."
-				);
+
+		// Process validators array - stop on first failure
+		if (isset($rules['validate']) && is_array($rules['validate'])) {
+			foreach ($rules['validate'] as $index => $validator) {
+				if (!is_callable($validator)) {
+					$this->_get_logger()->warning('RegisterOptions: _sanitize_and_validate_option runtime non-callable validator', array('key' => $normalized_key, 'index' => $index));
+					throw new \InvalidArgumentException(static::class . ": Schema for key '{$normalized_key}' has non-callable validator at index {$index} at runtime.");
+				}
+
+				// Try new signature first, fall back to old signature for backward compatibility
+				$messageRecorded = false;
+				try {
+					$valid = $validator($value, function (string $message) use ($normalized_key, &$messageRecorded): void {
+						$this->_record_message($normalized_key, $message, 'warning');
+						$messageRecorded = true;
+					});
+				} catch (\ArgumentCountError $e) {
+					// Fallback for validators that don't accept callback (like built-in PHP functions)
+					$valid = $validator($value);
+				}
+
+				if ($valid !== true && $valid !== false) {
+					$valStr       = $this->_stringify_value_for_error($value);
+					$validatorStr = $this->_describe_callable($validator);
+					$gotType      = gettype($valid);
+					$this->_get_logger()->warning('RegisterOptions: _sanitize_and_validate_option validator returned non-bool', array('key' => $normalized_key, 'value' => $value, 'validator' => $validatorStr, 'gotType' => $gotType));
+					throw new \InvalidArgumentException(
+						static::class . ": Validator for option '{$normalized_key}' at index {$index} must return strict bool; got {$gotType}. Value {$valStr}; validator {$validatorStr}."
+					);
+				}
+
+				if ($valid !== true) {
+					// Validation failed
+					$valStr       = $this->_stringify_value_for_error($value);
+					$validatorStr = $this->_describe_callable($validator);
+
+					// If no message was recorded via callback (old signature), record a default message
+					if (!$messageRecorded) {
+						$this->_record_message($normalized_key, "Validation failed for value {$valStr}", 'warning');
+					}
+
+					$this->_get_logger()->debug('RegisterOptions: validation failed, stopping validator chain', array('key' => $normalized_key, 'value' => $value, 'validator' => $validatorStr));
+
+					// Stop processing remaining validators and return original value
+					// The caller will check for messages and decide whether to persist
+					return $value;
+				}
+
+				// Early termination on first validator failure - but we already returned above if valid !== true
+				// This comment is for clarity that we stop processing remaining validators on failure
 			}
 		}
 
@@ -1257,6 +1623,52 @@ class RegisterOptions {
 	}
 
 	/**
+	 * Determine if validator callable accepts a warning callback as second parameter.
+	 *
+	 * @param  callable $validator
+	 * @return bool
+	 */
+
+
+	/**
+	 * Record a normalized message for the supplied option key with type classification.
+	 *
+	 * @param  string $normalized_key
+	 * @param  string $message
+	 * @param  string $type Either 'warning' or 'notice'
+	 * @return void
+	 */
+	private function _record_message(string $normalized_key, string $message, string $type = 'warning'): void {
+		$this->_ensure_message_handler();
+		$this->message_handler->add_message($normalized_key, $message, $type);
+	}
+
+	/**
+	 * Record a normalized warning message for the supplied option key.
+	 *
+	 * @deprecated Use _record_message() with type 'warning' instead
+	 * @param  string $normalized_key
+	 * @param  string $message
+	 * @return void
+	 */
+	private function _record_warning(string $normalized_key, string $message): void {
+		$this->_record_message($normalized_key, $message, 'warning');
+	}
+
+	/**
+	 * Ensure the message handler is initialized.
+	 *
+	 * @return void
+	 */
+	private function _ensure_message_handler(): void {
+		if (!isset($this->message_handler)) {
+			$this->message_handler = new FormMessageHandler($this->logger);
+		}
+	}
+
+
+
+	/**
 	 * Normalize external schema map keys to internal normalized option keys.
 	 *
 	 * Note: 'default' is included only when explicitly provided by caller to
@@ -1272,10 +1684,42 @@ class RegisterOptions {
 	protected function _normalize_schema_keys(array $schema): array {
 		$normalized = array();
 		foreach ($schema as $key => $rules) {
-			$nKey  = $this->_do_sanitize_key((string) $key);
+			$nKey = $this->_do_sanitize_key((string) $key);
+
+			// Convert single callables to arrays for backward compatibility
+			$sanitize = $rules['sanitize'] ?? null;
+			if ($sanitize !== null && !is_array($sanitize)) {
+				if (!is_callable($sanitize)) {
+					throw new \InvalidArgumentException("RegisterOptions: Schema for key '{$nKey}' has non-callable 'sanitize'.");
+				}
+				$sanitize = array($sanitize);
+			} elseif (is_array($sanitize)) {
+				// Validate all elements in sanitize array are callable
+				foreach ($sanitize as $index => $sanitizer) {
+					if (!is_callable($sanitizer)) {
+						throw new \InvalidArgumentException("RegisterOptions: Schema for key '{$nKey}' has non-callable sanitizer at index {$index}.");
+					}
+				}
+			}
+
+			$validate = $rules['validate'] ?? null;
+			if ($validate !== null && !is_array($validate)) {
+				if (!is_callable($validate)) {
+					throw new \InvalidArgumentException("RegisterOptions: Schema for key '{$nKey}' has non-callable 'validate'.");
+				}
+				$validate = array($validate);
+			} elseif (is_array($validate)) {
+				// Validate all elements in validate array are callable
+				foreach ($validate as $index => $validator) {
+					if (!is_callable($validator)) {
+						throw new \InvalidArgumentException("RegisterOptions: Schema for key '{$nKey}' has non-callable validator at index {$index}.");
+					}
+				}
+			}
+
 			$entry = array(
-				'sanitize' => $rules['sanitize'] ?? null,
-				'validate' => $rules['validate'] ?? null,
+				'sanitize' => $sanitize,
+				'validate' => $validate,
 			);
 			if (\is_array($rules) && array_key_exists('default', $rules)) {
 				$entry['default'] = $rules['default'];

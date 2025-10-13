@@ -11,8 +11,8 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\Options\Policy;
 use Ran\PluginLib\Options\WriteContext;
-use Ran\PluginLib\Options\Policy\AbstractWritePolicy;
 use Ran\PluginLib\Options\Policy\WritePolicyInterface;
+use Ran\PluginLib\Options\Policy\AbstractWritePolicy;
 
 final class RestrictedDefaultWritePolicy extends AbstractWritePolicy implements WritePolicyInterface {
 	/**
