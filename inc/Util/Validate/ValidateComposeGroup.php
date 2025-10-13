@@ -7,10 +7,10 @@ namespace Ran\PluginLib\Util\Validate;
  * Logical composition helpers for validators.
  *
  * @example $isValid = (Validate::compose()->all(
- *    Validate::basic()->isString(),
- *    Validate::string()->lengthBetween(1, 64)
+ *    Validate::basic()->is_string(),
+ *    Validate::string()->length_between(1, 64)
  *  ))($value);
- * @example $isValid = Validate::compose()->nullable(Validate::basic()->isString(), $value);
+ * @example $isValid = Validate::compose()->nullable(Validate::basic()->is_string(), $value);
  *
  * Dual-mode methods:
  * - nullable(), optional(): with only the validator, return callable; with $value provided, apply immediately
@@ -31,7 +31,7 @@ final class ValidateComposeGroup {
 	 * - Returns true if the input value is null
 	 * - Otherwise, returns the result of `$validator($value)`
 	 *
-	 * @example Validate::compose()->nullable(Validate::basic()->isString())
+	 * @example Validate::compose()->nullable(Validate::basic()->is_string())
 	 *
 	 * @param callable(mixed):bool $validator Validator applied when value is not null
 	 * @param mixed $value Value to validate (optional)
@@ -51,7 +51,7 @@ final class ValidateComposeGroup {
 	 * Behavior:
 	 * - Identical to `nullable($validator)`
 	 *
-	 * @example Validate::compose()->optional(Validate::basic()->isInt())
+	 * @example Validate::compose()->optional(Validate::basic()->is_int())
 	 *
 	 * @param callable(mixed):bool $validator Validator applied when value is not `null`
 	 * @param mixed $value Value to validate (optional)
@@ -73,7 +73,7 @@ final class ValidateComposeGroup {
 	 * - Iterates validators in order; returns true on first `$validator($value) === true`
 	 * - Returns false only if all validators return false
 	 *
-	 * @example Validate::compose()->union(Validate::basic()->isInt(), Validate::basic()->isFloat())
+	 * @example Validate::compose()->union(Validate::basic()->is_int(), Validate::basic()->is_float())
 	 *
 	 * @param callable(mixed):bool ...$validators One or more validators to combine
 	 * @return callable(mixed):bool Closure that returns true if any validator accepts the value
@@ -98,8 +98,8 @@ final class ValidateComposeGroup {
 	 * - Returns true only if every validator returns true
 	 *
 	 * @example Validate::compose()->all(
-	 *   Validate::basic()->isString(),
-	 *   Validate::string()->lengthBetween(1, 64)
+	 *   Validate::basic()->is_string(),
+	 *   Validate::string()->length_between(1, 64)
 	 * )
 	 *
 	 * @param callable(mixed):bool ...$validators One or more validators to combine

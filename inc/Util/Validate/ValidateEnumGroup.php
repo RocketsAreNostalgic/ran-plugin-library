@@ -11,7 +11,7 @@ namespace Ran\PluginLib\Util\Validate;
  * @example $isValid = Validate::enums()->enum([1, 2, 3], $value);
  *
  * @method callable(mixed):bool enum(array $values)
- * @method callable(mixed):bool backed(string $enumClass)
+ * @method callable(mixed):bool backed_enum(string $enumClass)
  * @method callable(mixed):bool unit(string $enumClass)
  */
 final class ValidateEnumGroup {
@@ -37,14 +37,14 @@ final class ValidateEnumGroup {
 	 * PHP 8.1+ backed enum validator (by enum case value).
 	 * Dual-mode: no argument returns a callable; with value, applies immediately.
 	 *
-	 * @example Validate::enums()->backed()($value)
-	 * @example Validate::enums()->backed($value)
+	 * @example Validate::enums()->backed_enum()($value)
+	 * @example Validate::enums()->backed_enum($value)
 	 *
 	 * @param class-string $enumClass Fully-qualified enum class name (backed enum)
 	 * @param mixed $value Optional value to validate immediately
 	 * @return callable(mixed):bool|bool Closure that accepts values present in the enum's ->value set or validation result
 	 */
-	public function backed(string $enumClass, mixed $value = null): callable|bool {
+	public function backed_enum(string $enumClass, mixed $value = null): callable|bool {
 		$fn = static function (mixed $v) use ($enumClass): bool {
 			if (!function_exists('enum_exists') || !enum_exists($enumClass)) {
 				return false;

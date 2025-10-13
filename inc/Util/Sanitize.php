@@ -8,6 +8,7 @@ use Ran\PluginLib\Util\Sanitize\SanitizeArrayGroup;
 use Ran\PluginLib\Util\Sanitize\SanitizeNumberGroup;
 use Ran\PluginLib\Util\Sanitize\SanitizeStringGroup;
 use Ran\PluginLib\Util\Sanitize\SanitizeComposeGroup;
+use  Ran\PluginLib\Util\Sanitize\SanitizeBooleanGroup;
 use Ran\PluginLib\Util\Sanitize\SanitizeCanonicalGroup;
 
 /**
@@ -51,26 +52,38 @@ final class Sanitize {
 	/**
 	 * Access number/boolean sanitizers.
 	 *
-	 * @example  $clean = (Sanitize::number()->toInt())($value);
+	 * @example  $clean = (Sanitize::number()->to_int())($value);
 	 *
 	 * @return \Ran\PluginLib\Util\Sanitize\SanitizeNumberGroup
-	 * @method callable(mixed):mixed toInt()
-	 * @method callable(mixed):mixed toFloat()
-	 * @method callable(mixed):mixed toBoolStrict()
+	 * @method callable(mixed):mixed to_int()
+	 * @method callable(mixed):mixed to_float()
 	 */
 	public static function number(): SanitizeNumberGroup {
 		return new SanitizeNumberGroup();
 	}
 
 	/**
+	 * Access boolean sanitizers.
+	 *
+	 * @example  $clean = (Sanitize::bool()->to_bool())($value);
+	 *
+	 * @return \Ran\PluginLib\Util\Sanitize\SanitizeBooleanGroup
+	 * @method callable(mixed):mixed to_bool()
+	 * @method callable(mixed):mixed to_bool_strict()
+	*/
+	public static function bool(): SanitizeBooleanGroup {
+		return new SanitizeBooleanGroup();
+	}
+
+	/**
 	 * Access array/list/map sanitizers.
 	 *
-	 * @example  $clean = (Sanitize::array()->ensureList())($value);
+	 * @example  $clean = (Sanitize::array()->ensure_list())($value);
 	 *
 	 * @return \Ran\PluginLib\Util\Sanitize\SanitizeArrayGroup
-	 * @method callable(mixed):mixed ensureList()
-	 * @method callable(mixed):mixed uniqueList()
-	 * @method callable(mixed):mixed ksortAssoc()
+	 * @method callable(mixed):mixed ensure_list()
+	 * @method callable(mixed):mixed unique_list()
+	 * @method callable(mixed):mixed ksort_assoc()
 	 */
 	public static function array(): SanitizeArrayGroup {
 		return new SanitizeArrayGroup();
@@ -79,12 +92,12 @@ final class Sanitize {
 	/**
 	 * Access JSON sanitizers.
 	 *
-	 * @example  $clean = (Sanitize::json()->decodeToValue())($value);
+	 * @example  $clean = (Sanitize::json()->decode_to_value())($value);
 	 *
 	 * @return \Ran\PluginLib\Util\Sanitize\SanitizeJsonGroup
-	 * @method callable(mixed):mixed decodeToValue()
-	 * @method callable(mixed):mixed decodeObject()
-	 * @method callable(mixed):mixed decodeArray()
+	 * @method callable(mixed):mixed decode_to_value()
+	 * @method callable(mixed):mixed decode_object()
+	 * @method callable(mixed):mixed decode_array()
 	 */
 	public static function json(): SanitizeJsonGroup {
 		return new SanitizeJsonGroup();
@@ -113,11 +126,11 @@ final class Sanitize {
 	/**
 	 * Access canonicalizers (order-insensitive helpers) as callables.
   	 *
-	 * @example  $clean = (Sanitize::canonical()->orderInsensitiveDeep())($value);
+	 * @example  $clean = (Sanitize::canonical()->order_insensitive_deep())($value);
 	 *
 	 * @return \Ran\PluginLib\Util\Sanitize\SanitizeCanonicalGroup
-	 * @method callable(mixed):mixed orderInsensitiveDeep()
-	 * @method callable(mixed):mixed orderInsensitiveShallow()
+	 * @method callable(mixed):mixed order_insensitive_deep()
+	 * @method callable(mixed):mixed order_insensitive_shallow()
 	 */
 	public static function canonical(): SanitizeCanonicalGroup {
 		return new SanitizeCanonicalGroup();

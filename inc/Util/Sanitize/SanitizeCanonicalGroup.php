@@ -17,18 +17,18 @@ final class SanitizeCanonicalGroup {
 	 *
 	 * Dual-mode: no argument returns a callable; with value, applies immediately.
 	 *
-	 * @example $clean = (Sanitize::canonical()->orderInsensitiveDeep())($value);
-	 * @example $clean = Sanitize::canonical()->orderInsensitiveDeep($value);
+	 * @example $clean = (Sanitize::canonical()->order_insensitive_deep())($value);
+	 * @example $clean = Sanitize::canonical()->order_insensitive_deep($value);
 	 *
 	 * @param mixed $value
 	 * @return callable(mixed):mixed|mixed
 	 */
-	public function orderInsensitiveDeep(mixed $value = null): mixed {
+	public function order_insensitive_deep(mixed $value = null): mixed {
 		// Dual API: no args → return callable; with arg → return normalized value
 		if (func_num_args() === 0) {
 			$that = $this;
 			return static function (mixed $v) use ($that): mixed {
-				return $that->orderInsensitiveDeep($v);
+				return $that->order_insensitive_deep($v);
 			};
 		}
 		// Convert objects to arrays for comparison
@@ -50,7 +50,7 @@ final class SanitizeCanonicalGroup {
 
 		if ($is_list) {
 			// Normalize each element first
-			$normalized = array_map(fn($v) => $this->orderInsensitiveDeep($v), $value);
+			$normalized = array_map(fn($v) => $this->order_insensitive_deep($v), $value);
 			// Stable sort by JSON representation to obtain a canonical order
 			usort($normalized, static function ($a, $b): int {
 				$ja = json_encode($a, JSON_UNESCAPED_UNICODE);
@@ -62,7 +62,7 @@ final class SanitizeCanonicalGroup {
 
 		// Associative map: normalize values and sort by key
 		foreach ($value as $k => $v) {
-			$value[$k] = $this->orderInsensitiveDeep($v);
+			$value[$k] = $this->order_insensitive_deep($v);
 		}
 		ksort($value);
 		return $value;
@@ -76,18 +76,18 @@ final class SanitizeCanonicalGroup {
 	 *
 	 * Dual-mode: no argument returns a callable; with value, applies immediately.
 	 *
-	 * @example $clean = (Sanitize::canonical()->orderInsensitiveShallow())($value);
-	 * @example $clean = Sanitize::canonical()->orderInsensitiveShallow($value);
+	 * @example $clean = (Sanitize::canonical()->order_insensitive_shallow())($value);
+	 * @example $clean = Sanitize::canonical()->order_insensitive_shallow($value);
 	 *
 	 * @param mixed $value
 	 * @return callable(mixed):mixed
 	 */
-	public function orderInsensitiveShallow(mixed $value = null): mixed {
+	public function order_insensitive_shallow(mixed $value = null): mixed {
 		// Dual API: no args → return callable; with arg → return normalized value
 		if (func_num_args() === 0) {
 			$that = $this;
 			return static function (mixed $v) use ($that): mixed {
-				return $that->orderInsensitiveShallow($v);
+				return $that->order_insensitive_shallow($v);
 			};
 		}
 		// Convert objects to arrays for comparison

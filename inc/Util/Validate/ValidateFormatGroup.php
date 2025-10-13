@@ -3,6 +3,8 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\Util\Validate;
 
+use Ran\PluginLib\Util\WPWrappersTrait;
+
 /**
  * Common format validators (email, phone, URL, etc.).
  *
@@ -14,7 +16,7 @@ namespace Ran\PluginLib\Util\Validate;
  * - With a value, methods apply immediately and return bool
  *
  * @method callable(mixed):bool email()
- * @method callable(mixed):bool jsonString()
+ * @method callable(mixed):bool json_string()
  * @method callable(mixed):bool phone()
  * @method callable(mixed):bool url()
  * @method callable(mixed):bool domain()
@@ -22,6 +24,8 @@ namespace Ran\PluginLib\Util\Validate;
  * @method callable(mixed):bool origin()
  */
 final class ValidateFormatGroup {
+	use  WPWrappersTrait;
+
 	/**
 	 * Pragmatic RFC 5322-lite email validator.
 	 * Dual-mode: no argument returns a callable; with value, applies immediately.
@@ -46,7 +50,7 @@ final class ValidateFormatGroup {
 	 * @param mixed $value
 	 * @return callable(mixed):bool|bool
 	 */
-	public function jsonString(mixed $value = null): callable|bool {
+	public function json_string(mixed $value = null): callable|bool {
 		$fn = static function (mixed $v): bool {
 			if (!\is_string($v)) {
 				return false;
@@ -178,6 +182,79 @@ final class ValidateFormatGroup {
 			}
 			return true;
 		};
+		return \func_num_args() === 0 ? $fn : $fn($value);
+	}
+
+	/**
+	 * Validate file extension against WordPress allowed types with optional restrictions.
+	 * Dual-mode: no argument (null) returns a callable; with value, applies immediately.
+	 *
+	 * Accepts simple strings, URLs and file paths or null.
+	 *
+	 * If no restrictions provided, it uses WordPress default allowed file extensions.
+	 * If restrictions provided, validates that all restrictions are in WordPress allowed list and retuns a subset of the two.
+	 * Extensions in allowedExtensions that are not also in WordPress allowed list, will return false.
+	 *
+	 * @example Validate::format()->file_extension($value) // Uses WordPress defaults
+	 * @example Validate::format()->file_extension($value, ['png', 'jpg']) // Restrict to images
+	 * @example (Validate::format()->file_extension())($value) // Callable with WordPress defaults
+	 * @example (Validate::format()->file_extension(null, ['png', 'jpg']))($value) // Callable with subset
+	 *
+	 * @uses wp_get_mime_types()
+	 *
+	 * @param mixed $value Optional value to validate immediately
+	 * @param ?array $allowedExtensions Optional array of allowed extensions to restrict WordPress defaults
+	 *
+	 * @return callable(mixed):bool|bool
+	 */
+	public function file_extension(mixed $value = null, ?array $allowedExtensions = null): callable|bool {
+		$fn = static function (mixed $v) use ($allowedExtensions): bool {
+			if (!\is_string($v) || empty($v)) {
+				return false;
+			}
+
+			// Extract file extension from path or URL
+			$filePath = $v;
+			if (str_contains($v, '://') || str_starts_with($v, '//')) {
+				$parsedUrl = parse_url($v);
+				$filePath  = $parsedUrl['path'] ?? '';
+			}
+
+			$extension = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
+			if (empty($extension)) {
+				return false;
+			}
+
+			// Get WordPress allowed extensions using the trait wrapper
+			(array) $mimeTypes = WPWrappersTrait::_do_get_allowed_mime_types();
+			$wordpressAllowed  = array();
+
+			foreach ($mimeTypes as $exts => $mime) {
+				$extList = explode('|', $exts);
+				foreach ($extList as $ext) {
+					$wordpressAllowed[] = strtolower(trim($ext));
+				}
+			}
+			$wordpressAllowed = array_unique($wordpressAllowed);
+
+			// If no restrictions provided, use WordPress defaults
+			if ($allowedExtensions === null) {
+				return in_array($extension, $wordpressAllowed, true);
+			}
+
+			// Normalize custom extensions to lowercase
+			$customExtensions = array_map('strtolower', array_map('trim', $allowedExtensions));
+
+			// Validate that all custom extensions are in WordPress allowed list
+			$invalidExtensions = array_diff($customExtensions, $wordpressAllowed);
+			if (!empty($invalidExtensions)) {
+				return false; // Custom extensions not allowed by WordPress
+			}
+
+			// Check if file extension is in the restricted list
+			return in_array($extension, $customExtensions, true);
+		};
+
 		return \func_num_args() === 0 ? $fn : $fn($value);
 	}
 }

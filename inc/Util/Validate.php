@@ -9,14 +9,15 @@ use Ran\PluginLib\Util\Validate\ValidateFormatGroup;
 use Ran\PluginLib\Util\Validate\ValidateNumberGroup;
 use Ran\PluginLib\Util\Validate\ValidateStringGroup;
 use Ran\PluginLib\Util\Validate\ValidateComposeGroup;
+use Ran\PluginLib\Util\Validate\ValidateTemporalGroup;
 use Ran\PluginLib\Util\Validate\ValidateCollectionGroup;
 
 /**
  * Validation utilities for schema-driven option values.
  *
  * What this provides (built-ins):
- * - Type predicates: isBool, isInt, isFloat, isString, isArray, isObject, isNull, isScalar, isNumeric,
- *   isCountable, isNullable, isCallable (and corresponding negative helpers for a few cases)
+ * - Type predicates: is_bool, is_int, isFloat, is_String, is_array, is_object, is_null, is_scalar, is_numeric,
+ *   is_countable, is_nullable, is_callable (and corresponding negative helpers for a few cases)
  * - Type maps: validatorForType('string'|'int'|...) and validateByType($value, 'int')
  * - Simple default inspection: inferSimpleTypeFromValue($default)
  *
@@ -25,7 +26,7 @@ use Ran\PluginLib\Util\Validate\ValidateCollectionGroup;
  *  $schema = [
  *    'enabled' => [
  *      'default'  => false,
- *      'validate' => [Validate::class, 'isBool'],
+ *      'validate' => [Validate::class, 'is_bool'],
  *    ],
  *    'name' => [
  *      'default'  => 'demo',
@@ -33,7 +34,7 @@ use Ran\PluginLib\Util\Validate\ValidateCollectionGroup;
  *    ],
  *    'timeout' => [
  *      'default'  => 30,
- *      'validate' => [Validate::class, 'isInt'],
+ *      'validate' => [Validate::class, 'is_int'],
  *    ],
  *  ];
  *
@@ -49,14 +50,14 @@ use Ran\PluginLib\Util\Validate\ValidateCollectionGroup;
  *
  * ///Chain validators and invoke the resulting callable on a value
  * $isValid = (Validate::compose()->all(
- *    Validate::basic()->isString(),
- *    Validate::string()->lengthBetween(1, 64)
+ *    Validate::basic()->is_string(),
+ *    Validate::string()->length_between(1, 64)
  *  ))($value);
  *
 * @example
  *  /// Numeric range
  *  $isPort = (Validate::compose()->all(
- *    Validate::basic()->isInt(),
+ *    Validate::basic()->is_int(),
  *    Validate::number()->between(1, 65535)
  *  ))($port);
  *
@@ -70,6 +71,7 @@ use Ran\PluginLib\Util\Validate\ValidateCollectionGroup;
  * @method static ValidateEnumGroup enums()
  * @method static ValidateComposeGroup compose()
  * @method static ValidateFormatGroup format()
+ * @method static ValidateTemporalGroup temporal()
  */
 final class Validate {
 	/**
@@ -134,19 +136,19 @@ final class Validate {
 	/**
 	 * Access basic predicate validators (type checks) as callables.
 	 * @return \Ran\PluginLib\Util\Validate\ValidateBasicGroup
- 	 * @method callable(mixed):bool isBool()
- 	 * @method callable(mixed):bool isInt()
- 	 * @method callable(mixed):bool isFloat()
- 	 * @method callable(mixed):bool isString()
- 	 * @method callable(mixed):bool isArray()
- 	 * @method callable(mixed):bool isObject()
- 	 * @method callable(mixed):bool isNull()
- 	 * @method callable(mixed):bool isScalar()
- 	 * @method callable(mixed):bool isNumeric()
- 	 * @method callable(mixed):bool isNullable()
- 	 * @method callable(mixed):bool isCallable()
- 	 * @method callable(mixed):bool isEmpty()
- 	 * @method callable(mixed):bool isNotEmpty()
+ 	 * @method callable(mixed):bool is_bool()
+ 	 * @method callable(mixed):bool is_int()
+ 	 * @method callable(mixed):bool is_float()
+ 	 * @method callable(mixed):bool is_string()
+ 	 * @method callable(mixed):bool is_array()
+ 	 * @method callable(mixed):bool is_object()
+ 	 * @method callable(mixed):bool is_null()
+ 	 * @method callable(mixed):bool is_scalar()
+ 	 * @method callable(mixed):bool is_numeric()
+ 	 * @method callable(mixed):bool is_nullable()
+ 	 * @method callable(mixed):bool is_callable()
+ 	 * @method callable(mixed):bool is_empty()
+ 	 * @method callable(mixed):bool is_not_empty()
 	 */
 	public static function basic(): ValidateBasicGroup {
 		return new ValidateBasicGroup();
@@ -169,12 +171,12 @@ final class Validate {
 	/**
 	 * Access string constraint validators.
 	 *
-	 * @example $isValid = (Validate::string()->minLength(1))($value);
+	 * @example $isValid = (Validate::string()->min_length(1))($value);
 	 *
 	 * @return \Ran\PluginLib\Util\Validate\ValidateStringGroup
 	 * @method callable(mixed):bool minLength(int $n)
 	 * @method callable(mixed):bool maxLength(int $n)
-	 * @method callable(mixed):bool lengthBetween(int $min, int $max)
+	 * @method callable(mixed):bool length_between(int $min, int $max)
 	 * @method callable(mixed):bool pattern(string $regex)
 	 */
 	public static function string(): ValidateStringGroup {
@@ -185,7 +187,7 @@ final class Validate {
 	 * Access collection and shape validators.
 	 *
 	 * @example $isValid = (Validate::collection()->shape([
-	 *     'name' => Validate::string()->minLength(1),
+	 *     'name' => Validate::string()->min_length(1),
 	 *     'age' => Validate::number()->min(0),
 	 * ]))($value);
 	 *
@@ -209,7 +211,7 @@ final class Validate {
 	 *
 	 * @return \Ran\PluginLib\Util\Validate\ValidateEnumGroup
 	 * @method callable(mixed):bool enum(array $values)
-	 * @method callable(mixed):bool backed(string $enumClass)
+	 * @method callable(mixed):bool backed_enum(string $enumClass)
 	 * @method callable(mixed):bool unit(string $enumClass)
 	 */
 	public static function enums(): ValidateEnumGroup {
@@ -220,8 +222,8 @@ final class Validate {
 	 * Access composition helpers (logical combinators) for validators.
 	 *
 	 * @example $isValid = (Validate::compose()->all(
-	 *    Validate::basic()->isString(),
-	 *    Validate::string()->lengthBetween(1, 64)
+	 *    Validate::basic()->is_string(),
+	 *    Validate::string()->length_between(1, 64)
 	 *  ))($value);
 	 *
 	 * @return \Ran\PluginLib\Util\Validate\ValidateComposeGroup
@@ -242,7 +244,7 @@ final class Validate {
 	 *
 	 * @return \Ran\PluginLib\Util\Validate\ValidateFormatGroup
 	 * @method callable(mixed):bool email()
-	 * @method callable(mixed):bool jsonString()
+	 * @method callable(mixed):bool json_string()
 	 * @method callable(mixed):bool phone()
 	 * @method callable(mixed):bool url()
 	 * @method callable(mixed):bool domain()
@@ -251,5 +253,16 @@ final class Validate {
 	 */
 	public static function format(): ValidateFormatGroup {
 		return new ValidateFormatGroup();
+	}
+
+	/**
+	 * Access temporal validators (date, time, datetime).
+	 *
+	 * Provides helpers like `date()`, `time()`, `datetime()`, and `custom_datetime()`.
+	 *
+	 * @return \Ran\PluginLib\Util\Validate\ValidateTemporalGroup
+	 */
+	public static function temporal(): ValidateTemporalGroup {
+		return new ValidateTemporalGroup();
 	}
 }

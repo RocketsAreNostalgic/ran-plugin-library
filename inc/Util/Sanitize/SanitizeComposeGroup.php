@@ -33,8 +33,8 @@ final class SanitizeComposeGroup {
 	 * Apply a sanitizer only when value is not null; pass-through null.
 	 * Dual-mode: no argument returns a callable; with value, applies immediately.
 	 *
-	 * @example $clean = (Sanitize::compose()->nullable(Sanitize::basic()->isString()))($value);
-	 * @example $clean = Sanitize::compose()->nullable(Sanitize::basic()->isString(), $value);
+	 * @example $clean = (Sanitize::compose()->nullable(Sanitize::basic()->is_string()))($value);
+	 * @example $clean = Sanitize::compose()->nullable(Sanitize::basic()->is_string(), $value);
 	 *
 	 * @param callable(mixed):mixed $sanitizer
 	 * @param mixed $value
@@ -55,8 +55,8 @@ final class SanitizeComposeGroup {
 	 * Alias of nullable(...) for ergonomics; null is treated as absent and passed through.
 	 * Dual-mode: no argument returns a callable; with value, applies immediately.
 	 *
-	 * @example $clean = (Sanitize::compose()->optional(Sanitize::basic()->isString()))($value);
-	 * @example $clean = Sanitize::compose()->optional(Sanitize::basic()->isString(), $value);
+	 * @example $clean = (Sanitize::compose()->optional(Sanitize::basic()->is_string()))($value);
+	 * @example $clean = Sanitize::compose()->optional(Sanitize::basic()->is_string(), $value);
 	 *
 	 * @param callable(mixed):mixed $sanitizer
 	 * @param mixed $value
@@ -76,8 +76,8 @@ final class SanitizeComposeGroup {
 	 * Conditionally apply a sanitizer when predicate returns true; otherwise pass-through.
 	 * Dual-mode: no argument returns a callable; with value, applies immediately.
 	 *
-	 * @example $clean = (Sanitize::compose()->when(Sanitize::basic()->isString(), Sanitize::basic()->isString()))($value);
-	 * @example $clean = Sanitize::compose()->when(Sanitize::basic()->isString(), Sanitize::basic()->isString(), $value);
+	 * @example $clean = (Sanitize::compose()->when(Sanitize::basic()->is_string(), Sanitize::basic()->is_string()))($value);
+	 * @example $clean = Sanitize::compose()->when(Sanitize::basic()->is_string(), Sanitize::basic()->is_string(), $value);
 	 *
 	 * @param callable(mixed):bool   $predicate Pure predicate receiving the current value
 	 * @param callable(mixed):mixed  $sanitizer Sanitizer to apply when predicate is true
@@ -96,8 +96,8 @@ final class SanitizeComposeGroup {
 	 * Conditionally apply a sanitizer when predicate returns false; otherwise pass-through.
 	 * Dual-mode: no argument returns a callable; with value, applies immediately.
 	 *
-	 * @example $clean = (Sanitize::compose()->unless(Sanitize::basic()->isString(), Sanitize::basic()->isString()))($value);
-	 * @example $clean = Sanitize::compose()->unless(Sanitize::basic()->isString(), Sanitize::basic()->isString(), $value);
+	 * @example $clean = (Sanitize::compose()->unless(Sanitize::basic()->is_string(), Sanitize::basic()->is_string()))($value);
+	 * @example $clean = Sanitize::compose()->unless(Sanitize::basic()->is_string(), Sanitize::basic()->is_string(), $value);
 	 *
 	 * @param callable(mixed):bool   $predicate Pure predicate receiving the current value
 	 * @param callable(mixed):mixed  $sanitizer Sanitizer to apply when predicate is false
