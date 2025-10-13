@@ -3,7 +3,7 @@
  * ExpectLogTrait.php
  *
  * @package Ran\PluginLib\Util
- * @author  Ran Plugin Lib <support@ran.org>
+ * @author  Ran Plugin Lib <bnjmnrsh@gmail.com>
  * @license GPL-2.0+ <http://www.gnu.org/licenses/gpl-2.0.txt>
  * @link    https://github.com/RocketsAreNostalgic
  * @since   0.1.0
@@ -14,13 +14,7 @@ declare(strict_types = 1);
 namespace Ran\PluginLib\Util;
 
 /**
- * ExpectLogTrait.php
- *
- * @package Ran\PluginLib\Util
- * @author  Ran Plugin Lib <support@ran.org>
- * @license GPL-2.0+ <http://www.gnu.org/licenses/gpl-2.0.txt>
- * @link    https://github.com/RocketsAreNostalgic
- * @since   0.1.0
+ * A trait containing a helper method for verifying log messages in tests.
  */
 trait ExpectLogTrait {
 	/**
