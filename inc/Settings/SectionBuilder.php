@@ -16,6 +16,7 @@ namespace Ran\PluginLib\Settings;
 use Ran\PluginLib\Settings\SectionGroupBuilder;
 use Ran\PluginLib\Settings\SectionBuilderInterface;
 use Ran\PluginLib\Settings\CollectionBuilderInterface;
+use Ran\PluginLib\Settings\AdminSettingsInterface;
 use Ran\PluginLib\Forms\Component\Build\BuilderDefinitionInterface;
 
 class SectionBuilder implements SectionBuilderInterface {
@@ -33,6 +34,8 @@ class SectionBuilder implements SectionBuilderInterface {
 	/** @var callable */
 	private $onSectionCommit;
 	private bool $committed = false;
+	/** @var array<string, string> Template overrides for this section */
+	private array $template_overrides = array();
 
 	/**
 	 * @param callable $onAddSection          function(string $collection, string $section, string $title, ?callable $desc, ?int $order): void
@@ -128,6 +131,42 @@ class SectionBuilder implements SectionBuilderInterface {
 	}
 
 	/**
+	 * Set the section template for section container customization.
+	 *
+	 * @param string $template_key The template key to use for section container.
+	 *
+	 * @return SectionBuilder The SectionBuilder instance.
+	 */
+	public function section_template(string $template_key): self {
+		$this->template_overrides['section'] = $template_key;
+		return $this;
+	}
+
+	/**
+	 * Set the group template for group container styling.
+	 *
+	 * @param string $template_key The template key to use for group containers.
+	 *
+	 * @return SectionBuilder The SectionBuilder instance.
+	 */
+	public function group_template(string $template_key): self {
+		$this->template_overrides['group'] = $template_key;
+		return $this;
+	}
+
+	/**
+	 * Set the field template for field wrapper customization.
+	 *
+	 * @param string $template_key The template key to use for field wrappers.
+	 *
+	 * @return SectionBuilder The SectionBuilder instance.
+	 */
+	public function field_template(string $template_key): self {
+		$this->template_overrides['field-wrapper'] = $template_key;
+		return $this;
+	}
+
+	/**
 	 * Return to the CollectionBuilder.
 	 *
 	 * @return CollectionBuilderInterface The CollectionBuilder instance.
@@ -147,12 +186,66 @@ class SectionBuilder implements SectionBuilderInterface {
 	}
 
 	/**
+	 * Apply template overrides to the AdminSettings instance.
+	 */
+	private function _apply_template_overrides(): void {
+		if (!empty($this->template_overrides)) {
+			// Get AdminSettings instance through the collection builder
+			$admin_settings = $this->get_admin_settings();
+			if ($admin_settings instanceof AdminSettingsInterface) {
+				$admin_settings->set_section_template_overrides($this->section_id, $this->template_overrides);
+			}
+		}
+	}
+
+	/**
+	 * Get the AdminSettings instance from the collection builder.
+	 *
+	 * @return AdminSettingsInterface
+	 */
+	public function get_admin_settings(): AdminSettingsInterface {
+		// For AdminSettingsPageBuilder, we can access through reflection
+		if ($this->collectionBuilder instanceof \Ran\PluginLib\Settings\AdminSettingsPageBuilder) {
+			return $this->collectionBuilder->get_admin_settings();
+		}
+
+		// For other collection builders, we need to find another way
+		// This is a fallback that should work for most cases
+		$reflection = new \ReflectionClass($this->collectionBuilder);
+
+		// Try to find a property that holds the AdminSettings instance
+		$properties = array('admin_settings', 'settings', 'group');
+		foreach ($properties as $prop_name) {
+			if ($reflection->hasProperty($prop_name)) {
+				$property = $reflection->getProperty($prop_name);
+				$property->setAccessible(true);
+				$value = $property->getValue($this->collectionBuilder);
+
+				if ($value instanceof AdminSettingsInterface) {
+					return $value;
+				}
+
+				// If it's a group builder, try to get settings from it
+				if ($value && method_exists($value, 'get_admin_settings')) {
+					return $value->get_admin_settings();
+				}
+			}
+		}
+
+		throw new \RuntimeException('Unable to access AdminSettings instance from collection builder');
+	}
+
+	/**
 	 * Commit buffered data.
 	 */
 	private function _commit(): void {
 		if ($this->committed) {
 			return;
 		}
+
+		// Apply template overrides before committing
+		$this->_apply_template_overrides();
+
 		($this->onSectionCommit)($this->collection_slug, $this->section_id);
 		$this->committed = true;
 	}
