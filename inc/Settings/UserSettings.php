@@ -63,6 +63,15 @@ class UserSettings implements UserSettingsInterface {
 	private string $base_storage;
 	private bool $base_global;
 
+	/** @var array<string, array<string, string>> Template overrides by collection ID and template type */
+	private array $collection_template_overrides = array();
+
+	/** @var array<string, array<string, string>> Template overrides by section ID and template type */
+	private array $section_template_overrides = array();
+
+	/** @var array<string, string> Default template overrides for this UserSettings instance */
+	private array $default_template_overrides = array();
+
 	/**
 	 * $collections accumulates pending collections prior to WordPress hook registration.
 	 * This is the functional equivalent of $menu_groups of $pages in AdminSettings.
@@ -139,6 +148,13 @@ class UserSettings implements UserSettingsInterface {
 			'section'            => 'user.section',
 			'collection-wrapper' => 'user.collection-wrapper'
 		));
+
+		// Set table-optimized defaults for UserSettings
+		$this->default_template_overrides = array(
+			'collection-wrapper' => 'user.collection-wrapper',
+			'section'            => 'user.section',
+			'field-wrapper'      => 'user.field-row',
+		);
 
 		$this->start_form_session();
 	}
@@ -787,5 +803,155 @@ class UserSettings implements UserSettingsInterface {
 			'warnings' => array(),
 			'notices'  => array(),
 		);
+	}
+
+	/**
+	 * Set template overrides for a specific collection.
+	 *
+	 * @param string $collection_id The collection ID.
+	 * @param array<string, string> $template_overrides Template overrides map.
+	 *
+	 * @return void
+	 */
+	public function set_collection_template_overrides(string $collection_id, array $template_overrides): void {
+		$this->collection_template_overrides[$collection_id] = $template_overrides;
+		$this->logger->debug('UserSettings: Collection template overrides set', array(
+			'collection_id' => $collection_id,
+			'overrides'     => array_keys($template_overrides)
+		));
+	}
+
+	/**
+	 * Set template overrides for a specific section.
+	 *
+	 * @param string $section_id The section ID.
+	 * @param array<string, string> $template_overrides Template overrides map.
+	 *
+	 * @return void
+	 */
+	public function set_section_template_overrides(string $section_id, array $template_overrides): void {
+		$this->section_template_overrides[$section_id] = $template_overrides;
+		$this->logger->debug('UserSettings: Section template overrides set', array(
+			'section_id' => $section_id,
+			'overrides'  => array_keys($template_overrides)
+		));
+	}
+
+	/**
+	 * Set default template overrides for this UserSettings instance.
+	 *
+	 * @param array<string, string> $template_overrides Template overrides map.
+	 *
+	 * @return void
+	 */
+	public function set_default_template_overrides(array $template_overrides): void {
+		$this->default_template_overrides = array_merge($this->default_template_overrides, $template_overrides);
+		$this->logger->debug('UserSettings: Default template overrides set', array(
+			'overrides' => array_keys($template_overrides)
+		));
+	}
+
+	/**
+	 * Resolve template with hierarchical fallback for UserSettings context.
+	 *
+	 * @param string $template_type The template type (e.g., 'field-wrapper', 'section', 'collection-wrapper').
+	 * @param array<string, mixed> $context Additional context for template resolution.
+	 *
+	 * @return string The resolved template key.
+	 */
+	public function resolve_template(string $template_type, array $context = array()): string {
+		// 1. Check field-level override
+		if (isset($context['field_template_override'])) {
+			return $context['field_template_override'];
+		}
+
+		// 2. Check section-level override
+		if (isset($context['section_id']) && isset($this->section_template_overrides[$context['section_id']][$template_type])) {
+			return $this->section_template_overrides[$context['section_id']][$template_type];
+		}
+
+		// 3. Check collection-level override
+		if (isset($context['collection_id']) && isset($this->collection_template_overrides[$context['collection_id']][$template_type])) {
+			return $this->collection_template_overrides[$context['collection_id']][$template_type];
+		}
+
+		// 4. Check class instance defaults
+		if (isset($this->default_template_overrides[$template_type])) {
+			return $this->default_template_overrides[$template_type];
+		}
+
+		// 5. Global system defaults for UserSettings (table-optimized)
+		return $this->get_system_default_template($template_type);
+	}
+
+	/**
+	 * Get system default template for UserSettings context.
+	 *
+	 * @param string $template_type The template type.
+	 *
+	 * @return string The default template key.
+	 */
+	private function get_system_default_template(string $template_type): string {
+		$defaults = array(
+			'collection-wrapper' => 'user.collection-wrapper',
+			'section'            => 'user.section',
+			'field-wrapper'      => 'user.field-row',
+		);
+		return $defaults[$template_type] ?? 'user.field-row';
+	}
+
+	/**
+	 * Get default template overrides for this UserSettings instance.
+	 *
+	 * @return array<string, string>
+	 */
+	public function get_default_template_overrides(): array {
+		return $this->default_template_overrides;
+	}
+
+	/**
+	 * Get collection template overrides for a specific collection.
+	 *
+	 * @param string $collection_id The collection ID.
+	 *
+	 * @return array<string, string>
+	 */
+	public function get_collection_template_overrides(string $collection_id): array {
+		return $this->collection_template_overrides[$collection_id] ?? array();
+	}
+
+	/**
+	 * Get section template overrides for a specific section.
+	 *
+	 * @param string $section_id The section ID.
+	 *
+	 * @return array<string, string>
+	 */
+	public function get_section_template_overrides(string $section_id): array {
+		return $this->section_template_overrides[$section_id] ?? array();
+	}
+
+	/**
+	 * Validate a template override key.
+	 *
+	 * @param string $template_key The template key to validate.
+	 * @param string $template_type The template type for context.
+	 *
+	 * @return bool True if valid, false otherwise.
+	 */
+	public function validate_template_override(string $template_key, string $template_type): bool {
+		// Check if template exists in ComponentLoader
+		try {
+			// Try to render with empty context to check if template exists
+			$this->views->render($template_key, array());
+			return true;
+		} catch (\LogicException $e) {
+			$this->logger->warning('UserSettings: Invalid template override', array(
+				'template_key'  => $template_key,
+				'template_type' => $template_type,
+				'error'         => $e->getMessage()
+			));
+			return false;
+		}
 	}
 }

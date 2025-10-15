@@ -14,6 +14,7 @@ declare(strict_types=1);
 namespace Ran\PluginLib\Settings;
 
 use Ran\PluginLib\Settings\CollectionBuilderInterface;
+use Ran\PluginLib\Settings\UserSettingsSectionBuilder;
 use Ran\PluginLib\Forms\Component\Build\BuilderDefinitionInterface;
 
 /**
@@ -43,6 +44,9 @@ final class UserSettingsCollectionBuilder implements CollectionBuilderInterface 
 	/** @var array<string, SectionBuilder> */
 	private array $active_sections = array();
 	private bool $committed        = false;
+
+	/** @var array<string, string> Template overrides for this collection */
+	private array $template_overrides = array();
 
 	/**
 	 * Constructor.
@@ -205,7 +209,7 @@ final class UserSettingsCollectionBuilder implements CollectionBuilderInterface 
 			$this->fields[$sid][] = $field;
 		};
 
-		$builder = new SectionBuilder(
+		$builder = new UserSettingsSectionBuilder(
 			$this,
 			$this->page_id,
 			$section_id,
@@ -222,6 +226,22 @@ final class UserSettingsCollectionBuilder implements CollectionBuilderInterface 
 		);
 		$this->active_sections[$section_id] = $builder;
 		return $builder;
+	}
+
+	/**
+	 * Set the collection template for collection-level wrapper overrides.
+	 *
+	 * @param string $template_key The template key to use for collection wrapper.
+	 *
+	 * @return UserSettingsCollectionBuilder The UserSettingsCollectionBuilder instance.
+	 * @throws \InvalidArgumentException If template key is empty.
+	 */
+	public function collection_template(string $template_key): self {
+		if (trim($template_key) === '') {
+			throw new \InvalidArgumentException('Template key cannot be empty');
+		}
+		$this->template_overrides['collection-wrapper'] = $template_key;
+		return $this;
 	}
 
 	/**
@@ -244,12 +264,28 @@ final class UserSettingsCollectionBuilder implements CollectionBuilderInterface 
 	}
 
 	/**
+	 * Apply template overrides to the UserSettings instance.
+	 */
+	private function _apply_template_overrides(): void {
+		if (!empty($this->template_overrides)) {
+			// Get UserSettings instance and apply collection template overrides
+			if ($this->settings instanceof \Ran\PluginLib\Settings\UserSettings) {
+				$this->settings->set_collection_template_overrides($this->page_id, $this->template_overrides);
+			}
+		}
+	}
+
+	/**
 	 * Commit buffered data.
 	 */
 	private function _commit(): void {
 		if ($this->committed) {
 			return;
 		}
+
+		// Apply template overrides before committing
+		$this->_apply_template_overrides();
+
 		foreach ($this->active_sections as $builder) {
 			$builder->end_section();
 		}
