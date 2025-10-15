@@ -46,6 +46,8 @@ final class AdminSettingsPageBuilder implements CollectionBuilderInterface {
 	/** @var array<string, SectionBuilder> */
 	private array $active_sections = array();
 	private bool $committed        = false;
+	/** @var array<string, string> Template overrides for this page */
+	private array $template_overrides = array();
 
 	/**
 	 * Constructor.
@@ -127,6 +129,42 @@ final class AdminSettingsPageBuilder implements CollectionBuilderInterface {
 	 */
 	public function order(?int $order): self {
 		$this->meta['order'] = $order;
+		return $this;
+	}
+
+	/**
+	 * Set the page template for complete page layout control.
+	 *
+	 * @param string $template_key The template key to use for page layout.
+	 *
+	 * @return AdminSettingsPageBuilder The AdminSettingsPageBuilder instance.
+	 */
+	public function page_template(string $template_key): self {
+		$this->template_overrides['page'] = $template_key;
+		return $this;
+	}
+
+	/**
+	 * Set the default field template for all fields in this page.
+	 *
+	 * @param string $template_key The template key to use for field wrappers.
+	 *
+	 * @return AdminSettingsPageBuilder The AdminSettingsPageBuilder instance.
+	 */
+	public function default_field_template(string $template_key): self {
+		$this->template_overrides['field-wrapper'] = $template_key;
+		return $this;
+	}
+
+	/**
+	 * Set the default section template for all sections in this page.
+	 *
+	 * @param string $template_key The template key to use for section containers.
+	 *
+	 * @return AdminSettingsPageBuilder The AdminSettingsPageBuilder instance.
+	 */
+	public function default_section_template(string $template_key): self {
+		$this->template_overrides['section'] = $template_key;
 		return $this;
 	}
 
@@ -291,12 +329,42 @@ final class AdminSettingsPageBuilder implements CollectionBuilderInterface {
 	}
 
 	/**
+	 * Apply template overrides to the AdminSettings instance.
+	 */
+	private function _apply_template_overrides(): void {
+		if (!empty($this->template_overrides)) {
+			// Get AdminSettings instance through the group without committing
+			$admin_settings = $this->get_admin_settings();
+			if ($admin_settings instanceof AdminSettingsInterface) {
+				$admin_settings->set_page_template_overrides($this->page_slug, $this->template_overrides);
+			}
+		}
+	}
+
+	/**
+	 * Get the AdminSettings instance from the group builder.
+	 *
+	 * @return AdminSettingsInterface
+	 */
+	public function get_admin_settings(): AdminSettingsInterface {
+		// Access the settings instance through reflection to avoid committing the group
+		$reflection = new \ReflectionClass($this->group);
+		$property   = $reflection->getProperty('settings');
+		$property->setAccessible(true);
+		return $property->getValue($this->group);
+	}
+
+	/**
 	 * Commit the page to the menu group.
 	 */
 	private function _commit(): void {
 		if ($this->committed) {
 			return;
 		}
+
+		// Apply template overrides before committing
+		$this->_apply_template_overrides();
+
 		foreach ($this->active_sections as $builder) {
 			$builder->end_section();
 		}

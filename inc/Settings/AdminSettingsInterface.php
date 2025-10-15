@@ -38,4 +38,53 @@ interface AdminSettingsInterface extends SettingsInterface {
 	 * @return void
 	 */
 	public function render_page(string $page_id_or_slug, ?array $context = null): void;
+
+	/**
+	 * Set template overrides for a specific page.
+	 *
+	 * @param string $page_slug The page slug.
+	 * @param array<string, string> $template_overrides Template overrides keyed by template type.
+	 *
+	 * @return void
+	 */
+	public function set_page_template_overrides(string $page_slug, array $template_overrides): void;
+
+	/**
+	 * Set template overrides for a specific section.
+	 *
+	 * @param string $section_id The section ID.
+	 * @param array<string, string> $template_overrides Template overrides keyed by template type.
+	 *
+	 * @return void
+	 */
+	public function set_section_template_overrides(string $section_id, array $template_overrides): void;
+
+	/**
+	 * Set default template overrides for this AdminSettings instance.
+	 *
+	 * @param array<string, string> $template_overrides Template overrides keyed by template type.
+	 *
+	 * @return void
+	 */
+	public function set_default_template_overrides(array $template_overrides): void;
+
+	/**
+	 * Resolve template with hierarchical fallback.
+	 *
+	 * @param string $template_type The template type.
+	 * @param array<string, mixed> $context Resolution context.
+	 *
+	 * @return string The resolved template key.
+	 */
+	public function resolve_template(string $template_type, array $context = array()): string;
+
+	/**
+	 * Validate template override and provide error handling.
+	 *
+	 * @param string $template_key The template key to validate.
+	 * @param string $template_type The template type for context.
+	 *
+	 * @return bool True if valid, false otherwise.
+	 */
+	public function validate_template_override(string $template_key, string $template_type): bool;
 }

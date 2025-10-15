@@ -76,6 +76,15 @@ class AdminSettings implements AdminSettingsInterface {
 	/** @var array<string,array<string,array{group_id:string,fields:array<int,array{id:string,label:string,component:string,component_context:array<string,mixed>,order:int,index:int}>,before:?callable,after:?callable,order:int,index:int}>> */
 	private array $groups = array();
 
+	/** @var array<string, array<string, string>> Template overrides by page slug and template type */
+	private array $page_template_overrides = array();
+
+	/** @var array<string, array<string, string>> Template overrides by section ID and template type */
+	private array $section_template_overrides = array();
+
+	/** @var array<string, string> Default template overrides for this AdminSettings instance */
+	private array $default_template_overrides = array();
+
 	private int $__section_index = 0;
 	private int $__field_index   = 0;
 	private int $__group_index   = 0;
@@ -651,6 +660,223 @@ class AdminSettings implements AdminSettingsInterface {
 	}
 
 	/**
+	 * Set template overrides for a specific page.
+	 *
+	 * @param string $page_slug The page slug.
+	 * @param array<string, string> $template_overrides Template overrides keyed by template type.
+	 *
+	 * @return void
+	 */
+	public function set_page_template_overrides(string $page_slug, array $template_overrides): void {
+		$this->page_template_overrides[$page_slug] = $template_overrides;
+		$this->logger->debug('AdminSettings: Page template overrides set', array(
+			'page_slug' => $page_slug,
+			'overrides' => $template_overrides
+		));
+	}
+
+	/**
+	 * Get template overrides for a specific page.
+	 *
+	 * @param string $page_slug The page slug.
+	 *
+	 * @return array<string, string>
+	 */
+	public function get_page_template_overrides(string $page_slug): array {
+		return $this->page_template_overrides[$page_slug] ?? array();
+	}
+
+	/**
+	 * Set template overrides for a specific section.
+	 *
+	 * @param string $section_id The section ID.
+	 * @param array<string, string> $template_overrides Template overrides keyed by template type.
+	 *
+	 * @return void
+	 */
+	public function set_section_template_overrides(string $section_id, array $template_overrides): void {
+		$this->section_template_overrides[$section_id] = $template_overrides;
+		$this->logger->debug('AdminSettings: Section template overrides set', array(
+			'section_id' => $section_id,
+			'overrides'  => $template_overrides
+		));
+	}
+
+	/**
+	 * Get template overrides for a specific section.
+	 *
+	 * @param string $section_id The section ID.
+	 *
+	 * @return array<string, string>
+	 */
+	public function get_section_template_overrides(string $section_id): array {
+		return $this->section_template_overrides[$section_id] ?? array();
+	}
+
+	/**
+	 * Set default template overrides for this AdminSettings instance.
+	 *
+	 * @param array<string, string> $template_overrides Template overrides keyed by template type.
+	 *
+	 * @return void
+	 */
+	public function set_default_template_overrides(array $template_overrides): void {
+		$this->default_template_overrides = array_merge($this->default_template_overrides, $template_overrides);
+		$this->logger->debug('AdminSettings: Default template overrides set', array(
+			'overrides' => $template_overrides
+		));
+	}
+
+	/**
+	 * Get default template overrides for this AdminSettings instance.
+	 *
+	 * @return array<string, string>
+	 */
+	public function get_default_template_overrides(): array {
+		return $this->default_template_overrides;
+	}
+
+	/**
+	 * Resolve template with hierarchical fallback.
+	 *
+	 * @param string $template_type The template type (e.g., 'page', 'section', 'group', 'field-wrapper').
+	 * @param array<string, mixed> $context Resolution context containing field_id, section_id, page_slug, etc.
+	 *
+	 * @return string The resolved template key.
+	 */
+	public function resolve_template(string $template_type, array $context = array()): string {
+		// 1. Check field-level override (highest priority)
+		if (isset($context['field_template_override'])) {
+			$this->logger->debug('AdminSettings: Template resolved via field override', array(
+				'template_type' => $template_type,
+				'template'      => $context['field_template_override'],
+				'context'       => $context
+			));
+			return $context['field_template_override'];
+		}
+
+		// 2. Check section-level override
+		if (isset($context['section_id'])) {
+			$section_overrides = $this->get_section_template_overrides($context['section_id']);
+			if (isset($section_overrides[$template_type])) {
+				$this->logger->debug('AdminSettings: Template resolved via section override', array(
+					'template_type' => $template_type,
+					'template'      => $section_overrides[$template_type],
+					'section_id'    => $context['section_id']
+				));
+				return $section_overrides[$template_type];
+			}
+		}
+
+		// 3. Check page-level override
+		if (isset($context['page_slug'])) {
+			$page_overrides = $this->get_page_template_overrides($context['page_slug']);
+			if (isset($page_overrides[$template_type])) {
+				$this->logger->debug('AdminSettings: Template resolved via page override', array(
+					'template_type' => $template_type,
+					'template'      => $page_overrides[$template_type],
+					'page_slug'     => $context['page_slug']
+				));
+				return $page_overrides[$template_type];
+			}
+		}
+
+		// 4. Check class instance defaults
+		if (isset($this->default_template_overrides[$template_type])) {
+			$this->logger->debug('AdminSettings: Template resolved via class default', array(
+				'template_type' => $template_type,
+				'template'      => $this->default_template_overrides[$template_type]
+			));
+			return $this->default_template_overrides[$template_type];
+		}
+
+		// 5. System defaults (lowest priority)
+		$system_default = $this->get_system_default_template($template_type);
+		$this->logger->debug('AdminSettings: Template resolved via system default', array(
+			'template_type' => $template_type,
+			'template'      => $system_default
+		));
+		return $system_default;
+	}
+
+	/**
+	 * Get system default template for a template type.
+	 *
+	 * @param string $template_type The template type.
+	 *
+	 * @return string The system default template key.
+	 */
+	private function get_system_default_template(string $template_type): string {
+		$defaults = array(
+			'page'          => 'admin.default-page',
+			'section'       => 'admin.default-section',
+			'group'         => 'admin.default-group',
+			'field-wrapper' => 'admin.default-field-wrapper',
+		);
+		return $defaults[$template_type] ?? 'shared.default-wrapper';
+	}
+
+	/**
+	 * Validate template override and provide error handling.
+	 *
+	 * @param string $template_key The template key to validate.
+	 * @param string $template_type The template type for context.
+	 *
+	 * @return bool True if valid, false otherwise.
+	 */
+	public function validate_template_override(string $template_key, string $template_type): bool {
+		// Check if template exists in ComponentLoader
+		try {
+			// Try to render with empty context to check if template exists
+			$this->views->render($template_key, array());
+			return true;
+		} catch (\LogicException $e) {
+			$this->logger->warning('AdminSettings: Invalid template override', array(
+				'template_key'  => $template_key,
+				'template_type' => $template_type,
+				'error'         => $e->getMessage(),
+				'suggestion'    => $this->suggest_template_alternatives($template_key, $template_type)
+			));
+			return false;
+		}
+	}
+
+	/**
+	 * Suggest template alternatives for invalid template keys.
+	 *
+	 * @param string $invalid_key The invalid template key.
+	 * @param string $template_type The template type.
+	 *
+	 * @return array<string> Suggested alternatives.
+	 */
+	private function suggest_template_alternatives(string $invalid_key, string $template_type): array {
+		$suggestions = array();
+
+		// Common template patterns
+		$common_patterns = array(
+			'page'          => array('admin.default-page', 'admin.modern-page', 'shared.page'),
+			'section'       => array('admin.default-section', 'admin.modern-section', 'shared.section'),
+			'group'         => array('admin.default-group', 'admin.modern-group', 'shared.group'),
+			'field-wrapper' => array('admin.default-field-wrapper', 'shared.field-wrapper'),
+		);
+
+		if (isset($common_patterns[$template_type])) {
+			$suggestions = $common_patterns[$template_type];
+		}
+
+		// Try to find similar keys by removing common prefixes/suffixes
+		$base_key = preg_replace('/^(admin|shared|custom)\./', '', $invalid_key);
+		$base_key = preg_replace('/-(template|wrapper)$/', '', $base_key);
+
+		foreach (array('admin', 'shared') as $prefix) {
+			$suggestions[] = $prefix . '.' . $base_key;
+			$suggestions[] = $prefix . '.' . $base_key . '-' . $template_type;
+		}
+
+		return array_unique($suggestions);
+	}
+
+	/**
 	 * Render the default admin settings template when no custom template is provided.
 	 *
 	 * @param array<string,mixed> $context
@@ -662,5 +888,23 @@ class AdminSettings implements AdminSettingsInterface {
 			$this->logger->error('AdminSettings default template render failed.', array('message' => $e->getMessage()));
 			throw $e;
 		}
+	}
+
+	/**
+	 * Check if AdminSettings uses WordPress Settings API.
+	 *
+	 * @return bool Always false - AdminSettings bypasses WordPress Settings API.
+	 */
+	public function uses_wordpress_settings_api(): bool {
+		return false;
+	}
+
+	/**
+	 * Check if AdminSettings uses custom rendering.
+	 *
+	 * @return bool Always true - AdminSettings uses custom rendering system.
+	 */
+	public function uses_custom_rendering(): bool {
+		return true;
 	}
 }
