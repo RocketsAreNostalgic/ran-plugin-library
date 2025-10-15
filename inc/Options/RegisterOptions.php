@@ -688,9 +688,13 @@ class RegisterOptions {
 		// Gate batch addition before mutating memory
 		$keys = array_map(static fn($k) => (string) $k, array_keys($keyToValue));
 		$ctx  = $this->_get_storage_context();
-		$wc2  = WriteContext::for_stage_options($this->main_wp_option_name, $ctx->scope->value, $ctx->blog_id, $ctx->user_id, $ctx->user_storage ?? 'meta', (bool) $ctx->user_global, $keys);
-		if (!$this->_apply_write_gate('stage_options', $wc2)) {
-			return $this; // veto: no mutation
+
+		// Only create WriteContext and apply gate if we have keys to process
+		if (!empty($keys)) {
+			$wc2 = WriteContext::for_stage_options($this->main_wp_option_name, $ctx->scope->value, $ctx->blog_id, $ctx->user_id, $ctx->user_storage ?? 'meta', (bool) $ctx->user_global, $keys);
+			if (!$this->_apply_write_gate('stage_options', $wc2)) {
+				return $this; // veto: no mutation
+			}
 		}
 
 		foreach ($keyToValue as $option_name => $value) {
@@ -1506,30 +1510,34 @@ class RegisterOptions {
 					throw new \InvalidArgumentException(static::class . ": Schema for key '{$normalized_key}' has non-callable sanitizer at index {$index} at runtime.");
 				}
 
-				// Try new signature first, fall back to old signature for backward compatibility
+				/**
+				 * Allow sanitizers to be called with and without an emitNotice callable.
+				 * Feature-detect optional callback via try/catch in order to support
+				 * built-in functions (e.g. trim) without forcing wrappers.
+				 */
 				try {
-					$once = $sanitizer($value, function (string $message) use ($normalized_key): void {
+					$firstPass = $sanitizer($value, function (string $message) use ($normalized_key): void {
 						$this->_record_message($normalized_key, $message, 'notice');
 					});
-					$twice = $sanitizer($once, function (string $message) use ($normalized_key): void {
-						$this->_record_message($normalized_key, $message, 'notice');
+					$secondPass = $sanitizer($firstPass, static function (): void {
+						// No-op emitter to avoid duplicating notices during idempotence check.
 					});
 				} catch (\ArgumentCountError $e) {
-					// Fallback for sanitizers that don't accept callback (like built-in PHP functions)
-					$once  = $sanitizer($value);
-					$twice = $sanitizer($once);
+					$firstPass  = $sanitizer($value);
+					$secondPass = $sanitizer($firstPass);
 				}
 
-				if ($twice !== $once) {
-					$valStr1      = $this->_stringify_value_for_error($once);
-					$valStr2      = $this->_stringify_value_for_error($twice);
+				if ($secondPass !== $firstPass) {
+					$valStr1      = $this->_stringify_value_for_error($firstPass);
+					$valStr2      = $this->_stringify_value_for_error($secondPass);
 					$sanitizerStr = $this->_describe_callable($sanitizer);
 					$this->_get_logger()->warning('RegisterOptions: _sanitize_and_validate_option sanitizer not idempotent', array('key' => $normalized_key, 'value' => $value, 'sanitizer' => $sanitizerStr, 'valStr1' => $valStr1, 'valStr2' => $valStr2));
 					throw new \InvalidArgumentException(
 						static::class . ": Sanitizer for option '{$normalized_key}' at index {$index} must be idempotent. First result {$valStr1} differs from second {$valStr2}. Sanitizer {$sanitizerStr}."
 					);
 				}
-				$value = $once;
+
+				$value = $firstPass;
 			}
 		}
 
@@ -1541,7 +1549,11 @@ class RegisterOptions {
 					throw new \InvalidArgumentException(static::class . ": Schema for key '{$normalized_key}' has non-callable validator at index {$index} at runtime.");
 				}
 
-				// Try new signature first, fall back to old signature for backward compatibility
+				/**
+				 * Allow validators to be called with and without a emmitWarning callable
+				 * using try/catch for feature detection as it works with a wide range of callables
+				 * unlike an optional param, which would require wrapping common PHP methods like trim().
+				*/
 				$messageRecorded = false;
 				try {
 					$valid = $validator($value, function (string $message) use ($normalized_key, &$messageRecorded): void {

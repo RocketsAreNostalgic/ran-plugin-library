@@ -488,6 +488,10 @@ trait WPWrappersTrait {
 	 * @return int
 	 */
 	public function _do_get_current_blog_id(): int {
+		// In WP_Mock tests, always try to call the function (it may be mocked)
+		if (\defined('WP_MOCK')) {
+			return (int) \get_current_blog_id();
+		}
 		if (\function_exists('get_current_blog_id')) {
 			return (int) \get_current_blog_id();
 		}
@@ -543,6 +547,19 @@ trait WPWrappersTrait {
 		$key = \preg_replace('/[^a-z0-9_\-]+/i', '_', $key) ?? '';
 		// Trim underscores at edges (preserve leading/trailing hyphens if present)
 		return \trim($key, '_');
+	}
+
+	/**
+	 * Public wrapper for WordPress sanitize_text_field
+	 *
+	 * Availability-guarded: Yes
+	 * Rationale: sanitize_text_field() may be unavailable in early contexts;
+	 * empty string allows callers to detect and short-circuit filesystem ops.
+	 *
+	 * @return string
+	 */
+	public function _do_sanitize_text_field(): string {
+		return \function_exists('sanitize_text_field') ? (string) \sanitize_text_field() : '';
 	}
 
 	/**
@@ -675,6 +692,10 @@ trait WPWrappersTrait {
 	 * @return bool
 	 */
 	public function _do_is_network_admin(): bool {
+		// In WP_Mock tests, always try to call the function (it may be mocked)
+		if (\defined('WP_MOCK')) {
+			return (bool) \is_network_admin();
+		}
 		return \function_exists('is_network_admin') ? (bool) \is_network_admin() : false;
 	}
 
