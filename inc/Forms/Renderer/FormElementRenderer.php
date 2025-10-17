@@ -1,9 +1,8 @@
 <?php
 /**
- * Universal Form Field Processing Infrastructure
+ * Universal Form Element Processing Infrastructure
  *
- * This class provides universal form field processing logic that eliminates
- * code duplication between AdminSettings and UserSettings while supporting
+ * This class provides universal form elements processing while supporting
  * template overrides and component rendering coordination.
  *
  * @package  RanPluginLib\Forms\Renderer
@@ -34,7 +33,7 @@ use Ran\PluginLib\Forms\Component\ComponentManifest;
  * - Basic template override support
  * - Form session and asset management
  */
-class FormFieldRenderer {
+class FormElementRenderer {
 	use WPWrappersTrait;
 	/**
 	 * Component manifest for component discovery and rendering.
@@ -73,7 +72,7 @@ class FormFieldRenderer {
 	private ?Logger $logger = null;
 
 	/**
-	 * Creates a new FormFieldRenderer instance.
+	 * Creates a new FormElementRenderer instance.
 	 *
 	 * @param ComponentManifest $components    Component manifest for rendering
 	 * @param FormService       $form_service  Form service for session management
@@ -134,7 +133,7 @@ class FormFieldRenderer {
 	 */
 	public function set_template_overrides(array $overrides): void {
 		$this->template_overrides = $overrides;
-		$this->_get_logger()->debug('FormFieldRenderer: Template overrides set', array('count' => count($overrides)));
+		$this->_get_logger()->debug('FormElementRenderer: Template overrides set', array('count' => count($overrides)));
 	}
 
 	/**
@@ -144,44 +143,6 @@ class FormFieldRenderer {
 	 */
 	public function get_template_overrides(): array {
 		return $this->template_overrides;
-	}
-
-	/**
-	 * Ensure form messages CSS is enqueued for proper message styling.
-	 *
-	 * This method ensures the form-messages.css file is enqueued to provide
-	 * consistent styling for validation warnings and display notices.
-	 *
-	 * @deprecated We should inestead add the messaging stylesheet to the array of css deps that a compoent requires.
-	 * @return void
-	 */
-	private function _ensure_form_messages_css(): void {
-		static $enqueued = false;
-
-		if ($enqueued) {
-			return;
-		}
-
-		$css_url  = $this->_do_plugin_dir_url(__FILE__) . '../assets/form-messages.css';
-		$css_path = dirname(__FILE__) . '/../assets/form-messages.css';
-
-		// Only enqueue if file exists
-		if (file_exists($css_path)) {
-			$this->_do_wp_enqueue_style(
-				'ran-form-messages',
-				$css_url,
-				array(),
-				(string) filemtime($css_path), // Use file modification time as version
-				'all'
-			);
-
-			$this->_get_logger()->debug('FormFieldRenderer: Form messages CSS enqueued');
-			$enqueued = true;
-		} else {
-			$this->_get_logger()->warning('FormFieldRenderer: Form messages CSS file not found', array(
-				'expected_path' => $css_path
-			));
-		}
 	}
 
 	/**
@@ -209,7 +170,7 @@ class FormFieldRenderer {
 		$validation_errors = $this->validate_field_config($field);
 		if (!empty($validation_errors)) {
 			$error_message = 'Invalid field configuration: ' . implode(', ', $validation_errors);
-			$this->_get_logger()->error('FormFieldRenderer: Field validation failed', array(
+			$this->_get_logger()->error('FormElementRenderer: Field validation failed', array(
 				'errors' => $validation_errors,
 				'field'  => $field
 			));
@@ -245,7 +206,7 @@ class FormFieldRenderer {
 			}
 		}
 
-		$this->_get_logger()->debug('FormFieldRenderer: Context prepared', array(
+		$this->_get_logger()->debug('FormElementRenderer: Context prepared', array(
 			'field_id'     => $field_id,
 			'component'    => $component,
 			'has_warnings' => !empty($field_messages['warnings']),
@@ -278,14 +239,14 @@ class FormFieldRenderer {
 		string $wrapper_template = 'direct-output'
 	): string {
 		try {
-			// Ensure form messages CSS is enqueued
-			$this->_ensure_form_messages_css();
-
-			// Start form session for asset capture
-			$this->form_service->start_session();
+			$session = $this->form_service->start_session();
 
 			// Render the component
-			$render_result  = $this->components->render($component, $context);
+			$render_result = $this->components->render($component, $context);
+
+			// Collect assets from component render result (ComponentDispatcher functionality)
+			$session->assets()->ingest($render_result);
+
 			$component_html = $render_result->markup;
 
 			// Handle template wrapper if not direct output
@@ -299,7 +260,7 @@ class FormFieldRenderer {
 				);
 			}
 
-			$this->_get_logger()->debug('FormFieldRenderer: Component rendered', array(
+			$this->_get_logger()->debug('FormElementRenderer: Component rendered', array(
 				'component'        => $component,
 				'field_id'         => $field_id,
 				'wrapper_template' => $wrapper_template
@@ -307,7 +268,7 @@ class FormFieldRenderer {
 
 			return $component_html;
 		} catch (\Throwable $e) {
-			$this->_get_logger()->error('FormFieldRenderer: Component rendering failed', array(
+			$this->_get_logger()->error('FormElementRenderer: Component rendering failed', array(
 				'component' => $component,
 				'field_id'  => $field_id,
 				'exception' => $e
@@ -344,14 +305,15 @@ class FormFieldRenderer {
 		string $wrapper_template = 'shared.field-wrapper'
 	): string {
 		try {
-			// Ensure form messages CSS is enqueued
-			$this->_ensure_form_messages_css();
-
 			// Start form session for asset capture
-			$this->form_service->start_session();
+			$session = $this->form_service->start_session();
 
 			// Render the component first
-			$render_result  = $this->components->render($component, $context);
+			$render_result = $this->components->render($component, $context);
+
+			// Collect assets from component render result (ComponentDispatcher functionality)
+			$session->assets()->ingest($render_result);
+
 			$component_html = $render_result->markup;
 
 			// Apply template wrapper using ComponentLoader
@@ -363,7 +325,7 @@ class FormFieldRenderer {
 				$context
 			);
 
-			$this->_get_logger()->debug('FormFieldRenderer: Field rendered with wrapper', array(
+			$this->_get_logger()->debug('FormElementRenderer: Field rendered with wrapper', array(
 				'component'        => $component,
 				'field_id'         => $field_id,
 				'wrapper_template' => $wrapper_template
@@ -371,7 +333,7 @@ class FormFieldRenderer {
 
 			return $wrapped_html;
 		} catch (\Throwable $e) {
-			$this->_get_logger()->error('FormFieldRenderer: Field with wrapper rendering failed', array(
+			$this->_get_logger()->error('FormElementRenderer: Field with wrapper rendering failed', array(
 				'component' => $component,
 				'field_id'  => $field_id,
 				'exception' => $e
@@ -422,7 +384,7 @@ class FormFieldRenderer {
 			// Use existing ComponentLoader to render wrapper template
 			$wrapped_html = $this->views->render($actual_template, $template_context);
 
-			$this->_get_logger()->debug('FormFieldRenderer: Template wrapper applied', array(
+			$this->_get_logger()->debug('FormElementRenderer: Template wrapper applied', array(
 				'template_name'   => $template_name,
 				'actual_template' => $actual_template,
 				'field_id'        => $field_id
@@ -430,7 +392,7 @@ class FormFieldRenderer {
 
 			return $wrapped_html;
 		} catch (\Throwable $e) {
-			$this->_get_logger()->error('FormFieldRenderer: Template wrapper failed', array(
+			$this->_get_logger()->error('FormElementRenderer: Template wrapper failed', array(
 				'template_name'   => $template_name,
 				'actual_template' => $actual_template,
 				'field_id'        => $field_id,
