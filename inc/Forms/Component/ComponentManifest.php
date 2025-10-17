@@ -165,6 +165,37 @@ class ComponentManifest {
 	}
 
 	/**
+	 * Pre-populates the component cache by calling existing discovery.
+	 * V2: Simple caching method that leverages existing infrastructure.
+	 */
+	public function warm_cache(): void {
+		$this->_discover();
+	}
+
+	/**
+	 * Clears the existing component metadata cache.
+	 * V2: Simple caching method that clears existing cache array.
+	 */
+	public function clear_cache(): void {
+		$this->componentMetadata = array();
+	}
+
+	/**
+	 * Checks if a component is eligible for auto-schema generation.
+	 * V2: Simple method for auto-schema generation compatibility.
+	 *
+	 * @param string $alias
+	 * @return bool
+	 */
+	public function is_component_schema_eligible(string $alias): bool {
+		if (!$this->has($alias)) {
+			return false;
+		}
+		$result = $this->render($alias, array());
+		return $result->submits_data;
+	}
+
+	/**
 	 * Discovers all available components.
 	 */
 	private function _discover(): void {
@@ -247,23 +278,47 @@ class ComponentManifest {
 			$payload['style']  ?? null,
 			(bool) ($payload['requires_media'] ?? false),
 			(bool) ($payload['repeatable'] ?? false),
-			$payload['context_schema'] ?? array()
+			$payload['context_schema'] ?? array(),
+			(bool) ($payload['submits_data'] ?? false),        // V2
+			(string) ($payload['component_type'] ?? 'form_field') // V2
 		);
 	}
 
 	/**
 	 * Renders a component without normalizing it.
+	 * V2: Enhanced to handle direct ComponentRenderResult returns.
 	 *
 	 * @param array<string,mixed> $context
 	 * @return ComponentRenderResult
 	 */
 	private function _render_raw_component(string $alias, array $context): ComponentRenderResult {
-		$payload = $this->views->render_payload($alias, $context);
-		if (is_array($payload) && isset($payload['markup'])) {
-			return $this->_create_result_from_payload($payload);
+		$result = $this->views->render_payload($alias, $context);
+
+		// V2: Direct ComponentRenderResult return (preferred)
+		if ($result instanceof ComponentRenderResult) {
+			return $result;
 		}
 
-		$markup = is_string($payload) ? $payload : $this->views->render($alias, $context);
-		return new ComponentRenderResult((string) $markup);
+		// Backward compatibility: convert array to ComponentRenderResult
+		if (is_array($result) && isset($result['markup'])) {
+			return $this->_create_result_from_payload($result);
+		}
+
+		// Fallback for string returns
+		$markup = is_string($result) ? $result : $this->views->render($alias, $context);
+		return new ComponentRenderResult(
+			markup: (string) $markup,
+			submits_data: false,        // V2: Default for raw components
+			component_type: 'form_field' // V2: Default for raw components
+		);
+	}
+
+	/**
+	 * Get the ComponentLoader instance for template registration.
+	 *
+	 * @return ComponentLoader
+	 */
+	public function get_component_loader(): ComponentLoader {
+		return $this->views;
 	}
 }

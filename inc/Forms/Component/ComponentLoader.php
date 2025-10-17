@@ -42,6 +42,15 @@ class ComponentLoader {
 	}
 
 	/**
+	 * Get the base directory for template resolution.
+	 *
+	 * @return string
+	 */
+	public function get_base_directory(): string {
+		return $this->baseDir;
+	}
+
+	/**
 	 * Render the named template with the provided context.
 	 *
 	 * @param string $name
