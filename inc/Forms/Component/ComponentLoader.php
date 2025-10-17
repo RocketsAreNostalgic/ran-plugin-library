@@ -7,26 +7,43 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\Forms\Component;
 
-use SplFileInfo;
-use FilesystemIterator;
 use UnexpectedValueException;
+use SplFileInfo;
 use RecursiveIteratorIterator;
 use RecursiveDirectoryIterator;
+use Ran\PluginLib\Util\WPWrappersTrait;
+use Ran\PluginLib\Util\Logger;
+use FilesystemIterator;
 
 class ComponentLoader {
+	use WPWrappersTrait;
+
 	/** @var array<string,string> */
 	private array $map = array();
 	private string $baseDir;
+
+	/** @var int Cache TTL in seconds */
+	private int $cacheTTL;
+
+	/** @var bool Whether caching is enabled */
+	private bool $cachingEnabled;
+
+	/** @var Logger|null Logger instance for cache operations */
+	private ?Logger $logger;
 
 	/**
 	 * Constructor.
 	 *
 	 * @param string $baseDir
 	 * @param array<string,string> $map
+	 * @param Logger|null $logger Optional logger for cache operations
 	 */
-	public function __construct(string $baseDir, array $map = array()) {
-		$this->baseDir = rtrim($baseDir, '/');
-		$this->map     = array_merge($this->_default_map(), $this->_normalize_map($map));
+	public function __construct(string $baseDir, array $map = array(), ?Logger $logger = null) {
+		$this->baseDir        = rtrim($baseDir, '/');
+		$this->map            = array_merge($this->_default_map(), $this->_normalize_map($map));
+		$this->cachingEnabled = $this->_should_use_cache();
+		$this->cacheTTL       = $this->_get_cache_ttl();
+		$this->logger         = $logger;
 	}
 
 	/**
@@ -57,19 +74,42 @@ class ComponentLoader {
 	 * @param array<string,mixed> $context
 	 */
 	public function render(string $name, array $context = array()): string {
-		$path = $this->_resolve_path($name);
-		if (!\file_exists($path)) {
-			throw new \LogicException(sprintf('Template "%s" not found at "%s".', $name, $path));
+		// Skip cache entirely in development or when disabled
+		if (!$this->cachingEnabled) {
+			return $this->_render_template_directly($name, $context);
 		}
 
-		$execution = $this->_require_template($path, $context);
-		if ($execution['output'] !== '') {
-			throw new \LogicException(sprintf('Template "%s" produced direct output; templates must return strings.', $name));
+		// Generate optimized cache key with collision avoidance
+		$cache_key     = $this->_generate_template_cache_key($name, $context);
+		$cached_output = $this->_do_get_transient($cache_key);
+
+		if ($cached_output !== false) {
+			$this->logger?->debug('ComponentLoader: Cache HIT for template', array(
+				'template'  => $name,
+				'cache_key' => $cache_key
+			));
+			return $cached_output;
 		}
-		if (!is_string($execution['result'])) {
-			throw new \LogicException(sprintf('Template "%s" must return a string, got %s.', $name, gettype($execution['result'])));
-		}
-		return $execution['result'];
+
+		// Cache miss - render and cache
+		$this->logger?->debug('ComponentLoader: Cache MISS for template', array(
+			'template'  => $name,
+			'cache_key' => $cache_key
+		));
+
+		$output = $this->_render_template_directly($name, $context);
+		$this->_do_set_transient($cache_key, $output, $this->cacheTTL);
+
+		// Track transient for cleanup
+		$this->_track_template_transient($cache_key);
+
+		$this->logger?->info('ComponentLoader: Cached template', array(
+			'template'  => $name,
+			'cache_key' => $cache_key,
+			'ttl'       => $this->cacheTTL
+		));
+
+		return $output;
 	}
 
 	/**
@@ -82,11 +122,19 @@ class ComponentLoader {
 	public function render_payload(string $name, array $context = array()): mixed {
 		$path = $this->_resolve_path($name);
 		if (!\file_exists($path)) {
+			$this->logger?->warning('ComponentLoader: Template not found', array(
+				'template' => $name,
+				'path'     => $path
+			));
 			throw new \LogicException(sprintf('Template "%s" not found at "%s".', $name, $path));
 		}
 
 		$execution = $this->_require_template($path, $context);
 		if ($execution['output'] !== '') {
+			$this->logger?->warning('ComponentLoader: Template produced direct output', array(
+				'template' => $name,
+				'path'     => $path
+			));
 			throw new \LogicException(sprintf('Template "%s" produced direct output; templates must return values.', $name));
 		}
 
@@ -138,6 +186,9 @@ class ComponentLoader {
 	 */
 	private function _resolve_path(string $name): string {
 		if (!isset($this->map[$name])) {
+			$this->logger?->warning('ComponentLoader: No template mapping registered', array(
+				'template' => $name
+			));
 			throw new \LogicException(sprintf('No template mapping registered for "%s".', $name));
 		}
 
@@ -290,5 +341,168 @@ class ComponentLoader {
 		$result = require $path;
 		$output = ob_get_clean();
 		return array('result' => $result, 'output' => $output ?? '');
+	}
+
+	/**
+	 * Extract rendering logic for reuse (without caching).
+	 *
+	 * @param string $name
+	 * @param array<string,mixed> $context
+	 * @return string
+	 */
+	private function _render_template_directly(string $name, array $context): string {
+		$path = $this->_resolve_path($name);
+		if (!\file_exists($path)) {
+			$this->logger?->warning('ComponentLoader: Template not found', array(
+				'template' => $name,
+				'path'     => $path
+			));
+			throw new \LogicException(sprintf('Template "%s" not found at "%s".', $name, $path));
+		}
+
+		$execution = $this->_require_template($path, $context);
+		if ($execution['output'] !== '') {
+			$this->logger?->warning('ComponentLoader: Template produced direct output', array(
+				'template' => $name,
+				'path'     => $path
+			));
+			throw new \LogicException(sprintf('Template "%s" produced direct output; templates must return strings.', $name));
+		}
+		if (!is_string($execution['result'])) {
+			$this->logger?->warning('ComponentLoader: Template did not return a string', array(
+				'template' => $name,
+				'path'     => $path
+			));
+			throw new \LogicException(sprintf('Template "%s" must return a string, got %s.', $name, gettype($execution['result'])));
+		}
+
+		return $execution['result'];
+	}
+
+	/**
+	 * Determine if caching should be used.
+	 *
+	 * @return bool
+	 */
+	private function _should_use_cache(): bool {
+		// Explicit disable via constant
+		if (\defined('KEPLER_COMPONENT_CACHE_DISABLED') && \KEPLER_COMPONENT_CACHE_DISABLED) {
+			return false;
+		}
+
+		// Disable in development mode (WP_DEBUG) for immediate feedback
+		if (\defined('WP_DEBUG') && \WP_DEBUG) {
+			return false;
+		}
+
+		return true;
+	}
+
+	/**
+	 * Get cache TTL in seconds.
+	 *
+	 * @return int
+	 */
+	private function _get_cache_ttl(): int {
+		// Allow override via constant
+		if (\defined('KEPLER_COMPONENT_CACHE_TTL')) {
+			return \max(300, (int) \KEPLER_COMPONENT_CACHE_TTL); // Minimum 5 minutes
+		}
+
+		// Default to 1 hour
+		return 3600;
+	}
+
+	/**
+	 * Generate optimized cache key with collision avoidance.
+	 *
+	 * @param string $name Template name
+	 * @param array<string,mixed> $context Template context
+	 * @return string Optimized cache key
+	 */
+	private function _generate_template_cache_key(string $name, array $context): string {
+		// Use more efficient key generation with proper prefixing
+		$context_hash   = empty($context) ? 'empty' : hash('crc32b', serialize($context));
+		$sanitized_name = preg_replace('/[^a-zA-Z0-9._-]/', '_', $name);
+
+		// Prefix with kepler_tpl_ to avoid collisions with other plugins
+		return "kepler_tpl_{$sanitized_name}_{$context_hash}";
+	}
+
+	/**
+	 * Track template transient for cleanup.
+	 *
+	 * @param string $transient_key
+	 */
+	private function _track_template_transient(string $transient_key): void {
+		$active_transients = $this->_do_get_option('template_cache_transients', array());
+		if (!in_array($transient_key, $active_transients, true)) {
+			$active_transients[] = $transient_key;
+			$this->_do_update_option('template_cache_transients', $active_transients, false);
+		}
+	}
+
+	/**
+	 * Clear template cache.
+	 *
+	 * @param string|null $name Optional template name to clear specific template cache
+	 */
+	public function clear_template_cache(?string $name = null): void {
+		if ($name) {
+			// Clear specific template (all contexts)
+			$this->logger?->debug('ComponentLoader: CLEARING cache for template', array('template' => $name));
+			$this->_clear_template_transients_by_name($name);
+		} else {
+			// Clear all template caches
+			$this->logger?->debug('ComponentLoader: CLEARING all template caches');
+			$this->_clear_all_template_transients();
+		}
+	}
+
+	/**
+	 * Clear template transients by name pattern.
+	 *
+	 * @param string $name
+	 */
+	private function _clear_template_transients_by_name(string $name): void {
+		// Clear all transients that match this template name
+		$active_transients = $this->_do_get_option('template_cache_transients', array());
+		$sanitized_name    = preg_replace('/[^a-zA-Z0-9._-]/', '_', $name);
+		$prefix            = "kepler_tpl_{$sanitized_name}_";
+		$cleared_count     = 0;
+
+		foreach ($active_transients as $key => $transient_key) {
+			if (strpos($transient_key, $prefix) === 0) {
+				$this->_do_delete_transient($transient_key);
+				unset($active_transients[$key]);
+				$cleared_count++;
+			}
+		}
+
+		$this->_do_update_option('template_cache_transients', array_values($active_transients), false);
+
+		$this->logger?->info('ComponentLoader: Cleared cache entries for template', array(
+			'template'      => $name,
+			'cleared_count' => $cleared_count
+		));
+	}
+
+	/**
+	 * Clear all template transients.
+	 */
+	private function _clear_all_template_transients(): void {
+		$active_transients = $this->_do_get_option('template_cache_transients', array());
+		$cleared_count     = 0;
+
+		foreach ($active_transients as $transient_key) {
+			$this->_do_delete_transient($transient_key);
+			$cleared_count++;
+		}
+
+		$this->_do_delete_option('template_cache_transients');
+
+		$this->logger?->info('ComponentLoader: Cleared all template cache entries', array(
+			'cleared_count' => $cleared_count
+		));
 	}
 }
