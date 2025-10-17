@@ -10,14 +10,14 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\Forms;
 
+use Ran\PluginLib\Forms\Component\ComponentRenderResult;
 use Ran\PluginLib\EnqueueAccessory\StyleDefinition;
 use Ran\PluginLib\EnqueueAccessory\ScriptDefinition;
-use Ran\PluginLib\Forms\Component\ComponentRenderResult;
 
 /**
  * Collects script/style definitions emitted by components and tracks media requirements.
  */
-final class FormAssets {
+class FormAssets {
 	/** @var array<string, ScriptDefinition> */
 	private array $scripts = array();
 	/** @var array<string, StyleDefinition> */

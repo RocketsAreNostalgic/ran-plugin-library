@@ -10,7 +10,6 @@ declare(strict_types=1);
 namespace Ran\PluginLib\Forms;
 
 use Ran\PluginLib\Forms\Component\ComponentManifest;
-use Ran\PluginLib\Forms\Component\ComponentDispatcher;
 
 class FormService {
 	private ComponentManifest $manifest;
@@ -20,9 +19,8 @@ class FormService {
 	}
 
 	public function start_session(?FormAssets $assets = null): FormServiceSession {
-		$bucket     = $assets ?? new FormAssets();
-		$dispatcher = new ComponentDispatcher($this->manifest, $bucket);
-		return new FormServiceSession($dispatcher, $bucket);
+		$bucket = $assets ?? new FormAssets();
+		return new FormServiceSession($this->manifest, $bucket);
 	}
 
 	public function manifest(): ComponentManifest {
