@@ -63,13 +63,16 @@ ob_start();
 	<span class="ran-forms__button-label"><?php echo esc_html($label); ?></span>
 </a>
 <?php
-return array(
-	'markup'         => (string) ob_get_clean(),
-	'script'         => null,
-	'style'          => null,
-	'requires_media' => false,
-	'repeatable'     => false,
-	'context_schema' => array(
+
+use Ran\PluginLib\Forms\Component\ComponentRenderResult;
+
+return new ComponentRenderResult(
+	markup: (string) ob_get_clean(),
+	script: null,
+	style: null,
+	requires_media: false,
+	repeatable: false,
+	context_schema: array(
 	    'required' => array('label', 'url'),
 	    'optional' => array('attributes', 'link_attributes', 'target', 'rel', 'icon_html'),
 	    'defaults' => array(
@@ -80,4 +83,6 @@ return array(
 	        'icon_html'       => '',
 	    ),
 	),
+	submits_data: false,
+	component_type: 'display'
 );

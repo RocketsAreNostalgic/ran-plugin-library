@@ -1,14 +1,13 @@
 <?php
 /**
  * File upload field component.
+ * Clean component focused solely on form control markup.
  *
  * Expected $context keys:
  * - name: string Input name attribute (required).
  * - attributes: array<string,string|int|bool> Additional attributes for the <input> element.
  * - multiple: bool Whether to allow multiple selections (developer should add [] to name when true).
  * - accept: string|array<string> Optional MIME types or file extensions.
- * - description: string Optional help text beneath the control.
- * - description_id: string Optional ID tying description to the control.
  * - existing_files: array<int,string> Optional list of already uploaded filenames/labels to display.
  */
 
@@ -18,11 +17,8 @@ $name          = isset($context['name']) ? (string) $context['name'] : '';
 $attributes    = isset($context['attributes']) && is_array($context['attributes']) ? $context['attributes'] : array();
 $multiple      = !empty($context['multiple']);
 $accept        = $context['accept'] ?? null;
-$description   = isset($context['description']) ? (string) $context['description'] : '';
-$descriptionId = isset($context['description_id']) ? (string) $context['description_id'] : '';
 $existingFiles = isset($context['existing_files']) && is_array($context['existing_files']) ? $context['existing_files'] : array();
-$warnings      = isset($context['warnings'])       && is_array($context['warnings']) ? $context['warnings'] : array();
-$notices       = isset($context['notices'])        && is_array($context['notices']) ? $context['notices'] : array();
+
 
 if (!isset($name)) {
 	if (isset($context['id'])) {
@@ -48,12 +44,7 @@ if ($accept !== null) {
 		$attributes['accept'] = (string) $accept;
 	}
 }
-if ($description !== '' && $descriptionId === '') {
-	$descriptionId = $name . '__desc';
-}
-if ($descriptionId !== '') {
-	$attributes['aria-describedby'] = trim(($attributes['aria-describedby'] ?? '') . ' ' . $descriptionId);
-}
+
 
 $formatAttributes = static function (array $attrs): string {
 	$parts = array();
@@ -70,21 +61,6 @@ $formatAttributes = static function (array $attrs): string {
 ob_start();
 ?>
 <input<?php echo $formatAttributes($attributes); ?> />
-<?php if (!empty($warnings)) : ?>
-	<?php foreach ($warnings as $warning) : ?>
-		<p class="form-message form-message--warning"><?php echo esc_html($warning); ?></p>
-	<?php endforeach; ?>
-<?php endif; ?>
-<?php if (!empty($notices)) : ?>
-	<?php foreach ($notices as $notice) : ?>
-		<p class="form-message form-message--notice"><?php echo esc_html($notice); ?></p>
-	<?php endforeach; ?>
-<?php endif; ?>
-<?php if ($description !== ''): ?>
-	<p class="ran-forms__description" id="<?php echo esc_attr($descriptionId); ?>">
-		<?php echo esc_html($description); ?>
-	</p>
-<?php endif; ?>
 <?php if (!empty($existingFiles)): ?>
 	<ul class="ran-forms__file-existing">
 		<?php foreach ($existingFiles as $fileLabel): ?>
@@ -93,25 +69,26 @@ ob_start();
 	</ul>
 <?php endif; ?>
 <?php
-return array(
-	'markup'         => (string) ob_get_clean(),
-	'script'         => null,
-	'style'          => null,
-	'requires_media' => false,
-	'repeatable'     => true, // consider multiple uploads instead
-	'context_schema' => array(
+
+use Ran\PluginLib\Forms\Component\ComponentRenderResult;
+
+return new ComponentRenderResult(
+	markup: (string) ob_get_clean(),
+	script: null,
+	style: null,
+	requires_media: false,
+	repeatable: true, // consider multiple uploads instead
+	context_schema: array(
 	    'required' => array('name'),
-	    'optional' => array('attributes', 'multiple', 'accept', 'description', 'description_id', 'existing_files', 'required', 'warnings', 'notices'),
+	    'optional' => array('attributes', 'multiple', 'accept', 'existing_files', 'required'),
 	    'defaults' => array(
 	        'attributes'     => array(),
 	        'multiple'       => false,
 	        'accept'         => null,
-	        'description'    => '',
-	        'description_id' => '',
 	        'existing_files' => array(),
 	        'required'       => false,
-	        'warnings'       => array(),
-	        'notices'        => array(),
 	    ),
 	),
+	submits_data: true,
+	component_type: 'form_field'
 );
