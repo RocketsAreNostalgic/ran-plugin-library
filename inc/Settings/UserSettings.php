@@ -1,6 +1,6 @@
 <?php
 /**
- * UserSettings: DX-friendly user profile settings UI with RegisterOptions.
+ * UserSettings: DX-friendly user profile settings UI using RegisterOptions.
  *
  * @package Ran\PluginLib\Settings
  * @author  Ran Plugin Lib <bnjmnrsh@gmail.com>
@@ -24,6 +24,7 @@ use Ran\PluginLib\Forms\Renderer\FormMessageHandler;
 use Ran\PluginLib\Forms\Renderer\FormFieldRenderer;
 use Ran\PluginLib\Forms\FormServiceSession;
 use Ran\PluginLib\Forms\FormService;
+use Ran\PluginLib\Forms\FormBaseTrait;
 use Ran\PluginLib\Forms\Component\ComponentManifestAwareTrait;
 use Ran\PluginLib\Forms\Component\ComponentManifest;
 use Ran\PluginLib\Forms\Component\ComponentLoader;
@@ -41,19 +42,21 @@ use Ran\PluginLib\Forms\Component\ComponentLoader;
  * validation and write-policy portions of `RegisterOptions` are exercised here.
  */
 class UserSettings implements UserSettingsInterface {
+	use FormBaseTrait;
 	use WPWrappersTrait;
-	use ComponentManifestAwareTrait;
 	use ComponentRenderingTrait;
+	use ComponentManifestAwareTrait;
 
-	private RegisterOptions $base_options;
 	private string $main_option;
-	private Logger $logger;
+	private ?array $pending_values = null;
 	private ComponentLoader $views;
 	private ComponentManifest $components;
 	private FormService $form_service;
 	private FormFieldRenderer $field_renderer;
 	private FormMessageHandler $message_handler;
-	private ?array $pending_values = null;
+	protected ?FormServiceSession $form_session = null;
+	private RegisterOptions $base_options;
+	private Logger $logger;
 
 	/**
 	 * Base context, storage and global captured from the injected RegisterOptions instance.
@@ -63,55 +66,51 @@ class UserSettings implements UserSettingsInterface {
 	private string $base_storage;
 	private bool $base_global;
 
-	/** @var array<string, array<string, string>> Template overrides by collection ID and template type */
-	private array $collection_template_overrides = array();
-
-	/** @var array<string, array<string, string>> Template overrides by section ID and template type */
-	private array $section_template_overrides = array();
-
-	/** @var array<string, string> Default template overrides for this UserSettings instance */
-	private array $default_template_overrides = array();
-
 	/**
-	 * $collections accumulates pending collections prior to WordPress hook registration.
-	 * This is the functional equivalent of $menu_groups of $pages in AdminSettings.
+	 * Accumulates pending collections prior to WordPress hook registration.
+	 * This is the functional equivalent of menu_groups in AdminSettings.
+	 * Collections represent different groupings of user profile sections (typically 'profile').
 	 *
-	 * @var array<string, array{template:?callable, priority:int}> //collection_id => meta (typically only 'profile')
+	 * @var array<string, array{template:?callable, priority:int}>
 	 */
 	private array $collections = array();
 
-	/**
-	 * $sections accumulates pending sections prior to WordPress hook registration.
-	 *
-	 * @var array<string, array<string, array{title:string, description_cb:?callable, order:int, index:int}>>
-	 */
-	private array $sections = array(); // [collection_id][section_id]
-	/** @var array<string, array<string, array{id:string,label:string,component:string,component_context:array<string,mixed>, order:int, index:int}>>> */
-	private array $fields = array();   // [collection_id][section_id] => list
-	/** @var array<string, array<string, array{group_id:string, fields:array<int,array{id:string,label:string,component:string,component_context:array<string,mixed>, order:int, index:int}>, before:?callable, after:?callable, order:int, index:int}>> */
-	private array $groups = array();   // [page_id][section_id][group_id]
+	// Settings structure: sections, fields, and groups organized by page
+
+	/** @var array<string, array<string, array{title:string, description_cb:?callable, order:int, index:int}>> */
+	private array $sections = array();
+	/** @var array<string, array<string, array<int, array{id:string, label:string, component:string, component_context:array<string,mixed>, order:int, index:int}>>> */
+	private array $fields = array();
+	/** @var array<string, array<string, array{group_id:string, fields:array<int, array{id:string, label:string, component:string, component_context:array<string,mixed>, order:int, index:int}>, before:?callable, after:?callable, order:int, index:int}>> */
+	private array $groups = array();
+
+	// Template override system: hierarchical template customization\
+	/** @var array<string, array<string, string>> */
+	private array $default_template_overrides = array();
+	/** @var array<string, array<string, string>> */
+	private array $root_template_overrides = array();
+	/** @var array<string, array<string, string>> */
+	private array $section_template_overrides = array();
+	/** @var array<string, array<string, string>> */
+	private array $group_template_overrides = array();
+	/** @var array<string, array<string, string>> */
+	private array $field_template_overrides = array();
 
 	private int $__section_index = 0;
-	private int $__field_index   = 0;
 	private int $__group_index   = 0;
+	private int $__field_index   = 0;
 
 	/**
 	 * Constructor.
 	 *
 	 * @param RegisterOptions $options The base RegisterOptions instance.
-	 * @param Logger|null $logger Optional logger instance.
-	 * @param ComponentManifest|null $components Optional component manifest.
-	 * @param FormService|null $form_service Optional form service.
-	 * @param FormFieldRenderer|null $field_renderer Optional field renderer.
-	 * @param FormMessageHandler|null $message_handler Optional message handler.
+	 * @param ComponentManifest|Logger $components_or_logger Component manifest (preferred) or Logger (backward compatibility).
+	 * @param Logger|ComponentManifest|null $logger_or_components Optional logger or ComponentManifest.
 	 */
 	public function __construct(
 		RegisterOptions $options,
-		?Logger $logger = null,
-		?ComponentManifest $components = null,
-		?FormService $form_service = null,
-		?FormFieldRenderer $field_renderer = null,
-		?FormMessageHandler $message_handler = null
+		ComponentManifest $components,
+		?Logger $logger = null
 	) {
 		// RegisterOptions will lazy instantiate a logger if none is provided
 		$this->logger = $logger instanceof Logger ? $logger : $options->get_logger();
@@ -122,31 +121,35 @@ class UserSettings implements UserSettingsInterface {
 			$this->logger->warning('UserSettings::__construct received non-user scope RegisterOptions; rejecting.', array('scope' => $received));
 			throw new \InvalidArgumentException('UserSettings requires user context; received ' . $received . '.');
 		}
+
 		$this->base_options = $options;
 		$this->base_context = $context;
 
 		$this->main_option  = $options->get_main_option_name();
 		$this->base_storage = strtolower($context->user_storage ?? 'meta') === 'option' ? 'option' : 'meta';
 		$this->base_global  = $this->base_storage                          === 'option' ? (bool) ($context->user_global ?? false) : false;
-		$this->views        = new ComponentLoader(__DIR__ . '/views');
-		$this->components   = $components instanceof ComponentManifest
-			? $components
-			: new ComponentManifest(new ComponentLoader(dirname(__DIR__) . '/Forms/Components'), $this->logger);
-		$this->form_service = $form_service instanceof FormService ? $form_service : new FormService($this->components);
+		$this->components   = $components;
+		$this->views        = $components->get_component_loader();
 
-		// Initialize shared infrastructure
-		$this->field_renderer = $field_renderer instanceof FormFieldRenderer
-			? $field_renderer
-			: new FormFieldRenderer($this->components, $this->form_service, $this->views, $this->logger);
-		$this->message_handler = $message_handler instanceof FormMessageHandler
-			? $message_handler
-			: new FormMessageHandler($this->logger);
+		// Register UserSettings template overrides on the shared ComponentLoader
+		$this->views->register('user.default-collection', '../../Settings/views/user/default-collection.php');
+		$this->views->register('user.collection-wrapper', '../../Settings/views/user/collection-wrapper.php');
+		$this->views->register('user.default-collection-sections', '../../Settings/views/user/default-collection-sections.php');
+		$this->views->register('user.section', '../../Settings/views/user/section.php');
+		$this->views->register('user.field-row', '../../Settings/views/user/field-row.php');
+		$this->views->register('user.group-rows', '../../Settings/views/user/group-rows.php');
+
+		// Initialize UserSettings-specific infrastructure
+		$this->form_service = new FormService($this->components);
+		$this->field_renderer = new FormFieldRenderer($this->components, $this->form_service, $this->views, $this->logger);
+		$this->message_handler = new FormMessageHandler($this->logger);
 
 		// Configure template overrides for UserSettings context (table-based)
 		$this->field_renderer->set_template_overrides(array(
-			'field-wrapper'      => 'user.field-row',
-			'section'            => 'user.section',
-			'collection-wrapper' => 'user.collection-wrapper'
+			'form-wrapper' 		=> 'user.collection-wrapper',
+			'section-wrapper'   => 'user.section-wrapper',
+			'group-wrapper'     => 'user.group-wrapper',
+			'field-wrapper'     => 'user.field-wrapper',
 		));
 
 		// Set table-optimized defaults for UserSettings
@@ -156,17 +159,10 @@ class UserSettings implements UserSettingsInterface {
 			'field-wrapper'      => 'user.field-row',
 		);
 
-		$this->start_form_session();
+		$this->_start_form_session();
 	}
 
-	/**
-	 * Start a new form session.
-	 */
-	private function start_form_session(): void {
-		$this->form_session = $this->form_service->start_session();
-	}
-
-	/**
+	/** ✅✅
 	 * Shared interface: resolve RegisterOptions for user scope.
 	 * Callers should provide context to override defaults when available.
 	 *
@@ -179,123 +175,65 @@ class UserSettings implements UserSettingsInterface {
 		return $this->base_options->with_context($resolved['storage']);
 	}
 
-	/**
-	 * Resolve the correctly scoped RegisterOptions instance for current user context.
+	/**  ✅❌
+	 * Boot user settings: register collections, sections, fields and save handlers.
 	 *
-	 * @param array<string,mixed> $context
-	 * @return array{storage: StorageContext, user_id: int, storage_kind: string, global: bool}
+	 * @return void
 	 */
-	protected function _resolve_context(array $context): array {
-		$context = $context ?? array();
-
-		$scope = SettingsScopeHelper::parseScope($context) ?? OptionScope::User;
-		$scope = SettingsScopeHelper::requireAllowed($scope, OptionScope::User);
-
-		$userId  = $this->_resolve_user_id($context);
-		$storage = $this->_resolve_storage_kind($context);
-		$global  = $this->_resolve_global_flag($context, $storage);
-
-		return array(
-		    'storage'      => StorageContext::forUser($userId, $storage, $global),
-		    'user_id'      => $userId,
-		    'storage_kind' => $storage,
-		    'global'       => $global,
-		);
-	}
-
-	/**
-	 * Resolve the user id for the user context.
-	 *
-	 * @param array<string,mixed> $context
-	 *
-	 * @return int
-	 */
-	protected function _resolve_user_id(array $context): int {
-		if (isset($context['user_id'])) {
-			$userId = (int) $context['user_id'];
-		} elseif ($this->base_context->user_id !== null) {
-			$userId = (int) $this->base_context->user_id;
-		} elseif (isset($GLOBALS['profileuser']) && $GLOBALS['profileuser'] instanceof \WP_User) {
-			$userId = (int) $GLOBALS['profileuser']->ID;
-		} else {
-			$userId = (int) $this->_do_get_current_user_id();
+	public function boot(): void {
+		// Render on profile screens per registered page using configured priority
+		foreach ($this->collections as $id_slug => $meta) {
+			$priority = (int) ($meta['priority'] ?? 10);
+			$priority = $priority < 0 ? 0 : $priority;
+			$render   = function ($user) use ($id_slug) {
+				if (!($user instanceof \WP_User)) {
+					return;
+				}
+				$this->render($id_slug, array('user' => $user));
+			};
+			// User views their own profile
+			$this->_do_add_action('show_user_profile', $render, $priority, 1);
+			// Admin views another user's profile
+			$this->_do_add_action('edit_user_profile', $render, $priority, 1);
 		}
 
-		if ($userId <= 0) {
-			$this->logger->warning('UserSettings::resolve_options requires a valid user_id.');
-			throw new \InvalidArgumentException('UserSettings::resolve_options requires a valid user_id.');
-		}
-
-		return $userId;
+		// Save handlers
+		$save = function ($user_id) {
+			$user_id = (int) $user_id;
+			if (!$this->_do_current_user_can('edit_user', $user_id)) {
+				return; // silent deny to match WP conventions
+			}
+			$payload = isset($_POST[$this->main_option]) && is_array($_POST[$this->main_option]) ? $_POST[$this->main_option] : array();
+			$this->save_settings($payload, array('user_id' => $user_id));
+		};
+		// User updates their own profile
+		$this->_do_add_action('personal_options_update', $save, 10, 1);
+		// Admin updates another user's profile
+		$this->_do_add_action('edit_user_profile_update', $save, 10, 1);
 	}
 
-	/**
-	 * Resolve the storage kind for the user context.
-	 *
-	 * @param array<string,mixed> $context
-	 *
-	 * @return string
-	 */
-	protected function _resolve_storage_kind(array $context): string {
-		$storage = isset($context['storage']) ? strtolower((string) $context['storage']) : $this->base_storage;
-		if ($storage !== 'meta' && $storage !== 'option') {
-			$this->logger->warning('UserSettings::resolve_options: storage must be \'meta\' or \'option\'.');
-			throw new \InvalidArgumentException("UserSettings::resolve_options: storage must be 'meta' or 'option'.");
-		}
-
-		return $storage;
-	}
-
-	/**
-	 * Resolve the global flag for the user context.
-	 *
-	 * @param array<string,mixed> $context
-	 * @param string $storage
-	 *
-	 * @return bool
-	 */
-	protected function _resolve_global_flag(array $context, string $storage): bool {
-		if ($storage !== 'option') {
-			return false;
-		}
-
-		$base = $storage === $this->base_storage ? $this->base_global : false;
-		return (bool) ($context['global'] ?? $base);
-	}
-
-	/**
-	 * Augment the component context with the main option name.
-	 *
-	 * @param array<string,mixed> $context
-	 * @param array<string,mixed> $values
-	 *
-	 * @return array<string,mixed>
-	 */
-	protected function _augment_component_context(array $context, array $values): array {
-		$context['_option'] = $this->main_option;
-		return $context;
-	}
-
-	/**
+	/** 🚨
 	 * Add a profile collection (new group) onto the user profile page.
 	 *
-	 * @param string $collection_id The collection id, defaults to 'profile'.
+	 * The AdminSettings collerary is the page() method.
+	 *
+	 * @param string $id_slug The collection id, defaults to 'profile'.
 	 * @param callable|null $template An optional collection template.
 	 *
 	 * @return UserSettingsCollectionBuilder
 	 */
-	public function add_collection(string $collection_id = 'profile', ?callable $template = null): UserSettingsCollectionBuilder {
-		if (!isset($this->collections[$collection_id])) {
-			$this->collections[$collection_id] = array(
+	public function collection(string $id_slug = 'profile', ?callable $template = null): UserSettingsCollectionBuilder {
+		if (!isset($this->collections[$id_slug])) {
+			$this->collections[$id_slug] = array(
 			    'template' => $template,
 			    'priority' => 10,
 			);
 		} else {
 			if ($template !== null) {
-				$this->collections[$collection_id]['template'] = $template;
+				$this->collections[$id_slug]['template'] = $template;
 			}
-			if (!isset($this->collections[$collection_id]['priority'])) {
-				$this->collections[$collection_id]['priority'] = 10;
+			if (!isset($this->collections[$id_slug]['priority'])) {
+				$this->collections[$id_slug]['priority'] = 10;
 			}
 		}
 
@@ -398,47 +336,10 @@ class UserSettings implements UserSettingsInterface {
 			$this->collections[$pid]['priority'] = max(0, $priority);
 		};
 
-		return new UserSettingsCollectionBuilder($this, $collection_id, $template, $commit, $setPriority);
+		return new UserSettingsCollectionBuilder($this, $id_slug, $template, $commit, $setPriority);
 	}
 
-	/**
-	 * Boot user settings: register collections, sections, fields and save handlers.
-	 *
-	 * @return void
-	 */
-	public function boot(): void {
-		// Render on profile screens per registered page using configured priority
-		foreach ($this->collections as $collection_id => $meta) {
-			$priority = (int) ($meta['priority'] ?? 10);
-			$priority = $priority < 0 ? 0 : $priority;
-			$render   = function ($user) use ($collection_id) {
-				if (!($user instanceof \WP_User)) {
-					return;
-				}
-				$this->render_collection($collection_id, array('user' => $user));
-			};
-			// User views their own profile
-			$this->_do_add_action('show_user_profile', $render, $priority, 1);
-			// Admin views another user's profile
-			$this->_do_add_action('edit_user_profile', $render, $priority, 1);
-		}
-
-		// Save handlers
-		$save = function ($user_id) {
-			$user_id = (int) $user_id;
-			if (!$this->_do_current_user_can('edit_user', $user_id)) {
-				return; // silent deny to match WP conventions
-			}
-			$payload = isset($_POST[$this->main_option]) && is_array($_POST[$this->main_option]) ? $_POST[$this->main_option] : array();
-			$this->save_settings($payload, array('user_id' => $user_id));
-		};
-		// User updates their own profile
-		$this->_do_add_action('personal_options_update', $save, 10, 1);
-		// Admin updates another user's profile
-		$this->_do_add_action('edit_user_profile_update', $save, 10, 1);
-	}
-
-	/**
+	/** 🚨
 	 * Normalize and persist posted values for a user.
 	 *
 	 * @param int $user_id
@@ -501,33 +402,332 @@ class UserSettings implements UserSettingsInterface {
 		}
 	}
 
-	/**
+	/** ✅❌
+	 * Render a profile collection.
+	 *
+	 * @param string $id_slug The collection id, defaults to 'profile'.
+	 * @param array|null $context Optional context.
+	 *
+	 * @return void
+	 */
+	public function render(string $id_slug = 'profile', ?array $context = null): void {
+		if (!isset($this->collections[$id_slug])) {
+			return; // Collection not registered
+		}
+		$this->_start_form_session();
+
+		$collection_meta = $this->collections[$id_slug];
+		$sections = $this->sections[$id_slug] ?? array();
+		$options = $this->resolve_options($context)->get_options();
+
+		// Get effective values from message handler (handles pending values)
+		$effective_values = $this->message_handler->get_effective_values($options);
+
+		$payload = array_merge($context ?? array(), array(
+			'id_slug'   => $id_slug,
+			'collection_meta' => $collection_meta,
+			'sections'        => $sections,
+			'values'          => $effective_values,
+			'content'         => $this->_render_default_sections_wrapper($id_slug, $sections, $effective_values),
+			'errors_by_field' => $this->message_handler->get_all_messages(),
+		));
+
+		// Use custom template if provided, otherwise use default
+		if (is_callable($collection_meta['template'])) {
+			($collection_meta['template'])($payload);
+		} else {
+			$this->_render_default_root($payload);
+		}
+
+		$this->_enqueue_component_assets();
+	}
+
+	/** ✅✅
+	 * Retrieve structured validation messages captured during the most recent operation.
+	 *
+	 * @return array<string, array{warnings: array<int, string>, notices: array<int, string>}>
+	 */
+	public function take_messages(): array {
+		$messages = $this->message_handler->get_all_messages();
+		$this->message_handler->clear();
+		return $messages ?? array(
+			'warnings' => array(),
+			'notices'  => array(),
+		);
+	}
+
+	/** ✅✅
+	 * Set default template overrides for this UserSettings instance.
+	 *
+	 * @param array<string, string> $template_overrides Template overrides map.
+	 *
+	 * @return void
+	 */
+	public function set_default_template_overrides(array $template_overrides): void {
+		$this->default_template_overrides = array_merge($this->default_template_overrides, $template_overrides);
+		$this->logger->debug('UserSettings: Default template overrides set', array(
+			'overrides' => array_keys($template_overrides)
+		));
+	}
+
+    /** ✅✅
+	 * Get default template overrides for this UserSettings instance.
+	 *
+	 * @return array<string, string>
+	 */
+	public function get_default_template_overrides(): array {
+		return $this->default_template_overrides;
+	}
+
+	/** ✅✅
+	 * Set template overrides for the root container (collection for UserSettings).
+	 *
+	 * @param string $root_id_slug The root container ID (collection ID).
+	 * @param array<string, string> $template_overrides Template overrides keyed by template type.
+	 *
+	 * @return void
+	 */
+	public function set_root_template_overrides(string $root_id_slug, array $template_overrides): void {
+		$this->root_template_overrides[$root_id_slug] = $template_overrides;
+		$this->logger->debug('UserSettings: Root template overrides set', array(
+			'id_slug' => $root_id_slug,
+			'overrides'     => array_keys($template_overrides)
+		));
+	}
+
+	/** ✅✅
+	 * Get template overrides for the root container (collection for UserSettings).
+	 *
+	 * @param string $root_id_slug The root container ID (collection ID).
+	 *
+	 * @return array<string, string>
+	 */
+	public function get_root_template_overrides(string $root_id_slug): array {
+		return $this->root_template_overrides[$root_id_slug] ?? array();
+	}
+
+	/** ✅✅⚠️
+	 * Set template overrides for a specific section.
+	 *
+	 * @param string $section_id The section ID.
+	 * @param array<string, string> $template_overrides Template overrides map.
+	 *
+	 * @return void
+	 */
+	public function set_section_template_overrides(string $section_id, array $template_overrides): void {
+		$this->section_template_overrides[$section_id] = $template_overrides;
+		$this->logger->debug('UserSettings: Section template overrides set', array(
+			'section_id' => $section_id,
+			'overrides'  => array_keys($template_overrides)
+		));
+	}
+
+	/** ✅
+	 * Get section template overrides for a specific section.
+	 *
+	 * @param string $section_id The section ID.
+	 *
+	 * @return array<string, string>
+	 */
+	public function get_section_template_overrides(string $section_id): array {
+		return $this->section_template_overrides[$section_id] ?? array();
+	}
+
+	/** ✅✅⚠️
+	 * Set template overrides for a specific group.
+	 *
+	 * @param string $group_id The group ID.
+	 * @param array<string, string> $template_overrides Template overrides keyed by template type.
+	 *
+	 * @return void
+	 */
+	public function set_group_template_overrides(string $group_id, array $template_overrides): void {
+		$this->group_template_overrides[$group_id] = $template_overrides;
+		$this->logger->debug('UserSettings: Group template overrides set', array(
+			'group_id'  => $group_id,
+			'overrides' => $template_overrides
+		));
+	}
+
+	/** ✅✅
+	 * Get template overrides for a specific group.
+	 *
+	 * @param string $group_id The group ID.
+	 *
+	 * @return array<string, string>
+	 */
+	public function get_group_template_overrides(string $group_id): array {
+		return $this->group_template_overrides[$group_id] ?? array();
+	}
+
+	/** ✅✅⚠️
+	 * Set template overrides for a specific field.
+	 *
+	 * @param string $field_id The field ID.
+	 * @param array<string, string> $template_overrides Template overrides keyed by template type.
+	 *
+	 * @return void
+	 */
+	public function set_field_template_overrides(string $field_id, array $template_overrides): void {
+		$this->field_template_overrides[$field_id] = $template_overrides;
+		$this->logger->debug('UserSettings: Field template overrides set', array(
+			'field_id'  => $field_id,
+			'overrides' => $template_overrides
+		));
+	}
+
+	/** ✅✅
+	 * Get template overrides for a specific field.
+	 *
+	 * @param string $field_id The field ID.
+	 *
+	 * @return array<string, string>
+	 */
+	public function get_field_template_overrides(string $field_id): array {
+		return $this->field_template_overrides[$field_id] ?? array();
+	}
+
+	/** ✅✅⚠️
+	 * Resolve template with hierarchical fallback for UserSettings context.
+	 *
+	 * @param string $template_type The template type (e.g., 'field-wrapper', 'section', 'collection-wrapper').
+	 * @param array<string, mixed> $context Additional context for template resolution.
+	 *
+	 * @return string The resolved template key.
+	 */
+	public function resolve_template(string $template_type, array $context = array()): string {
+		// 1. Check field-level override (highest priority)
+		if (isset($context['field_id'])) {
+			$field_overrides = $this->get_field_template_overrides($context['field_id']);
+			if (isset($field_overrides[$template_type])) {
+				$this->logger->debug('UserSettings: Template resolved via field override', array(
+					'template_type' => $template_type,
+					'template'      => $field_overrides[$template_type],
+					'field_id'      => $context['field_id']
+				));
+				return $field_overrides[$template_type];
+			}
+		}
+
+		// 2. Check group-level override
+		if (isset($context['group_id'])) {
+			$group_overrides = $this->get_group_template_overrides($context['group_id']);
+			if (isset($group_overrides[$template_type])) {
+				$this->logger->debug('UserSettings: Template resolved via group override', array(
+					'template_type' => $template_type,
+					'template'      => $group_overrides[$template_type],
+					'group_id'      => $context['group_id']
+				));
+				return $group_overrides[$template_type];
+			}
+		}
+
+		// 3. Check section-level override
+		if (isset($context['section_id'])) {
+			$section_overrides = $this->get_section_template_overrides($context['section_id']);
+			if (isset($section_overrides[$template_type])) {
+				$this->logger->debug('UserSettings: Template resolved via section override', array(
+					'template_type' => $template_type,
+					'template'      => $section_overrides[$template_type],
+					'section_id'    => $context['section_id']
+				));
+				return $section_overrides[$template_type];
+			}
+		}
+
+		// 4. Check collection-level override
+		if (isset($context['id_slug'])) {
+			$collection_overrides = $this->get_root_template_overrides($context['id_slug']);
+			if (isset($collection_overrides[$template_type])) {
+				$this->logger->debug('UserSettings: Template resolved via collection override', array(
+					'template_type' => $template_type,
+					'template'      => $collection_overrides[$template_type],
+					'id_slug' => $context['id_slug']
+				));
+				return $collection_overrides[$template_type];
+			}
+		}
+
+		// 5. Check class instance defaults
+		if (isset($this->default_template_overrides[$template_type])) {
+			$this->logger->debug('UserSettings: Template resolved via class default', array(
+				'template_type' => $template_type,
+				'template'      => $this->default_template_overrides[$template_type]
+			));
+			return $this->default_template_overrides[$template_type];
+		}
+
+		// 6. System defaults (lowest priority)
+		$system_default = $this->_get_system_default_template($template_type);
+		$this->logger->debug('UserSettings: Template resolved via system default', array(
+			'template_type' => $template_type,
+			'template'      => $system_default
+		));
+		return $system_default;
+	}
+
+	// Protected
+
+	/**  ✅✅
+	 * Start a new form session.
+	 */
+	protected function _start_form_session(): void {
+		$this->form_session = $this->form_service->start_session();
+	}
+
+	/** ✅
+	 * Retrieve captured validation warnings for a given field ID.
+	 *
+	 * @return array<string, array{warnings: array<int, string>, notices: array<int, string>}>
+	 */
+	protected function _get_messages_for_field(string $field_id): array {
+		$key      = $this->_do_sanitize_key($field_id);
+		$messages = $this->message_handler->get_messages_for_field($key);
+		return $messages ?? array(
+			'warnings' => array(),
+			'notices'  => array(),
+		);
+	}
+
+	/** ✅❌
+	 * Get system default template for UserSettings context.
+	 *
+	 * @param string $template_type The template type.
+	 *
+	 * @return string The default template key.
+	 */
+	protected function _get_system_default_template(string $template_type): string {
+		$defaults = array(
+			'collection' => 'user.collection-wrapper',
+			'section'    => 'user.section',
+			'field'      => 'user.field-row',
+		);
+		return $defaults[$template_type] ?? 'user.field-row';
+	}
+
+	/** ✅❌
 	 * Render the default user collection template markup.
 	 *
 	 * @param array $context Template context.
+	 * @return void
 	 */
-	protected function _render_default_collection_template(array $context): void {
-		try {
-			echo $this->views->render('user.default-collection', $context);
-		} catch (\LogicException $e) {
-			$this->logger->error('UserSettings default template render failed.', array('message' => $e->getMessage()));
-			throw $e;
-		}
+	protected function _render_default_root(array $context): void {
+		echo $this->views->render('user.default-collection', $context);
 	}
 
-	/**
+	/** ✅✅
 	 * Render the default sections and fields markup for a user collection.
 	 *
-	 * @param string $collection_id Collection identifier.
+	 * @param string $id_slug Collection identifier.
 	 * @param array  $sections      Section metadata map.
 	 * @param array  $values        Current option values.
 	 *
 	 * @return string Rendered HTML table markup.
 	 */
-	protected function _render_default_collection_sections(string $collection_id, array $sections, array $values): string {
+	protected function _render_default_sections_wrapper(string $id_slug, array $sections, array $values): string {
 		$prepared_sections = array();
-		$groups_map        = $this->groups[$collection_id] ?? array();
-		$fields_map        = $this->fields[$collection_id] ?? array();
+		$groups_map        = $this->groups[$id_slug] ?? array();
+		$fields_map        = $this->fields[$id_slug] ?? array();
 		$profile_user      = $GLOBALS['profileuser']       ?? null;
 
 		foreach ($sections as $section_id => $meta) {
@@ -540,6 +740,7 @@ class UserSettings implements UserSettingsInterface {
 				return ($a['order'] <=> $b['order']) ?: ($a['index'] <=> $b['index']);
 			});
 
+			// Combine groups and fields
 			$items = array();
 			foreach ($groups as $group) {
 				$group_fields = $group['fields'];
@@ -567,55 +768,52 @@ class UserSettings implements UserSettingsInterface {
 			);
 		}
 
-		return $this->views->render('section.table', array(
+		return $this->views->render('section', array(
 			'sections'       => $prepared_sections,
-			'row_renderer'   => fn (array $field): string => $this->_render_field_row($field, $values, $profile_user),
-			'group_renderer' => fn (array $group): string => $this->_render_group_row($group, $values, $profile_user),
+			'group_renderer' => fn (array $group): string => $this->_render_default_group_wrapper($group, $values, $profile_user),
+			'field_renderer'   => fn (array $field): string => $this->_render_default_field_wrapper($field, $values, $profile_user),
 		));
 	}
 
-	/**
-	 * Discover and inject component validators for a field.
+	/** ✅🛑 WPUSER
+	 * Render a single table row for a group definition via template.
 	 *
-	 * @param string $field_id Field identifier
-	 * @param string $component Component name
-	 * @return void
+	 * @param array<string,mixed>   $group
+	 * @param array<string,mixed>   $values
+	 * @param \WP_User|null         $profile_user
 	 */
-	protected function _inject_component_validators(string $field_id, string $component): void {
-		// Get component validator factories from ComponentManifest
-		$validator_factories = $this->components->validator_factories();
+	protected function _render_default_group_wrapper(array $group, array $values, ?\WP_User $profile_user): string {
+		$content_parts = array();
 
-		if (isset($validator_factories[$component])) {
-			$validator_factory = $validator_factories[$component];
-
-			// Create the validator instance
-			if (is_callable($validator_factory)) {
-				$validator_instance = $validator_factory();
-
-				// Create a callable wrapper that adapts ValidatorInterface to RegisterOptions signature
-				$validator_callable = function($value, callable $emitWarning) use ($validator_instance): bool {
-					return $validator_instance->validate($value, array(), $emitWarning);
-				};
-
-				// Inject the validator at the beginning of the validation chain
-				$this->base_options->prepend_validator($field_id, $validator_callable);
-
-				$this->logger->debug('UserSettings: Component validator injected', array(
-					'field_id'  => $field_id,
-					'component' => $component
-				));
-			}
+		if (isset($group['before']) && is_callable($group['before'])) {
+			ob_start();
+			($group['before'])();
+			$rows[] = (string) ob_get_clean();
 		}
+
+		foreach ($group['fields'] ?? array() as $field) {
+			$content_parts[] = $this->_render_default_field_wrapper($field, $values, $profile_user);
+		}
+
+		if (isset($group['after']) && is_callable($group['after'])) {
+			ob_start();
+			($group['after'])();
+			$content_parts[] = (string) ob_get_clean();
+		}
+
+		return $this->views->render('group-wrapper', array(
+			'content_parts' => $content_parts,
+		));
 	}
 
-	/**
-		* Render a single table row for a field definition via template.
-		*
-		* @param array<string,mixed>   $field
-		* @param array<string,mixed>   $values
-		* @param \WP_User|null         $profile_user
-		*/
-	protected function _render_field_row(array $field, array $values, ?\WP_User $profile_user): string {
+	/** ✅
+	 * Render a single field wrapper
+	 *
+	 * @param array<string,mixed>   $field
+	 * @param array<string,mixed>   $values
+	 * @param \WP_User|null         $profile_user
+	 */
+	protected function _render_default_field_wrapper(array $field, array $values, ?\WP_User $profile_user): string {
 		if (empty($field)) {
 			return '';
 		}
@@ -686,272 +884,136 @@ class UserSettings implements UserSettingsInterface {
 		}
 	}
 
-	/**
-	* Render a single table row for a group definition via template.
-	*
-	* @param array<string,mixed>   $group
-	* @param array<string,mixed>   $values
-	* @param \WP_User|null         $profile_user
-	*/
-	protected function _render_group_row(array $group, array $values, ?\WP_User $profile_user): string {
-		$rows = array();
-
-		if (isset($group['before']) && is_callable($group['before'])) {
-			ob_start();
-			($group['before'])();
-			$rows[] = (string) ob_get_clean();
-		}
-
-		foreach ($group['fields'] ?? array() as $field) {
-			$rows[] = $this->_render_field_row($field, $values, $profile_user);
-		}
-
-		if (isset($group['after']) && is_callable($group['after'])) {
-			ob_start();
-			($group['after'])();
-			$rows[] = (string) ob_get_clean();
-		}
-
-		return $this->views->render('user.group-rows', array(
-			'rows' => $rows,
-		));
-	}
-
-	/**
-	 * Renders a new secton within the WordPress user profile page.
+	/** ✅✅⚠️
+	 * Discover and inject component validators for a field.
 	 *
-	 * @param string   $collection_id The collection ID.
-	 * @param ?array   $context         Optional context overrides.
-	 */
-	public function render_collection(string $collection_id = 'profile', ?array $context = null): void {
-		$context = $context ?? array();
-		if (!isset($this->collections[$collection_id])) {
-			return;
-		}
-		$template = $this->collections[$collection_id]['template'] ?? null;
-		$user     = $context['user']                               ?? null;
-		if (!($user instanceof \WP_User)) {
-			return;
-		}
-		$effective_global = $context['global'] ?? $this->base_global;
-		$opts             = $this->resolve_options(array(
-			'user_id' => $user->ID,
-			'storage' => $this->base_storage,
-			'global'  => $effective_global,
-		));
-		$values = $this->message_handler->get_effective_values($opts->get_options());
-
-		// Prepare sorted sections/fields/groups
-		$sections = $this->sections[$collection_id] ?? array();
-		uasort($sections, function ($a, $b) {
-			return ($a['order'] <=> $b['order']) ?: ($a['index'] <=> $b['index']);
-		});
-
-		$title = isset($context['collection_title']) ? (string) $context['collection_title'] : '';
-
-		$this->start_form_session();
-
-		$currentValues = $values;
-		$context       = array(
-		    'collection_id'    => $collection_id,
-		    'collection_title' => $title,
-		    'main_option'      => $this->main_option,
-		    'options'          => $currentValues,
-		    'schema'           => array(),
-		    'logger'           => $this->logger,
-		    'user'             => $user,
-		    'render'           => function () use ($collection_id, $sections, $currentValues) {
-		    	$markup = $this->_render_default_collection_sections($collection_id, $sections, $currentValues);
-		    	$this->_enqueue_component_assets();
-		    	return $markup;
-		    },
-		);
-
-		if (is_callable($template)) {
-			$template($context, $user);
-			$this->_enqueue_component_assets();
-			return;
-		}
-
-		$this->_render_default_collection_template($context);
-		$this->_enqueue_component_assets();
-	}
-
-	/**
-	 * Retrieve structured validation messages captured during the most recent operation.
-	 *
-	 * @return array<string, array{warnings: array<int, string>, notices: array<int, string>}>
-	 */
-	public function take_messages(): array {
-		$messages = $this->message_handler->get_all_messages();
-		$this->message_handler->clear();
-		return $messages ?? array(
-			'warnings' => array(),
-			'notices'  => array(),
-		);
-	}
-
-	/**
-	 * Retrieve captured validation warnings for a given field ID.
-	 *
-	 * @return array<string, array{warnings: array<int, string>, notices: array<int, string>}>
-	 */
-	private function get_messages_for_field(string $field_id): array {
-		$key      = $this->_do_sanitize_key($field_id);
-		$messages = $this->message_handler->get_messages_for_field($key);
-		return $messages ?? array(
-			'warnings' => array(),
-			'notices'  => array(),
-		);
-	}
-
-	/**
-	 * Set template overrides for a specific collection.
-	 *
-	 * @param string $collection_id The collection ID.
-	 * @param array<string, string> $template_overrides Template overrides map.
-	 *
+	 * @param string $field_id Field identifier
+	 * @param string $component Component name
 	 * @return void
 	 */
-	public function set_collection_template_overrides(string $collection_id, array $template_overrides): void {
-		$this->collection_template_overrides[$collection_id] = $template_overrides;
-		$this->logger->debug('UserSettings: Collection template overrides set', array(
-			'collection_id' => $collection_id,
-			'overrides'     => array_keys($template_overrides)
-		));
+	protected function _inject_component_validators(string $field_id, string $component): void {
+		// Get component validator factories from ComponentManifest
+		$validator_factories = $this->components->validator_factories();
+
+		if (isset($validator_factories[$component])) {
+			$validator_factory = $validator_factories[$component];
+
+			// Create the validator instance
+			if (is_callable($validator_factory)) {
+				$validator_instance = $validator_factory();
+
+				// Create a callable wrapper that adapts ValidatorInterface to RegisterOptions signature
+				$validator_callable = function($value, callable $emitWarning) use ($validator_instance): bool {
+					return $validator_instance->validate($value, array(), $emitWarning);
+				};
+
+				// Inject the validator at the beginning of the validation chain
+				$this->base_options->prepend_validator($field_id, $validator_callable);
+
+				$this->logger->debug('UserSettings: Component validator injected', array(
+					'field_id'  => $field_id,
+					'component' => $component
+				));
+			}
+		}
 	}
 
 	/**
-	 * Set template overrides for a specific section.
+	 * Augment the component context with the main option name.
 	 *
-	 * @param string $section_id The section ID.
-	 * @param array<string, string> $template_overrides Template overrides map.
+	 * @param array<string,mixed> $context
+	 * @param array<string,mixed> $values
 	 *
-	 * @return void
+	 * @return array<string,mixed>
 	 */
-	public function set_section_template_overrides(string $section_id, array $template_overrides): void {
-		$this->section_template_overrides[$section_id] = $template_overrides;
-		$this->logger->debug('UserSettings: Section template overrides set', array(
-			'section_id' => $section_id,
-			'overrides'  => array_keys($template_overrides)
-		));
+	protected function _augment_component_context(array $context, array $values): array {
+		$context['_option'] = $this->main_option;
+		return $context;
 	}
 
-	/**
-	 * Set default template overrides for this UserSettings instance.
-	 *
-	 * @param array<string, string> $template_overrides Template overrides map.
-	 *
-	 * @return void
-	 */
-	public function set_default_template_overrides(array $template_overrides): void {
-		$this->default_template_overrides = array_merge($this->default_template_overrides, $template_overrides);
-		$this->logger->debug('UserSettings: Default template overrides set', array(
-			'overrides' => array_keys($template_overrides)
-		));
-	}
+	// Resolvers
 
 	/**
-	 * Resolve template with hierarchical fallback for UserSettings context.
+	 * Resolve the user id for the user context.
 	 *
-	 * @param string $template_type The template type (e.g., 'field-wrapper', 'section', 'collection-wrapper').
-	 * @param array<string, mixed> $context Additional context for template resolution.
+	 * @param array<string,mixed> $context
 	 *
-	 * @return string The resolved template key.
+	 * @return int
 	 */
-	public function resolve_template(string $template_type, array $context = array()): string {
-		// 1. Check field-level override
-		if (isset($context['field_template_override'])) {
-			return $context['field_template_override'];
+	protected function _resolve_user_id(array $context): int {
+		if (isset($context['user_id'])) {
+			$userId = (int) $context['user_id'];
+		} elseif ($this->base_context->user_id !== null) {
+			$userId = (int) $this->base_context->user_id;
+		} elseif (isset($GLOBALS['profileuser']) && $GLOBALS['profileuser'] instanceof \WP_User) {
+			$userId = (int) $GLOBALS['profileuser']->ID;
+		} else {
+			$userId = (int) $this->_do_get_current_user_id();
 		}
 
-		// 2. Check section-level override
-		if (isset($context['section_id']) && isset($this->section_template_overrides[$context['section_id']][$template_type])) {
-			return $this->section_template_overrides[$context['section_id']][$template_type];
+		if ($userId <= 0) {
+			$this->logger->warning('UserSettings::resolve_options requires a valid user_id.');
+			throw new \InvalidArgumentException('UserSettings::resolve_options requires a valid user_id.');
 		}
 
-		// 3. Check collection-level override
-		if (isset($context['collection_id']) && isset($this->collection_template_overrides[$context['collection_id']][$template_type])) {
-			return $this->collection_template_overrides[$context['collection_id']][$template_type];
+		return $userId;
+	}
+
+	/**
+	 * Resolve the storage kind for the user context.
+	 *
+	 * @param array<string,mixed> $context
+	 *
+	 * @return string
+	 */
+	protected function _resolve_storage_kind(array $context): string {
+		$storage = isset($context['storage']) ? strtolower((string) $context['storage']) : $this->base_storage;
+		if ($storage !== 'meta' && $storage !== 'option') {
+			$this->logger->warning('UserSettings::resolve_options: storage must be \'meta\' or \'option\'.');
+			throw new \InvalidArgumentException("UserSettings::resolve_options: storage must be 'meta' or 'option'.");
 		}
 
-		// 4. Check class instance defaults
-		if (isset($this->default_template_overrides[$template_type])) {
-			return $this->default_template_overrides[$template_type];
-		}
-
-		// 5. Global system defaults for UserSettings (table-optimized)
-		return $this->get_system_default_template($template_type);
+		return $storage;
 	}
 
 	/**
-	 * Get system default template for UserSettings context.
+	 * Resolve the global flag for the user context.
 	 *
-	 * @param string $template_type The template type.
+	 * @param array<string,mixed> $context
+	 * @param string $storage
 	 *
-	 * @return string The default template key.
+	 * @return bool
 	 */
-	private function get_system_default_template(string $template_type): string {
-		$defaults = array(
-			'collection-wrapper' => 'user.collection-wrapper',
-			'section'            => 'user.section',
-			'field-wrapper'      => 'user.field-row',
-		);
-		return $defaults[$template_type] ?? 'user.field-row';
-	}
-
-	/**
-	 * Get default template overrides for this UserSettings instance.
-	 *
-	 * @return array<string, string>
-	 */
-	public function get_default_template_overrides(): array {
-		return $this->default_template_overrides;
-	}
-
-	/**
-	 * Get collection template overrides for a specific collection.
-	 *
-	 * @param string $collection_id The collection ID.
-	 *
-	 * @return array<string, string>
-	 */
-	public function get_collection_template_overrides(string $collection_id): array {
-		return $this->collection_template_overrides[$collection_id] ?? array();
-	}
-
-	/**
-	 * Get section template overrides for a specific section.
-	 *
-	 * @param string $section_id The section ID.
-	 *
-	 * @return array<string, string>
-	 */
-	public function get_section_template_overrides(string $section_id): array {
-		return $this->section_template_overrides[$section_id] ?? array();
-	}
-
-	/**
-	 * Validate a template override key.
-	 *
-	 * @param string $template_key The template key to validate.
-	 * @param string $template_type The template type for context.
-	 *
-	 * @return bool True if valid, false otherwise.
-	 */
-	public function validate_template_override(string $template_key, string $template_type): bool {
-		// Check if template exists in ComponentLoader
-		try {
-			// Try to render with empty context to check if template exists
-			$this->views->render($template_key, array());
-			return true;
-		} catch (\LogicException $e) {
-			$this->logger->warning('UserSettings: Invalid template override', array(
-				'template_key'  => $template_key,
-				'template_type' => $template_type,
-				'error'         => $e->getMessage()
-			));
+	protected function _resolve_global_flag(array $context, string $storage): bool {
+		if ($storage !== 'option') {
 			return false;
 		}
+
+		$base = $storage === $this->base_storage ? $this->base_global : false;
+		return (bool) ($context['global'] ?? $base);
+	}
+
+	/** ✅❌
+	 * Resolve the correctly scoped RegisterOptions instance for current user context.
+	 *
+	 * @param array<string,mixed> $context
+	 * @return array{storage: StorageContext, user_id: int, storage_kind: string, global: bool}
+	 */
+	protected function _resolve_context(array $context): array {
+		$context = $context ?? array();
+
+		$scope = SettingsScopeHelper::parseScope($context) ?? OptionScope::User;
+		$scope = SettingsScopeHelper::requireAllowed($scope, OptionScope::User);
+
+		$userId  = $this->_resolve_user_id($context);
+		$storage = $this->_resolve_storage_kind($context);
+		$global  = $this->_resolve_global_flag($context, $storage);
+
+		return array(
+		    'storage'      => StorageContext::forUser($userId, $storage, $global),
+		    'user_id'      => $userId,
+		    'storage_kind' => $storage,
+		    'global'       => $global,
+		);
 	}
 }

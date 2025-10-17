@@ -138,6 +138,15 @@ class FormFieldRenderer {
 	}
 
 	/**
+	 * Get current template overrides.
+	 *
+	 * @return array<string, string> Template override map
+	 */
+	public function get_template_overrides(): array {
+		return $this->template_overrides;
+	}
+
+	/**
 	 * Ensure form messages CSS is enqueued for proper message styling.
 	 *
 	 * This method ensures the form-messages.css file is enqueued to provide
@@ -312,7 +321,73 @@ class FormFieldRenderer {
 	}
 
 	/**
+	 * Render field with wrapper template.
+	 *
+	 * Combines component rendering with template wrapper application using
+	 * existing ComponentLoader infrastructure.
+	 *
+	 * @param string $component        Component name
+	 * @param string $field_id         Field identifier
+	 * @param string $label            Field label
+	 * @param array  $context          Prepared field context
+	 * @param array  $values           All form values
+	 * @param string $wrapper_template Template for wrapper (default: 'shared.field-wrapper')
+	 * @return string Rendered field HTML with wrapper
+	 * @throws \InvalidArgumentException If component rendering fails
+	 */
+	public function render_field_with_wrapper(
+		string $component,
+		string $field_id,
+		string $label,
+		array $context,
+		array $values,
+		string $wrapper_template = 'shared.field-wrapper'
+	): string {
+		try {
+			// Ensure form messages CSS is enqueued
+			$this->_ensure_form_messages_css();
+
+			// Start form session for asset capture
+			$this->form_service->start_session();
+
+			// Render the component first
+			$render_result  = $this->components->render($component, $context);
+			$component_html = $render_result->markup;
+
+			// Apply template wrapper using ComponentLoader
+			$wrapped_html = $this->_apply_template_wrapper(
+				$component_html,
+				$wrapper_template,
+				$field_id,
+				$label,
+				$context
+			);
+
+			$this->_get_logger()->debug('FormFieldRenderer: Field rendered with wrapper', array(
+				'component'        => $component,
+				'field_id'         => $field_id,
+				'wrapper_template' => $wrapper_template
+			));
+
+			return $wrapped_html;
+		} catch (\Throwable $e) {
+			$this->_get_logger()->error('FormFieldRenderer: Field with wrapper rendering failed', array(
+				'component' => $component,
+				'field_id'  => $field_id,
+				'exception' => $e
+			));
+			throw new \InvalidArgumentException(
+				"Failed to render field '{$field_id}' with component '{$component}' and wrapper '{$wrapper_template}': " . $e->getMessage(),
+				0,
+				$e
+			);
+		}
+	}
+
+	/**
 	 * Apply template wrapper to component HTML.
+	 *
+	 * Enhanced to use ComponentLoader for template rendering with proper context.
 	 *
 	 * @param string $component_html Rendered component HTML
 	 * @param string $template_name  Template name
@@ -331,14 +406,39 @@ class FormFieldRenderer {
 		// Check for template override
 		$actual_template = $this->template_overrides[$template_name] ?? $template_name;
 
-		// For now, return the component HTML directly
-		// Template wrapper functionality will be enhanced in the template architecture sprint
-		$this->_get_logger()->debug('FormFieldRenderer: Template wrapper applied', array(
-			'template_name'   => $template_name,
-			'actual_template' => $actual_template,
-			'field_id'        => $field_id
-		));
+		// Prepare template context with required variables
+		$template_context = array(
+			'field_id'            => $field_id,
+			'label'               => $label,
+			'component_html'      => $component_html,
+			'validation_warnings' => $context['validation_warnings'] ?? array(),
+			'display_notices'     => $context['display_notices']     ?? array(),
+			'description'         => $context['description']         ?? '',
+			'required'            => $context['required']            ?? false,
+			'context'             => $context,
+		);
 
-		return $component_html;
+		try {
+			// Use existing ComponentLoader to render wrapper template
+			$wrapped_html = $this->views->render($actual_template, $template_context);
+
+			$this->_get_logger()->debug('FormFieldRenderer: Template wrapper applied', array(
+				'template_name'   => $template_name,
+				'actual_template' => $actual_template,
+				'field_id'        => $field_id
+			));
+
+			return $wrapped_html;
+		} catch (\Throwable $e) {
+			$this->_get_logger()->error('FormFieldRenderer: Template wrapper failed', array(
+				'template_name'   => $template_name,
+				'actual_template' => $actual_template,
+				'field_id'        => $field_id,
+				'exception'       => $e
+			));
+
+			// Fallback to component HTML without wrapper on template error
+			return $component_html;
+		}
 	}
 }

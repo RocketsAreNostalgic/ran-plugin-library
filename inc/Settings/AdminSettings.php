@@ -1,6 +1,6 @@
 <?php
 /**
- * Settings: DX-friendly bridge to WordPress Settings API using RegisterOptions.
+ * AdminSettings: DX-friendly bridge to WordPress Settings API using RegisterOptions.
  *
  * @package Ran\PluginLib\Settings
  * @author  Ran Plugin Lib <bnjmnrsh@gmail.com>
@@ -16,7 +16,7 @@ namespace Ran\PluginLib\Settings;
 use Ran\PluginLib\Util\WPWrappersTrait;
 use Ran\PluginLib\Util\Logger;
 use Ran\PluginLib\Settings\ComponentRenderingTrait;
-use Ran\PluginLib\Settings\AdminSettingsMenuGroupBuilder;
+use Ran\PluginLib\Settings\AdminSettingsMenuGroupBuilder; //
 use Ran\PluginLib\Settings\AdminSettingsInterface;
 use Ran\PluginLib\Options\Storage\StorageContext;
 use Ran\PluginLib\Options\RegisterOptions;
@@ -25,6 +25,7 @@ use Ran\PluginLib\Forms\Renderer\FormMessageHandler;
 use Ran\PluginLib\Forms\Renderer\FormFieldRenderer;
 use Ran\PluginLib\Forms\FormServiceSession;
 use Ran\PluginLib\Forms\FormService;
+use Ran\PluginLib\Forms\FormBaseTrait;
 use Ran\PluginLib\Forms\Component\ComponentManifestAwareTrait;
 use Ran\PluginLib\Forms\Component\ComponentManifest;
 use Ran\PluginLib\Forms\Component\ComponentLoader;
@@ -39,75 +40,77 @@ use Ran\PluginLib\Forms\Component\ComponentLoader;
  * - Render component-driven admin forms and enqueue captured assets through the active session.
  */
 class AdminSettings implements AdminSettingsInterface {
+	use FormBaseTrait;
 	use WPWrappersTrait;
-	use ComponentManifestAwareTrait;
 	use ComponentRenderingTrait;
+	use ComponentManifestAwareTrait;
 
-	private RegisterOptions $base_options;
-	private string $main_option;
-	private Logger $logger;
-	private ComponentLoader $views;
-	private ComponentManifest $components;
-	private FormService $form_service;
-	private FormFieldRenderer $field_renderer;
-	private FormMessageHandler $message_handler;
-	private ?array $pending_values = null;
+	protected string $main_option;
+	protected ?array $pending_values = null;
+	protected ComponentLoader $views;
+	protected ComponentManifest $components;
+	protected FormService $form_service;
+	protected FormFieldRenderer $field_renderer;
+	protected FormMessageHandler $message_handler;
+	protected ?FormServiceSession $form_session = null;
+	protected RegisterOptions $base_options;
+	protected Logger $logger;
 
 	/**
 	 * Accumulates pending admin menu groups prior to WordPress hook registration.
 	 * Each group stores menu metadata plus its registered pages for later bootstrapping.
 	 *
-	 * @var array<string,array{meta:array,page_index?:array,pages:array}>
+	 * @var array<string, array{meta:array, page_index?:array, pages:array}>
 	 */
 	private array $menu_groups = array();
 
 	/**
 	 * Reverse lookup map of page slugs to their owning menu group and page identifiers.
-	 * Used by `render_page()` to retrieve metadata when handling menu callbacks.
+	 * Used by `render()` to retrieve metadata when handling menu callbacks.
 	 *
-	 * @var array<string,array{group:string,page:string}>
+	 * @var array<string, array{group:string, page:string}>
 	 */
 	private array $page_index = array();
 
-	/** @var array<string,array<string,array{title:string,description_cb:?callable,order:int,index:int}>> */
+	// Settings structure: sections, fields, and groups organized by page
+
+	/** @var array<string, array<string, array{title:string, description_cb:?callable, order:int, index:int}>> */
 	private array $sections = array();
-	/** @var array<string,array<string,array<int,array{id:string,label:string,component:string,component_context:array<string,mixed>,order:int,index:int}>>> */
+	/** @var array<string, array<string, array<int, array{id:string, label:string, component:string, component_context:array<string,mixed>, order:int, index:int}>>> */
 	private array $fields = array();
-	/** @var array<string,array<string,array{group_id:string,fields:array<int,array{id:string,label:string,component:string,component_context:array<string,mixed>,order:int,index:int}>,before:?callable,after:?callable,order:int,index:int}>> */
+	/** @var array<string, array<string, array{group_id:string, fields:array<int, array{id:string, label:string, component:string, component_context:array<string,mixed>, order:int, index:int}>, before:?callable, after:?callable, order:int, index:int}>> */
 	private array $groups = array();
 
-	/** @var array<string, array<string, string>> Template overrides by page slug and template type */
-	private array $page_template_overrides = array();
-
-	/** @var array<string, array<string, string>> Template overrides by section ID and template type */
-	private array $section_template_overrides = array();
-
-	/** @var array<string, string> Default template overrides for this AdminSettings instance */
+	// Template override system: hierarchical template customization
+	/** @var array<string, array<string, string>> */
 	private array $default_template_overrides = array();
+	/** @var array<string, array<string, string>> */
+	private array $root_template_overrides = array();
+	/** @var array<string, array<string, string>> */
+	private array $section_template_overrides = array();
+	/** @var array<string, array<string, string>> */
+	private array $group_template_overrides = array();
+	/** @var array<string, array<string, string>> */
+	private array $field_template_overrides = array();
+
 
 	private int $__section_index = 0;
-	private int $__field_index   = 0;
 	private int $__group_index   = 0;
+	private int $__field_index   = 0;
 
 	/** Constructor.
 	 *
 	 * @param RegisterOptions $options The base RegisterOptions instance.
+	 * @param ComponentManifest $components Component manifest (required).
 	 * @param Logger|null $logger Optional logger instance.
-	 * @param ComponentManifest|null $components Optional component manifest.
-	 * @param FormService|null $form_service Optional form service.
-	 * @param FormFieldRenderer|null $field_renderer Optional field renderer.
-	 * @param FormMessageHandler|null $message_handler Optional message handler.
 	 */
 	public function __construct(
 		RegisterOptions $options,
-		?Logger $logger = null,
-		?ComponentManifest $components = null,
-		?FormService $form_service = null,
-		?FormFieldRenderer $field_renderer = null,
-		?FormMessageHandler $message_handler = null
+		ComponentManifest $components,
+		?Logger $logger = null
 	) {
 		// RegisterOptions will lazy instantiate a logger if none is provided
-		$this->logger       = $logger instanceof Logger ? $logger : $options->get_logger();
+		$this->logger = $logger instanceof Logger ? $logger : $options->get_logger();
 		$this->base_options = $options;
 
 		$context = $options->get_storage_context();
@@ -116,39 +119,28 @@ class AdminSettings implements AdminSettingsInterface {
 			$this->logger->error('AdminSettings requires site context; received ' . $received . '.');
 			throw new \InvalidArgumentException('AdminSettings requires site context; received ' . $received . '.');
 		}
-		$this->main_option = $options->get_main_option_name();
-		$this->views       = new ComponentLoader(__DIR__ . '/views');
-		$this->components  = $components instanceof ComponentManifest
-			? $components
-			: new ComponentManifest(new ComponentLoader(dirname(__DIR__) . '/Forms/Components'), $this->logger);
-		$this->form_service = $form_service instanceof FormService ? $form_service : new FormService($this->components);
 
-		// Initialize shared infrastructure
-		$this->field_renderer = $field_renderer instanceof FormFieldRenderer
-			? $field_renderer
-			: new FormFieldRenderer($this->components, $this->form_service, $this->views, $this->logger);
-		$this->message_handler = $message_handler instanceof FormMessageHandler
-			? $message_handler
-			: new FormMessageHandler($this->logger);
+		$this->main_option = $options->get_main_option_name();
+		$this->components  = $components;
+		$this->views       = $components->get_component_loader();
+
+		// Register AdminSettings template overrides
+		$this->views->register('admin.default-page', '../../Settings/views/admin/default-page.php');
+
+		// Initialize AdminSettings-specific infrastructure
+		$this->form_service = new FormService($this->components);
+		$this->field_renderer = new FormFieldRenderer($this->components, $this->form_service, $this->views, $this->logger);
+		$this->message_handler = new FormMessageHandler($this->logger);
 
 		// Configure template overrides for AdminSettings context
 		$this->field_renderer->set_template_overrides(array(
-			'field-wrapper' => 'shared.field-wrapper',
-			'section'       => 'shared.section',
-			'form-wrapper'  => 'shared.form-wrapper'
+			'form-wrapper'  => 'admin.default-page',
 		));
 
-		$this->start_form_session();
+		$this->_start_form_session();
 	}
 
-	/**
-	 * Start a new form session.
-	 */
-	private function start_form_session(): void {
-		$this->form_session = $this->form_service->start_session();
-	}
-
-	/**
+	/** ✅✅
 	 * Resolve the correctly scoped RegisterOptions instance for current admin context.
 	 * Callers can chain fluent API on the returned object.
 	 *
@@ -159,6 +151,116 @@ class AdminSettings implements AdminSettingsInterface {
 	public function resolve_options(?array $context = null): RegisterOptions {
 		$resolved = $this->_resolve_context($context ?? array());
 		return $this->base_options->with_context($resolved['storage']);
+	}
+
+	/** ✅❌
+	 * Boot admin: register settings, sections, fields, and menu pages.
+	 */
+	public function boot(): void {
+		// Register setting for save flow (options.php submission)
+		$this->_do_add_action('admin_init', function () {
+			$this->_register_setting();
+			// Note: We don't register individual fields/sections with WordPress Settings API
+			// because we use custom template rendering instead of do_settings_fields()
+		});
+
+		$this->_do_add_action('admin_menu', function () {
+			foreach ($this->menu_groups as $group_slug => $group) {
+				$meta  = $group['meta'];
+				$pages = $group['pages'];
+				if (empty($pages)) {
+					continue;
+				}
+
+				$first_page_slug = array_key_first($pages);
+				$submenu_parent  = $meta['parent'];
+				$skip_first      = false;
+
+				if ($meta['parent'] === null) {
+					$this->_do_add_menu_page(
+						$meta['page_title'],
+						$meta['menu_title'],
+						$meta['capability'],
+						$group_slug,
+						function () use ($first_page_slug) {
+							$this->render($first_page_slug);
+						},
+						$meta['icon'],
+						$meta['position']
+					);
+					$submenu_parent = $group_slug;
+					$skip_first     = true;
+				} elseif ($meta['parent'] === 'options-general.php') {
+					$this->_do_add_options_page(
+						$meta['page_title'],
+						$meta['menu_title'],
+						$meta['capability'],
+						$group_slug,
+						function () use ($first_page_slug) {
+							$this->render($first_page_slug);
+						},
+						$meta['position']
+					);
+					$submenu_parent = 'options-general.php';
+					$skip_first     = true;
+				} else {
+					$this->_do_add_submenu_page(
+						$meta['parent'],
+						$meta['page_title'],
+						$meta['menu_title'],
+						$meta['capability'],
+						$group_slug,
+						function () use ($first_page_slug) {
+							$this->render($first_page_slug);
+						}
+					);
+					$submenu_parent = $meta['parent'];
+					$skip_first     = true;
+				}
+
+				foreach ($pages as $page_slug => $page_meta) {
+					if ($skip_first && $page_slug === $first_page_slug) {
+						continue;
+					}
+					$this->_do_add_submenu_page(
+						$submenu_parent,
+						$page_meta['meta']['page_title'],
+						$page_meta['meta']['menu_title'],
+						$page_meta['meta']['capability'],
+						$page_slug,
+						function () use ($page_slug) {
+							$this->render($page_slug);
+						}
+					);
+				}
+			}
+		});
+	}
+
+	/** 🚨
+	 * Create a simple settings page under the WordPress Settings menu.
+	 *
+	 * UserSettings collerary is the collection() method.
+	 *
+	 * This is a convenience method for the common case of adding a single settings page.
+	 * For multiple pages or custom menu groups, use menu_group() instead.
+	 *
+	 * @param string $page_slug The page slug (used in URL)
+	 * @param string $page_title The page title (shown in browser title and page header)
+	 * @param string $menu_title The menu title (shown in WordPress admin sidebar)
+	 *
+	 * @return AdminSettingsPageBuilder
+	 */
+	public function page(string $page_slug, string $page_title, string $menu_title): AdminSettingsPageBuilder {
+		// Create a menu group for this page under Settings menu
+		$group_slug = $page_slug . '_settings_group';
+
+		return $this->menu_group($group_slug)
+			->page_heading($page_title)
+			->menu_label($menu_title)
+			->capability('manage_options')
+			->parent('options-general.php')  // Default to Settings menu
+			->page($page_slug);
 	}
 
 	/**
@@ -198,170 +300,37 @@ class AdminSettings implements AdminSettingsInterface {
 		});
 	}
 
-	/**
-	 * Boot admin: register settings, sections, fields, and menu pages.
-	 */
-	public function boot(): void {
-		// Register setting and sections/fields
-		$this->_do_add_action('admin_init', function () {
-			$this->_register_setting();
-			foreach ($this->menu_groups as $group) {
-				foreach ($group['pages'] as $page_slug => $page) {
-					$sections = $page['sections'];
-					uasort($sections, function ($a, $b) {
-						return ($a['order'] <=> $b['order']) ?: ($a['index'] <=> $b['index']);
-					});
-					foreach ($sections as $section_id => $meta) {
-						$desc = $meta['description_cb'] ?? function () {
-						};
-						$this->_do_add_settings_section($section_id, $meta['title'], $desc, $page_slug);
-
-						$rawFields = $page['fields'][$section_id] ?? array();
-						$groups    = $page['groups'][$section_id] ?? array();
-						uasort($groups, function ($a, $b) {
-							return ($a['order'] <=> $b['order']) ?: ($a['index'] <=> $b['index']);
-						});
-						usort($rawFields, function ($a, $b) {
-							return ($a['order'] <=> $b['order']) ?: ($a['index'] <=> $b['index']);
-						});
-
-						$combined = array();
-						foreach ($groups as $gmeta) {
-							$combined[] = array('type' => 'group', 'order' => $gmeta['order'], 'index' => $gmeta['index'], 'group' => $gmeta);
-						}
-						foreach ($rawFields as $f) {
-							$combined[] = array('type' => 'field', 'order' => $f['order'], 'index' => $f['index'], 'field' => $f);
-						}
-						usort($combined, function ($a, $b) {
-							return ($a['order'] <=> $b['order']) ?: ($a['index'] <=> $b['index']);
-						});
-
-						foreach ($combined as $item) {
-							if ($item['type'] === 'group') {
-								$g = $item['group'];
-								if (is_callable($g['before'])) {
-									$beforeCb = $g['before'];
-									$this->_do_add_settings_field($g['group_id'] . '__start', '', $beforeCb, $page_slug, $section_id);
-								}
-								$gf = $g['fields'];
-								usort($gf, function ($a, $b) {
-									return ($a['order'] <=> $b['order']) ?: ($a['index'] <=> $b['index']);
-								});
-								foreach ($gf as $f) {
-									$this->_register_settings_field($page_slug, $section_id, $f);
-								}
-								if (is_callable($g['after'])) {
-									$afterCb = $g['after'];
-									$this->_do_add_settings_field($g['group_id'] . '__end', '', $afterCb, $page_slug, $section_id);
-								}
-							} else {
-								$f = $item['field'];
-								$this->_register_settings_field($page_slug, $section_id, $f);
-							}
-						}
-					}
-				}
-			}
-		});
-
-		$this->_do_add_action('admin_menu', function () {
-			foreach ($this->menu_groups as $group_slug => $group) {
-				$meta  = $group['meta'];
-				$pages = $group['pages'];
-				if (empty($pages)) {
-					continue;
-				}
-
-				$first_page_slug = array_key_first($pages);
-				$submenu_parent  = $meta['parent'];
-				$skip_first      = false;
-
-				if ($meta['parent'] === null) {
-					$this->_do_add_menu_page(
-						$meta['page_title'],
-						$meta['menu_title'],
-						$meta['capability'],
-						$group_slug,
-						function () use ($first_page_slug) {
-							$this->render_page($first_page_slug);
-						},
-						$meta['icon'],
-						$meta['position']
-					);
-					$submenu_parent = $group_slug;
-					$skip_first     = true;
-				} elseif ($meta['parent'] === 'options-general.php') {
-					$this->_do_add_options_page(
-						$meta['page_title'],
-						$meta['menu_title'],
-						$meta['capability'],
-						$group_slug,
-						function () use ($first_page_slug) {
-							$this->render_page($first_page_slug);
-						},
-						$meta['position']
-					);
-					$submenu_parent = 'options-general.php';
-					$skip_first     = true;
-				} else {
-					$this->_do_add_submenu_page(
-						$meta['parent'],
-						$meta['page_title'],
-						$meta['menu_title'],
-						$meta['capability'],
-						$group_slug,
-						function () use ($first_page_slug) {
-							$this->render_page($first_page_slug);
-						}
-					);
-					$submenu_parent = $meta['parent'];
-					$skip_first     = true;
-				}
-
-				foreach ($pages as $page_slug => $page_meta) {
-					if ($skip_first && $page_slug === $first_page_slug) {
-						continue;
-					}
-					$this->_do_add_submenu_page(
-						$submenu_parent,
-						$page_meta['meta']['page_title'],
-						$page_meta['meta']['menu_title'],
-						$page_meta['meta']['capability'],
-						$page_slug,
-						function () use ($page_slug) {
-							$this->render_page($page_slug);
-						}
-					);
-				}
-			}
-		});
-	}
-
-	/**
+	/** ✅❌
 	 * Render a registered settings page using the template or a default form shell.
 	 */
-	public function render_page(string $page_id_or_slug, ?array $context = null): void {
-		$this->start_form_session();
-
-		if (!isset($this->page_index[$page_id_or_slug])) {
+	public function render(string $id_slug, ?array $context = null): void {
+		if (!isset($this->page_index[$id_slug])) {
 			echo '<div class="wrap"><h1>Settings</h1><p>Unknown settings page.</p></div>';
 			return;
 		}
-		$ref     = $this->page_index[$page_id_or_slug];
+		$this->_start_form_session();
+
+		$ref     = $this->page_index[$id_slug];
 		$meta    = $this->menu_groups[$ref['group']]['pages'][$ref['page']]['meta'];
 		$schema  = $this->base_options->get_schema();
 		$group   = $this->main_option . '_group';
 		$options = $this->_do_get_option($this->main_option, array());
+		$sections = $this->sections[$ref['page']] ?? array();
+
+		// Get effective values from message handler (handles pending values)
+		$effective_values = $this->message_handler->get_effective_values($options);
+
+		$rendered_content = $this->_render_default_sections_wrapper($id_slug, $sections, $effective_values);
+
 		$payload = array_merge($context ?? array(), array(
 		    'group'           => $group,
-		    'page_slug'       => $page_id_or_slug,
+		    'page_slug'       => $id_slug,
 		    'page_meta'       => $meta,
 		    'schema'          => $schema,
 		    'options'         => $options,
-		    'section_meta'    => $this->sections[$ref['page']] ?? array(),
-		    'values'          => $options,
-		    'render_fields'   => fn () => $this->_do_settings_fields($group),
-		    'render_sections' => fn () => $this->_do_settings_sections($page_id_or_slug),
+		    'section_meta'    => $sections,
+		    'values'          => $effective_values,
+		    'content'         => $rendered_content,
 		    'render_submit'   => fn () => $this->_do_submit_button(),
 		    'errors_by_field' => $this->message_handler->get_all_messages(),
 		));
@@ -372,25 +341,11 @@ class AdminSettings implements AdminSettingsInterface {
 			return;
 		}
 
-		$this->_render_default_collection_template($payload);
+		$this->_render_default_root($payload);
 		$this->_enqueue_component_assets();
 	}
 
-	/**
-	 * Resolve warning messages captured during the most recent sanitize pass for a field ID.
-	 *
-	 * @return array<int,string>
-	 */
-	private function get_messages_for_field(string $field_id): array {
-		$key      = $this->_do_sanitize_key($field_id);
-		$messages = $this->message_handler->get_messages_for_field($key);
-		return $messages ?? array(
-			'warnings' => array(),
-			'notices'  => array(),
-		);
-	}
-
-	/**
+	/** ✅✅
 	 * Retrieve structured validation messages captured during the most recent operation.
 	 *
 	 * @return array<string, array{warnings: array<int, string>, notices: array<int, string>}>
@@ -398,177 +353,238 @@ class AdminSettings implements AdminSettingsInterface {
 	public function take_messages(): array {
 		$messages = $this->message_handler->get_all_messages();
 		$this->message_handler->clear();
-		return $messages;
-	}
-
-
-	/**
-	 * Resolve the correctly scoped RegisterOptions instance for current admin context.
-	 *
-	 * @param array<string,mixed> $context
-	 * @return array{storage: StorageContext, scope: OptionScope}
-	 */
-	protected function _resolve_context(array $context): array {
-		$context = $context ?? array();
-
-		$baseContext = $this->base_options->get_storage_context();
-		$scope       = SettingsScopeHelper::parseScope($context);
-		if (!$scope instanceof OptionScope) {
-			$scope = $baseContext->scope ?? ($this->_do_is_network_admin() ? OptionScope::Network : OptionScope::Site);
-		}
-
-		$scope = SettingsScopeHelper::requireAllowed($scope, OptionScope::Site, OptionScope::Network, OptionScope::Blog);
-
-		return match ($scope) {
-			OptionScope::Site => array(
-			    'storage' => StorageContext::forSite(),
-			    'scope'   => OptionScope::Site,
-			),
-			OptionScope::Network => array(
-			    'storage' => StorageContext::forNetwork(),
-			    'scope'   => OptionScope::Network,
-			),
-			OptionScope::Blog => $this->_resolve_blog_scope($context, $baseContext),
-		};
-	}
-
-	/**
-	 * Resolve the correctly scoped RegisterOptions instance for current admin context.
-	 *
-	 * @param array<string,mixed> $context
-	 * @return array{storage: StorageContext, scope: OptionScope}
-	 */
-	protected function _resolve_blog_scope(array $context, StorageContext $baseContext): array {
-		$blogId = isset($context['blog_id']) ? (int) $context['blog_id'] : ($baseContext->blog_id ?? 0);
-		if ($blogId <= 0) {
-			$blogId = $this->_do_get_current_blog_id();
-		}
-		if ($blogId <= 0) {
-			throw new \InvalidArgumentException('AdminSettings requires a valid blog_id for blog scope.');
-		}
-
-		return array(
-		    'storage' => StorageContext::forBlog($blogId),
-		    'scope'   => OptionScope::Blog,
+		return $messages ?? array(
+			'warnings' => array(),
+			'notices'  => array(),
 		);
 	}
 
-	/**
-	 * Discover and inject component validators for a field.
+	/** ✅✅⚠️
+	 * Set default template overrides for this AdminSettings instance.
 	 *
-	 * @param string $field_id Field identifier
-	 * @param string $component Component name
+	 * @param array<string, string> $template_overrides Template overrides keyed by template type.
+	 *
 	 * @return void
 	 */
-	protected function _inject_component_validators(string $field_id, string $component): void {
-		// Get component validator factories from ComponentManifest
-		$validator_factories = $this->components->validator_factories();
-
-		if (isset($validator_factories[$component])) {
-			$validator_factory = $validator_factories[$component];
-
-			// Create the validator instance
-			if (is_callable($validator_factory)) {
-				$validator_instance = $validator_factory();
-
-				// Create a callable wrapper that adapts ValidatorInterface to RegisterOptions signature
-				$validator_callable = function($value, callable $emitWarning) use ($validator_instance): bool {
-					return $validator_instance->validate($value, array(), $emitWarning);
-				};
-
-				// Inject the validator at the beginning of the validation chain
-				$this->base_options->prepend_validator($field_id, $validator_callable);
-
-				$this->logger->debug('AdminSettings: Component validator injected', array(
-					'field_id'  => $field_id,
-					'component' => $component
-				));
-			}
-		}
+	public function set_default_template_overrides(array $template_overrides): void {
+		$this->default_template_overrides = array_merge($this->default_template_overrides, $template_overrides);
+		$this->logger->debug('AdminSettings: Default template overrides set', array(
+			'overrides' => $template_overrides
+		));
 	}
 
-	/**
-		* Register a field with the Settings API, supporting component-aware definitions.
-		*
-		* @param string $page_slug
-		* @param string $section_id
-		* @param array<string,mixed> $field
-		*/
-	protected function _register_settings_field(string $page_slug, string $section_id, array $field): void {
-		$field_id = isset($field['id']) ? (string) $field['id'] : '';
-		if ($field_id === '') {
-			return;
-		}
+	/** ✅✅
+	 * Get default template overrides for this AdminSettings instance.
+	 *
+	 * @return array<string, string>
+	 */
+	public function get_default_template_overrides(): array {
+		return $this->default_template_overrides;
+	}
 
-		$label     = isset($field['label']) ? (string) $field['label'] : '';
-		$component = isset($field['component']) && is_string($field['component']) ? trim($field['component']) : '';
-		if ($component === '') {
-			throw new \InvalidArgumentException(sprintf('Field "%s" on page "%s" requires a component alias.', $field_id, $page_slug));
-		}
-		$context = $field['component_context'] ?? array();
-		if (!is_array($context)) {
-			throw new \InvalidArgumentException(sprintf('Field "%s" on page "%s" must provide an array component_context.', $field_id, $page_slug));
-		}
+	/** ✅✅⚠️
+	 * Set template overrides for the root container (page for AdminSettings).
+	 *
+	 * @param string $root_id_slug The root container ID (page slug).
+	 * @param array<string, string> $template_overrides Template overrides keyed by template type.
+	 *
+	 * @return void
+	 */
+	public function set_root_template_overrides(string $root_id_slug, array $template_overrides): void {
+		$this->root_template_overrides[$root_id_slug] = $template_overrides;
+		$this->logger->debug('AdminSettings: Root template overrides set', array(
+			'id_slug' => $root_id_slug,
+			'overrides' => array_keys($template_overrides)
+		));
+	}
 
-		// Inject component validators automatically
-		$this->_inject_component_validators($field_id, $component);
+	/** ✅✅
+	 * Get template overrides for the root container (page for AdminSettings).
+	 *
+	 * @param string $root_id_slug The root container ID (page slug).
+	 *
+	 * @return array<string, string>
+	 */
+	public function get_root_template_overrides(string $root_id_slug): array {
+		return $this->root_template_overrides[$root_id_slug] ?? array();
+	}
 
-		$main_option = $this->main_option;
-		$callback    = function () use ($component, $field_id, $label, $context, $main_option) {
-			$this->start_form_session();
+	/** ✅✅⚠️
+	 * Set template overrides for a specific section.
+	 *
+	 * @param string $section_id The section ID.
+	 * @param array<string, string> $template_overrides Template overrides keyed by template type.
+	 *
+	 * @return void
+	 */
+	public function set_section_template_overrides(string $section_id, array $template_overrides): void {
+		$this->section_template_overrides[$section_id] = $template_overrides;
+		$this->logger->debug('AdminSettings: Section template overrides set', array(
+			'section_id' => $section_id,
+			'overrides'  => $template_overrides
+		));
+	}
 
-			// Get stored values
-			$storedValues = $this->_do_get_option($main_option, array());
-			$values       = is_array($storedValues) ? $storedValues : array();
+	/** ✅✅
+	 * Get template overrides for a specific section.
+	 *
+	 * @param string $section_id The section ID.
+	 *
+	 * @return array<string, string>
+	 */
+	public function get_section_template_overrides(string $section_id): array {
+		return $this->section_template_overrides[$section_id] ?? array();
+	}
 
-			// Use effective values from message handler (handles pending values)
-			$effective_values = $this->message_handler->get_effective_values($values);
+	/** ✅✅⚠️
+	 * Set template overrides for a specific group.
+	 *
+	 * @param string $group_id The group ID.
+	 * @param array<string, string> $template_overrides Template overrides keyed by template type.
+	 *
+	 * @return void
+	 */
+	public function set_group_template_overrides(string $group_id, array $template_overrides): void {
+		$this->group_template_overrides[$group_id] = $template_overrides;
+		$this->logger->debug('AdminSettings: Group template overrides set', array(
+			'group_id'  => $group_id,
+			'overrides' => $template_overrides
+		));
+	}
 
-			// Get messages for this field
-			$field_messages = $this->message_handler->get_messages_for_field($field_id);
+	/** ✅✅
+	 * Get template overrides for a specific group.
+	 *
+	 * @param string $group_id The group ID.
+	 *
+	 * @return array<string, string>
+	 */
+	public function get_group_template_overrides(string $group_id): array {
+		return $this->group_template_overrides[$group_id] ?? array();
+	}
 
-			// Prepare field configuration
-			$field_config = array(
-				'field_id'          => $field_id,
-				'component'         => $component,
-				'label'             => $label,
-				'component_context' => $context
-			);
+	/** ✅✅⚠️
+	 * Set template overrides for a specific field.
+	 *
+	 * @param string $field_id The field ID.
+	 * @param array<string, string> $template_overrides Template overrides keyed by template type.
+	 *
+	 * @return void
+	 */
+	public function set_field_template_overrides(string $field_id, array $template_overrides): void {
+		$this->field_template_overrides[$field_id] = $template_overrides;
+		$this->logger->debug('AdminSettings: Field template overrides set', array(
+			'field_id'  => $field_id,
+			'overrides' => $template_overrides
+		));
+	}
 
-			// Use FormFieldRenderer for consistent field processing
-			try {
-				$field_context = $this->field_renderer->prepare_field_context(
-					$field_config,
-					$effective_values,
-					array($field_id => $field_messages)
-				);
+	/** ✅✅
+	 * Get template overrides for a specific field.
+	 *
+	 * @param string $field_id The field ID.
+	 *
+	 * @return array<string, string>
+	 */
+	public function get_field_template_overrides(string $field_id): array {
+		return $this->field_template_overrides[$field_id] ?? array();
+	}
 
-				$out = $this->field_renderer->render_field_component(
-					$component,
-					$field_id,
-					$label,
-					$field_context,
-					$effective_values,
-					'direct-output' // AdminSettings handles its own page wrapper
-				);
-
-				echo $out;
-			} catch (\Throwable $e) {
-				$this->logger->error('AdminSettings: Field rendering failed', array(
-					'field_id'  => $field_id,
-					'component' => $component,
-					'exception' => $e
+	/** ✅✅⚠️
+	 * Resolve template with hierarchical fallback.
+	 *
+	 * @param string $template_type The template type (e.g., 'page', 'section', 'group', 'field-wrapper').
+	 * @param array<string, mixed> $context Resolution context containing field_id, section_id, page_slug, etc.
+	 *
+	 * @return string The resolved template key.
+	 */
+	public function resolve_template(string $template_type, array $context = array()): string {
+		// 1. Check field-level override (highest priority)
+		if (isset($context['field_id'])) {
+			$field_overrides = $this->get_field_template_overrides($context['field_id']);
+			if (isset($field_overrides[$template_type])) {
+				$this->logger->debug('AdminSettings: Template resolved via field override', array(
+					'template_type' => $template_type,
+					'template'      => $field_overrides[$template_type],
+					'field_id'      => $context['field_id']
 				));
-				echo '<p class="error">Field rendering failed: ' . esc_html($e->getMessage()) . '</p>';
+				return $field_overrides[$template_type];
 			}
-		};
+		}
 
-		$this->_render_default_collection_template($context);
-		$this->_enqueue_component_assets();
+		// 2. Check group-level override
+		if (isset($context['group_id'])) {
+			$group_overrides = $this->get_group_template_overrides($context['group_id']);
+			if (isset($group_overrides[$template_type])) {
+				$this->logger->debug('AdminSettings: Template resolved via group override', array(
+					'template_type' => $template_type,
+					'template'      => $group_overrides[$template_type],
+					'group_id'      => $context['group_id']
+				));
+				return $group_overrides[$template_type];
+			}
+		}
+
+		// 3. Check section-level override
+		if (isset($context['section_id'])) {
+			$section_overrides = $this->get_section_template_overrides($context['section_id']);
+			if (isset($section_overrides[$template_type])) {
+				$this->logger->debug('AdminSettings: Template resolved via section override', array(
+					'template_type' => $template_type,
+					'template'      => $section_overrides[$template_type],
+					'section_id'    => $context['section_id']
+				));
+				return $section_overrides[$template_type];
+			}
+		}
+
+		// 4. Check page-level override
+		if (isset($context['id_slug'])) {
+			$page_overrides = $this->get_root_template_overrides($context['page_slug']);
+			if (isset($page_overrides[$template_type])) {
+				$this->logger->debug('AdminSettings: Template resolved via page override', array(
+					'template_type' => $template_type,
+					'template'      => $page_overrides[$template_type],
+					'page_slug'     => $context['page_slug']
+				));
+				return $page_overrides[$template_type];
+			}
+		}
+
+		// 5. Check class instance defaults
+		if (isset($this->default_template_overrides[$template_type])) {
+			$this->logger->debug('AdminSettings: Template resolved via class default', array(
+				'template_type' => $template_type,
+				'template'      => $this->default_template_overrides[$template_type]
+			));
+			return $this->default_template_overrides[$template_type];
+		}
+
+		// 6. System defaults (lowest priority)
+		$system_default = $this->_get_system_default_template($template_type);
+		$this->logger->debug('AdminSettings: Template resolved via system default', array(
+			'template_type' => $template_type,
+			'template'      => $system_default
+		));
+		return $system_default;
+	}
+
+	// Protected
+
+	/** ✅✅
+	 * Start a new form session.
+	 */
+	protected function _start_form_session(): void {
+		$this->form_session = $this->form_service->start_session();
 	}
 
 	/**
 	 * Register the setting with WordPress Settings API and wire sanitize callback.
+	 *
+	 * This enables the options.php save flow while using custom template rendering.
+	 * We register the main setting but NOT individual fields/sections since we use
+	 * custom templates instead of do_settings_fields().
+	 *
 	 * Uses a default group derived from the main option name.
 	 */
 	public function _register_setting(): void {
@@ -659,252 +675,306 @@ class AdminSettings implements AdminSettingsInterface {
 		return $result;
 	}
 
-	/**
-	 * Set template overrides for a specific page.
+	/** ✅✅
+	 * Resolve warning messages captured during the most recent sanitize pass for a field ID.
 	 *
-	 * @param string $page_slug The page slug.
-	 * @param array<string, string> $template_overrides Template overrides keyed by template type.
-	 *
-	 * @return void
+	 * @return array<int,string>
 	 */
-	public function set_page_template_overrides(string $page_slug, array $template_overrides): void {
-		$this->page_template_overrides[$page_slug] = $template_overrides;
-		$this->logger->debug('AdminSettings: Page template overrides set', array(
-			'page_slug' => $page_slug,
-			'overrides' => $template_overrides
-		));
+	protected function _get_messages_for_field(string $field_id): array {
+		$key      = $this->_do_sanitize_key($field_id);
+		$messages = $this->message_handler->get_messages_for_field($key);
+		return $messages ?? array(
+			'warnings' => array(),
+			'notices'  => array(),
+		);
 	}
 
-	/**
-	 * Get template overrides for a specific page.
-	 *
-	 * @param string $page_slug The page slug.
-	 *
-	 * @return array<string, string>
-	 */
-	public function get_page_template_overrides(string $page_slug): array {
-		return $this->page_template_overrides[$page_slug] ?? array();
-	}
-
-	/**
-	 * Set template overrides for a specific section.
-	 *
-	 * @param string $section_id The section ID.
-	 * @param array<string, string> $template_overrides Template overrides keyed by template type.
-	 *
-	 * @return void
-	 */
-	public function set_section_template_overrides(string $section_id, array $template_overrides): void {
-		$this->section_template_overrides[$section_id] = $template_overrides;
-		$this->logger->debug('AdminSettings: Section template overrides set', array(
-			'section_id' => $section_id,
-			'overrides'  => $template_overrides
-		));
-	}
-
-	/**
-	 * Get template overrides for a specific section.
-	 *
-	 * @param string $section_id The section ID.
-	 *
-	 * @return array<string, string>
-	 */
-	public function get_section_template_overrides(string $section_id): array {
-		return $this->section_template_overrides[$section_id] ?? array();
-	}
-
-	/**
-	 * Set default template overrides for this AdminSettings instance.
-	 *
-	 * @param array<string, string> $template_overrides Template overrides keyed by template type.
-	 *
-	 * @return void
-	 */
-	public function set_default_template_overrides(array $template_overrides): void {
-		$this->default_template_overrides = array_merge($this->default_template_overrides, $template_overrides);
-		$this->logger->debug('AdminSettings: Default template overrides set', array(
-			'overrides' => $template_overrides
-		));
-	}
-
-	/**
-	 * Get default template overrides for this AdminSettings instance.
-	 *
-	 * @return array<string, string>
-	 */
-	public function get_default_template_overrides(): array {
-		return $this->default_template_overrides;
-	}
-
-	/**
-	 * Resolve template with hierarchical fallback.
-	 *
-	 * @param string $template_type The template type (e.g., 'page', 'section', 'group', 'field-wrapper').
-	 * @param array<string, mixed> $context Resolution context containing field_id, section_id, page_slug, etc.
-	 *
-	 * @return string The resolved template key.
-	 */
-	public function resolve_template(string $template_type, array $context = array()): string {
-		// 1. Check field-level override (highest priority)
-		if (isset($context['field_template_override'])) {
-			$this->logger->debug('AdminSettings: Template resolved via field override', array(
-				'template_type' => $template_type,
-				'template'      => $context['field_template_override'],
-				'context'       => $context
-			));
-			return $context['field_template_override'];
-		}
-
-		// 2. Check section-level override
-		if (isset($context['section_id'])) {
-			$section_overrides = $this->get_section_template_overrides($context['section_id']);
-			if (isset($section_overrides[$template_type])) {
-				$this->logger->debug('AdminSettings: Template resolved via section override', array(
-					'template_type' => $template_type,
-					'template'      => $section_overrides[$template_type],
-					'section_id'    => $context['section_id']
-				));
-				return $section_overrides[$template_type];
-			}
-		}
-
-		// 3. Check page-level override
-		if (isset($context['page_slug'])) {
-			$page_overrides = $this->get_page_template_overrides($context['page_slug']);
-			if (isset($page_overrides[$template_type])) {
-				$this->logger->debug('AdminSettings: Template resolved via page override', array(
-					'template_type' => $template_type,
-					'template'      => $page_overrides[$template_type],
-					'page_slug'     => $context['page_slug']
-				));
-				return $page_overrides[$template_type];
-			}
-		}
-
-		// 4. Check class instance defaults
-		if (isset($this->default_template_overrides[$template_type])) {
-			$this->logger->debug('AdminSettings: Template resolved via class default', array(
-				'template_type' => $template_type,
-				'template'      => $this->default_template_overrides[$template_type]
-			));
-			return $this->default_template_overrides[$template_type];
-		}
-
-		// 5. System defaults (lowest priority)
-		$system_default = $this->get_system_default_template($template_type);
-		$this->logger->debug('AdminSettings: Template resolved via system default', array(
-			'template_type' => $template_type,
-			'template'      => $system_default
-		));
-		return $system_default;
-	}
-
-	/**
+	/** ✅❌
 	 * Get system default template for a template type.
 	 *
 	 * @param string $template_type The template type.
 	 *
 	 * @return string The system default template key.
 	 */
-	private function get_system_default_template(string $template_type): string {
+	protected function _get_system_default_template(string $template_type): string {
 		$defaults = array(
-			'page'          => 'admin.default-page',
-			'section'       => 'admin.default-section',
-			'group'         => 'admin.default-group',
-			'field-wrapper' => 'admin.default-field-wrapper',
+			'page' => 'admin.default-page',
 		);
 		return $defaults[$template_type] ?? 'shared.default-wrapper';
 	}
 
-	/**
-	 * Validate template override and provide error handling.
-	 *
-	 * @param string $template_key The template key to validate.
-	 * @param string $template_type The template type for context.
-	 *
-	 * @return bool True if valid, false otherwise.
-	 */
-	public function validate_template_override(string $template_key, string $template_type): bool {
-		// Check if template exists in ComponentLoader
-		try {
-			// Try to render with empty context to check if template exists
-			$this->views->render($template_key, array());
-			return true;
-		} catch (\LogicException $e) {
-			$this->logger->warning('AdminSettings: Invalid template override', array(
-				'template_key'  => $template_key,
-				'template_type' => $template_type,
-				'error'         => $e->getMessage(),
-				'suggestion'    => $this->suggest_template_alternatives($template_key, $template_type)
-			));
-			return false;
-		}
-	}
-
-	/**
-	 * Suggest template alternatives for invalid template keys.
-	 *
-	 * @param string $invalid_key The invalid template key.
-	 * @param string $template_type The template type.
-	 *
-	 * @return array<string> Suggested alternatives.
-	 */
-	private function suggest_template_alternatives(string $invalid_key, string $template_type): array {
-		$suggestions = array();
-
-		// Common template patterns
-		$common_patterns = array(
-			'page'          => array('admin.default-page', 'admin.modern-page', 'shared.page'),
-			'section'       => array('admin.default-section', 'admin.modern-section', 'shared.section'),
-			'group'         => array('admin.default-group', 'admin.modern-group', 'shared.group'),
-			'field-wrapper' => array('admin.default-field-wrapper', 'shared.field-wrapper'),
-		);
-
-		if (isset($common_patterns[$template_type])) {
-			$suggestions = $common_patterns[$template_type];
-		}
-
-		// Try to find similar keys by removing common prefixes/suffixes
-		$base_key = preg_replace('/^(admin|shared|custom)\./', '', $invalid_key);
-		$base_key = preg_replace('/-(template|wrapper)$/', '', $base_key);
-
-		foreach (array('admin', 'shared') as $prefix) {
-			$suggestions[] = $prefix . '.' . $base_key;
-			$suggestions[] = $prefix . '.' . $base_key . '-' . $template_type;
-		}
-
-		return array_unique($suggestions);
-	}
-
-	/**
-	 * Render the default admin settings template when no custom template is provided.
+	/** ✅❌
+	 * Render the default page template markup.
 	 *
 	 * @param array<string,mixed> $context
+	 * @return void
 	 */
-	protected function _render_default_collection_template(array $context): void {
+	protected function _render_default_root(array $context) {
+		echo $this->views->render('admin.default-page', $context);
+	}
+
+	/** ✅✅
+	 * Render sections and fields for an admin page.
+	 *
+	 * @param string $root_id_slug Page identifier.
+	 * @param array  $sections  Section metadata map.
+	 * @param array  $values    Current option values.
+	 *
+	 * @return string Rendered HTML markup.
+	 */
+	protected function _render_default_sections_wrapper(string $id_slug, array $sections, array $values): string {
+		$prepared_sections = array();
+		$groups_map = $this->groups[$id_slug] ?? array();
+		$fields_map = $this->fields[$id_slug] ?? array();
+
+		foreach ($sections as $section_id => $meta) {
+			$groups = $groups_map[$section_id] ?? array();
+			$fields = $fields_map[$section_id] ?? array();
+
+			// Sort groups and fields by order
+			uasort($groups, function ($a, $b) {
+				return ($a['order'] <=> $b['order']) ?: ($a['index'] <=> $b['index']);
+			});
+			usort($fields, function ($a, $b) {
+				return ($a['order'] <=> $b['order']) ?: ($a['index'] <=> $b['index']);
+			});
+
+			// Combine groups and fields
+			$items = array();
+			foreach ($groups as $group) {
+				$group_fields = $group['fields'];
+				usort($group_fields, function ($a, $b) {
+					return ($a['order'] <=> $b['order']) ?: ($a['index'] <=> $b['index']);
+				});
+				$items[] = array(
+					'type'   => 'group',
+					'before' => $group['before'] ?? null,
+					'after'  => $group['after']  ?? null,
+					'fields' => $group_fields,
+				);
+			}
+			foreach ($fields as $field) {
+				$items[] = array('type' => 'field', 'field' => $field);
+			}
+
+			// Sort items (groups first, then fields)
+			usort($items, function ($a, $b) {
+				return ($a['type'] === 'group' ? 0 : 1) <=> ($b['type'] === 'group' ? 0 : 1);
+			});
+
+			$prepared_sections[] = array(
+				'title'          => (string) $meta['title'],
+				'description_cb' => $meta['description_cb'] ?? null,
+				'items'          => $items,
+			);
+		}
+
+		return $this->views->render('section', array(
+			'sections'       => $prepared_sections,
+			'group_renderer' => fn (array $group): string => $this->_render_default_group_wraper($group, $values),
+			'field_renderer' => fn (array $field): string => $this->_render_default_field_wrapper($field, $values),
+		));
+	}
+
+	/** ✅✅
+	 * Render a group of fields for admin settings.
+	 *
+	 * @param array<string,mixed> $group
+	 * @param array<string,mixed> $values
+	 *
+	 * @return string Rendered group HTML.
+	 */
+	protected function _render_default_group_wraper(array $group, array $values): string {
+		$content_parts = array();
+
+		if (isset($group['before']) && is_callable($group['before'])) {
+			ob_start();
+			($group['before'])();
+			$content_parts[] = (string) ob_get_clean();
+		}
+
+		foreach ($group['fields'] ?? array() as $field) {
+			$content_parts[] = $this->_render_default_field_wrapper($field, $values);
+		}
+
+		if (isset($group['after']) && is_callable($group['after'])) {
+			ob_start();
+			($group['after'])();
+			$content_parts[] = (string) ob_get_clean();
+		}
+
+		return $this->views->render('group-wrapper', array(
+			'content_parts' => $content_parts,
+		));
+	}
+
+	/** ✅
+	 * Render a single field wrappper
+	 *
+	 * @param array<string,mixed> $field
+	 * @param array<string,mixed> $values
+	 *
+	 * @return string Rendered field HTML.
+	 */
+	protected function _render_default_field_wrapper(array $field, array $values): string {
+		if (empty($field)) {
+			return '';
+		}
+
+		$field_id  = isset($field['id']) ? (string) $field['id'] : '';
+		$label     = isset($field['label']) ? (string) $field['label'] : '';
+		$component = isset($field['component']) && is_string($field['component']) ? trim($field['component']) : '';
+
+		if ($component === '') {
+			$this->logger->error('AdminSettings field missing component metadata.', array('field' => $field_id));
+			throw new \InvalidArgumentException(sprintf('AdminSettings field "%s" requires a component alias.', $field_id ?: 'unknown'));
+		}
+
+		$context = $field['component_context'] ?? array();
+		if (!is_array($context)) {
+			$this->logger->error('AdminSettings field provided a non-array component_context.', array('field' => $field_id));
+			throw new \InvalidArgumentException(sprintf('AdminSettings field "%s" must provide an array component_context.', $field_id ?: 'unknown'));
+		}
+
+		// Get effective values from message handler (handles pending values)
+		$effective_values = $this->message_handler->get_effective_values($values);
+
+		// Get messages for this field
+		$field_messages = $this->message_handler->get_messages_for_field($field_id);
+
+		// Prepare field configuration
+		$field_config = array(
+			'field_id'          => $field_id,
+			'component'         => $component,
+			'label'             => $label,
+			'component_context' => $context
+		);
+
+		// Use FormFieldRenderer for consistent field processing
 		try {
-			echo $this->views->render('admin.default-page', $context);
-		} catch (\LogicException $e) {
-			$this->logger->error('AdminSettings default template render failed.', array('message' => $e->getMessage()));
-			throw $e;
+			$field_context = $this->field_renderer->prepare_field_context(
+				$field_config,
+				$effective_values,
+				array($field_id => $field_messages)
+			);
+
+			$content = $this->field_renderer->render_field_component(
+				$component,
+				$field_id,
+				$label,
+				$field_context,
+				$effective_values,
+				'direct-output' // AdminSettings handles its own wrapper
+			);
+
+			if ($content === '') {
+				return '';
+			}
+
+			// Use shared field-wrapper template
+			return $this->views->render('field-wrapper', array(
+				'label'               => $label,
+				'content'             => $content,
+				'field_id'            => $field_id,
+				'component_html'      => $content,
+				'validation_warnings' => $field_messages['warnings'] ?? array(),
+				'display_notices'     => $field_messages['notices']  ?? array()
+			));
+		} catch (\Throwable $e) {
+			$this->logger->error('AdminSettings: Field rendering failed', array(
+				'field_id'  => $field_id,
+				'component' => $component,
+				'exception' => $e
+			));
+			return '<div class="error">Field rendering failed: ' . esc_html($e->getMessage()) . '</div>';
 		}
 	}
 
-	/**
-	 * Check if AdminSettings uses WordPress Settings API.
+	/** ✅✅⚠️
+	 * Discover and inject component validators for a field.
 	 *
-	 * @return bool Always false - AdminSettings bypasses WordPress Settings API.
+	 * @param string $field_id Field identifier
+	 * @param string $component Component name
+	 * @return void
 	 */
-	public function uses_wordpress_settings_api(): bool {
-		return false;
+	protected function _inject_component_validators(string $field_id, string $component): void {
+		// Get component validator factories from ComponentManifest
+		$validator_factories = $this->components->validator_factories();
+
+		if (isset($validator_factories[$component])) {
+			$validator_factory = $validator_factories[$component];
+
+			// Create the validator instance
+			if (is_callable($validator_factory)) {
+				$validator_instance = $validator_factory();
+
+				// Create a callable wrapper that adapts ValidatorInterface to RegisterOptions signature
+				$validator_callable = function($value, callable $emitWarning) use ($validator_instance): bool {
+					return $validator_instance->validate($value, array(), $emitWarning);
+				};
+
+				// Inject the validator at the beginning of the validation chain
+				$this->base_options->prepend_validator($field_id, $validator_callable);
+
+				$this->logger->debug('AdminSettings: Component validator injected', array(
+					'field_id'  => $field_id,
+					'component' => $component
+				));
+			}
+		}
 	}
 
+	// Resolvers
+
 	/**
-	 * Check if AdminSettings uses custom rendering.
+	 * Resolve the correctly scoped RegisterOptions instance for current admin context.
 	 *
-	 * @return bool Always true - AdminSettings uses custom rendering system.
+	 * @param array<string,mixed> $context
+	 * @return array{storage: StorageContext, scope: OptionScope}
 	 */
-	public function uses_custom_rendering(): bool {
-		return true;
+	protected function _resolve_blog_scope(array $context, StorageContext $baseContext): array {
+		$blogId = isset($context['blog_id']) ? (int) $context['blog_id'] : ($baseContext->blog_id ?? 0);
+		if ($blogId <= 0) {
+			$blogId = $this->_do_get_current_blog_id();
+		}
+		if ($blogId <= 0) {
+			throw new \InvalidArgumentException('AdminSettings requires a valid blog_id for blog scope.');
+		}
+
+		return array(
+		    'storage' => StorageContext::forBlog($blogId),
+		    'scope'   => OptionScope::Blog,
+		);
 	}
+
+	/** ✅❌
+	 * Resolve the correctly scoped RegisterOptions instance for current admin context.
+	 *
+	 * @param array<string,mixed> $context
+	 * @return array{storage: StorageContext, scope: OptionScope}
+	 */
+	protected function _resolve_context(array $context): array {
+		$context = $context ?? array();
+
+		$baseContext = $this->base_options->get_storage_context();
+		$scope       = SettingsScopeHelper::parseScope($context);
+		if (!$scope instanceof OptionScope) {
+			$scope = $baseContext->scope ?? ($this->_do_is_network_admin() ? OptionScope::Network : OptionScope::Site);
+		}
+
+		$scope = SettingsScopeHelper::requireAllowed($scope, OptionScope::Site, OptionScope::Network, OptionScope::Blog);
+
+		return match ($scope) {
+			OptionScope::Site => array(
+			    'storage' => StorageContext::forSite(),
+			    'scope'   => OptionScope::Site,
+			),
+			OptionScope::Network => array(
+			    'storage' => StorageContext::forNetwork(),
+			    'scope'   => OptionScope::Network,
+			),
+			OptionScope::Blog => $this->_resolve_blog_scope($context, $baseContext),
+		};
+	}
+
 }
