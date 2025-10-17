@@ -27,6 +27,8 @@ final class SectionGroupBuilder {
 	private $after;
 	private ?int $order;
 	private bool $committed = false;
+	/** @var array<string, string> */
+	private array $template_overrides = array();
 
 	public function __construct(
 		SectionBuilder $sectionBuilder,
@@ -65,10 +67,11 @@ final class SectionGroupBuilder {
 	 * @param string $component The component alias.
 	 * @param array $component_context The component context.
 	 * @param int|null $order The field order.
+	 * @param string|null $field_template Optional field wrapper template override.
 	 *
 	 * @return SectionGroupBuilder The SectionGroupBuilder instance.
 	 */
-	public function field(string $field_id, string $label, string $component, array $component_context = array(), ?int $order = null): self {
+	public function field(string $field_id, string $label, string $component, array $component_context = array(), ?int $order = null, ?string $field_template = null): self {
 		$component = trim($component);
 		if ($component === '') {
 			throw new \InvalidArgumentException(sprintf('Grouped field "%s" requires a component alias.', $field_id));
@@ -84,6 +87,16 @@ final class SectionGroupBuilder {
 		    'component_context' => $component_context,
 		    'order'             => ($order !== null ? (int) $order : 0),
 		);
+
+		// Apply field-level template override if provided
+		if ($field_template !== null) {
+			if (method_exists($this->sectionBuilder, 'get_settings')) {
+				$settings = $this->sectionBuilder->get_settings();
+				if ($settings instanceof \Ran\PluginLib\Settings\SettingsInterface) {
+					$settings->set_field_template_overrides($field_id, array('field-wrapper' => $field_template));
+				}
+			}
+		}
 
 		return $this;
 	}
@@ -160,6 +173,30 @@ final class SectionGroupBuilder {
 	}
 
 	/**
+	 * Set the group template for this specific group.
+	 *
+	 * @param string $template_key The template key to use for group wrapper.
+	 *
+	 * @return SectionGroupBuilder The SectionGroupBuilder instance.
+	 */
+	public function group_template(string $template_key): self {
+		$this->template_overrides['group'] = $template_key;
+		return $this;
+	}
+
+	/**
+	 * Set the default field template for all fields in this group.
+	 *
+	 * @param string $template_key The template key to use for field wrappers.
+	 *
+	 * @return SectionGroupBuilder The SectionGroupBuilder instance.
+	 */
+	public function field_template(string $template_key): self {
+		$this->template_overrides['field-wrapper'] = $template_key;
+		return $this;
+	}
+
+	/**
 	 * Commit buffered data and return to the section builder.
 	 *
 	 * @return SectionBuilder The SectionBuilder instance.
@@ -186,6 +223,10 @@ final class SectionGroupBuilder {
 		if ($this->committed) {
 			return;
 		}
+
+		// Apply template overrides before committing
+		$this->_apply_template_overrides();
+
 		($this->onAddGroup)(
 			$this->collection_slug,
 			$this->section_id,
@@ -200,5 +241,19 @@ final class SectionGroupBuilder {
 		$this->before    = null;
 		$this->after     = null;
 		$this->committed = true;
+	}
+
+	/**
+	 * Apply template overrides to the Settings instance.
+	 */
+	private function _apply_template_overrides(): void {
+		if (!empty($this->template_overrides)) {
+			if (method_exists($this->sectionBuilder, 'get_settings')) {
+				$settings = $this->sectionBuilder->get_settings();
+				if ($settings instanceof \Ran\PluginLib\Settings\SettingsInterface) {
+					$settings->set_group_template_overrides($this->group_id, $this->template_overrides);
+				}
+			}
+		}
 	}
 }

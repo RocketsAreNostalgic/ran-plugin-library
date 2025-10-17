@@ -20,7 +20,7 @@ use Ran\PluginLib\Forms\Component\Build\BuilderDefinitionInterface;
 /**
  * UserSettingsCollectionBuilder: Fluent builder for user settings collections.
  */
-final class UserSettingsCollectionBuilder implements CollectionBuilderInterface {
+class UserSettingsCollectionBuilder implements CollectionBuilderInterface {
 	private SettingsInterface $settings;
 	private string $page_id;
 	/** @var callable */

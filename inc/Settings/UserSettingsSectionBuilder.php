@@ -105,6 +105,49 @@ class UserSettingsSectionBuilder extends SectionBuilder {
 		return $this;
 	}
 
+	/**
+	 * Set the default group template for all groups in this section.
+	 *
+	 * @param string $template_key The template key to use for group containers.
+	 *
+	 * @return UserSettingsSectionBuilder The UserSettingsSectionBuilder instance.
+	 * @throws \InvalidArgumentException If template key is empty.
+	 */
+	public function group_template(string $template_key): UserSettingsSectionBuilder {
+		if (trim($template_key) === '') {
+			throw new \InvalidArgumentException('Template key cannot be empty');
+		}
+		$this->template_overrides['group'] = $template_key;
+		return $this;
+	}
+
+	/**
+	 * Override parent field method to support UserSettings field-level template overrides.
+	 *
+	 * @param string $field_id The field ID.
+	 * @param string $label The field label.
+	 * @param string $component The component alias.
+	 * @param array<string,mixed> $component_context The component context.
+	 * @param int|null $order The order.
+	 * @param string|null $field_template Optional field wrapper template override.
+	 *
+	 * @return UserSettingsSectionBuilder The UserSettingsSectionBuilder instance.
+	 */
+	public function field(string $field_id, string $label, string $component, array $component_context = array(), ?int $order = null, ?string $field_template = null): UserSettingsSectionBuilder {
+		// Call parent field method (without template override application)
+		($this->onAddField)($this->collection_slug, $this->section_id, $field_id, $label, $component, $component_context, $order, $field_template);
+
+		// Apply field-level template override if provided
+		if ($field_template !== null) {
+			$user_settings = $this->get_user_settings();
+			if ($user_settings instanceof \Ran\PluginLib\Settings\UserSettingsInterface) {
+				$user_settings->set_field_template_overrides($field_id, array('field-wrapper' => $field_template));
+			}
+		}
+
+		return $this;
+	}
+
 
 
 	/**
@@ -136,6 +179,15 @@ class UserSettingsSectionBuilder extends SectionBuilder {
 				$user_settings->set_section_template_overrides($section_id, $this->template_overrides);
 			}
 		}
+	}
+
+	/**
+	 * Get the Settings instance from the collection builder.
+	 *
+	 * @return SettingsInterface
+	 */
+	public function get_settings(): SettingsInterface {
+		return $this->get_user_settings();
 	}
 
 	/**

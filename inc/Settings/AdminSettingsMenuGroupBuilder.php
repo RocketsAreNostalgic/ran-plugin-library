@@ -15,13 +15,12 @@ namespace Ran\PluginLib\Settings;
 
 use Ran\PluginLib\Settings\SettingsInterface;
 use Ran\PluginLib\Settings\AdminSettingsPageBuilder;
-use Ran\PluginLib\Settings\AdminSettingsInterface;
 
 /**
  * Builder used by `AdminSettings` to configure grouped admin menus.
  */
 final class AdminSettingsMenuGroupBuilder {
-	private AdminSettingsInterface $settings;
+	private SettingsInterface $settings;
 	private string $group_slug;
 	/** @var array{page_title:string, menu_title:string, capability:string, parent:?string, icon:?string, position:?int, order:int} */
 	private array $meta;
@@ -45,12 +44,12 @@ final class AdminSettingsMenuGroupBuilder {
 	/**
 	 * Create a new AdminSettingsMenuGroupBuilder.
 	 *
-	 * @param AdminSettingsInterface $settings The settings object.
+	 * @param SettingsInterface $settings The settings object.
 	 * @param string $group_slug The slug of this group.
 	 * @param array $initial_meta The initial meta for this group.
 	 * @param callable $finalize The finalize callback.
 	 */
-	public function __construct(AdminSettingsInterface $settings, string $group_slug, array $initial_meta, callable $finalize) {
+	public function __construct(SettingsInterface $settings, string $group_slug, array $initial_meta, callable $finalize) {
 		$this->settings   = $settings;
 		$this->group_slug = $group_slug;
 		$this->meta       = $initial_meta;

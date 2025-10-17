@@ -198,7 +198,7 @@ final class AdminSettingsPageBuilder implements CollectionBuilderInterface {
 			    'index'          => $this->__section_index++,
 			);
 		};
-		$onAddField = function (string $page, string $sid, string $fid, string $label, string $component, array $context, ?int $forder): void {
+		$onAddField = function (string $page, string $sid, string $fid, string $label, string $component, array $context, ?int $forder, ?string $field_template = null): void {
 			if ($page !== $this->page_slug) {
 				return;
 			}

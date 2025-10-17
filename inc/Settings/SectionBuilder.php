@@ -20,26 +20,26 @@ use Ran\PluginLib\Settings\AdminSettingsInterface;
 use Ran\PluginLib\Forms\Component\Build\BuilderDefinitionInterface;
 
 class SectionBuilder implements SectionBuilderInterface {
-	private CollectionBuilderInterface $collectionBuilder;
-	private string $collection_slug;
-	private string $section_id;
+	protected CollectionBuilderInterface $collectionBuilder;
+	protected string $collection_slug;
+	protected string $section_id;
 	/** @var callable */
-	private $onAddSection;
+	protected $onAddSection;
 	/** @var callable */
-	private $onAddField;
+	protected $onAddField;
 	/** @var callable */
-	private $onAddGroup;
+	protected $onAddGroup;
 	/** @var callable */
-	private $onAddFieldDefinition;
+	protected $onAddFieldDefinition;
 	/** @var callable */
-	private $onSectionCommit;
+	protected $onSectionCommit;
 	private bool $committed = false;
 	/** @var array<string, string> Template overrides for this section */
 	private array $template_overrides = array();
 
 	/**
 	 * @param callable $onAddSection          function(string $collection, string $section, string $title, ?callable $desc, ?int $order): void
-	 * @param callable $onAddField            function(string $collection, string $section, string $id, string $label, string $component, array $context, ?int $order): void
+	 * @param callable $onAddField            function(string $collection, string $section, string $id, string $label, string $component, array $context, ?int $order, ?string $field_template): void
 	 * @param callable $onAddGroup            function(string $collection, string $section, string $group, string $title, array $fields, ?callable $before, ?callable $after, ?int $order): void
 	 * @param callable $onAddFieldDefinition  function(string $collection, string $section, BuilderDefinitionInterface $definition): void
 	 * @param callable $onSectionCommit       function(string $collection, string $section): void
@@ -110,11 +110,23 @@ class SectionBuilder implements SectionBuilderInterface {
 	 * @param string $component The component alias.
 	 * @param array<string,mixed> $component_context The component context.
 	 * @param int|null $order The order.
+	 * @param string|null $field_template Optional field wrapper template override.
 	 *
 	 * @return SectionBuilder The SectionBuilder instance.
 	 */
-	public function field(string $field_id, string $label, string $component, array $component_context = array(), ?int $order = null): self {
-		($this->onAddField)($this->collection_slug, $this->section_id, $field_id, $label, $component, $component_context, $order);
+	public function field(string $field_id, string $label, string $component, array $component_context = array(), ?int $order = null, ?string $field_template = null): self {
+		($this->onAddField)($this->collection_slug, $this->section_id, $field_id, $label, $component, $component_context, $order, $field_template);
+
+		// Apply field-level template override if provided (AdminSettings only - UserSettings overrides this method)
+		if ($field_template !== null) {
+			if (method_exists($this, 'get_admin_settings')) {
+				$admin_settings = $this->get_admin_settings();
+				if ($admin_settings instanceof \Ran\PluginLib\Settings\AdminSettingsInterface) {
+					$admin_settings->set_field_template_overrides($field_id, array('field-wrapper' => $field_template));
+				}
+			}
+		}
+
 		return $this;
 	}
 
@@ -196,6 +208,15 @@ class SectionBuilder implements SectionBuilderInterface {
 				$admin_settings->set_section_template_overrides($this->section_id, $this->template_overrides);
 			}
 		}
+	}
+
+	/**
+	 * Get the Settings instance from the collection builder.
+	 *
+	 * @return SettingsInterface
+	 */
+	public function get_settings(): SettingsInterface {
+		return $this->get_admin_settings();
 	}
 
 	/**
