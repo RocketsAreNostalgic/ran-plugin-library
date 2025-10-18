@@ -69,6 +69,15 @@ class ComponentManifest {
 	 */
 	public function render(string $alias, array $context = array()): ComponentRenderResult {
 		if (!isset($this->components[$alias])) {
+			// Check if the alias has invalid format
+			if (!$this->_is_valid_template_key($alias)) {
+				$this->logger->warning("Attempted to render template with invalid key format: '$alias'");
+				throw new \InvalidArgumentException(
+					sprintf('Template "%s" was not registered because it has an invalid key format. ' .
+					       'Template keys must contain only letters, numbers, dots, hyphens, and underscores.', $alias)
+				);
+			}
+
 			$this->logger->warning(sprintf('Unknown form component "%s".', $alias), array('context' => $context));
 			throw new \InvalidArgumentException(sprintf('Unknown form component "%s".', $alias));
 		}
@@ -492,5 +501,14 @@ class ComponentManifest {
 
 		$this->_do_delete_option('component_cache_transients');
 		$this->logger->debug('ComponentManifest: Cleared component transients', array('count' => $cleared_count));
+	}
+	/**
+	 * Validate template key format
+	 *
+	 * @param string $key The template key to validate
+	 * @return bool True if valid, false otherwise
+	 */
+	private function _is_valid_template_key(string $key): bool {
+		return !empty($key) && preg_match('/^[a-zA-Z0-9._-]+$/', $key);
 	}
 }
