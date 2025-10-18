@@ -54,6 +54,11 @@ class ComponentLoader {
 	 * @param string $relativePath
 	 */
 	public function register(string $name, string $relativePath): self {
+		if (!$this->_is_valid_template_key($name)) {
+			$this->logger?->warning("Skipping invalid template key: '$name'");
+			return $this;
+		}
+
 		$this->map[$name] = $this->_normalize_path($relativePath);
 		return $this;
 	}
@@ -262,8 +267,17 @@ class ComponentLoader {
 		}
 
 		$normalizedSegments = array_map(array($this, '_normalize_alias_segment'), $segments);
+		$alias              = implode('.', $normalizedSegments);
 
-		return implode('.', $normalizedSegments);
+		// Validate the generated alias - this should never fail for our internal templates
+		if (!$this->_is_valid_template_key($alias)) {
+			throw new \UnexpectedValueException(
+				"Internal error: Generated invalid template alias '$alias' from file '$relative'. " .
+				'This indicates a bug in the alias generation logic.'
+			);
+		}
+
+		return $alias;
 	}
 
 	/**
@@ -504,5 +518,15 @@ class ComponentLoader {
 		$this->logger?->info('ComponentLoader: Cleared all template cache entries', array(
 			'cleared_count' => $cleared_count
 		));
+	}
+
+	/**
+	 * Validate template key format
+	 *
+	 * @param string $key The template key to validate
+	 * @return bool True if valid, false otherwise
+	 */
+	private function _is_valid_template_key(string $key): bool {
+		return !empty($key) && preg_match('/^[a-zA-Z0-9._-]+$/', $key);
 	}
 }
