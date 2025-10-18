@@ -9,15 +9,48 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\Forms;
 
+use Ran\PluginLib\Util\WPWrappersTrait;
+use Ran\PluginLib\Util\Logger;
 use Ran\PluginLib\Forms\Component\ComponentManifest;
 
 class FormServiceSession {
+	use WPWrappersTrait;
+
 	private ComponentManifest $manifest;
 	private FormAssets $assets;
+	private TemplateOverrideResolver $template_resolver;
 
-	public function __construct(ComponentManifest $manifest, FormAssets $assets) {
-		$this->manifest = $manifest;
-		$this->assets   = $assets;
+	public function __construct(ComponentManifest $manifest, FormAssets $assets, Logger $logger, array $form_defaults = array()) {
+		$this->manifest          = $manifest;
+		$this->assets            = $assets;
+		$this->template_resolver = new TemplateOverrideResolver($logger);
+
+		// Set form-wide defaults if provided
+		if (!empty($form_defaults)) {
+			$this->template_resolver->set_form_defaults($form_defaults);
+		}
+	}
+
+	/**
+	 * Render an element using the complete pipeline: template resolution → component rendering → asset collection
+	 *
+	 * @param string $element_type The template type (e.g., 'field-wrapper', 'section-wrapper')
+	 * @param array<string,mixed> $element_config Element configuration
+	 * @param array<string,mixed> $context Resolution context containing field_id, section_id, etc.
+	 * @return string Rendered HTML markup
+	 */
+	public function render_element(string $element_type, array $element_config = array(), array $context = array()): string {
+		// Step 1: Resolve template key via TemplateOverrideResolver
+		$template_key = $this->template_resolver->resolve_template($element_type, $context);
+
+		// Step 2: Pass resolved template key to ComponentManifest for rendering
+		$render_context = array_merge($element_config, $context);
+		$result         = $this->manifest->render($template_key, $render_context);
+
+		// Step 3: Extract and store assets from ComponentRenderResult
+		$this->assets->ingest($result);
+
+		return $result->markup;
 	}
 
 	public function render_component(string $component, array $context = array()): string {
@@ -55,9 +88,9 @@ class FormServiceSession {
 			$src     = $definition->src;
 			$deps    = $definition->deps;
 			$version = $definition->version;
-			wp_register_style($definition->handle, is_string($src) || $src === false ? $src : '', $deps, $version ?: false);
+			$this->_do_wp_register_style($definition->handle, is_string($src) || $src === false ? $src : '', $deps, $version ?: false);
 			if ($definition->hook === null) {
-				wp_enqueue_style($definition->handle);
+				$this->_do_wp_enqueue_style($definition->handle);
 			}
 		}
 
@@ -66,19 +99,19 @@ class FormServiceSession {
 			$deps     = $definition->deps;
 			$version  = $definition->version;
 			$inFooter = $definition->data['in_footer'] ?? true;
-			wp_register_script($definition->handle, is_string($src) || $src === false ? $src : '', $deps, $version ?: false, (bool) $inFooter);
+			$this->_do_wp_register_script($definition->handle, is_string($src) || $src === false ? $src : '', $deps, $version ?: false, (bool) $inFooter);
 			if (!empty($definition->data['localize']) && is_array($definition->data['localize'])) {
 				foreach ($definition->data['localize'] as $objectName => $l10n) {
-					wp_localize_script($definition->handle, (string) $objectName, $l10n);
+					$this->_do_wp_localize_script($definition->handle, (string) $objectName, $l10n);
 				}
 			}
 			if ($definition->hook === null) {
-				wp_enqueue_script($definition->handle);
+				$this->_do_wp_enqueue_script($definition->handle);
 			}
 		}
 
 		if ($this->assets->requires_media()) {
-			wp_enqueue_media();
+			$this->_do_wp_enqueue_media();
 		}
 	}
 
@@ -88,5 +121,105 @@ class FormServiceSession {
 
 	public function assets(): FormAssets {
 		return $this->assets;
+	}
+
+	/**
+	 * Get the TemplateOverrideResolver instance for direct access
+	 *
+	 * @return TemplateOverrideResolver
+	 */
+	public function template_resolver(): TemplateOverrideResolver {
+		return $this->template_resolver;
+	}
+
+	// Two-tier template override configuration methods
+
+	/**
+	 * Set form-wide defaults (Tier 1)
+	 *
+	 * @param array<string, string> $defaults Template type => template key mappings
+	 * @return void
+	 */
+	public function set_form_defaults(array $defaults): void {
+		$this->template_resolver->set_form_defaults($defaults);
+	}
+
+	/**
+	 * Override specific form-wide defaults (Tier 1)
+	 *
+	 * @param array<string, string> $overrides Template type => template key mappings
+	 * @return void
+	 */
+	public function override_form_defaults(array $overrides): void {
+		$this->template_resolver->override_form_defaults($overrides);
+	}
+
+	/**
+	 * Get form-wide defaults (Tier 1)
+	 *
+	 * @return array<string, string> Template type => template key mappings
+	 */
+	public function get_form_defaults(): array {
+		return $this->template_resolver->get_form_defaults();
+	}
+
+	/**
+	 * Set individual element override (Tier 2)
+	 *
+	 * @param string $element_type The element type (field, section, group, root)
+	 * @param string $element_id The element ID
+	 * @param array<string, string> $overrides Template type => template key mappings
+	 * @return void
+	 */
+	public function set_individual_element_override(string $element_type, string $element_id, array $overrides): void {
+		switch ($element_type) {
+			case 'field':
+				$this->template_resolver->set_field_template_overrides($element_id, $overrides);
+				break;
+			case 'section':
+				$this->template_resolver->set_section_template_overrides($element_id, $overrides);
+				break;
+			case 'group':
+				$this->template_resolver->set_group_template_overrides($element_id, $overrides);
+				break;
+			case 'root':
+				$this->template_resolver->set_root_template_overrides($element_id, $overrides);
+				break;
+			default:
+				throw new \InvalidArgumentException("Invalid element type: '$element_type'. Must be one of: field, section, group, root");
+		}
+	}
+
+	/**
+	 * Get individual element overrides (Tier 2)
+	 *
+	 * @param string $element_type The element type (field, section, group, root)
+	 * @param string $element_id The element ID
+	 * @return array<string, string> Template type => template key mappings
+	 */
+	public function get_individual_element_overrides(string $element_type, string $element_id): array {
+		switch ($element_type) {
+			case 'field':
+				return $this->template_resolver->get_field_template_overrides($element_id);
+			case 'section':
+				return $this->template_resolver->get_section_template_overrides($element_id);
+			case 'group':
+				return $this->template_resolver->get_group_template_overrides($element_id);
+			case 'root':
+				return $this->template_resolver->get_root_template_overrides($element_id);
+			default:
+				throw new \InvalidArgumentException("Invalid element type: '$element_type'. Must be one of: field, section, group, root");
+		}
+	}
+
+	/**
+	 * Resolve template using the two-tier system
+	 *
+	 * @param string $template_type The template type
+	 * @param array<string, mixed> $context Resolution context
+	 * @return string The resolved template key
+	 */
+	public function resolve_template(string $template_type, array $context = array()): string {
+		return $this->template_resolver->resolve_template($template_type, $context);
 	}
 }
