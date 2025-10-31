@@ -12,8 +12,13 @@
  * } $context
  */
 
+use Ran\PluginLib\Forms\Component\ComponentRenderResult;
+
 if (!isset($context['content']) || $context['content'] === '') {
-	return '';
+	return new ComponentRenderResult(
+		markup: '',
+		component_type: 'layout_wrapper'
+	);
 }
 
 $label               = isset($context['label']) ? (string) $context['label'] : '';
@@ -51,4 +56,7 @@ ob_start();
 	</td>
 </tr>
 <?php
-return (string) ob_get_clean();
+return new ComponentRenderResult(
+	markup: (string) ob_get_clean(),
+	component_type: 'layout_wrapper'
+);

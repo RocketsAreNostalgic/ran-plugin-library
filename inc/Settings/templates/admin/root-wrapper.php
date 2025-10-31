@@ -3,18 +3,20 @@
  * Default admin page template
  *
  * Expected $context keys:
- * - page_title: string - Page title
+ * - heading: string - Page title
  * - description: string - Page description (optional)
  * - settings_group: string - WordPress settings group (optional)
- * - content: string - Page content
+ * @package RanPluginLib\Settings\Admin\Templates
  */
+
+use Ran\PluginLib\Forms\Component\ComponentRenderResult;
 
 if (!defined('ABSPATH')) {
 	exit;
 }
 
 // Extract context variables
-$page_title     = $context['page_title']     ?? '';
+$heading        = $context['heading']        ?? '';
 $description    = $context['description']    ?? '';
 $settings_group = $context['settings_group'] ?? '';
 $content        = $context['content']        ?? '';
@@ -23,8 +25,8 @@ ob_start();
 ?>
 
 <div class="wrap admin-settings-page">
-    <?php if (!empty($page_title)): ?>
-        <h1><?php echo esc_html($page_title); ?></h1>
+    <?php if (!empty($heading)): ?>
+        <h1><?php echo esc_html($heading); ?></h1>
     <?php endif; ?>
 
     <?php if (!empty($description)): ?>
@@ -57,4 +59,7 @@ if (function_exists('submit_button')) {
 </div>
 
 <?php
-return (string) ob_get_clean();
+return new ComponentRenderResult(
+	markup: (string) ob_get_clean(),
+	component_type: 'layout_wrapper'
+);
