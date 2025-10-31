@@ -63,6 +63,8 @@ trait FormsBaseTrait {
 	protected array $fields = array();
 	/** @var array<string, array<string, array{group_id:string, fields:array<int, array{id:string, label:string, component:string, component_context:array<string,mixed>, order:int, index:int}>, before:?callable, after:?callable, order:int, index:int}>> */
 	protected array $groups = array();
+	/** @var array<string, array{zones:array<string, array{alignment:string, layout:string, before:?callable, after:?callable}>, controls:array<string, array<int, array{id:string, label:string, component:string, component_context:array<string,mixed>, order:int}>>}> */
+	protected array $submit_controls = array();
 
 
 	// Template override system removed - now handled by FormsTemplateOverrideResolver in FormsServiceSession
@@ -232,12 +234,166 @@ trait FormsBaseTrait {
 				case 'form_defaults_override':
 					$this->_handle_form_defaults_override($data);
 					break;
+				case 'submit_controls_zone':
+					$this->_handle_submit_controls_zone_update($data);
+					break;
+				case 'submit_controls_set':
+					$this->_handle_submit_controls_set_update($data);
+					break;
 				default:
 					// Allow concrete classes to handle implementation-specific update types
 					$this->_handle_context_update($type, $data);
 					break;
 			}
 		};
+	}
+
+	/**
+	 * Handle submit controls zone metadata updates.
+	 *
+	 * @param array<string,mixed> $data Update payload from builder.
+	 * @return void
+	 */
+	protected function _handle_submit_controls_zone_update(array $data): void {
+		$container_id = isset($data['container_id']) ? trim((string) $data['container_id']) : '';
+		$zone_id      = isset($data['zone_id']) ? trim((string) $data['zone_id']) : '';
+
+		if ($container_id === '' || $zone_id === '') {
+			$this->logger->warning('FormsBaseTrait: Submit controls zone update missing required IDs', array(
+				'container_id' => $container_id,
+				'zone_id'      => $zone_id,
+			));
+			return;
+		}
+
+		if (!isset($this->submit_controls[$container_id])) {
+			$this->submit_controls[$container_id] = array(
+				'zones'    => array(),
+				'controls' => array(),
+			);
+		}
+
+		$alignment = $this->sanitize_submit_alignment((string) ($data['alignment'] ?? 'right'));
+		$layout    = $this->sanitize_submit_layout((string) ($data['layout'] ?? 'inline'));
+		$before    = $data['before'] ?? null;
+		$after     = $data['after']  ?? null;
+
+		$this->submit_controls[$container_id]['zones'][$zone_id] = array(
+			'alignment' => $alignment,
+			'layout'    => $layout,
+			'before'    => is_callable($before) ? $before : null,
+			'after'     => is_callable($after) ? $after : null,
+		);
+
+		$this->logger->debug('forms.submit_controls.zone.updated', array(
+			'container_id' => $container_id,
+			'zone_id'      => $zone_id,
+			'alignment'    => $alignment,
+			'layout'       => $layout,
+			'has_before'   => is_callable($before),
+			'has_after'    => is_callable($after),
+		));
+	}
+
+	/**
+	 * Handle submit controls set updates.
+	 *
+	 * @param array<string,mixed> $data Update payload from builder.
+	 * @return void
+	 */
+	protected function _handle_submit_controls_set_update(array $data): void {
+		$container_id = isset($data['container_id']) ? trim((string) $data['container_id']) : '';
+		$zone_id      = isset($data['zone_id']) ? trim((string) $data['zone_id']) : '';
+
+		if ($container_id === '' || $zone_id === '') {
+			$this->logger->warning('FormsBaseTrait: Submit controls set update missing required IDs', array(
+				'container_id' => $container_id,
+				'zone_id'      => $zone_id,
+			));
+			return;
+		}
+
+		if (!isset($this->submit_controls[$container_id]['zones'][$zone_id])) {
+			$this->logger->warning('Submit controls update received without matching zone', array(
+				'container_id' => $container_id,
+				'zone_id'      => $zone_id,
+			));
+			return;
+		}
+
+		$controls = $data['controls'] ?? array();
+		if (!is_array($controls)) {
+			$this->logger->warning('Submit controls update received with invalid controls payload', array(
+				'container_id' => $container_id,
+				'zone_id'      => $zone_id,
+			));
+			return;
+		}
+
+		$normalized = array();
+		foreach ($controls as $control) {
+			if (!is_array($control)) {
+				continue;
+			}
+
+			$control_id = isset($control['id']) ? trim((string) $control['id']) : '';
+			$component  = isset($control['component']) ? trim((string) $control['component']) : '';
+			$label      = isset($control['label']) ? (string) $control['label'] : '';
+			$context    = $control['component_context'] ?? array();
+
+			if ($control_id === '' || $component === '' || !is_array($context)) {
+				$this->logger->warning('Submit control entry missing required metadata', array(
+					'container_id' => $container_id,
+					'zone_id'      => $zone_id,
+					'control'      => $control,
+				));
+				continue;
+			}
+
+			$normalized[] = array(
+				'id'                => $control_id,
+				'label'             => $label,
+				'component'         => $component,
+				'component_context' => $context,
+				'order'             => isset($control['order']) ? (int) $control['order'] : 0,
+			);
+		}
+
+		usort(
+			$normalized,
+			static function(array $a, array $b): int {
+				return $a['order'] <=> $b['order'];
+			}
+		);
+
+		$this->submit_controls[$container_id]['controls'][$zone_id] = $normalized;
+		$this->logger->debug('forms.submit_controls.controls.updated', array(
+			'container_id' => $container_id,
+			'zone_id'      => $zone_id,
+			'count'        => count($normalized),
+		));
+	}
+
+	/**
+	 * Normalize submit control alignment.
+	 *
+	 * @param string $alignment Raw alignment.
+	 * @return string
+	 */
+	private function sanitize_submit_alignment(string $alignment): string {
+		$alignment = strtolower(trim($alignment));
+		return in_array($alignment, array('left', 'center', 'right', 'stretch'), true) ? $alignment : 'right';
+	}
+
+	/**
+	 * Normalize submit control layout.
+	 *
+	 * @param string $layout Raw layout.
+	 * @return string
+	 */
+	private function sanitize_submit_layout(string $layout): string {
+		$layout = strtolower(trim($layout));
+		return in_array($layout, array('inline', 'stacked'), true) ? $layout : 'inline';
 	}
 
 	/**

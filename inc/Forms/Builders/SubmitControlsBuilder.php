@@ -17,6 +17,7 @@ final class SubmitControlsBuilder {
 	/** @var callable */
 	private $updateFn;
 	private string $template_key;
+	private bool $has_custom_template = false;
 	/** @var array<int,array<string,mixed>> */
 	private array $controls   = array();
 	private string $alignment = 'right';
@@ -33,18 +34,21 @@ final class SubmitControlsBuilder {
 		callable $updateFn,
 		array $defaults = array()
 	) {
-		$this->rootBuilder  = $rootBuilder;
-		$this->container_id = $container_id;
-		$this->zone_id      = $zone_id;
-		$this->updateFn     = $updateFn;
-		$this->template_key = trim((string) ($defaults['template'] ?? 'layout/zone/submit-controls-wrapper')) ?: 'layout/zone/submit-controls-wrapper';
-		$this->alignment    = $this->normalize_alignment($defaults['alignment'] ?? 'right');
-		$this->layout       = $this->normalize_layout($defaults['layout'] ?? 'inline');
-		$this->before       = $defaults['before'] ?? null;
-		$this->after        = $defaults['after']  ?? null;
+		$this->rootBuilder         = $rootBuilder;
+		$this->container_id        = $container_id;
+		$this->zone_id             = $zone_id;
+		$this->updateFn            = $updateFn;
+		$this->template_key        = trim((string) ($defaults['template'] ?? 'layout/zone/submit-controls-wrapper')) ?: 'layout/zone/submit-controls-wrapper';
+		$this->has_custom_template = $this->template_key !== 'layout/zone/submit-controls-wrapper';
+		$this->alignment           = $this->normalize_alignment($defaults['alignment'] ?? 'right');
+		$this->layout              = $this->normalize_layout($defaults['layout'] ?? 'inline');
+		$this->before              = $defaults['before'] ?? null;
+		$this->after               = $defaults['after']  ?? null;
 
 		$this->emit_zone_metadata();
-		$this->emit_template_override();
+		if ($this->has_custom_template) {
+			$this->emit_template_override();
+		}
 	}
 
 	public function alignment(string $alignment): self {
@@ -64,8 +68,8 @@ final class SubmitControlsBuilder {
 		if ($template_key === '') {
 			throw new InvalidArgumentException('Submit control template key cannot be empty.');
 		}
-		$this->template_key = $template_key;
-		$this->emit_template_override();
+		$this->template_key        = $template_key;
+		$this->has_custom_template = true;
 		return $this;
 	}
 
@@ -165,11 +169,8 @@ final class SubmitControlsBuilder {
 	}
 
 	private function emit_template_override(): void {
-		($this->updateFn)('template_override', array(
-			'element_type' => 'submit_controls',
-			'element_id'   => $this->zone_id,
-			'overrides'    => array('submit-controls-wrapper' => $this->template_key),
-		));
+		// Template overrides for submit controls will be implemented in a future iteration
+		// once FormsServiceSession supports a dedicated element type. Intentionally no-op.
 	}
 
 	private function normalize_alignment(string $alignment): string {
