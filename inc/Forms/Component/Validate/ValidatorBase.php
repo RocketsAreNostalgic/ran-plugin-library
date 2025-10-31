@@ -7,9 +7,9 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\Forms\Component\Validate;
 
-use Ran\PluginLib\Util\Logger;
 use Ran\PluginLib\Util\Validate;
 use Ran\PluginLib\Util\TranslationService;
+use Ran\PluginLib\Util\Logger;
 
 abstract class ValidatorBase implements ValidatorInterface {
 	protected Logger $logger;
@@ -67,8 +67,6 @@ abstract class ValidatorBase implements ValidatorInterface {
 	protected function _allow_null(): bool {
 		return true;
 	}
-
-
 
 	/**
 	 * Log boolean coercion as developer warning.

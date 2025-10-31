@@ -7,12 +7,12 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\Forms\Component\Normalize;
 
-use Ran\PluginLib\Util\Logger;
-use Ran\PluginLib\Util\Sanitize;
 use Ran\PluginLib\Util\Validate;
 use Ran\PluginLib\Util\TranslationService;
-use Ran\PluginLib\Forms\Component\ComponentLoader;
+use Ran\PluginLib\Util\Sanitize;
+use Ran\PluginLib\Util\Logger;
 use Ran\PluginLib\Forms\Component\Normalize\ComponentNormalizationContext as NormalizationContext;
+use Ran\PluginLib\Forms\Component\ComponentLoader;
 
 abstract class NormalizerBase implements NormalizeInterface {
 	protected ComponentLoader $views;

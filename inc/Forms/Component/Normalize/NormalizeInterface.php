@@ -8,8 +8,8 @@ declare(strict_types=1);
 namespace Ran\PluginLib\Forms\Component\Normalize;
 
 use Ran\PluginLib\Util\TranslationService;
-use Ran\PluginLib\Forms\Component\ComponentLoader;
 use Ran\PluginLib\Forms\Component\Normalize\ComponentNormalizationContext as NormalizationContext;
+use Ran\PluginLib\Forms\Component\ComponentLoader;
 
 interface NormalizeInterface {
 	public function __construct(ComponentLoader $views);
