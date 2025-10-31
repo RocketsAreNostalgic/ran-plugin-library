@@ -32,7 +32,7 @@ use Ran\PluginLib\Forms\Renderer\FormMessageHandler;
 use Ran\PluginLib\Options\WriteContext;
 use Ran\PluginLib\Options\Policy\RestrictedDefaultWritePolicy;
 use Ran\PluginLib\Settings\Settings;
-use Ran\PluginLib\Settings\SettingsInterface;
+use Ran\PluginLib\Forms\FormsInterface;
 use \Ran\PluginLib\Util\Sanitize;
 
 /**
@@ -322,7 +322,7 @@ class RegisterOptions {
 	/**
 	 * Instantiate a scope-aware Settings facade for this RegisterOptions instance.
 	 */
-	public function settings(?Logger $logger = null): SettingsInterface {
+	public function settings(?Logger $logger = null): FormsInterface {
 		return new Settings($this, $logger);
 	}
 
@@ -629,9 +629,8 @@ class RegisterOptions {
 	 */
 	public function stage_option(string $option_name, mixed $value): self {
 		$this->_ensure_message_handler();
-		$this->message_handler->clear();
-
 		$key = $this->_do_sanitize_key($option_name);
+		$this->message_handler->remove_messages(array($key));
 
 		// Perform sanitization and validation
 		$sanitizedValue = $this->_sanitize_and_validate_option($key, $value);
@@ -681,12 +680,18 @@ class RegisterOptions {
 	 */
 	public function stage_options(array $keyToValue): self {
 		$this->_ensure_message_handler();
-		$this->message_handler->clear();
+		$normalizedKeys = array();
+		foreach (array_keys($keyToValue) as $candidateKey) {
+			$normalizedKeys[] = $this->_do_sanitize_key((string) $candidateKey);
+		}
+		if (!empty($normalizedKeys)) {
+			$this->message_handler->remove_messages($normalizedKeys);
+		}
 		$changed     = false;
 		$changedKeys = array();
 
 		// Gate batch addition before mutating memory
-		$keys = array_map(static fn($k) => (string) $k, array_keys($keyToValue));
+		$keys = $normalizedKeys;
 		$ctx  = $this->_get_storage_context();
 
 		// Only create WriteContext and apply gate if we have keys to process
@@ -1290,8 +1295,9 @@ class RegisterOptions {
 		$this->_get_logger()->debug(
 			'RegisterOptions: _apply_write_gate applying general allow_persist filter',
 			array(
-			'hook' => 'ran/plugin_lib/options/allow_persist',
-			'op'   => $op,
+			'hook'    => 'ran/plugin_lib/options/allow_persist',
+			'op'      => $op,
+			'context' => $ctx,
 			)
 		);
 		$allowed = (bool) $this->_do_apply_filter('ran/plugin_lib/options/allow_persist', $allowed, $ctx);
@@ -1300,6 +1306,7 @@ class RegisterOptions {
 			array(
 			'hook'    => 'ran/plugin_lib/options/allow_persist',
 			'allowed' => $allowed,
+			'context' => $ctx,
 			)
 		);
 
@@ -1309,9 +1316,10 @@ class RegisterOptions {
 			$this->_get_logger()->debug(
 				'RegisterOptions: _apply_write_gate applying scoped allow_persist filter',
 				array(
-				'hook'  => $hook,
-				'op'    => $op,
-				'scope' => $scope,
+				'hook'    => $hook,
+				'op'      => $op,
+				'scope'   => $scope,
+				'context' => $ctx,
 				)
 			);
 			$allowed = (bool) $this->_do_apply_filter($hook, $allowed, $ctx);
@@ -1320,6 +1328,7 @@ class RegisterOptions {
 				array(
 					'hook'    => $hook,
 					'allowed' => $allowed,
+					'context' => $ctx,
 					)
 			);
 		}
