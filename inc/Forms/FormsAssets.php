@@ -1,6 +1,6 @@
 <?php
 /**
- * FormAssets: Aggregates per-component asset declarations for settings and forms.
+ * FormsAssets: Aggregates per-component asset declarations for settings and forms.
  *
  * @package Ran\PluginLib\Forms
  *
@@ -17,7 +17,7 @@ use Ran\PluginLib\EnqueueAccessory\ScriptDefinition;
 /**
  * Collects script/style definitions emitted by components and tracks media requirements.
  */
-class FormAssets {
+class FormsAssets {
 	/** @var array<string, ScriptDefinition> */
 	private array $scripts = array();
 	/** @var array<string, StyleDefinition> */

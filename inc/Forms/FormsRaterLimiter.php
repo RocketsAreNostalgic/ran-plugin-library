@@ -1,17 +1,20 @@
 <?php
 /**
- * Form rate limiter
+ * FormsRaterLimiter: Rate limiter for front end forms.
  *
  * @package Ran\PluginLib\Forms
+ * @author  Ran Plugin Lib <bnjmnrsh@gmail.com>
+ * @license GPL-2.0+ <http://www.gnu.org/licenses/gpl-2.0.txt>
+ * @link    https://github.com/RocketsAreNostalgic
+ * @since   0.2.0
  */
-
 declare(strict_types=1);
 
 namespace Ran\PluginLib\Forms;
 
 use Ran\PluginLib\Util\WPWrappersTrait;
 
-class FrontendFormRateLimiter {
+class FormsRaterLimiter {
 	use WPWrappersTrait;
 
 	private int $max_attempts;

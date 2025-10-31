@@ -1,6 +1,6 @@
 <?php
 /**
- * FormServiceSession: per-render context for component dispatching and asset collection.
+ * FormsServiceSession: per-render context for component dispatching and asset collection.
  *
  * @package Ran\PluginLib\Forms
  */
@@ -13,17 +13,20 @@ use Ran\PluginLib\Util\WPWrappersTrait;
 use Ran\PluginLib\Util\Logger;
 use Ran\PluginLib\Forms\Component\ComponentManifest;
 
-class FormServiceSession {
+/**
+ * FormsServiceSession: per-render context for component dispatching and asset collection.
+ */
+class FormsServiceSession {
 	use WPWrappersTrait;
 
 	private ComponentManifest $manifest;
-	private FormAssets $assets;
-	private TemplateOverrideResolver $template_resolver;
+	private FormsAssets $assets;
+	private FormsTemplateOverrideResolver $template_resolver;
 
-	public function __construct(ComponentManifest $manifest, FormAssets $assets, Logger $logger, array $form_defaults = array()) {
+	public function __construct(ComponentManifest $manifest, FormsAssets $assets, Logger $logger, array $form_defaults = array()) {
 		$this->manifest          = $manifest;
 		$this->assets            = $assets;
-		$this->template_resolver = new TemplateOverrideResolver($logger);
+		$this->template_resolver = new FormsTemplateOverrideResolver($logger);
 
 		// Set form-wide defaults if provided
 		if (!empty($form_defaults)) {
@@ -34,13 +37,15 @@ class FormServiceSession {
 	/**
 	 * Render an element using the complete pipeline: template resolution → component rendering → asset collection
 	 *
+	 * @internal
+	 *
 	 * @param string $element_type The template type (e.g., 'field-wrapper', 'section-wrapper')
 	 * @param array<string,mixed> $element_config Element configuration
 	 * @param array<string,mixed> $context Resolution context containing field_id, section_id, etc.
 	 * @return string Rendered HTML markup
 	 */
 	public function render_element(string $element_type, array $element_config = array(), array $context = array()): string {
-		// Step 1: Resolve template key via TemplateOverrideResolver
+		// Step 1: Resolve template key via FormsTemplateOverrideResolver
 		$template_key = $this->template_resolver->resolve_template($element_type, $context);
 
 		// Step 2: Pass resolved template key to ComponentManifest for rendering
@@ -53,6 +58,15 @@ class FormServiceSession {
 		return $result->markup;
 	}
 
+	/**
+	 * Render a component-backed field with field-specific context.
+	 *
+	 * @internal
+	 *
+	 * @param string               $component
+	 * @param array<string,mixed>  $context
+	 * @return string Rendered HTML markup
+	 */
 	public function render_component(string $component, array $context = array()): string {
 		$result = $this->manifest->render($component, $context);
 		$this->assets->ingest($result);
@@ -61,6 +75,8 @@ class FormServiceSession {
 
 	/**
 	 * Render a component-backed field with field-specific context.
+	 *
+	 * @internal
 	 *
 	 * @param string               $component
 	 * @param string               $field_id
@@ -78,6 +94,8 @@ class FormServiceSession {
 
 	/**
 	 * Enqueue registered assets for the current context.
+	 *
+	 * @internal
 	 */
 	public function enqueue_assets(): void {
 		if (!$this->assets->has_assets()) {
@@ -115,20 +133,36 @@ class FormServiceSession {
 		}
 	}
 
+	/**
+	 * Get the ComponentManifest instance for direct access
+	 *
+	 * @internal
+	 *
+	 * @return ComponentManifest
+	 */
 	public function manifest(): ComponentManifest {
 		return $this->manifest;
 	}
 
-	public function assets(): FormAssets {
+	/**
+	 * Get the FormsAssets instance for direct access
+	 *
+	 * @internal
+	 *
+	 * @return FormsAssets
+	 */
+	public function assets(): FormsAssets {
 		return $this->assets;
 	}
 
 	/**
-	 * Get the TemplateOverrideResolver instance for direct access
+	 * Get the FormsTemplateOverrideResolver instance for direct access
 	 *
-	 * @return TemplateOverrideResolver
+	 * @internal
+	 *
+	 * @return FormsTemplateOverrideResolver
 	 */
-	public function template_resolver(): TemplateOverrideResolver {
+	public function template_resolver(): FormsTemplateOverrideResolver {
 		return $this->template_resolver;
 	}
 
@@ -136,6 +170,8 @@ class FormServiceSession {
 
 	/**
 	 * Set form-wide defaults (Tier 1)
+	 *
+	 * @internal
 	 *
 	 * @param array<string, string> $defaults Template type => template key mappings
 	 * @return void
@@ -147,6 +183,8 @@ class FormServiceSession {
 	/**
 	 * Override specific form-wide defaults (Tier 1)
 	 *
+	 * @internal
+	 *
 	 * @param array<string, string> $overrides Template type => template key mappings
 	 * @return void
 	 */
@@ -157,6 +195,8 @@ class FormServiceSession {
 	/**
 	 * Get form-wide defaults (Tier 1)
 	 *
+	 * @internal
+	 *
 	 * @return array<string, string> Template type => template key mappings
 	 */
 	public function get_form_defaults(): array {
@@ -165,6 +205,8 @@ class FormServiceSession {
 
 	/**
 	 * Set individual element override (Tier 2)
+	 *
+	 * @internal Use fluent methods eg ->template('my.registered-override')->set_field_template_overrides()
 	 *
 	 * @param string $element_type The element type (field, section, group, root)
 	 * @param string $element_id The element ID
@@ -193,6 +235,8 @@ class FormServiceSession {
 	/**
 	 * Get individual element overrides (Tier 2)
 	 *
+	 * @internal
+	 *
 	 * @param string $element_type The element type (field, section, group, root)
 	 * @param string $element_id The element ID
 	 * @return array<string, string> Template type => template key mappings
@@ -214,6 +258,8 @@ class FormServiceSession {
 
 	/**
 	 * Resolve template using the two-tier system
+	 *
+	 * @internal
 	 *
 	 * @param string $template_type The template type
 	 * @param array<string, mixed> $context Resolution context

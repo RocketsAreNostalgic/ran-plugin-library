@@ -1,0 +1,61 @@
+<?php
+/**
+ * FormsInterface: Interface for forms.
+ *
+ * @package Ran\PluginLib\Forms
+ * @author  Ran Plugin Lib <bnjmnrsh@gmail.com>
+ * @license GPL-2.0+ <http://www.gnu.org/licenses/gpl-2.0.txt>
+ * @link    https://github.com/RocketsAreNostalgic
+ * @since   0.2.0
+ */
+
+declare(strict_types=1);
+
+namespace Ran\PluginLib\Forms;
+
+use Ran\PluginLib\Options\RegisterOptions;
+use Ran\PluginLib\Forms\FormsServiceSession;
+interface FormsInterface {
+	/**
+	 * Render a profile collection.
+	 *
+	 * @param string $id_or_slug The collection id, defaults to 'profile'.
+	 * @param array $context optional context.
+	 *
+	 * @return void
+	 */
+	public function render(string $id_slug, ?array $context = null): void;
+
+	/**
+	 * Resolve the correctly scoped RegisterOptions instance for current context.
+	 * Callers can chain fluent API on the returned object.
+	 *
+	 * @param ?array $context optional context.
+	 *
+	 * @return RegisterOptions The RegisterOptions instance.
+	 */
+	public function resolve_options(?array $context = null): RegisterOptions;
+
+	/**
+	 * Bootstrap the settings.
+	 *
+	 * @return void
+	 */
+	public function boot(): void;
+
+	/**
+	 * Override specific form-wide defaults for AdminForms context.
+	 * Allows developers to customize specific templates without replacing all defaults.
+	 *
+	 * @param array<string, string> $overrides Template type => template key mappings
+	 * @return void
+	 */
+	public function override_form_defaults(array $overrides): void;
+
+	/**
+	 * Get the FormsServiceSession instance for direct access to template resolution.
+	 *
+	 * @return FormsServiceSession|null The FormsServiceSession instance or null if not started
+	 */
+	public function get_form_session(): ?FormsServiceSession;
+}

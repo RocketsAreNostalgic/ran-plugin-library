@@ -5,7 +5,7 @@ namespace Ran\PluginLib\Forms;
 use Ran\PluginLib\Util\Logger;
 
 /**
- * TemplateOverrideResolver - Specialized Template Resolution System
+ * FormsTemplateOverrideResolver - Specialized Template Resolution System
  *
  * Handles two-tier template override storage and hierarchical resolution:
  * - Tier 1: Form-wide Defaults (set by form classes and developers)
@@ -13,7 +13,7 @@ use Ran\PluginLib\Util\Logger;
  *
  * Provides clean separation of concerns for template resolution logic.
  */
-class TemplateOverrideResolver {
+class FormsTemplateOverrideResolver {
 	/**
 	 * Logger instance for debugging template resolution
 	 *
@@ -28,10 +28,8 @@ class TemplateOverrideResolver {
 	 * @var array<string, string> Template type => fallback template key mappings
 	 */
 	private static array $BASE_FALLBACKS = array(
-		'root-wrapper'    => 'shared.default-wrapper',
-		'root'            => 'shared.default-wrapper',
-		'form-wrapper'    => 'shared.default-wrapper',
-		'form'            => 'shared.default-wrapper',
+		'root-wrapper'    => 'shared.root-wrapper',
+		'root'            => 'shared.root-wrapper',
 		'section-wrapper' => 'shared.section-wrapper',
 		'section'         => 'shared.section-wrapper',
 		'group-wrapper'   => 'shared.group-wrapper',
@@ -92,9 +90,9 @@ class TemplateOverrideResolver {
 	/**
 	 * Resolve template with simplified two-tier hierarchical fallback
 	 *
-	 * SIMPLIFIED vs FormBaseTrait's 6-tier system:
-	 * FormBaseTrait: field → group → section → page → class_defaults → system_defaults (6 tiers)
-	 * TemplateOverrideResolver: individual_overrides → form_defaults (2 tiers + emergency fallback)
+	 * SIMPLIFIED vs FormsBaseTrait's 6-tier system:
+	 * FormsBaseTrait: field → group → section → page → class_defaults → system_defaults (6 tiers)
+	 * FormsTemplateOverrideResolver: individual_overrides → form_defaults (2 tiers + emergency fallback)
 	 *
 	 * Two-Tier Precedence:
 	 * - Tier 2: Individual Element Overrides (field → group → section → root hierarchy)
@@ -110,7 +108,7 @@ class TemplateOverrideResolver {
 	public function resolve_template(string $template_type, array $context = array()): string {
 		// Validate input
 		if (empty($template_type)) {
-			$this->logger->error('TemplateOverrideResolver: Empty template_type provided', array(
+			$this->logger->error('FormsTemplateOverrideResolver: Empty template_type provided', array(
 				'context' => $context
 			));
 			throw new \InvalidArgumentException('Template type cannot be empty');
@@ -122,7 +120,7 @@ class TemplateOverrideResolver {
 		if (isset($context['field_id'])) {
 			$field_overrides = $this->get_field_template_overrides($context['field_id']);
 			if (isset($field_overrides[$template_type])) {
-				$this->logger->debug('TemplateOverrideResolver: Template resolved via Tier 2 - field override', array(
+				$this->logger->debug('FormsTemplateOverrideResolver: Template resolved via Tier 2 - field override', array(
 					'template_type' => $template_type,
 					'template'      => $field_overrides[$template_type],
 					'field_id'      => $context['field_id'],
@@ -136,7 +134,7 @@ class TemplateOverrideResolver {
 		if (isset($context['group_id'])) {
 			$group_overrides = $this->get_group_template_overrides($context['group_id']);
 			if (isset($group_overrides[$template_type])) {
-				$this->logger->debug('TemplateOverrideResolver: Template resolved via Tier 2 - group override', array(
+				$this->logger->debug('FormsTemplateOverrideResolver: Template resolved via Tier 2 - group override', array(
 					'template_type' => $template_type,
 					'template'      => $group_overrides[$template_type],
 					'group_id'      => $context['group_id'],
@@ -150,7 +148,7 @@ class TemplateOverrideResolver {
 		if (isset($context['section_id'])) {
 			$section_overrides = $this->get_section_template_overrides($context['section_id']);
 			if (isset($section_overrides[$template_type])) {
-				$this->logger->debug('TemplateOverrideResolver: Template resolved via Tier 2 - section override', array(
+				$this->logger->debug('FormsTemplateOverrideResolver: Template resolved via Tier 2 - section override', array(
 					'template_type' => $template_type,
 					'template'      => $section_overrides[$template_type],
 					'section_id'    => $context['section_id'],
@@ -164,7 +162,7 @@ class TemplateOverrideResolver {
 		if (isset($context['root_id'])) {
 			$root_overrides = $this->get_root_template_overrides($context['root_id']);
 			if (isset($root_overrides[$template_type])) {
-				$this->logger->debug('TemplateOverrideResolver: Template resolved via Tier 2 - root override', array(
+				$this->logger->debug('FormsTemplateOverrideResolver: Template resolved via Tier 2 - root override', array(
 					'template_type' => $template_type,
 					'template'      => $root_overrides[$template_type],
 					'root_id'       => $context['root_id'],
@@ -175,10 +173,10 @@ class TemplateOverrideResolver {
 		}
 
 		// TIER 1: Form-wide Defaults (Final Priority)
-		// This replaces BOTH "class instance defaults" AND "system defaults" from FormBaseTrait
+		// This replaces BOTH "class instance defaults" AND "system defaults" from FormsBaseTrait
 		// for a simplified two-tier system
 		if (isset($this->form_defaults[$template_type])) {
-			$this->logger->debug('TemplateOverrideResolver: Template resolved via Tier 1 - form-wide default', array(
+			$this->logger->debug('FormsTemplateOverrideResolver: Template resolved via Tier 1 - form-wide default', array(
 				'template_type' => $template_type,
 				'template'      => $this->form_defaults[$template_type],
 				'tier'          => 'Tier 1 - Form-wide Default'
@@ -189,7 +187,7 @@ class TemplateOverrideResolver {
 		// EMERGENCY FALLBACK: If no form-wide default is set, use system fallback
 		// This should rarely be used if form classes properly configure form_defaults
 		$system_fallback = $this->get_system_fallback_template($template_type);
-		$this->logger->debug('TemplateOverrideResolver: Template resolved via emergency fallback', array(
+		$this->logger->debug('FormsTemplateOverrideResolver: Template resolved via emergency fallback', array(
 			'template_type' => $template_type,
 			'template'      => $system_fallback,
 			'tier'          => 'Emergency System Fallback'
@@ -200,7 +198,7 @@ class TemplateOverrideResolver {
 	/**
 	 * Get system fallback template for a given template type
 	 *
-	 * Follows FormBaseTrait approach: check known templates, otherwise use generic fallback
+	 * Follows FormsBaseTrait approach: check known templates, otherwise use generic fallback
 	 *
 	 * @param string $template_type The template type
 	 * @return string The fallback template key
@@ -211,8 +209,8 @@ class TemplateOverrideResolver {
 			return self::$BASE_FALLBACKS[$template_type];
 		}
 
-		// Generic fallback for unknown template types (same as FormBaseTrait approach)
-		return 'shared.default-wrapper';
+		// Generic fallback for unknown template types (same as FormsBaseTrait approach)
+		return 'shared.root-wrapper';
 	}
 
 

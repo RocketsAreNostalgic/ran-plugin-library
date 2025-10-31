@@ -1,0 +1,1092 @@
+<?php
+/**
+ * FormsBaseTrait: Shared functionality for form-based classes.
+ *
+ * This trait provides common functionality that is identical between AdminSettings,
+ * UserSettings, and future form classes. It only includes methods that have been
+ * verified to be truly identical in implementation.
+ *
+ * @package Ran\PluginLib\Forms
+ * @author  Ran Plugin Lib <bnjmnrsh@gmail.com>
+ * @license GPL-2.0+ <http://www.gnu.org/licenses/gpl-2.0.txt>
+ * @link    https://github.com/RocketsAreNostalgic
+ * @since   0.2.0
+ */
+
+declare(strict_types=1);
+
+namespace Ran\PluginLib\Forms;
+
+use Ran\PluginLib\Util\Logger;
+use Ran\PluginLib\Options\RegisterOptions;
+use Ran\PluginLib\Forms\FormsService;
+use Ran\PluginLib\Forms\FormsServiceSession;
+use Ran\PluginLib\Forms\Component\ComponentManifest;
+use Ran\PluginLib\Forms\Renderer\FormElementRenderer;
+use Ran\PluginLib\Forms\Renderer\FormMessageHandler;
+use Ran\PluginLib\Forms\Component\ComponentRenderResult;
+use UnexpectedValueException;
+
+/**
+ * Shared functionality for form-based classes.
+ *
+ * Provides only methods that are verified to be identical between classes:
+ * - Form session management
+ * - Message handling
+ * - Component validator injection
+ * - RegisterOptions resolution
+ * - Field rendering coordination
+ *
+ * Template resolution is now handled by FormsTemplateOverrideResolver in FormsServiceSession.
+ */
+trait FormsBaseTrait {
+	// Core form infrastructure properties
+
+	protected string $main_option;
+	protected ?array $pending_values = null;
+	protected ComponentManifest $components;
+	protected FormsService $form_service;
+	protected FormElementRenderer $field_renderer;
+	protected FormMessageHandler $message_handler;
+	protected ?FormsServiceSession $form_session = null; //
+	protected Logger $logger;
+	protected RegisterOptions $base_options;
+
+
+	// Settings structure: containers, sections, fields, and groups organized by container
+
+	/** @var array<string, array{meta:array, children:array, lookup?:array}> */
+	protected array $containers = array();
+	/** @var array<string, array<string, array{title:string, description_cb:?callable, before:?callable, after:?callable, order:int, index:int}>> */
+	protected array $sections = array();
+	/** @var array<string, array<string, array<int, array{id:string, label:string, component:string, component_context:array<string,mixed>, order:int, index:int}>>> */
+	protected array $fields = array();
+	/** @var array<string, array<string, array{group_id:string, fields:array<int, array{id:string, label:string, component:string, component_context:array<string,mixed>, order:int, index:int}>, before:?callable, after:?callable, order:int, index:int}>> */
+	protected array $groups = array();
+
+
+	// Template override system removed - now handled by FormsTemplateOverrideResolver in FormsServiceSession
+
+	private int $__section_index = 0;
+	private int $__field_index   = 0;
+	private int $__group_index   = 0;
+
+
+	/** ✅
+	 * Override specific form-wide defaults for current context.
+	 * Allows developers to customize specific templates without replacing all defaults.
+	 *
+	 * @param array<string, string> $overrides Template type => template key mappings
+	 * @return void
+	 */
+	public function override_form_defaults(array $overrides): void {
+		if ($this->form_session === null) {
+			$this->_start_form_session();
+		}
+		$this->form_session->override_form_defaults($overrides);
+	}
+
+	/**
+	 * Set the root template for current context.
+	 *
+	 * @param string $template_key The template key.
+	 * @return void
+	 */
+	public function set_root_template(string $template_key): void {
+		$this->_set_form_default_template('root-wrapper', $template_key);
+	}
+
+	/**
+	 * Set the section template for current context.
+	 *
+	 * @param string $template_key The template key.
+	 * @return void
+	 */
+	public function set_section_template(string $template_key): void {
+		$this->_set_form_default_template('section-wrapper', $template_key);
+	}
+
+	/**
+	 * Set the group template for current context.
+	 *
+	 * @param string $template_key The template key.
+	 * @return void
+	 */
+	public function set_group_template(string $template_key): void {
+		$this->_set_form_default_template('group-wrapper', $template_key);
+	}
+
+	/**
+	 * Set the field template for current context.
+	 *
+	 * @param string $template_key The template key.
+	 * @return void
+	 */
+	public function set_field_template(string $template_key): void {
+		$this->_set_form_default_template('field-wrapper', $template_key);
+	}
+
+	/**
+	 * Get the component manifest.
+	 *
+	 * @return ComponentManifest The component manifest.
+	 */
+	public function get_component_manifest(): ComponentManifest {
+		return $this->components;
+	}
+
+	/** ✅
+	 * Resolve the correctly scoped RegisterOptions instance for current admin context.
+	 * Callers can chain fluent API on the returned object.
+	 *
+	 * @param array<string,mixed>|null $context Optional resolution context.
+	 *
+	 * @return RegisterOptions
+	 */
+	public function resolve_options(?array $context = null): RegisterOptions {
+		$resolved = $this->_resolve_context($context ?? array());
+		return $this->base_options->with_context($resolved['storage']);
+	}
+
+	/** ✅
+	 * Boot admin: register root, sections, fields, templates.
+	 */
+	abstract public function boot(): void;
+
+	/** ✅
+	 * Render a registered root template.
+	 *
+	 * @param string $id_slug The root identifier
+	 * @param array|null $context Optional context
+	 */
+	abstract public function render(string $id_slug, ?array $context = null): void;
+
+	/** ✅
+	 * Retrieve structured validation messages captured during the most recent operation.
+	 *
+	 * @return array<string, array{warnings: array<int, string>, notices: array<int, string>}>
+	 */
+	public function take_messages(): array {
+		$messages = $this->message_handler->get_all_messages();
+		$this->message_handler->clear();
+		return $messages ?? array(
+			'warnings' => array(),
+			'notices'  => array(),
+		);
+	}
+
+	/**✅
+	 * Get the FormsServiceSession instance for direct access to template resolution.
+	 *
+	 * @return FormsServiceSession|null The FormsServiceSession instance or null if not started
+	 */
+	public function get_form_session(): ?FormsServiceSession {
+		return $this->form_session;
+	}
+
+	// Protected methods
+
+	/**
+	 * Handle context update (eg AdminSettings page, UserSettings collection, etc) from builders.
+	 *
+	 * @param string $type The type of update
+	 * @param array $data context data to update
+	 * @return void
+	 */
+	protected abstract function _handle_context_update(string $type, array $data): void;
+
+	/**
+	 * Create an update function for immediate data flow to parent storage.
+	 * This eliminates the need for buffering and end() calls by allowing
+	 * builders to update parent data structures immediately.
+	 *
+	 * @return callable The update function that handles all builder updates
+	 */
+	protected function _create_update_function(): callable {
+		return function(string $type, array $data): void {
+			switch ($type) {
+				case 'section':
+					$this->_handle_section_update($data);
+					break;
+				case 'section_metadata':
+					$this->_handle_section_metadata_update($data);
+					break;
+				case 'field':
+					$this->_handle_field_update($data);
+					break;
+				case 'group':
+					$this->_handle_group_update($data);
+					break;
+				case 'group_field':
+					$this->_handle_group_field_update($data);
+					break;
+				case 'group_metadata':
+					$this->_handle_group_metadata_update($data);
+					break;
+				case 'section_cleanup':
+					$this->_handle_section_cleanup($data);
+					break;
+				case 'template_override':
+					$this->_handle_template_override($data);
+					break;
+				case 'form_defaults_override':
+					$this->_handle_form_defaults_override($data);
+					break;
+				default:
+					// Allow concrete classes to handle implementation-specific update types
+					$this->_handle_context_update($type, $data);
+					break;
+			}
+		};
+	}
+
+	/**
+	 * Handle section update from builders.
+	 *
+	 * @param array $data Section update data
+	 * @return void
+	 */
+	protected function _handle_section_update(array $data): void {
+		$container_id = $data['container_id'] ?? '';
+		$section_id   = $data['section_id']   ?? '';
+		$section_data = $data['section_data'] ?? array();
+
+		if ($container_id === '' || $section_id === '') {
+			$this->logger->warning('FormsBaseTrait: Section update missing required IDs', $data);
+			return;
+		}
+
+		// Initialize arrays if needed
+		if (!isset($this->sections[$container_id])) {
+			$this->sections[$container_id] = array();
+		}
+
+		// Store section with proper indexing
+		$this->sections[$container_id][$section_id] = array(
+			'title'          => (string) ($section_data['title'] ?? ''),
+			'description_cb' => $section_data['description_cb'] ?? null,
+			'before'         => $section_data['before']         ?? null,
+			'after'          => $section_data['after']          ?? null,
+			'order'          => (int) ($section_data['order'] ?? 0),
+			'index'          => $this->__section_index++,
+		);
+		$this->logger->debug('settings.builder.section.updated', array(
+			'container_id'       => $container_id,
+			'section_id'         => $section_id,
+			'heading'            => $this->sections[$container_id][$section_id]['title'],
+			'has_description_cb' => $this->sections[$container_id][$section_id]['description_cb'] !== null,
+			'order'              => $this->sections[$container_id][$section_id]['order'],
+			'has_before'         => $this->sections[$container_id][$section_id]['before'] !== null,
+			'has_after'          => $this->sections[$container_id][$section_id]['after']  !== null,
+		));
+	}
+
+	/**
+	 * Handle section metadata update from builders.
+	 *
+	 * @param array $data Section metadata update payload
+	 * @return void
+	 */
+	protected function _handle_section_metadata_update(array $data): void {
+		$container_id = $data['container_id'] ?? '';
+		$section_id   = $data['section_id']   ?? '';
+		$group_data   = $data['group_data']   ?? array();
+
+		if ($container_id === '' || $section_id === '') {
+			$this->logger->warning('FormsBaseTrait: Section metadata update missing required IDs', $data);
+			return;
+		}
+
+		if (!isset($this->sections[$container_id][$section_id])) {
+			$this->logger->warning('FormsBaseTrait: Section metadata update received before section registration', $data);
+			return;
+		}
+
+		$section                   = &$this->sections[$container_id][$section_id];
+		$section['title']          = (string) ($group_data['heading'] ?? $section['title']);
+		$section['description_cb'] = $group_data['description'] ?? $section['description_cb'];
+		$section['before']         = $group_data['before']      ?? $section['before'];
+		$section['after']          = $group_data['after']       ?? $section['after'];
+		if (array_key_exists('order', $group_data) && $group_data['order'] !== null) {
+			$section['order'] = (int) $group_data['order'];
+		}
+		$this->logger->debug('settings.builder.section.metadata', array(
+			'container_id'       => $container_id,
+			'section_id'         => $section_id,
+			'heading'            => $section['title'],
+			'has_description_cb' => $section['description_cb'] !== null,
+			'order'              => $section['order'],
+			'has_before'         => $section['before'] !== null,
+			'has_after'          => $section['after']  !== null,
+		));
+	}
+
+	/**
+	 * Handle field update from builders.
+	 *
+	 * @param array $data Field update data
+	 * @return void
+	 */
+	protected function _handle_field_update(array $data): void {
+		$container_id = $data['container_id'] ?? '';
+		$section_id   = $data['section_id']   ?? '';
+		$field_data   = $data['field_data']   ?? array();
+
+		if ($container_id === '' || $section_id === '') {
+			$this->logger->warning('FormsBaseTrait: Field update missing required IDs', $data);
+			return;
+		}
+
+		// Validate field data
+		$field_id  = $field_data['id'] ?? '';
+		$component = isset($field_data['component']) && is_string($field_data['component']) ? trim($field_data['component']) : '';
+
+		if ($field_id === '' || $component === '') {
+			throw new \InvalidArgumentException(sprintf('Field "%s" in container "%s" requires id and component metadata.', $field_id !== '' ? $field_id : 'unknown', $container_id));
+		}
+
+		$context = $field_data['component_context'] ?? array();
+		if (!is_array($context)) {
+			throw new \InvalidArgumentException(sprintf('Field "%s" in container "%s" must provide array component_context.', $field_id, $container_id));
+		}
+
+		// Initialize arrays if needed
+		if (!isset($this->fields[$container_id])) {
+			$this->fields[$container_id] = array();
+		}
+		if (!isset($this->fields[$container_id][$section_id])) {
+			$this->fields[$container_id][$section_id] = array();
+		}
+
+		$orderProvided = array_key_exists('order', $field_data ?? array()) && $field_data['order'] !== null;
+		$orderValue    = $orderProvided ? (int) $field_data['order'] : 0;
+
+		$field_entry = array(
+			'id'                => $field_id,
+			'label'             => (string) ($field_data['label'] ?? ''),
+			'component'         => $component,
+			'component_context' => $context,
+			'order'             => $orderValue,
+			'index'             => null,
+		);
+
+		$fields  = & $this->fields[$container_id][$section_id];
+		$updated = false;
+
+		foreach ($fields as $idx => $existing_field) {
+			if (($existing_field['id'] ?? '') !== $field_id) {
+				continue;
+			}
+
+			$field_entry['index'] = $existing_field['index'] ?? $existing_field['order'] ?? $idx;
+			if (!$orderProvided) {
+				$field_entry['order'] = (int) ($existing_field['order'] ?? 0);
+			}
+			$fields[$idx] = $field_entry;
+			$updated      = true;
+			break;
+		}
+
+		if (!$updated) {
+			// Inject component validators automatically for new fields only
+			$this->_inject_component_validators($field_id, $component);
+
+			$field_entry['index'] = $this->__field_index++;
+			$fields[]             = $field_entry;
+		}
+
+		usort($fields, function(array $a, array $b): int {
+			return ($a['index'] ?? 0) <=> ($b['index'] ?? 0);
+		});
+		$this->fields[$container_id][$section_id] = array_values($fields);
+		$this->logger->debug('settings.builder.field.updated', array(
+			'container_id'      => $container_id,
+			'section_id'        => $section_id,
+			'field_id'          => $field_entry['id'],
+			'label'             => $field_entry['label'],
+			'component'         => $field_entry['component'],
+			'order'             => $field_entry['order'],
+			'component_context' => $field_entry['component_context'],
+		));
+	}
+
+	/**
+	 * Handle group update from builders.
+	 *
+	 * @param array $data Group update data
+	 * @return void
+	 */
+	protected function _handle_group_update(array $data): void {
+		$container_id = $data['container_id'] ?? '';
+		$section_id   = $data['section_id']   ?? '';
+		$group_id     = $data['group_id']     ?? '';
+		$group_data   = $data['group_data']   ?? array();
+
+		if ($container_id === '' || $section_id === '' || $group_id === '') {
+			$this->logger->warning('FormsBaseTrait: Group update missing required IDs', $data);
+			return;
+		}
+
+		// Initialize arrays if needed
+		if (!isset($this->groups[$container_id])) {
+			$this->groups[$container_id] = array();
+		}
+		if (!isset($this->groups[$container_id][$section_id])) {
+			$this->groups[$container_id][$section_id] = array();
+		}
+
+		// Normalize group fields with proper indexing
+		$normalized_fields = array();
+		$fields            = $group_data['fields'] ?? array();
+		foreach ($fields as $field) {
+			$field_id  = $field['id'] ?? '';
+			$component = isset($field['component']) && is_string($field['component']) ? trim($field['component']) : '';
+
+			if ($field_id === '' || $component === '') {
+				throw new \InvalidArgumentException(sprintf('Group field "%s" in group "%s" requires id and component metadata.', $field_id !== '' ? $field_id : 'unknown', $group_id));
+			}
+
+			$context = $field['component_context'] ?? array();
+			if (!is_array($context)) {
+				throw new \InvalidArgumentException(sprintf('Group field "%s" in group "%s" must provide array component_context.', $field_id, $group_id));
+			}
+
+			$field_entry = array(
+				'id'                => $field_id,
+				'label'             => (string) ($field['label'] ?? ''),
+				'component'         => $component,
+				'component_context' => $context,
+				'order'             => (int) ($field['order'] ?? 0),
+				'index'             => null,
+			);
+
+			foreach ($normalized_fields as $idx => $existing_field) {
+				if (($existing_field['id'] ?? '') === $field_id) {
+					$field_entry['index']    = $existing_field['index'] ?? $existing_field['order'] ?? $idx;
+					$normalized_fields[$idx] = $field_entry;
+					continue 2;
+				}
+			}
+
+			// Inject component validators automatically for new group fields only
+			$this->_inject_component_validators($field_id, $component);
+
+			$field_entry['index'] = $this->__field_index++;
+			$normalized_fields[]  = $field_entry;
+		}
+
+		// Store group with proper indexing
+		$title = $group_data['heading'] ?? $group_data['title'] ?? '';
+
+		$this->groups[$container_id][$section_id][$group_id] = array(
+			'group_id' => $group_id,
+			'title'    => (string) $title,
+			'fields'   => $normalized_fields,
+			'before'   => $group_data['before'] ?? null,
+			'after'    => $group_data['after']  ?? null,
+			'order'    => (int) ($group_data['order'] ?? 0),
+			'style'    => (string) ($group_data['style'] ?? 'bordered'),
+			'required' => (bool) ($group_data['required'] ?? false),
+			'index'    => $this->__group_index++,
+		);
+		$this->logger->debug('settings.builder.group.updated', array(
+			'container_id' => $container_id,
+			'section_id'   => $section_id,
+			'group_id'     => $group_id,
+			'heading'      => $this->groups[$container_id][$section_id][$group_id]['title'],
+			'order'        => $this->groups[$container_id][$section_id][$group_id]['order'],
+			'has_before'   => $this->groups[$container_id][$section_id][$group_id]['before'] !== null,
+			'has_after'    => $this->groups[$container_id][$section_id][$group_id]['after']  !== null,
+			'fields'       => array_column($this->groups[$container_id][$section_id][$group_id]['fields'], 'id'),
+		));
+	}
+
+	/**
+	 * Handle group field update from builders.
+	 *
+	 * @param array $data Group field update data
+	 * @return void
+	 */
+	protected function _handle_group_field_update(array $data): void {
+		$container_id = $data['container_id'] ?? '';
+		$section_id   = $data['section_id']   ?? '';
+		$group_id     = $data['group_id']     ?? '';
+		$field_data   = $data['field_data']   ?? array();
+
+		if ($container_id === '' || $section_id === '' || $group_id === '') {
+			$this->logger->warning('FormsBaseTrait: Group field update missing required IDs', $data);
+			return;
+		}
+
+		// Validate field data
+		$field_id  = $field_data['id'] ?? '';
+		$component = isset($field_data['component']) && is_string($field_data['component']) ? trim($field_data['component']) : '';
+
+		if ($field_id === '' || $component === '') {
+			throw new \InvalidArgumentException(sprintf('Group field "%s" in group "%s" requires id and component metadata.', $field_id !== '' ? $field_id : 'unknown', $group_id));
+		}
+
+		$context = $field_data['component_context'] ?? array();
+		if (!is_array($context)) {
+			throw new \InvalidArgumentException(sprintf('Group field "%s" in group "%s" must provide array component_context.', $field_id, $group_id));
+		}
+
+		// Initialize arrays if needed
+		if (!isset($this->groups[$container_id])) {
+			$this->groups[$container_id] = array();
+		}
+		if (!isset($this->groups[$container_id][$section_id])) {
+			$this->groups[$container_id][$section_id] = array();
+		}
+		if (!isset($this->groups[$container_id][$section_id][$group_id])) {
+			$this->groups[$container_id][$section_id][$group_id] = array(
+				'group_id' => $group_id,
+				'title'    => '', // Will be set when group metadata is sent
+				'fields'   => array(),
+				'before'   => null,
+				'after'    => null,
+				'order'    => 0,
+				'index'    => $this->__group_index++,
+			);
+		}
+
+		// Ensure section-level field container exists (for sections with only groups)
+		if (!isset($this->fields[$container_id])) {
+			$this->fields[$container_id] = array();
+		}
+		if (!isset($this->fields[$container_id][$section_id])) {
+			$this->fields[$container_id][$section_id] = array();
+		}
+
+		$fields        = & $this->groups[$container_id][$section_id][$group_id]['fields'];
+		$updated       = false;
+		$orderProvided = array_key_exists('order', $field_data ?? array()) && $field_data['order'] !== null;
+		$orderValue    = $orderProvided ? (int) $field_data['order'] : 0;
+
+		foreach ($fields as $idx => $existing_field) {
+			if (($existing_field['id'] ?? '') !== $field_id) {
+				continue;
+			}
+
+			$fields[$idx] = array(
+				'id'                => $field_id,
+				'label'             => (string) ($field_data['label'] ?? ''),
+				'component'         => $component,
+				'component_context' => $context,
+				'order'             => $orderProvided ? $orderValue : (int) ($existing_field['order'] ?? 0),
+				'index'             => $existing_field['index'] ?? $existing_field['order'] ?? $idx,
+			);
+			$updated = true;
+			break;
+		}
+
+		if (!$updated) {
+			// Inject component validators automatically for new group fields only
+			$this->_inject_component_validators($field_id, $component);
+
+			$fields[] = array(
+				'id'                => $field_id,
+				'label'             => (string) ($field_data['label'] ?? ''),
+				'component'         => $component,
+				'component_context' => $context,
+				'order'             => $orderValue,
+				'index'             => $this->__field_index++,
+			);
+		}
+
+		usort($fields, function(array $a, array $b): int {
+			return ($a['index'] ?? 0) <=> ($b['index'] ?? 0);
+		});
+		$this->groups[$container_id][$section_id][$group_id]['fields'] = array_values($fields);
+		$this->logger->debug('settings.builder.group_field.updated', array(
+			'container_id'      => $container_id,
+			'section_id'        => $section_id,
+			'group_id'          => $group_id,
+			'field_id'          => $field_id,
+			'label'             => $field_data['label'] ?? '',
+			'component'         => $component,
+			'order'             => $orderValue,
+			'component_context' => $context,
+		));
+	}
+
+	/**
+	 * Handle group metadata update from builders.
+	 *
+	 * @param array $data Group metadata update data
+	 * @return void
+	 */
+	protected function _handle_group_metadata_update(array $data): void {
+		$container_id = $data['container_id'] ?? '';
+		$section_id   = $data['section_id']   ?? '';
+		$group_id     = $data['group_id']     ?? '';
+		$group_data   = $data['group_data']   ?? array();
+
+		if ($container_id === '' || $section_id === '' || $group_id === '') {
+			$this->logger->warning('FormsBaseTrait: Group metadata update missing required IDs', $data);
+			return;
+		}
+
+		// Initialize arrays if needed
+		if (!isset($this->groups[$container_id])) {
+			$this->groups[$container_id] = array();
+		}
+		if (!isset($this->groups[$container_id][$section_id])) {
+			$this->groups[$container_id][$section_id] = array();
+		}
+		if (!isset($this->groups[$container_id][$section_id][$group_id])) {
+			$this->groups[$container_id][$section_id][$group_id] = array(
+				'group_id' => $group_id,
+				'fields'   => array(),
+				'index'    => $this->__group_index++,
+			);
+		}
+
+		// Ensure the corresponding section field container exists even if no standalone fields were added
+		if (!isset($this->fields[$container_id])) {
+			$this->fields[$container_id] = array();
+		}
+		if (!isset($this->fields[$container_id][$section_id])) {
+			$this->fields[$container_id][$section_id] = array();
+		}
+
+		// Update group metadata
+		$title = $group_data['heading'] ?? $group_data['title'] ?? '';
+
+		$this->groups[$container_id][$section_id][$group_id]['title']    = (string) $title;
+		$this->groups[$container_id][$section_id][$group_id]['before']   = $group_data['before'] ?? null;
+		$this->groups[$container_id][$section_id][$group_id]['after']    = $group_data['after']  ?? null;
+		$this->groups[$container_id][$section_id][$group_id]['order']    = (int) ($group_data['order'] ?? 0);
+		$this->groups[$container_id][$section_id][$group_id]['style']    = (string) ($group_data['style'] ?? 'bordered');
+		$this->groups[$container_id][$section_id][$group_id]['required'] = (bool) ($group_data['required'] ?? false);
+		$this->logger->debug('settings.builder.group.metadata', array(
+			'container_id' => $container_id,
+			'section_id'   => $section_id,
+			'group_id'     => $group_id,
+			'heading'      => $this->groups[$container_id][$section_id][$group_id]['title'],
+			'order'        => $this->groups[$container_id][$section_id][$group_id]['order'],
+			'style'        => $this->groups[$container_id][$section_id][$group_id]['style'],
+			'required'     => $this->groups[$container_id][$section_id][$group_id]['required'],
+			'has_before'   => $this->groups[$container_id][$section_id][$group_id]['before'] !== null,
+			'has_after'    => $this->groups[$container_id][$section_id][$group_id]['after']  !== null,
+			'fields'       => array_column($this->groups[$container_id][$section_id][$group_id]['fields'], 'id'),
+		));
+	}
+
+	/**
+	 * Handle section cleanup from builders.
+	 *
+	 * @param array $data Section cleanup data
+	 * @return void
+	 */
+	protected function _handle_section_cleanup(array $data): void {
+		$section_id = $data['section_id'] ?? '';
+
+		if ($section_id === '') {
+			$this->logger->warning('FormsBaseTrait: Section cleanup missing section_id', $data);
+			return;
+		}
+
+		// Remove from active sections tracking (implementation-specific property)
+		// This will be overridden by concrete classes if they have active section tracking
+		$this->_cleanup_active_section($section_id);
+	}
+
+	/**
+	 * Handle template override from builders.
+	 *
+	 * @param array $data Template override data
+	 * @return void
+	 */
+	protected function _handle_template_override(array $data): void {
+		$element_type = $data['element_type'] ?? '';
+		$element_id   = $data['element_id']   ?? '';
+		$overrides    = $data['overrides']    ?? array();
+
+		if ($element_type === '' || $element_id === '' || empty($overrides)) {
+			$this->logger->warning('FormsBaseTrait: Template override missing required data', $data);
+			return;
+		}
+
+		if (!is_array($overrides)) {
+			$this->logger->warning('FormsBaseTrait: Template override overrides must be array', $data);
+			return;
+		}
+
+		// Apply template override via FormsServiceSession
+		if ($this->form_session === null) {
+			$this->_start_form_session();
+		}
+
+		$this->form_session->set_individual_element_override($element_type, $element_id, $overrides);
+		$this->logger->debug('settings.builder.template_override', array(
+			'element_type' => $element_type,
+			'element_id'   => $element_id,
+			'overrides'    => $overrides,
+		));
+	}
+
+	/**
+	 * Handle form defaults override from builders.
+	 *
+	 * @param array $data Form defaults override data
+	 * @return void
+	 */
+	protected function _handle_form_defaults_override(array $data): void {
+		$overrides = $data['overrides'] ?? array();
+
+		if (empty($overrides) || !is_array($overrides)) {
+			$this->logger->warning('FormsBaseTrait: Form defaults override missing or invalid overrides', $data);
+			return;
+		}
+
+		// Apply form defaults override via FormsServiceSession
+		if ($this->form_session === null) {
+			$this->_start_form_session();
+		}
+
+		$this->form_session->override_form_defaults($overrides);
+	}
+
+	/**
+	 * Handle custom update types from builders.
+	 * Override in concrete classes to handle implementation-specific update types.
+	 *
+	 * @param string $type The update type
+	 * @param array $data Update data
+	 * @return void
+	 */
+	protected function _handle_custom_update(string $type, array $data): void {
+		$this->logger->warning('FormsBaseTrait: Unknown update type received', array(
+			'type'      => $type,
+			'data_keys' => array_keys($data)
+		));
+	}
+
+	/**
+	 * Cleanup active section tracking.
+	 * Override in concrete classes that maintain active section arrays.
+	 *
+	 * @param string $section_id The section ID to cleanup
+	 * @return void
+	 */
+	protected function _cleanup_active_section(string $section_id): void {
+		// Default implementation does nothing
+		// Override in UserSettingsCollectionBuilder, AdminSettingsPageBuilder, etc.
+	}
+
+	/**
+	 * Set the default template for this form.
+	 *
+	 * @param string $template_type The template type.
+	 * @param string $template_key The template key.
+	 * @return void
+	 */
+	protected function _set_form_default_template(string $template_type, string $template_key): void {
+		$template_key = trim($template_key);
+		if ($template_key === '') {
+			throw new \InvalidArgumentException('Template key cannot be empty');
+		}
+		$this->override_form_defaults(array($template_type => $template_key));
+	}
+
+	// Template override methods removed - now handled by FormsTemplateOverrideResolver in FormsServiceSession
+	// Use $this->form_session->set_form_defaults(), $this->form_session->set_individual_element_override(), etc.
+
+	// resolve_template() method removed - now handled by FormsServiceSession->resolve_template()
+
+
+
+	// Protected
+
+	/** ✅
+	 * Start a new form session.
+	 */
+	protected function _start_form_session(): void {
+		if ($this->form_session === null) {
+			$this->form_session = $this->form_service->start_session();
+		}
+	}
+
+	/** ✅
+	 * Resolve warning messages captured during the most recent sanitize pass for a field ID.
+	 *
+	 *  @param string $field_id The field ID.
+	 *
+	 * @return array<string, array{warnings: array<int, string>, notices: array<int, string>}>
+	 */
+	protected function _get_messages_for_field(string $field_id): array {
+		$key      = $this->_do_sanitize_key($field_id);
+		$messages = $this->message_handler->get_messages_for_field($key);
+		return $messages ?? array(
+			'warnings' => array(),
+			'notices'  => array(),
+		);
+	}
+
+	/**
+	 * Sanitize a key for WordPress usage.
+	 * This method should be implemented by classes that use WPWrappersTrait.
+	 *
+	 * @param string $key
+	 * @return string
+	 */
+	abstract protected function _do_sanitize_key(string $key): string;
+
+	// System default template methods removed - now handled by FormsTemplateOverrideResolver via FormsServiceSession
+
+	/** ✅
+	 * Render sections and fields for an admin page.
+	 *
+	 * @param string $root_id_slug Page identifier.
+	 * @param array  $sections  Section metadata map.
+	 * @param array  $values    Current option values.
+	 *
+	 * @return string Rendered HTML markup.
+	 */
+	protected function _render_default_sections_wrapper(string $id_slug, array $sections, array $values): string {
+		$prepared_sections = array();
+		$groups_map        = $this->groups[$id_slug] ?? array();
+		$fields_map        = $this->fields[$id_slug] ?? array();
+
+		foreach ($sections as $section_id => $meta) {
+			$groups = $groups_map[$section_id] ?? array();
+			$fields = $fields_map[$section_id] ?? array();
+
+			// Sort groups and fields by order
+			uasort($groups, function ($a, $b) {
+				return ($a['order'] <=> $b['order']) ?: ($a['index'] <=> $b['index']);
+			});
+			usort($fields, function ($a, $b) {
+				return ($a['order'] <=> $b['order']) ?: ($a['index'] <=> $b['index']);
+			});
+
+			// Combine groups and fields
+			$items = array();
+			foreach ($groups as $group) {
+				$group_fields = $group['fields'];
+				usort($group_fields, function ($a, $b) {
+					return ($a['order'] <=> $b['order']) ?: ($a['index'] <=> $b['index']);
+				});
+				$items[] = array(
+					'type'     => 'group',
+					'group_id' => $group['group_id'] ?? '',
+					'before'   => $this->_render_callback_output($group['before'] ?? null, array(
+						'group_id'     => $group['group_id'] ?? '',
+						'section_id'   => $section_id,
+						'container_id' => $id_slug,
+						'fields'       => $group_fields,
+						'values'       => $values,
+					)),
+					'after' => $this->_render_callback_output($group['after'] ?? null, array(
+						'group_id'     => $group['group_id'] ?? '',
+						'section_id'   => $section_id,
+						'container_id' => $id_slug,
+						'fields'       => $group_fields,
+						'values'       => $values,
+					)),
+					'fields' => $group_fields,
+				);
+			}
+			foreach ($fields as $field) {
+				$items[] = array('type' => 'field', 'field' => $field);
+			}
+
+			// Sort items (groups first, then fields)
+			usort($items, function ($a, $b) {
+				return ($a['type'] === 'group' ? 0 : 1) <=> ($b['type'] === 'group' ? 0 : 1);
+			});
+
+			$prepared_sections[] = array(
+				'container_id'   => $id_slug,
+				'section_id'     => $section_id,
+				'title'          => (string) $meta['title'],
+				'description_cb' => $meta['description_cb'] ?? null,
+				'before'         => $this->_render_callback_output($meta['before'] ?? null, array(
+					'container_id' => $id_slug,
+					'section_id'   => $section_id,
+					'values'       => $values,
+				)),
+				'after' => $this->_render_callback_output($meta['after'] ?? null, array(
+					'container_id' => $id_slug,
+					'section_id'   => $section_id,
+					'values'       => $values,
+				)),
+				'items' => $items,
+			);
+		}
+
+		$sectionComponent = $this->views->render('section', array(
+			'sections'       => $prepared_sections,
+			'field_renderer' => fn (array $field): string => $this->_render_default_field_wrapper($field, $values),
+		));
+
+		if (!$sectionComponent instanceof ComponentRenderResult) {
+			throw new UnexpectedValueException('Section template must return a ComponentRenderResult instance.');
+		}
+
+		if ($this->form_session === null) {
+			$this->_start_form_session();
+		}
+
+		$this->form_session->assets()->ingest($sectionComponent);
+
+		return $sectionComponent->markup;
+	}
+
+	protected function _render_callback_output(?callable $callback, array $context): ?string {
+		if ($callback === null) {
+			return null;
+		}
+
+		if (!is_callable($callback)) {
+			$this->logger->warning('FormsBaseTrait: Callback provided is not callable', array('context_keys' => array_keys($context)));
+			return null;
+		}
+
+		try {
+			return (string) $callback($context);
+		} catch (\Throwable $e) {
+			$this->logger->error('FormsBaseTrait: Callback execution failed', array(
+				'context_keys' => array_keys($context),
+				'exception'    => $e,
+			));
+			return null;
+		}
+	}
+
+	/**
+	 * Render a single field wrappper
+	 *
+	 * @param array<string,mixed> $field
+	 * @param array<string,mixed> $values
+	 *
+	 * @return string Rendered field HTML.
+	 */
+	protected function _render_default_field_wrapper(array $field, array $values): string {
+		if (empty($field)) {
+			return '';
+		}
+
+		$field_id  = isset($field['id']) ? (string) $field['id'] : '';
+		$label     = isset($field['label']) ? (string) $field['label'] : '';
+		$component = isset($field['component']) && is_string($field['component']) ? trim($field['component']) : '';
+
+		if ($component === '') {
+			$this->logger->error(static::class . ': field missing component metadata.', array('field' => $field_id));
+			throw new \InvalidArgumentException(sprintf(static::class . ': field "%s" requires a component alias.', $field_id ?: 'unknown'));
+		}
+
+		$context = $field['component_context'] ?? array();
+		if (!is_array($context)) {
+			$this->logger->error( static::class . ': field provided a non-array component_context.', array('field' => $field_id));
+			throw new \InvalidArgumentException(sprintf(static::class . ': field "%s" must provide an array component_context.', $field_id ?: 'unknown'));
+		}
+
+		// Get messages for this field
+		$field_messages = $this->message_handler->get_messages_for_field($field_id);
+
+		// Prepare field configuration
+		$field_config = array(
+			'field_id'          => $field_id,
+			'component'         => $component,
+			'label'             => $label,
+			'component_context' => $context
+		);
+
+		// Use FormElementRenderer for complete field processing with wrapper
+		try {
+			$field_context = $this->field_renderer->prepare_field_context(
+				$field_config,
+				$values,
+				array($field_id => $field_messages)
+			);
+
+			// Let FormElementRenderer handle both component rendering and wrapper application
+			return $this->field_renderer->render_field_with_wrapper(
+				$component,
+				$field_id,
+				$label,
+				$field_context,
+				$values,
+				'field-wrapper' // FormElementRenderer will resolve via template overrides
+			);
+		} catch (\Throwable $e) {
+			$this->logger->error(static::class . ': Field rendering failed', array(
+				'field_id'  => $field_id,
+				'component' => $component,
+				'exception' => $e
+			));
+			// @TODO will this break table based layouts?
+			return $this->_render_default_field_wrapper_warning($e->getMessage());
+		}
+	}
+
+	/**
+	 * Context specific render a field wrapper warning.
+	 * Uses FormsServiceSession to render error messages with proper template resolution.
+	 *
+	 * @param string $message The error message
+	 * @return string Rendered field HTML.
+	 */
+	protected function _render_default_field_wrapper_warning(string $message): string {
+		// Use FormsServiceSession to render error with proper template resolution
+		if ($this->form_session === null) {
+			$this->_start_form_session();
+		}
+
+		// Render error using the field-wrapper template with error context
+		return $this->form_session->render_component('field-wrapper', array(
+			'field_id'      => 'error',
+			'label'         => 'Error',
+			'content'       => esc_html($message),
+			'is_error'      => true,
+			'error_message' => $message
+		));
+	}
+
+	/** ✅
+	 * Discover and inject component validators for a field.
+	 *
+	 * @todo Does ComponetManifest provide a per Component registery of associated validators?
+	 *
+	 * @param string $field_id Field identifier
+	 * @param string $component Component name
+	 * @return void
+	 */
+	protected function _inject_component_validators(string $field_id, string $component): void {
+		// Get component validator factories from ComponentManifest
+		$validator_factories = $this->components->validator_factories();
+
+		if (isset($validator_factories[$component])) {
+			$validator_factory = $validator_factories[$component];
+
+			// Create the validator instance
+			if (is_callable($validator_factory)) {
+				$validator_instance = $validator_factory();
+
+				// Create a callable wrapper that adapts ValidatorInterface to RegisterOptions signature
+				$validator_callable = function($value, callable $emitWarning) use ($validator_instance): bool {
+					return $validator_instance->validate($value, array(), $emitWarning);
+				};
+
+				// Inject the validator at the beginning of the validation chain
+				$this->base_options->prepend_validator($field_id, $validator_callable);
+
+				$this->logger->debug(static::class . ': Component validator injected', array(
+					'field_id'  => $field_id,
+					'component' => $component
+				));
+			}
+		}
+	}
+
+	/** ✅
+	 * Resolve context for the specific implementation.
+	 * Each class resolves context differently based on their scope.
+	 *
+	 * @param array<string,mixed> $context
+	 * @return array
+	 */
+	abstract protected function _resolve_context(array $context): array;
+}
