@@ -5,9 +5,13 @@
  * Basic form container template for complete form control.
  * This template provides a minimal structure that can be enhanced
  * in the template architecture standardization sprint.
+ * - notices: array<int,string> - Optional notices to display above the form.
  *
- * @package RanPluginLib\Forms\Views\Shared
+ * @package RanPluginLib\Forms\Views\Form
  */
+
+use Ran\PluginLib\Forms\Component\ComponentType;
+use Ran\PluginLib\Forms\Component\ComponentRenderResult;
 
 // Prevent direct access
 if (!defined('ABSPATH')) {
@@ -48,4 +52,7 @@ ob_start();
 	</div>
 </div>
 <?php
-return (string) ob_get_clean();
+return new ComponentRenderResult(
+	markup: (string) ob_get_clean(),
+	component_type: ComponentType::LayoutWrapper
+);

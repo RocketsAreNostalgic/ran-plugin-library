@@ -5,9 +5,13 @@
  * Basic section container template for grouping related fields.
  * This template provides a minimal structure that can be enhanced
  * in the template architecture standardization sprint.
+ * - content: string Section content
  *
  * @package RanPluginLib\Forms\Views\Shared
  */
+
+use Ran\PluginLib\Forms\Component\ComponentRenderResult;
+use Ran\PluginLib\Forms\Component\ComponentType;
 
 // Prevent direct access
 if (!defined('ABSPATH')) {
@@ -36,4 +40,7 @@ ob_start();
 	</div>
 </div>
 <?php
-return (string) ob_get_clean();
+return new ComponentRenderResult(
+	markup: (string) ob_get_clean(),
+	component_type: ComponentType::LayoutWrapper
+);
