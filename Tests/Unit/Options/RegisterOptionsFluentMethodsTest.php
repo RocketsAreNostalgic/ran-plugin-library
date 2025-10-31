@@ -35,15 +35,34 @@ final class RegisterOptionsFluentMethodsTest extends PluginLibTestCase {
 		WP_Mock::userFunction('get_user_meta')->andReturn(array());
 		WP_Mock::userFunction('wp_load_alloptions')->andReturn(array());
 
+		// Mock storage to return success
+		WP_Mock::userFunction('update_option')->andReturn(true);
+		WP_Mock::userFunction('update_user_meta')->andReturn(true);
+		WP_Mock::userFunction('update_site_option')->andReturn(true);
+		WP_Mock::userFunction('update_blog_option')->andReturn(true);
+		WP_Mock::userFunction('current_user_can')->withAnyArgs()->andReturn(true)->byDefault();
+		WP_Mock::onFilter('ran/plugin_lib/options/allow_persist')
+			->with(\WP_Mock\Functions::type('bool'), \WP_Mock\Functions::type('array'))
+			->reply(true);
+		WP_Mock::onFilter('ran/plugin_lib/options/allow_persist/scope/site')
+			->with(\WP_Mock\Functions::type('bool'), \WP_Mock\Functions::type('array'))
+			->reply(true);
+
 		// Mock sanitize_key to properly handle key normalization
 		WP_Mock::userFunction('sanitize_key')->andReturnUsing(function($key) {
 			$key = strtolower($key);
 			$key = preg_replace('/[^a-z0-9_\-]+/i', '_', $key) ?? '';
 			return trim($key, '_');
 		});
+	}
 
-		// Mock storage to return success
-		WP_Mock::userFunction('update_option')->andReturn(true);
+	public function tearDown(): void {
+		// Force garbage collection to clear any lingering object references
+		if (function_exists('gc_collect_cycles')) {
+			gc_collect_cycles();
+		}
+
+		parent::tearDown();
 	}
 
 	/**

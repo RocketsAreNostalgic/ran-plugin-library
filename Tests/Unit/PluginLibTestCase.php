@@ -188,10 +188,29 @@ abstract class PluginLibTestCase extends RanTestCase {
 			unlink($this->mock_plugin_file_path);
 		}
 
+		// Additional cleanup to prevent test pollution
+		if (function_exists('gc_collect_cycles')) {
+			gc_collect_cycles();
+		}
+
+		// Clear BlockFactory shared instance to prevent test pollution
+		if (class_exists('Ran\\PluginLib\\EnqueueAccessory\\BlockFactory')) {
+			\Ran\PluginLib\EnqueueAccessory\BlockFactory::enableTestingMode();
+		}
+
 		Mockery::close();
 		WP_Mock::tearDown();
 
 		parent::tearDown();
+	}
+
+	/**
+	 * Load lightweight implementations of core WordPress translation functions for tests that rely on them.
+	 */
+	protected function loadTranslationFunctionStubs(): void {
+		require_once __DIR__ . '/Util/translation-function-stubs.php';
+
+		\Ran\PluginLib\Tests\Unit\Util\register_translation_function_stubs();
 	}
 
 	/**

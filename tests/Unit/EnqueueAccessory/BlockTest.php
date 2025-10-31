@@ -18,6 +18,8 @@ use PHPUnit\Framework\TestCase;
 use Ran\PluginLib\Config\ConfigInterface;
 use Ran\PluginLib\EnqueueAccessory\Block;
 use Ran\PluginLib\EnqueueAccessory\BlockFactory;
+use Ran\PluginLib\Util\CollectingLogger;
+use Ran\PluginLib\Util\ExpectLogTrait;
 
 /**
  * Class BlockTest
@@ -27,6 +29,7 @@ use Ran\PluginLib\EnqueueAccessory\BlockFactory;
  * fluent interface methods.
  */
 class BlockTest extends TestCase {
+	use ExpectLogTrait;
 	/**
 	 * Mock config instance.
 	 *
@@ -42,6 +45,11 @@ class BlockTest extends TestCase {
 	private $manager;
 
 	/**
+	 * Shared CollectingLogger instance.
+	 */
+	private CollectingLogger $logger;
+
+	/**
 	 * Set up test environment.
 	 *
 	 * @return void
@@ -49,19 +57,10 @@ class BlockTest extends TestCase {
 	protected function setUp(): void {
 		parent::setUp();
 
-		// Create mock config with logger expectations
-		$mockLogger = Mockery::mock('Ran\PluginLib\Util\Logger');
-		$mockLogger->shouldReceive('is_active')->andReturn(false)->byDefault();
-		$mockLogger->shouldReceive('log')->byDefault();
-		$mockLogger->shouldReceive('debug')->byDefault();
-		$mockLogger->shouldReceive('info')->byDefault();
-		$mockLogger->shouldReceive('warning')->byDefault();
-		$mockLogger->shouldReceive('error')->byDefault();
-
-		$this->config = Mockery::mock(ConfigInterface::class);
-		$this->config->shouldReceive('get_logger')
-		    ->andReturn($mockLogger)
-		    ->byDefault();
+		$this->config                 = Mockery::mock(ConfigInterface::class);
+		$this->logger                 = new CollectingLogger();
+		$this->logger->collected_logs = array();
+		$this->config->shouldReceive('get_logger')->andReturn($this->logger);
 
 		// Create mock manager with default expectations
 		$this->manager = Mockery::mock(BlockFactory::class);

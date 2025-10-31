@@ -7,9 +7,9 @@ namespace Ran\PluginLib\Tests\Unit\Options;
 use WP_Mock;
 use Ran\PluginLib\Util\Logger;
 use Ran\PluginLib\Util\CollectingLogger;
-use Ran\PluginLib\Options\RegisterOptions;
-use Ran\PluginLib\Options\Storage\StorageContext;
 use Ran\PluginLib\Tests\Unit\PluginLibTestCase;
+use Ran\PluginLib\Options\Storage\StorageContext;
+use Ran\PluginLib\Options\RegisterOptions;
 
 /**
  * Tests for RegisterOptions dual callback system functionality.
@@ -43,6 +43,62 @@ final class RegisterOptionsDualCallbackTest extends PluginLibTestCase {
 
 		// Mock storage to return success
 		WP_Mock::userFunction('update_option')->andReturn(true);
+		WP_Mock::userFunction('current_user_can')->withAnyArgs()->andReturn(true)->byDefault();
+
+		// Default allow_persist filters to true so other suites cannot leak vetoes into these tests.
+		WP_Mock::onFilter('ran/plugin_lib/options/allow_persist')
+			->with(\WP_Mock\Functions::type('bool'), \WP_Mock\Functions::type('array'))
+			->reply(true);
+		WP_Mock::onFilter('ran/plugin_lib/options/allow_persist/scope/site')
+			->with(\WP_Mock\Functions::type('bool'), \WP_Mock\Functions::type('array'))
+			->reply(true);
+	}
+
+	/**
+	 * Regression: ensure validation warnings raised during an initial stage_option() call
+	 * persist even when a subsequent stage_option() (for a different key) is invoked before commit.
+	 */
+	public function test_validation_warnings_survive_subsequent_staging(): void {
+		$options = new RegisterOptions('test_dual_callback', StorageContext::forSite(), true, $this->logger_mock);
+
+		$options->register_schema(array(
+			'bad_field' => array(
+				'default'  => '',
+				'validate' => array(
+					function($value, callable $emitWarning) {
+						$emitWarning('Always invalid');
+						return false;
+					},
+				),
+			),
+			'good_field' => array(
+				'default'  => '',
+				'validate' => array(
+					function($value) {
+						return true;
+					},
+				),
+			),
+		));
+
+		// First stage invalid value to capture warning.
+		$options->stage_option('bad_field', 'invalid');
+
+		// Stage a separate field afterwards (clears message handler today).
+		$options->stage_option('good_field', 'valid');
+
+		// Warning should still block persistence; reproduces bug if this unexpectedly passes.
+		$result = $options->commit_merge();
+		$this->assertFalse($result, 'Commit should fail when prior validation warnings were recorded.');
+	}
+
+	public function tearDown(): void {
+		// Force garbage collection to clear any lingering object references
+		if (function_exists('gc_collect_cycles')) {
+			gc_collect_cycles();
+		}
+
+		parent::tearDown();
 	}
 
 	/**

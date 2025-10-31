@@ -3,15 +3,15 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\Tests\Unit\EnqueueAccessory;
 
-use Mockery;
 use WP_Mock;
 use Ran\PluginLib\Util\ExpectLogTrait;
 use Ran\PluginLib\Util\CollectingLogger;
-use Ran\PluginLib\Config\ConfigInterface;
-use Ran\PluginLib\EnqueueAccessory\AssetType;
 use Ran\PluginLib\Tests\Unit\PluginLibTestCase;
 use Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait;
+use Ran\PluginLib\EnqueueAccessory\AssetType;
 use Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseAbstract;
+use Ran\PluginLib\Config\ConfigInterface;
+use Mockery;
 
 /**
  * Concrete implementation of ScriptsEnqueueTrait for testing asset-related methods.
@@ -410,21 +410,9 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 		// Act
 		$this->instance->stage();
 
-		// Assert: No warnings about missing src should be logged.
-		foreach ($this->logger_mock->get_logs() as $log) {
-			if (strtolower((string) $log['level']) === 'warning') {
-				$this->assertStringNotContainsString('Invalid script definition. Missing handle or src', $log['message']);
-			}
-		}
-		// Ensure the logger was actually called for other things, proving it was active.
-		$has_debug_records = false;
-		foreach ($this->logger_mock->get_logs() as $log) {
-			if ($log['level'] === 'debug') {
-				$has_debug_records = true;
-				break;
-			}
-		}
-		$this->assertTrue($has_debug_records, 'Logger should have debug records.');
+		// Assert: No warnings about missing src should be logged and debug activity occurred.
+		$this->expectLog('warning', 'Invalid script definition. Missing handle or src', 0);
+		$this->expectLog('debug', array('stage_', 'Processing', '"my-meta-handle"'));
 	}
 
 	/**
@@ -965,11 +953,7 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 		$this->expectLog('warning', "Ignoring 'id' attribute for '{$handle}'", 1);
 		$this->expectLog('warning', "Ignoring 'type' attribute for '{$handle}'", 1);
 		$this->expectLog('warning', "Ignoring 'src' attribute for '{$handle}'", 1);
-		foreach ($this->logger_mock->get_logs() as $log) {
-			if (strtolower((string) $log['level']) === 'warning') {
-				$this->assertStringNotContainsString("Ignoring 'data-custom' attribute", $log['message']);
-			}
-		}
+		$this->expectLog('warning', "Ignoring 'data-custom' attribute", 0);
 	}
 
 	/**

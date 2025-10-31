@@ -18,6 +18,8 @@ use PHPUnit\Framework\TestCase;
 use Ran\PluginLib\Config\ConfigInterface;
 use Ran\PluginLib\EnqueueAccessory\BlockFactory;
 use Ran\PluginLib\EnqueueAccessory\BlockRegistrar;
+use Ran\PluginLib\Util\CollectingLogger;
+use Ran\PluginLib\Util\ExpectLogTrait;
 
 /**
  * Class BlockFactoryTest
@@ -27,12 +29,18 @@ use Ran\PluginLib\EnqueueAccessory\BlockRegistrar;
  * cross-plugin override capability.
  */
 class BlockFactoryTest extends TestCase {
+	use ExpectLogTrait;
 	/**
 	 * Mock config instance.
 	 *
 	 * @var ConfigInterface|Mockery\MockInterface
 	 */
 	private $config;
+
+	/**
+	 * @var CollectingLogger
+	 */
+	private CollectingLogger $logger;
 
 	/**
 	 * Set up test environment.
@@ -45,19 +53,10 @@ class BlockFactoryTest extends TestCase {
 		// Enable testing mode for isolated instances
 		BlockFactory::enableTestingMode();
 
-		// Create mock config with comprehensive logger expectations
-		$mockLogger = Mockery::mock('Ran\PluginLib\Util\Logger');
-		$mockLogger->shouldReceive('is_active')->andReturn(false)->byDefault();
-		$mockLogger->shouldReceive('log')->byDefault();
-		$mockLogger->shouldReceive('debug')->byDefault();
-		$mockLogger->shouldReceive('info')->byDefault();
-		$mockLogger->shouldReceive('warning')->byDefault();
-		$mockLogger->shouldReceive('error')->byDefault();
-
 		$this->config = Mockery::mock(ConfigInterface::class);
-		$this->config->shouldReceive('get_logger')
-		    ->andReturn($mockLogger)
-		    ->byDefault();
+		$this->logger = new CollectingLogger();
+		$this->config->shouldReceive('get_logger')->andReturn($this->logger);
+		$this->logger->collected_logs = array();
 	}
 
 	/**

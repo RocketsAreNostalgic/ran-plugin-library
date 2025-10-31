@@ -17,6 +17,8 @@ namespace Ran\PluginLib\Tests\Unit\EnqueueAccessory;
 use Mockery;
 use Ran\PluginLib\EnqueueAccessory\Block;
 use Ran\PluginLib\EnqueueAccessory\BlockFactory;
+use Ran\PluginLib\Util\CollectingLogger;
+use Ran\PluginLib\Util\ExpectLogTrait;
 use WP_Mock\Tools\TestCase;
 use WP_Mock;
 
@@ -26,12 +28,18 @@ use WP_Mock;
  * Tests the integration between Block objects and the status tracking system.
  */
 class BlockStatusIntegrationTest extends TestCase {
+	use ExpectLogTrait;
 	/**
 	 * Mock configuration object.
 	 *
 	 * @var \Mockery\MockInterface
 	 */
 	private $config;
+
+	/**
+	 * Shared CollectingLogger instance.
+	 */
+	private CollectingLogger $logger;
 
 	/**
 	 * Set up test environment.
@@ -42,18 +50,15 @@ class BlockStatusIntegrationTest extends TestCase {
 		WP_Mock::setUp();
 		parent::setUp();
 
-		// Create mock config
-		$this->config = Mockery::mock('\Ran\PluginLib\Config\ConfigInterface');
+		// Create config mock with shared CollectingLogger
+		$this->config = Mockery::mock('\\Ran\\PluginLib\\Config\\ConfigInterface');
 		$this->config->shouldReceive('get')->with('plugin_url', '')->andReturn('https://example.com/plugin/');
 		$this->config->shouldReceive('get')->with('plugin_path', '')->andReturn('/path/to/plugin/');
 		$this->config->shouldReceive('get')->with('plugin_version', '1.0.0')->andReturn('1.0.0');
 
-		// Mock get_logger() method that's called by AssetEnqueueBaseAbstract constructor
-		$mockLogger = Mockery::mock('\Ran\PluginLib\Util\Logger');
-		$mockLogger->shouldReceive('is_active')->zeroOrMoreTimes()->andReturn(false);
-		$mockLogger->shouldReceive('debug')->zeroOrMoreTimes();
-		$mockLogger->shouldReceive('warning')->zeroOrMoreTimes();
-		$this->config->shouldReceive('get_logger')->andReturn($mockLogger);
+		$this->logger                 = new CollectingLogger();
+		$this->logger->collected_logs = array();
+		$this->config->shouldReceive('get_logger')->andReturn($this->logger);
 	}
 
 	/**

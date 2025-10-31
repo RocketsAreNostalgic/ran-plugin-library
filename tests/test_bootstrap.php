@@ -14,6 +14,8 @@ use \Ran\PluginLib\Util\CollectingLogger;
 // Bootstrap WP_Mock to initialize built-in features.
 WP_Mock::bootstrap();
 
+// WordPress functions will be mocked by individual tests as needed
+
 // Diagnostic: Check if add_action is shimmed
 if (function_exists('add_action')) {
 	$reflector = new \ReflectionFunction('add_action');
@@ -72,7 +74,6 @@ abstract class RanTestCase extends TestCase {
 	 * @throws \Exception If tearDown fails.
 	 */
 	public function tearDown(): void {
-		\Mockery::close();
 		parent::tearDown();
 	}
 

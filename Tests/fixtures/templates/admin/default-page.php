@@ -3,10 +3,20 @@
  * Default admin page template
  *
  * Expected $context keys:
- * - page_title: string - Page title
+ * - heading: string - Page title
  * - description: string - Page description (optional)
- * - settings_group: string - WordPress settings group (optional)
+ * - group: string - WordPress settings group (optional)
  * - content: string - Page content
+ */
+
+use Ran\PluginLib\Forms\Component\ComponentRenderResult;
+use Ran\PluginLib\Forms\Component\ComponentType;
+
+/**
+ * Default admin settings page view for tests.
+ *
+ * Mirrors the production root wrapper: consumes the prepared content payload and
+ * returns a ComponentRenderResult for asset ingestion.
  */
 
 if (!defined('ABSPATH')) {
@@ -14,30 +24,27 @@ if (!defined('ABSPATH')) {
 }
 
 // Extract context variables
-$page_title     = $context['page_title']     ?? '';
-$description    = $context['description']    ?? '';
-$settings_group = $context['settings_group'] ?? '';
-$content        = $context['content']        ?? '';
+$heading        = $context['heading']     ?? 'Settings';
+$description    = $context['description'] ?? '';
+$settings_group = $context['group']       ?? ($context['settings_group'] ?? '');
+$content        = $context['content']     ?? '';
 
 ob_start();
 ?>
 
 <div class="wrap admin-settings-page">
-    <?php if (!empty($page_title)): ?>
-        <h1><?php echo esc_html($page_title); ?></h1>
+    <?php if ($heading !== ''): ?>
+        <h1><?php echo esc_html($heading); ?></h1>
     <?php endif; ?>
 
-    <?php if (!empty($description)): ?>
+    <?php if ($description !== ''): ?>
         <p class="description"><?php echo esc_html($description); ?></p>
     <?php endif; ?>
 
     <form method="post" action="options.php">
         <?php
-        if (!empty($settings_group)) {
-        	// Mock settings_fields for testing
-        	if (function_exists('settings_fields')) {
-        		settings_fields($settings_group);
-        	}
+        if ($settings_group !== '' && function_exists('settings_fields')) {
+        	settings_fields($settings_group);
         }
 ?>
 
@@ -46,7 +53,6 @@ ob_start();
         </div>
 
         <?php
-// Mock submit_button for testing
 if (function_exists('submit_button')) {
 	submit_button();
 } else {
@@ -57,4 +63,9 @@ if (function_exists('submit_button')) {
 </div>
 
 <?php
+
+return new ComponentRenderResult(
+	markup: (string) ob_get_clean(),
+	component_type: ComponentType::LayoutWrapper
+);
 return (string) ob_get_clean();

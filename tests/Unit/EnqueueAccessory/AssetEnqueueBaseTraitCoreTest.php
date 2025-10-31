@@ -54,6 +54,25 @@ class AssetEnqueueBaseTraitCoreTest extends EnqueueTraitTestCase {
 	}
 
 	/**
+	 * Create an inactive collecting logger that discards log entries.
+	 */
+	private function create_inactive_logger(): CollectingLogger {
+		return new class() extends CollectingLogger {
+			public function __construct() {
+				parent::__construct();
+			}
+
+			public function is_active(): bool {
+				return false;
+			}
+
+			public function log($level, string|\Stringable $message, array $context = array()): void {
+				// No-op to simulate inactive logger.
+			}
+		};
+	}
+
+	/**
 	 * Clean up test environment.
 	 */
 	public function tearDown(): void {
@@ -246,25 +265,9 @@ class AssetEnqueueBaseTraitCoreTest extends EnqueueTraitTestCase {
 		$this->assertIsArray($deferred_assets, 'Deferred assets should be an array');
 		$this->assertArrayNotHasKey($hook_name, $deferred_assets, 'Empty hook should be removed');
 
-		// Verify that the expected log messages were generated
-		$log_messages = $collecting_logger->get_logs();
-
-		// Check for the entry message
-		$entry_message_found     = false;
-		$not_found_message_found = false;
-
-		// Loop through the log messages to find our expected messages
-		foreach ($log_messages as $log) {
-			if (strpos($log['message'], "Entered hook: \"$hook_name\" with priority: $priority_missing") !== false) {
-				$entry_message_found = true;
-			}
-			if (strpos($log['message'], "Hook \"$hook_name\" with priority $priority_missing not found in deferred scripts") !== false) {
-				$not_found_message_found = true;
-			}
-		}
-
-		$this->assertTrue($entry_message_found, 'Entry log message should be present');
-		$this->assertTrue($not_found_message_found, 'Not found log message should be present');
+		$this->logger_mock = $collecting_logger;
+		$this->expectLog('debug', array('_enqueue_deferred_scripts', 'Entered hook', "\"$hook_name\"", (string) $priority_missing), 2);
+		$this->expectLog('debug', array('_enqueue_deferred_scripts', 'Hook', "\"$hook_name\"", (string) $priority_missing, 'not found in deferred scripts'), 2);
 	}
 
 	// Test for deferred assets with replace flag moved to AssetEnqueueBaseTraitDeregister.php
@@ -2346,10 +2349,8 @@ class AssetEnqueueBaseTraitCoreTest extends EnqueueTraitTestCase {
 		$handle     = 'test-handle';
 		$asset_type = AssetType::Script;
 
-		// Create a mock logger that returns false for is_active()
-		$inactive_logger = Mockery::mock(CollectingLogger::class);
-		$inactive_logger->shouldReceive('is_active')->andReturn(false);
-		$inactive_logger->shouldReceive('debug')->never(); // Should not be called
+		// Use the shared inactive collecting logger to simulate disabled logging
+		$inactive_logger = $this->create_inactive_logger();
 
 		// Mock the get_logger method to return our inactive logger
 		$this->instance->shouldReceive('get_logger')
@@ -2564,10 +2565,8 @@ class AssetEnqueueBaseTraitCoreTest extends EnqueueTraitTestCase {
 		);
 		$asset_type = AssetType::Style;
 
-		// Create inactive logger
-		$inactive_logger = Mockery::mock(CollectingLogger::class);
-		$inactive_logger->shouldReceive('is_active')->andReturn(false);
-		$inactive_logger->shouldReceive('debug')->never();
+		// Use the shared inactive collecting logger to simulate disabled logging
+		$inactive_logger = $this->create_inactive_logger();
 
 		// Mock get_logger to return inactive logger
 		$this->instance->shouldReceive('get_logger')
@@ -2642,10 +2641,8 @@ class AssetEnqueueBaseTraitCoreTest extends EnqueueTraitTestCase {
 		$asset_definition = array('handle' => 'test-style');
 		$asset_type       = AssetType::Style;
 
-		// Create inactive logger
-		$inactive_logger = Mockery::mock(CollectingLogger::class);
-		$inactive_logger->shouldReceive('is_active')->andReturn(false);
-		$inactive_logger->shouldReceive('debug')->never();
+		// Use the shared inactive collecting logger to simulate disabled logging
+		$inactive_logger = $this->create_inactive_logger();
 
 		// Mock get_logger to return inactive logger
 		$this->instance->shouldReceive('get_logger')

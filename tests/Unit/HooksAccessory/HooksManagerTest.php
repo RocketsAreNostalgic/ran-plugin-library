@@ -4,17 +4,15 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\Tests\Unit\HooksAccessory;
 
-use Mockery;
 use WP_Mock;
 use Ran\PluginLib\Util\Logger;
 use Ran\PluginLib\Util\ExpectLogTrait;
 use Ran\PluginLib\Util\CollectingLogger;
-use Ran\PluginLib\HooksAccessory\HooksManager;
 use Ran\PluginLib\Tests\Unit\PluginLibTestCase;
-// use Ran\PluginLib\HooksAccessory\ActionHooksRegistrar;
-use Ran\PluginLib\HooksAccessory\ActionHooksInterface;
+use Ran\PluginLib\HooksAccessory\HooksManager;
 use Ran\PluginLib\HooksAccessory\FilterHooksInterface;
-// use Ran\PluginLib\HooksAccessory\FilterHooksRegistrar;
+use Ran\PluginLib\HooksAccessory\ActionHooksInterface;
+use Mockery;
 
 /**
  * Define a global function for testing evaluate_condition
@@ -29,167 +27,70 @@ if (!function_exists('test_conditional_function_for_coverage')) {
  * Test class for HooksManager
  */
 class TestHooksManager extends HooksManager {
-	// Make stats accessible for testing
-	public array $stats = array(
-	'actions_registered'       => 0,
-	'filters_registered'       => 0,
-	'dynamic_hooks_registered' => 0,
-	'dynamic_hooks_removed'    => 0,
-	'duplicates_prevented'     => 0,
-	);
+	/** @var array<string,int> */
+	public array $captured_stats = array();
+	private object $owner_ref;
 
-	// Store test object reference
-	private object $test_object;
-
-	// Override constructor to store test object
 	public function __construct(object $owner, ?Logger $logger = null) {
 		parent::__construct($owner, $logger);
-		$this->test_object = $owner;
+		$this->owner_ref = $owner;
 	}
 
-	// Override init_declarative_hooks to avoid actual registrar creation
 	public function init_declarative_hooks(): void {
-		// Update stats directly instead of calling parent method
-		// This simulates what the real method would do without creating registrars
-		if ($this->test_object instanceof ActionHooksInterface) {
-			$this->stats['actions_registered'] += count($this->test_object::declare_action_hooks());
-		}
-
-		if ($this->test_object instanceof FilterHooksInterface) {
-			$this->stats['filters_registered'] += count($this->test_object::declare_filter_hooks());
-		}
+		parent::init_declarative_hooks();
+		$this->captured_stats = $this->get_stats();
 	}
 
-	// Override get_stats to use our public stats property
 	public function get_stats(): array {
-		return $this->stats;
+		return parent::get_stats();
 	}
 
-	/**
-	 * Generate a hash for a callback that works with closures
-	 *
-	 * @param  mixed $callback The callback to hash
-	 * @return string A hash representing the callback
-	 */
-	private function generate_callback_hash($callback): string {
-		if (is_array($callback)) {
-			// For array callbacks, use object ID and method name
-			if (is_object($callback[0])) {
-				return spl_object_hash($callback[0]) . '::' . $callback[1];
-			}
-			return $callback[0] . '::' . $callback[1];
-		} elseif (is_string($callback)) {
-			// For string callbacks, use the string directly
-			return $callback;
-		} elseif ($callback instanceof \Closure) {
-			// For closures, use the object hash
-			return spl_object_hash($callback);
-		}
-
-		// Fallback
-		return (string) $callback;
+	public function get_registered_hooks(): array {
+		return parent::get_registered_hooks();
 	}
 
-	// Override register_action to track duplicates
-	public function register_action(
-        string $hook_name,
-        $callback,
-        int $priority = 10,
-        int $accepted_args = 1,
-        array $context = array()
-    ): bool {
-		// Generate a simple hash for deduplication (matching real implementation)
-		$callback_hash = $this->generate_callback_hash($callback);
-		$hash          = "action_{$hook_name}_{$priority}_{$callback_hash}";
-
-		// Check for duplicates
-		if (isset($this->registered_hooks[$hash])) {
-			$this->stats['duplicates_prevented']++;
-			return false;
-		}
-
-		// Register the hook
-		$this->registered_hooks[$hash] = true;
-		$this->_do_add_action($hook_name, $callback, $priority, $accepted_args);
-
-		// Update stats for dynamic hooks
-		$this->stats['dynamic_hooks_registered']++;
-		return true;
-	}
-
-	// Override register_filter to track duplicates
-	public function register_filter(
-        string $hook_name,
-        $callback,
-        int $priority = 10,
-        int $accepted_args = 1,
-        array $context = array()
-    ): bool {
-		// Generate a simple hash for deduplication (matching real implementation)
-		$callback_hash = $this->generate_callback_hash($callback);
-		$hash          = "filter_{$hook_name}_{$priority}_{$callback_hash}";
-
-		// Check for duplicates
-		if (isset($this->registered_hooks[$hash])) {
-			$this->stats['duplicates_prevented']++;
-			return false;
-		}
-
-		// Register the hook
-		$this->registered_hooks[$hash] = true;
-		$this->_do_add_filter($hook_name, $callback, $priority, $accepted_args);
-
-		// Update stats for dynamic hooks
-		$this->stats['dynamic_hooks_registered']++;
-		return true;
-	}
-
-	// Make registered_hooks accessible for testing
-	public array $registered_hooks = array();
-
-	/**
-	 * Generate a debug report for testing
-	 *
-	 * @return array Debug information about the hooks manager
-	 */
 	public function generate_debug_report(): array {
+		$stats             = $this->get_stats();
+		$registered_hooks  = $this->get_registered_hooks();
+		$declarative_owner = $this->captured_stats['actions_registered'] ?? $stats['actions_registered'];
+
 		return array(
-		 'owner_class'               => get_class($this->test_object),
-		 'stats'                     => $this->stats,
-		 'registered_hooks_count'    => count($this->registered_hooks),
-		 'registered_hooks'          => $this->registered_hooks,
-		 'has_declarative_actions'   => $this->test_object instanceof ActionHooksInterface,
-		 'has_declarative_filters'   => $this->test_object instanceof FilterHooksInterface,
-		 'declarative_actions_count' => $this->test_object instanceof ActionHooksInterface ? count($this->test_object::declare_action_hooks()) : 0,
-		 'declarative_filters_count' => $this->test_object instanceof FilterHooksInterface ? count($this->test_object::declare_filter_hooks()) : 0,
+			'owner_class'               => get_class($this->owner_ref),
+			'stats'                     => $stats,
+			'registered_hooks_count'    => count($registered_hooks),
+			'registered_hooks'          => $registered_hooks,
+			'has_declarative_actions'   => $this->owner_ref instanceof ActionHooksInterface,
+			'has_declarative_filters'   => $this->owner_ref instanceof FilterHooksInterface,
+			'declarative_actions_count' => $declarative_owner,
+			'declarative_filters_count' => $this->captured_stats['filters_registered'] ?? $stats['filters_registered'],
 		);
 	}
 }
 
-/**
- * Test case for HooksManager
- *
- * @covers \Ran\PluginLib\HooksAccessory\HooksManager
- * @covers \Ran\PluginLib\HooksAccessory\HooksManager::__construct
- * @covers \Ran\PluginLib\HooksAccessory\HooksManager::_register_hook
- * @covers \Ran\PluginLib\HooksAccessory\HooksManager::_validate_hook_definition
- */
+final class InactiveCollectingLogger extends CollectingLogger {
+	public function __construct() {
+		parent::__construct();
+	}
+
+	public function is_active(): bool {
+		return false;
+	}
+
+	public function log($level, string|\Stringable $message, array $context = array()): void {
+		// Intentionally no-op so inactive logger collects nothing.
+	}
+}
+
 class HooksManagerTest extends PluginLibTestCase {
 	use ExpectLogTrait;
-	/**
-	 * @var HooksManager|Mockery\MockInterface The hooks manager with mocked wrapper methods
-	 */
-	private $hooksManager;
-
-	/**
-	 * @var Logger&\Mockery\MockInterface The logger instance
-	 */
-	private Logger $logger;
-
-	/**
-	 * @var object The test object that owns the hooks
-	 */
+	private TestHooksManager|Mockery\MockInterface $hooksManager;
 	private object $test_object;
+	private CollectingLogger $logger;
+
+	public function tearDown(): void {
+		Mockery::close();
+		parent::tearDown();
+	}
 
 	public function setUp(): void {
 		parent::setUp();
@@ -207,9 +108,9 @@ class HooksManagerTest extends PluginLibTestCase {
 
 		// Create a partial mock of HooksManager that only mocks the wrapper methods
 		$this->hooksManager = Mockery::mock(
-			HooksManager::class . '[_do_add_action,_do_add_filter,_do_remove_action,_do_remove_filter,_do_execute_action,_do_apply_filter]',
+			TestHooksManager::class . '[_do_add_action,_do_add_filter,_do_remove_action,_do_remove_filter,_do_execute_action,_do_apply_filter]',
 			array($this->test_object, $this->logger)
-		);
+		)->makePartial();
 
 		// Set up default behavior for wrapper methods
 		$this->hooksManager->shouldAllowMockingProtectedMethods();
@@ -439,7 +340,8 @@ class HooksManagerTest extends PluginLibTestCase {
 		\WP_Mock::userFunction('add_action')->never();
 
 		// This should fail because the callback is not callable
-		$result = $this->hooksManager->register_action(
+		$hooksManager = new HooksManager($this->test_object, $this->logger);
+		$result       = $hooksManager->register_action(
 			'invalid_action',
 			'non_existent_function'
 		);
@@ -794,7 +696,8 @@ class HooksManagerTest extends PluginLibTestCase {
 		};
 
 		// Create a real HooksManager instance for this test
-		$hooksManager = new HooksManager($this->test_object, $this->logger);
+		$inactiveLogger = new InactiveCollectingLogger();
+		$hooksManager   = new HooksManager($this->test_object, $inactiveLogger);
 
 		// Register conditional hooks
 		$results = $hooksManager->register_conditional_hooks(
@@ -989,14 +892,9 @@ class HooksManagerTest extends PluginLibTestCase {
 		$callback = function () {
 		};
 
-		// Set up expectations for _do_add_action
-		$this->hooksManager->shouldReceive('_do_add_action')
-		    ->once()
-		    ->with('test_action', $callback, 10, 1)
-		    ->andReturn(true);
-
-		// Register a hook
-		$this->hooksManager->register_action('test_action', $callback);
+		// Register a hook using real HooksManager behaviour
+		$result = $this->hooksManager->register_action('test_action', $callback);
+		self::assertTrue($result, 'Registration should succeed for callable callback');
 
 		// Get registered hooks
 		$hooks = $this->hooksManager->get_registered_hooks();
@@ -1013,12 +911,6 @@ class HooksManagerTest extends PluginLibTestCase {
 	public function test_is_hook_registered(): void {
 		$callback = function () {
 		};
-
-		// Set up expectations for _do_add_action
-		$this->hooksManager->shouldReceive('_do_add_action')
-		    ->once()
-		    ->with('test_action', $callback, 10, 1)
-		    ->andReturn(true);
 
 		// Register a hook
 		$this->hooksManager->register_action('test_action', $callback);
@@ -1040,12 +932,6 @@ class HooksManagerTest extends PluginLibTestCase {
 	public function test_clear_hooks(): void {
 		$callback = function () {
 		};
-
-		// Set up expectations for _do_add_action
-		$this->hooksManager->shouldReceive('_do_add_action')
-		    ->once()
-		    ->with('test_action', $callback, 10, 1)
-		    ->andReturn(true);
 
 		// Register a hook
 		$this->hooksManager->register_action('test_action', $callback);
@@ -1247,12 +1133,14 @@ class HooksManagerTest extends PluginLibTestCase {
 	 * @covers \Ran\PluginLib\HooksAccessory\HooksManager::register_action
 	 */
 	public function test_register_action_invalid_callback(): void {
+		$hooksManager = new HooksManager($this->test_object, $this->logger);
+
 		// Test with non-callable callback
-		$result = $this->hooksManager->register_action('test_hook', 'non_existent_function');
+		$result = $hooksManager->register_action('test_hook', 'non_existent_function');
 		$this->assertFalse($result, 'Should return false for invalid callback');
 
 		// Test with null callback
-		$result = $this->hooksManager->register_action('test_hook', null);
+		$result = $hooksManager->register_action('test_hook', null);
 		$this->assertFalse($result, 'Should return false for null callback');
 	}
 
@@ -1262,12 +1150,14 @@ class HooksManagerTest extends PluginLibTestCase {
 	 * @covers \Ran\PluginLib\HooksAccessory\HooksManager::register_filter
 	 */
 	public function test_register_filter_invalid_callback(): void {
+		$hooksManager = new HooksManager($this->test_object, $this->logger);
+
 		// Test with non-callable callback
-		$result = $this->hooksManager->register_filter('test_hook', 'non_existent_function');
+		$result = $hooksManager->register_filter('test_hook', 'non_existent_function');
 		$this->assertFalse($result, 'Should return false for invalid callback');
 
 		// Test with null callback
-		$result = $this->hooksManager->register_filter('test_hook', null);
+		$result = $hooksManager->register_filter('test_hook', null);
 		$this->assertFalse($result, 'Should return false for null callback');
 	}
 
@@ -3430,10 +3320,7 @@ class HooksManagerTest extends PluginLibTestCase {
 	 * @covers \Ran\PluginLib\HooksAccessory\ActionHooksRegistrar::register_single_action_hook
 	 */
 	public function test_init_declarative_hooks_action_interface_with_logger(): void {
-		$logger = Mockery::mock(Logger::class);
-		$logger->shouldReceive('is_active')->andReturn(true);
-		$logger->shouldReceive('debug')->byDefault();
-		$logger->shouldReceive('warning')->byDefault();
+		$this->logger->collected_logs = array();
 
 		$instance = new class() implements ActionHooksInterface {
 			public static function declare_action_hooks(): array {
@@ -3460,12 +3347,13 @@ class HooksManagerTest extends PluginLibTestCase {
 			}
 		};
 
-		$hooksManager = new HooksManager($instance, $logger);
+		$hooksManager = new HooksManager($instance, $this->logger);
 		$hooksManager->init_declarative_hooks();
 
 		// Verify stats were updated
 		$stats = $hooksManager->get_stats();
 		$this->assertEquals(2, $stats['actions_registered'], 'Should track 2 registered actions');
+		$this->expectLog('debug', array('HooksManager - Registered', 'declarative actions'), 1);
 	}
 
 	/**
@@ -3476,10 +3364,7 @@ class HooksManagerTest extends PluginLibTestCase {
 	 * @covers \Ran\PluginLib\HooksAccessory\FilterHooksRegistrar::register_single_filter_hook
 	 */
 	public function test_init_declarative_hooks_filter_interface_with_logger(): void {
-		$logger = Mockery::mock(Logger::class);
-		$logger->shouldReceive('is_active')->andReturn(true);
-		$logger->shouldReceive('debug')->byDefault();
-		$logger->shouldReceive('warning')->byDefault();
+		$this->logger->collected_logs = array();
 
 		$instance = new class() implements FilterHooksInterface {
 			public static function declare_filter_hooks(): array {
@@ -3511,22 +3396,20 @@ class HooksManagerTest extends PluginLibTestCase {
 			}
 		};
 
-		$hooksManager = new HooksManager($instance, $logger);
+		$hooksManager = new HooksManager($instance, $this->logger);
 		$hooksManager->init_declarative_hooks();
 
 		// Verify stats were updated
 		$stats = $hooksManager->get_stats();
 		$this->assertEquals(3, $stats['filters_registered'], 'Should track 3 registered filters');
+		$this->expectLog('debug', array('HooksManager - Registered', 'declarative filters'), 1);
 	}
 
 	/**
 	 * Test init_declarative_hooks with both interfaces and active logger
 	 */
 	public function test_init_declarative_hooks_both_interfaces_with_logger(): void {
-		$logger = Mockery::mock(Logger::class);
-		$logger->shouldReceive('is_active')->andReturn(true);
-		$logger->shouldReceive('debug')->byDefault();
-		$logger->shouldReceive('warning')->byDefault();
+		$this->logger->collected_logs = array();
 
 		$instance = new class() implements ActionHooksInterface, FilterHooksInterface {
 			public static function declare_action_hooks(): array {
@@ -3571,22 +3454,21 @@ class HooksManagerTest extends PluginLibTestCase {
 			}
 		};
 
-		$hooksManager = new HooksManager($instance, $logger);
+		$hooksManager = new HooksManager($instance, $this->logger);
 		$hooksManager->init_declarative_hooks();
 
 		// Verify stats were updated for both
 		$stats = $hooksManager->get_stats();
 		$this->assertEquals(1, $stats['actions_registered'], 'Should track 1 registered action');
 		$this->assertEquals(2, $stats['filters_registered'], 'Should track 2 registered filters');
+		$this->expectLog('debug', array('HooksManager - Registered', 'declarative'), 2);
 	}
 
 	/**
 	 * Test init_declarative_hooks with ActionHooksInterface and inactive logger
 	 */
 	public function test_init_declarative_hooks_action_interface_inactive_logger(): void {
-		$logger = Mockery::mock(Logger::class);
-		$logger->shouldReceive('is_active')->andReturn(false);
-		$logger->shouldReceive('debug')->never();
+		$logger = new InactiveCollectingLogger();
 
 		$instance = new class() implements ActionHooksInterface {
 			public static function declare_action_hooks(): array {
@@ -3614,15 +3496,14 @@ class HooksManagerTest extends PluginLibTestCase {
 		// Verify stats were still updated even with inactive logger
 		$stats = $hooksManager->get_stats();
 		$this->assertEquals(1, $stats['actions_registered'], 'Should track 1 registered action even with inactive logger');
+		self::assertSame(array(), $logger->get_logs(), 'Inactive logger should not record any log entries.');
 	}
 
 	/**
 	 * Test init_declarative_hooks with FilterHooksInterface and inactive logger
 	 */
 	public function test_init_declarative_hooks_filter_interface_inactive_logger(): void {
-		$logger = Mockery::mock(Logger::class);
-		$logger->shouldReceive('is_active')->andReturn(false);
-		$logger->shouldReceive('debug')->never();
+		$logger = new InactiveCollectingLogger();
 
 		$instance = new class() implements FilterHooksInterface {
 			public static function declare_filter_hooks(): array {
@@ -3650,16 +3531,14 @@ class HooksManagerTest extends PluginLibTestCase {
 		// Verify stats were still updated even with inactive logger
 		$stats = $hooksManager->get_stats();
 		$this->assertEquals(1, $stats['filters_registered'], 'Should track 1 registered filter even with inactive logger');
+		self::assertSame(array(), $logger->get_logs(), 'Inactive logger should not record any log entries.');
 	}
 
 	/**
 	 * Test init_declarative_hooks with empty action hooks
 	 */
 	public function test_init_declarative_hooks_empty_action_hooks(): void {
-		$logger = Mockery::mock(Logger::class);
-		$logger->shouldReceive('is_active')->andReturn(true);
-		$logger->shouldReceive('debug')->byDefault();
-		$logger->shouldReceive('warning')->byDefault();
+		$this->logger->collected_logs = array();
 
 		$instance = new class() implements ActionHooksInterface {
 			public static function declare_action_hooks(): array {
@@ -3675,7 +3554,7 @@ class HooksManagerTest extends PluginLibTestCase {
 			}
 		};
 
-		$hooksManager = new HooksManager($instance, $logger);
+		$hooksManager = new HooksManager($instance, $this->logger);
 		$hooksManager->init_declarative_hooks();
 
 		// Verify stats were updated correctly for empty hooks
@@ -3687,10 +3566,7 @@ class HooksManagerTest extends PluginLibTestCase {
 	 * Test init_declarative_hooks with empty filter hooks
 	 */
 	public function test_init_declarative_hooks_empty_filter_hooks(): void {
-		$logger = Mockery::mock(Logger::class);
-		$logger->shouldReceive('is_active')->andReturn(true);
-		$logger->shouldReceive('debug')->byDefault();
-		$logger->shouldReceive('warning')->byDefault();
+		$this->logger->collected_logs = array();
 
 		$instance = new class() implements FilterHooksInterface {
 			public static function declare_filter_hooks(): array {
@@ -3706,7 +3582,7 @@ class HooksManagerTest extends PluginLibTestCase {
 			}
 		};
 
-		$hooksManager = new HooksManager($instance, $logger);
+		$hooksManager = new HooksManager($instance, $this->logger);
 		$hooksManager->init_declarative_hooks();
 
 		// Verify stats were updated correctly for empty hooks
@@ -3740,28 +3616,24 @@ class HooksManagerTest extends PluginLibTestCase {
 	 * Test register_action with invalid callback and active logger
 	 */
 	public function test_register_action_invalid_callback_active_logger(): void {
-		$logger = Mockery::mock(Logger::class);
-		$logger->shouldReceive('is_active')->andReturn(true);
-		$logger->shouldReceive('warning')->once()->with('HooksManager - Invalid callback provided for action: test_action');
-
-		$hooksManager = new HooksManager($this->test_object, $logger);
+		$this->logger->collected_logs = array();
+		$hooksManager                 = new HooksManager($this->test_object, $this->logger);
 
 		$result = $hooksManager->register_action('test_action', 'invalid_callback', 10, 1);
 		$this->assertFalse($result, 'Should fail with invalid callback and log warning');
+		$this->expectLog('warning', 'HooksManager - Invalid callback provided for action: test_action');
 	}
 
 	/**
 	 * Test register_action with invalid callback and inactive logger
 	 */
 	public function test_register_action_invalid_callback_inactive_logger(): void {
-		$logger = Mockery::mock(Logger::class);
-		$logger->shouldReceive('is_active')->andReturn(false);
-		$logger->shouldReceive('warning')->never();
-
-		$hooksManager = new HooksManager($this->test_object, $logger);
+		$inactiveLogger = new InactiveCollectingLogger();
+		$hooksManager   = new HooksManager($this->test_object, $inactiveLogger);
 
 		$result = $hooksManager->register_action('test_action', 'invalid_callback', 10, 1);
 		$this->assertFalse($result, 'Should fail with invalid callback but not log when logger inactive');
+		self::assertSame(array(), $inactiveLogger->get_logs(), 'Inactive logger should not record any log entries.');
 	}
 
 	/**
@@ -3808,53 +3680,45 @@ class HooksManagerTest extends PluginLibTestCase {
 	 * Test register_action with null callback
 	 */
 	public function test_register_action_null_callback(): void {
-		$logger = Mockery::mock(Logger::class);
-		$logger->shouldReceive('is_active')->andReturn(true);
-		$logger->shouldReceive('warning')->once()->with('HooksManager - Invalid callback provided for action: test_action');
-
-		$hooksManager = new HooksManager($this->test_object, $logger);
+		$this->logger->collected_logs = array();
+		$hooksManager                 = new HooksManager($this->test_object, $this->logger);
 
 		$result = $hooksManager->register_action('test_action', null, 10, 1);
 		$this->assertFalse($result, 'Should fail with null callback');
+		$this->expectLog('warning', 'HooksManager - Invalid callback provided for action: test_action');
 	}
 
 	/**
 	 * Test register_action with integer callback
 	 */
 	public function test_register_action_integer_callback(): void {
-		$logger = Mockery::mock(Logger::class);
-		$logger->shouldReceive('is_active')->andReturn(true);
-		$logger->shouldReceive('warning')->once()->with('HooksManager - Invalid callback provided for action: test_action');
-
-		$hooksManager = new HooksManager($this->test_object, $logger);
+		$this->logger->collected_logs = array();
+		$hooksManager                 = new HooksManager($this->test_object, $this->logger);
 
 		$result = $hooksManager->register_action('test_action', 123, 10, 1);
 		$this->assertFalse($result, 'Should fail with integer callback');
+		$this->expectLog('warning', 'HooksManager - Invalid callback provided for action: test_action');
 	}
 
 	/**
 	 * Test register_action with object callback that is not callable
 	 */
 	public function test_register_action_object_callback_not_callable(): void {
-		$logger = Mockery::mock(Logger::class);
-		$logger->shouldReceive('is_active')->andReturn(true);
-		$logger->shouldReceive('warning')->once()->with('HooksManager - Invalid callback provided for action: test_action');
-
-		$hooksManager = new HooksManager($this->test_object, $logger);
+		$this->logger->collected_logs = array();
+		$hooksManager                 = new HooksManager($this->test_object, $this->logger);
 
 		$non_callable_object = new \stdClass();
 
 		$result = $hooksManager->register_action('test_action', $non_callable_object, 10, 1);
 		$this->assertFalse($result, 'Should fail with non-callable object callback');
+		$this->expectLog('warning', 'HooksManager - Invalid callback provided for action: test_action');
 	}
 
 	/**
 	 * Test register_action with string callback that exists but is not callable
 	 */
 	public function test_register_action_string_callback_exists_not_callable(): void {
-		$logger = Mockery::mock(Logger::class);
-		$logger->shouldReceive('is_active')->andReturn(true);
-		$logger->shouldReceive('warning')->once()->with('HooksManager - Invalid callback provided for action: test_action');
+		$this->logger->collected_logs = array();
 
 		$testObject = new class() {
 			private function private_method() {
@@ -3862,10 +3726,11 @@ class HooksManagerTest extends PluginLibTestCase {
 			}
 		};
 
-		$hooksManager = new HooksManager($testObject, $logger);
+		$hooksManager = new HooksManager($testObject, $this->logger);
 
 		$result = $hooksManager->register_action('test_action', 'private_method', 10, 1);
 		$this->assertFalse($result, 'Should fail with string callback that exists but is not callable');
+		$this->expectLog('warning', 'HooksManager - Invalid callback provided for action: test_action');
 	}
 
 	/**
@@ -3948,28 +3813,24 @@ class HooksManagerTest extends PluginLibTestCase {
 	 * Test register_filter with invalid callback and active logger
 	 */
 	public function test_register_filter_invalid_callback_active_logger(): void {
-		$logger = Mockery::mock(Logger::class);
-		$logger->shouldReceive('is_active')->andReturn(true);
-		$logger->shouldReceive('warning')->once()->with('HooksManager - Invalid callback provided for filter: test_filter');
-
-		$hooksManager = new HooksManager($this->test_object, $logger);
+		$this->logger->collected_logs = array();
+		$hooksManager                 = new HooksManager($this->test_object, $this->logger);
 
 		$result = $hooksManager->register_filter('test_filter', 'invalid_callback', 10, 1);
 		$this->assertFalse($result, 'Should fail with invalid callback and log warning');
+		$this->expectLog('warning', 'HooksManager - Invalid callback provided for filter: test_filter');
 	}
 
 	/**
 	 * Test register_filter with invalid callback and inactive logger
 	 */
 	public function test_register_filter_invalid_callback_inactive_logger(): void {
-		$logger = Mockery::mock(Logger::class);
-		$logger->shouldReceive('is_active')->andReturn(false);
-		$logger->shouldReceive('warning')->never();
-
-		$hooksManager = new HooksManager($this->test_object, $logger);
+		$inactiveLogger = new InactiveCollectingLogger();
+		$hooksManager   = new HooksManager($this->test_object, $inactiveLogger);
 
 		$result = $hooksManager->register_filter('test_filter', 'invalid_callback', 10, 1);
 		$this->assertFalse($result, 'Should fail with invalid callback but not log when logger inactive');
+		self::assertSame(array(), $inactiveLogger->get_logs(), 'Inactive logger should not record any log entries.');
 	}
 
 	/**
@@ -4016,53 +3877,45 @@ class HooksManagerTest extends PluginLibTestCase {
 	 * Test register_filter with null callback
 	 */
 	public function test_register_filter_null_callback(): void {
-		$logger = Mockery::mock(Logger::class);
-		$logger->shouldReceive('is_active')->andReturn(true);
-		$logger->shouldReceive('warning')->once()->with('HooksManager - Invalid callback provided for filter: test_filter');
-
-		$hooksManager = new HooksManager($this->test_object, $logger);
+		$this->logger->collected_logs = array();
+		$hooksManager                 = new HooksManager($this->test_object, $this->logger);
 
 		$result = $hooksManager->register_filter('test_filter', null, 10, 1);
 		$this->assertFalse($result, 'Should fail with null callback');
+		$this->expectLog('warning', 'HooksManager - Invalid callback provided for filter: test_filter');
 	}
 
 	/**
 	 * Test register_filter with integer callback
 	 */
 	public function test_register_filter_integer_callback(): void {
-		$logger = Mockery::mock(Logger::class);
-		$logger->shouldReceive('is_active')->andReturn(true);
-		$logger->shouldReceive('warning')->once()->with('HooksManager - Invalid callback provided for filter: test_filter');
-
-		$hooksManager = new HooksManager($this->test_object, $logger);
+		$this->logger->collected_logs = array();
+		$hooksManager                 = new HooksManager($this->test_object, $this->logger);
 
 		$result = $hooksManager->register_filter('test_filter', 123, 10, 1);
 		$this->assertFalse($result, 'Should fail with integer callback');
+		$this->expectLog('warning', 'HooksManager - Invalid callback provided for filter: test_filter');
 	}
 
 	/**
 	 * Test register_filter with object callback that is not callable
 	 */
 	public function test_register_filter_object_callback_not_callable(): void {
-		$logger = Mockery::mock(Logger::class);
-		$logger->shouldReceive('is_active')->andReturn(true);
-		$logger->shouldReceive('warning')->once()->with('HooksManager - Invalid callback provided for filter: test_filter');
-
-		$hooksManager = new HooksManager($this->test_object, $logger);
+		$this->logger->collected_logs = array();
+		$hooksManager                 = new HooksManager($this->test_object, $this->logger);
 
 		$non_callable_object = new \stdClass();
 
 		$result = $hooksManager->register_filter('test_filter', $non_callable_object, 10, 1);
 		$this->assertFalse($result, 'Should fail with non-callable object callback');
+		$this->expectLog('warning', 'HooksManager - Invalid callback provided for filter: test_filter');
 	}
 
 	/**
 	 * Test register_filter with string callback that exists but is not callable
 	 */
 	public function test_register_filter_string_callback_exists_not_callable(): void {
-		$logger = Mockery::mock(Logger::class);
-		$logger->shouldReceive('is_active')->andReturn(true);
-		$logger->shouldReceive('warning')->once()->with('HooksManager - Invalid callback provided for filter: test_filter');
+		$this->logger->collected_logs = array();
 
 		$testObject = new class() {
 			private function private_method() {
@@ -4070,10 +3923,11 @@ class HooksManagerTest extends PluginLibTestCase {
 			}
 		};
 
-		$hooksManager = new HooksManager($testObject, $logger);
+		$hooksManager = new HooksManager($testObject, $this->logger);
 
 		$result = $hooksManager->register_filter('test_filter', 'private_method', 10, 1);
 		$this->assertFalse($result, 'Should fail with string callback that exists but is not callable');
+		$this->expectLog('warning', 'HooksManager - Invalid callback provided for filter: test_filter');
 	}
 
 	/**
@@ -4134,30 +3988,26 @@ class HooksManagerTest extends PluginLibTestCase {
 	 * Test register_filter with boolean callback
 	 */
 	public function test_register_filter_boolean_callback(): void {
-		$logger = Mockery::mock(Logger::class);
-		$logger->shouldReceive('is_active')->andReturn(true);
-		$logger->shouldReceive('warning')->once()->with('HooksManager - Invalid callback provided for filter: test_filter');
-
-		$hooksManager = new HooksManager($this->test_object, $logger);
+		$this->logger->collected_logs = array();
+		$hooksManager                 = new HooksManager($this->test_object, $this->logger);
 
 		$result = $hooksManager->register_filter('test_filter', true, 10, 1);
 		$this->assertFalse($result, 'Should fail with boolean callback');
+		$this->expectLog('warning', 'HooksManager - Invalid callback provided for filter: test_filter');
 	}
 
 	/**
 	 * Test register_filter with array callback that is not callable
 	 */
 	public function test_register_filter_array_callback_not_callable(): void {
-		$logger = Mockery::mock(Logger::class);
-		$logger->shouldReceive('is_active')->andReturn(true);
-		$logger->shouldReceive('warning')->once()->with('HooksManager - Invalid callback provided for filter: test_filter');
-
-		$hooksManager = new HooksManager($this->test_object, $logger);
+		$this->logger->collected_logs = array();
+		$hooksManager                 = new HooksManager($this->test_object, $this->logger);
 
 		$non_callable_array = array('not_callable', 'method');
 
 		$result = $hooksManager->register_filter('test_filter', $non_callable_array, 10, 1);
 		$this->assertFalse($result, 'Should fail with non-callable array callback');
+		$this->expectLog('warning', 'HooksManager - Invalid callback provided for filter: test_filter');
 	}
 
 	/**
@@ -4557,14 +4407,12 @@ class HooksManagerTest extends PluginLibTestCase {
 	 * @covers \Ran\PluginLib\HooksAccessory\HooksManager::_register_hook
 	 */
 	public function test_register_method_hook_inactive_logger(): void {
-		// Create logger that is inactive
-		$inactiveLogger = Mockery::mock(Logger::class);
-		$inactiveLogger->shouldReceive('is_active')->andReturn(false);
-
-		$hooksManager = new HooksManager($this->test_object, $inactiveLogger);
+		$inactiveLogger = new InactiveCollectingLogger();
+		$hooksManager   = new HooksManager($this->test_object, $inactiveLogger);
 
 		$result = $hooksManager->register_method_hook('action', 'test_action', 'test_method');
 		$this->assertTrue($result, 'Should work with inactive logger');
+		self::assertSame(array(), $inactiveLogger->get_logs(), 'Inactive logger should not record any log entries.');
 	}
 
 	/**

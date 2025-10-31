@@ -3,15 +3,15 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\Tests\Unit\EnqueueAccessory;
 
-use Mockery;
 use WP_Mock;
 use Ran\PluginLib\Util\ExpectLogTrait;
 use Ran\PluginLib\Util\CollectingLogger;
-use Ran\PluginLib\Config\ConfigInterface;
-use Ran\PluginLib\EnqueueAccessory\AssetType;
 use Ran\PluginLib\Tests\Unit\PluginLibTestCase;
 use Ran\PluginLib\EnqueueAccessory\StylesEnqueueTrait;
+use Ran\PluginLib\EnqueueAccessory\AssetType;
 use Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseAbstract;
+use Ran\PluginLib\Config\ConfigInterface;
+use Mockery;
 
 /**
  * Concrete implementation of StylesEnqueueTrait for testing asset-related methods.
@@ -155,21 +155,9 @@ class StylesEnqueueTraitTest extends EnqueueTraitTestCase {
 		// Act
 		$this->instance->stage();
 
-		// Assert: No warnings about missing src should be logged.
-		foreach ($this->logger_mock->get_logs() as $log) {
-			if (strtolower((string) $log['level']) === 'warning') {
-				$this->assertStringNotContainsString('Invalid style definition. Missing handle or src', $log['message']);
-			}
-		}
-		// Ensure the logger was actually called for other things, proving it was active.
-		$has_debug_records = false;
-		foreach ($this->logger_mock->get_logs() as $log) {
-			if ($log['level'] === 'debug') {
-				$has_debug_records = true;
-				break;
-			}
-		}
-		$this->assertTrue($has_debug_records, 'Logger should have debug records.');
+		// Assert: No warnings about missing src should be logged and debug activity occurred.
+		$this->expectLog('warning', 'Invalid style definition. Missing handle or src', 0);
+		$this->expectLog('debug', array('stage_', 'Processing', '"my-sourceless-style"'));
 	}
 
 	/**

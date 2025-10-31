@@ -22,6 +22,7 @@ use WP_Mock;
 use ReflectionClass;
 use PHPUnit\Framework\TestCase;
 use Ran\PluginLib\Util\CollectingLogger;
+use Ran\PluginLib\Util\ExpectLogTrait;
 use Ran\PluginLib\Config\ConfigInterface;
 use Ran\PluginLib\Tests\Unit\PluginLibTestCase;
 use Ran\PluginLib\EnqueueAccessory\StylesHandler;
@@ -36,6 +37,7 @@ use Ran\PluginLib\EnqueueAccessory\ScriptsHandler;
  * hook management, and WordPress integration patterns.
  */
 class BlockRegistrarCoreTest extends PluginLibTestCase {
+	use ExpectLogTrait;
 	/**
 	 * BlockRegistrar instance for testing.
 	 *
@@ -65,7 +67,8 @@ class BlockRegistrarCoreTest extends PluginLibTestCase {
 	public function setUp(): void {
 		parent::setUp();
 
-		$this->logger = new CollectingLogger();
+		$this->logger      = new CollectingLogger();
+		$this->logger_mock = $this->logger;
 
 		$this->config = Mockery::mock(ConfigInterface::class);
 		$this->config->shouldReceive('get_logger')->andReturn($this->logger);
@@ -235,16 +238,7 @@ class BlockRegistrarCoreTest extends PluginLibTestCase {
 		$this->assertCount(1, $blocks['init'][10]);
 		$this->assertEquals($block_definition, $blocks['init'][10][0]);
 
-		// Check for warning log
-		$logs          = $this->logger->get_logs();
-		$warning_found = false;
-		foreach ($logs as $log) {
-			if (isset($log['level']) && $log['level'] === 'warning' && strpos($log['message'], 'already added for registration') !== false) {
-				$warning_found = true;
-				break;
-			}
-		}
-		$this->assertTrue($warning_found, 'Expected warning log for duplicate block name');
+		$this->expectLog('warning', array('Ran\PluginLib\EnqueueAccessory\BlockRegistrar::add', "Block 'test/duplicate' already added for registration. Skipping duplicate."));
 	}
 
 	/**
@@ -268,16 +262,7 @@ class BlockRegistrarCoreTest extends PluginLibTestCase {
 		// Should be empty since all blocks were invalid
 		$this->assertEmpty($blocks, 'Blocks array should be empty when all definitions are invalid');
 
-		// Check for warning log
-		$logs          = $this->logger->get_logs();
-		$warning_found = false;
-		foreach ($logs as $log) {
-			if (isset($log['level']) && $log['level'] === 'warning' && strpos($log['message'], "missing 'block_name'") !== false) {
-				$warning_found = true;
-				break;
-			}
-		}
-		$this->assertTrue($warning_found, 'Expected warning log for missing block_name');
+		$this->expectLog('warning', array('BlockRegistrar::add', "Block definition missing 'block_name'. Skipping."));
 	}
 
 	// === ASSET MANAGEMENT INTEGRATION TESTS ===
@@ -470,19 +455,8 @@ class BlockRegistrarCoreTest extends PluginLibTestCase {
 		// Verify fluent interface for staging
 		$this->assertSame($this->block_registrar, $stage_result);
 
-		// Verify logging occurred (observable behavior)
-		$logs = $this->logger->get_logs();
-		$this->assertNotEmpty($logs);
-
-		// Look for block addition logging
-		$add_found = false;
-		foreach ($logs as $log) {
-			if (isset($log['message']) && strpos($log['message'], 'Adding block') !== false) {
-				$add_found = true;
-				break;
-			}
-		}
-		$this->assertTrue($add_found, 'Expected logging for block addition');
+		$this->expectLog('debug', array('BlockRegistrar::add', "Adding block 'test/staging-behavior'"));
+		$this->expectLog('debug', array('BlockRegistrar::stage', "Registering action for hook 'init'"));
 	}
 
 	/**
@@ -504,19 +478,7 @@ class BlockRegistrarCoreTest extends PluginLibTestCase {
 		// Should still return self for fluent interface
 		$this->assertSame($this->block_registrar, $result);
 
-		// Verify appropriate error logging occurred
-		$logs = $this->logger->get_logs();
-		$this->assertNotEmpty($logs);
-
-		// Look for error or warning logging
-		$error_found = false;
-		foreach ($logs as $log) {
-			if (isset($log['level']) && ($log['level'] === 'error' || $log['level'] === 'warning')) {
-				$error_found = true;
-				break;
-			}
-		}
-		$this->assertTrue($error_found, 'Expected error/warning logging for invalid block definition');
+		$this->expectLog('warning', array('BlockRegistrar::add', "Block definition missing 'block_name'. Skipping."));
 
 		// Verify no registered blocks (invalid block shouldn't be registered)
 		$registered_blocks = $this->block_registrar->get_registered_block_types();
@@ -577,14 +539,6 @@ class BlockRegistrarCoreTest extends PluginLibTestCase {
 		// Should have 2 blocks (empty string and numeric are accepted)
 		$this->assertNotEmpty($blocks, 'Some blocks should be stored even if they have questionable block_name values');
 
-		// Verify at least one warning was logged (for the missing block_name)
-		$logs          = $this->logger->get_logs();
-		$warning_count = 0;
-		foreach ($logs as $log) {
-			if (isset($log['level']) && $log['level'] === 'warning') {
-				$warning_count++;
-			}
-		}
-		$this->assertGreaterThan(0, $warning_count, 'Expected warning log for missing block_name');
+		$this->expectLog('warning', array('BlockRegistrar::add', "Block definition missing 'block_name'. Skipping."));
 	}
 }

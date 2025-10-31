@@ -8,6 +8,7 @@ use WP_Mock;
 use Ran\PluginLib\Util\CollectingLogger;
 use Ran\PluginLib\Config\ConfigInterface;
 use Ran\PluginLib\Tests\Unit\PluginLibTestCase;
+use Ran\PluginLib\Util\ExpectLogTrait;
 use Ran\PluginLib\EnqueueAccessory\EnqueueAdmin;
 use Ran\PluginLib\EnqueueAccessory\MediaHandler;
 use Ran\PluginLib\EnqueueAccessory\StylesHandler;
@@ -22,6 +23,7 @@ use Ran\PluginLib\EnqueueAccessory\ScriptModulesHandler;
  * @covers \Ran\PluginLib\EnqueueAccessory\EnqueueAdmin
  */
 class EnqueueAdminTest extends PluginLibTestCase {
+	use ExpectLogTrait;
 	/** @var EnqueueAdmin */
 	protected $instance;
 
@@ -37,7 +39,8 @@ class EnqueueAdminTest extends PluginLibTestCase {
 	public function setUp(): void {
 		parent::setUp();
 
-		$this->logger = new CollectingLogger();
+		$this->logger      = new CollectingLogger();
+		$this->logger_mock = $this->logger;
 
 		$this->config_mock = Mockery::mock(ConfigInterface::class);
 		$this->config_mock->shouldReceive('get_logger')->andReturn($this->logger)->byDefault();
@@ -75,9 +78,7 @@ class EnqueueAdminTest extends PluginLibTestCase {
 		$this->assertInstanceOf(StylesHandler::class, $this->instance->styles());
 		$this->assertInstanceOf(MediaHandler::class, $this->instance->media());
 
-		$logs = $this->logger->get_logs();
-		$this->assertNotEmpty($logs);
-		$this->assertStringContainsString('On admin page, proceeding to set up asset handlers.', $logs[0]['message']);
+		$this->expectLog('debug', 'On admin page, proceeding to set up asset handlers.');
 	}
 
 	/**
@@ -91,9 +92,7 @@ class EnqueueAdminTest extends PluginLibTestCase {
 
 		$this->assertInstanceOf(EnqueueAdmin::class, $this->instance);
 
-		$logs = $this->logger->get_logs();
-		$this->assertNotEmpty($logs);
-		$this->assertStringContainsString('Not on admin page, bailing.', $logs[0]['message']);
+		$this->expectLog('debug', 'Not on admin page, bailing.');
 	}
 
 	/**

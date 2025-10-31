@@ -8,6 +8,7 @@ use WP_Mock;
 use Ran\PluginLib\Util\CollectingLogger;
 use Ran\PluginLib\Config\ConfigInterface;
 use Ran\PluginLib\Tests\Unit\PluginLibTestCase;
+use Ran\PluginLib\Util\ExpectLogTrait;
 use Ran\PluginLib\EnqueueAccessory\MediaHandler;
 use Ran\PluginLib\EnqueueAccessory\EnqueuePublic;
 use Ran\PluginLib\EnqueueAccessory\StylesHandler;
@@ -22,6 +23,7 @@ use Ran\PluginLib\EnqueueAccessory\ScriptModulesHandler;
  * @covers \Ran\PluginLib\EnqueueAccessory\EnqueuePublic
  */
 class EnqueuePublicTest extends PluginLibTestCase {
+	use ExpectLogTrait;
 	/** @var EnqueuePublic */
 	protected $instance;
 
@@ -37,7 +39,8 @@ class EnqueuePublicTest extends PluginLibTestCase {
 	public function setUp(): void {
 		parent::setUp();
 
-		$this->logger = new CollectingLogger();
+		$this->logger      = new CollectingLogger();
+		$this->logger_mock = $this->logger;
 
 		$this->config_mock = Mockery::mock(ConfigInterface::class);
 		$this->config_mock->shouldReceive('get_logger')->andReturn($this->logger)->byDefault();
@@ -77,10 +80,7 @@ class EnqueuePublicTest extends PluginLibTestCase {
 		$this->assertInstanceOf(ScriptModulesHandler::class, $this->instance->script_modules());
 		$this->assertInstanceOf(StylesHandler::class, $this->instance->styles());
 
-		// Verify public logging occurred
-		$logs = $this->logger->get_logs();
-		$this->assertNotEmpty($logs);
-		$this->assertStringContainsString('On public page, proceeding to set up asset handlers.', $logs[0]['message']);
+		$this->expectLog('debug', 'On public page, proceeding to set up asset handlers.');
 	}
 
 	/**
@@ -97,10 +97,7 @@ class EnqueuePublicTest extends PluginLibTestCase {
 		// Assert - constructor should return early, handlers won't be initialized
 		$this->assertInstanceOf(EnqueuePublic::class, $this->instance);
 
-		// Verify debug logging occurred
-		$logs = $this->logger->get_logs();
-		$this->assertNotEmpty($logs);
-		$this->assertStringContainsString('Not on public page, bailing.', $logs[0]['message']);
+		$this->expectLog('debug', 'Not on public page, bailing.');
 	}
 
 	/**
