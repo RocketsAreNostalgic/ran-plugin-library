@@ -34,10 +34,6 @@ ob_start();
 $renderSubmit = $context['render_submit'] ?? null;
 if (is_callable($renderSubmit)) {
 	echo (string) $renderSubmit();
-} elseif (function_exists('submit_button')) {
-	submit_button();
-} else {
-	echo '<input type="submit" class="button-primary" value="Save Changes" />';
 }
 ?>
 	</form>
