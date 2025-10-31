@@ -351,6 +351,32 @@ class BlockRegistrar extends AssetEnqueueBaseAbstract {
 	}
 
 	/**
+	 * Provide visibility into staged blocks for testing.
+	 *
+	 * This method is intended for test instrumentation to verify which blocks
+	 * have been staged for registration on specific hooks and priorities.
+	 *
+	 * @internal
+	 * @return array<string, array<int, array<int, array<string, mixed>>>>
+	 */
+	public function debug_get_staged_blocks(): array {
+		return $this->blocks;
+	}
+
+	/**
+	 * Provide visibility into registered block assets for testing.
+	 *
+	 * This method is intended for test instrumentation to assert which assets
+	 * have been registered for a given block through the public add() API.
+	 *
+	 * @internal
+	 * @return array<string, array<string, mixed>>
+	 */
+	public function debug_get_block_assets(): array {
+		return $this->block_assets;
+	}
+
+	/**
 	 * Get registration results for all blocks.
 	 *
 	 * Returns an array of registration results indexed by block name.
