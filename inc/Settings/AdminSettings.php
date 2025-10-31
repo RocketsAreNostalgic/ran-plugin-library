@@ -192,7 +192,7 @@ class AdminSettings implements FormsInterface {
 		$wrapper = $this->form_session->render_component('submit-controls-wrapper', array(
 			'zone_id'   => $zone_id,
 			'alignment' => $zone_meta['alignment'] ?? 'right',
-			'layout'    => $zone_meta['layout'] ?? 'inline',
+			'layout'    => $zone_meta['layout']    ?? 'inline',
 			'content'   => $content,
 		));
 
@@ -215,7 +215,7 @@ class AdminSettings implements FormsInterface {
 			$this->_start_form_session();
 		}
 
-		$component  = $control['component'] ?? '';
+		$component  = $control['component']         ?? '';
 		$context    = $control['component_context'] ?? array();
 		$rendered   = $this->form_session->render_component($component, $context);
 		$warnings   = $this->components->take_warnings();

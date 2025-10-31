@@ -15,10 +15,10 @@ namespace Ran\PluginLib\Settings;
 
 use Ran\PluginLib\Settings\AdminSettingsSectionBuilder;
 use Ran\PluginLib\Settings\AdminSettingsMenuGroupBuilder;
+use Ran\PluginLib\Forms\Components\Elements\Button\Builder as ButtonBuilder;
+use Ran\PluginLib\Forms\Builders\SubmitControlsBuilder;
 use Ran\PluginLib\Forms\Builders\BuilderRootInterface;
 use Ran\PluginLib\Forms\Builders\BuilderImmediateUpdateTrait;
-use Ran\PluginLib\Forms\Builders\SubmitControlsBuilder;
-use Ran\PluginLib\Forms\Components\Elements\Button\Builder as ButtonBuilder;
 
 /**
  * AdminSettingsPageBuilder: Fluent builder for Admin Settings pages.
@@ -36,11 +36,11 @@ use Ran\PluginLib\Forms\Components\Elements\Button\Builder as ButtonBuilder;
 class AdminSettingsPageBuilder implements BuilderRootInterface {
 	use BuilderImmediateUpdateTrait;
 
-	private const SUBMIT_CONTROLS_ZONE_ID     = 'primary-controls';
-	private const DEFAULT_CONTROL_ID          = 'primary';
-	private const DEFAULT_ALIGNMENT           = 'right';
-	private const DEFAULT_LAYOUT              = 'inline';
-	private const DEFAULT_BUTTON_LABEL        = 'Save Changes';
+	private const SUBMIT_CONTROLS_ZONE_ID = 'primary-controls';
+	private const DEFAULT_CONTROL_ID      = 'primary';
+	private const DEFAULT_ALIGNMENT       = 'right';
+	private const DEFAULT_LAYOUT          = 'inline';
+	private const DEFAULT_BUTTON_LABEL    = 'Save Changes';
 	private AdminSettingsMenuGroupBuilder $menu_group;
 	private string $container_id;
 	/** @var array{heading:string, description:?string, menu_title:string, capability:string, template:?callable, order:int} */
@@ -49,8 +49,8 @@ class AdminSettingsPageBuilder implements BuilderRootInterface {
 	private $updateFn;
 
 	/** @var array<string, AdminSettingsSectionBuilder> */
-	private array $active_sections = array();
-	private bool $submit_zone_emitted = false;
+	private array $active_sections        = array();
+	private bool $submit_zone_emitted     = false;
 	private bool $default_controls_seeded = false;
 	private bool $submit_controls_cleared = false;
 
