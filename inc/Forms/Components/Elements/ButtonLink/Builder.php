@@ -7,9 +7,9 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\Forms\Components\Elements\ButtonLink;
 
-use Ran\PluginLib\Forms\Component\Build\BuilderBase;
+use Ran\PluginLib\Forms\Component\Build\ComponentBuilderBase;
 
-final class Builder extends BuilderBase {
+final class Builder extends ComponentBuilderBase {
 	private string $url;
 	private ?string $target    = null;
 	private ?string $rel       = null;
@@ -20,7 +20,7 @@ final class Builder extends BuilderBase {
 		$this->url = $url;
 	}
 
-	// attributes() and attribute() methods inherited from BuilderBase
+	// attributes() and attribute() methods inherited from ComponentBuilderBase
 
 	public function target(?string $target): self {
 		$this->target = $target;
