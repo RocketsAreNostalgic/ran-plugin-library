@@ -12,9 +12,6 @@ namespace Ran\PluginLib\Util\Sanitize;
  * Dual-mode methods:
  * - When called with no arguments, methods return a callable(mixed): mixed
  * - When called with a value, methods apply immediately and return mixed
- *
- * @method callable(mixed):mixed to_int()
- * @method callable(mixed):mixed to_float()
  */
 final class SanitizeNumberGroup {
 	/**

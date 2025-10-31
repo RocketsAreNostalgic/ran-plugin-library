@@ -15,12 +15,6 @@ namespace Ran\PluginLib\Util\Validate;
  * Dual-mode methods:
  * - nullable(), optional(): with only the validator, return callable; with $value provided, apply immediately
  * - union(), all(), none(): callable factories only (unchanged)
- *
- * @method callable(mixed):bool nullable(callable $validator)
- * @method callable(mixed):bool optional(callable $validator)
- * @method callable(mixed):bool union(callable ...$validators)
- * @method callable(mixed):bool all(callable ...$validators)
- * @method callable(mixed):bool none(callable ...$validators)
  */
 final class ValidateComposeGroup {
 	/**

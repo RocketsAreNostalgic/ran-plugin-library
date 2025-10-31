@@ -9,10 +9,6 @@ namespace Ran\PluginLib\Util\Validate;
  *
  * @example $isValid = (Validate::enums()->enum([1, 2, 3]))($value);
  * @example $isValid = Validate::enums()->enum([1, 2, 3], $value);
- *
- * @method callable(mixed):bool enum(array $values)
- * @method callable(mixed):bool backed_enum(string $enumClass)
- * @method callable(mixed):bool unit(string $enumClass)
  */
 final class ValidateEnumGroup {
 	/**

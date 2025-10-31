@@ -12,11 +12,6 @@ namespace Ran\PluginLib\Util\Sanitize;
  * Dual-mode methods:
  * - When called with no arguments, methods return a callable(mixed): mixed
  * - When called with a value, methods apply immediately and return mixed
- *
- * @method callable(mixed):mixed trim()
- * @method callable(mixed):mixed toLower()
- * @method callable(mixed):mixed toUpper()
- * @method callable(mixed):mixed stripTags()
  */
 final class SanitizeStringGroup {
 	/**

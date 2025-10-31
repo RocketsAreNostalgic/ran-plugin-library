@@ -14,14 +14,6 @@ use Ran\PluginLib\Util\WPWrappersTrait;
  * Dual-mode methods:
  * - With no value, methods return callable(mixed): bool
  * - With a value, methods apply immediately and return bool
- *
- * @method callable(mixed):bool email()
- * @method callable(mixed):bool json_string()
- * @method callable(mixed):bool phone()
- * @method callable(mixed):bool url()
- * @method callable(mixed):bool domain()
- * @method callable(mixed):bool hostname()
- * @method callable(mixed):bool origin()
  */
 final class ValidateFormatGroup {
 	use  WPWrappersTrait;

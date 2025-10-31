@@ -12,20 +12,6 @@ namespace Ran\PluginLib\Util\Validate;
  * Dual-mode methods:
  * - When called with no arguments, each method returns a callable(mixed): bool
  * - When called with a value, each method returns a bool immediately
- *
- * @method callable(mixed):bool is_bool()
- * @method callable(mixed):bool is_int()
- * @method callable(mixed):bool is_float()
- * @method callable(mixed):bool is_string()
- * @method callable(mixed):bool is_array()
- * @method callable(mixed):bool is_object()
- * @method callable(mixed):bool is_null()
- * @method callable(mixed):bool is_scalar()
- * @method callable(mixed):bool is_numeric()
- * @method callable(mixed):bool is_nullable()
- * @method callable(mixed):bool is_callable()
- * @method callable(mixed):bool is_empty()
- * @method callable(mixed):bool is_not_empty()
  */
 final class ValidateBasicGroup {
 	/**

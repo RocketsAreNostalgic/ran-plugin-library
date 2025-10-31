@@ -5,12 +5,6 @@ namespace Ran\PluginLib\Util\Sanitize;
 
 /**
  * Sanitizer composition helpers (nested namespace).
- *
- * @method callable(mixed):mixed pipe(callable ...$sanitizers)
- * @method callable(mixed):mixed nullable(callable $sanitizer)
- * @method callable(mixed):mixed optional(callable $sanitizer)
- * @method callable(mixed):mixed when(callable $predicate, callable $sanitizer)
- * @method callable(mixed):mixed unless(callable $predicate, callable $sanitizer)
  */
 final class SanitizeComposeGroup {
 	/**

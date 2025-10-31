@@ -5,10 +5,6 @@ namespace Ran\PluginLib\Util\Sanitize;
 
 /**
  * JSON decoding helpers.
- *
- * @method callable(mixed):mixed decode_to_value()
- * @method callable(mixed):mixed decode_object()
- * @method callable(mixed):mixed decode_array()
  */
 final class SanitizeJsonGroup {
 	/**

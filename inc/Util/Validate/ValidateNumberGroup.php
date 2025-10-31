@@ -9,10 +9,6 @@ namespace Ran\PluginLib\Util\Validate;
  *
  * @example $isValid = (Validate::number()->min(1))($value);
  * @example $isValid = Validate::number()->min(1, $value);
- *
- * @method callable(mixed):bool min(int|float $n)
- * @method callable(mixed):bool max(int|float $n)
- * @method callable(mixed):bool between(int|float $min, int|float $max)
  */
 final class ValidateNumberGroup {
 	/**

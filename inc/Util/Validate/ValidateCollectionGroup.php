@@ -5,16 +5,6 @@ namespace Ran\PluginLib\Util\Validate;
 
 /**
  * Array/collection shape validators.
- *
- * @method callable(mixed):bool list_of(callable $itemValidator)
- * @method callable(mixed):bool shape(array $schema)
- * @method callable(mixed):bool strict_shape(array $schema)
- * @method callable(mixed):bool hasKeys(array $keys)
- * @method callable(mixed):bool exactKeys(array $keys)
- * @method callable(mixed):bool minItems(int $n)
- * @method callable(mixed):bool maxItems(int $n)
- *
- *
  * @example $isValid = (Validate::collection()->shape([
  *     'name' => Validate::string()->min_length(1),
  *     'age' => Validate::number()->min(0),

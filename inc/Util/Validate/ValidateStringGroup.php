@@ -12,11 +12,6 @@ namespace Ran\PluginLib\Util\Validate;
  * Dual-mode methods:
  * - When called without the value argument, methods return callable(mixed): bool
  * - When called with the value argument, methods apply immediately and return bool
- *
- * @method callable(mixed):bool min_length(int $n)
- * @method callable(mixed):bool max_length(int $n)
- * @method callable(mixed):bool length_between(int $min, int $max)
- * @method callable(mixed):bool pattern(string $regex)
  */
 final class ValidateStringGroup {
 	/**

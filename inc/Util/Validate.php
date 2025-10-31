@@ -3,14 +3,14 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\Util;
 
-use Ran\PluginLib\Util\Validate\ValidateEnumGroup;
-use Ran\PluginLib\Util\Validate\ValidateBasicGroup;
-use Ran\PluginLib\Util\Validate\ValidateFormatGroup;
-use Ran\PluginLib\Util\Validate\ValidateNumberGroup;
-use Ran\PluginLib\Util\Validate\ValidateStringGroup;
-use Ran\PluginLib\Util\Validate\ValidateComposeGroup;
 use Ran\PluginLib\Util\Validate\ValidateTemporalGroup;
+use Ran\PluginLib\Util\Validate\ValidateStringGroup;
+use Ran\PluginLib\Util\Validate\ValidateNumberGroup;
+use Ran\PluginLib\Util\Validate\ValidateFormatGroup;
+use Ran\PluginLib\Util\Validate\ValidateEnumGroup;
+use Ran\PluginLib\Util\Validate\ValidateComposeGroup;
 use Ran\PluginLib\Util\Validate\ValidateCollectionGroup;
+use Ran\PluginLib\Util\Validate\ValidateBasicGroup;
 
 /**
  * Validation utilities for schema-driven option values.
@@ -60,18 +60,6 @@ use Ran\PluginLib\Util\Validate\ValidateCollectionGroup;
  *    Validate::basic()->is_int(),
  *    Validate::number()->between(1, 65535)
  *  ))($port);
- *
- * @method static validatorForType(string $type): ?callable
- * @method static validateByType(mixed $value, string $type): bool
- * @method static inferSimpleTypeFromValue(mixed $value): ?string
- * @method static ValidateBasicGroup basic()
- * @method static ValidateNumberGroup number()
- * @method static ValidateStringGroup string()
- * @method static ValidateCollectionGroup collection()
- * @method static ValidateEnumGroup enums()
- * @method static ValidateComposeGroup compose()
- * @method static ValidateFormatGroup format()
- * @method static ValidateTemporalGroup temporal()
  */
 final class Validate {
 	/**
@@ -136,19 +124,6 @@ final class Validate {
 	/**
 	 * Access basic predicate validators (type checks) as callables.
 	 * @return \Ran\PluginLib\Util\Validate\ValidateBasicGroup
- 	 * @method callable(mixed):bool is_bool()
- 	 * @method callable(mixed):bool is_int()
- 	 * @method callable(mixed):bool is_float()
- 	 * @method callable(mixed):bool is_string()
- 	 * @method callable(mixed):bool is_array()
- 	 * @method callable(mixed):bool is_object()
- 	 * @method callable(mixed):bool is_null()
- 	 * @method callable(mixed):bool is_scalar()
- 	 * @method callable(mixed):bool is_numeric()
- 	 * @method callable(mixed):bool is_nullable()
- 	 * @method callable(mixed):bool is_callable()
- 	 * @method callable(mixed):bool is_empty()
- 	 * @method callable(mixed):bool is_not_empty()
 	 */
 	public static function basic(): ValidateBasicGroup {
 		return new ValidateBasicGroup();
@@ -160,9 +135,6 @@ final class Validate {
 	 * @example $isValid = (Validate::number()->min(1))($value);
 	 *
 	 * @return \Ran\PluginLib\Util\Validate\ValidateNumberGroup
-	 * @method callable(mixed):bool min(int|float $n)
-	 * @method callable(mixed):bool max(int|float $n)
-	 * @method callable(mixed):bool between(int|float $min, int|float $max)
 	 */
 	public static function number(): ValidateNumberGroup {
 		return new ValidateNumberGroup();
@@ -174,10 +146,6 @@ final class Validate {
 	 * @example $isValid = (Validate::string()->min_length(1))($value);
 	 *
 	 * @return \Ran\PluginLib\Util\Validate\ValidateStringGroup
-	 * @method callable(mixed):bool minLength(int $n)
-	 * @method callable(mixed):bool maxLength(int $n)
-	 * @method callable(mixed):bool length_between(int $min, int $max)
-	 * @method callable(mixed):bool pattern(string $regex)
 	 */
 	public static function string(): ValidateStringGroup {
 		return new ValidateStringGroup();
@@ -192,13 +160,6 @@ final class Validate {
 	 * ]))($value);
 	 *
 	 * @return \Ran\PluginLib\Util\Validate\ValidateCollectionGroup
-	 * @method callable(mixed):bool listOf(callable $itemValidator)
-	 * @method callable(mixed):bool shape(array $schema)
-	 * @method callable(mixed):bool strictShape(array $schema)
-	 * @method callable(mixed):bool hasKeys(array $keys)
-	 * @method callable(mixed):bool exactKeys(array $keys)
-	 * @method callable(mixed):bool minItems(int $n)
-	 * @method callable(mixed):bool maxItems(int $n)
 	 */
 	public static function collection(): ValidateCollectionGroup {
 		return new ValidateCollectionGroup();
@@ -210,9 +171,6 @@ final class Validate {
 	 * @example $isValid = (Validate::enums()->enum([1, 2, 3]))($value);
 	 *
 	 * @return \Ran\PluginLib\Util\Validate\ValidateEnumGroup
-	 * @method callable(mixed):bool enum(array $values)
-	 * @method callable(mixed):bool backed_enum(string $enumClass)
-	 * @method callable(mixed):bool unit(string $enumClass)
 	 */
 	public static function enums(): ValidateEnumGroup {
 		return new ValidateEnumGroup();
@@ -227,11 +185,6 @@ final class Validate {
 	 *  ))($value);
 	 *
 	 * @return \Ran\PluginLib\Util\Validate\ValidateComposeGroup
-	 * @method callable(mixed):bool nullable(callable $validator)
-	 * @method callable(mixed):bool optional(callable $validator)
-	 * @method callable(mixed):bool union(callable ...$validators)
-	 * @method callable(mixed):bool all(callable ...$validators)
-	 * @method callable(mixed):bool none(callable ...$validators)
 	 */
 	public static function compose(): ValidateComposeGroup {
 		return new ValidateComposeGroup();
@@ -243,13 +196,6 @@ final class Validate {
 	 * @example $isValid = (Validate::format()->email())($value);
 	 *
 	 * @return \Ran\PluginLib\Util\Validate\ValidateFormatGroup
-	 * @method callable(mixed):bool email()
-	 * @method callable(mixed):bool json_string()
-	 * @method callable(mixed):bool phone()
-	 * @method callable(mixed):bool url()
-	 * @method callable(mixed):bool domain()
-	 * @method callable(mixed):bool hostname()
-	 * @method callable(mixed):bool origin()
 	 */
 	public static function format(): ValidateFormatGroup {
 		return new ValidateFormatGroup();
