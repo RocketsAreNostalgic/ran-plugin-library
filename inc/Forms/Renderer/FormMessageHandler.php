@@ -87,6 +87,27 @@ class FormMessageHandler {
 	}
 
 	/**
+	 * Remove messages for the provided field identifiers while leaving others intact.
+	 *
+	 * @param array<int, string> $field_ids Field identifiers to clear
+	 * @return void
+	 */
+	public function remove_messages(array $field_ids): void {
+		if (empty($field_ids)) {
+			return;
+		}
+
+		foreach ($field_ids as $field_id) {
+			$sanitized_field_id = $this->_sanitize_field_id((string) $field_id);
+			unset($this->messages_by_field[$sanitized_field_id]);
+		}
+
+		$this->_get_logger()->debug('FormMessageHandler: Messages removed for fields', array(
+			'count' => count($field_ids),
+		));
+	}
+
+	/**
 	 * Get messages for a specific field.
 	 *
 	 * @param string $field_id Field identifier

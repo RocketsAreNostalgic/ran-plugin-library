@@ -19,8 +19,10 @@ namespace Ran\PluginLib\Forms\Renderer;
 use Ran\PluginLib\Util\Logger;
 use Ran\PluginLib\Util\WPWrappersTrait;
 use Ran\PluginLib\Forms\Component\ComponentLoader;
-use Ran\PluginLib\Forms\FormService;
+use Ran\PluginLib\Forms\FormsService;
 use Ran\PluginLib\Forms\Component\ComponentManifest;
+use Ran\PluginLib\Forms\Component\ComponentRenderResult;
+use Ran\PluginLib\Forms\FormsServiceSession;
 
 /**
  * Universal form field processing logic that eliminates duplication between
@@ -45,9 +47,9 @@ class FormElementRenderer {
 	/**
 	 * Form service for session management and asset capture.
 	 *
-	 * @var FormService
+	 * @var FormsService
 	 */
-	private FormService $form_service;
+	private FormsService $form_service;
 
 	/**
 	 * Component loader for view rendering.
@@ -75,13 +77,13 @@ class FormElementRenderer {
 	 * Creates a new FormElementRenderer instance.
 	 *
 	 * @param ComponentManifest $components    Component manifest for rendering
-	 * @param FormService       $form_service  Form service for session management
+	 * @param FormsService       $form_service  Form service for session management
 	 * @param ComponentLoader   $views         Component loader for view rendering
 	 * @param Logger|null       $logger        Optional logger instance
 	 */
 	public function __construct(
 		ComponentManifest $components,
-		FormService $form_service,
+		FormsService $form_service,
 		ComponentLoader $views,
 		?Logger $logger = null
 	) {
@@ -143,6 +145,60 @@ class FormElementRenderer {
 	 */
 	public function get_template_overrides(): array {
 		return $this->template_overrides;
+	}
+
+	/**
+	 * Render component and collect assets for FormsServiceSession integration.
+	 *
+	 * This method provides the integration point for FormsServiceSession to use
+	 * FormElementRenderer for component rendering with proper asset collection.
+	 * Implements Requirements 6.7, 10.1, 10.2 for FormsServiceSession integration.
+	 *
+	 * @param string $component Component name to render
+	 * @param array  $context   Rendering context
+	 * @param FormsServiceSession $session Form service session for asset collection
+	 * @return string Rendered component HTML
+	 * @throws \InvalidArgumentException If component rendering fails
+	 */
+	public function render_component_with_assets(
+		string $component,
+		array $context,
+		FormsServiceSession $session
+	): string {
+		try {
+			// Render the component using ComponentManifest
+			$render_result = $this->components->render($component, $context);
+
+			// Collect assets with enhanced error handling
+			$this->_collect_component_assets(
+				$render_result,
+				$session,
+				$component,
+				$context['field_id'] ?? 'unknown'
+			);
+
+			$this->_get_logger()->debug('FormElementRenderer: Component rendered with assets for FormsServiceSession', array(
+				'component'   => $component,
+				'field_id'    => $context['field_id'] ?? 'unknown',
+				'has_assets'  => $render_result->has_assets(),
+				'asset_types' => $this->_get_asset_types_summary($render_result)
+			));
+
+			return $render_result->markup;
+		} catch (\Throwable $e) {
+			$this->_get_logger()->error('FormElementRenderer: Component rendering with assets failed', array(
+				'component' => $component,
+				'field_id'  => $context['field_id'] ?? 'unknown',
+				'error'     => $e->getMessage(),
+				'trace'     => $e->getTraceAsString()
+			));
+
+			throw new \InvalidArgumentException(
+				"Failed to render component '{$component}' with assets: " . $e->getMessage(),
+				0,
+				$e
+			);
+		}
 	}
 
 	/**
@@ -220,6 +276,7 @@ class FormElementRenderer {
 	 * Render field component by delegating to ComponentManifest.
 	 *
 	 * Handles form session management and asset capture during rendering.
+	 * Enhanced with proper asset collection error handling and FormsServiceSession integration.
 	 *
 	 * @param string $component        Component name
 	 * @param string $field_id         Field identifier
@@ -227,6 +284,7 @@ class FormElementRenderer {
 	 * @param array  $context          Prepared field context
 	 * @param array  $values           All form values
 	 * @param string $wrapper_template Template for wrapper (default: 'direct-output')
+	 * @param FormsServiceSession|null $session Optional session for asset collection (creates new if null)
 	 * @return string Rendered component HTML
 	 * @throws \InvalidArgumentException If component rendering fails
 	 */
@@ -236,16 +294,18 @@ class FormElementRenderer {
 		string $label,
 		array $context,
 		array $values,
-		string $wrapper_template = 'direct-output'
+		string $wrapper_template = 'direct-output',
+		?FormsServiceSession $session = null
 	): string {
 		try {
-			$session = $this->form_service->start_session();
+			// Use provided session or create new one
+			$session = $session ?? $this->form_service->start_session();
 
 			// Render the component
 			$render_result = $this->components->render($component, $context);
 
-			// Collect assets from component render result (ComponentDispatcher functionality)
-			$session->assets()->ingest($render_result);
+			// Enhanced asset collection with error handling
+			$this->_collect_component_assets($render_result, $session, $component, $field_id);
 
 			$component_html = $render_result->markup;
 
@@ -260,10 +320,12 @@ class FormElementRenderer {
 				);
 			}
 
-			$this->_get_logger()->debug('FormElementRenderer: Component rendered', array(
+			$this->_get_logger()->debug('FormElementRenderer: Component rendered successfully', array(
 				'component'        => $component,
 				'field_id'         => $field_id,
-				'wrapper_template' => $wrapper_template
+				'wrapper_template' => $wrapper_template,
+				'has_assets'       => $render_result->has_assets(),
+				'asset_types'      => $this->_get_asset_types_summary($render_result)
 			));
 
 			return $component_html;
@@ -271,7 +333,8 @@ class FormElementRenderer {
 			$this->_get_logger()->error('FormElementRenderer: Component rendering failed', array(
 				'component' => $component,
 				'field_id'  => $field_id,
-				'exception' => $e
+				'exception' => $e->getMessage(),
+				'trace'     => $e->getTraceAsString()
 			));
 			throw new \InvalidArgumentException(
 				"Failed to render component '{$component}' for field '{$field_id}': " . $e->getMessage(),
@@ -285,7 +348,7 @@ class FormElementRenderer {
 	 * Render field with wrapper template.
 	 *
 	 * Combines component rendering with template wrapper application using
-	 * existing ComponentLoader infrastructure.
+	 * existing ComponentLoader infrastructure. Enhanced with proper asset collection.
 	 *
 	 * @param string $component        Component name
 	 * @param string $field_id         Field identifier
@@ -293,6 +356,7 @@ class FormElementRenderer {
 	 * @param array  $context          Prepared field context
 	 * @param array  $values           All form values
 	 * @param string $wrapper_template Template for wrapper (default: 'shared.field-wrapper')
+	 * @param FormsServiceSession|null $session Optional session for asset collection (creates new if null)
 	 * @return string Rendered field HTML with wrapper
 	 * @throws \InvalidArgumentException If component rendering fails
 	 */
@@ -302,17 +366,18 @@ class FormElementRenderer {
 		string $label,
 		array $context,
 		array $values,
-		string $wrapper_template = 'shared.field-wrapper'
+		string $wrapper_template = 'shared.field-wrapper',
+		?FormsServiceSession $session = null
 	): string {
 		try {
-			// Start form session for asset capture
-			$session = $this->form_service->start_session();
+			// Use provided session or create new one
+			$session = $session ?? $this->form_service->start_session();
 
 			// Render the component first
 			$render_result = $this->components->render($component, $context);
 
-			// Collect assets from component render result (ComponentDispatcher functionality)
-			$session->assets()->ingest($render_result);
+			// Enhanced asset collection with error handling
+			$this->_collect_component_assets($render_result, $session, $component, $field_id);
 
 			$component_html = $render_result->markup;
 
@@ -325,10 +390,12 @@ class FormElementRenderer {
 				$context
 			);
 
-			$this->_get_logger()->debug('FormElementRenderer: Field rendered with wrapper', array(
+			$this->_get_logger()->debug('FormElementRenderer: Field rendered with wrapper successfully', array(
 				'component'        => $component,
 				'field_id'         => $field_id,
-				'wrapper_template' => $wrapper_template
+				'wrapper_template' => $wrapper_template,
+				'has_assets'       => $render_result->has_assets(),
+				'asset_types'      => $this->_get_asset_types_summary($render_result)
 			));
 
 			return $wrapped_html;
@@ -336,7 +403,8 @@ class FormElementRenderer {
 			$this->_get_logger()->error('FormElementRenderer: Field with wrapper rendering failed', array(
 				'component' => $component,
 				'field_id'  => $field_id,
-				'exception' => $e
+				'exception' => $e->getMessage(),
+				'trace'     => $e->getTraceAsString()
 			));
 			throw new \InvalidArgumentException(
 				"Failed to render field '{$field_id}' with component '{$component}' and wrapper '{$wrapper_template}': " . $e->getMessage(),
@@ -382,7 +450,8 @@ class FormElementRenderer {
 
 		try {
 			// Use existing ComponentLoader to render wrapper template
-			$wrapped_html = $this->views->render($actual_template, $template_context);
+			$wrapped_result = $this->views->render($actual_template, $template_context);
+			$wrapped_html   = $wrapped_result->markup;
 
 			$this->_get_logger()->debug('FormElementRenderer: Template wrapper applied', array(
 				'template_name'   => $template_name,
@@ -402,5 +471,77 @@ class FormElementRenderer {
 			// Fallback to component HTML without wrapper on template error
 			return $component_html;
 		}
+	}
+
+	/**
+	 * Collect assets from ComponentRenderResult with enhanced error handling.
+	 *
+	 * Implements Requirements 6.1, 6.2, 10.1, 10.2 for proper asset collection
+	 * and error handling during component rendering.
+	 *
+	 * @param ComponentRenderResult $render_result The component render result
+	 * @param FormsServiceSession    $session       The form service session
+	 * @param string                $component     Component name for logging
+	 * @param string                $field_id      Field ID for logging
+	 * @return void
+	 */
+	private function _collect_component_assets(
+		ComponentRenderResult $render_result,
+		FormsServiceSession $session,
+		string $component,
+		string $field_id
+	): void {
+		try {
+			// Attempt to collect assets from ComponentRenderResult
+			$session->assets()->ingest($render_result);
+
+			// Log successful asset collection if assets were present
+			if ($render_result->has_assets()) {
+				$this->_get_logger()->debug('FormElementRenderer: Assets collected successfully', array(
+					'component'     => $component,
+					'field_id'      => $field_id,
+					'has_script'    => $render_result->has_script(),
+					'has_style'     => $render_result->has_style(),
+					'needs_media'   => $render_result->requires_media,
+					'script_handle' => $render_result->has_script() ? $render_result->script->handle : null,
+					'style_handle'  => $render_result->has_style() ? $render_result->style->handle : null
+				));
+			}
+		} catch (\Throwable $e) {
+			// Log asset collection failure but continue with rendering
+			$this->_get_logger()->warning('FormElementRenderer: Asset collection failed, continuing with rendering', array(
+				'component'      => $component,
+				'field_id'       => $field_id,
+				'error'          => $e->getMessage(),
+				'exception_type' => get_class($e)
+			));
+
+			// Asset collection failure should not break rendering
+			// The component HTML is still valid even without assets
+		}
+	}
+
+	/**
+	 * Get a summary of asset types for logging purposes.
+	 *
+	 * @param ComponentRenderResult $render_result The component render result
+	 * @return array<string, mixed> Summary of asset types
+	 */
+	private function _get_asset_types_summary(ComponentRenderResult $render_result): array {
+		$summary = array();
+
+		if ($render_result->has_script()) {
+			$summary['script'] = $render_result->script->handle;
+		}
+
+		if ($render_result->has_style()) {
+			$summary['style'] = $render_result->style->handle;
+		}
+
+		if ($render_result->requires_media) {
+			$summary['media'] = true;
+		}
+
+		return $summary;
 	}
 }
