@@ -23,6 +23,7 @@ namespace Ran\PluginLib\Util;
  * @package Ran\PluginLib\Util
  */
 trait TranslationServiceTrait {
+	use WPWrappersTrait;
 	/**
 	 * TranslationService-aware variant of WordPress __() function
 	 * Availability-guarded: Yes
@@ -32,10 +33,7 @@ trait TranslationServiceTrait {
 	 * @return string Translated text
 	 */
 	public function _do__service(string $text, TranslationService $translator): string {
-		if (function_exists('__')) {
-			return __($text, $translator->get_effective_domain());
-		}
-		return $text;
+		return $this->_do___($text, $translator->get_effective_domain());
 	}
 
 	/**
@@ -48,10 +46,7 @@ trait TranslationServiceTrait {
 	 * @return string Translated text
 	 */
 	public function _do_x_service(string $text, string $context, TranslationService $translator): string {
-		if (function_exists('_x')) {
-			return _x($text, $context, $translator->get_effective_domain());
-		}
-		return $text;
+		return $this->_do_x($text, $context, $translator->get_effective_domain());
 	}
 
 	/**
@@ -63,10 +58,7 @@ trait TranslationServiceTrait {
 	 * @return string Escaped and translated text
 	 */
 	public function _do_esc_html__service(string $text, TranslationService $translator): string {
-		if (function_exists('esc_html__')) {
-			return esc_html__($text, $translator->get_effective_domain());
-		}
-		return $text;
+		return $this->_do_esc_html__($text, $translator->get_effective_domain());
 	}
 
 	/**
@@ -79,10 +71,7 @@ trait TranslationServiceTrait {
 	 * @return string Escaped and translated text
 	 */
 	public function _do_esc_html_x_service(string $text, string $context, TranslationService $translator): string {
-		if (function_exists('esc_html_x')) {
-			return \esc_html_x($text, $context, $translator->get_effective_domain());
-		}
-		return $text;
+		return $this->_do_esc_html_x($text, $context, $translator->get_effective_domain());
 	}
 
 	/**
@@ -94,10 +83,7 @@ trait TranslationServiceTrait {
 	 * @return string Escaped and translated text
 	 */
 	public function _do_esc_attr__service(string $text, TranslationService $translator): string {
-		if (function_exists('esc_attr__')) {
-			return \esc_attr__($text, $translator->get_effective_domain());
-		}
-		return $text;
+		return $this->_do_esc_attr__($text, $translator->get_effective_domain());
 	}
 
 	/**
@@ -110,10 +96,7 @@ trait TranslationServiceTrait {
 	 * @return string Escaped and translated text
 	 */
 	public function _do_esc_attr_x_service(string $text, string $context, TranslationService $translator): string {
-		if (function_exists('esc_attr_x')) {
-			return \esc_attr_x($text, $context, $translator->get_effective_domain());
-		}
-		return $text;
+		return $this->_do_esc_attr_x($text, $context, $translator->get_effective_domain());
 	}
 
 	/**
@@ -125,11 +108,7 @@ trait TranslationServiceTrait {
 	 * @return void
 	 */
 	public function _do_e_service(string $text, TranslationService $translator): void {
-		if (function_exists('_e')) {
-			\_e($text, $translator->get_effective_domain());
-		} else {
-			echo $text;
-		}
+		$this->_do_e($text, $translator->get_effective_domain());
 	}
 
 	/**
@@ -141,11 +120,7 @@ trait TranslationServiceTrait {
 	 * @return void
 	 */
 	public function _do_esc_html_e_service(string $text, TranslationService $translator): void {
-		if (function_exists('esc_html_e')) {
-			\esc_html_e($text, $translator->get_effective_domain());
-		} else {
-			echo $text;
-		}
+		$this->_do_esc_html_e($text, $translator->get_effective_domain());
 	}
 
 	/**
@@ -157,11 +132,7 @@ trait TranslationServiceTrait {
 	 * @return void
 	 */
 	public function _do_esc_attr_e_service(string $text, TranslationService $translator): void {
-		if (function_exists('esc_attr_e')) {
-			\esc_attr_e($text, $translator->get_effective_domain());
-		} else {
-			echo $text;
-		}
+		$this->_do_esc_attr_e($text, $translator->get_effective_domain());
 	}
 
 	/**
@@ -175,10 +146,7 @@ trait TranslationServiceTrait {
 	 * @return string Translated text
 	 */
 	public function _do_translate_plural_service(string $single, string $plural, int $number, TranslationService $translator): string {
-		if (function_exists('_n')) {
-			return \_n($single, $plural, $number, $translator->get_effective_domain());
-		}
-		return $number === 1 ? $single : $plural;
+		return $this->_do_n($single, $plural, $number, $translator->get_effective_domain());
 	}
 
 	/**
@@ -193,9 +161,6 @@ trait TranslationServiceTrait {
 	 * @return string Translated text
 	 */
 	public function _do_nx_service(string $single, string $plural, int $number, string $context, TranslationService $translator): string {
-		if (function_exists('_nx')) {
-			return \_nx($single, $plural, $number, $context, $translator->get_effective_domain());
-		}
-		return $number === 1 ? $single : $plural;
+		return $this->_do_nx($single, $plural, $number, $context, $translator->get_effective_domain());
 	}
 }

@@ -13,7 +13,8 @@ namespace Ran\PluginLib\Util;
  * Provides a consistent translation API across all library components while allowing
  * consumers to customize messages at different levels of granularity.
  */
-final class TranslationService {
+class TranslationService {
+	use WPWrappersTrait;
 	private string $defaultDomain;
 	private string $hookPrefix;
 
@@ -43,20 +44,20 @@ final class TranslationService {
 	 */
 	public function translate(string $message, string $context = ''): string {
 		// 1. Check for specific message override
-		$overrides = apply_filters("{$this->hookPrefix}/translation_overrides", array());
+		$overrides = $this->_do_apply_filter("{$this->hookPrefix}/translation_overrides", array());
 		if (isset($overrides[$message])) {
 			return $overrides[$message];
 		}
 
 		// 2. Check for domain override
-		$effectiveDomain = apply_filters("{$this->hookPrefix}/translation_domain", $this->defaultDomain);
+		$effectiveDomain = $this->_do_apply_filter("{$this->hookPrefix}/translation_domain", $this->defaultDomain);
 
 		// 3. Translate with effective domain
 		if ($context !== '') {
-			return _x($message, $context, $effectiveDomain);
+			return $this->_do_x($message, $context, $effectiveDomain);
 		}
 
-		return __($message, $effectiveDomain);
+		return $this->_do___($message, $effectiveDomain);
 	}
 
 	/**
@@ -76,21 +77,21 @@ final class TranslationService {
 	 */
 	public function translat_plural(string $single, string $plural, int $number, string $context = ''): string {
 		// 1. Check for specific message override (use singular as key)
-		$overrides = apply_filters("{$this->hookPrefix}/translation_overrides", array());
+		$overrides = $this->_do_apply_filter("{$this->hookPrefix}/translation_overrides", array());
 		if (isset($overrides[$single])) {
 			// For overrides, we assume the override handles pluralization
 			return $overrides[$single];
 		}
 
 		// 2. Check for domain override
-		$effectiveDomain = apply_filters("{$this->hookPrefix}/translation_domain", $this->defaultDomain);
+		$effectiveDomain = $this->_do_apply_filter("{$this->hookPrefix}/translation_domain", $this->defaultDomain);
 
 		// 3. Translate with effective domain
 		if ($context !== '') {
-			return \_nx($single, $plural, $number, $context, $effectiveDomain);
+			return $this->_do_nx($single, $plural, $number, $context, $effectiveDomain);
 		}
 
-		return \_n($single, $plural, $number, $effectiveDomain);
+		return $this->_do_n($single, $plural, $number, $effectiveDomain);
 	}
 
 	/**
@@ -99,7 +100,7 @@ final class TranslationService {
 	 * @return string The domain that would be used for translation.
 	 */
 	public function get_effective_domain(): string {
-		return apply_filters("{$this->hookPrefix}/translation_domain", $this->defaultDomain);
+		return $this->_do_apply_filter("{$this->hookPrefix}/translation_domain", $this->defaultDomain);
 	}
 
 	/**
