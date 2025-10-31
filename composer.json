@@ -84,7 +84,7 @@
       "@test:coverage"
     ],
     "hooks:install": "bash ./scripts/install-git-hooks.sh",
-    "test": "phpdbg -qrr vendor/bin/phpunit",
+    "test": "phpdbg -d memory_limit=512M -qrr vendor/bin/phpunit",
     "test:coverage": "phpdbg -qrr vendor/bin/phpunit --coverage-text"
   }
 }
