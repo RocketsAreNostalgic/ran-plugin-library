@@ -8,7 +8,7 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\Forms\Component\Build;
 
-abstract class BuilderInputBase extends BuilderBase {
+abstract class ComponentBuilderInputBase extends ComponentBuilderBase {
 	protected ?string $placeholder = null;
 	protected ?string $default     = null;
 	protected bool $disabled       = false;
@@ -16,6 +16,16 @@ abstract class BuilderInputBase extends BuilderBase {
 	protected bool $required       = false;
 	protected bool $autofocus      = false;
 	protected ?string $name        = null;
+	/** @var array<string,mixed> */
+	private array $base_metadata;
+
+	public function __construct(string $id, string $label, array $base_metadata = array()) {
+		parent::__construct($id, $label);
+		$this->base_metadata = $base_metadata;
+		if (isset($base_metadata['order'])) {
+			$this->order((int) $base_metadata['order']);
+		}
+	}
 
 	/**
 	 * Sets placeholder text for the input element.

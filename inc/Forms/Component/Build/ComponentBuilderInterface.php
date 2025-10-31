@@ -2,7 +2,7 @@
 
 namespace Ran\PluginLib\Forms\Component\Build;
 
-interface BuilderInterface {
+interface ComponentBuilderInterface {
 	public function id(string $id): self;
 	public function disabled(bool $disabled = true): self;
 	public function required(bool $required = true): self;

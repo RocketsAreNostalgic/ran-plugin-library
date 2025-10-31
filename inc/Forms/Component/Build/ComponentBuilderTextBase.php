@@ -8,7 +8,7 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\Forms\Component\Build;
 
-abstract class BuilderTextBase extends BuilderInputBase {
+abstract class ComponentBuilderTextBase extends ComponentBuilderInputBase {
 	protected ?string $autocomplete   = null;
 	protected ?string $autocapitalize = null;
 	protected ?bool $spellcheck       = null;

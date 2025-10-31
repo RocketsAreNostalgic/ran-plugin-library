@@ -7,7 +7,7 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\Forms\Component\Build;
 
-interface BuilderDefinitionInterface {
+interface ComponentBuilderDefinitionInterface {
 	/**
 	 * Get the field identifier.
 	 */

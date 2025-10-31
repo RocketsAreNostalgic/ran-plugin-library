@@ -7,10 +7,10 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\Forms\Component\Build;
 
-use Ran\PluginLib\Forms\Component\Build\BuilderDefinitionInterface;
+use Ran\PluginLib\Forms\Component\Build\ComponentBuilderDefinitionInterface;
 use Ran\PluginLib\Util\TranslationService;
 
-abstract class BuilderBase implements BuilderDefinitionInterface {
+abstract class ComponentBuilderBase implements ComponentBuilderDefinitionInterface {
 	protected string $id;
 	protected string $label;
 	protected ?int $order = null;
@@ -112,13 +112,63 @@ abstract class BuilderBase implements BuilderDefinitionInterface {
 	 * @return array<string,mixed>
 	 */
 	public function to_array(): array {
-		return array(
+		$order = $this->order;
+		if ($order === null) {
+			$order = 0;
+		}
+
+		return $this->_after_to_array(array(
 			'id'                => $this->id,
 			'label'             => $this->label,
-			'order'             => $this->order ?? 0,
+			'order'             => (int) $order,
 			'component'         => $this->_get_component(),
 			'component_context' => $this->_build_component_context(),
-		);
+		));
+	}
+
+	/**
+	 * Create a translation service for builders.
+	 *
+	 * @param string $textDomain The WordPress text domain to use.
+	 *
+	 * @return TranslationService
+	 */
+	public static function create_translation_service(string $textDomain = 'ran-plugin-lib'): TranslationService {
+		return TranslationService::for_domain('forms/builder', $textDomain);
+	}
+
+	/**
+	 * Get the translation service for this builder.
+	 *
+	 * @return TranslationService
+	 */
+	protected function _get_translator(): TranslationService {
+		if ($this->translator === null) {
+			$this->translator = self::create_translation_service();
+		}
+		return $this->translator;
+	}
+
+	/**
+	 * Translate a message using the translation service.
+	 *
+	 * @param string $message The message to translate.
+	 * @param string $context Optional context for the translation.
+	 *
+	 * @return string The translated message.
+	 */
+	protected function _translate(string $message, string $context = ''): string {
+		return $this->_get_translator()->translate($message, $context);
+	}
+
+	/**
+	 * Allow subclasses to modify the serialized payload.
+	 *
+	 * @param array<string,mixed> $payload
+	 * @return array<string,mixed>
+	 */
+	protected function _after_to_array(array $payload): array {
+		return $payload;
 	}
 
 	/**
@@ -179,35 +229,5 @@ abstract class BuilderBase implements BuilderDefinitionInterface {
 		if ($value) {
 			$context[$key] = true;
 		}
-	}
-
-	/**
-	 * Create a translation service for builders.
-	 *
-	 * @param string $textDomain The WordPress text domain to use.
-	 *
-	 * @return TranslationService
-	 */
-	public static function create_translation_service(string $textDomain = 'ran-plugin-lib'): TranslationService {
-		return TranslationService::for_domain('forms/builder', $textDomain);
-	}
-
-	protected function _get_translator(): TranslationService {
-		if ($this->translator === null) {
-			$this->translator = self::create_translation_service();
-		}
-		return $this->translator;
-	}
-
-	/**
-	 * Translate a message using the translation service.
-	 *
-	 * @param string $message The message to translate.
-	 * @param string $context Optional context for the translation.
-	 *
-	 * @return string The translated message.
-	 */
-	protected function _translate(string $message, string $context = ''): string {
-		return $this->_get_translator()->translate($message, $context);
 	}
 }
