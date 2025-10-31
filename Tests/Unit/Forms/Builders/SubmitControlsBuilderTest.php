@@ -3,9 +3,9 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\Tests\Unit\Forms\Builders;
 
-use InvalidArgumentException;
-use PHPUnit\Framework\TestCase;
 use Ran\PluginLib\Forms\Builders\SubmitControlsBuilder;
+use PHPUnit\Framework\TestCase;
+use InvalidArgumentException;
 
 /**
  * @covers \Ran\PluginLib\Forms\Builders\SubmitControlsBuilder
@@ -38,12 +38,7 @@ final class SubmitControlsBuilderTest extends TestCase {
 		self::assertSame('inline', $payload['layout']);
 
 		$templateUpdates = $this->pluckUpdates('template_override');
-		self::assertNotEmpty($templateUpdates, 'Expected default template override.');
-		self::assertSame('submit_controls', $templateUpdates[0]['payload']['element_type']);
-		self::assertSame(
-			'layout/zone/submit-controls-wrapper',
-			$templateUpdates[0]['payload']['overrides']['submit-controls-wrapper'] ?? null
-		);
+		self::assertEmpty($templateUpdates, 'Default construction should not emit template overrides.');
 	}
 
 	public function test_alignment_and_layout_emit_zone_updates(): void {
@@ -75,7 +70,12 @@ final class SubmitControlsBuilderTest extends TestCase {
 		$builder->template('custom.submit.wrapper');
 
 		$templateUpdates = $this->pluckUpdates('template_override');
-		self::assertSame('custom.submit.wrapper', $templateUpdates[count($templateUpdates) - 1]['payload']['overrides']['submit-controls-wrapper']);
+		self::assertNotEmpty($templateUpdates, 'Expected template override emission.');
+		$latestOverride = $templateUpdates[count($templateUpdates) - 1]['payload'];
+		self::assertSame('root', $latestOverride['element_type']);
+		self::assertSame('container', $latestOverride['element_id']);
+		self::assertSame('zone', $latestOverride['zone_id']);
+		self::assertSame('custom.submit.wrapper', $latestOverride['overrides']['submit-controls-wrapper'] ?? null);
 	}
 
 	public function test_button_requires_id_and_label(): void {
@@ -115,6 +115,36 @@ final class SubmitControlsBuilderTest extends TestCase {
 		$payload = $this->latestControlsPayload();
 		self::assertSame('danger', $payload['controls'][0]['component_context']['variant']);
 		self::assertTrue($payload['controls'][0]['component_context']['disabled']);
+	}
+
+	public function test_field_requires_id(): void {
+		$builder = $this->createBuilder();
+
+		$this->expectException(InvalidArgumentException::class);
+		$builder->field('', 'Label', 'components.notice');
+	}
+
+	public function test_field_requires_component_alias(): void {
+		$builder = $this->createBuilder();
+
+		$this->expectException(InvalidArgumentException::class);
+		$builder->field('divider', 'Label', '');
+	}
+
+	public function test_field_accepts_arbitrary_component_without_label(): void {
+		$builder = $this->createBuilder();
+
+		$builder->field('divider', '', 'layout.custom-divider', array(
+			'context' => array('content' => '<span>|</span>'),
+			'order'   => 15,
+		));
+
+		$payload = $this->latestControlsPayload();
+		self::assertSame('divider', $payload['controls'][0]['id']);
+		self::assertSame('layout.custom-divider', $payload['controls'][0]['component']);
+		self::assertSame('<span>|</span>', $payload['controls'][0]['component_context']['content'] ?? null);
+		self::assertSame('', $payload['controls'][0]['label']);
+		self::assertSame(15, $payload['controls'][0]['order']);
 	}
 
 	public function test_button_replaces_existing_control_with_same_id(): void {

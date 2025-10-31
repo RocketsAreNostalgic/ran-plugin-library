@@ -10,7 +10,7 @@ namespace Ran\PluginLib\Forms\Builders;
 use Ran\PluginLib\Forms\Components\Elements\Button\Builder as ButtonBuilder;
 use InvalidArgumentException;
 
-final class SubmitControlsBuilder {
+final class SubmitControlsBuilder implements SubmitControlsBuilderInterface {
 	private BuilderRootInterface $rootBuilder;
 	private string $container_id;
 	private string $zone_id;
@@ -18,6 +18,8 @@ final class SubmitControlsBuilder {
 	private $updateFn;
 	private string $template_key;
 	private bool $has_custom_template = false;
+	private string $element_type      = 'root';
+	private string $root_id;
 	/** @var array<int,array<string,mixed>> */
 	private array $controls   = array();
 	private string $alignment = 'right';
@@ -37,6 +39,7 @@ final class SubmitControlsBuilder {
 		$this->rootBuilder         = $rootBuilder;
 		$this->container_id        = $container_id;
 		$this->zone_id             = $zone_id;
+		$this->root_id             = $container_id;
 		$this->updateFn            = $updateFn;
 		$this->template_key        = trim((string) ($defaults['template'] ?? 'layout/zone/submit-controls-wrapper')) ?: 'layout/zone/submit-controls-wrapper';
 		$this->has_custom_template = $this->template_key !== 'layout/zone/submit-controls-wrapper';
@@ -70,6 +73,7 @@ final class SubmitControlsBuilder {
 		}
 		$this->template_key        = $template_key;
 		$this->has_custom_template = true;
+		$this->emit_template_override();
 		return $this;
 	}
 
@@ -110,34 +114,48 @@ final class SubmitControlsBuilder {
 			$configure($builder);
 		}
 
-		$payload            = $builder->to_array();
-		$payload['context'] = $payload['component_context'];
-		unset($payload['component_context']);
+		$payload = $builder->to_array();
 
-		$this->controls = array_values(array_filter(
-			$this->controls,
-			static function(array $control) use ($control_id): bool {
-				return $control['id'] !== $control_id;
-			}
-		));
-
-		$this->controls[] = array(
-			'id'                => $control_id,
-			'label'             => $payload['label'],
-			'component'         => $payload['component'],
-			'component_context' => $payload['context'],
-			'order'             => $payload['order'],
+		$this->registerControl(
+			$payload['id'],
+			$payload['component'],
+			$payload['component_context'],
+			$payload['label'],
+			$payload['order']
 		);
 
-		usort(
-			$this->controls,
-			static function(array $a, array $b): int {
-				return ($a['order'] <=> $b['order']);
-			}
-		);
+		return $this;
+	}
 
-		$this->emit_controls_update();
+	/**
+	 * Register any component as a submit control using the shared fluent signature.
+	 *
+	 * @param string $control_id Unique control identifier.
+	 * @param string $label      Optional display label (may be empty for non-button controls).
+	 * @param string $component  Registered component alias.
+	 * @param array<string,mixed> $args Optional configuration (context/order/label overrides).
+	 * @return self|ComponentBuilderProxy
+	 */
+	public function field(string $control_id, string $label, string $component, array $args = array()): self|ComponentBuilderProxy {
+		$control_id = trim($control_id);
+		if ($control_id === '') {
+			throw new InvalidArgumentException('Submit control id cannot be empty.');
+		}
 
+		$component = trim($component);
+		if ($component === '') {
+			throw new InvalidArgumentException('Submit control component alias cannot be empty.');
+		}
+
+		$context = $args['context'] ?? $args['component_context'] ?? array();
+		if (!is_array($context)) {
+			throw new InvalidArgumentException('Submit control component context must be an array.');
+		}
+
+		$resolvedLabel = isset($args['label']) ? (string) $args['label'] : $label;
+		$order         = isset($args['order']) ? (int) $args['order'] : 0;
+
+		$this->registerControl($control_id, $component, $context, (string) $resolvedLabel, $order);
 		return $this;
 	}
 
@@ -168,9 +186,43 @@ final class SubmitControlsBuilder {
 		));
 	}
 
+	private function registerControl(string $control_id, string $component, array $component_context, string $label = '', ?int $order = null): void {
+		$this->controls = array_values(array_filter(
+			$this->controls,
+			static function(array $control) use ($control_id): bool {
+				return $control['id'] !== $control_id;
+			}
+		));
+
+		$this->controls[] = array(
+			'id'                => $control_id,
+			'label'             => $label,
+			'component'         => $component,
+			'component_context' => $component_context,
+			'order'             => $order ?? 0,
+		);
+
+		usort(
+			$this->controls,
+			static function(array $a, array $b): int {
+				return ($a['order'] <=> $b['order']);
+			}
+		);
+
+		$this->emit_controls_update();
+	}
+
 	private function emit_template_override(): void {
-		// Template overrides for submit controls will be implemented in a future iteration
-		// once FormsServiceSession supports a dedicated element type. Intentionally no-op.
+		if (!$this->has_custom_template) {
+			return;
+		}
+
+		($this->updateFn)('template_override', array(
+			'element_type' => $this->element_type,
+			'element_id'   => $this->root_id,
+			'zone_id'      => $this->zone_id,
+			'overrides'    => array('submit-controls-wrapper' => $this->template_key),
+		));
 	}
 
 	private function normalize_alignment(string $alignment): string {

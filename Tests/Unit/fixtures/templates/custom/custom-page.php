@@ -2,7 +2,7 @@
 
 use Ran\PluginLib\Forms\Component\ComponentRenderResult;
 
-$title        = $context['title'] ?? 'Default Title';
+$title        = $context['title']         ?? 'Default Title';
 $renderSubmit = $context['render_submit'] ?? null;
 
 $content = '<div class="custom-page">' . $title;

@@ -63,9 +63,11 @@ foreach ($attribute_pairs as $name => $value) {
 ob_start();
 ?>
 <div<?php echo $attribute_markup; ?>>
-	<div class="ran-zone-wrapper__inner">
-		<?php echo $content; // Content is expected to be pre-escaped.?>
-	</div>
+	<?php if ($content !== ''): ?>
+		<div class="ran-zone-wrapper__inner">
+			<?php echo $content; // Content is expected to be pre-escaped.?>
+		</div>
+	<?php endif; ?>
 </div>
 <?php
 return new ComponentRenderResult(

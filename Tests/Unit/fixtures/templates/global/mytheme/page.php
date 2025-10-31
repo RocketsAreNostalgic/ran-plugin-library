@@ -2,7 +2,7 @@
 
 use Ran\PluginLib\Forms\Component\ComponentRenderResult;
 
-$content      = $context['content'] ?? '';
+$content      = $context['content']       ?? '';
 $renderSubmit = $context['render_submit'] ?? null;
 
 if (is_callable($renderSubmit)) {

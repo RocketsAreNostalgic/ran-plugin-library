@@ -247,10 +247,10 @@ class AdminSettingsPageBuilder implements BuilderRootInterface {
 	/**
 	 * Configure submit controls for this page.
 	 *
-	 * @param callable|null $configure Optional configurator receiving the builder.
-	 * @return SubmitControlsBuilder|self
+	 * @param string|null $template Optional submit controls wrapper template key.
+	 * @return SubmitControlsBuilder Fluent submit controls builder.
 	 */
-	public function submit_controls(?callable $configure = null): SubmitControlsBuilder|self {
+	public function submit_controls(?string $template = null): SubmitControlsBuilder {
 		$this->ensure_submit_controls_zone();
 		$this->clear_default_submit_controls();
 
@@ -265,9 +265,8 @@ class AdminSettingsPageBuilder implements BuilderRootInterface {
 			)
 		);
 
-		if ($configure !== null) {
-			$configure($builder);
-			return $this;
+		if ($template !== null && $template !== '') {
+			$builder->template($template);
 		}
 
 		return $builder;

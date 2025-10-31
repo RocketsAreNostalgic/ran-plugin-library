@@ -874,6 +874,25 @@ trait FormsBaseTrait {
 			$this->_start_form_session();
 		}
 
+		$zone_id = isset($data['zone_id']) ? trim((string) $data['zone_id']) : '';
+		if ($zone_id !== '' && isset($overrides['submit-controls-wrapper'])) {
+			$template_key = trim((string) $overrides['submit-controls-wrapper']);
+			if ($template_key !== '') {
+				$this->form_session->set_submit_controls_override($element_id, $zone_id, $template_key);
+			}
+			unset($overrides['submit-controls-wrapper']);
+		}
+
+		if (empty($overrides)) {
+			$this->logger->debug('settings.builder.template_override', array(
+				'element_type' => $element_type,
+				'element_id'   => $element_id,
+				'zone_id'      => $zone_id,
+				'overrides'    => array(),
+			));
+			return;
+		}
+
 		$this->form_session->set_individual_element_override($element_type, $element_id, $overrides);
 		$this->logger->debug('settings.builder.template_override', array(
 			'element_type' => $element_type,

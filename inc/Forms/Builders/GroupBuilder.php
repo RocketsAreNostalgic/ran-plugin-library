@@ -12,12 +12,12 @@ namespace Ran\PluginLib\Forms\Builders;
 use Ran\PluginLib\Forms\FormsInterface;
 use Ran\PluginLib\Forms\Component\Build\ComponentBuilderDefinitionInterface;
 use Ran\PluginLib\Forms\Builders\SectionBuilder;
+use Ran\PluginLib\Forms\Builders\GroupBuilderInterface;
 use Ran\PluginLib\Forms\Builders\ComponentBuilderProxy;
 use Ran\PluginLib\Forms\Builders\BuilderRootInterface;
 use Ran\PluginLib\Forms\Builders\BuilderImmediateUpdateTrait;
-use Ran\PluginLib\Forms\Builders\BuilderFieldContainerInterface;
 
-class GroupBuilder implements BuilderFieldContainerInterface {
+class GroupBuilder implements GroupBuilderInterface {
 	use BuilderImmediateUpdateTrait;
 	/**
 	 * @var SectionBuilder
@@ -258,7 +258,8 @@ class GroupBuilder implements BuilderFieldContainerInterface {
 	 *
 	 * @return GroupBuilder<TRoot, TSection> The GroupBuilder instance for the new group.
 	 */
-	public function group(string $group_id, string $heading, ?callable $description_cb = null, array $args = array()): GroupBuilder {
+	public function group(string $group_id, string $heading, ?callable $description_cb = null, ?array $args = null): GroupBuilderInterface {
+		$args = $args ?? array();
 		return $this->sectionBuilder->group($group_id, $heading, $description_cb, $args);
 	}
 

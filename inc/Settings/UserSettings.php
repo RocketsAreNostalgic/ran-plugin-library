@@ -92,7 +92,7 @@ class UserSettings implements FormsInterface {
 		$context = $options->get_storage_context();
 		if ($context->scope !== OptionScope::User) {
 			$received = $context->scope instanceof OptionScope ? $context->scope->value : 'unknown';
-			$this->logger->warning('UserSettings::__construct received non-user scope RegisterOptions; rejecting.', array('scope' => $received));
+			$this->logger->error('UserSettings::__construct received non-user scope RegisterOptions; rejecting.', array('scope' => $received));
 			throw new \InvalidArgumentException('UserSettings requires user context; received ' . $received . '.');
 		}
 

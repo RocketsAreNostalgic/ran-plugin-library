@@ -204,6 +204,20 @@ class FormsServiceSession {
 	}
 
 	/**
+	 * Set submit controls wrapper override for a specific zone on a root element.
+	 *
+	 * @internal
+	 *
+	 * @param string $root_id The page/root identifier.
+	 * @param string $zone_id The submit controls zone identifier.
+	 * @param string $template_key The template key to use.
+	 * @return void
+	 */
+	public function set_submit_controls_override(string $root_id, string $zone_id, string $template_key): void {
+		$this->template_resolver->set_submit_controls_override($root_id, $zone_id, $template_key);
+	}
+
+	/**
 	 * Set individual element override (Tier 2)
 	 *
 	 * @internal Use fluent methods eg ->template('my.registered-override')->set_field_template_overrides()

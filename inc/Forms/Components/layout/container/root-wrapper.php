@@ -22,6 +22,7 @@ if (!defined('ABSPATH')) {
 $form_id       = $context['form_id']       ?? '';
 $title         = $context['title']         ?? '';
 $content       = $context['content']       ?? '';
+$renderSubmit  = $context['render_submit'] ?? null;
 $form_messages = $context['form_messages'] ?? array();
 
 ob_start();
@@ -50,6 +51,12 @@ ob_start();
 	<div class="form-content">
 		<?php echo $content; // Form content is already escaped?>
 	</div>
+
+	<?php if (is_callable($renderSubmit)): ?>
+		<div class="form-submit-controls">
+			<?php echo (string) $renderSubmit(); ?>
+		</div>
+	<?php endif; ?>
 </div>
 <?php
 return new ComponentRenderResult(

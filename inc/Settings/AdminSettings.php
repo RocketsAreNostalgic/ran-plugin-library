@@ -26,6 +26,8 @@ use Ran\PluginLib\Forms\FormsInterface;
 use Ran\PluginLib\Forms\FormsBaseTrait;
 use Ran\PluginLib\Forms\Component\ComponentManifest;
 use Ran\PluginLib\Forms\Component\ComponentLoader;
+use Ran\PluginLib\Forms\Component\ComponentRenderResult;
+use Ran\PluginLib\Forms\Components\Elements\Button\Builder as ButtonBuilder;
 
 /**
  * Admin settings facade that coordinates Settings API registration with a scoped `RegisterOptions`
@@ -47,6 +49,8 @@ class AdminSettings implements FormsInterface {
 
 	protected ComponentLoader $views;
 	protected RegisterOptions $base_options;
+
+	private const DEFAULT_SUBMIT_ZONE = 'default-submit-zone';
 
 	/**
 	 * Base context and storage captured from the injected RegisterOptions instance.
@@ -149,9 +153,9 @@ class AdminSettings implements FormsInterface {
 	 * @param array{zones:array<string,array{alignment:string,layout:string,before:?callable,after:?callable}>,controls:array<string,array<int,array{id:string,label:string,component:string,component_context:array<string,mixed>,order:int}>>} $submit_controls
 	 * @return string
 	 */
-	private function renderSubmitControls(array $submit_controls): string {
+	private function renderSubmitControls(string $page_slug, array $submit_controls): string {
 		if (empty($submit_controls['zones'])) {
-			return $this->_do_submit_button();
+			return $this->renderDefaultSubmitControls($page_slug);
 		}
 
 		$markup = '';
@@ -161,11 +165,11 @@ class AdminSettings implements FormsInterface {
 				continue;
 			}
 
-			$markup .= $this->renderSubmitZone($zone_id, $zone_meta, $controls);
+			$markup .= $this->renderSubmitZone($page_slug, $zone_id, $zone_meta, $controls);
 		}
 
 		if ($markup === '') {
-			return $this->_do_submit_button();
+			return $this->renderDefaultSubmitControls($page_slug);
 		}
 
 		return $markup;
@@ -179,7 +183,7 @@ class AdminSettings implements FormsInterface {
 	 * @param array<int,array{id:string,label:string,component:string,component_context:array<string,mixed>,order:int}> $controls
 	 * @return string
 	 */
-	private function renderSubmitZone(string $zone_id, array $zone_meta, array $controls): string {
+	private function renderSubmitZone(string $page_slug, string $zone_id, array $zone_meta, array $controls): string {
 		if ($this->form_session === null) {
 			$this->_start_form_session();
 		}
@@ -189,19 +193,32 @@ class AdminSettings implements FormsInterface {
 			$content .= $this->renderSubmitControl($control);
 		}
 
-		$wrapper = $this->form_session->render_component('submit-controls-wrapper', array(
-			'zone_id'   => $zone_id,
-			'alignment' => $zone_meta['alignment'] ?? 'right',
-			'layout'    => $zone_meta['layout']    ?? 'inline',
-			'content'   => $content,
-		));
+		$callback_context = array(
+			'container_id' => $page_slug,
+			'zone_id'      => $zone_id,
+			'controls'     => $controls,
+		);
 
-		if ($wrapper instanceof ComponentRenderResult) {
-			$this->form_session->assets()->ingest($wrapper);
-			return $wrapper->markup;
-		}
+		$before_markup = $this->_render_callback_output($zone_meta['before'] ?? null, $callback_context) ?? '';
+		$after_markup  = $this->_render_callback_output($zone_meta['after'] ?? null, $callback_context)  ?? '';
 
-		return $content;
+		$content_with_callbacks = $before_markup . $content . $after_markup;
+
+		$wrapper = $this->form_session->render_element(
+			'submit-controls-wrapper',
+			array(
+				'zone_id'   => $zone_id,
+				'alignment' => $zone_meta['alignment'] ?? 'right',
+				'layout'    => $zone_meta['layout']    ?? 'inline',
+				'content'   => $content_with_callbacks,
+			),
+			array(
+				'root_id' => $page_slug,
+				'zone_id' => $zone_id,
+			)
+		);
+
+		return $wrapper;
 	}
 
 	/**
@@ -233,12 +250,42 @@ class AdminSettings implements FormsInterface {
 			return $rendered->markup;
 		}
 
+		if (is_string($rendered)) {
+			return $rendered;
+		}
+
 		$this->logger->warning('AdminSettings: Submit control renderer did not return ComponentRenderResult', array(
 			'control_id' => $control_id,
 			'component'  => $component,
 		));
 
 		return '';
+	}
+
+	/**
+	 * Render default submit controls used when no custom definition exists.
+	 */
+	private function renderDefaultSubmitControls(string $page_slug): string {
+		$button = (new ButtonBuilder('default-primary', 'Save Changes'))
+			->type('submit')
+			->variant('primary');
+
+		$payload = $button->to_array();
+
+		return $this->renderSubmitZone(
+			$page_slug,
+			self::DEFAULT_SUBMIT_ZONE,
+			array('alignment' => 'right', 'layout' => 'inline'),
+			array(
+				array(
+					'id'                => $payload['id'],
+					'label'             => $payload['label'],
+					'component'         => $payload['component'],
+					'component_context' => $payload['component_context'],
+					'order'             => $payload['order'],
+				),
+			)
+		);
 	}
 
 	/**
@@ -417,7 +464,7 @@ class AdminSettings implements FormsInterface {
 		        'values'          => $effective_values,
 		        'content'         => $rendered_content,
 		        'submit_controls' => $submit_controls,
-		        'render_submit'   => fn (): string => $this->renderSubmitControls($submit_controls),
+		        'render_submit'   => fn (): string => $this->renderSubmitControls($id_slug, $submit_controls),
 		        'errors_by_field' => $this->message_handler->get_all_messages(),
 		    ),
 		);

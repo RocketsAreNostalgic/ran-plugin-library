@@ -28,15 +28,21 @@ class FormsTemplateOverrideResolver {
 	 * @var array<string, string> Template type => fallback template key mappings
 	 */
 	private static array $BASE_FALLBACKS = array(
-		'root-wrapper'    => 'shared.root-wrapper',
-		'root'            => 'shared.root-wrapper',
-		'section-wrapper' => 'shared.section-wrapper',
-		'section'         => 'shared.section-wrapper',
-		'group-wrapper'   => 'shared.group-wrapper',
-		'group'           => 'shared.group-wrapper',
-		'field-wrapper'   => 'shared.field-wrapper',
-		'field'           => 'shared.field-wrapper',
+		'root-wrapper'            => 'shared.root-wrapper',
+		'root'                    => 'shared.root-wrapper',
+		'section-wrapper'         => 'shared.section-wrapper',
+		'section'                 => 'shared.section-wrapper',
+		'group-wrapper'           => 'shared.group-wrapper',
+		'group'                   => 'shared.group-wrapper',
+		'field-wrapper'           => 'shared.field-wrapper',
+		'field'                   => 'shared.field-wrapper',
+		'submit-controls-wrapper' => 'submit-controls-wrapper',
 	);
+
+	/**
+	 * @var array<string, array<string, string>> Submit zone overrides keyed by root then zone.
+	 */
+	private array $submit_controls_overrides = array();
 
 	/**
 	 * Tier 1: Form-wide Defaults
@@ -112,6 +118,24 @@ class FormsTemplateOverrideResolver {
 				'context' => $context
 			));
 			throw new \InvalidArgumentException('Template type cannot be empty');
+		}
+
+		// Submit controls zone overrides (special-case for submit wrapper)
+		if ($template_type === 'submit-controls-wrapper') {
+			$root_id = isset($context['root_id']) ? (string) $context['root_id'] : '';
+			$zone_id = isset($context['zone_id']) ? (string) $context['zone_id'] : '';
+			if ($root_id !== '' && $zone_id !== '') {
+				$override = $this->submit_controls_overrides[$root_id][$zone_id] ?? null;
+				if ($override !== null && $override !== '') {
+					$this->logger->debug('FormsTemplateOverrideResolver: Submit controls wrapper resolved via zone override', array(
+						'root_id'       => $root_id,
+						'zone_id'       => $zone_id,
+						'template'      => $override,
+						'template_type' => $template_type,
+					));
+					return $override;
+				}
+			}
 		}
 
 		// TIER 2: Individual Element Overrides (Highest Priority)
@@ -266,6 +290,30 @@ class FormsTemplateOverrideResolver {
 	 */
 	public function get_root_template_overrides(string $root_id): array {
 		return $this->root_template_overrides[$root_id] ?? array();
+	}
+
+	/**
+	 * Set submit controls override for a specific root/zone combination.
+	 *
+	 * @param string $root_id
+	 * @param string $zone_id
+	 * @param string $template_key
+	 * @return void
+	 */
+	public function set_submit_controls_override(string $root_id, string $zone_id, string $template_key): void {
+		$root_id      = trim($root_id);
+		$zone_id      = trim($zone_id);
+		$template_key = trim($template_key);
+
+		if ($root_id === '' || $zone_id === '' || $template_key === '') {
+			return;
+		}
+
+		if (!isset($this->submit_controls_overrides[$root_id])) {
+			$this->submit_controls_overrides[$root_id] = array();
+		}
+
+		$this->submit_controls_overrides[$root_id][$zone_id] = $template_key;
 	}
 
 	/**

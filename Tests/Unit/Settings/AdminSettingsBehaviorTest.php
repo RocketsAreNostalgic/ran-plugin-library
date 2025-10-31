@@ -407,16 +407,12 @@ final class AdminSettingsBehaviorTest extends PluginLibTestCase {
 
 	public function test_render_custom_submit_controls_override_default(): void {
 		$this->settings->menu_group('custom-submit-group')
-		    ->page('custom-submit-page')
-		        ->heading('Custom Submit Page')
-		        ->section('custom-submit-section', 'Custom Submit Section')
-		            ->field('valid_field', 'Valid Field', 'fields.input')
-		        ->end_section()
-		        ->submit_controls(static function ($controls): void {
-		        	$controls->button('primary', 'Publish Settings');
-		        })
-		    ->end_page()
-		->end_menu_group();
+			->page('custom-submit-page')
+				->section('custom-submit-section', 'Custom Submit Section')
+					->field('valid_field', 'Valid Field', 'fields.input')
+				->end_section()
+				->submit_controls()
+					->button('primary', 'Publish Settings');
 
 		$this->expectOptionReturn(array('valid_field' => 'value'));
 
