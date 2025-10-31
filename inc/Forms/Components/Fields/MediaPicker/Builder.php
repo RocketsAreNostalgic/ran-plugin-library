@@ -5,11 +5,11 @@
 
 declare(strict_types=1);
 
-namespace Ran\PluginLib\Forms\Components\Elements\MediaPicker;
+namespace Ran\PluginLib\Forms\Components\Fields\MediaPicker;
 
-use Ran\PluginLib\Forms\Component\Build\BuilderBase;
+use Ran\PluginLib\Forms\Component\Build\ComponentBuilderBase;
 
-final class Builder extends BuilderBase {
+final class Builder extends ComponentBuilderBase {
 	/** @var array<string,string> */
 	private array $data            = array();
 	private ?string $name          = null;
@@ -29,7 +29,7 @@ final class Builder extends BuilderBase {
 		parent::__construct($id, $label);
 	}
 
-	// attributes() and attribute() methods inherited from BuilderBase
+	// attributes() and attribute() methods inherited from ComponentBuilderBase
 
 	public function data(array $data): self {
 		foreach ($data as $key => $value) {
@@ -63,7 +63,7 @@ final class Builder extends BuilderBase {
 		return $this;
 	}
 
-	// description() method inherited from BuilderBase
+	// description() method inherited from ComponentBuilderBase
 
 	public function descriptionId(?string $descriptionId): self {
 		$this->descriptionId = $descriptionId;

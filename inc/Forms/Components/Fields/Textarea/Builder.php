@@ -7,9 +7,9 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\Forms\Components\Fields\Textarea;
 
-use Ran\PluginLib\Forms\Component\Build\BuilderTextBase;
+use Ran\PluginLib\Forms\Component\Build\ComponentBuilderTextBase;
 
-final class Builder extends BuilderTextBase {
+final class Builder extends ComponentBuilderTextBase {
 	private ?int $rows = null;
 	private ?int $cols = null;
 

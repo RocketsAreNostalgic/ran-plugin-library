@@ -5,11 +5,10 @@
 
 declare(strict_types=1);
 
-namespace Ran\PluginLib\Forms\Components\Elements\FileUpload;
+namespace Ran\PluginLib\Forms\Components\Fields\FileUpload;
 
-use Ran\PluginLib\Forms\Component\Build\BuilderBase;
-
-final class Builder extends BuilderBase {
+use Ran\PluginLib\Forms\Component\Build\ComponentBuilderBase;
+final class Builder extends ComponentBuilderBase {
 	private string $name;
 	private bool $multiple         = false;
 	private bool $required         = false;
@@ -30,7 +29,7 @@ final class Builder extends BuilderBase {
 		return $this;
 	}
 
-	// attributes() and attribute() methods inherited from BuilderBase
+	// attributes() and attribute() methods inherited from ComponentBuilderBase
 
 	/**
 	 * Allow multiple files to be uploaded.
@@ -69,7 +68,7 @@ final class Builder extends BuilderBase {
 	/**
 	 * @param string|array<int,string>|null $accept
 	 */
-	// description() method inherited from BuilderBase
+	// description() method inherited from ComponentBuilderBase
 
 	public function descriptionId(?string $descriptionId): self {
 		$this->descriptionId = $descriptionId;

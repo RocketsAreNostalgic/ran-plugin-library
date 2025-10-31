@@ -64,11 +64,23 @@ final class Normalizer extends NormalizerBase {
 			$this->session->appendAriaDescribedBy($attributes, $optionDescId);
 		}
 
-		return $this->views->render('fields.checkbox-option', array(
+		$payload = $this->views->render_payload('fields.checkbox-option', array(
 			'input_attributes' => $this->session->formatAttributes($attributes),
 			'label'            => $this->_sanitize_string($option['label'] ?? '', 'option label'),
 			'description'      => $optionDesc,
 			'description_id'   => $optionDescId,
 		));
+
+		if (!is_array($payload) || !isset($payload['markup'])) {
+			$error = 'fields.checkbox-option must return component payload array.';
+			$this->logger->error('Template payload validation failed', array(
+				'template'     => 'fields.checkbox-option',
+				'payload_type' => gettype($payload),
+				'has_markup'   => is_array($payload) ? isset($payload['markup']) : false
+			));
+			throw new \UnexpectedValueException($error);
+		}
+
+		return $payload['markup'];
 	}
 }

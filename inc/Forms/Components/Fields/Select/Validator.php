@@ -9,7 +9,7 @@ namespace Ran\PluginLib\Forms\Components\Fields\Select;
 
 use Ran\PluginLib\Forms\Component\Validate\ValidatorBase;
 
-final class SimplifiedValidator extends ValidatorBase {
+final class Validator extends ValidatorBase {
 	protected function _validate_component(mixed $value, array $context, callable $emitWarning): bool {
 		// Check if selection is required when value is null/empty
 		if ($value === null || $value === '') {

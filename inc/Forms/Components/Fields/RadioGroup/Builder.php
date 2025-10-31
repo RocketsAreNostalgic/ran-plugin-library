@@ -7,9 +7,9 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\Forms\Components\Fields\RadioGroup;
 
-use Ran\PluginLib\Forms\Component\Build\BuilderBase;
+use Ran\PluginLib\Forms\Component\Build\ComponentBuilderBase;
 
-final class Builder extends BuilderBase {
+final class Builder extends ComponentBuilderBase {
 	protected ?string $legend  = null;
 	protected ?string $name    = null;
 	protected ?string $default = null;
@@ -21,7 +21,7 @@ final class Builder extends BuilderBase {
 		return $this;
 	}
 
-	// description() method inherited from BuilderBase
+	// description() method inherited from ComponentBuilderBase
 
 	public function name(?string $name): self {
 		$this->name = $name !== null ? trim($name) : null;
@@ -33,7 +33,7 @@ final class Builder extends BuilderBase {
 		return $this;
 	}
 
-	// attribute() method inherited from BuilderBase
+	// attribute() method inherited from ComponentBuilderBase
 
 	/**
 	 * @param array<string,string> $attributes

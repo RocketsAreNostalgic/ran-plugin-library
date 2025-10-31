@@ -7,9 +7,9 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\Forms\Components\Fields\MultiSelect;
 
-use Ran\PluginLib\Forms\Component\Build\BuilderBase;
+use Ran\PluginLib\Forms\Component\Build\ComponentBuilderBase;
 
-final class Builder extends BuilderBase {
+final class Builder extends ComponentBuilderBase {
 	private ?string $name          = null;
 	private ?string $elementId     = null;
 	private ?string $descriptionId = null;
@@ -49,7 +49,7 @@ final class Builder extends BuilderBase {
 		return $this;
 	}
 
-	// description() method inherited from BuilderBase
+	// description() method inherited from ComponentBuilderBase
 
 	public function descriptionId(?string $descriptionId): self {
 		$this->descriptionId = $descriptionId;

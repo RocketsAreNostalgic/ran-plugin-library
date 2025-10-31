@@ -1,11 +1,11 @@
 <?php
 declare(strict_types=1);
 
-namespace Ran\PluginLib\Forms\Upload;
+namespace Ran\PluginLib\Forms\Components\Fields\MediaPicker;
 
-use Ran\PluginLib\Config\ConfigInterface;
-use Ran\PluginLib\EnqueueAccessory\MediaHandler;
 use Ran\PluginLib\EnqueueAccessory\ScriptsHandler;
+use Ran\PluginLib\EnqueueAccessory\MediaHandler;
+use Ran\PluginLib\Config\ConfigInterface;
 
 /**
  * Provides registration helpers for the Forms media picker assets.

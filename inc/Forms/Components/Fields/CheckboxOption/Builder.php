@@ -7,9 +7,9 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\Forms\Components\Fields\CheckboxOption;
 
-use Ran\PluginLib\Forms\Component\Build\BuilderBase;
+use Ran\PluginLib\Forms\Component\Build\ComponentBuilderBase;
 
-final class Builder extends BuilderBase {
+final class Builder extends ComponentBuilderBase {
 	private string $name;
 	private string $value        = 'on';
 	private bool $defaultChecked = false;
@@ -21,7 +21,7 @@ final class Builder extends BuilderBase {
 		$this->attributes['value'] = $this->value;
 	}
 
-	// description() method inherited from BuilderBase
+	// description() method inherited from ComponentBuilderBase
 
 	public function value(string $value): self {
 		$this->value               = $value;

@@ -5,16 +5,14 @@
 
 declare(strict_types=1);
 
-namespace Ran\PluginLib\Forms\Components\Elements\MediaPicker;
+namespace Ran\PluginLib\Forms\Components\Fields\MediaPicker;
 
-use Ran\PluginLib\Util\Validate;
 use Ran\PluginLib\Util\WPWrappersTrait;
+use Ran\PluginLib\Util\Validate;
 use Ran\PluginLib\Forms\Component\Normalize\NormalizerBase;
 
 final class Normalizer extends NormalizerBase {
 	use WPWrappersTrait;
-
-
 
 	protected function _normalize_component_specific(array $context): array {
 		// Validate configuration (fail-fast principle)

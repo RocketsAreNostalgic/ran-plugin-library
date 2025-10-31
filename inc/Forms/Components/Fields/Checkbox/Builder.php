@@ -7,9 +7,9 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\Forms\Components\Fields\Checkbox;
 
-use Ran\PluginLib\Forms\Component\Build\BuilderBase;
+use Ran\PluginLib\Forms\Component\Build\ComponentBuilderBase;
 
-final class Builder extends BuilderBase {
+final class Builder extends ComponentBuilderBase {
 	private ?string $text           = null;
 	private ?string $name           = null;
 	private string $checkedValue    = 'on';
@@ -20,7 +20,7 @@ final class Builder extends BuilderBase {
 		parent::__construct($id, $label);
 	}
 
-	// description() method inherited from BuilderBase
+	// description() method inherited from ComponentBuilderBase
 
 	public function text(?string $text): self {
 		$this->text = $text;

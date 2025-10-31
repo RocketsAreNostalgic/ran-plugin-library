@@ -10,7 +10,7 @@ namespace Ran\PluginLib\Forms\Components\Fields\Checkbox;
 use Ran\PluginLib\Util\Validate;
 use Ran\PluginLib\Forms\Component\Validate\ValidatorBase;
 
-final class SimplifiedValidator extends ValidatorBase {
+final class Validator extends ValidatorBase {
 	protected function _validate_component(mixed $value, array $context, callable $emitWarning): bool {
 		$checked   = isset($context['checked_value']) ? (string) $context['checked_value'] : 'on';
 		$unchecked = array_key_exists('unchecked_value', $context) ? (string) $context['unchecked_value'] : null;

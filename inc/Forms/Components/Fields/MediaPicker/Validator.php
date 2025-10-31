@@ -5,7 +5,7 @@
 
 declare(strict_types=1);
 
-namespace Ran\PluginLib\Forms\Components\Elements\MediaPicker;
+namespace Ran\PluginLib\Forms\Components\Fields\MediaPicker;
 
 use Ran\PluginLib\Util\Validate;
 use Ran\PluginLib\Forms\Component\Validate\ValidatorBase;

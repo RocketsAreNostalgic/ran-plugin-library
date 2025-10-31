@@ -5,11 +5,11 @@
 
 declare(strict_types=1);
 
-namespace Ran\PluginLib\Forms\Components\Fields\TextInput;
+namespace Ran\PluginLib\Forms\Components\Fields\Input;
 
-use Ran\PluginLib\Forms\Component\Build\BuilderTextBase;
+use Ran\PluginLib\Forms\Component\Build\ComponentBuilderTextBase;
 
-final class Builder extends BuilderTextBase {
+final class Builder extends ComponentBuilderTextBase {
 	private string $type = 'text';
 
 	/**

@@ -5,10 +5,10 @@
 
 declare(strict_types=1);
 
-namespace Ran\PluginLib\Forms\Components\Elements\FileUpload;
+namespace Ran\PluginLib\Forms\Components\Fields\FileUpload;
 
-use Ran\PluginLib\Util\Validate;
 use Ran\PluginLib\Util\WPWrappersTrait;
+use Ran\PluginLib\Util\Validate;
 use Ran\PluginLib\Forms\Component\Validate\ValidatorBase;
 
 final class Validator extends ValidatorBase {

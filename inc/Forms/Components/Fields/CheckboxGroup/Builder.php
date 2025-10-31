@@ -7,10 +7,10 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\Forms\Components\Fields\CheckboxGroup;
 
-use Ran\PluginLib\Forms\Component\Build\BuilderBase;
 use Ran\PluginLib\Forms\Components\Fields\CheckboxOption\Builder as CheckboxOptionBuilder;
+use Ran\PluginLib\Forms\Component\Build\ComponentBuilderBase;
 
-final class Builder extends BuilderBase {
+final class Builder extends ComponentBuilderBase {
 	private ?string $legend = null;
 	/** @var array<int,CheckboxOptionBuilder|array<string,mixed>> */
 	private array $options = array();
@@ -27,14 +27,14 @@ final class Builder extends BuilderBase {
 		return $this;
 	}
 
-	// description() method inherited from BuilderBase
+	// description() method inherited from ComponentBuilderBase
 
 	public function defaults(array $values): self {
 		$this->defaults = array_map('strval', $values);
 		return $this;
 	}
 
-	// attribute() method inherited from BuilderBase
+	// attribute() method inherited from ComponentBuilderBase
 
 	public function checkbox(string $value, string $label, ?string $description = null, array $attributes = array(), bool $defaultChecked = false): self {
 		$optionId = $this->id . '__option_' . (++$this->__option_index);

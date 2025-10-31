@@ -7,9 +7,9 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\Forms\Components\Fields\RadioOption;
 
-use Ran\PluginLib\Forms\Component\Build\BuilderBase;
+use Ran\PluginLib\Forms\Component\Build\ComponentBuilderBase;
 
-final class Builder extends BuilderBase {
+final class Builder extends ComponentBuilderBase {
 	private string $name;
 	private string $value;
 	private bool $checked  = false;
@@ -23,7 +23,7 @@ final class Builder extends BuilderBase {
 		$this->value = $value;
 	}
 
-	// description() method inherited from BuilderBase
+	// description() method inherited from ComponentBuilderBase
 
 	public function checked(bool $checked = true): self {
 		$this->checked = $checked;

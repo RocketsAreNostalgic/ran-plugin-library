@@ -1,6 +1,6 @@
 <?php
 /**
- * Simplified MultiSelect validator using ValidatorBase.
+ * MultiSelect validator using ValidatorBase.
  */
 
 declare(strict_types=1);
@@ -9,7 +9,7 @@ namespace Ran\PluginLib\Forms\Components\Fields\MultiSelect;
 
 use Ran\PluginLib\Forms\Component\Validate\ValidatorBase;
 
-final class SimplifiedValidator extends ValidatorBase {
+final class Validator extends ValidatorBase {
 	protected function _validate_component(mixed $value, array $context, callable $emitWarning): bool {
 		// Check if selection is required when value is null/empty/no selections
 		if ($value === null || $value === '' || (is_array($value) && empty($value))) {
