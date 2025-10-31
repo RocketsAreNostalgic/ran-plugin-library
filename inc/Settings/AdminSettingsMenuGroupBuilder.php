@@ -13,58 +13,69 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\Settings;
 
-use Ran\PluginLib\Settings\SettingsInterface;
 use Ran\PluginLib\Settings\AdminSettingsPageBuilder;
+use Ran\PluginLib\Forms\Builders\BuilderImmediateUpdateTrait;
 
 /**
  * Builder used by `AdminSettings` to configure grouped admin menus.
+ *
+ * The Menu group builder is the top level builder for a group of admin menus.
+ * It does not implement the same Builder interface as the other builders.
+ *
+ * @method $this heading(string $heading)
+ * @method $this menu_label(string $menu_title)
+ * @method $this capability(string $capability)
+ * @method $this parent(?string $parent_slug)
+ * @method $this icon(?string $icon)
+ * @method $this position(?int $position)
+ * @method AdminSettingsPageBuilder|self page(string $page_slug, ?callable $configure = null)
+ * @method AdminSettings end_group()
+ * @method AdminSettings end_menu_group()
+ *
+ * @see ComponentBuilderInterface
+ * @see SectionBuilder
+ * @see GroupBuilder
+ * @see AdminSettingsPageBuilder
+ * @see UserSettingsSectionBuilder
  */
 final class AdminSettingsMenuGroupBuilder {
-	private SettingsInterface $settings;
-	private string $group_slug;
-	/** @var array{page_title:string, menu_title:string, capability:string, parent:?string, icon:?string, position:?int, order:int} */
+	use BuilderImmediateUpdateTrait;
+	private AdminSettings $settings;
+	private string $container_id;
+	/** @var array{heading:string, menu_title:string, capability:string, parent:?string, icon:?string, position:?int, order:int} */
 	private array $meta;
-	/**
-	 * Pages buffered for this group keyed by page slug.
-	 *
-	 * @var array<string, array{
-	 *     meta: array{page_title:string, menu_title:string, capability:string, template:?callable, order:int},
-	 *     sections: array<string, array{title:string, description_cb:?callable, order:int, index:int}>,
-	 *     fields: array<string, array<int, array{id:string,label:string,render:callable, order:int, index:int}>>,
-	 *     groups: array<string, array{group_id:string, fields:array<int, array{id:string,label:string,render:callable, order:int, index:int}>, before:?callable, after:?callable, order:int, index:int}>
-	 * }>
-	 */
-	private array $pages = array();
+	/** @var callable */
+	private $updateFn;
 	/** @var array<string, AdminSettingsPageBuilder> */
 	private array $active_pages = array();
-	/** @var callable */
-	private $finalize;
-	private bool $committed = false;
+	private bool $committed     = false;
 
 	/**
 	 * Create a new AdminSettingsMenuGroupBuilder.
 	 *
-	 * @param SettingsInterface $settings The settings object.
-	 * @param string $group_slug The slug of this group.
+	 * @param AdminSettings $settings The settings object.
+	 * @param string $container_id The ID of this group.
 	 * @param array $initial_meta The initial meta for this group.
-	 * @param callable $finalize The finalize callback.
+	 * @param callable $updateFn The update function for immediate data flow.
 	 */
-	public function __construct(SettingsInterface $settings, string $group_slug, array $initial_meta, callable $finalize) {
-		$this->settings   = $settings;
-		$this->group_slug = $group_slug;
-		$this->meta       = $initial_meta;
-		$this->finalize   = $finalize;
+	public function __construct(AdminSettings $settings, string $container_id, array $initial_meta, callable $updateFn) {
+		$this->settings     = $settings;
+		$this->container_id = $container_id;
+		$this->meta         = $initial_meta;
+		$this->updateFn     = $updateFn;
+
+		$this->dispatch_group_update();
 	}
 
 	/**
 	 * Set the page heading (displayed atop the admin screen).
 	 *
-	 * @param string $page_title The page heading text.
+	 * @param string $heading The page heading text.
 	 *
 	 * @return self
 	 */
-	public function page_heading(string $page_title): self {
-		$this->meta['page_title'] = $page_title;
+	public function heading(string $heading): self {
+		$this->_update_meta('heading', $heading);
 		return $this;
 	}
 
@@ -76,7 +87,7 @@ final class AdminSettingsMenuGroupBuilder {
 	 * @return self
 	 */
 	public function menu_label(string $menu_title): self {
-		$this->meta['menu_title'] = $menu_title;
+		$this->_update_meta('menu_title', $menu_title);
 		return $this;
 	}
 
@@ -88,7 +99,7 @@ final class AdminSettingsMenuGroupBuilder {
 	 * @return self
 	 */
 	public function capability(string $capability): self {
-		$this->meta['capability'] = $capability;
+		$this->_update_meta('capability', $capability);
 		return $this;
 	}
 
@@ -101,7 +112,7 @@ final class AdminSettingsMenuGroupBuilder {
 	 * @return self
 	 */
 	public function parent(?string $parent_slug): self {
-		$this->meta['parent'] = $parent_slug;
+		$this->_update_meta('parent', $parent_slug);
 		return $this;
 	}
 
@@ -114,7 +125,7 @@ final class AdminSettingsMenuGroupBuilder {
 	 * @return self
 	 */
 	public function icon(?string $icon): self {
-		$this->meta['icon'] = $icon;
+		$this->_update_meta('icon', $icon);
 		return $this;
 	}
 
@@ -127,7 +138,7 @@ final class AdminSettingsMenuGroupBuilder {
 	 * @return self
 	 */
 	public function position(?int $position): self {
-		$this->meta['position'] = $position;
+		$this->_update_meta('position', $position);
 		return $this;
 	}
 
@@ -135,41 +146,30 @@ final class AdminSettingsMenuGroupBuilder {
 	 * Add a child page to this menu group.
 	 *
 	 * @param string $page_slug The slug of the page.
-	 * @param callable $configure The configure callback.
+	 * @param callable|null $configure The configure callback.
 	 *
 	 * @return AdminSettingsPageBuilder|self
 	 */
 	public function page(string $page_slug, ?callable $configure = null): AdminSettingsPageBuilder|self {
 		$initial_meta = array(
-		    'page_title' => $this->meta['page_title'],
+		    'heading'    => $this->meta['heading'],
 		    'menu_title' => $this->meta['menu_title'],
 		    'capability' => $this->meta['capability'],
 		    'template'   => null,
-		    'order'      => isset($this->pages[$page_slug]) ? $this->pages[$page_slug]['meta']['order'] : count($this->pages),
+		    'order'      => count($this->active_pages),
 		);
 
 		$builder = new AdminSettingsPageBuilder(
 			$this,
 			$page_slug,
 			$initial_meta,
-			function (string $slug, array $meta, array $sections, array $fields, array $groups): void {
-				$this->pages[$slug] = array(
-				    'meta'     => $meta,
-				    'sections' => $sections,
-				    'fields'   => $fields,
-				    'groups'   => $groups,
-				);
-				unset($this->active_pages[$slug]);
-			}
+			$this->updateFn
 		);
 
 		$this->active_pages[$page_slug] = $builder;
 
 		if ($configure !== null) {
 			$configure($builder);
-			if (!$builder->is_committed()) {
-				$builder->end_page();
-			}
 			return $this;
 		}
 
@@ -179,9 +179,9 @@ final class AdminSettingsMenuGroupBuilder {
 	/**
 	 * Called by AdminSettings to finalize this group definition.
 	 *
-	 * @return SettingsInterface The settings object.
+	 * @return AdminSettings The settings object.
 	 */
-	public function end_group(): SettingsInterface {
+	public function end_group(): AdminSettings {
 		if (!$this->committed) {
 			if (!array_key_exists('parent', $this->meta)) {
 				$this->meta['parent'] = 'options-general.php';
@@ -189,10 +189,83 @@ final class AdminSettingsMenuGroupBuilder {
 			foreach ($this->active_pages as $builder) {
 				$builder->end_page();
 			}
-			($this->finalize)($this->group_slug, $this->meta, $this->pages);
+
+			// Collect all page data for the group commit
+			$pages_data = array();
+			foreach ($this->active_pages as $page_slug => $builder) {
+				// Pages should have already committed their data via updateFn
+				// We just need to signal the group is complete
+			}
+
+			// Use updateFn to send complete group data
+			($this->updateFn)('menu_group_commit', array(
+				'container_id' => $this->container_id,
+				'group_data'   => $this->meta
+			));
 			$this->committed = true;
 		}
 
 		return $this->settings;
+	}
+
+	public function end(): AdminSettings {
+		return $this->end_group();
+	}
+
+	public function end_menu_group(): AdminSettings {
+		return $this->end_group();
+	}
+
+	/**
+	 * Get the main AdminSettings instance.
+	 * Provides clean access to the settings instance for page builders.
+	 *
+	 * @return AdminSettings The main settings instance.
+	 */
+	public function get_settings(): AdminSettings {
+		return $this->settings;
+	}
+
+	/**
+	 * Get the container ID for this group.
+	 * Used by page builders to reference their parent group.
+	 *
+	 * @return string The container ID
+	 */
+	public function get_container_id(): string {
+		return $this->container_id;
+	}
+
+	/**
+	 * Override cleanup active section to handle local active_pages array.
+	 *
+	 * @param string $page_slug The page slug to cleanup
+	 * @return void
+	 */
+	protected function _cleanup_active_page(string $page_slug): void {
+		unset($this->active_pages[$page_slug]);
+	}
+
+	private function dispatch_group_update(): void {
+		($this->_get_update_callback())($this->_get_update_event_name(), $this->_build_update_payload('', null));
+	}
+
+	protected function _apply_meta_update(string $key, mixed $value): void {
+		$this->meta[$key] = $value;
+	}
+
+	protected function _get_update_callback(): callable {
+		return $this->updateFn;
+	}
+
+	protected function _get_update_event_name(): string {
+		return 'menu_group';
+	}
+
+	protected function _build_update_payload(string $key, mixed $value): array {
+		return array(
+			'container_id' => $this->container_id,
+			'group_data'   => $this->meta,
+		);
 	}
 }

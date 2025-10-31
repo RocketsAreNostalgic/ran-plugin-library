@@ -7,87 +7,101 @@
  * @license GPL-2.0+ <http://www.gnu.org/licenses/gpl-2.0.txt>
  * @link    https://github.com/RocketsAreNostalgic
  * @since   0.2.0
+ *
+ * @method $this heading(string $heading)
+ * @method $this description(string $description)
+ * @method $this order(int $order)
+ * @method $this template(string $template_key)
+ * @method $this before(callable $before)
+ * @method $this after(callable $after)
+ * @method UserSettingsSectionBuilder section(string $section_id, string $title, ?callable $description_cb = null, ?array $args = null)
+ * @method UserSettings end_collection()
+ * @method UserSettings end()
  */
 
 declare(strict_types=1);
 
 namespace Ran\PluginLib\Settings;
 
-use Ran\PluginLib\Settings\CollectionBuilderInterface;
 use Ran\PluginLib\Settings\UserSettingsSectionBuilder;
-use Ran\PluginLib\Forms\Component\Build\BuilderDefinitionInterface;
+use Ran\PluginLib\Forms\FormsInterface;
+use Ran\PluginLib\Forms\Builders\SectionBuilderInterface;
+use Ran\PluginLib\Forms\Builders\SectionBuilder;
+use Ran\PluginLib\Forms\Builders\BuilderRootInterface;
+use Ran\PluginLib\Forms\Builders\BuilderImmediateUpdateTrait;
 
 /**
  * UserSettingsCollectionBuilder: Fluent builder for user settings collections.
  */
-class UserSettingsCollectionBuilder implements CollectionBuilderInterface {
-	private SettingsInterface $settings;
-	private string $page_id;
+class UserSettingsCollectionBuilder implements BuilderRootInterface {
+	use BuilderImmediateUpdateTrait;
+	private UserSettings $settings;
+	private string $container_id;
+	/** @var array{template:?callable, priority:int} */
+	private array $meta;
 	/** @var callable */
-	private $commit;
-	/** @var callable */
-	private $setPriority;
+	private $updateFn;
+	private bool $committed = false;
 
-	// Buffered structure for this page
-	/** @var array<string, array{title:string, description_cb:?callable, order:int, index:int}> */
-	private array $sections = array();
-	/** @var array<string, array<int, array{id:string,label:string,component:string,component_context:array<string,mixed>, order:int, index:int}>> */
-	private array $fields = array();
-	/** @var array<string, array<string, array{group_id:string, title:string, fields:array<int,array{id:string,label:string,component:string,component_context:array<string,mixed>, order:int, index:int}>, before:?callable, after:?callable, order:int, index:int}>> */
-	private array $groups = array();
-	/** @var int */
-	private int $__section_index = 0;
-	/** @var int */
-	private int $__field_index = 0;
-	/** @var int */
-	private int $__group_index = 0;
 	/** @var array<string, SectionBuilder> */
 	private array $active_sections = array();
-	private bool $committed        = false;
-
-	/** @var array<string, string> Template overrides for this collection */
-	private array $template_overrides = array();
 
 	/**
 	 * Constructor.
 	 *
-	 * @param SettingsInterface $settings The settings instance.
-	 * @param string $page_id The page ID.
-	 * @param ?callable $template The template callback.
-	 * @param callable $commit The commit callback.
-	 * @param callable $setPriority The setPriority callback.
+	 * @param UserSettings $settings The settings instance.
+	 * @param string $container_id The container ID.
+	 * @param array $initial_meta The initial meta data.
+	 * @param callable $updateFn The update function for immediate data flow.
 	 */
-	public function __construct(SettingsInterface $settings, string $page_id, ?callable $template, callable $commit, callable $setPriority) {
-		$this->settings    = $settings;
-		$this->page_id     = $page_id;
-		$this->commit      = $commit;
-		$this->setPriority = $setPriority;
-		// Template is handled by the commit closure captured at Settings::page
-		if ($template) {
-			// no-op here; commit will store it on the Settings instance
-		}
+	public function __construct(UserSettings $settings, string $container_id, array $initial_meta, callable $updateFn) {
+		$this->settings     = $settings;
+		$this->container_id = $container_id;
+		$this->meta         = $initial_meta;
+		$this->updateFn     = $updateFn;
+
+		$this->_emit_collection_metadata();
 	}
 
 	/**
-	 * Destructor - commits any buffered data.
+	 * Set the page heading displayed atop the admin screen.
+	 *
+	 * @param string $heading The page heading text.
+	 *
+	 * @return UserSettingsCollectionBuilder The UserSettingsCollectionBuilder instance.
 	 */
-	public function __destruct() {
-		$this->_commit();
+	public function heading(string $heading): self {
+		$this->_update_meta('heading', $heading);
+
+		return $this;
 	}
 
 	/**
-	 * A chainable mehtod to configure the render hook priority
-	 * of this block within the users profile page.
-	 * Higher numbers mean that the block will be rendered higher in the list of blocks on the profile page.
-	 * Defaults to 10, which will render the block at the end of the list.
+	 * Set the page description displayed atop the admin screen.
 	 *
-	 * @param int $priority The priority.
+	 * @param string $description The page description text.
 	 *
-	 * @return self The UserPageBuilder instance.
+	 * @return UserSettingsCollectionBuilder The UserSettingsCollectionBuilder instance.
 	 */
-	public function priority(int $priority = 10): self {
-		$priority = $priority < 0 ? 0 : $priority;
-		($this->setPriority)($this->page_id, $priority);
+	public function description(string $description): self {
+		$this->_update_meta('description', $description);
+
+		return $this;
+	}
+
+	/**
+	 * Set the order for this collection within the user profile page.
+	 * Higher numbers mean that the collection will be rendered higher in the list of collections on the profile page.
+	 * Defaults to 10, which will render the collection at the end of the list.
+	 *
+	 * @param int $order The order (must be >= 0).
+	 *
+	 * @return UserSettingsCollectionBuilder The UserSettingsCollectionBuilder instance.
+	 */
+	public function order(int $order): UserSettingsCollectionBuilder {
+		$order = $order < 0 ? 0 : $order;
+		$this->_update_meta('order', $order);
+
 		return $this;
 	}
 
@@ -96,201 +110,191 @@ class UserSettingsCollectionBuilder implements CollectionBuilderInterface {
 	 *
 	 * @param string        $section_id      The section ID.
 	 * @param string        $title           The section title.
-	 * @param callable|null $description_cb  The section description callback.
-	 * @param int|null      $order           Optional ordering value.
+	 * @param callable|null        $description_cb  The section description callback.
+	 * @param array<string,mixed>|null $args Optional configuration (order, before/after callbacks, classes, etc.).
 	 *
-	 * @return SectionBuilderInterface The SectionBuilder instance.
+	 * @return UserSettingsSectionBuilder The UserSettingsSectionBuilder instance.
 	 */
-	public function section(string $section_id, string $title, ?callable $description_cb = null, ?int $order = null): SectionBuilderInterface {
-		// Buffer the section meta immediately for optimistic chaining
-		$this->sections[$section_id] = array(
-		    'title'          => $title,
-		    'description_cb' => $description_cb,
-		    'order'          => ($order !== null ? (int) $order : 0),
-		    'index'          => $this->__section_index++,
-		);
-
-		$onAddSection = function (string $page, string $sid, string $stitle, ?callable $sdesc, ?int $sorder): void {
-			if ($page !== $this->page_id) {
-				return;
-			}
-			$this->sections[$sid] = array(
-			    'title'          => $stitle,
-			    'description_cb' => $sdesc,
-			    'order'          => ($sorder !== null ? (int) $sorder : 0),
-			    'index'          => $this->__section_index++,
-			);
-		};
-
-		$onAddField = function (string $page, string $sid, string $fid, string $label, string $component, array $context, ?int $forder): void {
-			if ($page !== $this->page_id) {
-				return;
-			}
-			$component = trim($component);
-			if ($component === '') {
-				throw new \InvalidArgumentException(sprintf('User field "%s" requires a component alias.', $fid));
-			}
-			if (!isset($this->fields[$sid])) {
-				$this->fields[$sid] = array();
-			}
-			if (!is_array($context)) {
-				throw new \InvalidArgumentException(sprintf('User field "%s" must provide an array component_context.', $fid));
-			}
-			$this->fields[$sid][] = array(
-			    'id'                => $fid,
-			    'label'             => $label,
-			    'component'         => $component,
-			    'component_context' => $context,
-			    'order'             => ($forder !== null ? (int) $forder : 0),
-			    'index'             => $this->__field_index++,
-			);
-		};
-
-		$onAddGroup = function (string $page, string $sid, string $gid, string $gtitle, array $fields, ?callable $before, ?callable $after, ?int $gorder): void {
-			if ($page !== $this->page_id) {
-				return;
-			}
-			if (!isset($this->groups[$sid])) {
-				$this->groups[$sid] = array();
-			}
-			$norm = array();
-			foreach ($fields as $entry) {
-				if (!is_array($entry)) {
-					throw new \InvalidArgumentException(sprintf('User field group "%s" requires array definitions.', $gid));
-				}
-				if (!isset($entry['id'], $entry['label'], $entry['component'])) {
-					throw new \InvalidArgumentException(sprintf('User field group "%s" definition is missing required metadata.', $gid));
-				}
-				$component = trim((string) $entry['component']);
-				if ($component === '') {
-					throw new \InvalidArgumentException(sprintf('User field "%s" in group "%s" requires a component alias.', $entry['id'], $gid));
-				}
-				$context = isset($entry['component_context']) && is_array($entry['component_context']) ? $entry['component_context'] : array();
-				$norm[]  = array(
-				    'id'                => (string) $entry['id'],
-				    'label'             => (string) $entry['label'],
-				    'component'         => $component,
-				    'component_context' => $context,
-				    'order'             => isset($entry['order']) ? (int) $entry['order'] : 0,
-				    'index'             => $this->__field_index++,
-				);
-			}
-			$this->groups[$sid][$gid] = array(
-			    'group_id' => $gid,
-			    'title'    => $gtitle,
-			    'fields'   => $norm,
-			    'before'   => $before,
-			    'after'    => $after,
-			    'order'    => ($gorder !== null ? (int) $gorder : 0),
-			    'index'    => $this->__group_index++,
-			);
-		};
-
-		$onAddDefinition = function (string $page, string $sid, BuilderDefinitionInterface $definition): void {
-			if ($page !== $this->page_id) {
-				return;
-			}
-			if (!isset($this->fields[$sid])) {
-				$this->fields[$sid] = array();
-			}
-			$field = $definition->to_array();
-			if (!isset($field['component'])) {
-				throw new \InvalidArgumentException(sprintf('User builder definition "%s" must provide component metadata.', $definition->get_id()));
-			}
-			$component = trim((string) $field['component']);
-			if ($component === '') {
-				throw new \InvalidArgumentException(sprintf('User builder definition "%s" must provide a non-empty component alias.', $definition->get_id()));
-			}
-			if (!isset($field['component_context']) || !is_array($field['component_context'])) {
-				$field['component_context'] = array();
-			}
-			$field['component']   = $component;
-			$field['index']       = $this->__field_index++;
-			$this->fields[$sid][] = $field;
-		};
+	public function section(string $section_id, string $title, ?callable $description_cb = null, ?array $args = null): UserSettingsSectionBuilder {
+		$args  = $args          ?? array();
+		$order = $args['order'] ?? null;
+		// Store section meta immediately via updateFn
+		($this->updateFn)('section', array(
+			'container_id' => $this->container_id,
+			'section_id'   => $section_id,
+			'section_data' => array(
+				'title'          => $title,
+				'description_cb' => $description_cb,
+				'order'          => ($order !== null ? (int) $order : 0),
+			)
+		));
 
 		$builder = new UserSettingsSectionBuilder(
 			$this,
-			$this->page_id,
+			$this->container_id,
 			$section_id,
-			$onAddSection,
-			$onAddField,
-			$onAddGroup,
-			$onAddDefinition,
-			function (string $page, string $sid): void {
-				if ($page !== $this->page_id) {
-					return;
-				}
-				unset($this->active_sections[$sid]);
-			}
+			$title,
+			$this->updateFn,
+			null,
+			null,
+			$order
 		);
 		$this->active_sections[$section_id] = $builder;
 		return $builder;
 	}
 
 	/**
-	 * Set the collection template for collection-level wrapper overrides.
+	 * Set the collection template for this specific collection instance.
+	 * Configures Tier 2 individual root template override via FormsServiceSession.
 	 *
-	 * @param string $template_key The template key to use for collection wrapper.
+	 * @param string $template_key The registered template key.
 	 *
 	 * @return UserSettingsCollectionBuilder The UserSettingsCollectionBuilder instance.
 	 * @throws \InvalidArgumentException If template key is empty.
 	 */
-	public function collection_template(string $template_key): self {
-		if (trim($template_key) === '') {
+	public function template(string $template_key): self {
+		$template_key = trim($template_key);
+		if ($template_key === '') {
 			throw new \InvalidArgumentException('Template key cannot be empty');
 		}
-		$this->template_overrides['collection-wrapper'] = $template_key;
+
+		($this->updateFn)('template_override', array(
+			'element_type' => 'root',
+			'element_id'   => $this->container_id,
+			'overrides'    => array('root-wrapper' => $template_key)
+		));
+		return $this;
+	}
+
+	/**
+	 * before() method returns this UserSettingsCollectionBuilder instance.
+	 *
+	 * @return UserSettingsCollectionBuilder The UserSettingsCollectionBuilder instance.
+	 */
+	public function before(callable $before): self {
+		return $this;
+	}
+
+	/**
+	 * after() method returns this UserSettingsCollectionBuilder instance.
+	 *
+	 * @return UserSettingsCollectionBuilder The UserSettingsCollectionBuilder instance.
+	 */
+	public function after(callable $after): self {
 		return $this;
 	}
 
 	/**
 	 * Return to the Settings instance for chaining or boot.
+	 * Alias of end().
 	 *
-	 * @return SettingsInterface The Settings instance.
+	 * @return UserSettings The Settings instance.
 	 */
-	public function end(): SettingsInterface {
-		$this->_commit();
+	public function end_collection(): UserSettings {
+		$this->commit();
+		return $this->end();
+	}
+
+	/**
+	 * Return to the Settings instance for chaining or boot.
+	 *
+	 * @return UserSettings The Settings instance.
+	 */
+	public function end(): UserSettings {
+		$this->commit();
 		return $this->settings;
 	}
 
 	/**
-	 * Check if the collection has been committed.
+	 * Get the UserSettings instance.
 	 *
-	 * @return bool True if the collection has been committed, false otherwise.
+	 * @return UserSettings
 	 */
-	public function is_committed(): bool {
-		return $this->committed;
+	public function get_settings(): UserSettings {
+		return $this->settings;
+	}
+
+	public function get_forms(): FormsInterface {
+		return $this->settings;
 	}
 
 	/**
-	 * Apply template overrides to the UserSettings instance.
+	 * Override cleanup active section to handle local active_sections array.
+	 *
+	 * @param string $section_id The section ID to cleanup
+	 * @return void
 	 */
-	private function _apply_template_overrides(): void {
-		if (!empty($this->template_overrides)) {
-			// Get UserSettings instance and apply collection template overrides
-			if ($this->settings instanceof \Ran\PluginLib\Settings\UserSettings) {
-				$this->settings->set_collection_template_overrides($this->page_id, $this->template_overrides);
-			}
+	protected function _cleanup_active_section(string $section_id): void {
+		unset($this->active_sections[$section_id]);
+	}
+
+	/**
+	 * Apply metadata changes and emit collection updates immediately.
+	 *
+	 * @param string $key   Meta key being updated.
+	 * @param mixed  $value New value for the meta key.
+	 * @return void
+	 */
+	protected function _apply_meta_update(string $key, mixed $value): void {
+		switch ($key) {
+			case 'heading':
+				$this->meta['heading'] = (string) $value;
+				break;
+			case 'description':
+				$this->meta['description'] = (string) $value;
+				break;
+			case 'order':
+				$this->meta['order'] = $value === null ? 0 : max(0, (int) $value);
+				break;
+			default:
+				$this->meta[$key] = $value;
 		}
+
+		$this->_emit_collection_metadata();
 	}
 
 	/**
-	 * Commit buffered data.
+	 * Return the update callback for collection metadata.
 	 */
-	private function _commit(): void {
+	protected function _get_update_callback(): callable {
+		return $this->updateFn;
+	}
+
+	/**
+	 * Return the update event name for collection metadata.
+	 */
+	protected function _get_update_event_name(): string {
+		return 'collection';
+	}
+
+	/**
+	 * Build the payload sent with collection metadata updates.
+	 *
+	 * @param string $key   Meta key being updated (unused).
+	 * @param mixed  $value New value for the meta key (unused).
+	 * @return array<string,mixed>
+	 */
+	protected function _build_update_payload(string $key, mixed $value): array {
+		return array(
+			'container_id'    => $this->container_id,
+			'collection_data' => $this->meta,
+		);
+	}
+
+	/**
+	 * Emit collection metadata via the update callback.
+	 */
+	private function _emit_collection_metadata(): void {
+		($this->_get_update_callback())($this->_get_update_event_name(), $this->_build_update_payload('', null));
+	}
+
+	private function commit(): void {
 		if ($this->committed) {
 			return;
 		}
-
-		// Apply template overrides before committing
-		$this->_apply_template_overrides();
-
-		foreach ($this->active_sections as $builder) {
-			$builder->end_section();
-		}
-		($this->commit)($this->page_id, $this->sections, $this->fields, $this->groups);
-		$this->active_sections = array();
-		$this->committed       = true;
+		($this->updateFn)('collection_commit', array(
+			'container_id' => $this->container_id,
+		));
+		$this->committed = true;
 	}
 }

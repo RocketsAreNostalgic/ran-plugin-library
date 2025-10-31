@@ -14,41 +14,42 @@ declare(strict_types=1);
 namespace Ran\PluginLib\Settings;
 
 use Ran\PluginLib\Util\Logger;
-use Ran\PluginLib\Forms\FormService;
-use Ran\PluginLib\Options\OptionScope;
-use Ran\PluginLib\Forms\Component\ComponentLoader;
 use Ran\PluginLib\Settings\UserSettings;
 use Ran\PluginLib\Settings\AdminSettings;
-use Ran\PluginLib\Forms\Component\ComponentManifest;
 use Ran\PluginLib\Options\RegisterOptions;
-use Ran\PluginLib\Settings\SettingsInterface;
-use Ran\PluginLib\Settings\UserSettingsInterface;
-use Ran\PluginLib\Settings\AdminSettingsInterface;
+use Ran\PluginLib\Options\OptionScope;
+use Ran\PluginLib\Forms\FormsServiceSession;
+use Ran\PluginLib\Forms\FormsService;
+use Ran\PluginLib\Forms\FormsInterface;
+use Ran\PluginLib\Forms\Component\ComponentManifest;
+use Ran\PluginLib\Forms\Component\ComponentLoader;
 
 /**
  * Scope-aware facade that wraps the appropriate settings implementation.
  */
-final class Settings implements SettingsInterface {
+final class Settings implements FormsInterface {
 	/**
-	 * @var SettingsInterface
+	 * @var FormsInterface
 	 */
-	private SettingsInterface $inner;
+	private FormsInterface $inner;
 
 	public function __construct(RegisterOptions $options, ?Logger $logger = null, ?ComponentManifest $components = null) {
 		$context = $options->get_storage_context();
 		$scope   = $context->scope instanceof OptionScope ? $context->scope : null;
-		/** @var AdminSettingsInterface|UserSettingsInterface $settings */
+		/** @var FormsInterface $settings */
 		$settings       = null;
 		$registryLogger = $logger instanceof Logger ? $logger : $options->get_logger();
-		$registry       = $components instanceof ComponentManifest
-			? $components
-			: new ComponentManifest(new ComponentLoader(dirname(__DIR__) . '/Forms/Components'), $registryLogger);
-		$service = new FormService($registry);
+		if ($components instanceof ComponentManifest) {
+			$registry = $components;
+		} else {
+			$componentDir = new ComponentLoader(dirname(__DIR__) . '/Forms/Components', array(), $registryLogger);
+			$registry     = new ComponentManifest($componentDir, $registryLogger);
+		}
 
 		try {
 			$settings = $scope === OptionScope::User
-				? new UserSettings($options, $logger, $registry, $service)
-				: new AdminSettings($options, $logger, $registry, $service); // Site, Network, Blog
+				? new UserSettings($options, $registry, $registryLogger)
+				: new AdminSettings($options, $registry, $registryLogger); // Site, Network, Blog
 		} catch (\Exception $e) {
 			throw new \LogicException('Invalid options object, failed to create settings instance.', 0, $e);
 		}
@@ -63,15 +64,27 @@ final class Settings implements SettingsInterface {
 		$this->inner->boot();
 	}
 
+	public function render(string $id_slug, ?array $context = null): void {
+		$this->inner->render($id_slug, $context);
+	}
+
+	public function override_form_defaults(array $overrides): void {
+		$this->inner->override_form_defaults($overrides);
+	}
+
+	public function get_form_session(): ?FormsServiceSession {
+		return $this->inner->get_form_session();
+	}
+
 	/**
 	 * Expose the underlying concrete settings instance when direct access is required.
 	 */
-	public function inner(): AdminSettingsInterface|UserSettingsInterface {
-		if ($this->inner instanceof AdminSettingsInterface || $this->inner instanceof UserSettingsInterface) {
+	public function inner(): FormsInterface {
+		if ($this->inner instanceof FormsInterface || $this->inner instanceof FormsInterface) {
 			return $this->inner;
 		}
 
-		throw new \LogicException('Settings inner implementation must be AdminSettingsInterface or UserSettingsInterface.');
+		throw new \LogicException('Settings inner implementation must be FormsInterface.');
 	}
 
 	public function __call(string $name, array $arguments): mixed {

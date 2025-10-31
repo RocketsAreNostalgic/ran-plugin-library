@@ -20,15 +20,16 @@ use Ran\PluginLib\Options\RegisterOptions;
 use Ran\PluginLib\Options\OptionScope;
 use Ran\PluginLib\Forms\Renderer\FormMessageHandler;
 use Ran\PluginLib\Forms\Renderer\FormElementRenderer;
-use Ran\PluginLib\Forms\FormServiceSession;
-use Ran\PluginLib\Forms\FormService;
-use Ran\PluginLib\Forms\FormBaseTrait;
+use Ran\PluginLib\Forms\FormsService;
+use Ran\PluginLib\Forms\FormsInterface;
+use Ran\PluginLib\Forms\FormsBaseTrait;
 use Ran\PluginLib\Forms\Component\ComponentManifest;
 use Ran\PluginLib\Forms\Component\ComponentLoader;
 
+
 /**
  * User profile settings facade that bridges WordPress profile hooks with a scoped `RegisterOptions`
- * instance and shared `FormService` rendering session.
+ * instance and shared `FormsService` rendering session.
  *
  * Responsibilities:
  * - Manage collections, sections, fields, and groups before WordPress renders the profile UI.
@@ -38,11 +39,12 @@ use Ran\PluginLib\Forms\Component\ComponentLoader;
  * Note: WordPress core continues to own capability checks (`edit_user`) and the profile lifecycle. Only the
  * validation and write-policy portions of `RegisterOptions` are exercised here.
  */
-class UserSettings implements SettingsInterface {
-	use FormBaseTrait;
+class UserSettings implements FormsInterface {
+	use FormsBaseTrait;
 	use WPWrappersTrait;
 
 	protected ComponentLoader $views;
+	protected RegisterOptions $base_options;
 
 	/**
 	 * Base context, storage and global captured from the injected RegisterOptions instance.
@@ -50,32 +52,43 @@ class UserSettings implements SettingsInterface {
 	 */
 	protected StorageContext $base_context;
 	protected string $base_storage;
-	protected bool $base_global;
+	protected bool $base_global; // Flag from RegisterOptions as fallback for dynamic storage context resolution.
 
 	/**
-	 * Accumulates pending collections prior to WordPress hook registration.
-	 * This is the functional equivalent of menu_groups in AdminSettings.
+	 * Collection metadata storage for user profile collections.
 	 * Collections represent different groupings of user profile sections (typically 'profile').
+	 * Each collection contains template callback and display order information.
 	 *
-	 * @var array<string, array{template:?callable, priority:int}>
+	 * @var array<string, array{template:?callable, order:int}>
 	 */
 	protected array $collections = array();
 
 	/**
 	 * Constructor.
 	 *
+	 * Standard initialization sequence:
+	 * 1. Logger resolution and assignment
+	 * 2. Scope validation (context-specific)
+	 * 3. Base property assignment (options, context, main_option)
+	 * 4. Component and view setup
+	 * 5. Context-specific template registration
+	 * 6. Service initialization (FormsService, renderers, handlers)
+	 * 7. Form session configuration with context-specific defaults
+	 *
 	 * @param RegisterOptions $options The base RegisterOptions instance.
-	 * @param ComponentManifest|Logger $components_or_logger Component manifest (preferred) or Logger (backward compatibility).
-	 * @param Logger|ComponentManifest|null $logger_or_components Optional logger or ComponentManifest.
+	 * @param ComponentManifest $components The shared ComponentManifest instance.
+	 * @param Logger|null $logger Optional logger instance.
 	 */
 	public function __construct(
 		RegisterOptions $options,
 		ComponentManifest $components,
 		?Logger $logger = null
 	) {
+		// Phase 1: Logger resolution
 		// RegisterOptions will lazy instantiate a logger if none is provided
 		$this->logger = $logger instanceof Logger ? $logger : $options->get_logger();
 
+		// Phase 2: Scope validation (UserSettings requires User scope)
 		$context = $options->get_storage_context();
 		if ($context->scope !== OptionScope::User) {
 			$received = $context->scope instanceof OptionScope ? $context->scope->value : 'unknown';
@@ -83,42 +96,39 @@ class UserSettings implements SettingsInterface {
 			throw new \InvalidArgumentException('UserSettings requires user context; received ' . $received . '.');
 		}
 
+		// Phase 3: Base property assignment
 		$this->base_options = $options;
 		$this->base_context = $context;
-
 		$this->main_option  = $options->get_main_option_name();
+		// UserSettings-specific: storage and global flags for user context resolution
 		$this->base_storage = strtolower($context->user_storage ?? 'meta') === 'option' ? 'option' : 'meta';
 		$this->base_global  = $this->base_storage                          === 'option' ? (bool) ($context->user_global ?? false) : false;
-		$this->components   = $components;
-		$this->views        = $components->get_component_loader();
 
-		// Register UserSettings template overrides on the shared ComponentLoader
-		$this->views->register('user.collection-wrapper', '../../Settings/views/user/collection-wrapper.php');
-		$this->views->register('user.section-wrapper', '../../Settings/views/user/section-wrapper.php');
-		$this->views->register('user.group-wrapper', '../../Settings/views/user/group-wrapper.php');
-		$this->views->register('user.field-wrapper', '../../Settings/views/user/field-wrapper.php');
+		// Phase 4: Component and view setup
+		$this->components = $components;
+		$this->views      = $components->get_component_loader();
 
-		// Initialize UserSettings-specific infrastructure
-		$this->form_service    = new FormService($this->components);
+		// Phase 5: Context-specific template registration
+		// UserSettings registers complete template hierarchy for profile forms
+		$this->views->register('user.root-wrapper', '../../Settings/templates/user/root-wrapper.php');
+		$this->views->register('user.section-wrapper', '../../Settings/templates/user/section-wrapper.php');
+		$this->views->register('user.group-wrapper', '../../Settings/templates/user/group-wrapper.php');
+		$this->views->register('user.field-wrapper', '../../Settings/templates/user/field-wrapper.php');
+
+		// Phase 6: Service initialization
+		$this->form_service    = new FormsService($this->components);
 		$this->field_renderer  = new FormElementRenderer($this->components, $this->form_service, $this->views, $this->logger);
 		$this->message_handler = new FormMessageHandler($this->logger);
 
-		// Configure template overrides for UserSettings context (table-based)
-		$this->field_renderer->set_template_overrides(array(
-			'form-wrapper'    => 'user.collection-wrapper',
+		// Phase 7: Form session configuration with context-specific defaults
+		$this->_start_form_session();
+		// UserSettings overrides all template levels for profile-specific rendering
+		$this->form_session->set_form_defaults(array(
+			'root-wrapper'    => 'user.root-wrapper',
 			'section-wrapper' => 'user.section-wrapper',
 			'group-wrapper'   => 'user.group-wrapper',
 			'field-wrapper'   => 'user.field-wrapper',
 		));
-
-		// Set table-optimized defaults for UserSettings
-		$this->default_template_overrides = array(
-			'collection-wrapper' => 'user.collection-wrapper',
-			'section'            => 'user.section',
-			'field-wrapper'      => 'user.field-row',
-		);
-
-		$this->_start_form_session();
 	}
 
 	/**
@@ -127,20 +137,20 @@ class UserSettings implements SettingsInterface {
 	 * @return void
 	 */
 	public function boot(): void {
-		// Render on profile screens per registered page using configured priority
+		// Render on user profile screens per registered collection using configured order
 		foreach ($this->collections as $id_slug => $meta) {
-			$priority = (int) ($meta['priority'] ?? 10);
-			$priority = $priority < 0 ? 0 : $priority;
-			$render   = function ($user) use ($id_slug) {
+			$order  = (int) ($meta['order'] ?? 10);
+			$order  = $order < 0 ? 0 : $order;
+			$render = function ($user) use ($id_slug) {
 				if (!($user instanceof \WP_User)) {
 					return;
 				}
 				$this->render($id_slug, array('user' => $user));
 			};
 			// User views their own profile
-			$this->_do_add_action('show_user_profile', $render, $priority, 1);
+			$this->_do_add_action('show_user_profile', $render, $order, 1);
 			// Admin views another user's profile
-			$this->_do_add_action('edit_user_profile', $render, $priority, 1);
+			$this->_do_add_action('edit_user_profile', $render, $order, 1);
 		}
 
 		// Save handlers
@@ -158,7 +168,7 @@ class UserSettings implements SettingsInterface {
 		$this->_do_add_action('edit_user_profile_update', $save, 10, 1);
 	}
 
-	/** 🚨
+	/**
 	 * Add a profile collection (new group) onto the user profile page.
 	 *
 	 * The AdminSettings collerary is the page() method.
@@ -172,120 +182,42 @@ class UserSettings implements SettingsInterface {
 		if (!isset($this->collections[$id_slug])) {
 			$this->collections[$id_slug] = array(
 			    'template' => $template,
-			    'priority' => 10,
+			    'order'    => 10,
 			);
 		} else {
 			if ($template !== null) {
 				$this->collections[$id_slug]['template'] = $template;
 			}
-			if (!isset($this->collections[$id_slug]['priority'])) {
-				$this->collections[$id_slug]['priority'] = 10;
+			if (!isset($this->collections[$id_slug]['order'])) {
+				$this->collections[$id_slug]['order'] = 10;
 			}
 		}
 
-		$commit = function (string $pid, array $sections, array $fields, array $groups): void {
-			if (!isset($this->sections[$pid])) {
-				$this->sections[$pid] = array();
-			}
-			foreach ($sections as $sid => $meta) {
-				$this->sections[$pid][$sid] = array(
-				    'title'          => (string) $meta['title'],
-				    'description_cb' => $meta['description_cb'] ?? null,
-				    'order'          => (int) ($meta['order'] ?? 0),
-				    'index'          => $this->__section_index++,
-				);
-			}
-			if (!isset($this->fields[$pid])) {
-				$this->fields[$pid] = array();
-			}
-			foreach ($fields as $sid => $list) {
-				if (!isset($this->fields[$pid][$sid])) {
-					$this->fields[$pid][$sid] = array();
-				}
-				foreach ($list as $f) {
-					$fid       = isset($f['id']) ? (string) $f['id'] : '';
-					$flabel    = isset($f['label']) ? (string) $f['label'] : '';
-					$component = isset($f['component']) && is_string($f['component']) ? trim($f['component']) : '';
-					if ($fid === '' || $component === '') {
-						throw new \InvalidArgumentException(sprintf('UserSettings field "%s" in collection "%s" requires component metadata.', $fid !== '' ? $fid : 'unknown', $pid));
-					}
-					$context = $f['component_context'] ?? array();
-					if (!is_array($context)) {
-						throw new \InvalidArgumentException(sprintf('UserSettings field "%s" in collection "%s" must provide array component_context.', $fid, $pid));
-					}
+		// Prepare initial meta for the builder
+		$initial_meta = $this->collections[$id_slug];
 
-					// Inject component validators automatically
-					$this->_inject_component_validators($fid, $component);
+		// Create update function for immediate data flow
+		$updateFn = $this->_create_update_function();
 
-					$this->fields[$pid][$sid][] = array(
-					    'id'                => $fid,
-					    'label'             => $flabel,
-					    'component'         => $component,
-					    'component_context' => $context,
-					    'order'             => (int) ($f['order'] ?? 0),
-					    'index'             => $this->__field_index++,
-					);
-				}
-			}
-			if (!isset($this->groups[$pid])) {
-				$this->groups[$pid] = array();
-			}
-			foreach ($groups as $sid => $map) {
-				if (!isset($this->groups[$pid][$sid])) {
-					$this->groups[$pid][$sid] = array();
-				}
-				foreach ($map as $gid => $g) {
-					$normalized_fields = array();
-					foreach ($g['fields'] as $field) {
-						$fid       = isset($field['id']) ? (string) $field['id'] : '';
-						$component = isset($field['component']) && is_string($field['component']) ? trim($field['component']) : '';
-						if ($fid === '' || $component === '') {
-							throw new \InvalidArgumentException(sprintf('UserSettings group field "%s" in group "%s" requires component metadata.', $fid !== '' ? $fid : 'unknown', $gid));
-						}
-						$context = $field['component_context'] ?? array();
-						if (!is_array($context)) {
-							throw new \InvalidArgumentException(sprintf('UserSettings group field "%s" in group "%s" must provide array component_context.', $fid, $gid));
-						}
-
-						// Inject component validators automatically
-						$this->_inject_component_validators($fid, $component);
-
-						$normalized_fields[] = array(
-						    'id'                => $fid,
-						    'label'             => isset($field['label']) ? (string) $field['label'] : '',
-						    'component'         => $component,
-						    'component_context' => $context,
-						    'order'             => (int) ($field['order'] ?? 0),
-						    'index'             => $this->__field_index++,
-						);
-					}
-					$this->groups[$pid][$sid][$gid] = array(
-					    'group_id' => (string) $g['group_id'],
-					    'fields'   => $normalized_fields,
-					    'before'   => $g['before'] ?? null,
-					    'after'    => $g['after']  ?? null,
-					    'order'    => (int) ($g['order'] ?? 0),
-					    'index'    => $this->__group_index++,
-					);
-				}
-			}
-		};
-
-		$setPriority = function (string $pid, int $priority): void {
-			if (!isset($this->collections[$pid])) {
-				$this->collections[$pid] = array(
-				    'template' => null,
-				    'priority' => max(0, $priority),
-				);
-				return;
-			}
-			$this->collections[$pid]['priority'] = max(0, $priority);
-		};
-
-		return new UserSettingsCollectionBuilder($this, $id_slug, $template, $commit, $setPriority);
+		$builder = new UserSettingsCollectionBuilder(
+			$this,
+			$id_slug,
+			$initial_meta,
+			$updateFn
+		);
+		return $builder;
 	}
 
-	/** 🚨
+	/**
+	 * Fluent alias returning the current settings instance.
+	 *
+	 * Enables chaining like end_collection()->end() to match AdminSettings API.
+	 */
+	public function end(): self {
+		return $this;
+	}
+
+	/**
 	 * Normalize and persist posted values for a user.
 	 *
 	 * @param int $user_id
@@ -369,64 +301,37 @@ class UserSettings implements SettingsInterface {
 		// Get effective values from message handler (handles pending values)
 		$effective_values = $this->message_handler->get_effective_values($options);
 
-		$payload = array_merge($context ?? array(), array(
-			'id_slug'         => $id_slug,
-			'collection_meta' => $collection_meta,
-			'sections'        => $sections,
-			'values'          => $effective_values,
-			'content'         => $this->_render_default_sections_wrapper($id_slug, $sections, $effective_values),
-			'errors_by_field' => $this->message_handler->get_all_messages(),
+		$payload = array(
+			...($context ?? array()),
+			'heading'     => $collection_meta['heading']     ?? '',
+			'description' => $collection_meta['description'] ?? '',
+			...array(
+				'id_slug'         => $id_slug,
+				'collection_meta' => $collection_meta,
+				'sections'        => $sections,
+				'values'          => $effective_values,
+				'content'         => $this->_render_default_sections_wrapper($id_slug, $sections, $effective_values),
+				'errors_by_field' => $this->message_handler->get_all_messages(),
+			),
+		);
+		$this->logger->debug('user_settings.render.payload', array(
+			'collection' => $id_slug,
+			'heading'    => $payload['heading'],
+			'has_meta'   => array_keys($collection_meta),
 		));
 
 		// Use custom template if provided, otherwise use default
 		if (is_callable($collection_meta['template'])) {
 			($collection_meta['template'])($payload);
 		} else {
-			$this->_render_default_root($payload);
+			// Use FormsServiceSession for template resolution and rendering
+			echo $this->form_session->render_component('root-wrapper', $payload);
 		}
 
 		$this->form_session->enqueue_assets();
 	}
 
 	// Protected
-
-	/**
-	 * Get system default template for UserSettings context.
-	 *
-	 * @param string $template_type The template type.
-	 *
-	 * @return string The default template key.
-	 */
-	protected function _get_system_default_template(string $template_type): string {
-		$defaults = array(
-			'collection' => 'form-wrapper',
-			'section'    => 'section-wrapper',
-			'group'      => 'group-wrapper',
-			'field'      => 'field-wrapper',
-		);
-		return $defaults[$template_type] ?? 'field-wrapper';
-	}
-
-	/**
-	 * Render the default user collection template markup.
-	 *
-	 * @param array $context Template context.
-	 * @return void
-	 */
-	protected function _render_default_root(array $context): void {
-		echo $this->views->render('user.default-collection', $context);
-	}
-
-	/**
-	 * Context specific fender a field wrapper warning.
-	 * Can be customised for tables based layouts etc.
-	 *
-	 * @return string Rendered field HTML.
-	 */
-	protected function _render_default_field_wrapper_warning($message) {
-		return '<tr><td colspan="2" class="error">Field rendering failed: ' . esc_html($message) . '</td></tr>';
-	}
-
 	// Resolvers
 
 	/**
@@ -498,18 +403,101 @@ class UserSettings implements SettingsInterface {
 	protected function _resolve_context(array $context): array {
 		$context = $context ?? array();
 
-		$scope = SettingsScopeHelper::parseScope($context) ?? OptionScope::User;
-		$scope = SettingsScopeHelper::requireAllowed($scope, OptionScope::User);
+		$userId = $this->_resolve_user_id($context);
+		$scope  = SettingsScopeHelper::parseScope($context) ?? OptionScope::User;
+		$scope  = SettingsScopeHelper::requireAllowed($scope, OptionScope::User);
 
-		$userId  = $this->_resolve_user_id($context);
 		$storage = $this->_resolve_storage_kind($context);
 		$global  = $this->_resolve_global_flag($context, $storage);
 
-		return array(
+		$result = array(
 		    'storage'      => StorageContext::forUser($userId, $storage, $global),
 		    'user_id'      => $userId,
 		    'storage_kind' => $storage,
 		    'global'       => $global,
 		);
+		$this->logger->debug('settings.builder.context.resolved', array(
+			'user_id'      => $result['user_id'],
+			'storage_kind' => $result['storage_kind'],
+			'global'       => $result['global'],
+			'scope'        => $scope instanceof OptionScope ? $scope->value : (string) $scope,
+		));
+
+		return $result;
+	}
+
+	// Handlers
+
+	/**
+	 * Handle UserSettings-specific update types.
+	 *
+	 * @param string $type The update type
+	 * @param array $data Update data
+	 * @return void
+	 */
+	protected function _handle_custom_update(string $type, array $data): void {
+		switch ($type) {
+			case 'collection':
+				$this->_handle_context_update($type, $data);
+				break;
+			default:
+				// Log unknown update type (default behavior from FormsBaseTrait)
+				$this->logger->warning('UserSettings: Unknown update type received', array(
+					'type'      => $type,
+					'data_keys' => array_keys($data)
+				));
+				break;
+		}
+	}
+
+	/**
+	 * Handle collection update from builders.
+	 *
+	 * @param array $data Collection update data
+	 * @return void
+	 */
+	protected function _handle_context_update(string $type, array $data): void {
+		switch ($type) {
+			case 'collection':
+				$container_id    = $data['container_id']    ?? '';
+				$collection_data = $data['collection_data'] ?? array();
+
+				if ($container_id === '') {
+					$this->logger->warning('UserSettings: Collection update missing container_id', $data);
+					return;
+				}
+
+				// Store collection metadata
+				if (!isset($this->collections[$container_id])) {
+					$this->collections[$container_id] = array();
+				}
+				$this->collections[$container_id] = array_merge($this->collections[$container_id], $collection_data);
+				$this->logger->debug('settings.builder.collection.updated', array(
+					'container_id' => $container_id,
+					'collection'   => $this->collections[$container_id],
+				));
+				break;
+			case 'collection_commit':
+				$container_id = $data['container_id'] ?? '';
+				if ($container_id === '') {
+					$this->logger->warning('UserSettings: Collection commit missing container_id', $data);
+					return;
+				}
+				if (!isset($this->collections[$container_id])) {
+					$this->logger->warning('UserSettings: Collection commit received for unknown container', array('container_id' => $container_id));
+					return;
+				}
+				$sections = isset($this->sections[$container_id]) ? array_keys($this->sections[$container_id]) : array();
+				$this->logger->debug('settings.builder.collection.committed', array(
+					'container_id' => $container_id,
+					'sections'     => $sections,
+				));
+				break;
+			default:
+				$this->logger->warning('UserSettings: Unsupported context update type received', array(
+					'type'      => $type,
+					'data_keys' => array_keys($data)
+				));
+		}
 	}
 }

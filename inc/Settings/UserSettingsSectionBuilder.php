@@ -13,65 +13,101 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\Settings;
 
-use Ran\PluginLib\Settings\SectionBuilder;
-use Ran\PluginLib\Settings\CollectionBuilderInterface;
-use Ran\PluginLib\Settings\UserSettingsInterface;
+use Ran\PluginLib\Settings\UserSettingsCollectionBuilder;
+use Ran\PluginLib\Forms\FormsInterface;
+use Ran\PluginLib\Forms\Builders\SectionBuilder;
+use Ran\PluginLib\Forms\Builders\BuilderRootInterface;
 
 /**
  * UserSettingsSectionBuilder: Fluent builder for user settings sections with template override support.
  *
  * This class extends the basic SectionBuilder functionality to provide UserSettings-specific
  * template override methods that work within WordPress profile page table constraints.
+ *
+ * @extends SectionBuilder<UserSettingsCollectionBuilder>
+ * @method UserSettingsGroupBuilder group(string $group_id, string $heading, ?callable $description_cb = null, ?array $args = null)
+ * @method UserSettingsFieldsetBuilder fieldset(string $fieldset_id, string $heading, ?callable $description_cb = null, ?array $args = null)
+ * @method UserSettingsSectionBuilder field(string $field_id, string $label, string $component, array $args = array())
+ * @method UserSettingsCollectionBuilder end_section()
  */
 class UserSettingsSectionBuilder extends SectionBuilder {
-	/** @var array<string, string> Template overrides for this section */
-	private array $template_overrides = array();
-
 	/**
-	 * @param CollectionBuilderInterface $collectionBuilder The collection builder instance
-	 * @param string $collection_slug The collection slug
-	 * @param string $section_id The section ID
-	 * @param callable $onAddSection          function(string $collection, string $section, string $title, ?callable $desc, ?int $order): void
-	 * @param callable $onAddField            function(string $collection, string $section, string $id, string $label, string $component, array $context, ?int $order): void
-	 * @param callable $onAddGroup            function(string $collection, string $section, string $group, string $title, array $fields, ?callable $before, ?callable $after, ?int $order): void
-	 * @param callable $onAddFieldDefinition  function(string $collection, string $section, BuilderDefinitionInterface $definition): void
-	 * @param callable $onSectionCommit       function(string $collection, string $section): void
+	 * Constructor.
+	 *
+	 * @param BuilderRootInterface $collectionBuilder The collection builder instance.
+	 * @param string $container_id The container ID.
+	 * @param string $section_id The section ID.
+	 * @param string $heading The section heading.
+	 * @param callable $updateFn The update function for immediate data flow.
+	 * @param callable|null $before Optional callback invoked before rendering the section.
+	 * @param callable|null $after Optional callback invoked after rendering the section.
+	 * @param int|null $order Optional section order.
 	 */
 	public function __construct(
-		CollectionBuilderInterface $collectionBuilder,
-		string $collection_slug,
+		BuilderRootInterface $collectionBuilder,
+		string $container_id,
 		string $section_id,
-		callable $onAddSection,
-		callable $onAddField,
-		callable $onAddGroup,
-		callable $onAddFieldDefinition,
-		callable $onSectionCommit
+		string $heading,
+		callable $updateFn,
+		?callable $before = null,
+		?callable $after = null,
+		?int $order = null
 	) {
 		parent::__construct(
 			$collectionBuilder,
-			$collection_slug,
+			$container_id,
 			$section_id,
-			$onAddSection,
-			$onAddField,
-			$onAddGroup,
-			$onAddFieldDefinition,
-			$onSectionCommit
+			$heading,
+			$updateFn,
+			$before,
+			$after,
+			$order
 		);
 	}
 
 	/**
-	 * Commit buffered data on destruction.
-	 * Override parent to apply UserSettings template overrides.
+	 * Begin configuring a grouped set of fields within this section.
+	 *
+	 * @return UserSettingsGroupBuilder
 	 */
-	public function __destruct() {
-		$this->_apply_template_overrides();
-		parent::__destruct();
+	public function group(string $group_id, string $heading, ?callable $description_cb = null, ?array $args = null): UserSettingsGroupBuilder {
+		$args = $args ?? array();
+
+		return new UserSettingsGroupBuilder(
+			$this,
+			$this->container_id,
+			$this->section_id,
+			$group_id,
+			$heading,
+			$description_cb,
+			$this->updateFn,
+			$args
+		);
 	}
 
+	/**
+	 * Begin configuring a semantic fieldset grouping within this section.
+	 *
+	 * @return UserSettingsFieldsetBuilder
+	 */
+	public function fieldset(string $fieldset_id, string $heading, ?callable $description_cb = null, ?array $args = null): UserSettingsFieldsetBuilder {
+		$args = $args ?? array();
 
+		return new UserSettingsFieldsetBuilder(
+			$this,
+			$this->container_id,
+			$this->section_id,
+			$fieldset_id,
+			$heading,
+			$description_cb,
+			$this->updateFn,
+			$args
+		);
+	}
 
 	/**
 	 * Set the section template for section container customization.
+	 * Configures Tier 2 individual section template override via FormsServiceSession.
 	 * This controls the section container layout within the WordPress profile page table constraints.
 	 *
 	 * @param string $template_key The template key to use for section container.
@@ -83,12 +119,20 @@ class UserSettingsSectionBuilder extends SectionBuilder {
 		if (trim($template_key) === '') {
 			throw new \InvalidArgumentException('Template key cannot be empty');
 		}
-		$this->template_overrides['section'] = $template_key;
+
+		// Use updateFn for consistent template override handling
+		($this->updateFn)('template_override', array(
+			'element_type' => 'section',
+			'element_id'   => $this->section_id,
+			'overrides'    => array('section-wrapper' => $template_key)
+		));
+
 		return $this;
 	}
 
 	/**
 	 * Set the field template for field wrapper customization.
+	 * Configures Tier 2 individual field template override via FormsServiceSession.
 	 * This controls field wrapper layout, labels, validation display, and help text
 	 * within the WordPress profile page table constraints.
 	 *
@@ -101,12 +145,21 @@ class UserSettingsSectionBuilder extends SectionBuilder {
 		if (trim($template_key) === '') {
 			throw new \InvalidArgumentException('Template key cannot be empty');
 		}
-		$this->template_overrides['field-wrapper'] = $template_key;
+
+		// Use updateFn for consistent template override handling
+		// This sets a section-wide field template override that applies to all fields in this section
+		($this->updateFn)('template_override', array(
+			'element_type' => 'section',
+			'element_id'   => $this->section_id,
+			'overrides'    => array('field-wrapper' => $template_key)
+		));
+
 		return $this;
 	}
 
 	/**
 	 * Set the default group template for all groups in this section.
+	 * Configures Tier 2 individual group template override via FormsServiceSession.
 	 *
 	 * @param string $template_key The template key to use for group containers.
 	 *
@@ -117,7 +170,14 @@ class UserSettingsSectionBuilder extends SectionBuilder {
 		if (trim($template_key) === '') {
 			throw new \InvalidArgumentException('Template key cannot be empty');
 		}
-		$this->template_overrides['group'] = $template_key;
+
+		// Use updateFn for consistent template override handling
+		($this->updateFn)('template_override', array(
+			'element_type' => 'section',
+			'element_id'   => $this->section_id,
+			'overrides'    => array('group-wrapper' => $template_key)
+		));
+
 		return $this;
 	}
 
@@ -127,97 +187,65 @@ class UserSettingsSectionBuilder extends SectionBuilder {
 	 * @param string $field_id The field ID.
 	 * @param string $label The field label.
 	 * @param string $component The component alias.
-	 * @param array<string,mixed> $component_context The component context.
-	 * @param int|null $order The order.
-	 * @param string|null $field_template Optional field wrapper template override.
+	 * @param array<string,mixed> $args Optional configuration (context, order, field_template).
 	 *
 	 * @return UserSettingsSectionBuilder The UserSettingsSectionBuilder instance.
 	 */
-	public function field(string $field_id, string $label, string $component, array $component_context = array(), ?int $order = null, ?string $field_template = null): UserSettingsSectionBuilder {
-		// Call parent field method (without template override application)
-		($this->onAddField)($this->collection_slug, $this->section_id, $field_id, $label, $component, $component_context, $order, $field_template);
+	public function field(string $field_id, string $label, string $component, array $args = array()): UserSettingsSectionBuilder {
+		$component_context = $args['context']        ?? $args['component_context'] ?? array();
+		$order             = $args['order']          ?? null;
+		$field_template    = $args['field_template'] ?? null;
+
+		// Use updateFn for immediate field data flow
+		($this->updateFn)('field', array(
+			'container_id' => $this->container_id,
+			'section_id'   => $this->section_id,
+			'field_data'   => array(
+				'id'                => $field_id,
+				'label'             => $label,
+				'component'         => $component,
+				'component_context' => $component_context,
+				'order'             => $order,
+			)
+		));
 
 		// Apply field-level template override if provided
 		if ($field_template !== null) {
-			$user_settings = $this->get_user_settings();
-			if ($user_settings instanceof \Ran\PluginLib\Settings\UserSettingsInterface) {
-				$user_settings->set_field_template_overrides($field_id, array('field-wrapper' => $field_template));
-			}
+			($this->updateFn)('template_override', array(
+				'element_type' => 'field',
+				'element_id'   => $field_id,
+				'overrides'    => array('field-wrapper' => $field_template)
+			));
 		}
 
 		return $this;
 	}
 
-
-
-	/**
-	 * Return to the CollectionBuilder.
-	 * Override parent to apply UserSettings template overrides before committing.
-	 *
-	 * @return CollectionBuilderInterface The CollectionBuilder instance.
-	 */
-	public function end_section(): CollectionBuilderInterface {
-		$this->_apply_template_overrides();
-		return parent::end_section();
-	}
-
-	/**
-	 * Apply template overrides to the UserSettings instance.
-	 * Override the parent method to work with UserSettings instead of AdminSettings.
-	 */
-	protected function _apply_template_overrides(): void {
-		if (!empty($this->template_overrides)) {
-			// Get UserSettings instance through the collection builder
-			$user_settings = $this->get_user_settings();
-			if ($user_settings instanceof UserSettingsInterface) {
-				// Use reflection to get section_id from parent
-				$reflection = new \ReflectionClass(parent::class);
-				$property   = $reflection->getProperty('section_id');
-				$property->setAccessible(true);
-				$section_id = $property->getValue($this);
-
-				$user_settings->set_section_template_overrides($section_id, $this->template_overrides);
-			}
-		}
-	}
-
-	/**
-	 * Get the Settings instance from the collection builder.
-	 *
-	 * @return SettingsInterface
-	 */
-	public function get_settings(): SettingsInterface {
-		return $this->get_user_settings();
-	}
-
 	/**
 	 * Get the UserSettings instance from the collection builder.
 	 *
-	 * @return UserSettingsInterface
+	 * @return FormsInterface
 	 */
-	public function get_user_settings(): UserSettingsInterface {
-		// Get collection builder from parent using reflection
-		$reflection = new \ReflectionClass(parent::class);
-		$property   = $reflection->getProperty('collectionBuilder');
-		$property->setAccessible(true);
-		$collectionBuilder = $property->getValue($this);
-
-		// For UserSettingsCollectionBuilder, we can access through reflection
-		if ($collectionBuilder instanceof \Ran\PluginLib\Settings\UserSettingsCollectionBuilder) {
-			$reflection = new \ReflectionClass($collectionBuilder);
-
-			// Try to find the settings property
-			if ($reflection->hasProperty('settings')) {
-				$property = $reflection->getProperty('settings');
-				$property->setAccessible(true);
-				$value = $property->getValue($collectionBuilder);
-
-				if ($value instanceof UserSettingsInterface) {
-					return $value;
-				}
-			}
+	public function get_settings(): FormsInterface {
+		// Use the clean method access we established
+		if ($this->collectionBuilder instanceof \Ran\PluginLib\Settings\UserSettingsCollectionBuilder) {
+			return $this->collectionBuilder->get_settings();
 		}
 
-		throw new \RuntimeException('Unable to access UserSettings instance from collection builder');
+		throw new \RuntimeException('UserSettingsSectionBuilder can only access UserSettings when used with UserSettingsCollectionBuilder');
+	}
+
+	/**
+	 * End the current section and return to the parent collection builder.
+	 *
+	 * @return UserSettingsCollectionBuilder
+	 */
+	public function end_section(): UserSettingsCollectionBuilder {
+		$builder = parent::end_section();
+		if (!$builder instanceof UserSettingsCollectionBuilder) {
+			throw new \RuntimeException('UserSettingsSectionBuilder must be attached to a UserSettingsCollectionBuilder instance.');
+		}
+
+		return $builder;
 	}
 }
