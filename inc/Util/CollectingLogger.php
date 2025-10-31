@@ -85,4 +85,14 @@ class CollectingLogger extends Logger {
 	public function get_logs(): array {
 		return $this->collected_logs;
 	}
+
+	/**
+	 * Return all log records that satisfy the given predicate.
+	 *
+	 * @param callable(array{level:string,message:string,context:array}):bool $predicate
+	 * @return array<int, array{level:string,message:string,context:array}>
+	 */
+	public function find_logs(callable $predicate): array {
+		return array_values(array_filter($this->collected_logs, $predicate));
+	}
 }
