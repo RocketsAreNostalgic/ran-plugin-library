@@ -40,9 +40,9 @@ interface SectionBuilderInterface extends BuilderChildInterface, BuilderFieldCon
 	 * @param callable|null $description_cb Optional description callback.
 	 * @param array<string,mixed>|null $args Optional configuration (order, before/after callbacks, style metadata, etc.).
 	 *
-	 * @return FieldsetBuilder<TRoot, SectionBuilder<TRoot>> The FieldsetBuilder instance.
+	 * @return FieldsetBuilderInterface<TRoot, SectionBuilderInterface<TRoot>> The fieldset builder instance.
 	 */
-	public function fieldset(string $fieldset_id, string $title, ?callable $description_cb = null, ?array $args = null): FieldsetBuilder;
+	public function fieldset(string $fieldset_id, string $title, ?callable $description_cb = null, ?array $args = null): FieldsetBuilderInterface;
 
 	/**
 	 * Define a new field within this section.

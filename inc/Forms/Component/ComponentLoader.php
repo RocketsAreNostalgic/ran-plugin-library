@@ -344,11 +344,11 @@ class ComponentLoader {
 	 */
 	private function _legacy_aliases(): array {
 		$aliases = array(
-			'root-wrapper'    => 'layout/container/root-wrapper.php',
-			'section-wrapper' => 'layout/zone/section-wrapper.php',
-			'group-wrapper'   => 'layout/zone/group-wrapper.php',
-			'field-wrapper'   => 'layout/field/field-wrapper.php',
-			'fieldset-wraper' => 'layout/field/fieldset-wraper.php',
+			'root-wrapper'     => 'layout/container/root-wrapper.php',
+			'section-wrapper'  => 'layout/zone/section-wrapper.php',
+			'group-wrapper'    => 'layout/zone/group-wrapper.php',
+			'field-wrapper'    => 'layout/field/field-wrapper.php',
+			'fieldset-wrapper' => 'layout/field/fieldset-wrapper.php',
 		);
 
 		$resolved = array();

@@ -34,7 +34,7 @@ final class FieldsetBuilderTest extends TestCase {
 		$template = $this->latestUpdateOfType('template_override');
 		self::assertSame('group', $template['element_type']);
 		self::assertSame('fieldset', $template['element_id']);
-		self::assertSame('fieldset-wraper', $template['overrides']['group-wrapper'] ?? null);
+		self::assertSame('fieldset-wrapper', $template['overrides']['group-wrapper'] ?? null);
 	}
 
 	public function test_style_update_trims_and_emits_metadata(): void {

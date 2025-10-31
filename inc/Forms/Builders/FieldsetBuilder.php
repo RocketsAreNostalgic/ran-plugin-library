@@ -5,6 +5,7 @@
  * @template TRoot of BuilderRootInterface
  * @template TSection of SectionBuilder<TRoot>
  * @extends GroupBuilder<TRoot, TSection>
+ * @implements FieldsetBuilderInterface<TRoot, TSection>
  *
  * @package Ran\PluginLib\Forms\Builders
  */
@@ -15,7 +16,7 @@ namespace Ran\PluginLib\Forms\Builders;
 
 use InvalidArgumentException;
 
-class FieldsetBuilder extends GroupBuilder {
+class FieldsetBuilder extends GroupBuilder implements FieldsetBuilderInterface {
 	private string $style;
 	private bool $required;
 
@@ -43,7 +44,7 @@ class FieldsetBuilder extends GroupBuilder {
 			$args
 		);
 
-		$this->template('fieldset-wraper');
+		$this->template('fieldset-wrapper');
 	}
 
 	public function style(string $style): self {
@@ -63,7 +64,7 @@ class FieldsetBuilder extends GroupBuilder {
 	 *
 	 * @return SectionBuilder
 	 */
-	public function end_fieldset(): SectionBuilder {
+	public function end_fieldset(): SectionBuilderInterface {
 		return parent::end_group();
 	}
 

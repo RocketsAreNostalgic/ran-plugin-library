@@ -181,9 +181,9 @@ class SectionBuilder implements SectionBuilderInterface {
 	 * @param string $heading The legend to display for the fieldset.
 	 * @param array<string,mixed> $args Optional configuration (order, before/after callbacks, style metadata, etc.).
 	 *
-	 * @return FieldsetBuilder<TRoot, SectionBuilder<TRoot>> The fluent fieldset builder instance.
+	 * @return FieldsetBuilderInterface<TRoot, SectionBuilderInterface<TRoot>> The fluent fieldset builder instance.
 	 */
-	public function fieldset(string $fieldset_id, string $heading, ?callable $description_cb = null, ?array $args = null): FieldsetBuilder {
+	public function fieldset(string $fieldset_id, string $heading, ?callable $description_cb = null, ?array $args = null): FieldsetBuilderInterface {
 		$args = $args ?? array();
 		return new FieldsetBuilder(
 			$this,
