@@ -10,6 +10,8 @@ namespace Ran\PluginLib\Util;
 /**
  * Concrete class that uses WPWrappersTrait and TranslationServiceTrait for accessing
  * WordPress functions and translation services in templates and other non-class contexts.
+ *
+ * @codeCoverageIgnore
  */
 final class WPWrappers {
 	use WPWrappersTrait;

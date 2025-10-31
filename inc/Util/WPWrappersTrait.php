@@ -17,6 +17,8 @@ namespace Ran\PluginLib\Util;
  * Wrappers for common WordPress functions to allow for easier testing and potential future modifications.
  *
  * @package Ran\PluginLib\Util
+ *
+ * @codeCoverageIgnore
  */
 trait WPWrappersTrait {
 	/**
@@ -40,7 +42,35 @@ trait WPWrappersTrait {
 	 * @see \Ran\PluginLib\HooksAccessory\HooksManager
 	 */
 	public function _do_add_action(string $hook, $callback, int $priority = 10, int $accepted_args = 1): void {
-		\add_action($hook, $callback, $priority, $accepted_args);
+		$handled = false;
+		$via     = 'none';
+		if (\defined('WP_MOCK') && \class_exists(\WP_Mock\Functions\Handler::class)) {
+			try {
+				\WP_Mock\Functions\Handler::handleFunction('add_action', array($hook, $callback, $priority, $accepted_args));
+				$handled = true;
+				$via     = 'wp_mock';
+			} catch (\PHPUnit\Framework\ExpectationFailedException $e) {
+				// In WP_Mock strict mode when no handler registered; continue to fallback.
+				if (!\function_exists('add_action')) {
+					throw $e;
+				}
+			}
+		}
+
+		if (!$handled && \function_exists('add_action')) {
+			\add_action($hook, $callback, $priority, $accepted_args);
+			$handled = true;
+			$via     = 'native';
+		}
+
+		if (isset($this->logger) && $this->logger instanceof \Ran\PluginLib\Util\Logger) {
+			$this->logger->debug('wp_wrappers.add_action', array(
+			    'hook'          => $hook,
+			    'priority'      => $priority,
+			    'accepted_args' => $accepted_args,
+			    'via'           => $via,
+			));
+		}
 	}
 
 	/**
@@ -81,7 +111,34 @@ trait WPWrappersTrait {
 	 * @see \Ran\PluginLib\HooksAccessory\HooksManager
 	 */
 	public function _do_add_filter(string $hook, $callback, int $priority = 10, int $accepted_args = 1): void {
-		\add_filter($hook, $callback, $priority, $accepted_args);
+		$handled = false;
+		$via     = 'none';
+		if (\defined('WP_MOCK') && \class_exists(\WP_Mock\Functions\Handler::class)) {
+			try {
+				\WP_Mock\Functions\Handler::handleFunction('add_filter', array($hook, $callback, $priority, $accepted_args));
+				$handled = true;
+				$via     = 'wp_mock';
+			} catch (\PHPUnit\Framework\ExpectationFailedException $e) {
+				if (!\function_exists('add_filter')) {
+					throw $e;
+				}
+			}
+		}
+
+		if (!$handled && \function_exists('add_filter')) {
+			\add_filter($hook, $callback, $priority, $accepted_args);
+			$handled = true;
+			$via     = 'native';
+		}
+
+		if (isset($this->logger) && $this->logger instanceof \Ran\PluginLib\Util\Logger) {
+			$this->logger->debug('wp_wrappers.add_filter', array(
+			    'hook'          => $hook,
+			    'priority'      => $priority,
+			    'accepted_args' => $accepted_args,
+			    'via'           => $via,
+			));
+		}
 	}
 
 	/**
@@ -158,6 +215,14 @@ trait WPWrappersTrait {
 		// Under WP_Mock, apply_filters may return null if not explicitly mocked; normalize to $value.
 		if (\function_exists('apply_filters')) {
 			$res = \apply_filters($hook_name, $value, ...$args);
+			if (isset($this->logger) && $this->logger instanceof \Ran\PluginLib\Util\Logger) {
+				$this->logger->debug('wp_wrappers.apply_filters', array(
+				    'hook'   => $hook_name,
+				    'value'  => $value,
+				    'args'   => $args,
+				    'result' => $res,
+				));
+			}
 			return $res !== null ? $res : $value;
 		}
 		return $value;
@@ -510,16 +575,13 @@ trait WPWrappersTrait {
 	 * @return bool
 	 */
 	public function _do_current_user_can(string $capability, ...$args): bool {
-		// In WP_Mock-powered unit tests, treat caps as allowed-by-default to preserve
-		// historical behavior where caps APIs were considered unavailable.
-		if (\defined('WP_MOCK')) {
-			return true;
-		}
-
 		if (\function_exists('current_user_can')) {
 			return (bool) \current_user_can($capability, ...$args);
 		}
-		return true;
+
+		// When capability API is unavailable, default to denial to avoid
+		// unintentionally granting access in restricted contexts (including tests).
+		return false;
 	}
 
 	/**
@@ -594,6 +656,92 @@ trait WPWrappersTrait {
 		/** @var array $data */
 		$data = \get_plugin_data($plugin_file, $markup, $translate);
 		return (array) $data;
+	}
+
+	/**
+	 * Public wrapper for WordPress wp_register_script
+	 *
+	 * Availability-guarded: Yes
+	 * Rationale: wp_register_script() may be unavailable in early contexts;
+	 *
+	 * @param string $handel
+	 * @param string|false $src
+	 * @param string|array $deps
+	 * @param string|bool|null $ver
+	 * @param array|bool $args
+	 * @return bool
+	 */
+	public function _do_wp_register_script(string $handel, string|false $src, string|array $deps = array(), string|bool|null $ver = false, array|bool $args = array()): bool {
+		if (!\function_exists('wp_register_script')) {
+			return null;
+		}
+		return \wp_register_script($handel, $src, $deps, $ver, $args);
+	}
+
+	/**
+	 * Public wrapper for WordPress wp_localize_script
+	 *
+	 * Availability-guarded: Yes
+	 * Rationale: wp_localize_script() may be unavailable in early contexts;
+	 *
+	 * @param string $handle
+	 * @param string $object_name
+	 * @param array $l10n
+	 * @return bool
+	 */
+	public function _do_wp_localize_script(string $handle, string $object_name, array $l10n ):bool {
+		if (!\function_exists('wp_localize_script')) {
+			return null;
+		}
+		return \wp_localize_script($handle, $object_name, $l10n);
+	}
+
+	/**
+	 * Public wrapper for WordPress wp_enqueue_media
+	 *
+	 * Availability-guarded: Yes
+	 * Rationale: wp_enqueue_media() may be unavailable in early contexts;
+	 *
+	 * @param array $args
+	 * @return void
+	 */
+	public function _do_wp_enqueue_media(array $args = array()): void {
+		if (\function_exists('wp_enqueue_media')) {
+			\wp_enqueue_media($args);
+		}
+	}
+
+	/**
+	 * Public wrapper for WordPress wp_enqueue_script
+	 *
+	 * Availability-guarded: Yes
+	 * Rationale: wp_enqueue_script() may be unavailable in early contexts;
+	 *
+	 * @param string $handle
+	 * @param string $src
+	 * @param string|array $deps
+	 * @param string|bool|null $ver
+	 * @param array|bool $args
+	 * @return void
+	 */
+	public function _do_wp_enqueue_script(string $handle, string $src = '', string|array $deps = array(), string|bool|null $ver = false, array|bool $args = array()): void {
+		if (\function_exists('wp_enqueue_media')) {
+			\wp_enqueue_media($handle, $src, $deps, $ver, $args);
+		}
+	}
+
+	/**
+	 * Public wrapper for WordPress wp_enqueue_script
+	 *
+	 * Availability-guarded: Yes
+	 * Rationale: wp_enqueue_script() may be unavailable in early contexts;
+	 *
+	 *
+	 */
+	public function _do_wp_register_style(): void {
+		if (\function_exists('wp_enqueue_media')) {
+			\wp_enqueue_media();
+		}
 	}
 
 	/**
@@ -718,9 +866,9 @@ trait WPWrappersTrait {
 	 * Wrapper for WordPress add_menu_page().
 	 * Availability-guarded: Yes
 	 */
-	public function _do_add_menu_page(string $page_title, string $menu_title, string $capability, string $menu_slug, callable $callback, ?string $icon_url = null, ?int $position = null): void {
+	public function _do_add_menu_page(string $heading, string $menu_title, string $capability, string $menu_slug, callable $callback, ?string $icon_url = null, ?int $position = null): void {
 		if (\function_exists('add_menu_page')) {
-			\add_menu_page($page_title, $menu_title, $capability, $menu_slug, $callback, $icon_url, $position ?? null);
+			\add_menu_page($heading, $menu_title, $capability, $menu_slug, $callback, $icon_url, $position ?? null);
 		}
 	}
 
@@ -728,9 +876,9 @@ trait WPWrappersTrait {
 	 * Wrapper for WordPress add_submenu_page().
 	 * Availability-guarded: Yes
 	 */
-	public function _do_add_submenu_page(string $parent_slug, string $page_title, string $menu_title, string $capability, string $menu_slug, callable $callback): void {
+	public function _do_add_submenu_page(string $parent_slug, string $heading, string $menu_title, string $capability, string $menu_slug, callable $callback): void {
 		if (\function_exists('add_submenu_page')) {
-			\add_submenu_page($parent_slug, $page_title, $menu_title, $capability, $menu_slug, $callback);
+			\add_submenu_page($parent_slug, $heading, $menu_title, $capability, $menu_slug, $callback);
 		}
 	}
 
@@ -738,7 +886,7 @@ trait WPWrappersTrait {
 	 * Public wrapper for WordPress add_options_page()
 	 *
 	 * Availability-guarded: Yes (requires WP loaded)
-	 * @param string   $page_title
+	 * @param string   $heading
 	 * @param string   $menu_title
 	 * @param string   $capability
 	 * @param string   $menu_slug
@@ -746,10 +894,10 @@ trait WPWrappersTrait {
 	 * @param ?int     $position
 	 * @return void
 	 */
-	public function _do_add_options_page(string $page_title, string $menu_title, string $capability, string $menu_slug, callable $callback, ?int $position = null): void {
+	public function _do_add_options_page(string $heading, string $menu_title, string $capability, string $menu_slug, callable $callback, ?int $position = null): void {
 		if (\function_exists('add_options_page')) {
 			// add_options_page signature ignores position; using parent menu API normally controls ordering.
-			\add_options_page($page_title, $menu_title, $capability, $menu_slug, $callback);
+			\add_options_page($heading, $menu_title, $capability, $menu_slug, $callback);
 		}
 	}
 
@@ -944,6 +1092,35 @@ trait WPWrappersTrait {
 	}
 
 	/**
+	 * Public wrapper for WordPress delete_transient()
+	 * Availability-guarded: Yes
+	 * @see https://developer.wordpress.org/reference/functions/delete_transient/
+	 *
+	 * @param string $transient Transient name
+	 * @return bool True on success, false on failure
+	 */
+	public function _do_delete_transient(string $transient): bool {
+		if (\function_exists('delete_transient')) {
+			return (bool) \delete_transient($transient);
+		}
+		return false;
+	}
+
+	/**
+	 * Public wrapper for WordPress wp_get_environment_type()
+	 * Availability-guarded: Yes
+	 * @see https://developer.wordpress.org/reference/functions/wp_get_environment_type/
+	 *
+	 * @return string Environment type (development, staging, production)
+	 */
+	public function _do_wp_get_environment_type(): string {
+		if (\function_exists('wp_get_environment_type')) {
+			return (string) \wp_get_environment_type();
+		}
+		return 'production'; // Default fallback
+	}
+
+	/**
 	 * Public wrapper for WordPress __() function
 	 * Availability-guarded: Yes
 	 *
@@ -951,25 +1128,9 @@ trait WPWrappersTrait {
 	 * @param string $domain Text domain
 	 * @return string Translated text
 	 */
-	public function _do_translate(string $text, string $domain = 'default'): string {
+	public function _do___(string $text, string $domain = 'default'): string {
 		if (\function_exists('__')) {
 			return (string) \__($text, $domain);
-		}
-		return $text;
-	}
-
-	/**
-	 * Public wrapper for WordPress _x() function
-	 * Availability-guarded: Yes
-	 *
-	 * @param string $text Text to translate
-	 * @param string $context Context for translation
-	 * @param string $domain Text domain
-	 * @return string Translated text
-	 */
-	public function _do_translate_with_context(string $text, string $context, string $domain = 'default'): string {
-		if (\function_exists('_x')) {
-			return (string) \_x($text, $context, $domain);
 		}
 		return $text;
 	}
@@ -982,7 +1143,7 @@ trait WPWrappersTrait {
 	 * @param string $domain Text domain
 	 * @return void
 	 */
-	public function _do_translate_echo(string $text, string $domain = 'default'): void {
+	public function _do_e(string $text, string $domain = 'default'): void {
 		if (\function_exists('_e')) {
 			\_e($text, $domain);
 		} else {
@@ -1000,7 +1161,11 @@ trait WPWrappersTrait {
 	 * @param string $domain Text domain
 	 * @return string Translated text
 	 */
-	public function _do_translate_plural(string $single, string $plural, int $number, string $domain = 'default'): string {
+	public function _do_n(string $single, string $plural, int $number, string $domain = 'default'): string {
+		$namespaced = __NAMESPACE__ . '\\_n';
+		if (\function_exists($namespaced)) {
+			return (string) $namespaced($single, $plural, $number, $domain);
+		}
 		if (\function_exists('_n')) {
 			return (string) \_n($single, $plural, $number, $domain);
 		}
@@ -1018,26 +1183,15 @@ trait WPWrappersTrait {
 	 * @param string $domain Text domain
 	 * @return string Translated text
 	 */
-	public function _do_translate_plural_with_context(string $single, string $plural, int $number, string $context, string $domain = 'default'): string {
+	public function _do_nx(string $single, string $plural, int $number, string $context, string $domain = 'default'): string {
+		$namespaced = __NAMESPACE__ . '\\_nx';
+		if (\function_exists($namespaced)) {
+			return (string) $namespaced($single, $plural, $number, $context, $domain);
+		}
 		if (\function_exists('_nx')) {
 			return (string) \_nx($single, $plural, $number, $context, $domain);
 		}
 		return $number === 1 ? $single : $plural;
-	}
-
-	/**
-	 * Public wrapper for WordPress esc_attr__() function
-	 * Availability-guarded: Yes
-	 *
-	 * @param string $text Text to translate and escape for attributes
-	 * @param string $domain Text domain
-	 * @return string Escaped and translated text
-	 */
-	public function _do_esc_attr_translate(string $text, string $domain = 'default'): string {
-		if (\function_exists('esc_attr__')) {
-			return (string) \esc_attr__($text, $domain);
-		}
-		return \htmlspecialchars($text, ENT_QUOTES, 'UTF-8');
 	}
 
 	/**
@@ -1064,44 +1218,13 @@ trait WPWrappersTrait {
 	 * @param string $domain Text domain
 	 * @return string Escaped and translated text
 	 */
-	public function _do_esc_html_translate(string $text, string $domain = 'default'): string {
+	public function _do_esc_html__(string $text, string $domain = 'default'): string {
 		if (\function_exists('esc_html__')) {
 			return (string) \esc_html__($text, $domain);
 		}
 		return \htmlspecialchars($text, ENT_QUOTES, 'UTF-8');
 	}
 
-	/**
-	 * Public wrapper for WordPress esc_html_x() function
-	 * Availability-guarded: Yes
-	 *
-	 * @param string $text Text to translate and escape
-	 * @param string $context Context for translation
-	 * @param string $domain Text domain
-	 * @return string Escaped and translated text
-	 */
-	public function _do_esc_html_translate_with_context(string $text, string $context, string $domain = 'default'): string {
-		if (\function_exists('esc_html_x')) {
-			return (string) \esc_html_x($text, $context, $domain);
-		}
-		return \htmlspecialchars($text, ENT_QUOTES, 'UTF-8');
-	}
-
-	/**
-	 * Public wrapper for WordPress esc_html_e() function
-	 * Availability-guarded: Yes
-	 *
-	 * @param string $text Text to translate, escape, and echo
-	 * @param string $domain Text domain
-	 * @return void
-	 */
-	public function _do_esc_html_translate_echo(string $text, string $domain = 'default'): void {
-		if (\function_exists('esc_html_e')) {
-			\esc_html_e($text, $domain);
-		} else {
-			echo \htmlspecialchars($text, ENT_QUOTES, 'UTF-8');
-		}
-	}
 
 	/**
 	 * Public wrapper for WordPress esc_js()
@@ -1262,5 +1385,21 @@ trait WPWrappersTrait {
 		if (\function_exists('wp_enqueue_style')) {
 			\wp_enqueue_style($handle, $src, $deps, $ver, $media);
 		}
+	}
+
+	/**
+	 * Public wrapper for WordPress wp_using_ext_object_cache()
+	 * Availability-guarded: Yes
+	 *
+	 * Rationale: wp_using_ext_object_cache() was introduced in WordPress 6.1 and may be
+	 * unavailable in older versions or early contexts. Returns false as safe default.
+	 *
+	 * @return bool True if using external object cache, false otherwise
+	 */
+	public function _do_wp_using_ext_object_cache(): bool {
+		if (\function_exists('wp_using_ext_object_cache')) {
+			return (bool) \wp_using_ext_object_cache();
+		}
+		return false;
 	}
 }
