@@ -1,6 +1,6 @@
 <?php
 /**
- * SimpleCacheManager: unified cache management for components and templates.
+ * CacheManager: unified cache management for components and templates.
  *
  * @package Ran\PluginLib\Forms
  */
@@ -12,7 +12,7 @@ namespace Ran\PluginLib\Forms\Component;
 use Ran\PluginLib\Util\WPWrappersTrait;
 use Ran\PluginLib\Util\Logger;
 
-class SimpleCacheManager {
+class CacheManager {
 	use WPWrappersTrait;
 
 	private ComponentManifest $componentManifest;
@@ -29,10 +29,10 @@ class SimpleCacheManager {
 	 * Clear all component and template caches.
 	 */
 	public function clear_all(): void {
-		$this->logger->debug('SimpleCacheManager: Starting clear_all operation');
+		$this->logger->debug('CacheManager: Starting clear_all operation');
 		$this->componentManifest->clear_cache();
 		$this->componentLoader->clear_template_cache();
-		$this->logger->info('SimpleCacheManager: Cleared all component and template caches');
+		$this->logger->info('CacheManager: Cleared all component and template caches');
 	}
 
 	/**
@@ -41,9 +41,9 @@ class SimpleCacheManager {
 	 * @param string $alias Component alias to clear
 	 */
 	public function clear_component(string $alias): void {
-		$this->logger->debug('SimpleCacheManager: Starting clear_component operation', array('alias' => $alias));
+		$this->logger->debug('CacheManager: Starting clear_component operation', array('alias' => $alias));
 		$this->componentManifest->clear_cache($alias);
-		$this->logger->info('SimpleCacheManager: Cleared component cache', array('alias' => $alias));
+		$this->logger->info('CacheManager: Cleared component cache', array('alias' => $alias));
 	}
 
 	/**
@@ -52,9 +52,9 @@ class SimpleCacheManager {
 	 * @param string $name Template name to clear
 	 */
 	public function clear_template(string $name): void {
-		$this->logger->debug('SimpleCacheManager: Starting clear_template operation', array('name' => $name));
+		$this->logger->debug('CacheManager: Starting clear_template operation', array('name' => $name));
 		$this->componentLoader->clear_template_cache($name);
-		$this->logger->info('SimpleCacheManager: Cleared template cache', array('name' => $name));
+		$this->logger->info('CacheManager: Cleared template cache', array('name' => $name));
 	}
 
 	/**
@@ -103,7 +103,7 @@ class SimpleCacheManager {
 	private function _get_cache_ttl(): int {
 		// Allow override via constant
 		if (\defined('KEPLER_COMPONENT_CACHE_TTL')) {
-			return \max(300, (int) \KEPLER_COMPONENT_CACHE_TTL); // Minimum 5 minutes
+			return \max(300, (int) \constant('KEPLER_COMPONENT_CACHE_TTL')); // Minimum 5 minutes
 		}
 
 		// Environment-based defaults
@@ -125,7 +125,7 @@ class SimpleCacheManager {
 	 */
 	private function _is_caching_enabled(): bool {
 		// Explicit disable via constant
-		if (\defined('KEPLER_COMPONENT_CACHE_DISABLED') && \KEPLER_COMPONENT_CACHE_DISABLED) {
+		if (\defined('KEPLER_COMPONENT_CACHE_DISABLED') && (bool) \constant('KEPLER_COMPONENT_CACHE_DISABLED')) {
 			return false;
 		}
 

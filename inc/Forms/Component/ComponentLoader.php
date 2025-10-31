@@ -39,8 +39,13 @@ class ComponentLoader {
 	 * @param Logger|null $logger Optional logger for cache operations
 	 */
 	public function __construct(string $baseDir, array $map = array(), ?Logger $logger = null) {
-		$this->baseDir        = rtrim($baseDir, '/');
-		$this->map            = array_merge($this->_default_map(), $this->_normalize_map($map));
+		$this->baseDir = rtrim($baseDir, '/');
+
+		$discovered = $this->_default_map();
+		$legacy     = $this->_legacy_aliases();
+		$overrides  = $this->_normalize_map($map);
+
+		$this->map            = array_merge($discovered, $legacy, $overrides);
 		$this->cachingEnabled = $this->_should_use_cache();
 		$this->cacheTTL       = $this->_get_cache_ttl();
 		$this->logger         = $logger;
@@ -78,7 +83,7 @@ class ComponentLoader {
 	 * @param string $name
 	 * @param array<string,mixed> $context
 	 */
-	public function render(string $name, array $context = array()): string {
+	public function render(string $name, array $context = array()): ComponentRenderResult {
 		// Skip cache entirely in development or when disabled
 		if (!$this->cachingEnabled) {
 			return $this->_render_template_directly($name, $context);
@@ -93,7 +98,7 @@ class ComponentLoader {
 				'template'  => $name,
 				'cache_key' => $cache_key
 			));
-			return $cached_output;
+			return $this->_coerce_to_result($cached_output, $name, $context);
 		}
 
 		// Cache miss - render and cache
@@ -258,7 +263,7 @@ class ComponentLoader {
 		}
 
 		$last = end($segments);
-		if ($last === 'view') {
+		if (strtolower((string) $last) === 'view') {
 			array_pop($segments);
 		}
 
@@ -333,6 +338,39 @@ class ComponentLoader {
 	}
 
 	/**
+	 * Provide backward-compatible aliases for legacy template names.
+	 *
+	 * @return array<string,string>
+	 */
+	private function _legacy_aliases(): array {
+		$aliases = array(
+			'root-wrapper'    => 'layout/container/root-wrapper.php',
+			'section-wrapper' => 'layout/zone/section-wrapper.php',
+			'group-wrapper'   => 'layout/zone/group-wrapper.php',
+			'field-wrapper'   => 'layout/field/field-wrapper.php',
+			'fieldset-wraper' => 'layout/field/fieldset-wraper.php',
+		);
+
+		$resolved = array();
+		foreach ($aliases as $alias => $relativePath) {
+			if (!$this->_is_valid_template_key($alias)) {
+				continue;
+			}
+
+			if ($this->_template_exists($relativePath)) {
+				$resolved[$alias] = $relativePath;
+			}
+		}
+
+		return $resolved;
+	}
+
+	private function _template_exists(string $relativePath): bool {
+		$path = $this->baseDir . '/' . $this->_normalize_path($relativePath);
+		return is_file($path);
+	}
+
+	/**
 	 * Normalize a relative path by removing leading slashes.
 	 *
 	 * @param string $relativePath
@@ -362,35 +400,49 @@ class ComponentLoader {
 	 *
 	 * @param string $name
 	 * @param array<string,mixed> $context
-	 * @return string
+	 * @return ComponentRenderResult
 	 */
-	private function _render_template_directly(string $name, array $context): string {
-		$path = $this->_resolve_path($name);
-		if (!\file_exists($path)) {
-			$this->logger?->warning('ComponentLoader: Template not found', array(
-				'template' => $name,
-				'path'     => $path
-			));
-			throw new \LogicException(sprintf('Template "%s" not found at "%s".', $name, $path));
+	private function _render_template_directly(string $name, array $context): ComponentRenderResult {
+		$payload = $this->render_payload($name, $context);
+		return $this->_coerce_to_result($payload, $name, $context);
+	}
+
+	/**
+	 * Normalize arbitrary template payloads into ComponentRenderResult.
+	 *
+	 * @param mixed $payload
+	 * @param string $alias
+	 * @param array<string,mixed> $context
+	 */
+	private function _coerce_to_result(mixed $payload, string $alias, array $context): ComponentRenderResult {
+		if ($payload instanceof ComponentRenderResult) {
+			return $payload;
 		}
 
-		$execution = $this->_require_template($path, $context);
-		if ($execution['output'] !== '') {
-			$this->logger?->warning('ComponentLoader: Template produced direct output', array(
-				'template' => $name,
-				'path'     => $path
-			));
-			throw new \LogicException(sprintf('Template "%s" produced direct output; templates must return strings.', $name));
-		}
-		if (!is_string($execution['result'])) {
-			$this->logger?->warning('ComponentLoader: Template did not return a string', array(
-				'template' => $name,
-				'path'     => $path
-			));
-			throw new \LogicException(sprintf('Template "%s" must return a string, got %s.', $name, gettype($execution['result'])));
+		if (is_array($payload) && isset($payload['markup'])) {
+			return new ComponentRenderResult(
+				(string) ($payload['markup'] ?? ''),
+				$payload['script'] ?? null,
+				$payload['style']  ?? null,
+				(bool) ($payload['requires_media'] ?? false),
+				(bool) ($payload['repeatable'] ?? false),
+				$payload['context_schema'] ?? array(),
+				(bool) ($payload['submits_data'] ?? false),
+				(string) ($payload['component_type'] ?? 'form_field')
+			);
 		}
 
-		return $execution['result'];
+		if (is_string($payload)) {
+			return new ComponentRenderResult($payload);
+		}
+
+		$this->logger?->warning('ComponentLoader: Unexpected template payload', array(
+			'template' => $alias,
+			'payload'  => gettype($payload),
+			'context'  => array_keys($context)
+		));
+
+		throw new \LogicException(sprintf('Template "%s" must return a ComponentRenderResult, array with markup, or string.', $alias));
 	}
 
 	/**
@@ -400,7 +452,7 @@ class ComponentLoader {
 	 */
 	private function _should_use_cache(): bool {
 		// Explicit disable via constant
-		if (\defined('KEPLER_COMPONENT_CACHE_DISABLED') && \KEPLER_COMPONENT_CACHE_DISABLED) {
+		if (\defined('KEPLER_COMPONENT_CACHE_DISABLED') && (bool) \constant('KEPLER_COMPONENT_CACHE_DISABLED')) {
 			return false;
 		}
 
@@ -420,7 +472,7 @@ class ComponentLoader {
 	private function _get_cache_ttl(): int {
 		// Allow override via constant
 		if (\defined('KEPLER_COMPONENT_CACHE_TTL')) {
-			return \max(300, (int) \KEPLER_COMPONENT_CACHE_TTL); // Minimum 5 minutes
+			return \max(300, (int) \constant('KEPLER_COMPONENT_CACHE_TTL')); // Minimum 5 minutes
 		}
 
 		// Default to 1 hour
@@ -435,12 +487,42 @@ class ComponentLoader {
 	 * @return string Optimized cache key
 	 */
 	private function _generate_template_cache_key(string $name, array $context): string {
-		// Use more efficient key generation with proper prefixing
-		$context_hash   = empty($context) ? 'empty' : hash('crc32b', serialize($context));
-		$sanitized_name = preg_replace('/[^a-zA-Z0-9._-]/', '_', $name);
+		// Filter out non-serializable data (Closures, resources, etc.)
+		$serializable_context = $this->_filter_serializable_context($context);
+		$context_hash         = empty($serializable_context) ? 'empty' : hash('crc32b', serialize($serializable_context));
+		$sanitized_name       = preg_replace('/[^a-zA-Z0-9._-]/', '_', $name);
 
 		// Prefix with kepler_tpl_ to avoid collisions with other plugins
 		return "kepler_tpl_{$sanitized_name}_{$context_hash}";
+	}
+
+	/**
+	 * Filter context array to remove non-serializable values.
+	 *
+	 * @param array<string,mixed> $context Template context
+	 * @return array<string,mixed> Filtered context with only serializable values
+	 */
+	private function _filter_serializable_context(array $context): array {
+		$filtered = array();
+		foreach ($context as $key => $value) {
+			// Skip Closures and other callables
+			if (is_callable($value) || ($value instanceof \Closure)) {
+				continue;
+			}
+
+			// Skip resources
+			if (is_resource($value)) {
+				continue;
+			}
+
+			// Recursively filter nested arrays
+			if (is_array($value)) {
+				$filtered[$key] = $this->_filter_serializable_context($value);
+			} else {
+				$filtered[$key] = $value;
+			}
+		}
+		return $filtered;
 	}
 
 	/**
@@ -450,6 +532,12 @@ class ComponentLoader {
 	 */
 	private function _track_template_transient(string $transient_key): void {
 		$active_transients = $this->_do_get_option('template_cache_transients', array());
+
+		// Ensure we have an array (handle case where _do_get_option returns null)
+		if (!is_array($active_transients)) {
+			$active_transients = array();
+		}
+
 		if (!in_array($transient_key, $active_transients, true)) {
 			$active_transients[] = $transient_key;
 			$this->_do_update_option('template_cache_transients', $active_transients, false);

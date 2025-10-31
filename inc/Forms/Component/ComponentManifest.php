@@ -14,7 +14,7 @@ use Ran\PluginLib\Util\Logger;
 use Ran\PluginLib\Forms\Component\Validate\ValidatorInterface;
 use Ran\PluginLib\Forms\Component\Normalize\NormalizeInterface;
 use Ran\PluginLib\Forms\Component\Normalize\ComponentNormalizationContext;
-use Ran\PluginLib\Forms\Component\Build\BuilderDefinitionInterface;
+use Ran\PluginLib\Forms\Component\Build\ComponentBuilderDefinitionInterface;
 
 class ComponentManifest {
 	use WPWrappersTrait;
@@ -129,7 +129,25 @@ class ComponentManifest {
 	 */
 	public function create_normalizers(): array {
 		$instances = array();
+		if (empty($this->componentMetadata)) {
+			return $instances;
+		}
+
 		foreach ($this->componentMetadata as $alias => $meta) {
+			if (!is_array($meta)) {
+				$this->logger->warning('ComponentManifest: Skipping cached metadata (invalid format)', array(
+					'alias'         => $alias,
+					'metadata_type' => gettype($meta),
+				));
+				continue;
+			}
+			if (!array_key_exists('normalizer', $meta)) {
+				$this->logger->warning('ComponentManifest: Skipping cached metadata (missing normalizer key)', array(
+					'alias' => $alias,
+					'keys'  => array_keys($meta),
+				));
+				continue;
+			}
 			$normalizer = $meta['normalizer'];
 			if ($normalizer === null) {
 				continue;
@@ -143,16 +161,31 @@ class ComponentManifest {
 	/**
 	 * Creates builder factories for all registered components.
 	 *
-	 * @return array<string,callable(string,string):BuilderDefinitionInterface>
+	 * @return array<string,callable(string,string):ComponentBuilderDefinitionInterface>
 	 */
 	public function builder_factories(): array {
 		$factories = array();
 		foreach ($this->componentMetadata as $alias => $meta) {
+			if (!is_array($meta)) {
+				$this->logger->warning('ComponentManifest: Skipping cached metadata (invalid format)', array(
+					'alias'         => $alias,
+					'metadata_type' => gettype($meta),
+				));
+				continue;
+			}
+			if (!array_key_exists('builder', $meta)) {
+				$this->logger->warning('ComponentManifest: Skipping cached metadata (missing builder key)', array(
+					'alias' => $alias,
+					'keys'  => array_keys($meta),
+				));
+				continue;
+			}
+
 			$builder = $meta['builder'];
 			if ($builder === null) {
 				continue;
 			}
-			$factories[$alias] = function (string $id, string $label, mixed ...$args) use ($builder): BuilderDefinitionInterface {
+			$factories[$alias] = function (string $id, string $label, mixed ...$args) use ($builder): ComponentBuilderDefinitionInterface {
 				return new $builder($id, $label, ...$args);
 			};
 		}
@@ -167,7 +200,25 @@ class ComponentManifest {
 	 */
 	public function validator_factories(): array {
 		$factories = array();
+		if (empty($this->componentMetadata)) {
+			return $factories;
+		}
+
 		foreach ($this->componentMetadata as $alias => $meta) {
+			if (!is_array($meta)) {
+				$this->logger->warning('ComponentManifest: Skipping cached metadata (invalid format)', array(
+					'alias'         => $alias,
+					'metadata_type' => gettype($meta),
+				));
+				continue;
+			}
+			if (!array_key_exists('validator', $meta)) {
+				$this->logger->warning('ComponentManifest: Skipping cached metadata (missing validator key)', array(
+					'alias' => $alias,
+					'keys'  => array_keys($meta),
+				));
+				continue;
+			}
 			$validator = $meta['validator'];
 			if ($validator === null) {
 				continue;
@@ -198,8 +249,8 @@ class ComponentManifest {
 	 *
 	 * @param string|null $alias Optional component alias for targeted clearing
 	 */
-	public function clear_cache(string $alias = null): void {
-		if ($alias) {
+	public function clear_cache(string $alias = ''): void {
+		if ($alias !== '') {
 			// Clear specific component
 			$cache_key = $this->_generate_component_cache_key($alias);
 			$this->_do_delete_transient($cache_key);
@@ -305,7 +356,7 @@ class ComponentManifest {
 		}
 
 		$builder = $this->views->resolve_builder_class($alias);
-		if ($builder !== null && is_subclass_of($builder, BuilderDefinitionInterface::class)) {
+		if ($builder !== null && is_subclass_of($builder, ComponentBuilderDefinitionInterface::class)) {
 			$meta['builder'] = $builder;
 		}
 
@@ -412,7 +463,7 @@ class ComponentManifest {
 	 */
 	private function _should_use_cache(): bool {
 		// Explicit disable via constant
-		if (\defined('KEPLER_COMPONENT_CACHE_DISABLED') && \KEPLER_COMPONENT_CACHE_DISABLED) {
+		if (\defined('KEPLER_COMPONENT_CACHE_DISABLED') && (bool) \constant('KEPLER_COMPONENT_CACHE_DISABLED')) {
 			return false;
 		}
 
@@ -432,7 +483,7 @@ class ComponentManifest {
 	private function _get_cache_ttl(): int {
 		// Allow override via constant
 		if (\defined('KEPLER_COMPONENT_CACHE_TTL')) {
-			return \max(300, (int) \KEPLER_COMPONENT_CACHE_TTL); // Minimum 5 minutes
+			return \max(300, (int) \constant('KEPLER_COMPONENT_CACHE_TTL')); // Minimum 5 minutes
 		}
 
 		// Environment-based defaults
@@ -466,6 +517,12 @@ class ComponentManifest {
 	 */
 	private function _track_transient(string $transient_key): void {
 		$active_transients = $this->_do_get_option('component_cache_transients', array());
+
+		// Ensure we have an array (handle case where _do_get_option returns null)
+		if (!is_array($active_transients)) {
+			$active_transients = array();
+		}
+
 		if (!\in_array($transient_key, $active_transients, true)) {
 			$active_transients[] = $transient_key;
 			$this->_do_update_option('component_cache_transients', $active_transients, false);

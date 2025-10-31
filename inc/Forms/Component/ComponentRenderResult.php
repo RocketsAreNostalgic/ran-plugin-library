@@ -17,6 +17,7 @@ use Ran\PluginLib\EnqueueAccessory\ScriptDefinition;
  * Captures a form component's rendered markup and optional asset dependencies.
  */
 final readonly class ComponentRenderResult {
+	public string $component_type;
 	/**
 	 * @param string $markup Rendered HTML markup for the component.
 	 * @param ScriptDefinition|null $script Optional script definition required by the component.
@@ -24,8 +25,8 @@ final readonly class ComponentRenderResult {
 	 * @param bool $requires_media Whether the WordPress media picker assets must be enqueued.
 	 * @param bool $repeatable Whether the component supports repeatable instances.
 	 * @param array $context_schema Schema definition for component context validation.
-	 * @param bool $submits_data Whether the component submits data (V2 property).
-	 * @param string $component_type Type classification of the component (V2 property).
+	 * @param bool $submits_data Whether the component submits data.
+	 * @param ComponentType|string $component_type Type classification of the component. Strings must match a ComponentType value.
 	 */
 	public function __construct(
 		public string $markup,
@@ -35,11 +36,19 @@ final readonly class ComponentRenderResult {
 		public bool $repeatable = false,
 		public array $context_schema = array(),
 		public bool $submits_data = false,
-		public string $component_type = 'form_field'
+		ComponentType|string $component_type = ComponentType::FormField
 	) {
 		if (!Validate::string()->min_length(0, $this->markup)) {
 			throw new \InvalidArgumentException('Component markup must be a string.');
 		}
+
+		if ($component_type instanceof ComponentType) {
+			$component_type = $component_type->value;
+		} elseif (ComponentType::tryFrom($component_type) === null) {
+			throw new \InvalidArgumentException(sprintf('Invalid component type "%s". Expected a valid ComponentType value of: %s.', $component_type, implode(', ', array_map(fn(ComponentType $type) => $type->value, ComponentType::cases()))));
+		}
+
+		$this->component_type = $component_type;
 	}
 
 	/**
