@@ -102,7 +102,7 @@ This needs to be reviewed agains our `RegisterOptions` class. Maybe we should pr
 **Current State:**
 
 - ✅ Basic `MediaEnqueueTrait` structure exists
-- ✅ Core `add()` and `stage_media()` methods implemented
+- ✅ Core `add()` and `stage()` methods implemented
 - ❌ Missing comprehensive testing
 - ❌ Missing integration with `MediaHandler` class
 - ❌ Missing documentation and usage examples

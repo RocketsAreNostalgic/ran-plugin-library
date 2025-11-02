@@ -2,7 +2,7 @@
 
 Reusable form field partials rendered through `Ran\PluginLib\Forms\ComponentLoader`.
 
-- `fields.text-input`
+- `fields.fields.input`
 - `fields.textarea`
 - `fields.checkbox`
 - `fields.checkbox-option`
@@ -19,7 +19,7 @@ Each template expects a `$context` array and returns a rendered HTML string. Vie
 
 ```php
 $loader = new ComponentLoader(__DIR__ . '/views');
-$html   = $loader->render('fields.text-input', array(
+$html   = $loader->render('fields.fields.input', array(
     'attributes'   => array(
         'name' => 'example',
         'value' => '42',
