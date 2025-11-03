@@ -393,7 +393,7 @@ class AdminSettings implements FormsInterface {
 	 *
 	 * @return AdminSettingsPageBuilder
 	 */
-	public function page(string $page_slug, string $heading, string $menu_title): AdminSettingsPageBuilder {
+	public function settings_page(string $page_slug, string $heading, string $menu_title): AdminSettingsPageBuilder {
 		// Create a menu group for this page under Settings menu
 		$group_slug = $page_slug . '_settings_group';
 

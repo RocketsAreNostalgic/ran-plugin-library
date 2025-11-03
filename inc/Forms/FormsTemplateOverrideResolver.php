@@ -96,8 +96,6 @@ class FormsTemplateOverrideResolver {
 	/**
 	 * Resolve template with simplified two-tier hierarchical fallback
 	 *
-	 * SIMPLIFIED vs FormsBaseTrait's 6-tier system:
-	 * FormsBaseTrait: field → group → section → page → class_defaults → system_defaults (6 tiers)
 	 * FormsTemplateOverrideResolver: individual_overrides → form_defaults (2 tiers + emergency fallback)
 	 *
 	 * Two-Tier Precedence:

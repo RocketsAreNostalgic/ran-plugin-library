@@ -249,7 +249,7 @@ final class AdminSettingsBehaviorTest extends PluginLibTestCase {
 	}
 
 	public function test_page_convenience_method_populates_group(): void {
-		$this->settings->page('tools-page', 'Tools Heading', 'Tools Label')
+		$this->settings->settings_page('tools-page', 'Tools Heading', 'Tools Label')
 		    ->section('tools-section', 'Tools Section')
 		    ->end_section()
 		->end_page();
