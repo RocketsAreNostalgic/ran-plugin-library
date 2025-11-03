@@ -28,9 +28,9 @@ if (!defined('ABSPATH')) {
 }
 
 // Extract context variables
-$field_id            = $context['field_id']            ?? '';
-$label               = $context['label']               ?? '';
-$component_html      = $context['component_html']      ?? '';
+$field_id            = $context['field_id']       ?? '';
+$label               = $context['label']          ?? '';
+$component_html      = $context['component_html'] ?? '';
 $before              = isset($context['before']) ? (string) $context['before'] : '';
 $after               = isset($context['after'])  ? (string) $context['after']  : '';
 $validation_warnings = $context['validation_warnings'] ?? array();

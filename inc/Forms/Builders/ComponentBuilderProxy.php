@@ -38,7 +38,7 @@ class ComponentBuilderProxy implements ComponentBuilderInterface {
 	/** @var callable|null */
 	private $before_callback = null;
 	/** @var callable|null */
-	private $after_callback  = null;
+	private $after_callback = null;
 
 	/**
 	 * @param ComponentBuilderBase $builder
