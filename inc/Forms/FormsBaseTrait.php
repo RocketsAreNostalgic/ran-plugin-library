@@ -179,6 +179,112 @@ trait FormsBaseTrait {
 		);
 	}
 
+	/**
+	 * Prepare the message handler for a new validation run.
+	 *
+	 * @param array<string,mixed> $payload
+	 * @return void
+	 */
+	protected function _prepare_validation_messages(array $payload): void {
+		$this->message_handler->clear();
+		$this->message_handler->set_pending_values($payload);
+		$this->pending_values = $payload;
+	}
+
+	/**
+	 * Capture validation messages emitted by the provided RegisterOptions instance.
+	 *
+	 * @return array<string, array{warnings: array<int, string>, notices: array<int, string>}>
+	 */
+	protected function _process_validation_messages(RegisterOptions $options): array {
+		$messages = $options->take_messages();
+		$this->message_handler->set_messages($messages);
+		return $messages;
+	}
+
+	/**
+	 * Determine whether validation failures were recorded during the current operation.
+	 */
+	protected function _has_validation_failures(): bool {
+		return $this->message_handler->has_validation_failures();
+	}
+
+	/**
+	 * Clear pending validation state after a successful operation.
+	 */
+	protected function _clear_pending_validation(): void {
+		$this->message_handler->set_pending_values(null);
+		$this->pending_values = null;
+	}
+
+	/**
+	 * Log a validation failure with consistent warning metadata.
+	 *
+	 * @param string $message
+	 * @param array<string,mixed> $context
+	 * @param string $level
+	 * @return void
+	 */
+	protected function _log_validation_failure(string $message, array $context = array(), string $level = 'info'): void {
+		if (!array_key_exists('warning_count', $context)) {
+			$context['warning_count'] = $this->message_handler->get_warning_count();
+		}
+		switch ($level) {
+			case 'warning':
+				$this->logger->warning($message, $context);
+				break;
+			case 'error':
+				$this->logger->error($message, $context);
+				break;
+			case 'debug':
+				$this->logger->debug($message, $context);
+				break;
+			default:
+				$this->logger->info($message, $context);
+		}
+	}
+
+	/**
+	 * Log a validation success message at the desired verbosity.
+	 *
+	 * @param string $message
+	 * @param array<string,mixed> $context
+	 * @param string $level
+	 * @return void
+	 */
+	protected function _log_validation_success(string $message, array $context = array(), string $level = 'debug'): void {
+		switch ($level) {
+			case 'info':
+				$this->logger->info($message, $context);
+				break;
+			case 'warning':
+				$this->logger->warning($message, $context);
+				break;
+			case 'error':
+				$this->logger->error($message, $context);
+				break;
+			default:
+				$this->logger->debug($message, $context);
+		}
+	}
+
+	/**
+	 * Register a batch of WordPress action hooks using the wrappers provided by the host class.
+	 *
+	 * @param array<int, array{hook:string, callback:callable, priority?:int, accepted_args?:int}> $hooks
+	 * @return void
+	 */
+	protected function _register_action_hooks(array $hooks): void {
+		foreach ($hooks as $definition) {
+			if (!isset($definition['hook'], $definition['callback'])) {
+				continue;
+			}
+			$priority      = isset($definition['priority']) ? (int) $definition['priority'] : 10;
+			$accepted_args = isset($definition['accepted_args']) ? (int) $definition['accepted_args'] : 1;
+			$this->_do_add_action($definition['hook'], $definition['callback'], $priority, $accepted_args);
+		}
+	}
+
 	/**✅
 	 * Get the FormsServiceSession instance for direct access to template resolution.
 	 *
@@ -718,8 +824,8 @@ trait FormsBaseTrait {
 				'component_context' => $context,
 				'order'             => $orderProvided ? $orderValue : (int) ($existing_field['order'] ?? 0),
 				'index'             => $existing_field['index'] ?? $existing_field['order'] ?? $idx,
-				'before'            => $field_data['before'] ?? ($existing_field['before'] ?? null),
-				'after'             => $field_data['after']  ?? ($existing_field['after']  ?? null),
+				'before'            => $field_data['before']    ?? ($existing_field['before'] ?? null),
+				'after'             => $field_data['after']     ?? ($existing_field['after'] ?? null),
 			);
 			$updated = true;
 			break;
@@ -1060,23 +1166,23 @@ trait FormsBaseTrait {
 				}
 
 				$items[] = array(
-					'type'       => 'group',
-					'group_id'   => $group['group_id'] ?? '',
-					'before'     => $this->_render_callback_output($group['before'] ?? null, array(
+					'type'     => 'group',
+					'group_id' => $group['group_id'] ?? '',
+					'before'   => $this->_render_callback_output($group['before'] ?? null, array(
 						'group_id'     => $group['group_id'] ?? '',
 						'section_id'   => $section_id,
 						'container_id' => $id_slug,
 						'fields'       => $group_fields,
 						'values'       => $values,
 					)),
-					'after'      => $this->_render_callback_output($group['after'] ?? null, array(
+					'after' => $this->_render_callback_output($group['after'] ?? null, array(
 						'group_id'     => $group['group_id'] ?? '',
 						'section_id'   => $section_id,
 						'container_id' => $id_slug,
 						'fields'       => $group_fields,
 						'values'       => $values,
 					)),
-					'items'      => $group_items,
+					'items' => $group_items,
 				);
 			}
 			foreach ($fields as $field) {

@@ -291,85 +291,92 @@ class AdminSettings implements FormsInterface {
 	 * @return void
 	 */
 	public function boot(): void {
-		// Register setting for save flow (options.php submission)
-		$this->_do_add_action('admin_init', function () {
-			$this->_register_setting();
-			// Note: We don't register individual fields/sections with WordPress Settings API
-			// because we use custom template rendering instead of do_settings_fields()
-		});
-
-		$this->_do_add_action('admin_menu', function () {
-			// Render admin menu groups and sub-pages
-			foreach ($this->menu_groups as $group_slug => $group) {
-				$meta  = $group['meta'];
-				$pages = $group['pages'];
-				if (empty($pages)) {
-					continue;
-				}
-
-				$first_page_slug = array_key_first($pages);
-				$submenu_parent  = $meta['parent'];
-				$skip_first      = false;
-
-				if ($meta['parent'] === null) {
-					$this->_do_add_menu_page(
-						$meta['heading'],
-						$meta['menu_title'],
-						$meta['capability'],
-						$group_slug,
-						function () use ($first_page_slug) {
-							$this->render($first_page_slug);
-						},
-						$meta['icon'],
-						$meta['position']
-					);
-					$submenu_parent = $group_slug;
-					$skip_first     = true;
-				} elseif ($meta['parent'] === 'options-general.php') {
-					$this->_do_add_options_page(
-						$meta['heading'],
-						$meta['menu_title'],
-						$meta['capability'],
-						$group_slug,
-						function () use ($first_page_slug) {
-							$this->render($first_page_slug);
-						},
-						$meta['position']
-					);
-					$submenu_parent = 'options-general.php';
-					$skip_first     = true;
-				} else {
-					$this->_do_add_submenu_page(
-						$meta['parent'],
-						$meta['heading'],
-						$meta['menu_title'],
-						$meta['capability'],
-						$group_slug,
-						function () use ($first_page_slug) {
-							$this->render($first_page_slug);
+		$hooks = array(
+			array(
+				'hook'     => 'admin_init',
+				'callback' => function () {
+					$this->_register_setting();
+					// Note: We don't register individual fields/sections with WordPress Settings API
+					// because we use custom template rendering instead of do_settings_fields()
+				},
+			),
+			array(
+				'hook'     => 'admin_menu',
+				'callback' => function () {
+					foreach ($this->menu_groups as $group_slug => $group) {
+						$meta  = $group['meta'];
+						$pages = $group['pages'];
+						if (empty($pages)) {
+							continue;
 						}
-					);
-					$submenu_parent = $meta['parent'];
-					$skip_first     = true;
-				}
 
-				foreach ($pages as $page_slug => $page_meta) {
-					if ($skip_first && $page_slug === $first_page_slug) {
-						continue;
+						$first_page_slug = array_key_first($pages);
+						$submenu_parent  = $meta['parent'];
+						$skip_first      = false;
+
+						if ($meta['parent'] === null) {
+							$this->_do_add_menu_page(
+								$meta['heading'],
+								$meta['menu_title'],
+								$meta['capability'],
+								$group_slug,
+								function () use ($first_page_slug) {
+									$this->render($first_page_slug);
+								},
+								$meta['icon'],
+								$meta['position']
+							);
+							$submenu_parent = $group_slug;
+							$skip_first     = true;
+						} elseif ($meta['parent'] === 'options-general.php') {
+							$this->_do_add_options_page(
+								$meta['heading'],
+								$meta['menu_title'],
+								$meta['capability'],
+								$group_slug,
+								function () use ($first_page_slug) {
+									$this->render($first_page_slug);
+								},
+								$meta['position']
+							);
+							$submenu_parent = 'options-general.php';
+							$skip_first     = true;
+						} else {
+							$this->_do_add_submenu_page(
+								$meta['parent'],
+								$meta['heading'],
+								$meta['menu_title'],
+								$meta['capability'],
+								$group_slug,
+								function () use ($first_page_slug) {
+									$this->render($first_page_slug);
+								}
+							);
+							$submenu_parent = $meta['parent'];
+							$skip_first     = true;
+						}
+
+						foreach ($pages as $page_slug => $page_meta) {
+							if ($skip_first && $page_slug === $first_page_slug) {
+								continue;
+							}
+							$this->_do_add_submenu_page(
+								$submenu_parent,
+								$page_meta['meta']['heading'],
+								$page_meta['meta']['menu_title'],
+								$page_meta['meta']['capability'],
+								$page_slug,
+								function () use ($page_slug) {
+									$this->render($page_slug);
+								}
+							);
+						}
 					}
-					$this->_do_add_submenu_page(
-						$submenu_parent,
-						$page_meta['meta']['heading'],
-						$page_meta['meta']['menu_title'],
-						$page_meta['meta']['capability'],
-						$page_slug,
-						function () use ($page_slug) {
-							$this->render($page_slug);
-						}
-					);
-				}
-			}
-		});
+				},
+			),
+		);
+
+		$this->_register_action_hooks($hooks);
 	}
 
 	/**
@@ -543,9 +550,7 @@ class AdminSettings implements FormsInterface {
 		$previous = $this->_do_get_option($this->main_option, array());
 		$previous = is_array($previous) ? $previous : array();
 
-		// Clear previous messages and set pending values
-		$this->message_handler->clear();
-		$this->message_handler->set_pending_values($payload);
+		$this->_prepare_validation_messages($payload);
 
 		$scope    = $this->_do_is_network_admin() ? OptionScope::Network : OptionScope::Site;
 		$resolved = $this->_resolve_context(array('scope' => $scope));
@@ -560,30 +565,25 @@ class AdminSettings implements FormsInterface {
 		}
 		// Stage options and check for validation failures
 		$tmp->stage_options($payload);
-		$messages = $tmp->take_messages();
+		$messages = $this->_process_validation_messages($tmp);
 
-		// Set messages in FormMessageHandler
-		$this->message_handler->set_messages($messages);
-
-		// Check if there are validation failures (warnings)
-		if ($this->message_handler->has_validation_failures()) {
-			$this->logger->info('AdminSettings::_sanitize validation failed; returning previous option payload.', array(
-				'warning_count'       => $this->message_handler->get_warning_count(),
-				'previous_payload'    => $previous,
-				'validation_messages' => $messages
-			));
+		if ($this->_has_validation_failures()) {
+			$this->_log_validation_failure(
+				'AdminSettings::_sanitize validation failed; returning previous option payload.',
+				array(
+					'previous_payload'    => $previous,
+					'validation_messages' => $messages,
+				)
+			);
 			return $previous;
 		}
 
-		// Only return sanitized data if validation passed
 		$result = $tmp->get_options();
-		$this->logger->debug('AdminSettings::_sanitize returning sanitized payload.', array(
-			'sanitized_payload' => $result
+		$this->_log_validation_success('AdminSettings::_sanitize returning sanitized payload.', array(
+			'sanitized_payload' => $result,
 		));
 
-		// Clear pending values on success
-		$this->message_handler->set_pending_values(null);
-		$this->pending_values = null;
+		$this->_clear_pending_validation();
 
 		return $result;
 	}

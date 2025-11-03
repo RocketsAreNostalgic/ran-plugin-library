@@ -38,6 +38,9 @@ use Ran\PluginLib\Forms\Component\ComponentLoader;
  *
  * Note: WordPress core continues to own capability checks (`edit_user`) and the profile lifecycle. Only the
  * validation and write-policy portions of `RegisterOptions` are exercised here.
+ *
+ * Likewise WordPress core User setting page provides its own submission block, so UserSettings does not implement
+ * a save handler.
  */
 class UserSettings implements FormsInterface {
 	use FormsBaseTrait;
@@ -137,7 +140,8 @@ class UserSettings implements FormsInterface {
 	 * @return void
 	 */
 	public function boot(): void {
-		// Render on user profile screens per registered collection using configured order
+		$hooks = array();
+
 		foreach ($this->collections as $id_slug => $meta) {
 			$order  = (int) ($meta['order'] ?? 10);
 			$order  = $order < 0 ? 0 : $order;
@@ -147,13 +151,21 @@ class UserSettings implements FormsInterface {
 				}
 				$this->render($id_slug, array('user' => $user));
 			};
-			// User views their own profile
-			$this->_do_add_action('show_user_profile', $render, $order, 1);
-			// Admin views another user's profile
-			$this->_do_add_action('edit_user_profile', $render, $order, 1);
+
+			$hooks[] = array(
+				'hook'          => 'show_user_profile',
+				'callback'      => $render,
+				'priority'      => $order,
+				'accepted_args' => 1,
+			);
+			$hooks[] = array(
+				'hook'          => 'edit_user_profile',
+				'callback'      => $render,
+				'priority'      => $order,
+				'accepted_args' => 1,
+			);
 		}
 
-		// Save handlers
 		$save = function ($user_id) {
 			$user_id = (int) $user_id;
 			if (!$this->_do_current_user_can('edit_user', $user_id)) {
@@ -162,10 +174,21 @@ class UserSettings implements FormsInterface {
 			$payload = isset($_POST[$this->main_option]) && is_array($_POST[$this->main_option]) ? $_POST[$this->main_option] : array();
 			$this->save_settings($payload, array('user_id' => $user_id));
 		};
-		// User updates their own profile
-		$this->_do_add_action('personal_options_update', $save, 10, 1);
-		// Admin updates another user's profile
-		$this->_do_add_action('edit_user_profile_update', $save, 10, 1);
+
+		$hooks[] = array(
+			'hook'          => 'personal_options_update',
+			'callback'      => $save,
+			'priority'      => 10,
+			'accepted_args' => 1,
+		);
+		$hooks[] = array(
+			'hook'          => 'edit_user_profile_update',
+			'callback'      => $save,
+			'priority'      => 10,
+			'accepted_args' => 1,
+		);
+
+		$this->_register_action_hooks($hooks);
 	}
 
 	/**
@@ -237,44 +260,37 @@ class UserSettings implements FormsInterface {
 			'global'  => $global,
 		));
 
-		// Clear previous messages and set pending values
-		$this->message_handler->clear();
-		$this->message_handler->set_pending_values($payload);
+		$this->_prepare_validation_messages($payload);
 
 		$previous_options = $opts->get_options();
 
 		// Stage options and check for validation failures
 		$opts->stage_options($payload);
-		$messages = $opts->take_messages();
+		$messages = $this->_process_validation_messages($opts);
 
-		// Set messages in FormMessageHandler
-		$this->message_handler->set_messages($messages);
+		if ($this->_has_validation_failures()) {
+			$this->_log_validation_failure(
+				'UserSettings::save_settings validation failed; aborting persistence.',
+				array(
+					'user_id'             => $user_id,
+					'validation_messages' => $messages,
+				)
+			);
 
-		// Check if there are validation failures (warnings)
-		if ($this->message_handler->has_validation_failures()) {
-			$this->logger->info('UserSettings::save_settings validation failed; aborting persistence.', array(
-				'user_id'       => $user_id,
-				'warning_count' => $this->message_handler->get_warning_count()
-			));
-
-			// Restore previous options since validation failed
 			$opts->clear();
 			$opts->stage_options($previous_options);
 			return;
 		}
 
-		// Only commit if validation passed
 		$success = $opts->commit_merge();
 		if ($success) {
-			// Clear pending values on success
-			$this->message_handler->set_pending_values(null);
-			$this->pending_values = null;
+			$this->_clear_pending_validation();
 		} else {
-			// This shouldn't happen since we already checked for validation failures,
-			// but handle it just in case
-			$this->logger->warning('UserSettings::save_settings commit_merge failed unexpectedly.', array(
-				'user_id' => $user_id
-			));
+			$this->_log_validation_failure(
+				'UserSettings::save_settings commit_merge failed unexpectedly.',
+				array('user_id' => $user_id),
+				'warning'
+			);
 			$opts->clear();
 			$opts->stage_options($previous_options);
 		}
