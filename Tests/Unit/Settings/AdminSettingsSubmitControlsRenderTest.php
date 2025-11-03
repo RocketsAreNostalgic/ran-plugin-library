@@ -96,7 +96,6 @@ final class AdminSettingsSubmitControlsRenderTest extends TestCase {
             ->page('custom-page')
                 ->heading('Custom Submit Page')
                 ->submit_controls('admin.custom-submit-wrapper')
-                    ->layout('stacked')
                     ->button('primary', 'Save Settings', static function (ButtonBuilder $button): void {
                     	$button->order(10);
                     })
@@ -200,12 +199,10 @@ final class AdminSettingsSubmitControlsRenderTest extends TestCase {
 		$this->manifest->register('admin.root-wrapper', $rootWrapper);
 
 		$this->manifest->register('submit-controls-wrapper', static function (array $context): ComponentRenderResult {
-			$zone      = htmlspecialchars((string) ($context['zone_id'] ?? ''), ENT_QUOTES);
-			$content   = $context['content'] ?? '';
-			$alignment = htmlspecialchars((string) ($context['alignment'] ?? 'right'), ENT_QUOTES);
-			$layout    = htmlspecialchars((string) ($context['layout'] ?? 'inline'), ENT_QUOTES);
+			$zone    = htmlspecialchars((string) ($context['zone_id'] ?? ''), ENT_QUOTES);
+			$content = $context['content'] ?? '';
 
-			$markup = '<div class="submit-wrapper" data-zone="' . $zone . '" data-alignment="' . $alignment . '" data-layout="' . $layout . '">'
+			$markup = '<div class="submit-wrapper" data-zone="' . $zone . '">'
 			    . $content
 			    . '</div>';
 

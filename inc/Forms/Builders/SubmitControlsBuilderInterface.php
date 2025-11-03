@@ -14,16 +14,6 @@ use Ran\PluginLib\Forms\Builders\BuilderFieldContainerInterface;
 
 interface SubmitControlsBuilderInterface extends BuilderFieldContainerInterface {
 	/**
-	 * Set alignment (left, center, right, stretch).
-	 */
-	public function alignment(string $alignment): self;
-
-	/**
-	 * Set layout (inline, stacked).
-	 */
-	public function layout(string $layout): self;
-
-	/**
 	 * Override submit wrapper template.
 	 */
 	public function template(string $template_key): self;

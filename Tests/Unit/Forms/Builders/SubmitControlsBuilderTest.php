@@ -34,26 +34,22 @@ final class SubmitControlsBuilderTest extends TestCase {
 		$payload = $zoneUpdates[0]['payload'];
 		self::assertSame('container', $payload['container_id']);
 		self::assertSame('zone', $payload['zone_id']);
-		self::assertSame('right', $payload['alignment']);
-		self::assertSame('inline', $payload['layout']);
+		self::assertNull($payload['before']);
+		self::assertNull($payload['after']);
 
 		$templateUpdates = $this->pluckUpdates('template_override');
 		self::assertEmpty($templateUpdates, 'Default construction should not emit template overrides.');
 	}
 
-	public function test_alignment_and_layout_emit_zone_updates(): void {
+	public function test_before_and_after_emit_zone_updates(): void {
 		$builder = $this->createBuilder();
 
-		$builder->alignment('left')
-			->layout('stacked')
-			->before(static fn (): string => '<p>before</p>')
+		$builder->before(static fn (): string => '<p>before</p>')
 			->after(static fn (): string => '<p>after</p>');
 
 		$zoneUpdates = $this->pluckUpdates('submit_controls_zone');
-		self::assertGreaterThanOrEqual(4, count($zoneUpdates));
+		self::assertGreaterThanOrEqual(3, count($zoneUpdates));
 		$latest = $zoneUpdates[count($zoneUpdates) - 1]['payload'];
-		self::assertSame('left', $latest['alignment']);
-		self::assertSame('stacked', $latest['layout']);
 		self::assertIsCallable($latest['before']);
 		self::assertIsCallable($latest['after']);
 	}

@@ -148,49 +148,45 @@ class FormElementRenderer {
 	}
 
 	/**
-	 * Render component and collect assets for FormsServiceSession integration.
+	 * Render a component and collect its declared assets into the provided session bucket.
 	 *
-	 * This method provides the integration point for FormsServiceSession to use
-	 * FormElementRenderer for component rendering with proper asset collection.
-	 * Implements Requirements 6.7, 10.1, 10.2 for FormsServiceSession integration.
-	 *
-	 * @param string $component Component name to render
-	 * @param array  $context   Rendering context
-	 * @param FormsServiceSession $session Form service session for asset collection
-	 * @return string Rendered component HTML
-	 * @throws \InvalidArgumentException If component rendering fails
+	 * @param string                 $component Component alias to render.
+	 * @param array<string,mixed>    $context   Rendering context passed to the component.
+	 * @param FormsServiceSession|null $session Active session used for asset aggregation (required).
+	 * @return string Rendered component markup.
 	 */
 	public function render_component_with_assets(
 		string $component,
 		array $context,
-		FormsServiceSession $session
+		?FormsServiceSession $session = null
 	): string {
+		if ($session === null) {
+			$this->_get_logger()->error('FormElementRenderer: render_component_with_assets requires active session', array(
+				'component' => $component,
+			));
+			throw new \InvalidArgumentException('FormElementRenderer::render_component_with_assets() requires an active FormsServiceSession instance.');
+		}
+
 		try {
-			// Render the component using ComponentManifest
 			$render_result = $this->components->render($component, $context);
+			$field_id      = $context['field_id'] ?? $context['_field_id'] ?? 'unknown';
 
-			// Collect assets with enhanced error handling
-			$this->_collect_component_assets(
-				$render_result,
-				$session,
-				$component,
-				$context['field_id'] ?? 'unknown'
-			);
+			$this->_collect_component_assets($render_result, $session, $component, (string) $field_id);
 
-			$this->_get_logger()->debug('FormElementRenderer: Component rendered with assets for FormsServiceSession', array(
+			$this->_get_logger()->debug('FormElementRenderer: Component rendered with assets', array(
 				'component'   => $component,
-				'field_id'    => $context['field_id'] ?? 'unknown',
+				'field_id'    => $field_id,
 				'has_assets'  => $render_result->has_assets(),
-				'asset_types' => $this->_get_asset_types_summary($render_result)
+				'asset_types' => $this->_get_asset_types_summary($render_result),
 			));
 
 			return $render_result->markup;
 		} catch (\Throwable $e) {
 			$this->_get_logger()->error('FormElementRenderer: Component rendering with assets failed', array(
 				'component' => $component,
-				'field_id'  => $context['field_id'] ?? 'unknown',
-				'error'     => $e->getMessage(),
-				'trace'     => $e->getTraceAsString()
+				'context'   => $context,
+				'exception' => $e->getMessage(),
+				'trace'     => $e->getTraceAsString(),
 			));
 
 			throw new \InvalidArgumentException(
@@ -278,15 +274,15 @@ class FormElementRenderer {
 	 * Handles form session management and asset capture during rendering.
 	 * Enhanced with proper asset collection error handling and FormsServiceSession integration.
 	 *
-	 * @param string $component        Component name
-	 * @param string $field_id         Field identifier
-	 * @param string $label            Field label
-	 * @param array  $context          Prepared field context
-	 * @param array  $values           All form values
-	 * @param string $wrapper_template Template for wrapper (default: 'direct-output')
-	 * @param FormsServiceSession|null $session Optional session for asset collection (creates new if null)
+	 * @param string                $component        Component name
+	 * @param string                $field_id         Field identifier
+	 * @param string                $label            Field label
+	 * @param array                 $context          Prepared field context
+	 * @param array                 $values           All form values
+	 * @param string                $wrapper_template Template for wrapper (default: 'direct-output')
+	 * @param FormsServiceSession|null $session       Session for asset collection (required)
 	 * @return string Rendered component HTML
-	 * @throws \InvalidArgumentException If component rendering fails
+	 * @throws \InvalidArgumentException If component rendering fails or session missing
 	 */
 	public function render_field_component(
 		string $component,
@@ -298,16 +294,19 @@ class FormElementRenderer {
 		?FormsServiceSession $session = null
 	): string {
 		try {
-			// Use provided session or create new one
-			$session = $session ?? $this->form_service->start_session();
+			if ($session === null) {
+				$this->_get_logger()->error('FormElementRenderer: render_field_component requires active session', array(
+					'component' => $component,
+					'field_id'  => $field_id,
+				));
+				throw new \InvalidArgumentException('FormElementRenderer::render_field_component() requires an active FormsServiceSession instance.');
+			}
 
-			// Render the component
-			$render_result = $this->components->render($component, $context);
-
-			// Enhanced asset collection with error handling
-			$this->_collect_component_assets($render_result, $session, $component, $field_id);
-
-			$component_html = $render_result->markup;
+			$component_html = $this->render_component_with_assets(
+				$component,
+				$context,
+				$session
+			);
 
 			// Handle template wrapper if not direct output
 			if ($wrapper_template !== 'direct-output') {
@@ -323,9 +322,7 @@ class FormElementRenderer {
 			$this->_get_logger()->debug('FormElementRenderer: Component rendered successfully', array(
 				'component'        => $component,
 				'field_id'         => $field_id,
-				'wrapper_template' => $wrapper_template,
-				'has_assets'       => $render_result->has_assets(),
-				'asset_types'      => $this->_get_asset_types_summary($render_result)
+				'wrapper_template' => $wrapper_template
 			));
 
 			return $component_html;
@@ -350,15 +347,15 @@ class FormElementRenderer {
 	 * Combines component rendering with template wrapper application using
 	 * existing ComponentLoader infrastructure. Enhanced with proper asset collection.
 	 *
-	 * @param string $component        Component name
-	 * @param string $field_id         Field identifier
-	 * @param string $label            Field label
-	 * @param array  $context          Prepared field context
-	 * @param array  $values           All form values
-	 * @param string $wrapper_template Template for wrapper (default: 'shared.field-wrapper')
-	 * @param FormsServiceSession|null $session Optional session for asset collection (creates new if null)
+	 * @param string                $component        Component name
+	 * @param string                $field_id         Field identifier
+	 * @param string                $label            Field label
+	 * @param array                 $context          Prepared field context
+	 * @param array                 $values           All form values
+	 * @param string                $wrapper_template Template for wrapper (default: 'shared.field-wrapper')
+	 * @param FormsServiceSession|null $session       Session for asset collection (required)
 	 * @return string Rendered field HTML with wrapper
-	 * @throws \InvalidArgumentException If component rendering fails
+	 * @throws \InvalidArgumentException If component rendering fails or session missing
 	 */
 	public function render_field_with_wrapper(
 		string $component,
@@ -370,16 +367,20 @@ class FormElementRenderer {
 		?FormsServiceSession $session = null
 	): string {
 		try {
-			// Use provided session or create new one
-			$session = $session ?? $this->form_service->start_session();
+			if ($session === null) {
+				$this->_get_logger()->error('FormElementRenderer: render_field_with_wrapper requires active session', array(
+					'component'        => $component,
+					'field_id'         => $field_id,
+					'wrapper_template' => $wrapper_template,
+				));
+				throw new \InvalidArgumentException('FormElementRenderer::render_field_with_wrapper() requires an active FormsServiceSession instance.');
+			}
 
-			// Render the component first
-			$render_result = $this->components->render($component, $context);
-
-			// Enhanced asset collection with error handling
-			$this->_collect_component_assets($render_result, $session, $component, $field_id);
-
-			$component_html = $render_result->markup;
+			$component_html = $this->render_component_with_assets(
+				$component,
+				$context,
+				$session
+			);
 
 			// Apply template wrapper using ComponentLoader
 			$wrapped_html = $this->_apply_template_wrapper(
@@ -393,9 +394,7 @@ class FormElementRenderer {
 			$this->_get_logger()->debug('FormElementRenderer: Field rendered with wrapper successfully', array(
 				'component'        => $component,
 				'field_id'         => $field_id,
-				'wrapper_template' => $wrapper_template,
-				'has_assets'       => $render_result->has_assets(),
-				'asset_types'      => $this->_get_asset_types_summary($render_result)
+				'wrapper_template' => $wrapper_template
 			));
 
 			return $wrapped_html;

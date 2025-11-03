@@ -38,8 +38,6 @@ class AdminSettingsPageBuilder implements BuilderRootInterface {
 
 	private const SUBMIT_CONTROLS_ZONE_ID = 'primary-controls';
 	private const DEFAULT_CONTROL_ID      = 'primary';
-	private const DEFAULT_ALIGNMENT       = 'right';
-	private const DEFAULT_LAYOUT          = 'inline';
 	private const DEFAULT_BUTTON_LABEL    = 'Save Changes';
 	private AdminSettingsMenuGroupBuilder $menu_group;
 	private string $container_id;
@@ -258,12 +256,14 @@ class AdminSettingsPageBuilder implements BuilderRootInterface {
 			$this,
 			$this->container_id,
 			self::SUBMIT_CONTROLS_ZONE_ID,
-			$this->updateFn,
-			array(
-				'alignment' => self::DEFAULT_ALIGNMENT,
-				'layout'    => self::DEFAULT_LAYOUT,
-			)
+			$this->updateFn
 		);
+
+		if (!$this->submit_controls_cleared) {
+			$builder->button(self::DEFAULT_CONTROL_ID, self::DEFAULT_BUTTON_LABEL, static function (ButtonBuilder $button): void {
+				$button->type('submit');
+			});
+		}
 
 		if ($template !== null && $template !== '') {
 			$builder->template($template);
@@ -410,8 +410,6 @@ class AdminSettingsPageBuilder implements BuilderRootInterface {
 		($this->updateFn)('submit_controls_zone', array(
 			'container_id' => $this->container_id,
 			'zone_id'      => self::SUBMIT_CONTROLS_ZONE_ID,
-			'alignment'    => self::DEFAULT_ALIGNMENT,
-			'layout'       => self::DEFAULT_LAYOUT,
 		));
 
 		$this->submit_zone_emitted = true;

@@ -196,13 +196,17 @@ class FormElementRendererAssetCollectionMinimalTest extends PluginLibTestCase {
 
 		$context = $renderer->prepare_field_context($field, array(), array());
 
+		$session = $form_service->start_session();
+
 		// Render field component
 		$html = $renderer->render_field_component(
 			'fields.text',
 			'test_field',
 			'Test Field',
 			$context,
-			array()
+			array(),
+			'direct-output',
+			$session
 		);
 
 		// Verify HTML is returned
@@ -210,10 +214,9 @@ class FormElementRendererAssetCollectionMinimalTest extends PluginLibTestCase {
 
 		// Verify enhanced logging occurred
 		$this->expectLog('debug', 'FormElementRenderer: Component rendered successfully');
-		$logs       = $this->logger_mock->get_logs();
-		$asset_logs = array_filter($logs, static function($log) {
-			return isset($log['context']['has_assets']) && $log['context']['has_assets'] === true;
-		});
-		$this->assertNotEmpty($asset_logs, 'Expected log entry with asset information');
+
+		$assets = $session->assets();
+		$this->assertTrue($assets->has_assets(), 'Expected session assets to reflect captured style.');
+		$this->assertArrayHasKey('field-style', $assets->styles(), 'Expected style handle to be captured.');
 	}
 }

@@ -20,6 +20,7 @@ namespace Ran\PluginLib\Forms;
 use Ran\PluginLib\Util\Logger;
 use Ran\PluginLib\Options\RegisterOptions;
 use Ran\PluginLib\Forms\FormsService;
+use Ran\PluginLib\Forms\FormsAssets;
 use Ran\PluginLib\Forms\FormsServiceSession;
 use Ran\PluginLib\Forms\Component\ComponentManifest;
 use Ran\PluginLib\Forms\Renderer\FormElementRenderer;
@@ -48,7 +49,8 @@ trait FormsBaseTrait {
 	protected FormsService $form_service;
 	protected FormElementRenderer $field_renderer;
 	protected FormMessageHandler $message_handler;
-	protected ?FormsServiceSession $form_session = null; //
+	protected ?FormsServiceSession $form_session = null;
+	protected ?FormsAssets $shared_assets        = null;
 	protected Logger $logger;
 	protected RegisterOptions $base_options;
 
@@ -63,7 +65,7 @@ trait FormsBaseTrait {
 	protected array $fields = array();
 	/** @var array<string, array<string, array{group_id:string, fields:array<int, array{id:string, label:string, component:string, component_context:array<string,mixed>, order:int, index:int}>, before:?callable, after:?callable, order:int, index:int}>> */
 	protected array $groups = array();
-	/** @var array<string, array{zones:array<string, array{alignment:string, layout:string, before:?callable, after:?callable}>, controls:array<string, array<int, array{id:string, label:string, component:string, component_context:array<string,mixed>, order:int}>>}> */
+	/** @var array<string, array{zone_id:string, before:?callable, after:?callable, controls: array<int, array{id:string, label:string, component:string, component_context:array<string,mixed>, order:int}>}> */
 	protected array $submit_controls = array();
 
 
@@ -266,30 +268,21 @@ trait FormsBaseTrait {
 			return;
 		}
 
-		if (!isset($this->submit_controls[$container_id])) {
-			$this->submit_controls[$container_id] = array(
-				'zones'    => array(),
-				'controls' => array(),
-			);
-		}
+		$before = $data['before'] ?? null;
+		$after  = $data['after']  ?? null;
 
-		$alignment = $this->sanitize_submit_alignment((string) ($data['alignment'] ?? 'right'));
-		$layout    = $this->sanitize_submit_layout((string) ($data['layout'] ?? 'inline'));
-		$before    = $data['before'] ?? null;
-		$after     = $data['after']  ?? null;
+		$current_controls = $this->submit_controls[$container_id]['controls'] ?? array();
 
-		$this->submit_controls[$container_id]['zones'][$zone_id] = array(
-			'alignment' => $alignment,
-			'layout'    => $layout,
-			'before'    => is_callable($before) ? $before : null,
-			'after'     => is_callable($after) ? $after : null,
+		$this->submit_controls[$container_id] = array(
+			'zone_id'  => $zone_id,
+			'before'   => is_callable($before) ? $before : null,
+			'after'    => is_callable($after) ? $after : null,
+			'controls' => $current_controls,
 		);
 
 		$this->logger->debug('forms.submit_controls.zone.updated', array(
 			'container_id' => $container_id,
 			'zone_id'      => $zone_id,
-			'alignment'    => $alignment,
-			'layout'       => $layout,
 			'has_before'   => is_callable($before),
 			'has_after'    => is_callable($after),
 		));
@@ -313,12 +306,17 @@ trait FormsBaseTrait {
 			return;
 		}
 
-		if (!isset($this->submit_controls[$container_id]['zones'][$zone_id])) {
+		$existing = $this->submit_controls[$container_id] ?? null;
+		if ($existing === null) {
 			$this->logger->warning('Submit controls update received without matching zone', array(
 				'container_id' => $container_id,
 				'zone_id'      => $zone_id,
 			));
 			return;
+		}
+
+		if (($existing['zone_id'] ?? '') === '') {
+			$this->submit_controls[$container_id]['zone_id'] = $zone_id;
 		}
 
 		$controls = $data['controls'] ?? array();
@@ -350,6 +348,11 @@ trait FormsBaseTrait {
 				continue;
 			}
 
+			$context['field_id']  = $control_id;
+			$context['_field_id'] = $control_id;
+			$context['label']     = $label;
+			$context['_label']    = $label;
+
 			$normalized[] = array(
 				'id'                => $control_id,
 				'label'             => $label,
@@ -366,34 +369,14 @@ trait FormsBaseTrait {
 			}
 		);
 
-		$this->submit_controls[$container_id]['controls'][$zone_id] = $normalized;
-		$this->logger->debug('forms.submit_controls.controls.updated', array(
-			'container_id' => $container_id,
-			'zone_id'      => $zone_id,
-			'count'        => count($normalized),
-		));
-	}
-
-	/**
-	 * Normalize submit control alignment.
-	 *
-	 * @param string $alignment Raw alignment.
-	 * @return string
-	 */
-	private function sanitize_submit_alignment(string $alignment): string {
-		$alignment = strtolower(trim($alignment));
-		return in_array($alignment, array('left', 'center', 'right', 'stretch'), true) ? $alignment : 'right';
-	}
-
-	/**
-	 * Normalize submit control layout.
-	 *
-	 * @param string $layout Raw layout.
-	 * @return string
-	 */
-	private function sanitize_submit_layout(string $layout): string {
-		$layout = strtolower(trim($layout));
-		return in_array($layout, array('inline', 'stacked'), true) ? $layout : 'inline';
+		$this->submit_controls[$container_id]['controls'] = $normalized;
+		if (!empty($normalized)) {
+			$this->logger->debug('forms.submit_controls.controls.updated', array(
+				'container_id' => $container_id,
+				'zone_id'      => $zone_id,
+				'count'        => count($normalized),
+			));
+		}
 	}
 
 	/**
@@ -979,7 +962,8 @@ trait FormsBaseTrait {
 	 */
 	protected function _start_form_session(): void {
 		if ($this->form_session === null) {
-			$this->form_session = $this->form_service->start_session();
+			$this->shared_assets = $this->shared_assets ?? new FormsAssets();
+			$this->form_session  = $this->form_service->start_session($this->shared_assets);
 		}
 	}
 
@@ -1146,6 +1130,10 @@ trait FormsBaseTrait {
 		$field_id  = isset($field['id']) ? (string) $field['id'] : '';
 		$label     = isset($field['label']) ? (string) $field['label'] : '';
 		$component = isset($field['component']) && is_string($field['component']) ? trim($field['component']) : '';
+		$this->logger->debug('forms.default_field.render', array(
+			'field_id'  => $field_id,
+			'component' => $component,
+		));
 
 		if ($component === '') {
 			$this->logger->error(static::class . ': field missing component metadata.', array('field' => $field_id));
@@ -1157,6 +1145,10 @@ trait FormsBaseTrait {
 			$this->logger->error( static::class . ': field provided a non-array component_context.', array('field' => $field_id));
 			throw new \InvalidArgumentException(sprintf(static::class . ': field "%s" must provide an array component_context.', $field_id ?: 'unknown'));
 		}
+		$context['field_id']  = $field_id;
+		$context['_field_id'] = $field_id;
+		$context['label']     = $label;
+		$context['_label']    = $label;
 
 		// Get messages for this field
 		$field_messages = $this->message_handler->get_messages_for_field($field_id);
@@ -1171,6 +1163,10 @@ trait FormsBaseTrait {
 
 		// Use FormElementRenderer for complete field processing with wrapper
 		try {
+			if ($this->form_session === null) {
+				$this->_start_form_session();
+			}
+
 			$field_context = $this->field_renderer->prepare_field_context(
 				$field_config,
 				$values,
@@ -1184,7 +1180,8 @@ trait FormsBaseTrait {
 				$label,
 				$field_context,
 				$values,
-				'field-wrapper' // FormElementRenderer will resolve via template overrides
+				'field-wrapper',
+				$this->form_session
 			);
 		} catch (\Throwable $e) {
 			$this->logger->error(static::class . ': Field rendering failed', array(

@@ -142,7 +142,7 @@ class FormElementRendererAssetCollectionTest extends PluginLibTestCase {
 		$this->assertArrayHasKey('test-style', $styles);
 		$this->assertEquals('test-style', $styles['test-style']->handle);
 
-		$this->expectLog('debug', 'FormElementRenderer: Component rendered with assets for FormsServiceSession');
+		$this->expectLog('debug', 'FormElementRenderer: Component rendered with assets');
 	}
 
 	/**
@@ -248,13 +248,17 @@ class FormElementRendererAssetCollectionTest extends PluginLibTestCase {
 
 		$context = $renderer->prepare_field_context($field, array(), array());
 
+		$session = $form_service->start_session();
+
 		// Render field component
 		$html = $renderer->render_field_component(
 			'fields.text',
 			'test_field',
 			'Test Field',
 			$context,
-			array()
+			array(),
+			'direct-output',
+			$session
 		);
 
 		// Verify HTML is returned
@@ -262,11 +266,9 @@ class FormElementRendererAssetCollectionTest extends PluginLibTestCase {
 
 		$this->expectLog('debug', 'FormElementRenderer: Component rendered successfully');
 
-		$logs       = $this->logger_mock->get_logs();
-		$asset_logs = array_filter($logs, static function($log) {
-			return isset($log['context']['has_assets']) && $log['context']['has_assets'] === true;
-		});
-		$this->assertNotEmpty($asset_logs);
+		$assets = $session->assets();
+		$this->assertTrue($assets->has_assets(), 'Expected session assets to record the style dependency.');
+		$this->assertArrayHasKey('field-style', $assets->styles(), 'Expected style handle to be captured.');
 	}
 
 	/**
@@ -310,7 +312,7 @@ class FormElementRendererAssetCollectionTest extends PluginLibTestCase {
 		$assets = $session->assets();
 		$this->assertFalse($assets->has_assets());
 
-		$this->expectLog('debug', 'FormElementRenderer: Component rendered with assets for FormsServiceSession');
+		$this->expectLog('debug', 'FormElementRenderer: Component rendered with assets');
 
 		$logs       = $this->logger_mock->get_logs();
 		$asset_logs = array_filter($logs, static function($log) {

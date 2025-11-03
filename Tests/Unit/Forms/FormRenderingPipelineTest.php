@@ -153,7 +153,6 @@ class FormRenderingPipelineTest extends PluginLibTestCase {
 			$this->component_manifest->get_component_loader(),
 			$this->logger
 		);
-
 		// Start FormsServiceSession to track the complete pipeline
 		$session = $form_service->start_session();
 
@@ -222,7 +221,7 @@ class FormRenderingPipelineTest extends PluginLibTestCase {
 		// Verify complete pipeline logging
 		$logs          = $this->logger->get_logs();
 		$pipeline_logs = array_filter($logs, function($log) {
-			return $log['level'] === 'debug' && strpos($log['message'], 'Component rendered with assets for FormsServiceSession') !== false;
+			return $log['level'] === 'debug' && strpos($log['message'], 'FormElementRenderer: Component rendered with assets') !== false;
 		});
 		$this->assertCount(3, $pipeline_logs, 'Should have logged all three component renderings');
 
@@ -415,6 +414,8 @@ class FormRenderingPipelineTest extends PluginLibTestCase {
 			$this->logger
 		);
 
+		$session = $form_service->start_session();
+
 		// Prepare field context
 		$field = array(
 			'field_id'    => 'custom_field',
@@ -432,7 +433,8 @@ class FormRenderingPipelineTest extends PluginLibTestCase {
 			'Custom Field',
 			$context,
 			array(),
-			'direct-output'
+			'direct-output',
+			$session
 		);
 
 		// Verify direct component markup
@@ -446,7 +448,8 @@ class FormRenderingPipelineTest extends PluginLibTestCase {
 			'Custom Field',
 			$context,
 			array(),
-			'shared.field-wrapper'
+			'shared.field-wrapper',
+			$session
 		);
 
 		// Verify wrapped component markup

@@ -11,9 +11,15 @@ use Ran\PluginLib\Tests\Unit\PluginLibTestCase;
 use Ran\PluginLib\Settings\AdminSettings;
 use Ran\PluginLib\Options\Storage\StorageContext;
 use Ran\PluginLib\Options\RegisterOptions;
+use Ran\PluginLib\Forms\Renderer\FormElementRenderer;
+use Ran\PluginLib\Forms\FormsServiceSession;
+use Ran\PluginLib\Forms\FormsService;
 use Ran\PluginLib\Forms\Component\ComponentRenderResult;
 use Ran\PluginLib\Forms\Component\ComponentManifest;
 use Ran\PluginLib\Forms\Component\ComponentLoader;
+use Ran\PluginLib\EnqueueAccessory\ScriptDefinition;
+use Mockery;
+use InvalidArgumentException;
 
 /**
  * @covers \Ran\PluginLib\Settings\AdminSettings
@@ -424,5 +430,95 @@ final class AdminSettingsBehaviorTest extends PluginLibTestCase {
 		self::assertStringContainsString('Publish Settings', $output, 'Expected custom submit button label.');
 		self::assertStringNotContainsString('Save Changes', $output, 'Default submit label should be cleared once custom controls provided.');
 	}
-}
 
+	public function test_render_field_with_assets_requires_shared_session_to_enqueue(): void {
+		$this->manifest->register('fields.asset-field', function (array $context): ComponentRenderResult {
+			$this->logger->debug('admin_settings.test.asset_field.render', array(
+				'field_id'     => $context['field_id'] ?? null,
+				'label'        => $context['label']    ?? null,
+				'context_keys' => array_keys($context),
+			));
+			$script = ScriptDefinition::from_array(array(
+				'handle' => 'test-asset-script',
+				'src'    => 'https://example.com/test.js',
+			));
+
+			return new ComponentRenderResult(
+				'<div data-asset-field="' . htmlspecialchars((string) ($context['field_id'] ?? ''), ENT_QUOTES) . '">Asset Field</div>',
+				script: $script,
+				component_type: 'form_field'
+			);
+		});
+
+		$menuBuilder = $this->settings->menu_group('asset-group');
+		$pageBuilder = $menuBuilder->page('asset-page');
+
+		$pageBuilder
+			->section('asset-section', 'Asset Section')
+				->field('asset_field', 'Asset Field', 'fields.asset-field')
+			->end_section();
+
+		$pageBuilder
+			->submit_controls()
+				->field('asset_submit', 'Save Changes', 'fields.asset-field')
+			->end_submit_controls();
+
+		$pageBuilder->end_page();
+		$menuBuilder->end_menu_group();
+
+		$this->expectOptionReturn(array('asset_field' => 'value'));
+
+		// Expect shared session enqueue to register and enqueue the script once the refactor is complete.
+		WP_Mock::userFunction('wp_register_script')
+			->times(2)
+			->with(
+				'test-asset-script',
+				'https://example.com/test.js',
+				array(),
+				false,
+				true
+			)
+			->andReturn(true);
+
+		ob_start();
+		$this->settings->render('asset-page');
+		ob_end_clean();
+
+		$logs       = $this->logger->get_logs();
+		$submitLogs = array_filter($logs, static function (array $entry): bool {
+			return $entry['level'] === 'debug' && strpos($entry['message'], 'forms.submit_controls.controls.updated') !== false;
+		});
+		self::assertNotEmpty($submitLogs, 'Expected submit controls update log to be recorded. Found ' . count($submitLogs));
+		$this->expectLog('debug', 'FormElementRenderer: Component rendered with assets', 2);
+
+		$session = $this->settings->get_form_session();
+		self::assertInstanceOf(FormsServiceSession::class, $session, 'Expected AdminSettings to have an active form session.');
+		$handles = array_keys($session->assets()->scripts());
+		$this->logger->debug('admin_settings.test.asset_handles', array('handles' => $handles));
+
+		$handlesLog = $this->logger->find_logs(static function (array $entry): bool {
+			return $entry['message'] === 'admin_settings.test.asset_handles';
+		});
+		self::assertNotEmpty($handlesLog, 'Expected asset handles log to be recorded.');
+		self::assertContains('test-asset-script', $handles, 'Expected script asset to be captured by shared session. Handles: ' . implode(', ', $handles));
+
+		$session->enqueue_assets();
+	}
+
+	public function test_render_field_component_wraps_render_exceptions(): void {
+		$manifest = Mockery::mock(ComponentManifest::class);
+		$manifest->shouldReceive('render')->andThrow(new \RuntimeException('render failed'));
+
+		$service  = new FormsService($manifest, $this->logger);
+		$renderer = new FormElementRenderer($manifest, $service, $this->manifest->get_component_loader(), $this->logger);
+
+		$field   = array('field_id' => 'field', 'component' => 'fields.text', 'label' => 'Label');
+		$context = $renderer->prepare_field_context($field, array(), array());
+
+		$this->expectException(InvalidArgumentException::class);
+		$this->expectExceptionMessage("Failed to render field 'field' with component 'fields.text'");
+
+		$renderer->render_field_with_wrapper('fields.text', 'field', 'Label', $context, array(), 'wrappers/simple-wrapper', $this->settings->get_form_session());
+		$this->expectLog('error', 'FormElementRenderer: Field with wrapper rendering failed');
+	}
+}

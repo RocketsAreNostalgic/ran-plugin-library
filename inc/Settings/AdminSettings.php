@@ -24,10 +24,9 @@ use Ran\PluginLib\Forms\Renderer\FormElementRenderer;
 use Ran\PluginLib\Forms\FormsService;
 use Ran\PluginLib\Forms\FormsInterface;
 use Ran\PluginLib\Forms\FormsBaseTrait;
+use Ran\PluginLib\Forms\Components\Elements\Button\Builder as ButtonBuilder;
 use Ran\PluginLib\Forms\Component\ComponentManifest;
 use Ran\PluginLib\Forms\Component\ComponentLoader;
-use Ran\PluginLib\Forms\Component\ComponentRenderResult;
-use Ran\PluginLib\Forms\Components\Elements\Button\Builder as ButtonBuilder;
 
 /**
  * Admin settings facade that coordinates Settings API registration with a scoped `RegisterOptions`
@@ -138,11 +137,13 @@ class AdminSettings implements FormsInterface {
 	 * Retrieve submit controls metadata for the given page.
 	 *
 	 * @param string $page_slug
-	 * @return array{zones:array<string,array{alignment:string,layout:string,before:?callable,after:?callable}>,controls:array<string,array<int,array{id:string,label:string,component:string,component_context:array<string,mixed>,order:int}>>}
+	 * @return array{zone_id:string,before:?callable,after:?callable,controls:array<int,array{id:string,label:string,component:string,component_context:array<string,mixed>,order:int}>}
 	 */
 	private function getSubmitControlsForPage(string $page_slug): array {
 		return $this->submit_controls[$page_slug] ?? array(
-			'zones'    => array(),
+			'zone_id'  => self::DEFAULT_SUBMIT_ZONE,
+			'before'   => null,
+			'after'    => null,
 			'controls' => array(),
 		);
 	}
@@ -150,36 +151,35 @@ class AdminSettings implements FormsInterface {
 	/**
 	 * Render submit controls for the current page.
 	 *
-	 * @param array{zones:array<string,array{alignment:string,layout:string,before:?callable,after:?callable}>,controls:array<string,array<int,array{id:string,label:string,component:string,component_context:array<string,mixed>,order:int}>>} $submit_controls
+	 * @param array{zone_id:string,before:?callable,after:?callable,controls:array<int,array{id:string,label:string,component:string,component_context:array<string,mixed>,order:int}>} $submit_controls
 	 * @return string
 	 */
 	private function renderSubmitControls(string $page_slug, array $submit_controls): string {
-		if (empty($submit_controls['zones'])) {
+		$zone_id  = $submit_controls['zone_id']  ?? self::DEFAULT_SUBMIT_ZONE;
+		$controls = $submit_controls['controls'] ?? array();
+		$this->logger->debug('admin_settings.submit_controls.render', array(
+			'page'     => $page_slug,
+			'zone_id'  => $zone_id,
+			'controls' => array_map(static function (array $control): array {
+				return array(
+					'id'        => $control['id']        ?? null,
+					'component' => $control['component'] ?? null,
+					'order'     => $control['order']     ?? null,
+				);
+			}, $controls),
+		));
+
+		if (empty($controls)) {
 			return $this->renderDefaultSubmitControls($page_slug);
 		}
 
-		$markup = '';
-		foreach ($submit_controls['zones'] as $zone_id => $zone_meta) {
-			$controls = $submit_controls['controls'][$zone_id] ?? array();
-			if (empty($controls)) {
-				continue;
-			}
-
-			$markup .= $this->renderSubmitZone($page_slug, $zone_id, $zone_meta, $controls);
-		}
-
-		if ($markup === '') {
-			return $this->renderDefaultSubmitControls($page_slug);
-		}
-
-		return $markup;
+		return $this->renderSubmitZone($page_slug, $zone_id, $submit_controls, $controls);
 	}
 
 	/**
 	 * Render a single submit controls zone.
 	 *
-	 * @param string $zone_id
-	 * @param array{alignment:string,layout:string,before:?callable,after:?callable} $zone_meta
+	 * @param array{zone_id?:string,before:?callable,after:?callable,controls?:array<int,array{id:string,label:string,component:string,component_context:array<string,mixed>,order:int}>} $zone_meta
 	 * @param array<int,array{id:string,label:string,component:string,component_context:array<string,mixed>,order:int}> $controls
 	 * @return string
 	 */
@@ -204,21 +204,17 @@ class AdminSettings implements FormsInterface {
 
 		$content_with_callbacks = $before_markup . $content . $after_markup;
 
-		$wrapper = $this->form_session->render_element(
+		return $this->form_session->render_element(
 			'submit-controls-wrapper',
 			array(
-				'zone_id'   => $zone_id,
-				'alignment' => $zone_meta['alignment'] ?? 'right',
-				'layout'    => $zone_meta['layout']    ?? 'inline',
-				'content'   => $content_with_callbacks,
+				'zone_id' => $zone_id,
+				'content' => $content_with_callbacks,
 			),
 			array(
 				'root_id' => $page_slug,
 				'zone_id' => $zone_id,
 			)
 		);
-
-		return $wrapper;
 	}
 
 	/**
@@ -234,32 +230,33 @@ class AdminSettings implements FormsInterface {
 
 		$component  = $control['component']         ?? '';
 		$context    = $control['component_context'] ?? array();
-		$rendered   = $this->form_session->render_component($component, $context);
-		$warnings   = $this->components->take_warnings();
-		$control_id = $control['id'] ?? '';
+		$control_id = $control['id']                ?? '';
+		$label      = $control['label']             ?? '';
 
-		if (!empty($warnings)) {
-			$this->logger->warning('AdminSettings: Submit control rendered with warnings', array(
-				'control_id' => $control_id,
-				'warnings'   => $warnings,
+		$context['field_id']  = $control_id;
+		$context['_field_id'] = $control_id;
+		$context['label']     = $label;
+		$context['_label']    = $label;
+
+		try {
+			$this->logger->debug('admin_settings.submit_control.render.start', array(
+				'control_id'   => $control_id,
+				'component'    => $component,
+				'context_keys' => array_keys($context),
 			));
+			return $this->field_renderer->render_component_with_assets(
+				$component,
+				$context,
+				$this->form_session
+			);
+		} catch (\Throwable $e) {
+			$this->logger->warning('AdminSettings: Submit control rendering failed', array(
+				'control_id' => $control_id,
+				'component'  => $component,
+				'error'      => $e->getMessage(),
+			));
+			return '';
 		}
-
-		if ($rendered instanceof ComponentRenderResult) {
-			$this->form_session->assets()->ingest($rendered);
-			return $rendered->markup;
-		}
-
-		if (is_string($rendered)) {
-			return $rendered;
-		}
-
-		$this->logger->warning('AdminSettings: Submit control renderer did not return ComponentRenderResult', array(
-			'control_id' => $control_id,
-			'component'  => $component,
-		));
-
-		return '';
 	}
 
 	/**
@@ -275,13 +272,13 @@ class AdminSettings implements FormsInterface {
 		return $this->renderSubmitZone(
 			$page_slug,
 			self::DEFAULT_SUBMIT_ZONE,
-			array('alignment' => 'right', 'layout' => 'inline'),
+			array('before' => null, 'after' => null),
 			array(
 				array(
 					'id'                => $payload['id'],
 					'label'             => $payload['label'],
 					'component'         => $payload['component'],
-					'component_context' => $payload['component_context'],
+					'component_context' => array_merge($payload['component_context'], array('type' => 'submit')),
 					'order'             => $payload['order'],
 				),
 			)

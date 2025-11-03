@@ -83,6 +83,7 @@ class FormsServiceSession {
 	 * @param string               $label
 	 * @param array<string,mixed>  $context
 	 * @param array<string,mixed>  $values
+	 * @return string Rendered HTML markup
 	 */
 	public function render_field_component(string $component, string $field_id, string $label, array $context, array $values): string {
 		$context['_field_id'] = $field_id;

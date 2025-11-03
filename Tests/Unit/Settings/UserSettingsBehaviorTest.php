@@ -11,8 +11,11 @@ use Ran\PluginLib\Tests\Unit\PluginLibTestCase;
 use Ran\PluginLib\Settings\UserSettings;
 use Ran\PluginLib\Options\Storage\StorageContext;
 use Ran\PluginLib\Options\RegisterOptions;
+use Ran\PluginLib\EnqueueAccessory\ScriptDefinition;
+use Ran\PluginLib\Forms\Component\ComponentRenderResult;
 use Ran\PluginLib\Forms\Component\ComponentManifest;
 use Ran\PluginLib\Forms\Component\ComponentLoader;
+use Ran\PluginLib\Forms\FormsServiceSession;
 
 /**
  * @covers \Ran\PluginLib\Settings\UserSettings
@@ -180,6 +183,88 @@ final class UserSettingsBehaviorTest extends PluginLibTestCase {
 
 		$this->assertTrue($called);
 		$this->assertStringContainsString('profile-collection', $output);
+	}
+
+	public function test_render_field_with_assets_requires_shared_session_to_enqueue(): void {
+		$this->manifest->register('fields.profile-asset', function (array $context): ComponentRenderResult {
+			$this->logger->debug('user_settings.test.profile_asset.render', array(
+				'field_id'     => $context['field_id'] ?? null,
+				'label'        => $context['label']    ?? null,
+				'context_keys' => array_keys($context),
+			));
+			$script = ScriptDefinition::from_array(array(
+				'handle' => 'profile-asset-script',
+				'src'    => 'https://example.com/profile.js',
+			));
+
+			return new ComponentRenderResult(
+				'<div class="profile-asset">' . htmlspecialchars((string) ($context['field_id'] ?? ''), ENT_QUOTES) . '</div>',
+				script: $script,
+				component_type: 'form_field'
+			);
+		});
+
+		// Ensure root templates are registered for the render pipeline used in this test.
+		$this->manifest->register('root-wrapper', static function (array $context): ComponentRenderResult {
+			return new ComponentRenderResult(
+				'<div class="root-wrapper">' . ($context['content'] ?? '') . '</div>',
+				component_type: 'layout_wrapper'
+			);
+		});
+		$this->manifest->register('user.root-wrapper', static function (array $context): ComponentRenderResult {
+			return new ComponentRenderResult(
+				'<div class="user-root-wrapper">' . ($context['content'] ?? '') . '</div>',
+				component_type: 'layout_wrapper'
+			);
+		});
+
+		$user_settings = $this->createUserSettings();
+		$user_settings->collection('profile')->section('basic', 'Basic Info')
+			->field('profile_asset', 'Profile Asset', 'fields.profile-asset')
+		->end_section();
+
+		WP_Mock::userFunction('current_user_can')->withAnyArgs()->andReturn(true);
+		WP_Mock::userFunction('get_user_meta')->andReturn(array());
+		WP_Mock::userFunction('get_user_option')->andReturn(array());
+		WP_Mock::userFunction('update_user_option')->andReturn(true);
+
+		WP_Mock::userFunction('wp_register_script')
+			->times(2)
+			->with(
+				'profile-asset-script',
+				'https://example.com/profile.js',
+				array(),
+				false,
+				true
+			)
+			->andReturn(true);
+
+		ob_start();
+		$user_settings->render('profile', array('user_id' => 123));
+		ob_end_clean();
+
+		$session = $user_settings->get_form_session();
+		self::assertInstanceOf(FormsServiceSession::class, $session, 'Expected UserSettings to have an active form session.');
+		$this->logger->debug('user_settings.test.session_assets', array(
+			'scripts' => array_keys($session->assets()->scripts()),
+			'styles'  => array_keys($session->assets()->styles()),
+		));
+		$fieldRenderLogs = $this->logger->find_logs(static function (array $entry): bool {
+			return $entry['message'] === 'forms.default_field.render' && ($entry['context']['field_id'] ?? null) === 'profile_asset';
+		});
+		$this->logger->debug('user_settings.test.field_render_logs', array('count' => count($fieldRenderLogs)));
+		self::assertNotEmpty($fieldRenderLogs, 'Expected profile_asset field render log.');
+		$componentRenderLogs = $this->logger->find_logs(static function (array $entry): bool {
+			return $entry['message'] === 'user_settings.test.profile_asset.render';
+		});
+		self::assertNotEmpty($componentRenderLogs, 'Expected profile asset component render log.');
+		self::assertArrayHasKey(
+			'profile-asset-script',
+			$session->assets()->scripts(),
+			'Expected script asset to be captured by shared session.'
+		);
+
+		$session->enqueue_assets();
 	}
 
 	public function test_handle_custom_update_delegates_to_collection_handler(): void {

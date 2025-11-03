@@ -11,6 +11,8 @@ use Ran\PluginLib\Forms\Components\Elements\Button\Builder as ButtonBuilder;
 use InvalidArgumentException;
 
 final class SubmitControlsBuilder implements SubmitControlsBuilderInterface {
+	private const DEFAULT_ZONE_ID = 'primary-controls';
+
 	private BuilderRootInterface $rootBuilder;
 	private string $container_id;
 	private string $zone_id;
@@ -21,9 +23,7 @@ final class SubmitControlsBuilder implements SubmitControlsBuilderInterface {
 	private string $element_type      = 'root';
 	private string $root_id;
 	/** @var array<int,array<string,mixed>> */
-	private array $controls   = array();
-	private string $alignment = 'right';
-	private string $layout    = 'inline';
+	private array $controls = array();
 	/** @var callable|null */
 	private $before = null;
 	/** @var callable|null */
@@ -38,13 +38,11 @@ final class SubmitControlsBuilder implements SubmitControlsBuilderInterface {
 	) {
 		$this->rootBuilder         = $rootBuilder;
 		$this->container_id        = $container_id;
-		$this->zone_id             = $zone_id;
+		$this->zone_id             = $zone_id !== '' ? $zone_id : self::DEFAULT_ZONE_ID;
 		$this->root_id             = $container_id;
 		$this->updateFn            = $updateFn;
 		$this->template_key        = trim((string) ($defaults['template'] ?? 'layout/zone/submit-controls-wrapper')) ?: 'layout/zone/submit-controls-wrapper';
 		$this->has_custom_template = $this->template_key !== 'layout/zone/submit-controls-wrapper';
-		$this->alignment           = $this->normalize_alignment($defaults['alignment'] ?? 'right');
-		$this->layout              = $this->normalize_layout($defaults['layout'] ?? 'inline');
 		$this->before              = $defaults['before'] ?? null;
 		$this->after               = $defaults['after']  ?? null;
 
@@ -52,18 +50,6 @@ final class SubmitControlsBuilder implements SubmitControlsBuilderInterface {
 		if ($this->has_custom_template) {
 			$this->emit_template_override();
 		}
-	}
-
-	public function alignment(string $alignment): self {
-		$this->alignment = $this->normalize_alignment($alignment);
-		$this->emit_zone_metadata();
-		return $this;
-	}
-
-	public function layout(string $layout): self {
-		$this->layout = $this->normalize_layout($layout);
-		$this->emit_zone_metadata();
-		return $this;
 	}
 
 	public function template(string $template_key): self {
@@ -171,8 +157,6 @@ final class SubmitControlsBuilder implements SubmitControlsBuilderInterface {
 		($this->updateFn)('submit_controls_zone', array(
 			'container_id' => $this->container_id,
 			'zone_id'      => $this->zone_id,
-			'alignment'    => $this->alignment,
-			'layout'       => $this->layout,
 			'before'       => $this->before,
 			'after'        => $this->after,
 		));
@@ -223,15 +207,5 @@ final class SubmitControlsBuilder implements SubmitControlsBuilderInterface {
 			'zone_id'      => $this->zone_id,
 			'overrides'    => array('submit-controls-wrapper' => $this->template_key),
 		));
-	}
-
-	private function normalize_alignment(string $alignment): string {
-		$alignment = strtolower(trim($alignment));
-		return in_array($alignment, array('left', 'center', 'right', 'stretch'), true) ? $alignment : 'right';
-	}
-
-	private function normalize_layout(string $layout): string {
-		$layout = strtolower(trim($layout));
-		return in_array($layout, array('inline', 'stacked'), true) ? $layout : 'inline';
 	}
 }

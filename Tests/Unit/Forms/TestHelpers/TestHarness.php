@@ -42,12 +42,8 @@ final class TestHarness {
 		return $this->_create_update_function();
 	}
 
-	public function getSubmitControlZones(string $container_id): array {
-		return $this->submit_controls[$container_id]['zones'] ?? array();
-	}
-
-	public function getSubmitControls(string $container_id, string $zone_id): array {
-		return $this->submit_controls[$container_id]['controls'][$zone_id] ?? array();
+	public function getSubmitControlsForPage(string $container_id): array {
+		return $this->submit_controls[$container_id] ?? array();
 	}
 
 	public function debugSubmitControls(): array {

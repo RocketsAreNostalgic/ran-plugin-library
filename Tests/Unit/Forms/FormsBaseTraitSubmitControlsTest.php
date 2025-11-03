@@ -43,19 +43,16 @@ final class FormsBaseTraitSubmitControlsTest extends TestCase {
 		$update('submit_controls_zone', array(
 			'container_id' => 'settings-page',
 			'zone_id'      => 'primary-controls',
-			'alignment'    => 'left',
-			'layout'       => 'stacked',
 			'before'       => static fn (): string => '<p>before</p>',
 			'after'        => static fn (): string => '<p>after</p>',
 		));
 
-		$zones = $this->subject->getSubmitControlZones('settings-page');
+		$payload = $this->subject->getSubmitControlsForPage('settings-page');
 
-		self::assertArrayHasKey('primary-controls', $zones);
-		self::assertSame('left', $zones['primary-controls']['alignment']);
-		self::assertSame('stacked', $zones['primary-controls']['layout']);
-		self::assertIsCallable($zones['primary-controls']['before']);
-		self::assertIsCallable($zones['primary-controls']['after']);
+		self::assertSame('primary-controls', $payload['zone_id'] ?? null);
+		self::assertIsCallable($payload['before']);
+		self::assertIsCallable($payload['after']);
+		self::assertSame(array(), $payload['controls']);
 	}
 
 	public function test_submit_controls_set_registers_controls(): void {
@@ -87,7 +84,8 @@ final class FormsBaseTraitSubmitControlsTest extends TestCase {
 			),
 		));
 
-		$controls = $this->subject->getSubmitControls('settings-page', 'primary-controls');
+		$payload  = $this->subject->getSubmitControlsForPage('settings-page');
+		$controls = $payload['controls'] ?? array();
 
 		self::assertCount(2, $controls);
 		self::assertSame('primary', $controls[0]['id']);
@@ -125,11 +123,7 @@ final class FormsBaseTraitSubmitControlsTest extends TestCase {
 		$this->expectLog('warning', 'Submit control entry missing required metadata');
 	}
 
-	public function test_get_submit_control_zones_defaults_to_empty_array(): void {
-		self::assertSame(array(), $this->subject->getSubmitControlZones('unknown'));
-	}
-
-	public function test_get_submit_controls_defaults_to_empty_array(): void {
-		self::assertSame(array(), $this->subject->getSubmitControls('unknown', 'zone'));
+	public function test_get_submit_controls_for_page_defaults_to_empty_array(): void {
+		self::assertSame(array(), $this->subject->getSubmitControlsForPage('unknown'));
 	}
 }
