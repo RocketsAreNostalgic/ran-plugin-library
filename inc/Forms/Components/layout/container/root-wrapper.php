@@ -19,9 +19,11 @@ if (!defined('ABSPATH')) {
 }
 
 // Extract context variables
-$form_id       = $context['form_id']       ?? '';
-$title         = $context['title']         ?? '';
-$content       = $context['content']       ?? '';
+$form_id       = $context['form_id'] ?? '';
+$title         = $context['title']   ?? '';
+$content       = $context['content'] ?? '';
+$before        = isset($context['before']) ? (string) $context['before'] : '';
+$after         = isset($context['after'])  ? (string) $context['after']  : '';
 $renderSubmit  = $context['render_submit'] ?? null;
 $form_messages = $context['form_messages'] ?? array();
 
@@ -49,7 +51,15 @@ ob_start();
 	<?php endif; ?>
 
 	<div class="form-content">
+		<?php if ($before !== ''): ?>
+			<?php echo $before; // Hook output should already be escaped.?>
+		<?php endif; ?>
+
 		<?php echo $content; // Form content is already escaped?>
+
+		<?php if ($after !== ''): ?>
+			<?php echo $after; // Hook output should already be escaped.?>
+		<?php endif; ?>
 	</div>
 
 	<?php if (is_callable($renderSubmit)): ?>

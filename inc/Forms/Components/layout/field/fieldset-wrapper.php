@@ -31,6 +31,8 @@ $description = $context['description'] ?? '';
 $content     = $context['content']     ?? '';
 $style       = $context['style']       ?? 'bordered';
 $required    = $context['required']    ?? false;
+$before      = isset($context['before']) ? (string) $context['before'] : '';
+$after       = isset($context['after'])  ? (string) $context['after']  : '';
 
 $fieldset_classes = array(
     'fieldset-group',
@@ -54,7 +56,15 @@ ob_start();
     <?php endif; ?>
 
     <div class="fieldset-group__content">
+        <?php if ($before !== ''): ?>
+            <?php echo $before; // Hook output should already be escaped.?>
+        <?php endif; ?>
+
         <?php echo $content; // Already escaped?>
+
+        <?php if ($after !== ''): ?>
+            <?php echo $after; // Hook output should already be escaped.?>
+        <?php endif; ?>
     </div>
 </fieldset>
 <?php

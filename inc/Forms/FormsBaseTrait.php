@@ -61,7 +61,7 @@ trait FormsBaseTrait {
 	protected array $containers = array();
 	/** @var array<string, array<string, array{title:string, description_cb:?callable, before:?callable, after:?callable, order:int, index:int}>> */
 	protected array $sections = array();
-	/** @var array<string, array<string, array<int, array{id:string, label:string, component:string, component_context:array<string,mixed>, order:int, index:int}>>> */
+	/** @var array<string, array<string, array<int, array{id:string, label:string, component:string, component_context:array<string,mixed>, order:int, index:int, before:?callable, after:?callable}>>> */
 	protected array $fields = array();
 	/** @var array<string, array<string, array{group_id:string, fields:array<int, array{id:string, label:string, component:string, component_context:array<string,mixed>, order:int, index:int}>, before:?callable, after:?callable, order:int, index:int}>> */
 	protected array $groups = array();
@@ -507,6 +507,8 @@ trait FormsBaseTrait {
 			'component_context' => $context,
 			'order'             => $orderValue,
 			'index'             => null,
+			'before'            => $field_data['before'] ?? null,
+			'after'             => $field_data['after']  ?? null,
 		);
 
 		$fields  = & $this->fields[$container_id][$section_id];
@@ -597,6 +599,8 @@ trait FormsBaseTrait {
 				'component_context' => $context,
 				'order'             => (int) ($field['order'] ?? 0),
 				'index'             => null,
+				'before'            => $field['before'] ?? null,
+				'after'             => $field['after']  ?? null,
 			);
 
 			foreach ($normalized_fields as $idx => $existing_field) {
@@ -714,6 +718,8 @@ trait FormsBaseTrait {
 				'component_context' => $context,
 				'order'             => $orderProvided ? $orderValue : (int) ($existing_field['order'] ?? 0),
 				'index'             => $existing_field['index'] ?? $existing_field['order'] ?? $idx,
+				'before'            => $field_data['before'] ?? ($existing_field['before'] ?? null),
+				'after'             => $field_data['after']  ?? ($existing_field['after']  ?? null),
 			);
 			$updated = true;
 			break;
@@ -730,6 +736,8 @@ trait FormsBaseTrait {
 				'component_context' => $context,
 				'order'             => $orderValue,
 				'index'             => $this->__field_index++,
+				'before'            => $field_data['before'] ?? null,
+				'after'             => $field_data['after']  ?? null,
 			);
 		}
 
@@ -1027,28 +1035,69 @@ trait FormsBaseTrait {
 				usort($group_fields, function ($a, $b) {
 					return ($a['order'] <=> $b['order']) ?: ($a['index'] <=> $b['index']);
 				});
+
+				$group_items = array();
+				foreach ($group_fields as $group_field) {
+					$field_before = isset($group_field['before']) ? $this->_render_callback_output($group_field['before'], array(
+						'field_id'     => $group_field['id'] ?? '',
+						'container_id' => $id_slug,
+						'section_id'   => $section_id,
+						'group_id'     => $group['group_id'] ?? '',
+						'values'       => $values,
+					)) : null;
+					$field_after = isset($group_field['after']) ? $this->_render_callback_output($group_field['after'], array(
+						'field_id'     => $group_field['id'] ?? '',
+						'container_id' => $id_slug,
+						'section_id'   => $section_id,
+						'group_id'     => $group['group_id'] ?? '',
+						'values'       => $values,
+					)) : null;
+					$group_items[] = array(
+						'field'  => $group_field,
+						'before' => $field_before,
+						'after'  => $field_after,
+					);
+				}
+
 				$items[] = array(
-					'type'     => 'group',
-					'group_id' => $group['group_id'] ?? '',
-					'before'   => $this->_render_callback_output($group['before'] ?? null, array(
+					'type'       => 'group',
+					'group_id'   => $group['group_id'] ?? '',
+					'before'     => $this->_render_callback_output($group['before'] ?? null, array(
 						'group_id'     => $group['group_id'] ?? '',
 						'section_id'   => $section_id,
 						'container_id' => $id_slug,
 						'fields'       => $group_fields,
 						'values'       => $values,
 					)),
-					'after' => $this->_render_callback_output($group['after'] ?? null, array(
+					'after'      => $this->_render_callback_output($group['after'] ?? null, array(
 						'group_id'     => $group['group_id'] ?? '',
 						'section_id'   => $section_id,
 						'container_id' => $id_slug,
 						'fields'       => $group_fields,
 						'values'       => $values,
 					)),
-					'fields' => $group_fields,
+					'items'      => $group_items,
 				);
 			}
 			foreach ($fields as $field) {
-				$items[] = array('type' => 'field', 'field' => $field);
+				$field_before = isset($field['before']) ? $this->_render_callback_output($field['before'], array(
+					'field_id'     => $field['id'] ?? '',
+					'container_id' => $id_slug,
+					'section_id'   => $section_id,
+					'values'       => $values,
+				)) : null;
+				$field_after = isset($field['after']) ? $this->_render_callback_output($field['after'], array(
+					'field_id'     => $field['id'] ?? '',
+					'container_id' => $id_slug,
+					'section_id'   => $section_id,
+					'values'       => $values,
+				)) : null;
+				$items[] = array(
+					'type'   => 'field',
+					'field'  => $field,
+					'before' => $field_before,
+					'after'  => $field_after,
+				);
 			}
 
 			// Sort items (groups first, then fields)
@@ -1077,7 +1126,9 @@ trait FormsBaseTrait {
 
 		$sectionComponent = $this->views->render('section', array(
 			'sections'       => $prepared_sections,
-			'field_renderer' => fn (array $field): string => $this->_render_default_field_wrapper($field, $values),
+			'field_renderer' => function(array $field_item) use ($values): string {
+				return $this->_render_default_field_wrapper($field_item, $values);
+			},
 		));
 
 		if (!$sectionComponent instanceof ComponentRenderResult) {
@@ -1122,7 +1173,8 @@ trait FormsBaseTrait {
 	 *
 	 * @return string Rendered field HTML.
 	 */
-	protected function _render_default_field_wrapper(array $field, array $values): string {
+	protected function _render_default_field_wrapper(array $field_item, array $values): string {
+		$field = $field_item['field'] ?? $field_item;
 		if (empty($field)) {
 			return '';
 		}
@@ -1172,6 +1224,12 @@ trait FormsBaseTrait {
 				$values,
 				array($field_id => $field_messages)
 			);
+			if (isset($field_item['before'])) {
+				$field_context['before'] = $field_item['before'];
+			}
+			if (isset($field_item['after'])) {
+				$field_context['after'] = $field_item['after'];
+			}
 
 			// Let FormElementRenderer handle both component rendering and wrapper application
 			return $this->field_renderer->render_field_with_wrapper(

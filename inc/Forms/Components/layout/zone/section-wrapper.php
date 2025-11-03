@@ -23,10 +23,16 @@ $section_id  = $context['section_id']  ?? '';
 $title       = $context['title']       ?? '';
 $description = $context['description'] ?? '';
 $content     = $context['content']     ?? '';
+$before      = isset($context['before']) ? (string) $context['before'] : '';
+$after       = isset($context['after'])  ? (string) $context['after']  : '';
 
 ob_start();
 ?>
 <div class="form-section" data-section-id="<?php echo esc_attr($section_id); ?>">
+	<?php if ($before !== ''): ?>
+		<?php echo $before; // Hook output should already be escaped.?>
+	<?php endif; ?>
+
 	<?php if (!empty($title)): ?>
 		<h3 class="form-section-title"><?php echo esc_html($title); ?></h3>
 	<?php endif; ?>
@@ -38,6 +44,10 @@ ob_start();
 	<div class="form-section-content">
 		<?php echo $content; // Section content is already escaped?>
 	</div>
+
+	<?php if ($after !== ''): ?>
+		<?php echo $after; // Hook output should already be escaped.?>
+	<?php endif; ?>
 </div>
 <?php
 return new ComponentRenderResult(

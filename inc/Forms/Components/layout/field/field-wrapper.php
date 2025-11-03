@@ -19,8 +19,8 @@
  * @package RanPluginLib\Forms\Views\Admin\Fields
  */
 
-use Ran\PluginLib\Forms\Component\ComponentRenderResult;
 use Ran\PluginLib\Forms\Component\ComponentType;
+use Ran\PluginLib\Forms\Component\ComponentRenderResult;
 
 // Prevent direct access
 if (!defined('ABSPATH')) {
@@ -31,6 +31,8 @@ if (!defined('ABSPATH')) {
 $field_id            = $context['field_id']            ?? '';
 $label               = $context['label']               ?? '';
 $component_html      = $context['component_html']      ?? '';
+$before              = isset($context['before']) ? (string) $context['before'] : '';
+$after               = isset($context['after'])  ? (string) $context['after']  : '';
 $validation_warnings = $context['validation_warnings'] ?? array();
 $display_notices     = $context['display_notices']     ?? array();
 $description         = $context['description']         ?? '';
@@ -69,7 +71,15 @@ ob_start();
 
     <div class="field-wrapper__input-section">
         <div class="field-wrapper__input-container">
+            <?php if ($before !== ''): ?>
+                <?php echo $before; // Hook output should already be escaped.?>
+            <?php endif; ?>
+
             <?php echo $component_html; // Already escaped?>
+
+            <?php if ($after !== ''): ?>
+                <?php echo $after; // Hook output should already be escaped.?>
+            <?php endif; ?>
         </div>
 
         <?php if (!empty($description) && $layout === 'vertical'): ?>

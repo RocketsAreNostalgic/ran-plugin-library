@@ -26,20 +26,15 @@ if (!defined('ABSPATH')) {
 	exit;
 }
 
-$content   = $context['content'] ?? '';
-$zone_id   = isset($context['zone_id']) ? (string) $context['zone_id'] : '';
-$alignment = isset($context['alignment']) ? strtolower((string) $context['alignment']) : 'right';
-$layout    = isset($context['layout']) ? strtolower((string) $context['layout']) : 'inline';
-$extra     = isset($context['class']) ? trim((string) $context['class']) : '';
-
-$alignment = in_array($alignment, array('left', 'center', 'right', 'stretch'), true) ? $alignment : 'right';
-$layout    = in_array($layout, array('inline', 'stacked'), true) ? $layout : 'inline';
+$content = $context['content'] ?? '';
+$zone_id = isset($context['zone_id']) ? (string) $context['zone_id'] : '';
+$extra   = isset($context['class']) ? trim((string) $context['class']) : '';
+$before  = isset($context['before']) ? (string) $context['before'] : '';
+$after   = isset($context['after'])  ? (string) $context['after']  : '';
 
 $classes = array(
 	'ran-zone-wrapper',
 	'ran-zone-wrapper--submit-controls',
-	"ran-zone-wrapper--align-{$alignment}",
-	"ran-zone-wrapper--layout-{$layout}",
 );
 
 if ($extra !== '') {
@@ -49,7 +44,7 @@ if ($extra !== '') {
 $attribute_pairs = array('class' => implode(' ', array_map('sanitize_html_class', preg_split('/\s+/', implode(' ', $classes)))));
 
 if ($zone_id !== '') {
-	$attribute_pairs['data-zone-id'] = esc_attr($zone_id);
+	$attribute_pairs['data-zone'] = esc_attr($zone_id);
 }
 
 $attribute_markup = '';
@@ -65,7 +60,15 @@ ob_start();
 <div<?php echo $attribute_markup; ?>>
 	<?php if ($content !== ''): ?>
 		<div class="ran-zone-wrapper__inner">
+			<?php if ($before !== ''): ?>
+				<?php echo $before; // Hook output should already be escaped.?>
+			<?php endif; ?>
+
 			<?php echo $content; // Content is expected to be pre-escaped.?>
+
+			<?php if ($after !== ''): ?>
+				<?php echo $after; // Hook output should already be escaped.?>
+			<?php endif; ?>
 		</div>
 	<?php endif; ?>
 </div>

@@ -35,6 +35,10 @@ class ComponentBuilderProxy implements ComponentBuilderInterface {
 	private array $pending_context;
 	private ?int $pending_order = null;
 	private string $field_id;
+	/** @var callable|null */
+	private $before_callback = null;
+	/** @var callable|null */
+	private $after_callback  = null;
 
 	/**
 	 * @param ComponentBuilderBase $builder
@@ -173,11 +177,15 @@ class ComponentBuilderProxy implements ComponentBuilderInterface {
 	}
 
 	public function before(callable $before): self {
-		throw new BadMethodCallException('Call end_field() before configuring before() callback.');
+		$this->before_callback = $before;
+		$this->_emit_field_update();
+		return $this;
 	}
 
 	public function after(callable $after): self {
-		throw new BadMethodCallException('Call end_field() before configuring after() callback.');
+		$this->after_callback = $after;
+		$this->_emit_field_update();
+		return $this;
 	}
 
 	public function end_field(): SectionBuilder|GroupBuilder {
@@ -197,6 +205,12 @@ class ComponentBuilderProxy implements ComponentBuilderInterface {
 		$field['order']             = $this->_resolve_order($field);
 		$field['id']                = $field['id']    ?? $this->field_id;
 		$field['label']             = $field['label'] ?? null;
+		if ($this->before_callback !== null) {
+			$field['before'] = $this->before_callback;
+		}
+		if ($this->after_callback !== null) {
+			$field['after'] = $this->after_callback;
+		}
 
 		$payload = array(
 			'container_id' => $this->container_id,

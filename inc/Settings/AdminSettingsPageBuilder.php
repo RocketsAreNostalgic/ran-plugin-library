@@ -165,6 +165,8 @@ class AdminSettingsPageBuilder implements BuilderRootInterface {
 				'title'          => $title,
 				'description_cb' => $description_cb,
 				'order'          => ($order !== null ? (int) $order : 0),
+				'before'         => $args['before'] ?? null,
+				'after'          => $args['after']  ?? null,
 			)
 		));
 
@@ -175,6 +177,9 @@ class AdminSettingsPageBuilder implements BuilderRootInterface {
 			$section_id,
 			$title,
 			$this->updateFn,
+			$args['before'] ?? null,
+			$args['after']  ?? null,
+			$order instanceof \Closure || is_callable($order) ? null : ($order === null ? null : (int) $order)
 		);
 		$this->active_sections[$section_id] = $builder;
 		return $builder;

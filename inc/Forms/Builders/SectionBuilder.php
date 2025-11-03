@@ -211,6 +211,8 @@ class SectionBuilder implements SectionBuilderInterface {
 		$component_context = $args['context']        ?? $args['component_context'] ?? array();
 		$order             = $args['order']          ?? null;
 		$field_template    = $args['field_template'] ?? null;
+		$before            = $args['before']         ?? null;
+		$after             = $args['after']          ?? null;
 
 		$component = trim($component);
 		if ($component === '') {
@@ -247,6 +249,13 @@ class SectionBuilder implements SectionBuilderInterface {
 				$proxy->field_template($field_template);
 			}
 
+			if (is_callable($before)) {
+				$proxy->before($before);
+			}
+			if (is_callable($after)) {
+				$proxy->after($after);
+			}
+
 			return $proxy;
 		}
 
@@ -259,6 +268,8 @@ class SectionBuilder implements SectionBuilderInterface {
 				'component'         => $component,
 				'component_context' => $component_context,
 				'order'             => $order,
+				'before'            => is_callable($before) ? $before : null,
+				'after'             => is_callable($after) ? $after : null,
 			)
 		));
 

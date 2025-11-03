@@ -178,6 +178,50 @@ final class AdminSettingsBehaviorTest extends PluginLibTestCase {
 		$this->assertStringContainsString('<section', $output);
 	}
 
+	public function test_render_outputs_before_after_hooks_for_sections_groups_and_fields(): void {
+		$this->settings->menu_group('hooks-group')
+		    ->page('hooks-page')
+		        ->heading('Hooks Page')
+		        ->section('hooks-section', 'Hooks Section', null, array(
+		            'before' => static fn (): string => '<div class="section-before">section-before</div>',
+		            'after'  => static fn (): string => '<div class="section-after">section-after</div>',
+		        ))
+		            ->field('valid_field', 'Standalone Field', 'fields.input')
+		                ->before(static fn (): string => '<span class="field-before">field-before</span>')
+		                ->after(static fn (): string => '<span class="field-after">field-after</span>')
+		            ->end_field()
+		            ->group('hooks-group-inner', 'Hooks Group', null, array(
+		                'before' => static fn (): string => '<div class="group-before">group-before</div>',
+		                'after'  => static fn (): string => '<div class="group-after">group-after</div>',
+		            ))
+		                ->field('integer_field', 'Group Field', 'fields.input', array(
+		                    'before' => static fn (): string => '<span class="group-field-before">group-field-before</span>',
+		                    'after'  => static fn (): string => '<span class="group-field-after">group-field-after</span>',
+		                ))
+		            ->end_group()
+		        ->end_section()
+		    ->end_page()
+		->end_menu_group();
+
+		$this->setOptionValues(array(
+			'valid_field'   => 'value-one',
+			'integer_field' => 5,
+		));
+
+		ob_start();
+		$this->settings->render('hooks-page');
+		$output = ob_get_clean();
+
+		self::assertStringContainsString('<div class="section-before">section-before</div>', $output);
+		self::assertStringContainsString('<div class="section-after">section-after</div>', $output);
+		self::assertStringContainsString('<div class="group-before">group-before</div>', $output);
+		self::assertStringContainsString('<div class="group-after">group-after</div>', $output);
+		self::assertStringContainsString('<span class="field-before">field-before</span>', $output);
+		self::assertStringContainsString('<span class="field-after">field-after</span>', $output);
+		self::assertStringContainsString('<span class="group-field-before">group-field-before</span>', $output);
+		self::assertStringContainsString('<span class="group-field-after">group-field-after</span>', $output);
+	}
+
 	public function test_render_uses_custom_template_when_callable_provided(): void {
 		$callbackCalled = false;
 

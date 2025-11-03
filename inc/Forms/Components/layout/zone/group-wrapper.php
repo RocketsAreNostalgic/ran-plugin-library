@@ -33,6 +33,8 @@ $content     = $context['content']     ?? '';
 $layout      = $context['layout']      ?? 'vertical';
 $columns     = $context['columns']     ?? 2;
 $spacing     = $context['spacing']     ?? 'normal';
+$before      = isset($context['before']) ? (string) $context['before'] : '';
+$after       = isset($context['after'])  ? (string) $context['after']  : '';
 
 $group_classes = array(
     'group-wrapper',
@@ -57,7 +59,15 @@ ob_start();
     <?php endif; ?>
 
     <div class="group-wrapper__content">
+        <?php if ($before !== ''): ?>
+            <?php echo $before; // Hook output should already be escaped.?>
+        <?php endif; ?>
+
         <?php echo $content; // Already escaped?>
+
+        <?php if ($after !== ''): ?>
+            <?php echo $after; // Hook output should already be escaped.?>
+        <?php endif; ?>
     </div>
 </div>
 <?php

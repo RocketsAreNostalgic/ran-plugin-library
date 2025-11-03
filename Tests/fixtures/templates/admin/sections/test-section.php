@@ -16,14 +16,23 @@ foreach ($sections as $section) {
 
 	foreach ($section['items'] ?? array() as $item) {
 		if (($item['type'] ?? '') === 'field' && isset($item['field'])) {
-			$sectionContent .= $renderField($item['field']);
+			$fieldBefore = (string) ($item['before'] ?? '');
+			$fieldAfter  = (string) ($item['after']  ?? '');
+			$sectionContent .= $fieldBefore . $renderField($item['field']) . $fieldAfter;
 			continue;
 		}
 
 		if (($item['type'] ?? '') === 'group') {
-			foreach ($item['fields'] ?? array() as $groupField) {
-				$sectionContent .= $renderField($groupField);
+			$groupBefore = (string) ($item['before'] ?? '');
+			$groupAfter  = (string) ($item['after']  ?? '');
+			$groupContent = '';
+			foreach ($item['items'] ?? $item['fields'] ?? array() as $groupFieldItem) {
+				$fieldData    = $groupFieldItem['field'] ?? $groupFieldItem;
+				$fieldBefore = (string) ($groupFieldItem['before'] ?? '');
+				$fieldAfter  = (string) ($groupFieldItem['after']  ?? '');
+				$groupContent .= $fieldBefore . $renderField($fieldData) . $fieldAfter;
 			}
+			$sectionContent .= $groupBefore . $groupContent . $groupAfter;
 		}
 	}
 
