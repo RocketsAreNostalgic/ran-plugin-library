@@ -197,29 +197,26 @@ class UserSettings implements FormsInterface {
 	 * The AdminSettings collerary is the page() method.
 	 *
 	 * @param string $id_slug The collection id, defaults to 'profile'.
-	 * @param callable|null $template An optional collection template.
+	 * @param string|callable|null $template Root template override (registered key or callable).
+	 * @param array<string,mixed> $args Additional metadata: heading, description, order.
 	 *
 	 * @return UserSettingsCollectionBuilder
 	 */
-	public function collection(string $id_slug = 'profile', ?callable $template = null): UserSettingsCollectionBuilder {
-		if (!isset($this->collections[$id_slug])) {
-			$this->collections[$id_slug] = array(
-			    'template' => $template,
-			    'order'    => 10,
-			);
-		} else {
-			if ($template !== null) {
-				$this->collections[$id_slug]['template'] = $template;
-			}
-			if (!isset($this->collections[$id_slug]['order'])) {
-				$this->collections[$id_slug]['order'] = 10;
-			}
-		}
+	public function collection(
+		string $id_slug = 'profile',
+		string|callable|null $template = null,
+		array $args = array()
+	): UserSettingsCollectionBuilder {
+		$heading     = (string) ($args['heading'] ?? ($this->collections[$id_slug]['heading'] ?? ucwords(str_replace(array('-', '_'), ' ', $id_slug))));
+		$description = array_key_exists('description', $args) ? $args['description'] : ($this->collections[$id_slug]['description'] ?? null);
+		$order       = isset($args['order']) ? max(0, (int) $args['order']) : ($this->collections[$id_slug]['order'] ?? 10);
 
-		// Prepare initial meta for the builder
-		$initial_meta = $this->collections[$id_slug];
+		$initial_meta = array(
+		    'order'       => $order,
+		    'heading'     => $heading,
+		    'description' => $description,
+		);
 
-		// Create update function for immediate data flow
 		$updateFn = $this->_create_update_function();
 
 		$builder = new UserSettingsCollectionBuilder(
@@ -228,6 +225,11 @@ class UserSettings implements FormsInterface {
 			$initial_meta,
 			$updateFn
 		);
+
+		if ($template !== null) {
+			$builder->template($template);
+		}
+
 		return $builder;
 	}
 
@@ -334,14 +336,18 @@ class UserSettings implements FormsInterface {
 			'collection' => $id_slug,
 			'heading'    => $payload['heading'],
 			'has_meta'   => array_keys($collection_meta),
+			'callback'   => $this->form_session->get_root_template_callback($id_slug) !== null,
 		));
 
-		// Use custom template if provided, otherwise use default
-		if (is_callable($collection_meta['template'])) {
-			($collection_meta['template'])($payload);
+		$callback = $this->form_session->get_root_template_callback($id_slug);
+		if ($callback !== null) {
+			ob_start();
+			$callback($payload);
+			echo (string) ob_get_clean();
 		} else {
-			// Use FormsServiceSession for template resolution and rendering
-			echo $this->form_session->render_component('root-wrapper', $payload);
+			echo $this->form_session->render_element('root-wrapper', $payload, array(
+				'root_id' => $id_slug,
+			));
 		}
 
 		$this->form_session->enqueue_assets();

@@ -117,7 +117,10 @@ class AdminSettings implements FormsInterface {
 
 		// Phase 5: Context-specific template registration
 		// AdminSettings only has page-level templates, everything else uses shared defaults
-		$this->views->register('admin.root-wrapper', '../../Settings/templates/admin/root-wrapper.php');
+		$aliases = $this->views->aliases();
+		if (!isset($aliases['admin.root-wrapper'])) {
+			$this->views->register('admin.root-wrapper', '../../Settings/templates/admin/root-wrapper.php');
+		}
 
 		// Phase 6: Service initialization
 		$this->form_service    = new FormsService($this->components);
@@ -388,21 +391,42 @@ class AdminSettings implements FormsInterface {
 	 * For multiple pages or custom menu groups, use menu_group() instead.
 	 *
 	 * @param string $page_slug The page slug (used in URL)
-	 * @param string $heading The page title (shown in browser title and page header)
-	 * @param string $menu_title The menu title (shown in WordPress admin sidebar)
+	 * @param string|callable|null $template Root template override (registered key or callable)
+	 * @param array<string,mixed> $args Additional metadata: heading, menu_title, capability, parent, order, description, icon, position
 	 *
 	 * @return AdminSettingsPageBuilder
 	 */
-	public function settings_page(string $page_slug, string $heading, string $menu_title): AdminSettingsPageBuilder {
-		// Create a menu group for this page under Settings menu
-		$group_slug = $page_slug . '_settings_group';
+	public function settings_page(
+		string $page_slug,
+		string|callable|null $template = null,
+		array $args = array()
+	): AdminSettingsPageBuilder {
+		$heading    = (string) ($args['heading'] ?? ($args['title'] ?? ucwords(str_replace(array('-', '_'), ' ', $page_slug))));
+		$menu_title = (string) ($args['menu_title'] ?? ($args['label'] ?? $heading));
+		$capability = (string) ($args['capability'] ?? 'manage_options');
+		$parent     = array_key_exists('parent', $args) ? $args['parent'] : 'options-general.php';
+		$order      = isset($args['order']) ? max(0, (int) $args['order']) : 0;
 
-		return $this->menu_group($group_slug)
+		$group_slug = $page_slug . '_settings_group';
+		$group      = $this->menu_group($group_slug)
 			->heading($heading)
 			->menu_label($menu_title)
-			->capability('manage_options')
-			->parent('options-general.php')  // Default to Settings menu
-			->page($page_slug);
+			->capability($capability)
+			->parent($parent)
+			->icon($args['icon'] ?? null)
+			->position($args['position'] ?? null);
+
+		$page_args = array(
+			'heading'     => $heading,
+			'menu_title'  => $menu_title,
+			'capability'  => $capability,
+			'order'       => $order,
+			'description' => $args['description'] ?? null,
+		);
+
+		$page = $group->page($page_slug, $template, $page_args);
+
+		return $page;
 	}
 
 	/**
@@ -421,7 +445,6 @@ class AdminSettings implements FormsInterface {
 		    'heading'    => $heading,
 		    'menu_title' => $menu_title,
 		    'capability' => $existing['capability'] ?? 'manage_options',
-		    'template'   => null,
 		    'order'      => isset($this->menu_groups[$group_slug]['pages']) ? count($this->menu_groups[$group_slug]['pages']) : 0,
 		);
 
@@ -441,8 +464,9 @@ class AdminSettings implements FormsInterface {
 		}
 		$this->_start_form_session();
 
-		$ref      = $this->pages[$id_slug];
-		$meta     = $this->menu_groups[$ref['group']]['pages'][$ref['page']]['meta'];
+		$ref  = $this->pages[$id_slug];
+		$meta = $this->menu_groups[$ref['group']]['pages'][$ref['page']]['meta'];
+
 		$schema   = $this->base_options->get_schema();
 		$group    = $this->main_option . '_group';
 		$options  = $this->_do_get_option($this->main_option, array());
@@ -477,16 +501,20 @@ class AdminSettings implements FormsInterface {
 		    'heading'  => $payload['heading'],
 		    'group'    => $group,
 		    'has_meta' => array_keys($meta),
+		    'callback' => $this->form_session->get_root_template_callback($id_slug) !== null,
 		));
 
-		if (is_callable($meta['template'])) {
-			($meta['template'])($payload);
-			$this->form_session->enqueue_assets();
-			return;
+		$callback = $this->form_session->get_root_template_callback($id_slug);
+		if ($callback !== null) {
+			ob_start();
+			$callback($payload);
+			echo (string) ob_get_clean();
+		} else {
+			echo $this->form_session->render_element('root-wrapper', $payload, array(
+				'root_id'   => $id_slug,
+				'page_slug' => $id_slug,
+			));
 		}
-
-		// Use FormsServiceSession for template resolution and rendering
-		echo $this->form_session->render_component('root-wrapper', $payload);
 		$this->form_session->enqueue_assets();
 	}
 

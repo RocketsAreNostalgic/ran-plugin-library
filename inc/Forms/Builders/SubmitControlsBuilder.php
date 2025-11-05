@@ -18,7 +18,8 @@ final class SubmitControlsBuilder implements SubmitControlsBuilderInterface {
 	private string $zone_id;
 	/** @var callable */
 	private $updateFn;
-	private string $template_key;
+	/** @var string */
+	private $template_key;
 	private bool $has_custom_template = false;
 	private string $element_type      = 'root';
 	private string $root_id;
@@ -52,14 +53,44 @@ final class SubmitControlsBuilder implements SubmitControlsBuilderInterface {
 		}
 	}
 
-	public function template(string $template_key): self {
-		$template_key = trim($template_key);
-		if ($template_key === '') {
-			throw new InvalidArgumentException('Submit control template key cannot be empty.');
+	public function template(string|callable|null $template): self {
+		if ($template === null) {
+			($this->updateFn)('template_override', array(
+				'element_type' => 'root',
+				'element_id'   => $this->root_id,
+				'zone_id'      => $this->zone_id,
+				'overrides'    => array(),
+				'callback'     => null,
+			));
+			$this->template_key        = 'layout/zone/submit-controls-wrapper';
+			$this->has_custom_template = false;
+			return $this;
 		}
+
+		if (is_callable($template)) {
+			($this->updateFn)('template_override', array(
+				'element_type' => 'root',
+				'element_id'   => $this->root_id,
+				'zone_id'      => $this->zone_id,
+				'overrides'    => array(),
+				'callback'     => $template,
+			));
+			$this->has_custom_template = true;
+			return $this;
+		}
+
+		$template_key = trim($template);
+		if ($template_key === '') {
+			throw new \InvalidArgumentException('Template key cannot be empty');
+		}
+		($this->updateFn)('template_override', array(
+			'element_type' => 'root',
+			'element_id'   => $this->root_id,
+			'zone_id'      => $this->zone_id,
+			'overrides'    => array('submit-controls-wrapper' => $template_key),
+		));
 		$this->template_key        = $template_key;
 		$this->has_custom_template = true;
-		$this->emit_template_override();
 		return $this;
 	}
 

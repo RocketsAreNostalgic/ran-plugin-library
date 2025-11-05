@@ -144,16 +144,35 @@ class UserSettingsCollectionBuilder implements BuilderRootInterface {
 	}
 
 	/**
-	 * Set the collection template for this specific collection instance.
-	 * Configures Tier 2 individual root template override via FormsServiceSession.
+	 * Set the collection template override for this collection.
+	 * Accepts a registered template key, a callable render override, or null to clear.
 	 *
-	 * @param string $template_key The registered template key.
+	 * @param string|callable|null $template Template key, callable, or null.
 	 *
 	 * @return UserSettingsCollectionBuilder The UserSettingsCollectionBuilder instance.
-	 * @throws \InvalidArgumentException If template key is empty.
 	 */
-	public function template(string $template_key): self {
-		$template_key = trim($template_key);
+	public function template(string|callable|null $template): self {
+		if ($template === null) {
+			($this->updateFn)('template_override', array(
+				'element_type' => 'root',
+				'element_id'   => $this->container_id,
+				'overrides'    => array(),
+				'callback'     => null,
+			));
+			return $this;
+		}
+
+		if (is_callable($template)) {
+			($this->updateFn)('template_override', array(
+				'element_type' => 'root',
+				'element_id'   => $this->container_id,
+				'overrides'    => array(),
+				'callback'     => $template,
+			));
+			return $this;
+		}
+
+		$template_key = trim($template);
 		if ($template_key === '') {
 			throw new \InvalidArgumentException('Template key cannot be empty');
 		}
@@ -161,7 +180,7 @@ class UserSettingsCollectionBuilder implements BuilderRootInterface {
 		($this->updateFn)('template_override', array(
 			'element_type' => 'root',
 			'element_id'   => $this->container_id,
-			'overrides'    => array('root-wrapper' => $template_key)
+			'overrides'    => array('root-wrapper' => $template_key),
 		));
 		return $this;
 	}

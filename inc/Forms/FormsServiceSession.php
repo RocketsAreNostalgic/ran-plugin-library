@@ -22,6 +22,8 @@ class FormsServiceSession {
 	private ComponentManifest $manifest;
 	private FormsAssets $assets;
 	private FormsTemplateOverrideResolver $template_resolver;
+	/** @var array<string,callable> */
+	private array $root_template_callbacks = array();
 
 	public function __construct(ComponentManifest $manifest, FormsAssets $assets, Logger $logger, array $form_defaults = array()) {
 		$this->manifest          = $manifest;
@@ -45,8 +47,19 @@ class FormsServiceSession {
 	 * @return string Rendered HTML markup
 	 */
 	public function render_element(string $element_type, array $element_config = array(), array $context = array()): string {
+		if ($element_type === 'root-wrapper') {
+			$root_id = isset($context['root_id']) ? (string) $context['root_id'] : ($context['page_slug'] ?? ($context['id_slug'] ?? ''));
+			if ($root_id !== '' && isset($this->root_template_callbacks[$root_id])) {
+				$callback = $this->root_template_callbacks[$root_id];
+				return $this->execute_root_callback($callback, array_merge($element_config, $context));
+			}
+		}
+
 		// Step 1: Resolve template key via FormsTemplateOverrideResolver
 		$template_key = $this->template_resolver->resolve_template($element_type, $context);
+		if (isset($element_config['root_override']) && is_string($element_config['root_override']) && $element_config['root_override'] !== '') {
+			$template_key = $element_config['root_override'];
+		}
 
 		// Step 2: Pass resolved template key to ComponentManifest for rendering
 		$render_context = array_merge($element_config, $context);
@@ -56,6 +69,20 @@ class FormsServiceSession {
 		$this->assets->ingest($result);
 
 		return $result->markup;
+	}
+
+	/**
+	 * Execute a root-level callback while capturing its output.
+	 *
+	 * @param callable $callback
+	 * @param array<string,mixed> $payload
+	 * @return string
+	 */
+	private function execute_root_callback(callable $callback, array $payload): string {
+		ob_start();
+		$callback($payload);
+		$output = (string) ob_get_clean();
+		return $output;
 	}
 
 	/**
@@ -179,6 +206,43 @@ class FormsServiceSession {
 	 */
 	public function set_form_defaults(array $defaults): void {
 		$this->template_resolver->set_form_defaults($defaults);
+	}
+
+	/**
+	 * Register a root-level template callback override.
+	 *
+	 * @param string   $root_id
+	 * @param callable $callback
+	 * @return void
+	 */
+	public function set_root_template_callback(string $root_id, ?callable $callback): void {
+		if ($callback === null) {
+			unset($this->root_template_callbacks[$root_id]);
+			return;
+		}
+
+		$this->root_template_callbacks[$root_id] = $callback;
+	}
+
+	/**
+	 * Retrieve root-level callback if registered.
+	 *
+	 * @param string $root_id
+	 * @return callable|null
+	 */
+	public function get_root_template_callback(string $root_id): ?callable {
+		return $this->root_template_callbacks[$root_id] ?? null;
+	}
+
+	/**
+	 * Clear all overrides for a root element.
+	 *
+	 * @param string $root_id
+	 * @return void
+	 */
+	public function clear_root_template_override(string $root_id): void {
+		unset($this->root_template_callbacks[$root_id]);
+		$this->template_resolver->set_root_template_overrides($root_id, array());
 	}
 
 	/**

@@ -28,7 +28,7 @@ use Ran\PluginLib\Forms\Builders\BuilderImmediateUpdateTrait;
  * @method $this parent(?string $parent_slug)
  * @method $this icon(?string $icon)
  * @method $this position(?int $position)
- * @method AdminSettingsPageBuilder|self page(string $page_slug, ?callable $configure = null)
+ * @method AdminSettingsPageBuilder|self page(string $page_slug, string|callable|null $template = null, ?callable $configure = null, array $args = array())
  * @method AdminSettings end_group()
  * @method AdminSettings end_menu_group()
  *
@@ -146,17 +146,27 @@ final class AdminSettingsMenuGroupBuilder {
 	 * Add a child page to this menu group.
 	 *
 	 * @param string $page_slug The slug of the page.
-	 * @param callable|null $configure The configure callback.
+	 * @param string|callable|null $template Root template override (registered key or callable)
+	 * @param array<string,mixed> $args Additional page metadata (heading, menu_title, capability, order, description)
 	 *
-	 * @return AdminSettingsPageBuilder|self
+	 * @return AdminSettingsPageBuilder
 	 */
-	public function page(string $page_slug, ?callable $configure = null): AdminSettingsPageBuilder|self {
+	public function page(
+		string $page_slug,
+		string|callable|null $template = null,
+		array $args = array()
+	): AdminSettingsPageBuilder {
+		$heading    = (string) ($args['heading'] ?? ($this->meta['heading'] ?? ucwords(str_replace(array('-', '_'), ' ', $page_slug))));
+		$menu_title = (string) ($args['menu_title'] ?? ($this->meta['menu_title'] ?? $heading));
+		$capability = (string) ($args['capability'] ?? ($this->meta['capability'] ?? 'manage_options'));
+		$order      = isset($args['order']) ? max(0, (int) $args['order']) : count($this->active_pages);
+
 		$initial_meta = array(
-		    'heading'    => $this->meta['heading'],
-		    'menu_title' => $this->meta['menu_title'],
-		    'capability' => $this->meta['capability'],
-		    'template'   => null,
-		    'order'      => count($this->active_pages),
+		    'heading'     => $heading,
+		    'menu_title'  => $menu_title,
+		    'capability'  => $capability,
+		    'order'       => $order,
+		    'description' => $args['description'] ?? null,
 		);
 
 		$builder = new AdminSettingsPageBuilder(
@@ -168,9 +178,12 @@ final class AdminSettingsMenuGroupBuilder {
 
 		$this->active_pages[$page_slug] = $builder;
 
-		if ($configure !== null) {
-			$configure($builder);
-			return $this;
+		if ($template !== null) {
+			$builder->template($template);
+		}
+
+		if (array_key_exists('description', $args) && $args['description'] !== null) {
+			$builder->description((string) $args['description']);
 		}
 
 		return $builder;

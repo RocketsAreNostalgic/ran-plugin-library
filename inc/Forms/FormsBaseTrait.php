@@ -2,10 +2,6 @@
 /**
  * FormsBaseTrait: Shared functionality for form-based classes.
  *
- * This trait provides common functionality that is identical between AdminSettings,
- * UserSettings, and future form classes. It only includes methods that have been
- * verified to be truly identical in implementation.
- *
  * @package Ran\PluginLib\Forms
  * @author  Ran Plugin Lib <bnjmnrsh@gmail.com>
  * @license GPL-2.0+ <http://www.gnu.org/licenses/gpl-2.0.txt>
@@ -17,28 +13,19 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\Forms;
 
+use UnexpectedValueException;
 use Ran\PluginLib\Util\Logger;
 use Ran\PluginLib\Options\RegisterOptions;
+use Ran\PluginLib\Forms\Renderer\FormMessageHandler;
+use Ran\PluginLib\Forms\Renderer\FormElementRenderer;
+use Ran\PluginLib\Forms\FormsServiceSession;
 use Ran\PluginLib\Forms\FormsService;
 use Ran\PluginLib\Forms\FormsAssets;
-use Ran\PluginLib\Forms\FormsServiceSession;
-use Ran\PluginLib\Forms\Component\ComponentManifest;
-use Ran\PluginLib\Forms\Renderer\FormElementRenderer;
-use Ran\PluginLib\Forms\Renderer\FormMessageHandler;
 use Ran\PluginLib\Forms\Component\ComponentRenderResult;
-use UnexpectedValueException;
+use Ran\PluginLib\Forms\Component\ComponentManifest;
 
 /**
  * Shared functionality for form-based classes.
- *
- * Provides only methods that are verified to be identical between classes:
- * - Form session management
- * - Message handling
- * - Component validator injection
- * - RegisterOptions resolution
- * - Field rendering coordination
- *
- * Template resolution is now handled by FormsTemplateOverrideResolver in FormsServiceSession.
  */
 trait FormsBaseTrait {
 	// Core form infrastructure properties
@@ -76,7 +63,7 @@ trait FormsBaseTrait {
 	private int $__group_index   = 0;
 
 
-	/** ✅
+	/**
 	 * Override specific form-wide defaults for current context.
 	 * Allows developers to customize specific templates without replacing all defaults.
 	 *
@@ -139,7 +126,7 @@ trait FormsBaseTrait {
 		return $this->components;
 	}
 
-	/** ✅
+	/**
 	 * Resolve the correctly scoped RegisterOptions instance for current admin context.
 	 * Callers can chain fluent API on the returned object.
 	 *
@@ -152,12 +139,12 @@ trait FormsBaseTrait {
 		return $this->base_options->with_context($resolved['storage']);
 	}
 
-	/** ✅
+	/**
 	 * Boot admin: register root, sections, fields, templates.
 	 */
 	abstract public function boot(): void;
 
-	/** ✅
+	/**
 	 * Render a registered root template.
 	 *
 	 * @param string $id_slug The root identifier
@@ -165,7 +152,7 @@ trait FormsBaseTrait {
 	 */
 	abstract public function render(string $id_slug, ?array $context = null): void;
 
-	/** ✅
+	/**
 	 * Retrieve structured validation messages captured during the most recent operation.
 	 *
 	 * @return array<string, array{warnings: array<int, string>, notices: array<int, string>}>
@@ -285,7 +272,7 @@ trait FormsBaseTrait {
 		}
 	}
 
-	/**✅
+	/**
 	 * Get the FormsServiceSession instance for direct access to template resolution.
 	 *
 	 * @return FormsServiceSession|null The FormsServiceSession instance or null if not started
@@ -956,7 +943,7 @@ trait FormsBaseTrait {
 		$element_id   = $data['element_id']   ?? '';
 		$overrides    = $data['overrides']    ?? array();
 
-		if ($element_type === '' || $element_id === '' || empty($overrides)) {
+		if ($element_type === '' || $element_id === '' || (empty($overrides) && !isset($data['callback']))) {
 			$this->logger->warning('FormsBaseTrait: Template override missing required data', $data);
 			return;
 		}
@@ -971,6 +958,29 @@ trait FormsBaseTrait {
 			$this->_start_form_session();
 		}
 
+		if ($element_type === 'root') {
+			$should_clear_overrides = empty($overrides);
+			if ($should_clear_overrides) {
+				$this->form_session->clear_root_template_override($element_id);
+			} elseif (!array_key_exists('callback', $data)) {
+				// Switching to a string override should remove any previously registered callback.
+				$this->form_session->set_root_template_callback($element_id, null);
+			}
+			if (array_key_exists('callback', $data)) {
+				$callback = $data['callback'];
+				if (is_callable($callback)) {
+					$this->form_session->set_root_template_callback($element_id, $callback);
+				} elseif ($callback === null) {
+					$this->form_session->set_root_template_callback($element_id, null);
+				} else {
+					$this->logger->warning('FormsBaseTrait: Template override callback must be callable', array(
+						'element_id' => $element_id,
+						'callback'   => $callback,
+					));
+				}
+			}
+		}
+
 		$zone_id = isset($data['zone_id']) ? trim((string) $data['zone_id']) : '';
 		if ($zone_id !== '' && isset($overrides['submit-controls-wrapper'])) {
 			$template_key = trim((string) $overrides['submit-controls-wrapper']);
@@ -980,22 +990,24 @@ trait FormsBaseTrait {
 			unset($overrides['submit-controls-wrapper']);
 		}
 
-		if (empty($overrides)) {
+		if (!empty($overrides)) {
+			$this->form_session->set_individual_element_override($element_type, $element_id, $overrides);
 			$this->logger->debug('settings.builder.template_override', array(
 				'element_type' => $element_type,
 				'element_id'   => $element_id,
-				'zone_id'      => $zone_id,
-				'overrides'    => array(),
+				'overrides'    => $overrides,
 			));
 			return;
 		}
 
-		$this->form_session->set_individual_element_override($element_type, $element_id, $overrides);
-		$this->logger->debug('settings.builder.template_override', array(
-			'element_type' => $element_type,
-			'element_id'   => $element_id,
-			'overrides'    => $overrides,
-		));
+		if ($zone_id !== '' || array_key_exists('callback', $data)) {
+			$this->logger->debug('settings.builder.template_override', array(
+				'element_type' => $element_type,
+				'element_id'   => $element_id,
+				'zone_id'      => $zone_id,
+				'callback'     => array_key_exists('callback', $data) && is_callable($data['callback']) ? 'registered' : (array_key_exists('callback', $data) && $data['callback'] === null ? 'cleared' : null),
+			));
+		}
 	}
 
 	/**
@@ -1071,7 +1083,7 @@ trait FormsBaseTrait {
 
 	// Protected
 
-	/** ✅
+	/**
 	 * Start a new form session.
 	 */
 	protected function _start_form_session(): void {
@@ -1081,7 +1093,7 @@ trait FormsBaseTrait {
 		}
 	}
 
-	/** ✅
+	/**
 	 * Resolve warning messages captured during the most recent sanitize pass for a field ID.
 	 *
 	 *  @param string $field_id The field ID.
@@ -1106,9 +1118,8 @@ trait FormsBaseTrait {
 	 */
 	abstract protected function _do_sanitize_key(string $key): string;
 
-	// System default template methods removed - now handled by FormsTemplateOverrideResolver via FormsServiceSession
 
-	/** ✅
+	/**
 	 * Render sections and fields for an admin page.
 	 *
 	 * @param string $root_id_slug Page identifier.
@@ -1381,7 +1392,7 @@ trait FormsBaseTrait {
 		));
 	}
 
-	/** ✅
+	/**
 	 * Discover and inject component validators for a field.
 	 *
 	 * @todo Does ComponetManifest provide a per Component registery of associated validators?
@@ -1417,7 +1428,7 @@ trait FormsBaseTrait {
 		}
 	}
 
-	/** ✅
+	/**
 	 * Resolve context for the specific implementation.
 	 * Each class resolves context differently based on their scope.
 	 *

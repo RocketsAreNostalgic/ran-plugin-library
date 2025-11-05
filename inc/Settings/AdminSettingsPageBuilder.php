@@ -23,15 +23,6 @@ use Ran\PluginLib\Forms\Builders\BuilderImmediateUpdateTrait;
 /**
  * AdminSettingsPageBuilder: Fluent builder for Admin Settings pages.
  *
- * @method $this heading(string $heading)
- * @method $this description(string $description)
- * @method $this menu_label(string $menu_title)
- * @method $this capability(string $capability)
- * @method $this order(?int $order)
- * @method AdminSettingsSectionBuilder section(string $section_id, string $title, ?callable $description_cb = null, ?array $args = null)
- * @method AdminSettingsPageBuilder|AdminSettingsMenuGroupBuilder page(string $page_slug, ?callable $configure = null)
- * @method AdminSettingsMenuGroupBuilder end_page()
- * @method AdminSettings end()
  */
 class AdminSettingsPageBuilder implements BuilderRootInterface {
 	use BuilderImmediateUpdateTrait;
@@ -41,7 +32,7 @@ class AdminSettingsPageBuilder implements BuilderRootInterface {
 	private const DEFAULT_BUTTON_LABEL    = 'Save Changes';
 	private AdminSettingsMenuGroupBuilder $menu_group;
 	private string $container_id;
-	/** @var array{heading:string, description:?string, menu_title:string, capability:string, template:?callable, order:int} */
+	/** @var array{heading:string, description:?string, menu_title:string, capability:string, order:int} */
 	private array $meta;
 	/** @var callable */
 	private $updateFn;
@@ -186,15 +177,35 @@ class AdminSettingsPageBuilder implements BuilderRootInterface {
 	}
 
 	/**
-	 * Set the page template for this specific page instance.
-	 * Configures Tier 2 individual root template override via FormsServiceSession.
+	 * Set the page template override for this page instance.
+	 * Accepts either a registered template key, a callable render override, or null to clear.
 	 *
-	 * @param string $template_key The registered template key.
+	 * @param string|callable|null $template Template key, callable, or null to reset.
 	 *
 	 * @return AdminSettingsPageBuilder The AdminSettingsPageBuilder instance.
 	 */
-	public function template(string $template_key): self {
-		$template_key = trim($template_key);
+	public function template(string|callable|null $template): self {
+		if ($template === null) {
+			($this->updateFn)('template_override', array(
+				'element_type' => 'root',
+				'element_id'   => $this->container_id,
+				'overrides'    => array(),
+				'callback'     => null,
+			));
+			return $this;
+		}
+
+		if (is_callable($template)) {
+			($this->updateFn)('template_override', array(
+				'element_type' => 'root',
+				'element_id'   => $this->container_id,
+				'overrides'    => array(),
+				'callback'     => $template,
+			));
+			return $this;
+		}
+
+		$template_key = trim($template);
 		if ($template_key === '') {
 			throw new \InvalidArgumentException('Template key cannot be empty');
 		}
@@ -202,7 +213,7 @@ class AdminSettingsPageBuilder implements BuilderRootInterface {
 		($this->updateFn)('template_override', array(
 			'element_type' => 'root',
 			'element_id'   => $this->container_id,
-			'overrides'    => array('root-wrapper' => $template_key)
+			'overrides'    => array('root-wrapper' => $template_key),
 		));
 
 		return $this;
@@ -230,12 +241,14 @@ class AdminSettingsPageBuilder implements BuilderRootInterface {
 	 * Commit the current page and begin configuring a sibling page on the same menu group.
 	 *
 	 * @param string $page_slug The next page slug.
-	 * @param callable|null $configure Optional configuration callback executed on the new page builder.
-	 *
-	 * @return AdminSettingsPageBuilder|AdminSettingsMenuGroupBuilder
+	 * @return AdminSettingsPageBuilder
 	 */
-	public function page(string $page_slug, ?callable $configure = null): AdminSettingsPageBuilder|AdminSettingsMenuGroupBuilder {
-		return $this->end_page()->page($page_slug, $configure);
+	public function page(
+		string $page_slug,
+		string|callable|null $template = null,
+		array $args = array()
+	): AdminSettingsPageBuilder {
+		return $this->end_page()->page($page_slug, $template, $args);
 	}
 
 	/**
