@@ -101,12 +101,10 @@ final class SubmitControlsBuilderTest extends TestCase {
 		self::assertSame('submit', $payload['controls'][0]['component_context']['type'] ?? null);
 	}
 
-	public function test_button_allows_customization_via_callback(): void {
+	public function test_button_allows_customization_via_proxy(): void {
 		$builder = $this->createBuilder();
 
-		$builder->button('danger', 'Delete', function($button): void {
-			$button->variant('danger')->disabled();
-		});
+		$builder->button('danger', 'Delete')->variant('danger')->disabled();
 
 		$payload = $this->latestControlsPayload();
 		self::assertSame('danger', $payload['controls'][0]['component_context']['variant']);
@@ -146,10 +144,8 @@ final class SubmitControlsBuilderTest extends TestCase {
 	public function test_button_replaces_existing_control_with_same_id(): void {
 		$builder = $this->createBuilder();
 
-		$builder->button('primary', 'Save Changes')
-			->button('primary', 'Save & Continue', function($button): void {
-				$button->variant('secondary');
-			});
+		$builder->button('primary', 'Save Changes');
+		$builder->button('primary', 'Save & Continue')->variant('secondary');
 
 		$payload = $this->latestControlsPayload();
 		self::assertCount(1, $payload['controls']);
@@ -160,12 +156,11 @@ final class SubmitControlsBuilderTest extends TestCase {
 	public function test_multiple_buttons_sorted_by_order(): void {
 		$builder = $this->createBuilder();
 
-		$builder->button('secondary', 'Cancel', function($button): void {
-			$button->type('button')->order(20);
-		});
-		$builder->button('primary', 'Save Changes', function($button): void {
-			$button->order(10);
-		});
+		$builder->button('secondary', 'Cancel')
+			->type('button')
+			->order(20);
+		$builder->button('primary', 'Save Changes')
+			->order(10);
 
 		$payload = $this->latestControlsPayload();
 		self::assertSame(array('primary', 'secondary'), array_column($payload['controls'], 'id'));

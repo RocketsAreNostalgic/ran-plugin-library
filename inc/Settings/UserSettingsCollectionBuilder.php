@@ -7,16 +7,6 @@
  * @license GPL-2.0+ <http://www.gnu.org/licenses/gpl-2.0.txt>
  * @link    https://github.com/RocketsAreNostalgic
  * @since   0.2.0
- *
- * @method $this heading(string $heading)
- * @method $this description(string $description)
- * @method $this order(int $order)
- * @method $this template(string $template_key)
- * @method $this before(callable $before)
- * @method $this after(callable $after)
- * @method UserSettingsSectionBuilder section(string $section_id, string $title, ?callable $description_cb = null, ?array $args = null)
- * @method UserSettings end_collection()
- * @method UserSettings end()
  */
 
 declare(strict_types=1);

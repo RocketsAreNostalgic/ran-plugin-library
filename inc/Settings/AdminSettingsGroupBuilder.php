@@ -79,9 +79,9 @@ final class AdminSettingsGroupBuilder extends GroupBuilder {
 	/**
 	 * Add a field to this admin group.
 	 *
-	 * @return AdminSettingsGroupBuilder|ComponentBuilderProxy
+	 * @return static|ComponentBuilderProxy
 	 */
-	public function field(string $field_id, string $label, string $component, array $args = array()): AdminSettingsGroupBuilder|ComponentBuilderProxy {
+	public function field(string $field_id, string $label, string $component, array $args = array()): static|ComponentBuilderProxy {
 		$result = parent::field($field_id, $label, $component, $args);
 
 		return $result instanceof ComponentBuilderProxy ? $result : $this;

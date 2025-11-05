@@ -3,16 +3,6 @@
  * UserSettingsGroupBuilder: Context-aware group builder for user settings sections.
  *
  * @package Ran\PluginLib\Settings
- * @method $this heading(string $heading)
- * @method $this description(callable $description_cb)
- * @method $this template(string $template_key)
- * @method $this order(?int $order)
- * @method $this field(string $field_id, string $label, string $component, array $args = array())
- * @method $this before(?callable $before)
- * @method $this after(?callable $after)
- * @method $this group(string $group_id, string $heading, ?callable $description_cb = null, array $args = array())
- * @method UserSettingsSectionBuilder end_group()
- * @method UserSettingsCollectionBuilder end_section()
  */
 
 declare(strict_types=1);

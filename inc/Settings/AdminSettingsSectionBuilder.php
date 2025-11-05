@@ -3,10 +3,6 @@
  * AdminSettingsSectionBuilder: Section builder specialized for AdminSettings pages.
  *
  * @extends SectionBuilder<AdminSettingsPageBuilder>
- * @method AdminSettingsGroupBuilder group(string $group_id, string $heading, ?callable $description_cb = null, ?array $args = null)
- * @method AdminSettingsFieldsetBuilder fieldset(string $fieldset_id, string $heading, ?callable $description_cb = null, ?array $args = null)
- * @method AdminSettingsSectionBuilder|ComponentBuilderProxy field(string $field_id, string $label, string $component, array $args = array())
- * @method AdminSettingsPageBuilder end_section()
  */
 
 declare(strict_types=1);
@@ -89,9 +85,9 @@ class AdminSettingsSectionBuilder extends SectionBuilder {
 	/**
 	 * Add a field to this section with admin-specific typing.
 	 *
-	 * @return AdminSettingsSectionBuilder|ComponentBuilderProxy
+	 * @return ComponentBuilderProxy|static
 	 */
-	public function field(string $field_id, string $label, string $component, array $args = array()): AdminSettingsSectionBuilder|ComponentBuilderProxy {
+	public function field(string $field_id, string $label, string $component, array $args = array()): ComponentBuilderProxy|static {
 		$result = parent::field($field_id, $label, $component, $args);
 
 		return $result instanceof ComponentBuilderProxy ? $result : $this;

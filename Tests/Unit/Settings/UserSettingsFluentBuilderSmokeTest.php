@@ -150,7 +150,7 @@ class UserSettingsFluentBuilderSmokeTest extends TestCase {
 				->fieldset('profile-details', 'Profile Details', null, array('style' => 'highlighted'))
 					->required(true)
 					->field('field_three', 'Field Three', 'fields.input')
-				->end_group()
+				->end_fieldset()
 			->end_section()
 		->end();
 
@@ -214,7 +214,7 @@ class UserSettingsFluentBuilderSmokeTest extends TestCase {
 					->style('minimal')
 					->required()
 					->field('contact_method', 'Preferred Contact Method', 'fields.input')
-				->end_group()
+				->end_fieldset()
 			->end_section()
 			->section('security', 'Security Settings')
 				->field('two_factor', 'Two-Factor Authentication', 'checkbox', array('context' => array('default' => false)))

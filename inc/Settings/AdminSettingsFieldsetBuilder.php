@@ -35,25 +35,6 @@ final class AdminSettingsFieldsetBuilder extends FieldsetBuilder {
 		);
 	}
 
-	/**
-	 * Commit buffered data and return to the section builder.
-	 *
-	 * @return AdminSettingsSectionBuilder
-	 */
-	public function end_group(): AdminSettingsSectionBuilder {
-		$section = parent::end_group();
-		if (!$section instanceof AdminSettingsSectionBuilder) {
-			throw new \RuntimeException('AdminSettingsFieldsetBuilder requires AdminSettingsSectionBuilder context.');
-		}
-
-		return $section;
-	}
-
-	/**
-	 * Alias for end_group() returning the admin section builder.
-	 *
-	 * @return AdminSettingsSectionBuilder
-	 */
 	public function end_fieldset(): AdminSettingsSectionBuilder {
 		$section = parent::end_fieldset();
 		if (!$section instanceof AdminSettingsSectionBuilder) {
@@ -63,22 +44,6 @@ final class AdminSettingsFieldsetBuilder extends FieldsetBuilder {
 		return $section;
 	}
 
-	/**
-	 * Add a field within this admin fieldset.
-	 *
-	 * @return AdminSettingsFieldsetBuilder|ComponentBuilderProxy
-	 */
-	public function field(string $field_id, string $label, string $component, array $args = array()): AdminSettingsFieldsetBuilder|ComponentBuilderProxy {
-		$result = parent::field($field_id, $label, $component, $args);
-
-		return $result instanceof ComponentBuilderProxy ? $result : $this;
-	}
-
-	/**
-	 * Commit buffered data and return to the page builder.
-	 *
-	 * @return AdminSettingsPageBuilder
-	 */
 	public function end_section(): AdminSettingsPageBuilder {
 		$builder = parent::end_section();
 		if (!$builder instanceof AdminSettingsPageBuilder) {

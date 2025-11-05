@@ -225,18 +225,17 @@ final class AdminSettingsBehaviorTest extends PluginLibTestCase {
 	public function test_render_uses_custom_template_when_callable_provided(): void {
 		$callbackCalled = false;
 
-		$this->settings->menu_group('behavior-group')
-		    ->page('behavior-page')
-		        ->heading('Behavior Page')
-		    ->end_page()
-		->end_menu_group();
-
-		$menuGroups                                                                 = $this->getSettingsProperty('menu_groups');
-		$menuGroups['behavior-group']['pages']['behavior-page']['meta']['template'] = static function (array $payload) use (&$callbackCalled): void {
+		$renderOverride = static function (array $payload) use (&$callbackCalled): void {
 			$callbackCalled = true;
 			echo '<div class="custom-template">' . htmlspecialchars($payload['page_meta']['heading'], ENT_QUOTES) . '</div>';
 		};
-		$this->setSettingsProperty('menu_groups', $menuGroups);
+
+		$this->settings->menu_group('behavior-group')
+		    ->page('behavior-page')
+		        ->heading('Behavior Page')
+		        ->template($renderOverride)
+		    ->end_page()
+		->end_menu_group();
 
 		$this->expectOptionReturn(array());
 
@@ -249,7 +248,9 @@ final class AdminSettingsBehaviorTest extends PluginLibTestCase {
 	}
 
 	public function test_page_convenience_method_populates_group(): void {
-		$this->settings->settings_page('tools-page', 'Tools Heading', 'Tools Label')
+		$this->settings->settings_page('tools-page')
+		    ->heading('Tools Heading')
+		    ->menu_label('Tools Label')
 		    ->section('tools-section', 'Tools Section')
 		    ->end_section()
 		->end_page();

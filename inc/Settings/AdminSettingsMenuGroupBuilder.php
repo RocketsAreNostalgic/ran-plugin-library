@@ -22,16 +22,6 @@ use Ran\PluginLib\Forms\Builders\BuilderImmediateUpdateTrait;
  * The Menu group builder is the top level builder for a group of admin menus.
  * It does not implement the same Builder interface as the other builders.
  *
- * @method $this heading(string $heading)
- * @method $this menu_label(string $menu_title)
- * @method $this capability(string $capability)
- * @method $this parent(?string $parent_slug)
- * @method $this icon(?string $icon)
- * @method $this position(?int $position)
- * @method AdminSettingsPageBuilder|self page(string $page_slug, string|callable|null $template = null, ?callable $configure = null, array $args = array())
- * @method AdminSettings end_group()
- * @method AdminSettings end_menu_group()
- *
  * @see ComponentBuilderInterface
  * @see SectionBuilder
  * @see GroupBuilder

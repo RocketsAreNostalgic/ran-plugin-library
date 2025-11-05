@@ -96,34 +96,40 @@ final class AdminSettingsSubmitControlsRenderTest extends TestCase {
             ->page('custom-page')
                 ->heading('Custom Submit Page')
                 ->submit_controls('admin.custom-submit-wrapper')
-                    ->button('primary', 'Save Settings', static function (ButtonBuilder $button): void {
-                    	$button->order(10);
-                    })
+                    ->button('primary', 'Save Settings')
+                        ->order(10)
                     ->field('divider', '', 'components.divider', array(
                         'context' => array('markup' => '<span class="divider">|</span>'),
                         'order'   => 15,
                     ))
-                    ->button('reset', 'Reset Form', static function (ButtonBuilder $button): void {
-                    	$button->type('reset')->variant('secondary')->order(20);
-                    })
-                    ->button('docs-link', 'Documentation', static function (ButtonBuilder $button): void {
-                    	$button->type('button')->variant('link')->attributes(array(
-                    	    'href'  => 'https://example.com/docs',
-                    	    'class' => 'docs-link',
-                    	))->order(30);
-                    })
-                    ->button('support-link', 'Support', static function (ButtonBuilder $button): void {
-                    	$button->type('button')->variant('link')->attributes(array(
-                    	    'href'  => 'mailto:support@example.com',
-                    	    'class' => 'support-link',
-                    	))->order(40);
-                    })
-                    ->button('divider-link', '|', static function (ButtonBuilder $button): void {
-                    	$button->type('button')->variant('link')->attributes(array(
-                    	    'href'  => '#',
-                    	    'class' => 'pipe-link',
-                    	))->order(50);
-                    })
+                    ->button('reset', 'Reset Form')
+                        ->type('reset')
+                        ->variant('secondary')
+                        ->order(20)
+                    ->button('docs-link', 'Documentation')
+                        ->type('button')
+                        ->variant('link')
+                        ->attributes(array(
+                            'href'  => 'https://example.com/docs',
+                            'class' => 'docs-link',
+                        ))
+                        ->order(30)
+                    ->button('support-link', 'Support')
+                        ->type('button')
+                        ->variant('link')
+                        ->attributes(array(
+                            'href'  => 'mailto:support@example.com',
+                            'class' => 'support-link',
+                        ))
+                        ->order(40)
+                    ->button('divider-link', '|')
+                        ->type('button')
+                        ->variant('link')
+                        ->attributes(array(
+                            'href'  => '#',
+                            'class' => 'pipe-link',
+                        ))
+                        ->order(50)
                 ->end_submit_controls();
 
 		$this->setOptionValues(array('example_field' => 'value'));

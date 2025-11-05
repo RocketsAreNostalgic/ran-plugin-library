@@ -172,10 +172,12 @@ final class UserSettingsBehaviorTest extends PluginLibTestCase {
 		$user_settings = $this->createUserSettings();
 		$called        = false;
 
-		$user_settings->collection('profile', static function (array $payload) use (&$called): void {
-			$called = true;
-			echo '<div class="profile-collection">' . htmlspecialchars((string) ($payload['id_slug'] ?? ''), ENT_QUOTES) . '</div>';
-		})->section('basic', 'Basic')->end_section();
+		$user_settings->collection('profile')
+			->template(static function (array $payload) use (&$called): void {
+				$called = true;
+				echo '<div class="profile-collection">' . htmlspecialchars((string) ($payload['id_slug'] ?? ''), ENT_QUOTES) . '</div>';
+			})
+			->section('basic', 'Basic')->end_section();
 
 		ob_start();
 		$user_settings->render('profile', array('user_id' => 123));

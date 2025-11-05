@@ -16,6 +16,7 @@ namespace Ran\PluginLib\Settings;
 use Ran\PluginLib\Settings\UserSettingsCollectionBuilder;
 use Ran\PluginLib\Forms\FormsInterface;
 use Ran\PluginLib\Forms\Builders\SectionBuilder;
+use Ran\PluginLib\Forms\Builders\ComponentBuilderProxy;
 use Ran\PluginLib\Forms\Builders\BuilderRootInterface;
 
 /**
@@ -25,10 +26,6 @@ use Ran\PluginLib\Forms\Builders\BuilderRootInterface;
  * template override methods that work within WordPress profile page table constraints.
  *
  * @extends SectionBuilder<UserSettingsCollectionBuilder>
- * @method UserSettingsGroupBuilder group(string $group_id, string $heading, ?callable $description_cb = null, ?array $args = null)
- * @method UserSettingsFieldsetBuilder fieldset(string $fieldset_id, string $heading, ?callable $description_cb = null, ?array $args = null)
- * @method UserSettingsSectionBuilder field(string $field_id, string $label, string $component, array $args = array())
- * @method UserSettingsCollectionBuilder end_section()
  */
 class UserSettingsSectionBuilder extends SectionBuilder {
 	/**
@@ -189,9 +186,9 @@ class UserSettingsSectionBuilder extends SectionBuilder {
 	 * @param string $component The component alias.
 	 * @param array<string,mixed> $args Optional configuration (context, order, field_template).
 	 *
-	 * @return UserSettingsSectionBuilder The UserSettingsSectionBuilder instance.
+	 * @return ComponentBuilderProxy|static
 	 */
-	public function field(string $field_id, string $label, string $component, array $args = array()): UserSettingsSectionBuilder {
+	public function field(string $field_id, string $label, string $component, array $args = array()): ComponentBuilderProxy|static {
 		$component_context = $args['context']        ?? $args['component_context'] ?? array();
 		$order             = $args['order']          ?? null;
 		$field_template    = $args['field_template'] ?? null;

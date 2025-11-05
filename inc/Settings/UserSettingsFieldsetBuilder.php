@@ -3,12 +3,6 @@
  * UserSettingsFieldsetBuilder: Context-aware fieldset builder for user settings sections.
  *
  * @package Ran\PluginLib\Settings
- * @method $this style(string $style)
- * @method $this required(bool $required = true)
- * @method UserSettingsFieldsetBuilder|ComponentBuilderProxy field(string $field_id, string $label, string $component, array $args = array())
- * @method UserSettingsSectionBuilder end_group()
- * @method UserSettingsSectionBuilder end_fieldset()
- * @method UserSettingsCollectionBuilder end_section()
  */
 
 declare(strict_types=1);
@@ -41,15 +35,6 @@ final class UserSettingsFieldsetBuilder extends FieldsetBuilder {
 		);
 	}
 
-	public function end_group(): UserSettingsSectionBuilder {
-		$section = parent::end_group();
-		if (!$section instanceof UserSettingsSectionBuilder) {
-			throw new \RuntimeException('UserSettingsFieldsetBuilder requires UserSettingsSectionBuilder context.');
-		}
-
-		return $section;
-	}
-
 	public function end_fieldset(): UserSettingsSectionBuilder {
 		$section = parent::end_fieldset();
 		if (!$section instanceof UserSettingsSectionBuilder) {
@@ -59,7 +44,7 @@ final class UserSettingsFieldsetBuilder extends FieldsetBuilder {
 		return $section;
 	}
 
-	public function field(string $field_id, string $label, string $component, array $args = array()): UserSettingsFieldsetBuilder|ComponentBuilderProxy {
+	public function field(string $field_id, string $label, string $component, array $args = array()): ComponentBuilderProxy|static {
 		$result = parent::field($field_id, $label, $component, $args);
 
 		return $result instanceof ComponentBuilderProxy ? $result : $this;
