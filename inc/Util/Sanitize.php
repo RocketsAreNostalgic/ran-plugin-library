@@ -3,13 +3,13 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\Util;
 
-use Ran\PluginLib\Util\Sanitize\SanitizeJsonGroup;
-use Ran\PluginLib\Util\Sanitize\SanitizeArrayGroup;
-use Ran\PluginLib\Util\Sanitize\SanitizeNumberGroup;
 use Ran\PluginLib\Util\Sanitize\SanitizeStringGroup;
+use Ran\PluginLib\Util\Sanitize\SanitizeNumberGroup;
+use Ran\PluginLib\Util\Sanitize\SanitizeJsonGroup;
 use Ran\PluginLib\Util\Sanitize\SanitizeComposeGroup;
-use  Ran\PluginLib\Util\Sanitize\SanitizeBooleanGroup;
 use Ran\PluginLib\Util\Sanitize\SanitizeCanonicalGroup;
+use  Ran\PluginLib\Util\Sanitize\SanitizeBooleanGroup;
+use Ran\PluginLib\Util\Sanitize\SanitizeArrayGroup;
 
 /**
  * Sanitization utilities (nested namespace facade).

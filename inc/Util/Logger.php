@@ -159,13 +159,6 @@ class Logger implements LoggerInterface {
 	private string $debug_request_param;
 
 	/**
-	 * Indicates how the logger was activated (e.g., 'url', 'constant').
-	 *
-	 * @var string|null $activation_mode Null if not activated by a specific mode or logger inactive.
-	 */
-	private string $activation_mode = '';
-
-	/**
 	 * Optional custom error log handler.
 	 *
 	 * @var callable|null
@@ -217,7 +210,6 @@ class Logger implements LoggerInterface {
 	private function _determine_effective_log_level(): void {
 		$this->is_active                    = false;
 		$this->effective_log_level_severity = self::LOG_LEVELS_MAP[LogLevel::EMERGENCY] + 100; // Default to higher than any level.
-		$this->activation_mode              = '';
 
 		$sources_values = array();
 		// phpcs:disable Squiz.Commenting.InlineComment.InvalidEndChar -- Reading a debug param, not processing form data.
@@ -246,7 +238,6 @@ class Logger implements LoggerInterface {
 
 			if (null !== $parsed_level) {
 				$determined_level_text = $parsed_level;
-				$this->activation_mode = $source_type;
 				break;
 			}
 		} // end foreach source_type

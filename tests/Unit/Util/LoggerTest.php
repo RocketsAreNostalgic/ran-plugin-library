@@ -191,7 +191,6 @@ class LoggerTest extends PluginLibTestCase {
 
 		$this->assertTrue($logger->is_active(), 'Logger should be active with a valid level string constant.');
 		$this->assertSame(Logger::LOG_LEVELS_MAP[LogLevel::WARNING], $logger->get_log_level(), 'Log level should be WARNING for "WARNING" string constant.');
-		$this->assertSame('constant', $this->_get_protected_property_value($logger, 'activation_mode'), 'Activation mode should be "constant".');
 	}
 
 	/**
@@ -208,10 +207,6 @@ class LoggerTest extends PluginLibTestCase {
 
 		$this->assertTrue($logger->is_active(), 'Logger should be active when URL parameter is set to a valid level.');
 		$this->assertSame(Logger::LOG_LEVELS_MAP[$level_name], $logger->get_log_level(), 'Logger effective log level should match the URL parameter.');
-
-		// Assert activation mode
-		$activation_mode = $this->_get_protected_property_value($logger, 'activation_mode');
-		$this->assertSame('url', $activation_mode, 'Activation mode should be set to "url".');
 
 		// Clean up the GET parameter
 		unset($_GET[$param_name]);
@@ -262,10 +257,6 @@ class LoggerTest extends PluginLibTestCase {
 
 		$this->assertFalse($logger->is_active(), 'Logger should not be active when URL parameter is set to an invalid level.');
 		$this->assertSame(0, $logger->get_log_level(), 'Logger effective log level should be 0 for an invalid URL parameter.');
-
-		// Assert activation mode is an empty string
-		$activation_mode = $this->_get_protected_property_value($logger, 'activation_mode');
-		$this->assertSame('', $activation_mode, 'Activation mode should be an empty string for an invalid URL parameter.');
 
 		// Clean up the GET parameter
 		unset($_GET[$param_name]);
@@ -533,8 +524,6 @@ class LoggerTest extends PluginLibTestCase {
 
 		$this->assertTrue($logger->is_active(), 'Logger should be active via constant.');
 		$this->assertSame(Logger::LOG_LEVELS_MAP[LogLevel::INFO], $logger->get_log_level(), 'Logger effective log level should be INFO.');
-		$activation_mode = $this->_get_protected_property_value($logger, 'activation_mode');
-		$this->assertSame('constant', $activation_mode, 'Activation mode should be constant.');
 
 		// Log a message to ensure it works
 		$logger->info('Test message for constant activation with invalid URL param.');
