@@ -205,9 +205,9 @@ class SectionBuilder implements SectionBuilderInterface {
 	 * @param string $component The component alias.
 	 * @param array<string,mixed> $args Optional configuration (context, order, field_template).
 	 *
-	 * @return SectionBuilder<TRoot>|ComponentBuilderProxy The builder or fluent proxy instance.
+	 * @return ComponentBuilderProxy|static The builder or fluent proxy instance.
 	 */
-	public function field(string $field_id, string $label, string $component, array $args = array()): SectionBuilder|ComponentBuilderProxy {
+	public function field(string $field_id, string $label, string $component, array $args = array()): ComponentBuilderProxy|static {
 		$component_context = $args['context']        ?? $args['component_context'] ?? array();
 		$order             = $args['order']          ?? null;
 		$field_template    = $args['field_template'] ?? null;

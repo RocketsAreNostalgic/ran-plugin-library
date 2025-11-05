@@ -4,7 +4,7 @@
  *
  * @template TRoot of BuilderRootInterface
  * @template TSection of SectionBuilder<TRoot>
- * @extends GroupBuilder<TRoot, TSection>
+ * @extends SectionFieldContainerBuilder<TRoot, TSection>
  * @implements FieldsetBuilderInterface<TRoot, TSection>
  *
  * @package Ran\PluginLib\Forms\Builders
@@ -16,7 +16,7 @@ namespace Ran\PluginLib\Forms\Builders;
 
 use InvalidArgumentException;
 
-class FieldsetBuilder extends GroupBuilder implements FieldsetBuilderInterface {
+class FieldsetBuilder extends SectionFieldContainerBuilder implements FieldsetBuilderInterface {
 	private string $style;
 	private bool $required;
 
@@ -60,12 +60,14 @@ class FieldsetBuilder extends GroupBuilder implements FieldsetBuilderInterface {
 	/**
 	 * Commit buffered data and return to the section builder.
 	 *
-	 * Alias for end_group() to support fieldset-specific fluent calls.
-	 *
 	 * @return SectionBuilder
 	 */
 	public function end_fieldset(): SectionBuilderInterface {
-		return parent::end_group();
+		return $this->section();
+	}
+
+	public function fieldset(string $fieldset_id, string $heading, ?callable $description_cb = null, ?array $args = null): FieldsetBuilderInterface {
+		return $this->section()->fieldset($fieldset_id, $heading, $description_cb, $args ?? array());
 	}
 
 	protected function _apply_meta_update(string $key, mixed $value): void {

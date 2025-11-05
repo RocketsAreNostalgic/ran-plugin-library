@@ -52,9 +52,9 @@ interface SectionBuilderInterface extends BuilderChildInterface, BuilderFieldCon
 	 * @param string $component The component alias.
 	 * @param array<string,mixed> $args Optional configuration (context, order, field_template).
 	 *
-	 * @return SectionBuilder<TRoot>|ComponentBuilderProxy
+	 * @return ComponentBuilderProxy|static
 	 */
-	public function field(string $field_id, string $label, string $component, array $args = array()): SectionBuilder|ComponentBuilderProxy;
+	public function field(string $field_id, string $label, string $component, array $args = array()): ComponentBuilderProxy|static;
 
 	/**
 	 * end_group() method returns this SectionBuilder instance.

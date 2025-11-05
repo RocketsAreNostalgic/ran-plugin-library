@@ -29,9 +29,9 @@ interface SubmitControlsBuilderInterface extends BuilderFieldContainerInterface 
 	public function after(?callable $after): self;
 
 	/**
-	 * Add a button control.
+	 * Add a button control and return a fluent proxy for customization.
 	 */
-	public function button(string $control_id, string $label, ?callable $configure = null): self;
+	public function button(string $control_id, string $label): self|SubmitControlButtonProxy;
 
 	/**
 	 * Return to parent builder.

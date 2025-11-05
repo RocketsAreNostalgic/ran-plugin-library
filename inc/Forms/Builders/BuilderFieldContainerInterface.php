@@ -30,7 +30,7 @@ interface BuilderFieldContainerInterface {
 	 * @param string $component The component to use
 	 * @param array $args Optional arguments for the component
 	 *
-	 * @return self|ComponentBuilderProxy The builder or a fluent proxy for component builders
+	 * @return ComponentBuilderProxy|static The builder or a fluent proxy for component builders
 	 */
-	public function field(string $field_id, string $label, string $component, array $args = array()): self|ComponentBuilderProxy;
+	public function field(string $field_id, string $label, string $component, array $args = array()): ComponentBuilderProxy|static;
 }

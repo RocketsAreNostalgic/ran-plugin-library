@@ -11,13 +11,14 @@ use Ran\PluginLib\Forms\Component\Build\ComponentBuilderInterface;
 use Ran\PluginLib\Forms\Component\Build\ComponentBuilderDefinitionInterface;
 use Ran\PluginLib\Forms\Component\Build\ComponentBuilderBase;
 use Ran\PluginLib\Forms\Builders\SectionBuilder;
+use Ran\PluginLib\Forms\Builders\SectionFieldContainerBuilder;
 use Ran\PluginLib\Forms\Builders\GroupBuilder;
 use BadMethodCallException;
 
 class ComponentBuilderProxy implements ComponentBuilderInterface {
 	/** @var ComponentBuilderDefinitionInterface&ComponentBuilderInterface */
 	private ComponentBuilderDefinitionInterface $builder;
-	private SectionBuilder|GroupBuilder $parent;
+	private SectionBuilder|SectionFieldContainerBuilder $parent;
 	/**
 	 * @var callable(
 	 *     string,
@@ -42,7 +43,7 @@ class ComponentBuilderProxy implements ComponentBuilderInterface {
 
 	/**
 	 * @param ComponentBuilderBase $builder
-	 * @param SectionBuilder|GroupBuilder $parent
+	 * @param SectionBuilder|SectionFieldContainerBuilder $parent
 	 * @param callable $updateFn
 	 * @param string $container_id
 	 * @param string $section_id
@@ -53,7 +54,7 @@ class ComponentBuilderProxy implements ComponentBuilderInterface {
 	 */
 	public function __construct(
 		ComponentBuilderBase $builder,
-		SectionBuilder|GroupBuilder $parent,
+		SectionBuilder|SectionFieldContainerBuilder $parent,
 		callable $updateFn,
 		string $container_id,
 		string $section_id,
@@ -188,7 +189,7 @@ class ComponentBuilderProxy implements ComponentBuilderInterface {
 		return $this;
 	}
 
-	public function end_field(): SectionBuilder|GroupBuilder {
+	public function end_field(): SectionBuilder|SectionFieldContainerBuilder {
 		return $this->parent;
 	}
 

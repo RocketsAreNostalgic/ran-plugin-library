@@ -109,11 +109,10 @@ final class SubmitControlsBuilder implements SubmitControlsBuilderInterface {
 	/**
 	 * Register a submit/control button using the shared Button component builder.
 	 *
-	 * @param string        $control_id Unique identifier for the control.
-	 * @param string        $label      Button label (required).
-	 * @param callable|null $configure  Optional configurator for the button builder.
+	 * @param string $control_id Unique identifier for the control.
+	 * @param string $label      Button label (required).
 	 */
-	public function button(string $control_id, string $label, ?callable $configure = null): self {
+	public function button(string $control_id, string $label): self|SubmitControlButtonProxy {
 		$control_id = trim($control_id);
 		if ($control_id === '') {
 			throw new InvalidArgumentException('Submit control id cannot be empty.');
@@ -127,21 +126,9 @@ final class SubmitControlsBuilder implements SubmitControlsBuilderInterface {
 		$builder = new ButtonBuilder($control_id, $label);
 		$builder->type('submit');
 
-		if ($configure !== null) {
-			$configure($builder);
-		}
-
-		$payload = $builder->to_array();
-
-		$this->registerControl(
-			$payload['id'],
-			$payload['component'],
-			$payload['component_context'],
-			$payload['label'],
-			$payload['order']
-		);
-
-		return $this;
+		$proxy = new SubmitControlButtonProxy($this, $builder);
+		$this->updateButton($builder);
+		return $proxy;
 	}
 
 	/**
@@ -151,9 +138,10 @@ final class SubmitControlsBuilder implements SubmitControlsBuilderInterface {
 	 * @param string $label      Optional display label (may be empty for non-button controls).
 	 * @param string $component  Registered component alias.
 	 * @param array<string,mixed> $args Optional configuration (context/order/label overrides).
-	 * @return self|ComponentBuilderProxy
+	 *
+	 * @return static|ComponentBuilderProxy
 	 */
-	public function field(string $control_id, string $label, string $component, array $args = array()): self|ComponentBuilderProxy {
+	public function field(string $control_id, string $label, string $component, array $args = array()): static|ComponentBuilderProxy {
 		$control_id = trim($control_id);
 		if ($control_id === '') {
 			throw new InvalidArgumentException('Submit control id cannot be empty.');
@@ -225,6 +213,17 @@ final class SubmitControlsBuilder implements SubmitControlsBuilderInterface {
 		);
 
 		$this->emit_controls_update();
+	}
+
+	public function updateButton(ButtonBuilder $builder): void {
+		$payload = $builder->to_array();
+		$this->registerControl(
+			$payload['id'],
+			$payload['component'],
+			$payload['component_context'],
+			$payload['label'],
+			$payload['order']
+		);
 	}
 
 	private function emit_template_override(): void {

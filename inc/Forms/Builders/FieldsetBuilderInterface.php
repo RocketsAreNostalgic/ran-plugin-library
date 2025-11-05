@@ -12,7 +12,7 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\Forms\Builders;
 
-interface FieldsetBuilderInterface extends GroupBuilderInterface {
+interface FieldsetBuilderInterface extends SectionFieldContainerBuilderInterface {
 	/**
 	 * Define the visual style for the fieldset wrapper.
 	 */
@@ -29,4 +29,11 @@ interface FieldsetBuilderInterface extends GroupBuilderInterface {
 	 * @return TSection
 	 */
 	public function end_fieldset(): SectionBuilderInterface;
+
+	/**
+	 * Open a sibling fieldset on the same section.
+
+	 * @return FieldsetBuilderInterface<TRoot, TSection>
+	 */
+	public function fieldset(string $fieldset_id, string $heading, ?callable $description_cb = null, ?array $args = null): FieldsetBuilderInterface;
 }
