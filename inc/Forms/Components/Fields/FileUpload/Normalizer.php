@@ -97,9 +97,15 @@ final class Normalizer extends NormalizerBase {
 		$accept = $context['accept'] ?? null;
 		if ($accept !== null) {
 			if (is_array($accept)) {
-				$context['attributes']['accept'] = implode(',', array_map('strval', $accept));
+				$sanitizedAccept = array();
+				foreach ($accept as $entry) {
+					$sanitizedAccept[] = $this->_sanitize_string($entry ?? '', 'accept');
+				}
+				$context['attributes']['accept'] = implode(',', $sanitizedAccept);
+				$accept                          = $sanitizedAccept;
 			} else {
-				$context['attributes']['accept'] = $this->_sanitize_string($accept, 'accept');
+				$accept                          = $this->_sanitize_string($accept, 'accept');
+				$context['attributes']['accept'] = $accept;
 			}
 		}
 

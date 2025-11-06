@@ -33,7 +33,7 @@ use Ran\PluginLib\Options\WriteContext;
 use Ran\PluginLib\Options\Policy\RestrictedDefaultWritePolicy;
 use Ran\PluginLib\Settings\Settings;
 use Ran\PluginLib\Forms\FormsInterface;
-use \Ran\PluginLib\Util\Sanitize;
+use Ran\PluginLib\Forms\Validation\Helpers;
 
 /**
  * Manages grouped settings via a scope-aware storage adapter (site, network, blog, or user).
@@ -1440,7 +1440,7 @@ class RegisterOptions {
 				$result = $this->_get_storage()->update($this->main_wp_option_name, $to_save);
 				if (!$result) {
 					$__verify = $this->_do_get_option($this->main_wp_option_name, $__sentinel);
-					if ($__verify !== $__sentinel && Sanitize::canonical()->order_insensitive_shallow($__verify) === Sanitize::canonical()->order_insensitive_shallow($to_save)) {
+					if ($__verify !== $__sentinel && Helpers::canonicalStructuresMatch($__verify, $to_save)) {
 						$this->_get_logger()->warning('RegisterOptions: storage->update() returned false but DB matches desired state; treating as success.');
 						$result = true;
 					} else {
@@ -1464,7 +1464,7 @@ class RegisterOptions {
 					$result = $this->_get_storage()->update($this->main_wp_option_name, $to_save);
 					if (!$result) {
 						$__verify = $this->_do_get_option($this->main_wp_option_name, $__sentinel);
-						if ($__verify !== $__sentinel && Sanitize::canonical()->order_insensitive_shallow($__verify) === Sanitize::canonical()->order_insensitive_shallow($to_save)) {
+						if ($__verify !== $__sentinel && Helpers::canonicalStructuresMatch($__verify, $to_save)) {
 							$this->_get_logger()->warning('RegisterOptions: storage->update() also failed but DB matches desired state; treating as success.');
 							$result = true;
 						} else {

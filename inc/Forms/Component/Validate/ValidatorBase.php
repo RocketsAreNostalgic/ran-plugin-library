@@ -10,6 +10,8 @@ namespace Ran\PluginLib\Forms\Component\Validate;
 use Ran\PluginLib\Util\Validate;
 use Ran\PluginLib\Util\TranslationService;
 use Ran\PluginLib\Util\Logger;
+use Ran\PluginLib\Forms\Validation\Helpers;
+use InvalidArgumentException;
 
 abstract class ValidatorBase implements ValidatorInterface {
 	protected Logger $logger;
@@ -124,8 +126,16 @@ abstract class ValidatorBase implements ValidatorInterface {
 			if (!is_array($option)) {
 				continue;
 			}
-			$value     = array_key_exists('value', $option) ? (string) $option['value'] : '';
-			$allowed[] = $value;
+			$rawValue = $option['value'] ?? '';
+			try {
+				$allowed[] = Helpers::sanitizeString($rawValue, 'allowed_option_value', $this->logger);
+			} catch (InvalidArgumentException $exception) {
+				$this->logger->warning('Skipping non-scalar option value during validation', array(
+					'option_keys' => array_keys($option),
+					'value_type'  => gettype($rawValue),
+					'validator'   => static::class,
+				));
+			}
 		}
 
 		return $allowed;
@@ -145,7 +155,6 @@ abstract class ValidatorBase implements ValidatorInterface {
 			return false;
 		}
 
-		// Log boolean coercion (developer warning, not UI warning)
 		if (Validate::basic()->is_bool()($value)) {
 			$this->logger->warning('Boolean value coerced to string in scalar validation', array(
 				'boolean_value'   => $value,
@@ -154,9 +163,8 @@ abstract class ValidatorBase implements ValidatorInterface {
 			));
 		}
 
-		$stringValue = (string) $value;
+		$stringValue = Helpers::sanitizeString($value, 'submitted_option_value', $this->logger);
 
-		// If no allowed values specified, accept any scalar
 		if (empty($allowedValues)) {
 			return true;
 		}
@@ -188,7 +196,6 @@ abstract class ValidatorBase implements ValidatorInterface {
 				return false;
 			}
 
-			// Log boolean coercion (developer warning, not UI warning)
 			if (Validate::basic()->is_bool()($entry)) {
 				$this->logger->warning('Boolean value coerced to string in array validation', array(
 					'boolean_value'   => $entry,
@@ -197,7 +204,7 @@ abstract class ValidatorBase implements ValidatorInterface {
 				));
 			}
 
-			$entryString = (string) $entry;
+			$entryString = Helpers::sanitizeString($entry, 'submitted_option_value', $this->logger);
 			if (!empty($allowedValues) && !in_array($entryString, $allowedValues, true)) {
 				$emitWarning($this->_translate('Please select only valid options.'));
 				return false;
@@ -216,15 +223,35 @@ abstract class ValidatorBase implements ValidatorInterface {
 	 * @return bool True if the value matches one of the expected values, false otherwise.
 	 */
 	protected function _validate_value_in_set(mixed $value, array $expectedValues): bool {
-		if (Validate::basic()->is_bool()($value) || Validate::basic()->is_numeric()($value)) {
-			$value = (string) $value;
-		}
-
-		if (!Validate::basic()->is_string()($value)) {
+		if (!Validate::basic()->is_scalar()($value)) {
 			return false;
 		}
 
-		return in_array($value, $expectedValues, true);
+		if (Validate::basic()->is_bool()($value)) {
+			$this->logger->warning('Boolean value coerced to string when checking expected set', array(
+				'boolean_value'   => $value,
+				'validator_class' => static::class
+			));
+		}
+
+		$normalizedExpected = array();
+		foreach ($expectedValues as $expected) {
+			try {
+				$normalizedExpected[] = Helpers::sanitizeString($expected, 'expected_value', $this->logger);
+			} catch (InvalidArgumentException $exception) {
+				$this->logger->warning('Skipping non-scalar expected value', array(
+					'value_type' => gettype($expected),
+					'validator'  => static::class,
+				));
+			}
+		}
+
+		if ($normalizedExpected === array()) {
+			return false;
+		}
+
+		$normalizedValue = Helpers::sanitizeString($value, 'expected_value', $this->logger);
+		return in_array($normalizedValue, $normalizedExpected, true);
 	}
 
 	/**

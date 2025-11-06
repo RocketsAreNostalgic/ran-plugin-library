@@ -8,12 +8,15 @@ declare(strict_types=1);
 namespace Ran\PluginLib\Forms\Components\Fields\Checkbox;
 
 use Ran\PluginLib\Util\Validate;
+use Ran\PluginLib\Forms\Validation\Helpers;
 use Ran\PluginLib\Forms\Component\Validate\ValidatorBase;
 
 final class Validator extends ValidatorBase {
 	protected function _validate_component(mixed $value, array $context, callable $emitWarning): bool {
-		$checked   = isset($context['checked_value']) ? (string) $context['checked_value'] : 'on';
-		$unchecked = array_key_exists('unchecked_value', $context) ? (string) $context['unchecked_value'] : null;
+		$checked   = Helpers::sanitizeString($context['checked_value'] ?? 'on', 'checked_value', $this->logger);
+		$unchecked = array_key_exists('unchecked_value', $context)
+			? Helpers::sanitizeString($context['unchecked_value'], 'unchecked_value', $this->logger)
+			: null;
 
 		// Check if checkbox is required when value is null/empty/unchecked
 		$isUnchecked = ($value === null || $value === '' || ($unchecked !== null && $value === $unchecked));
@@ -46,7 +49,8 @@ final class Validator extends ValidatorBase {
 
 		// Handle string values
 		if (Validate::basic()->is_string()($value)) {
-			return $value === $checked || ($unchecked !== null && $value === $unchecked);
+			$submitted = Helpers::sanitizeString($value, 'checkbox_input', $this->logger);
+			return $submitted === $checked || ($unchecked !== null && $submitted === $unchecked);
 		}
 
 		return false;

@@ -8,6 +8,7 @@ declare(strict_types=1);
 namespace Ran\PluginLib\Forms\Components\Fields\Textarea;
 
 use Ran\PluginLib\Util\Validate;
+use Ran\PluginLib\Forms\Validation\Helpers;
 use Ran\PluginLib\Forms\Component\Validate\ValidatorBase;
 
 final class Validator extends ValidatorBase {
@@ -23,6 +24,8 @@ final class Validator extends ValidatorBase {
 		if (!is_string($value)) {
 			return false;
 		}
+
+		Helpers::sanitizeString($value, 'textarea_value', $this->logger);
 
 		// Check if textarea is required when value is empty
 		if ($value === '') {

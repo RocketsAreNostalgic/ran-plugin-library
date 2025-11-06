@@ -7,7 +7,6 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\Forms\Components\Elements\ButtonLink;
 
-use Ran\PluginLib\Util\Sanitize;
 use Ran\PluginLib\Forms\Component\Normalize\NormalizerBase;
 
 final class Normalizer extends NormalizerBase {
@@ -22,7 +21,8 @@ final class Normalizer extends NormalizerBase {
 		if (isset($context['attributes']['class'])) {
 			$classes[] = $this->_sanitize_string($context['attributes']['class'], 'class');
 		}
-		$context['attributes']['class'] = Sanitize::string()->trim(implode(' ', array_filter(array_map('trim', $classes))));
+		$classList                      = implode(' ', array_filter(array_map('trim', $classes)));
+		$context['attributes']['class'] = $this->_sanitize_string($classList, 'class');
 
 		// Set link attributes
 		$context['attributes']['href'] = $url;

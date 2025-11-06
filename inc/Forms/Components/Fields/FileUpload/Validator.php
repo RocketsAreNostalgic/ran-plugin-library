@@ -10,11 +10,14 @@ namespace Ran\PluginLib\Forms\Components\Fields\FileUpload;
 use Ran\PluginLib\Util\WPWrappersTrait;
 use Ran\PluginLib\Util\Validate;
 use Ran\PluginLib\Forms\Component\Validate\ValidatorBase;
+use Ran\PluginLib\Forms\Validation\Helpers;
 
 final class Validator extends ValidatorBase {
 	use WPWrappersTrait;
 
 	protected function _validate_component(mixed $value, array $context, callable $emitWarning): bool {
+		$multiple = Helpers::sanitizeBoolean($context['multiple'] ?? false, 'multiple_upload', $this->logger);
+
 		// Check if files are required when value is null/empty
 		if ($value === null || $value === '') {
 			$required = $context['required'] ?? false;
@@ -35,7 +38,7 @@ final class Validator extends ValidatorBase {
 		// Handle existing files array
 		if (isset($context['existing_files']) && Validate::basic()->is_array()($context['existing_files'])) {
 			foreach ($context['existing_files'] as $file) {
-				if (!$this->_validate_single_file((string) $file, $allowedExtensions, $emitWarning)) {
+				if (!$this->_validate_single_file($file, $allowedExtensions, $emitWarning)) {
 					return false;
 				}
 			}
@@ -48,7 +51,7 @@ final class Validator extends ValidatorBase {
 
 		if (Validate::basic()->is_array()($value)) {
 			foreach ($value as $file) {
-				if (!$this->_validate_single_file((string) $file, $allowedExtensions, $emitWarning)) {
+				if (!$this->_validate_single_file($file, $allowedExtensions, $emitWarning)) {
 					return false;
 				}
 			}
@@ -67,14 +70,24 @@ final class Validator extends ValidatorBase {
 	/**
 	 * Validate a single file path or URL.
 	 */
-	private function _validate_single_file(string $file, array $allowedExtensions, callable $emitWarning): bool {
-		if (empty($file)) {
+	private function _validate_single_file(mixed $file, array $allowedExtensions, callable $emitWarning): bool {
+		try {
+			$normalizedFile = Helpers::sanitizeString($file, 'file_reference', $this->logger);
+		} catch (\InvalidArgumentException $exception) {
+			$this->logger->warning('File reference must be scalar', array(
+				'provided_type'   => gettype($file),
+				'validator_class' => static::class
+			));
+			return false;
+		}
+
+		if ($normalizedFile === '') {
 			return true; // Empty files are handled at the top level
 		}
 
 		// If it looks like a URL, validate the URL format first
-		if ($this->_is_url($file)) {
-			if (!Validate::format()->url()($file)) {
+		if ($this->_is_url($normalizedFile)) {
+			if (!Validate::format()->url()($normalizedFile)) {
 				$emitWarning($this->_translate('Invalid URL format for file upload.'));
 				return false;
 			}
@@ -82,11 +95,11 @@ final class Validator extends ValidatorBase {
 
 		// Use the file extension validator from ValidateFormatGroup
 		$isValidExtension = empty($allowedExtensions)
-			? Validate::format()->file_extension()($file)
-			: Validate::format()->file_extension($allowedExtensions)($file);
+			? Validate::format()->file_extension()($normalizedFile)
+			: Validate::format()->file_extension($allowedExtensions)($normalizedFile);
 
 		if (!$isValidExtension) {
-			$extension = $this->_extract_file_extension($file);
+			$extension = $this->_extract_file_extension($normalizedFile);
 			if (empty($extension)) {
 				$emitWarning($this->_translate('File must have a valid extension.'));
 			} else {

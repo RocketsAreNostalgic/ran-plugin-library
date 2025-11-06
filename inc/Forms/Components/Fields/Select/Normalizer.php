@@ -50,7 +50,8 @@ final class Normalizer extends NormalizerBase {
 			if (!is_array($option)) {
 				continue;
 			}
-			$group             = isset($option['group']) && $option['group'] !== '' ? (string) $option['group'] : null;
+			$groupRaw          = $option['group'] ?? '';
+			$group             = $groupRaw !== '' ? $this->_sanitize_string($groupRaw, 'option group') : null;
 			$grouped[$group][] = $this->_render_option_markup($option, $selectedValue);
 		}
 

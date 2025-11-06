@@ -9,10 +9,11 @@ namespace Ran\PluginLib\Forms\Component\Normalize;
 
 use Ran\PluginLib\Util\Validate;
 use Ran\PluginLib\Util\TranslationService;
-use Ran\PluginLib\Util\Sanitize;
 use Ran\PluginLib\Util\Logger;
+use Ran\PluginLib\Forms\Validation\Helpers;
 use Ran\PluginLib\Forms\Component\Normalize\ComponentNormalizationContext as NormalizationContext;
 use Ran\PluginLib\Forms\Component\ComponentLoader;
+use InvalidArgumentException;
 
 abstract class NormalizerBase implements NormalizeInterface {
 	protected ComponentLoader $views;
@@ -313,32 +314,14 @@ abstract class NormalizerBase implements NormalizeInterface {
 	 * @return string Sanitized string value
 	 */
 	protected function _sanitize_string(mixed $value, string $context = '', ?callable $emitNotice = null): string {
-		if (!is_scalar($value) && $value !== null) {
-			$contextMsg = $context !== '' ? " for {$context}" : '';
-			$error      = "Expected string{$contextMsg}, got " . gettype($value);
-
-			$this->logger->error('Type validation failed in normalizer', array(
-				'expected_type'  => 'string',
-				'actual_type'    => gettype($value),
-				'context'        => $context,
-				'component_type' => $this->componentType
-			));
-
-			throw new \InvalidArgumentException($error);
+		$noticeEmitter = null;
+		if ($emitNotice !== null) {
+			$noticeEmitter = function(string $code, string $message, array $meta = array()) use ($emitNotice): void {
+				$emitNotice($message);
+			};
 		}
 
-		$original = (string) $value;
-
-		// Use Sanitize utility to ensure clean string
-		$sanitized = Sanitize::string()->trim()($original);
-
-		// Emit notice if value was transformed and callback is provided
-		if ($emitNotice !== null && $original !== $sanitized) {
-			$contextMsg = $context !== '' ? " for {$context}" : '';
-			$emitNotice("String value{$contextMsg} was trimmed during sanitization");
-		}
-
-		return $sanitized;
+		return Helpers::sanitizeString($value, $context, $this->_get_logger(), $noticeEmitter);
 	}
 
 	/**
@@ -351,37 +334,14 @@ abstract class NormalizerBase implements NormalizeInterface {
 	 * @return bool Sanitized boolean value
 	 */
 	protected function _sanitize_boolean(mixed $value, string $context = '', ?callable $emitNotice = null): bool {
-		$original = $value;
-
-		// Use the form-friendly boolean sanitizer
-		$result = Sanitize::bool()->to_bool($value);
-
-		// If it was successfully converted to boolean, return it
-		if (is_bool($result)) {
-			// Emit notice if value was transformed and callback is provided
-			if ($emitNotice !== null && $original !== $result) {
-				$contextMsg      = $context !== '' ? " for {$context}" : '';
-				$originalDisplay = is_scalar($original) ? var_export($original, true) : gettype($original);
-				$resultDisplay   = $result ? 'true' : 'false';
-				$emitNotice("Boolean value{$contextMsg} was converted from {$originalDisplay} to {$resultDisplay}");
-			}
-
-			return $result;
+		$noticeEmitter = null;
+		if ($emitNotice !== null) {
+			$noticeEmitter = function(string $code, string $message, array $meta = array()) use ($emitNotice): void {
+				$emitNotice($message);
+			};
 		}
 
-		// If not convertible, throw error
-		$contextMsg = $context !== '' ? " for {$context}" : '';
-		$error      = "Expected boolean{$contextMsg}, got " . gettype($value);
-
-		$this->logger->error('Type validation failed in normalizer', array(
-			'expected_type'  => 'boolean',
-			'actual_type'    => gettype($value),
-			'actual_value'   => is_scalar($value) ? $value : '[non-scalar]',
-			'context'        => $context,
-			'component_type' => $this->componentType
-		));
-
-		throw new \InvalidArgumentException($error);
+		return Helpers::sanitizeBoolean($value, $context, $this->_get_logger(), $noticeEmitter);
 	}
 
 	/**
@@ -460,20 +420,15 @@ abstract class NormalizerBase implements NormalizeInterface {
 			throw new \InvalidArgumentException($error);
 		}
 
-		// Use Sanitize utility for consistent string cleaning
-		$trimmed = Sanitize::string()->trim()((string) $value);
-		if ($trimmed === '') {
-			$error = "Configuration field '{$fieldName}' cannot be empty if provided";
-
+		try {
+			return Helpers::sanitizeConfigString((string) $value, $fieldName, $this->logger);
+		} catch (InvalidArgumentException $exception) {
 			$this->logger->error('Empty configuration string', array(
 				'field_name'     => $fieldName,
 				'component_type' => $this->componentType
 			));
-
-			throw new \InvalidArgumentException($error);
+			throw $exception;
 		}
-
-		return $trimmed;
 	}
 
 	/**
@@ -548,9 +503,6 @@ abstract class NormalizerBase implements NormalizeInterface {
 	 * @return array Normalized extensions (lowercase, trimmed)
 	 */
 	protected function _normalize_extensions(array $extensions): array {
-		return array_map(
-			static fn($ext) => Sanitize::string()->trim(strtolower((string) $ext)),
-			$extensions
-		);
+		return Helpers::normalizeExtensions($extensions);
 	}
 }

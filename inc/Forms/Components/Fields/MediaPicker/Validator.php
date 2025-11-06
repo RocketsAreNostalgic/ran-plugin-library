@@ -9,6 +9,7 @@ namespace Ran\PluginLib\Forms\Components\Fields\MediaPicker;
 
 use Ran\PluginLib\Util\Validate;
 use Ran\PluginLib\Forms\Component\Validate\ValidatorBase;
+use Ran\PluginLib\Forms\Validation\Helpers;
 
 final class Validator extends ValidatorBase {
 	protected function _validate_component(mixed $value, array $context, callable $emitWarning): bool {
@@ -22,7 +23,7 @@ final class Validator extends ValidatorBase {
 			return true;
 		}
 
-		$multiple = !empty($context['multiple']);
+		$multiple = Helpers::sanitizeBoolean($context['multiple'] ?? false, 'media_multiple', $this->logger);
 
 		if ($multiple) {
 			// Multiple selection: expect array of media IDs
@@ -44,15 +45,15 @@ final class Validator extends ValidatorBase {
 	 */
 	private function _validate_single_media_id(mixed $value, callable $emitWarning): bool {
 		// Should be a positive integer (WordPress attachment ID)
-		if (!Validate::basic()->is_scalar()($value)) {
+		try {
+			$stringValue = Helpers::sanitizeString($value, 'media_id', $this->logger);
+		} catch (\InvalidArgumentException $exception) {
 			$this->logger->warning('Media ID must be a scalar value', array(
 				'provided_type'   => gettype($value),
 				'validator_class' => static::class
 			));
 			return false;
 		}
-
-		$stringValue = (string) $value;
 
 		// Must be a positive integer
 		if (!Validate::basic()->is_int()($stringValue)) {

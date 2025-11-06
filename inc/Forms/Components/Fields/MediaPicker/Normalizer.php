@@ -24,7 +24,7 @@ final class Normalizer extends NormalizerBase {
 		$context['attributes']['id'] = $inputId;
 
 		// Set hidden input attributes
-		$value                          = isset($context['value']) ? (string) $context['value'] : '';
+		$value                          = $this->_sanitize_string($context['value'] ?? '', 'value');
 		$context['attributes']['type']  = 'hidden';
 		$context['attributes']['value'] = $value;
 
@@ -44,24 +44,24 @@ final class Normalizer extends NormalizerBase {
 			if ($sanitized === '') {
 				continue;
 			}
-			$context['attributes']['data-' . $sanitized] = (string) $dataValue;
+			$context['attributes']['data-' . $sanitized] = $this->_sanitize_string($dataValue, 'data_' . $sanitized);
 		}
 
 		// Generate button and remove IDs
-		$buttonIdBase = isset($context['button_id']) ? (string) $context['button_id'] : $inputId . '__button';
+		$buttonIdBase = $this->_sanitize_string($context['button_id'] ?? $inputId . '__button', 'button_id');
 		$buttonId     = $this->session->reserveId($buttonIdBase, 'media_button');
-		$removeIdBase = isset($context['remove_id']) ? (string) $context['remove_id'] : $inputId . '__remove';
+		$removeIdBase = $this->_sanitize_string($context['remove_id'] ?? $inputId . '__remove', 'remove_id');
 		$removeId     = $this->session->reserveId($removeIdBase, 'media_remove');
 
 		// Build template context
 		$context['input_attributes'] = $this->session->formatAttributes($context['attributes']);
-		$context['select_label']     = isset($context['select_label']) ? (string) $context['select_label'] : 'Select media';
-		$context['replace_label']    = isset($context['replace_label']) ? (string) $context['replace_label'] : 'Replace media';
-		$context['remove_label']     = isset($context['remove_label']) ? (string) $context['remove_label'] : 'Remove';
+		$context['select_label']     = $this->_sanitize_string($context['select_label'] ?? 'Select media', 'select_label');
+		$context['replace_label']    = $this->_sanitize_string($context['replace_label'] ?? 'Replace media', 'replace_label');
+		$context['remove_label']     = $this->_sanitize_string($context['remove_label'] ?? 'Remove', 'remove_label');
 		$context['button_id']        = $buttonId;
 		$context['remove_id']        = $removeId;
 		$context['has_selection']    = isset($context['has_selection']) ? (bool) $context['has_selection'] : ($value !== '');
-		$context['preview_html']     = isset($context['preview_html']) ? (string) $context['preview_html'] : '';
+		$context['preview_html']     = isset($context['preview_html']) ? $this->_sanitize_string($context['preview_html'], 'preview_html') : '';
 		$context['multiple']         = $multiple;
 
 		return $context;

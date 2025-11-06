@@ -7,7 +7,6 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\Forms\Components\Elements\Button;
 
-use Ran\PluginLib\Util\Sanitize;
 use Ran\PluginLib\Forms\Component\Normalize\NormalizerBase;
 
 final class Normalizer extends NormalizerBase {
@@ -31,7 +30,8 @@ final class Normalizer extends NormalizerBase {
 		if (isset($context['attributes']['class'])) {
 			$baseClasses[] = $this->_sanitize_string($context['attributes']['class'], 'class');
 		}
-		$context['attributes']['class'] = Sanitize::string()->trim(implode(' ', array_filter(array_map('trim', $baseClasses))));
+		$classList                      = implode(' ', array_filter(array_map('trim', $baseClasses)));
+		$context['attributes']['class'] = $this->_sanitize_string($classList, 'class');
 
 		// Build button attributes string for template
 		$context['button_attributes'] = $this->session->formatAttributes($context['attributes']);

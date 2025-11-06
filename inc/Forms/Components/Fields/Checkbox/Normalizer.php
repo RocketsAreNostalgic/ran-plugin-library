@@ -49,11 +49,11 @@ final class Normalizer extends NormalizerBase {
 		$attributes['value'] = $context['checked_value'];
 
 		if (!empty($context['name'])) {
-			$attributes['name'] = $context['name'];
+			$attributes['name'] = $this->_sanitize_string($context['name'], 'name');
 		}
 
 		if (!empty($context['id'])) {
-			$attributes['id'] = $context['id'];
+			$attributes['id'] = $this->_sanitize_string($context['id'], 'id');
 		}
 
 		// Use base class boolean sanitization for form states
@@ -86,7 +86,7 @@ final class Normalizer extends NormalizerBase {
 		);
 
 		if (!empty($context['name'])) {
-			$attributes['name'] = $context['name'];
+			$attributes['name'] = $this->_sanitize_string($context['name'], 'name');
 		}
 
 		return $this->session->formatAttributes($attributes);

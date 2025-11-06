@@ -8,10 +8,11 @@ declare(strict_types=1);
 namespace Ran\PluginLib\Forms\Components\Fields\CheckboxOption;
 
 use Ran\PluginLib\Forms\Component\Validate\ValidatorBase;
+use Ran\PluginLib\Forms\Validation\Helpers;
 
 final class Validator extends ValidatorBase {
 	protected function _validate_component(mixed $value, array $context, callable $emitWarning): bool {
-		$checked = isset($context['value']) ? (string) $context['value'] : 'on';
+		$checked = Helpers::sanitizeString($context['value'] ?? 'on', 'option_value', $this->logger);
 
 		// Handle boolean values with custom messages
 		if (is_bool($value)) {
@@ -32,7 +33,7 @@ final class Validator extends ValidatorBase {
 
 		// Handle string values
 		if (is_string($value)) {
-			return $value === $checked;
+			return Helpers::sanitizeString($value, 'checkbox_option_input', $this->logger) === $checked;
 		}
 
 		return false;

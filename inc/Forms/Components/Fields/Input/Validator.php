@@ -7,8 +7,8 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\Forms\Components\Fields\Input;
 
-use Ran\PluginLib\Util\Sanitize;
 use Ran\PluginLib\Util\Validate;
+use Ran\PluginLib\Forms\Validation\Helpers;
 use Ran\PluginLib\Forms\Component\Validate\ValidatorBase;
 
 final class Validator extends ValidatorBase {
@@ -221,30 +221,23 @@ final class Validator extends ValidatorBase {
 	}
 
 	private function _validate_text(string $value, array $context, callable $emitWarning): bool {
-		// Sanitize to ensure we have a clean string
-		$cleanValue = Sanitize::string()->trim()($value);
+		$cleanValue = Helpers::sanitizeString($value, 'input_value', $this->logger);
 
-		// Check length constraints
-		if (isset($context['minlength'])) {
-			$minlength = (int) $context['minlength'];
-			if (strlen($cleanValue) < $minlength) {
-				$emitWarning(sprintf($this->_translate('Text must be at least %d characters long.'), $minlength));
-				return false;
-			}
+		$minlength = isset($context['minlength']) ? (int) $context['minlength'] : null;
+		if ($minlength !== null && !Helpers::validateLength($cleanValue, 'input_value', $this->logger, $minlength, null)) {
+			$emitWarning(sprintf($this->_translate('Text must be at least %d characters long.'), $minlength));
+			return false;
 		}
 
-		if (isset($context['maxlength'])) {
-			$maxlength = (int) $context['maxlength'];
-			if (strlen($cleanValue) > $maxlength) {
-				$emitWarning(sprintf($this->_translate('Text must be no more than %d characters long.'), $maxlength));
-				return false;
-			}
+		$maxlength = isset($context['maxlength']) ? (int) $context['maxlength'] : null;
+		if ($maxlength !== null && !Helpers::validateLength($cleanValue, 'input_value', $this->logger, null, $maxlength)) {
+			$emitWarning(sprintf($this->_translate('Text must be no more than %d characters long.'), $maxlength));
+			return false;
 		}
 
-		// Check pattern constraint
 		if (isset($context['pattern'])) {
 			$pattern = (string) $context['pattern'];
-			if (!preg_match('/' . $pattern . '/', $cleanValue)) {
+			if (@preg_match('/' . $pattern . '/', $cleanValue) !== 1) {
 				$emitWarning($this->_translate('Please enter a value that matches the required format.'));
 				return false;
 			}
@@ -267,11 +260,8 @@ final class Validator extends ValidatorBase {
 	 * @return bool True if valid, false otherwise
 	 */
 	private function _validate_file(string $value, callable $emitWarning): bool {
-		// File inputs typically receive file paths or names
-		// Sanitize to ensure we have a clean string
-		$cleanValue = Sanitize::string()->trim()($value);
+		$cleanValue = Helpers::sanitizeString($value, 'file_input', $this->logger);
 
-		// Basic validation - just ensure it's not empty after trimming
 		if ($cleanValue === '') {
 			$emitWarning($this->_translate('Please select a file.'));
 			return false;
