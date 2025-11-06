@@ -50,8 +50,8 @@ final class AdminSettingsSubmitControlsRenderTest extends TestCase {
 		$baseDir = __DIR__ . '/../../fixtures/templates';
 		$loader  = new ComponentLoader($baseDir);
 		$loader->register('section', 'admin/sections/test-section.php');
-		$loader->register('field-wrapper', 'admin/field-wrapper.php');
-		$loader->register('shared.field-wrapper', 'admin/field-wrapper.php');
+		$loader->register('field-wrapper', 'admin/fields/example-field-wrapper.php');
+		$loader->register('shared.field-wrapper', 'admin/fields/example-field-wrapper.php');
 		$loader->register('section-wrapper', 'admin/section-wrapper.php');
 		$this->logger   = new CollectingLogger();
 		$this->manifest = new ComponentManifest($loader, $this->logger);
@@ -178,7 +178,7 @@ final class AdminSettingsSubmitControlsRenderTest extends TestCase {
 
 		$this->manifest->register('field-wrapper', static function (array $context): ComponentRenderResult {
 			$componentHtml = $context['component_html'] ?? '';
-			return new ComponentRenderResult('<div class="field-wrapper">' . $componentHtml . '</div>', component_type: 'field_wrapper');
+			return new ComponentRenderResult('<div class="field-wrapper">' . $componentHtml . '</div>', component_type: ComponentType::LayoutWrapper);
 		});
 
 		$this->manifest->register('fields.input', static function (array $context): ComponentRenderResult {

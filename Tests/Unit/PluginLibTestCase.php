@@ -205,6 +205,27 @@ abstract class PluginLibTestCase extends RanTestCase {
 	}
 
 	/**
+	 * Execute a callback while capturing its output, without disturbing existing buffers.
+	 */
+	protected function captureOutput(callable $callback): string {
+		$initialLevel = ob_get_level();
+		ob_start();
+		try {
+			$callback();
+			$output = (string) ob_get_clean();
+		} catch (\Throwable $throwable) {
+			while (ob_get_level() > $initialLevel) {
+				ob_end_clean();
+			}
+			throw $throwable;
+		}
+		while (ob_get_level() > $initialLevel) {
+			ob_end_clean();
+		}
+		return $output;
+	}
+
+	/**
 	 * Load lightweight implementations of core WordPress translation functions for tests that rely on them.
 	 */
 	protected function loadTranslationFunctionStubs(): void {

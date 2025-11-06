@@ -324,12 +324,12 @@ class UserSettings implements FormsInterface {
 			'heading'     => $collection_meta['heading']     ?? '',
 			'description' => $collection_meta['description'] ?? '',
 			...array(
-				'id_slug'         => $id_slug,
-				'collection_meta' => $collection_meta,
-				'sections'        => $sections,
-				'values'          => $effective_values,
-				'content'         => $this->_render_default_sections_wrapper($id_slug, $sections, $effective_values),
-				'errors_by_field' => $this->message_handler->get_all_messages(),
+				'id_slug'           => $id_slug,
+				'collection_meta'   => $collection_meta,
+				'sections'          => $sections,
+				'values'            => $effective_values,
+				'content'           => $this->_render_default_sections_wrapper($id_slug, $sections, $effective_values),
+				'messages_by_field' => $this->message_handler->get_all_messages(),
 			),
 		);
 		$this->logger->debug('user_settings.render.payload', array(

@@ -15,6 +15,7 @@ use Ran\PluginLib\EnqueueAccessory\ScriptDefinition;
 use Ran\PluginLib\Forms\Component\ComponentRenderResult;
 use Ran\PluginLib\Forms\Component\ComponentManifest;
 use Ran\PluginLib\Forms\Component\ComponentLoader;
+use Ran\PluginLib\Forms\Component\ComponentType;
 use Ran\PluginLib\Forms\FormsServiceSession;
 
 /**
@@ -52,8 +53,10 @@ final class UserSettingsBehaviorTest extends PluginLibTestCase {
 			->with(\WP_Mock\Functions::type('bool'), \WP_Mock\Functions::type('array'))
 			->reply(true);
 
+		$loader = new ComponentLoader(__DIR__ . '/../../fixtures/templates');
+
 		$this->manifest = new ComponentManifest(
-			new ComponentLoader(__DIR__ . '/../../fixtures/templates'),
+			$loader,
 			$this->logger
 		);
 		$this->registerTemplateStubs();
@@ -158,12 +161,50 @@ final class UserSettingsBehaviorTest extends PluginLibTestCase {
 		$this->assertNotEmpty($messages['profile_age']['warnings'] ?? array());
 	}
 
+	public function test_render_payload_includes_structured_messages_after_validation_failure(): void {
+		$capturedPayload = null;
+		$callback        = static function (array $payload) use (&$capturedPayload): void {
+			$capturedPayload = $payload;
+		};
+
+		$user_settings = $this->createUserSettings();
+		$collection    = $user_settings->collection('profile');
+		$collection->template($callback);
+		$collection->section('basic', 'Basic Info')
+			->field('profile_name', 'Profile Name', 'fields.input')
+		->end_section();
+		$collection->end_collection();
+
+		// Ensure existing values are returned when render resolves stored options.
+		WP_Mock::userFunction('current_user_can')->withAnyArgs()->andReturn(true);
+		WP_Mock::userFunction('get_option')->andReturn(array('profile_name' => 'Jane', 'profile_age' => 30));
+		WP_Mock::userFunction('get_user_meta')->andReturn(array());
+		WP_Mock::userFunction('get_user_option')->andReturn(array());
+
+		$user_settings->save_settings(array('profile_age' => 10), array('user_id' => 123));
+
+		$this->captureOutput(function () use ($user_settings): void {
+			$user_settings->render('profile', array('user_id' => 123));
+		});
+
+		self::assertIsArray($capturedPayload, 'Expected collection template callback to capture payload.');
+		self::assertArrayHasKey('messages_by_field', $capturedPayload);
+		self::assertArrayHasKey('profile_age', $capturedPayload['messages_by_field']);
+
+		$fieldMessages = $capturedPayload['messages_by_field']['profile_age'];
+		self::assertArrayHasKey('warnings', $fieldMessages);
+		self::assertArrayHasKey('notices', $fieldMessages);
+		self::assertNotEmpty($fieldMessages['warnings'], 'Expected validation warning for profile_age.');
+		self::assertContains('profile_age must be >= 18', $fieldMessages['warnings']);
+		self::assertSame(array(), $fieldMessages['notices'], 'Expected notices array to be empty.');
+	}
+
 	public function test_render_outputs_default_template_when_collection_missing(): void {
 		$user_settings = $this->createUserSettings();
 
-		ob_start();
-		$user_settings->render('unknown');
-		$output = ob_get_clean();
+		$output = $this->captureOutput(function () use ($user_settings): void {
+			$user_settings->render('unknown');
+		});
 
 		$this->assertSame('', $output);
 	}
@@ -179,9 +220,9 @@ final class UserSettingsBehaviorTest extends PluginLibTestCase {
 			})
 			->section('basic', 'Basic')->end_section();
 
-		ob_start();
-		$user_settings->render('profile', array('user_id' => 123));
-		$output = ob_get_clean();
+		$output = $this->captureOutput(function () use ($user_settings): void {
+			$user_settings->render('profile', array('user_id' => 123));
+		});
 
 		$this->assertTrue($called);
 		$this->assertStringContainsString('profile-collection', $output);
@@ -241,9 +282,9 @@ final class UserSettingsBehaviorTest extends PluginLibTestCase {
 			)
 			->andReturn(true);
 
-		ob_start();
-		$user_settings->render('profile', array('user_id' => 123));
-		ob_end_clean();
+		$output = $this->captureOutput(function () use ($user_settings): void {
+			$user_settings->render('profile', array('user_id' => 123));
+		});
 
 		$session = $user_settings->get_form_session();
 		self::assertInstanceOf(FormsServiceSession::class, $session, 'Expected UserSettings to have an active form session.');
@@ -386,7 +427,15 @@ final class UserSettingsBehaviorTest extends PluginLibTestCase {
 		$loader = $this->manifest->get_component_loader();
 		$loader->register('section', 'admin/sections/test-section.php');
 		$loader->register('section-wrapper', 'admin/sections/test-section.php');
-		$loader->register('field-wrapper', 'admin/field-wrapper.php');
+		$loader->register('field-wrapper', 'admin/field-wrapper-simple.php');
+		$loader->register('shared.field-wrapper', 'admin/field-wrapper-simple.php');
+		$this->manifest->register('field-wrapper', static function (array $context): ComponentRenderResult {
+			$componentHtml = (string) ($context['component_html'] ?? '');
+			return new ComponentRenderResult(
+				'<div class="test-field-wrapper">' . $componentHtml . '</div>',
+				component_type: ComponentType::LayoutWrapper
+			);
+		});
 		$loader->register('fields.input', 'admin/fields/test-field.php');
 		$loader->register('user.root-wrapper', 'admin/pages/default-page.php');
 		$loader->register('root-wrapper', 'admin/pages/default-page.php');

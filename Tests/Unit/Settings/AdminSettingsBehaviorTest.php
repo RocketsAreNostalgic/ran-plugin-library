@@ -17,6 +17,7 @@ use Ran\PluginLib\Forms\FormsService;
 use Ran\PluginLib\Forms\Component\ComponentRenderResult;
 use Ran\PluginLib\Forms\Component\ComponentManifest;
 use Ran\PluginLib\Forms\Component\ComponentLoader;
+use Ran\PluginLib\Forms\Component\ComponentType;
 use Ran\PluginLib\EnqueueAccessory\ScriptDefinition;
 use Mockery;
 use InvalidArgumentException;
@@ -68,8 +69,8 @@ final class AdminSettingsBehaviorTest extends PluginLibTestCase {
 
 		$loader = new ComponentLoader(__DIR__ . '/../../fixtures/templates');
 		$loader->register('section', 'admin/sections/test-section.php');
-		$loader->register('field-wrapper', 'admin/field-wrapper.php');
-		$loader->register('shared.field-wrapper', 'admin/field-wrapper.php');
+		$loader->register('field-wrapper', 'admin/fields/example-field-wrapper.php');
+		$loader->register('shared.field-wrapper', 'admin/fields/example-field-wrapper.php');
 		$loader->register('section-wrapper', 'admin/section-wrapper.php');
 		$loader->register('fields.input', 'admin/fields/test-field.php');
 		$loader->register('admin.pages.behavior-page', 'admin/pages/test-page.php');
@@ -152,9 +153,9 @@ final class AdminSettingsBehaviorTest extends PluginLibTestCase {
 	}
 
 	public function test_render_unknown_page_falls_back_to_notice(): void {
-		ob_start();
-		$this->settings->render('missing-page');
-		$output = ob_get_clean();
+		$output = $this->captureOutput(function (): void {
+			$this->settings->render('missing-page');
+		});
 
 		$this->assertStringContainsString('Unknown settings page', $output);
 	}
@@ -171,9 +172,9 @@ final class AdminSettingsBehaviorTest extends PluginLibTestCase {
 
 		$this->setOptionValues(array('valid_field' => 'value'));
 
-		ob_start();
-		$this->settings->render('behavior-page');
-		$output = ob_get_clean();
+		$output = $this->captureOutput(function (): void {
+			$this->settings->render('behavior-page');
+		});
 
 		$this->assertStringContainsString('<section', $output);
 	}
@@ -208,9 +209,9 @@ final class AdminSettingsBehaviorTest extends PluginLibTestCase {
 			'integer_field' => 5,
 		));
 
-		ob_start();
-		$this->settings->render('hooks-page');
-		$output = ob_get_clean();
+		$output = $this->captureOutput(function (): void {
+			$this->settings->render('hooks-page');
+		});
 
 		self::assertStringContainsString('<div class="section-before">section-before</div>', $output);
 		self::assertStringContainsString('<div class="section-after">section-after</div>', $output);
@@ -239,9 +240,9 @@ final class AdminSettingsBehaviorTest extends PluginLibTestCase {
 
 		$this->expectOptionReturn(array());
 
-		ob_start();
-		$this->settings->render('behavior-page');
-		$output = ob_get_clean();
+		$output = $this->captureOutput(function (): void {
+			$this->settings->render('behavior-page');
+		});
 
 		$this->assertStringContainsString('custom-template', $output);
 		$this->assertTrue($callbackCalled);
@@ -257,9 +258,9 @@ final class AdminSettingsBehaviorTest extends PluginLibTestCase {
 
 		$this->expectOptionReturn(array());
 
-		ob_start();
-		$this->settings->render('tools-page');
-		$output = ob_get_clean();
+		$output = $this->captureOutput(function (): void {
+			$this->settings->render('tools-page');
+		});
 
 		$this->assertStringContainsString('Tools Heading', $output);
 		$messages = $this->settings->take_messages();
@@ -393,10 +394,10 @@ final class AdminSettingsBehaviorTest extends PluginLibTestCase {
 		});
 
 		$this->manifest->register('field-wrapper', static function (array $context): ComponentRenderResult {
-			$markup = '<div class="field-wrapper">' . ($context['component_html'] ?? '') . '</div>';
+			$componentHtml = (string) ($context['component_html'] ?? '');
 			return new ComponentRenderResult(
-				$markup,
-				component_type: 'field_wrapper'
+				'<div class="test-field-wrapper">' . $componentHtml . '</div>',
+				component_type: ComponentType::LayoutWrapper
 			);
 		});
 
@@ -448,9 +449,9 @@ final class AdminSettingsBehaviorTest extends PluginLibTestCase {
 
 		$this->expectOptionReturn(array('valid_field' => 'seed'));
 
-		ob_start();
-		$this->settings->render('submit-page');
-		$output = ob_get_clean();
+		$output = $this->captureOutput(function (): void {
+			$this->settings->render('submit-page');
+		});
 
 		self::assertStringContainsString('submit-wrapper', $output, 'Expected submit controls wrapper.');
 		self::assertStringContainsString('Save Changes', $output, 'Expected default submit button label.');
@@ -467,13 +468,64 @@ final class AdminSettingsBehaviorTest extends PluginLibTestCase {
 
 		$this->expectOptionReturn(array('valid_field' => 'value'));
 
-		ob_start();
-		$this->settings->render('custom-submit-page');
-		$output = ob_get_clean();
+		$output = $this->captureOutput(function (): void {
+			$this->settings->render('custom-submit-page');
+		});
 
 		self::assertStringContainsString('submit-wrapper', $output, 'Expected submit controls wrapper.');
 		self::assertStringContainsString('Publish Settings', $output, 'Expected custom submit button label.');
 		self::assertStringNotContainsString('Save Changes', $output, 'Default submit label should be cleared once custom controls provided.');
+	}
+
+	public function test_render_payload_includes_structured_messages_after_validation_failure(): void {
+		$capturedPayload = null;
+		$renderOverride  = static function (array $payload) use (&$capturedPayload): void {
+			$capturedPayload = $payload;
+			echo '<div class="payload-callback"></div>';
+		};
+
+		$this->settings->menu_group('messages-group')
+		    ->page('messages-page')
+		        ->heading('Messages Page')
+		        ->template($renderOverride)
+		        ->section('messages-section', 'Messages Section')
+		            ->field('valid_field', 'Valid Field', 'fields.input')
+		        ->end_section()
+		    ->end_page()
+		->end_menu_group();
+
+		$this->setOptionValues(array(
+			'valid_field'   => 'existing value',
+			'integer_field' => 0,
+		));
+
+		/** @var \Ran\PluginLib\Forms\Renderer\FormMessageHandler $messageHandler */
+		$messageHandler = $this->getSettingsProperty('message_handler');
+		$messageHandler->set_messages(array(
+			'valid_field' => array(
+				'warnings' => array('valid_field must be a string'),
+				'notices'  => array(),
+			),
+		));
+		$messageHandler->set_pending_values(array(
+			'valid_field'   => array('not-a-string'),
+			'integer_field' => 0,
+		));
+
+		$this->captureOutput(function (): void {
+			$this->settings->render('messages-page');
+		});
+
+		self::assertIsArray($capturedPayload, 'Expected root template callback to capture payload.');
+		self::assertArrayHasKey('messages_by_field', $capturedPayload);
+		self::assertArrayHasKey('valid_field', $capturedPayload['messages_by_field']);
+
+		$fieldMessages = $capturedPayload['messages_by_field']['valid_field'];
+		self::assertArrayHasKey('warnings', $fieldMessages);
+		self::assertArrayHasKey('notices', $fieldMessages);
+		self::assertNotEmpty($fieldMessages['warnings'], 'Expected validation warning for valid_field.');
+		self::assertContains('valid_field must be a string', $fieldMessages['warnings']);
+		self::assertSame(array(), $fieldMessages['notices'], 'Expected notices array to be empty.');
 	}
 
 	public function test_render_field_with_assets_requires_shared_session_to_enqueue(): void {
@@ -525,9 +577,9 @@ final class AdminSettingsBehaviorTest extends PluginLibTestCase {
 			)
 			->andReturn(true);
 
-		ob_start();
-		$this->settings->render('asset-page');
-		ob_end_clean();
+		$this->captureOutput(function (): void {
+			$this->settings->render('asset-page');
+		});
 
 		$logs       = $this->logger->get_logs();
 		$submitLogs = array_filter($logs, static function (array $entry): bool {
