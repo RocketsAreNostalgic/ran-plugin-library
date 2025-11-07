@@ -22,6 +22,15 @@ abstract class NormalizerBase implements NormalizeInterface {
 	protected string $componentType;
 	protected ?TranslationService $translator = null;
 
+	/**
+	 * Provide default manifest defaults for normalizers that don't override them.
+	 *
+	 * @return array<string,mixed>
+	 */
+	public static function manifest_defaults(): array {
+		return array();
+	}
+
 	public function __construct(ComponentLoader $views, ?TranslationService $translator = null) {
 		$this->views      = $views;
 		$this->translator = $translator;

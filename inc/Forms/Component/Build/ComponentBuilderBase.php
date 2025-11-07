@@ -19,6 +19,15 @@ abstract class ComponentBuilderBase implements ComponentBuilderDefinitionInterfa
 	protected ?string $description            = null;
 	protected ?TranslationService $translator = null;
 
+	/**
+	 * Provide default manifest defaults for builders that don't override them.
+	 *
+	 * @return array<string,mixed>
+	 */
+	public static function manifest_defaults(): array {
+		return array();
+	}
+
 	public function __construct(string $id, string $label, ?TranslationService $translator = null) {
 		$this->id         = $id;
 		$this->label      = $label;

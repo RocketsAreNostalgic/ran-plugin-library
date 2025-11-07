@@ -585,7 +585,21 @@ class AdminSettings implements FormsInterface {
 		$tmp      = $this->base_options->with_context($resolved['storage']);
 		$schema   = $this->base_options->get_schema();
 		if (!empty($schema)) {
-			$tmp->register_schema($schema);
+			$session = $this->get_form_session();
+			if ($session !== null) {
+				$mergedSchema = array();
+				foreach ($schema as $field_id => $rules) {
+					$componentAlias = $this->_lookup_component_alias($field_id);
+					if ($componentAlias !== null) {
+						$mergedSchema[$field_id] = $session->merge_schema_with_defaults($componentAlias, is_array($rules) ? $rules : array());
+					} else {
+						$mergedSchema[$field_id] = $rules;
+					}
+				}
+				$tmp->register_schema($mergedSchema);
+			} else {
+				$tmp->register_schema($schema);
+			}
 		}
 		$policy = $this->base_options->get_write_policy();
 		if ($policy !== null) {

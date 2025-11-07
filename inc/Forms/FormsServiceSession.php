@@ -22,12 +22,14 @@ class FormsServiceSession {
 	private ComponentManifest $manifest;
 	private FormsAssets $assets;
 	private FormsTemplateOverrideResolver $template_resolver;
+	private Logger $logger;
 	/** @var array<string,callable> */
 	private array $root_template_callbacks = array();
 
 	public function __construct(ComponentManifest $manifest, FormsAssets $assets, Logger $logger, array $form_defaults = array()) {
 		$this->manifest          = $manifest;
 		$this->assets            = $assets;
+		$this->logger            = $logger;
 		$this->template_resolver = new FormsTemplateOverrideResolver($logger);
 
 		// Set form-wide defaults if provided
@@ -170,6 +172,134 @@ class FormsServiceSession {
 	 */
 	public function manifest(): ComponentManifest {
 		return $this->manifest;
+	}
+
+	/**
+	 * Expose manifest defaults catalogue for read-only inspection.
+	 *
+	 * @return array<string,array<string,mixed>>
+	 */
+	public function manifest_defaults(): array {
+		return $this->manifest->default_catalogue();
+	}
+
+	/**
+	 * Merge a schema definition with manifest defaults for the given component alias.
+	 *
+	 * @param string                 $alias  Component alias registered in the manifest
+	 * @param array<string,mixed>    $schema Integrator supplied schema entry
+	 * @return array<string,mixed>
+	 */
+	public function merge_schema_with_defaults(string $alias, array $schema): array {
+		$defaults = $this->manifest->get_defaults_for($alias);
+		if ($defaults === array()) {
+			$this->logger->debug('forms.schema.merge.no_defaults', array(
+				'alias' => $alias,
+			));
+			return $schema;
+		}
+
+		$merged = $this->_merge_schema_with_defaults($schema, $defaults);
+		$this->_log_schema_merge($alias, $defaults, $schema, $merged);
+
+		return $merged;
+	}
+
+	/**
+	 * Internal merge implementation that keeps manifest defaults immutable.
+	 *
+	 * @param array<string,mixed> $schema
+	 * @param array<string,mixed> $defaults
+	 * @return array<string,mixed>
+	 */
+	private function _merge_schema_with_defaults(array $schema, array $defaults): array {
+		$merged = $schema;
+
+		$schemaSanitize  = $this->_coerce_callable_list($schema['sanitize'] ?? null);
+		$schemaValidate  = $this->_coerce_callable_list($schema['validate'] ?? null);
+		$defaultSanitize = $this->_coerce_callable_list($defaults['sanitize'] ?? null);
+		$defaultValidate = $this->_coerce_callable_list($defaults['validate'] ?? null);
+
+		if ($defaultValidate !== null) {
+			$merged['validate'] = array_values(array_filter(array_merge(
+				$defaultValidate,
+				$schemaValidate ?? array()
+			), 'is_callable'));
+		} elseif ($schemaValidate !== null) {
+			$merged['validate'] = $schemaValidate;
+		}
+
+		if ($defaultSanitize !== null) {
+			$merged['sanitize'] = array_values(array_filter(array_merge(
+				$schemaSanitize ?? array(),
+				$defaultSanitize
+			), 'is_callable'));
+		} elseif ($schemaSanitize !== null) {
+			$merged['sanitize'] = $schemaSanitize;
+		}
+
+		$defaultContext = isset($defaults['context']) && is_array($defaults['context']) ? $defaults['context'] : array();
+		$schemaContext  = isset($schema['context'])   && is_array($schema['context']) ? $schema['context'] : array();
+		if ($defaultContext !== array() || $schemaContext !== array()) {
+			$merged['context'] = $defaultContext === array()
+				? $schemaContext
+				: array_merge($defaultContext, $schemaContext);
+		}
+
+		return $merged;
+	}
+
+	/**
+	 * Normalize callable entries to arrays for merge operations.
+	 *
+	 * @param mixed $value
+	 * @return array<int,callable>|null
+	 */
+	private function _coerce_callable_list(mixed $value): ?array {
+		if ($value === null) {
+			return null;
+		}
+		if (is_callable($value)) {
+			return array($value);
+		}
+		if (is_array($value)) {
+			$callables = array();
+			foreach ($value as $maybeCallable) {
+				if (is_callable($maybeCallable)) {
+					$callables[] = $maybeCallable;
+				}
+			}
+			return $callables === array() ? null : $callables;
+		}
+		return null;
+	}
+
+	/**
+	 * Emit debug information summarizing the merge outcome.
+	 *
+	 * @param string               $alias
+	 * @param array<string,mixed>  $defaults
+	 * @param array<string,mixed>  $schema
+	 * @param array<string,mixed>  $merged
+	 * @return void
+	 */
+	private function _log_schema_merge(string $alias, array $defaults, array $schema, array $merged): void {
+		$defaultContext = isset($defaults['context']) && is_array($defaults['context']) ? $defaults['context'] : array();
+		$schemaContext  = isset($schema['context'])   && is_array($schema['context']) ? $schema['context'] : array();
+		$mergedContext  = isset($merged['context'])   && is_array($merged['context']) ? $merged['context'] : array();
+
+		$this->logger->debug('forms.schema.merge', array(
+			'alias'                  => $alias,
+			'default_sanitize_count' => isset($defaults['sanitize']) && is_array($defaults['sanitize']) ? count($defaults['sanitize']) : (is_callable($defaults['sanitize'] ?? null) ? 1 : 0),
+			'default_validate_count' => isset($defaults['validate']) && is_array($defaults['validate']) ? count($defaults['validate']) : (is_callable($defaults['validate'] ?? null) ? 1 : 0),
+			'schema_sanitize_count'  => isset($schema['sanitize'])   && is_array($schema['sanitize']) ? count($schema['sanitize']) : (is_callable($schema['sanitize'] ?? null) ? 1 : 0),
+			'schema_validate_count'  => isset($schema['validate'])   && is_array($schema['validate']) ? count($schema['validate']) : (is_callable($schema['validate'] ?? null) ? 1 : 0),
+			'merged_sanitize_count'  => isset($merged['sanitize'])   && is_array($merged['sanitize']) ? count($merged['sanitize']) : (is_callable($merged['sanitize'] ?? null) ? 1 : 0),
+			'merged_validate_count'  => isset($merged['validate'])   && is_array($merged['validate']) ? count($merged['validate']) : (is_callable($merged['validate'] ?? null) ? 1 : 0),
+			'manifest_context_keys'  => array_keys($defaultContext),
+			'schema_context_keys'    => array_keys($schemaContext),
+			'merged_context_keys'    => array_keys($mergedContext),
+		));
 	}
 
 	/**

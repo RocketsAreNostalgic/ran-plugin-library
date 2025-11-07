@@ -17,6 +17,15 @@ abstract class ValidatorBase implements ValidatorInterface {
 	protected Logger $logger;
 	protected ?TranslationService $translator = null;
 
+	/**
+	 * Provide default manifest defaults for validators that don't override them.
+	 *
+	 * @return array<string,mixed>
+	 */
+	public static function manifest_defaults(): array {
+		return array();
+	}
+
 	public function __construct(?Logger $logger = null, ?TranslationService $translator = null) {
 		$this->logger     = $logger ?? new Logger();
 		$this->translator = $translator;

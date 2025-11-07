@@ -78,6 +78,55 @@ trait FormsBaseTrait {
 	}
 
 	/**
+	 * Lookup the registered component alias for a given field identifier.
+	 *
+	 * @internal
+	 *
+	 * @param string $field_id
+	 * @return string|null
+	 */
+	protected function _lookup_component_alias(string $field_id): ?string {
+		if ($field_id === '') {
+			return null;
+		}
+
+		foreach ($this->fields as $container) {
+			foreach ($container as $section) {
+				foreach ($section as $field) {
+					if (($field['id'] ?? '') === $field_id) {
+						$component = $field['component'] ?? null;
+						return is_string($component) && $component !== '' ? $component : null;
+					}
+				}
+			}
+		}
+
+		foreach ($this->groups as $container) {
+			foreach ($container as $section) {
+				foreach ($section as $group) {
+					foreach ($group['fields'] ?? array() as $field) {
+						if (($field['id'] ?? '') === $field_id) {
+							$component = $field['component'] ?? null;
+							return is_string($component) && $component !== '' ? $component : null;
+						}
+					}
+				}
+			}
+		}
+
+		foreach ($this->submit_controls as $container) {
+			foreach ($container['controls'] ?? array() as $control) {
+				if (($control['id'] ?? '') === $field_id) {
+					$component = $control['component'] ?? null;
+					return is_string($component) && $component !== '' ? $component : null;
+				}
+			}
+		}
+
+		return null;
+	}
+
+	/**
 	 * Set the root template for current context.
 	 *
 	 * @param string $template_key The template key.
@@ -1376,7 +1425,7 @@ trait FormsBaseTrait {
 	 * @param string $message The error message
 	 * @return string Rendered field HTML.
 	 */
-	protected function _render_default_field_wrapper_warning(string $message): string {
+	private function _render_default_field_wrapper_warning(string $message): string {
 		// Use FormsServiceSession to render error with proper template resolution
 		if ($this->form_session === null) {
 			$this->_start_form_session();

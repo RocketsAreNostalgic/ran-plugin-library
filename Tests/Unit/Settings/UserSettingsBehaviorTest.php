@@ -8,7 +8,7 @@ use WP_Mock\Functions;
 use WP_Mock;
 use Ran\PluginLib\Util\CollectingLogger;
 use Ran\PluginLib\Tests\Unit\PluginLibTestCase;
-use Ran\PluginLib\Settings\UserSettings;
+use Ran\PluginLib\Forms\FormsServiceSession;
 use Ran\PluginLib\Options\Storage\StorageContext;
 use Ran\PluginLib\Options\RegisterOptions;
 use Ran\PluginLib\EnqueueAccessory\ScriptDefinition;
@@ -16,12 +16,14 @@ use Ran\PluginLib\Forms\Component\ComponentRenderResult;
 use Ran\PluginLib\Forms\Component\ComponentManifest;
 use Ran\PluginLib\Forms\Component\ComponentLoader;
 use Ran\PluginLib\Forms\Component\ComponentType;
-use Ran\PluginLib\Forms\FormsServiceSession;
+use Ran\PluginLib\Util\ExpectLogTrait;
+use Ran\PluginLib\Settings\UserSettings;
 
 /**
  * @covers \Ran\PluginLib\Settings\UserSettings
  */
 final class UserSettingsBehaviorTest extends PluginLibTestCase {
+	use ExpectLogTrait;
 	private RegisterOptions $options;
 	private ComponentManifest $manifest;
 	private CollectingLogger $logger;
@@ -197,6 +199,113 @@ final class UserSettingsBehaviorTest extends PluginLibTestCase {
 		self::assertNotEmpty($fieldMessages['warnings'], 'Expected validation warning for profile_age.');
 		self::assertContains('profile_age must be >= 18', $fieldMessages['warnings']);
 		self::assertSame(array(), $fieldMessages['notices'], 'Expected notices array to be empty.');
+	}
+
+	public function test_save_settings_merges_manifest_defaults_and_propagates_messages(): void {
+		$executionOrder  = array();
+		$capturedContext = null;
+
+		$this->manifest->register('fields.merge-user', static function (array $context) use (&$capturedContext): ComponentRenderResult {
+			$capturedContext = $context;
+			return new ComponentRenderResult('<input type="text" />');
+		});
+
+		$this->injectManifestDefaults('fields.merge-user', array(
+			'sanitize' => array(function (mixed $value) use (&$executionOrder) {
+				$executionOrder[] = 'manifest_sanitize';
+				return (string) $value;
+			}),
+			'validate' => array(function (mixed $value, callable $emitWarning) use (&$executionOrder) {
+				$executionOrder[] = 'manifest_validate';
+				return true;
+			}),
+			'context' => array('manifest_flag' => true),
+		));
+
+		$this->options->register_schema(array(
+			'merge_field_user' => array(
+				'sanitize' => array(function (mixed $value) use (&$executionOrder) {
+					$executionOrder[] = 'schema_sanitize';
+					return trim((string) $value);
+				}),
+				'validate' => array(function (mixed $value, callable $emitWarning) use (&$executionOrder) {
+					$executionOrder[] = 'schema_validate';
+					$emitWarning('User schema validator failed.');
+					return false;
+				}),
+			),
+		));
+
+		$user_settings = $this->createUserSettings();
+		$user_settings->collection('profile')
+			->section('merge', 'Merge Section')
+				->field('merge_field_user', 'Merge Field', 'fields.merge-user')
+			->end_section()
+		->end_collection();
+
+		WP_Mock::userFunction('current_user_can')->withAnyArgs()->andReturn(true);
+		WP_Mock::userFunction('get_option')->andReturn(array('merge_field_user' => 'stored'));
+		WP_Mock::userFunction('get_user_meta')->andReturn(array());
+		WP_Mock::userFunction('get_user_option')->andReturn(array());
+
+		$user_settings->save_settings(array('merge_field_user' => '  example  '), array('user_id' => 123));
+
+		self::assertNotEmpty($executionOrder);
+
+		$firstManifestSanitize = array_search('manifest_sanitize', $executionOrder, true);
+		self::assertNotFalse($firstManifestSanitize, 'Expected manifest sanitizer to run.');
+		$schemaBeforeManifest = array_filter(
+			$executionOrder,
+			static function (string $label, int $index) use ($firstManifestSanitize): bool {
+				return $label === 'schema_sanitize' && $index < $firstManifestSanitize;
+			},
+			ARRAY_FILTER_USE_BOTH
+		);
+		self::assertNotEmpty($schemaBeforeManifest, 'Expected schema sanitizer to precede manifest sanitizer.');
+
+		$lastSchemaValidate = null;
+		foreach ($executionOrder as $idx => $label) {
+			if ($label === 'schema_validate') {
+				$lastSchemaValidate = $idx;
+			}
+		}
+		self::assertNotNull($lastSchemaValidate, 'Expected schema validator executions.');
+
+		$manifestValidateBeforeFailure = array_filter(
+			$executionOrder,
+			static function (string $label, int $index) use ($lastSchemaValidate): bool {
+				return $label === 'manifest_validate' && $index < $lastSchemaValidate;
+			},
+			ARRAY_FILTER_USE_BOTH
+		);
+		self::assertNotEmpty($manifestValidateBeforeFailure, 'Expected manifest validator before failing schema validator.');
+
+		$this->captureOutput(function () use ($user_settings): void {
+			$user_settings->render('profile', array('user_id' => 123));
+		});
+
+		self::assertIsArray($capturedContext);
+		$renderWarnings = $capturedContext['validation_warnings'] ?? array();
+		if (is_string($renderWarnings)) {
+			$renderWarnings = array($renderWarnings);
+		}
+		self::assertTrue(
+			(array_reduce((array) $renderWarnings, static function (bool $found, string $message): bool {
+				return $found || str_contains($message, 'User schema validator failed');
+			}, false)),
+			'Expected user schema validator warning to surface during render.'
+		);
+
+		$messages = $user_settings->take_messages();
+		self::assertArrayHasKey('merge_field_user', $messages);
+		$warnings = $messages['merge_field_user']['warnings'] ?? array();
+		self::assertNotEmpty($warnings, 'Expected warnings for merge_field_user.');
+		self::assertTrue(
+			(array_reduce((array) $warnings, static function (bool $found, string $message): bool {
+				return $found || str_contains($message, 'User schema validator failed');
+			}, false)),
+			'Expected user schema validator failure warning.'
+		);
 	}
 
 	public function test_render_outputs_default_template_when_collection_missing(): void {
@@ -437,7 +546,39 @@ final class UserSettingsBehaviorTest extends PluginLibTestCase {
 			);
 		});
 		$loader->register('fields.input', 'admin/fields/test-field.php');
+		$loader->register('fields.merge-user', 'admin/fields/test-field.php');
 		$loader->register('user.root-wrapper', 'admin/pages/default-page.php');
 		$loader->register('root-wrapper', 'admin/pages/default-page.php');
+		$this->manifest->register('user.root-wrapper', static function (array $context): ComponentRenderResult {
+			$content = (string) ($context['content'] ?? '');
+			return new ComponentRenderResult(
+				'<div class="user-root-wrapper">' . $content . '</div>',
+				component_type: ComponentType::LayoutWrapper
+			);
+		});
+		$this->manifest->register('root-wrapper', static function (array $context): ComponentRenderResult {
+			$content = (string) ($context['content'] ?? '');
+			return new ComponentRenderResult(
+				'<div class="root-wrapper">' . $content . '</div>',
+				component_type: ComponentType::LayoutWrapper
+			);
+		});
+	}
+
+	/**
+	 * @param array<string,mixed> $defaults
+	 */
+	private function injectManifestDefaults(string $alias, array $defaults): void {
+		$reflection = new \ReflectionObject($this->manifest);
+		$property   = $reflection->getProperty('componentMetadata');
+		$property->setAccessible(true);
+		$metadata = $property->getValue($this->manifest);
+		if (!is_array($metadata)) {
+			$metadata = array();
+		}
+		$current             = $metadata[$alias] ?? array();
+		$current['defaults'] = $defaults;
+		$metadata[$alias]    = $current;
+		$property->setValue($this->manifest, $metadata);
 	}
 }

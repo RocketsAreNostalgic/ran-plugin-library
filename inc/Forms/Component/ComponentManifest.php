@@ -22,7 +22,7 @@ class ComponentManifest {
 	private array $components = array();
 	/** @var array<int,string> */
 	private array $warnings = array();
-	/** @var array<string,array{normalizer:?string,builder:?string,validator:?string}> */
+	/** @var array<string,array{normalizer:?string,builder:?string,validator:?string,defaults?:array{sanitize?:array<int,string>,validate?:array<int,string>,context?:array{submits_data:bool,component_type:string,repeatable:bool}}}> */
 	private array $componentMetadata = array();
 	private ComponentNormalizationContext $helpers;
 	/** @var int Cache TTL in seconds */
@@ -345,9 +345,9 @@ class ComponentManifest {
 	 */
 	private function _discover_component_metadata(string $alias): void {
 		$meta = array(
-		    'normalizer' => null,
-		    'builder'    => null,
-		    'validator'  => null,
+			'normalizer' => null,
+			'builder'    => null,
+			'validator'  => null,
 		);
 
 		$class = $this->views->resolve_normalizer_class($alias);
@@ -363,6 +363,28 @@ class ComponentManifest {
 		$validator = $this->views->resolve_validator_class($alias);
 		if ($validator !== null && is_subclass_of($validator, ValidatorInterface::class)) {
 			$meta['validator'] = $validator;
+		}
+
+		$defaults         = $this->_derive_component_defaults($alias, $meta);
+		$meta['defaults'] = $defaults;
+
+		$sources = array();
+		if (!empty($defaults['sanitize'] ?? array())) {
+			$sources[] = 'sanitize';
+		}
+		if (!empty($defaults['validate'] ?? array())) {
+			$sources[] = 'validate';
+		}
+
+		if (!empty($sources)) {
+			$this->logger->debug('ComponentManifest: defaults discovered for component', array(
+				'alias'   => $alias,
+				'sources' => $sources,
+			));
+		} else {
+			$this->logger->debug('ComponentManifest: defaults missing for component', array(
+				'alias' => $alias,
+			));
 		}
 
 		$this->componentMetadata[$alias] = $meta;
@@ -382,6 +404,8 @@ class ComponentManifest {
 					$payload    = $normalized['payload'];
 					$result     = $this->_create_result_from_payload($payload);
 					return array(
+						'result'      => $result,
+						'warnings'    => $normalized['warnings'] ?? array(),
 					    'result'   => $result,
 					    'warnings' => $normalized['warnings'] ?? array(),
 					);
@@ -397,6 +421,75 @@ class ComponentManifest {
 				);
 			});
 		}
+	}
+
+	/**
+	 * Retrieve defaults for a specific component alias.
+	 *
+	 * @param string $alias
+	 * @return array<string,mixed>
+	 */
+	public function get_defaults_for(string $alias): array {
+		$meta = $this->componentMetadata[$alias] ?? null;
+		if (!is_array($meta)) {
+			return array();
+		}
+
+		$defaults = $meta['defaults'] ?? array();
+		return is_array($defaults) ? $defaults : array();
+	}
+
+	/**
+	 * Retrieve the full defaults catalogue keyed by alias.
+	 *
+	 * @return array<string,array<string,mixed>>
+	 */
+	public function default_catalogue(): array {
+		$catalogue = array();
+		foreach ($this->componentMetadata as $alias => $meta) {
+			$defaults          = $meta['defaults'] ?? array();
+			$catalogue[$alias] = is_array($defaults) ? $defaults : array();
+		}
+		return $catalogue;
+	}
+
+	/**
+	 * Collect defaults exposed by discovered component classes.
+	 *
+	 * @param string      $alias
+	 * @param string|null $normalizer
+	 * @param string|null $builder
+	 * @param string|null $validator
+	 * @return array<string,mixed>
+	 */
+	private function _derive_component_defaults(string $alias, array $meta): array {
+		$defaults = array();
+		if (!empty($meta['normalizer'])) {
+			$defaults['sanitize'] = array($meta['normalizer']);
+		}
+		if (!empty($meta['validator'])) {
+			$defaults['validate'] = array($meta['validator']);
+		}
+
+		$defaults['context'] = $this->_derive_component_context($alias, $meta);
+
+		return $defaults;
+	}
+
+	/**
+	 * Derive baseline context metadata for a component.
+	 *
+	 * @param string                     $alias
+	 * @param array<string,null|string> $meta
+	 * @return array{submits_data:bool,component_type:string,repeatable:bool}
+	 */
+	private function _derive_component_context(string $alias, array $meta): array {
+		// Baseline assumptions; refined values can be introduced in later tasks.
+		return array(
+			'submits_data'   => false,
+			'component_type' => 'form_field',
+			'repeatable'     => false,
+		);
 	}
 
 	/**

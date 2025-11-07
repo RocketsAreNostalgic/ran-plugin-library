@@ -21,11 +21,13 @@ use Ran\PluginLib\Forms\Component\ComponentType;
 use Ran\PluginLib\EnqueueAccessory\ScriptDefinition;
 use Mockery;
 use InvalidArgumentException;
+use Ran\PluginLib\Util\ExpectLogTrait;
 
 /**
  * @covers \Ran\PluginLib\Settings\AdminSettings
  */
 final class AdminSettingsBehaviorTest extends PluginLibTestCase {
+	use ExpectLogTrait;
 	private AdminSettings $settings;
 	private RegisterOptions $options;
 	private ComponentManifest $manifest;
@@ -338,6 +340,130 @@ final class AdminSettingsBehaviorTest extends PluginLibTestCase {
 		$log = \array_pop($pageLogs);
 		self::assertSame('context-page', $log['context']['page_slug'] ?? null);
 		self::assertSame('context-group', $log['context']['group_id'] ?? null);
+	}
+
+	public function test_sanitize_merges_manifest_defaults_and_propagates_messages(): void {
+		$executionOrder    = array();
+		$capturedComponent = null;
+
+		$this->manifest->register('fields.merge', static function (array $context) use (&$capturedComponent): ComponentRenderResult {
+			$capturedComponent = $context;
+			return new ComponentRenderResult('<input type="text" />');
+		});
+
+		$this->injectManifestDefaults('fields.merge', array(
+			'sanitize' => array(function (mixed $value) use (&$executionOrder) {
+				$executionOrder[] = 'manifest_sanitize';
+				return (string) $value;
+			}),
+			'validate' => array(function (mixed $value, callable $emitWarning) use (&$executionOrder) {
+				$executionOrder[] = 'manifest_validate';
+				return true;
+			}),
+			'context' => array('manifest_flag' => true),
+		));
+
+		$this->options->register_schema(array(
+			'merge_field' => array(
+				'sanitize' => array(function (mixed $value) use (&$executionOrder) {
+					$executionOrder[] = 'schema_sanitize';
+					return trim((string) $value);
+				}),
+				'validate' => array(function (mixed $value, callable $emitWarning) use (&$executionOrder) {
+					$executionOrder[] = 'schema_validate';
+					$emitWarning('Schema validator failed.');
+					return false;
+				}),
+			),
+		));
+
+		$this->settings->menu_group('merge-group')
+		    ->page('merge-page')
+		        ->section('merge-section', 'Merge Section')
+		            ->field('merge_field', 'Merge Field', 'fields.merge')
+		        ->end_section()
+		    ->end_page()
+		->end_menu_group();
+
+		$this->setOptionValues(array('merge_field' => 'previous'));
+
+		$result = $this->settings->_sanitize(array('merge_field' => ' test '));
+
+		self::assertSame('previous', $result['merge_field']);
+
+		self::assertNotEmpty($executionOrder);
+
+		$firstManifestSanitize = array_search('manifest_sanitize', $executionOrder, true);
+		self::assertNotFalse($firstManifestSanitize, 'Expected manifest sanitizer to run.');
+		$schemaBeforeManifest = array_filter(
+			$executionOrder,
+			static function (string $label, int $index) use ($firstManifestSanitize): bool {
+				return $label === 'schema_sanitize' && $index < $firstManifestSanitize;
+			},
+			ARRAY_FILTER_USE_BOTH
+		);
+		self::assertNotEmpty($schemaBeforeManifest, 'Expected schema sanitizer to run before manifest sanitizer.');
+
+		$lastSchemaValidate = null;
+		foreach ($executionOrder as $idx => $label) {
+			if ($label === 'schema_validate') {
+				$lastSchemaValidate = $idx;
+			}
+		}
+		self::assertNotNull($lastSchemaValidate, 'Expected schema validator executions.');
+
+		$manifestValidateBeforeFailure = array_filter(
+			$executionOrder,
+			static function (string $label, int $index) use ($lastSchemaValidate): bool {
+				return $label === 'manifest_validate' && $index < $lastSchemaValidate;
+			},
+			ARRAY_FILTER_USE_BOTH
+		);
+		self::assertNotEmpty($manifestValidateBeforeFailure, 'Expected manifest validator to run before failing schema validator.');
+
+		$this->captureOutput(function () use (&$capturedComponent): void {
+			$this->settings->render('merge-page');
+		});
+
+		self::assertIsArray($capturedComponent);
+		$renderWarnings = $capturedComponent['validation_warnings'] ?? array();
+		if (is_string($renderWarnings)) {
+			$renderWarnings = array($renderWarnings);
+		}
+		self::assertTrue(
+			(array_reduce((array) $renderWarnings, static function (bool $found, string $message): bool {
+				return $found || str_contains($message, 'Schema validator failed');
+			}, false)),
+			'Expected schema validator warning to surface during render.'
+		);
+
+		$messages = $this->settings->take_messages();
+		self::assertArrayHasKey('merge_field', $messages);
+		$warnings = $messages['merge_field']['warnings'] ?? array();
+		self::assertNotEmpty($warnings, 'Expected warnings for merge_field.');
+		self::assertTrue(
+			(array_reduce($warnings, static function (bool $found, string $message): bool {
+				return $found || str_contains($message, 'Schema validator failed');
+			}, false)),
+			'Expected schema validator failure warning.'
+		);
+	}
+
+	/**
+	 * @param array<string,mixed> $defaults
+	 */
+	private function injectManifestDefaults(string $alias, array $defaults): void {
+		$reflection = new \ReflectionObject($this->manifest);
+		$property   = $reflection->getProperty('componentMetadata');
+		$property->setAccessible(true);
+		$metadata = $property->getValue($this->manifest);
+		if (!is_array($metadata)) {
+			$metadata = array();
+		}
+		$current             = $metadata[$alias] ?? array();
+		$current['defaults'] = $defaults;
+		$metadata[$alias]    = $current;
+		$property->setValue($this->manifest, $metadata);
 	}
 
 	private function getSettingsProperty(string $property): mixed {

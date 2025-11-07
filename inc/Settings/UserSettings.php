@@ -266,6 +266,23 @@ class UserSettings implements FormsInterface {
 
 		$previous_options = $opts->get_options();
 
+		$schema = $opts->get_schema();
+		if (!empty($schema)) {
+			$session = $this->get_form_session();
+			if ($session !== null) {
+				$mergedSchema = array();
+				foreach ($schema as $field_id => $rules) {
+					$componentAlias = $this->_lookup_component_alias($field_id);
+					if ($componentAlias !== null) {
+						$mergedSchema[$field_id] = $session->merge_schema_with_defaults($componentAlias, is_array($rules) ? $rules : array());
+					} else {
+						$mergedSchema[$field_id] = $rules;
+					}
+				}
+				$opts->register_schema($mergedSchema);
+			}
+		}
+
 		// Stage options and check for validation failures
 		$opts->stage_options($payload);
 		$messages = $this->_process_validation_messages($opts);
