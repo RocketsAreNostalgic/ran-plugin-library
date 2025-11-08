@@ -150,7 +150,7 @@ final class RegisterOptionsInternalsCoverageTest extends PluginLibTestCase {
 
 		// End-of-method logs produced during failure path
 		$this->expectLog('debug', '_stringify_value_for_error completed');
-		$this->expectLog('debug', '_describe_callable completed');
+		$this->expectLog('debug', '_describe_callable completed', 2);
 	}
 
 	/**

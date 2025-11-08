@@ -250,18 +250,16 @@ final class UserSettingsBehaviorTest extends PluginLibTestCase {
 
 		$user_settings->save_settings(array('merge_field_user' => '  example  '), array('user_id' => 123));
 
-		self::assertNotEmpty($executionOrder);
-
+		self::assertNotEmpty($executionOrder, 'Expected sanitizers/validators to execute.');
 		$firstManifestSanitize = array_search('manifest_sanitize', $executionOrder, true);
 		self::assertNotFalse($firstManifestSanitize, 'Expected manifest sanitizer to run.');
-		$schemaBeforeManifest = array_filter(
-			$executionOrder,
-			static function (string $label, int $index) use ($firstManifestSanitize): bool {
-				return $label === 'schema_sanitize' && $index < $firstManifestSanitize;
-			},
-			ARRAY_FILTER_USE_BOTH
+		$firstSchemaSanitize = array_search('schema_sanitize', $executionOrder, true);
+		self::assertNotFalse($firstSchemaSanitize, 'Expected schema sanitizer to run.');
+		self::assertLessThan(
+			$firstSchemaSanitize,
+			$firstManifestSanitize,
+			'Manifest sanitizer must precede schema sanitizer. Execution order: ' . implode(', ', $executionOrder)
 		);
-		self::assertNotEmpty($schemaBeforeManifest, 'Expected schema sanitizer to precede manifest sanitizer.');
 
 		$lastSchemaValidate = null;
 		foreach ($executionOrder as $idx => $label) {

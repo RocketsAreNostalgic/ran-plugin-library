@@ -29,16 +29,19 @@ final class RegisterOptionsRegisterSchemaGuardsTest extends PluginLibTestCase {
 	/**
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::register_schema
 	 */
-	public function test_register_schema_throws_when_validate_missing_or_non_callable(): void {
+	public function test_register_schema_allows_missing_validate_key(): void {
 		$opts = RegisterOptions::site('schema_guard_validate');
 
-		// Missing validate
-		$this->expectException(\InvalidArgumentException::class);
-		$opts->register_schema(array(
+		self::assertFalse(isset($opts->get_schema()['no_validate']));
+		self::assertFalse($opts->register_schema(array(
 		    'no_validate' => array(
 		        'default' => 'x',
 		    ),
-		));
+		)));
+		$schema = $opts->get_schema();
+		self::assertArrayHasKey('no_validate', $schema);
+		self::assertSame(array(), $schema['no_validate']['validate']['component']);
+		self::assertSame(array(), $schema['no_validate']['validate']['schema']);
 	}
 
 	/**

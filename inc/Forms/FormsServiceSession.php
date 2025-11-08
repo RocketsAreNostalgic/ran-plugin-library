@@ -200,6 +200,16 @@ class FormsServiceSession {
 		}
 
 		$merged = $this->_merge_schema_with_defaults($schema, $defaults);
+
+		if ($merged['validate']['component'] === array() && $merged['validate']['schema'] === array()) {
+			$this->logger->error('forms.schema.merge.no_validators', array(
+				'alias'    => $alias,
+				'schema'   => $schema,
+				'defaults' => $defaults,
+			));
+			throw new \InvalidArgumentException("FormsServiceSession: merge_schema_with_defaults requires at least one validator for component '{$alias}'.");
+		}
+
 		$this->_log_schema_merge($alias, $defaults, $schema, $merged);
 
 		return $merged;
@@ -215,28 +225,22 @@ class FormsServiceSession {
 	private function _merge_schema_with_defaults(array $schema, array $defaults): array {
 		$merged = $schema;
 
-		$schemaSanitize  = $this->_coerce_callable_list($schema['sanitize'] ?? null);
-		$schemaValidate  = $this->_coerce_callable_list($schema['validate'] ?? null);
-		$defaultSanitize = $this->_coerce_callable_list($defaults['sanitize'] ?? null);
-		$defaultValidate = $this->_coerce_callable_list($defaults['validate'] ?? null);
+		$schemaBuckets  = $this->_coerce_bucketed_lists($schema, false);
+		$defaultBuckets = $this->_coerce_bucketed_lists($defaults, true);
 
-		if ($defaultValidate !== null) {
-			$merged['validate'] = array_values(array_filter(array_merge(
-				$defaultValidate,
-				$schemaValidate ?? array()
-			), 'is_callable'));
-		} elseif ($schemaValidate !== null) {
-			$merged['validate'] = $schemaValidate;
-		}
+		$merged['sanitize'] = array(
+			'component' => array_merge($defaultBuckets['sanitize']['component'], $schemaBuckets['sanitize']['component']),
+			'schema'    => $schemaBuckets['sanitize']['schema'] !== array()
+				? $schemaBuckets['sanitize']['schema']
+				: $defaultBuckets['sanitize']['schema'],
+		);
 
-		if ($defaultSanitize !== null) {
-			$merged['sanitize'] = array_values(array_filter(array_merge(
-				$schemaSanitize ?? array(),
-				$defaultSanitize
-			), 'is_callable'));
-		} elseif ($schemaSanitize !== null) {
-			$merged['sanitize'] = $schemaSanitize;
-		}
+		$merged['validate'] = array(
+			'component' => array_merge($defaultBuckets['validate']['component'], $schemaBuckets['validate']['component']),
+			'schema'    => $schemaBuckets['validate']['schema'] !== array()
+				? $schemaBuckets['validate']['schema']
+				: $defaultBuckets['validate']['schema'],
+		);
 
 		$defaultContext = isset($defaults['context']) && is_array($defaults['context']) ? $defaults['context'] : array();
 		$schemaContext  = isset($schema['context'])   && is_array($schema['context']) ? $schema['context'] : array();
@@ -255,9 +259,50 @@ class FormsServiceSession {
 	 * @param mixed $value
 	 * @return array<int,callable>|null
 	 */
-	private function _coerce_callable_list(mixed $value): ?array {
+	private function _coerce_bucketed_lists(array $source, bool $flatAsComponent): array {
+		$blank = array(
+			'component' => array(),
+			'schema'    => array(),
+		);
+
+		$sanitize = $blank;
+		$validate = $blank;
+
+		if (isset($source['sanitize'])) {
+			$sanitizeField = $source['sanitize'];
+			if (is_array($sanitizeField) && array_key_exists('component', $sanitizeField)) {
+				$sanitize['component'] = $this->_coerce_callable_array($sanitizeField['component'] ?? null);
+				$sanitize['schema']    = $this->_coerce_callable_array($sanitizeField['schema'] ?? null);
+			} else {
+				$bucketKey            = $flatAsComponent ? 'component' : 'schema';
+				$sanitize[$bucketKey] = $this->_coerce_callable_array($sanitizeField);
+			}
+		}
+
+		if (isset($source['validate'])) {
+			$validateField = $source['validate'];
+			if (is_array($validateField) && array_key_exists('component', $validateField)) {
+				$validate['component'] = $this->_coerce_callable_array($validateField['component'] ?? null);
+				$validate['schema']    = $this->_coerce_callable_array($validateField['schema'] ?? null);
+			} else {
+				$bucketKey            = $flatAsComponent ? 'component' : 'schema';
+				$validate[$bucketKey] = $this->_coerce_callable_array($validateField);
+			}
+		}
+
+		return array(
+			'sanitize' => $sanitize,
+			'validate' => $validate,
+		);
+	}
+
+	/**
+	 * @param mixed $value
+	 * @return array<int,callable>
+	 */
+	private function _coerce_callable_array(mixed $value): array {
 		if ($value === null) {
-			return null;
+			return array();
 		}
 		if (is_callable($value)) {
 			return array($value);
@@ -269,9 +314,9 @@ class FormsServiceSession {
 					$callables[] = $maybeCallable;
 				}
 			}
-			return $callables === array() ? null : $callables;
+			return $callables;
 		}
-		return null;
+		return array();
 	}
 
 	/**

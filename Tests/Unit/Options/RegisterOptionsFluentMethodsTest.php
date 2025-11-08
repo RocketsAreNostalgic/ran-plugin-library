@@ -12,11 +12,10 @@ use Ran\PluginLib\Options\Storage\StorageContext;
 use Ran\PluginLib\Options\RegisterOptions;
 
 /**
- * Tests for RegisterOptions fluent methods functionality.
+ * Tests for RegisterOptions helper methods functionality.
  *
- * Tests the prepend_validator(), append_validator(), prepend_sanitizer(),
- * and append_sanitizer() methods that allow dynamic modification of
- * validation and sanitization pipelines.
+ * Tests the add_component_* and add_schema_* helper methods that allow
+ * bucket-aware modification of validation and sanitization pipelines.
  */
 final class RegisterOptionsFluentMethodsTest extends PluginLibTestCase {
 	protected ?CollectingLogger $logger_mock = null;
@@ -66,12 +65,12 @@ final class RegisterOptionsFluentMethodsTest extends PluginLibTestCase {
 	}
 
 	/**
-	 * Test prepend_validator() fluent method functionality.
+	 * Test add_component_validator() method functionality.
 	 *
-	 * @covers \Ran\PluginLib\Options\RegisterOptions::prepend_validator
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::add_component_validator
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::register_schema
 	 */
-	public function test_prepend_validator_functionality(): void {
+	public function test_add_component_validator_functionality(): void {
 		$options = new RegisterOptions('test_fluent_methods', StorageContext::forSite(), true, $this->logger_mock);
 
 		// Register initial schema with one validator
@@ -90,8 +89,8 @@ final class RegisterOptionsFluentMethodsTest extends PluginLibTestCase {
 			)
 		));
 
-		// Prepend a validator that checks minimum length
-		$result = $options->prepend_validator('test_field', function($value, callable $emitWarning) {
+		// Component validator that checks minimum length
+		$result = $options->add_component_validator('test_field', function($value, callable $emitWarning) {
 			if (strlen($value) < 3) {
 				$emitWarning('Value too short');
 				return false;
@@ -129,12 +128,12 @@ final class RegisterOptionsFluentMethodsTest extends PluginLibTestCase {
 	}
 
 	/**
-	 * Test append_validator() fluent method functionality.
+	 * Test add_schema_validator() method functionality.
 	 *
-	 * @covers \Ran\PluginLib\Options\RegisterOptions::append_validator
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::add_schema_validator
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::register_schema
 	 */
-	public function test_append_validator_functionality(): void {
+	public function test_add_schema_validator_functionality(): void {
 		$options = new RegisterOptions('test_fluent_methods', StorageContext::forSite(), true, $this->logger_mock);
 
 		// Register initial schema with one validator
@@ -153,8 +152,8 @@ final class RegisterOptionsFluentMethodsTest extends PluginLibTestCase {
 			)
 		));
 
-		// Append a validator that checks for specific content
-		$result = $options->append_validator('test_field', function($value, callable $emitWarning) {
+		// Schema validator that checks for specific content
+		$result = $options->add_schema_validator('test_field', function($value, callable $emitWarning) {
 			if (strpos($value, 'forbidden') !== false) {
 				$emitWarning('Value contains forbidden content');
 				return false;
@@ -190,12 +189,12 @@ final class RegisterOptionsFluentMethodsTest extends PluginLibTestCase {
 	}
 
 	/**
-	 * Test prepend_sanitizer() fluent method functionality.
+	 * Test add_component_sanitizer() method functionality.
 	 *
-	 * @covers \Ran\PluginLib\Options\RegisterOptions::prepend_sanitizer
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::add_component_sanitizer
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::register_schema
 	 */
-	public function test_prepend_sanitizer_functionality(): void {
+	public function test_add_component_sanitizer_functionality(): void {
 		$options = new RegisterOptions('test_fluent_methods', StorageContext::forSite(), true, $this->logger_mock);
 
 		// Register initial schema with one sanitizer
@@ -219,8 +218,8 @@ final class RegisterOptionsFluentMethodsTest extends PluginLibTestCase {
 			)
 		));
 
-		// Prepend a sanitizer that converts to lowercase
-		$result = $options->prepend_sanitizer('test_field', function($value, callable $emitNotice) {
+		// Component sanitizer that converts to lowercase
+		$result = $options->add_component_sanitizer('test_field', function($value, callable $emitNotice) {
 			$lowercase = strtolower($value);
 			if ($lowercase !== $value) {
 				$emitNotice('Value was converted to lowercase');
@@ -247,12 +246,12 @@ final class RegisterOptionsFluentMethodsTest extends PluginLibTestCase {
 	}
 
 	/**
-	 * Test append_sanitizer() fluent method functionality.
+	 * Test add_schema_sanitizer() method functionality.
 	 *
-	 * @covers \Ran\PluginLib\Options\RegisterOptions::append_sanitizer
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::add_schema_sanitizer
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::register_schema
 	 */
-	public function test_append_sanitizer_functionality(): void {
+	public function test_add_schema_sanitizer_functionality(): void {
 		$options = new RegisterOptions('test_fluent_methods', StorageContext::forSite(), true, $this->logger_mock);
 
 		// Register initial schema with one sanitizer
@@ -276,8 +275,8 @@ final class RegisterOptionsFluentMethodsTest extends PluginLibTestCase {
 			)
 		));
 
-		// Append a sanitizer that removes special characters
-		$result = $options->append_sanitizer('test_field', function($value, callable $emitNotice) {
+		// Schema sanitizer removes special characters
+		$result = $options->add_schema_sanitizer('test_field', function($value, callable $emitNotice) {
 			$cleaned = preg_replace('/[^a-zA-Z0-9\s]/', '', $value);
 			if ($cleaned !== $value) {
 				$emitNotice('Special characters were removed');
@@ -305,10 +304,10 @@ final class RegisterOptionsFluentMethodsTest extends PluginLibTestCase {
 	/**
 	 * Test fluent method chaining and complex scenarios.
 	 *
-	 * @covers \Ran\PluginLib\Options\RegisterOptions::prepend_validator
-	 * @covers \Ran\PluginLib\Options\RegisterOptions::append_validator
-	 * @covers \Ran\PluginLib\Options\RegisterOptions::prepend_sanitizer
-	 * @covers \Ran\PluginLib\Options\RegisterOptions::append_sanitizer
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::add_component_validator
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::add_schema_validator
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::add_component_sanitizer
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::add_schema_sanitizer
 	 */
 	public function test_fluent_method_chaining(): void {
 		$options = new RegisterOptions('test_fluent_methods', StorageContext::forSite(), true, $this->logger_mock);
@@ -340,28 +339,28 @@ final class RegisterOptionsFluentMethodsTest extends PluginLibTestCase {
 
 		// Chain multiple fluent method calls
 		$result = $options
-			->prepend_sanitizer('complex_field', function($value, callable $emitNotice) {
+			->add_component_sanitizer('complex_field', function($value, callable $emitNotice) {
 				$lowercase = strtolower($value);
 				if ($lowercase !== $value) {
 					$emitNotice('Converted to lowercase');
 				}
 				return $lowercase;
 			})
-			->append_sanitizer('complex_field', function($value, callable $emitNotice) {
+			->add_schema_sanitizer('complex_field', function($value, callable $emitNotice) {
 				$cleaned = preg_replace('/\s+/', ' ', $value); // Normalize whitespace
 				if ($cleaned !== $value) {
 					$emitNotice('Whitespace normalized');
 				}
 				return $cleaned;
 			})
-			->prepend_validator('complex_field', function($value, callable $emitWarning) {
+			->add_component_validator('complex_field', function($value, callable $emitWarning) {
 				if (strlen($value) < 2) {
 					$emitWarning('Value too short');
 					return false;
 				}
 				return true;
 			})
-			->append_validator('complex_field', function($value, callable $emitWarning) {
+			->add_schema_validator('complex_field', function($value, callable $emitWarning) {
 				if (strlen($value) > 100) {
 					$emitWarning('Value too long');
 					return false;
@@ -401,10 +400,10 @@ final class RegisterOptionsFluentMethodsTest extends PluginLibTestCase {
 	/**
 	 * Test error handling for invalid field keys.
 	 *
-	 * @covers \Ran\PluginLib\Options\RegisterOptions::prepend_validator
-	 * @covers \Ran\PluginLib\Options\RegisterOptions::append_validator
-	 * @covers \Ran\PluginLib\Options\RegisterOptions::prepend_sanitizer
-	 * @covers \Ran\PluginLib\Options\RegisterOptions::append_sanitizer
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::add_component_validator
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::add_schema_validator
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::add_component_sanitizer
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::add_schema_sanitizer
 	 */
 	public function test_error_handling_for_invalid_field_keys(): void {
 		$options = new RegisterOptions('test_fluent_methods', StorageContext::forSite(), true, $this->logger_mock);
@@ -421,7 +420,7 @@ final class RegisterOptionsFluentMethodsTest extends PluginLibTestCase {
 
 		// Test with non-existent field key
 		$this->expectException(\InvalidArgumentException::class);
-		$options->prepend_validator('nonexistent_field', function($value) {
+		$options->add_component_validator('nonexistent_field', function($value) {
 			return true;
 		});
 	}
@@ -429,10 +428,10 @@ final class RegisterOptionsFluentMethodsTest extends PluginLibTestCase {
 	/**
 	 * Test error handling for invalid callables.
 	 *
-	 * @covers \Ran\PluginLib\Options\RegisterOptions::prepend_validator
-	 * @covers \Ran\PluginLib\Options\RegisterOptions::append_validator
-	 * @covers \Ran\PluginLib\Options\RegisterOptions::prepend_sanitizer
-	 * @covers \Ran\PluginLib\Options\RegisterOptions::append_sanitizer
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::add_component_validator
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::add_schema_validator
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::add_component_sanitizer
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::add_schema_sanitizer
 	 */
 	public function test_error_handling_for_invalid_callables(): void {
 		$options = new RegisterOptions('test_fluent_methods', StorageContext::forSite(), true, $this->logger_mock);
@@ -449,14 +448,14 @@ final class RegisterOptionsFluentMethodsTest extends PluginLibTestCase {
 
 		// Test with non-callable
 		$this->expectException(\TypeError::class);
-		$options->prepend_validator('test_field', 'not_a_callable');
+		$options->add_component_validator('test_field', 'not_a_callable');
 	}
 
 	/**
-	 * Test validator execution order with prepend and append.
+	 * Test validator execution order across component and schema buckets.
 	 *
-	 * @covers \Ran\PluginLib\Options\RegisterOptions::prepend_validator
-	 * @covers \Ran\PluginLib\Options\RegisterOptions::append_validator
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::add_component_validator
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::add_schema_validator
 	 */
 	public function test_validator_execution_order(): void {
 		$options = new RegisterOptions('test_fluent_methods', StorageContext::forSite(), true, $this->logger_mock);
@@ -480,8 +479,8 @@ final class RegisterOptionsFluentMethodsTest extends PluginLibTestCase {
 			)
 		));
 
-		// Prepend a validator
-		$options->prepend_validator('test_field', function($value, callable $emitWarning) use (&$execution_order) {
+		// Component validator
+		$options->add_component_validator('test_field', function($value, callable $emitWarning) use (&$execution_order) {
 			$execution_order[] = 'prepended';
 			if ($value === 'fail_prepended') {
 				$emitWarning('Prepended validator failed');
@@ -490,8 +489,8 @@ final class RegisterOptionsFluentMethodsTest extends PluginLibTestCase {
 			return true;
 		});
 
-		// Append a validator
-		$options->append_validator('test_field', function($value, callable $emitWarning) use (&$execution_order) {
+		// Schema validator
+		$options->add_schema_validator('test_field', function($value, callable $emitWarning) use (&$execution_order) {
 			$execution_order[] = 'appended';
 			if ($value === 'fail_appended') {
 				$emitWarning('Appended validator failed');
@@ -523,10 +522,10 @@ final class RegisterOptionsFluentMethodsTest extends PluginLibTestCase {
 	}
 
 	/**
-	 * Test sanitizer execution order with prepend and append.
+	 * Test sanitizer execution order across component and schema buckets.
 	 *
-	 * @covers \Ran\PluginLib\Options\RegisterOptions::prepend_sanitizer
-	 * @covers \Ran\PluginLib\Options\RegisterOptions::append_sanitizer
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::add_component_sanitizer
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::add_schema_sanitizer
 	 */
 	public function test_sanitizer_execution_order(): void {
 		$options = new RegisterOptions('test_fluent_methods', StorageContext::forSite(), true, $this->logger_mock);
@@ -555,8 +554,8 @@ final class RegisterOptionsFluentMethodsTest extends PluginLibTestCase {
 			)
 		));
 
-		// Prepend a sanitizer
-		$options->prepend_sanitizer('test_field', function($value, callable $emitNotice) use (&$execution_order) {
+		// Component sanitizer
+		$options->add_component_sanitizer('test_field', function($value, callable $emitNotice) use (&$execution_order) {
 			$execution_order[] = 'prepended';
 			// Make it idempotent by checking if already processed
 			if (strpos($value, '_prepended') === false) {
@@ -565,8 +564,8 @@ final class RegisterOptionsFluentMethodsTest extends PluginLibTestCase {
 			return $value;
 		});
 
-		// Append a sanitizer
-		$options->append_sanitizer('test_field', function($value, callable $emitNotice) use (&$execution_order) {
+		// Schema sanitizer
+		$options->add_schema_sanitizer('test_field', function($value, callable $emitNotice) use (&$execution_order) {
 			$execution_order[] = 'appended';
 			// Make it idempotent by checking if already processed
 			if (strpos($value, '_appended') === false) {
@@ -590,12 +589,12 @@ final class RegisterOptionsFluentMethodsTest extends PluginLibTestCase {
 	}
 
 	/**
-	 * Test multiple prepends and appends.
+	 * Test multiple component and schema helper calls.
 	 *
-	 * @covers \Ran\PluginLib\Options\RegisterOptions::prepend_validator
-	 * @covers \Ran\PluginLib\Options\RegisterOptions::append_validator
-	 * @covers \Ran\PluginLib\Options\RegisterOptions::prepend_sanitizer
-	 * @covers \Ran\PluginLib\Options\RegisterOptions::append_sanitizer
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::add_component_validator
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::add_schema_validator
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::add_component_sanitizer
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::add_schema_sanitizer
 	 */
 	public function test_multiple_prepends_and_appends(): void {
 		$options = new RegisterOptions('test_fluent_methods', StorageContext::forSite(), true, $this->logger_mock);
@@ -627,28 +626,28 @@ final class RegisterOptionsFluentMethodsTest extends PluginLibTestCase {
 
 		// Add multiple prepends and appends
 		$options
-			->prepend_sanitizer('test_field', function($value, callable $emitNotice) {
+			->add_component_sanitizer('test_field', function($value, callable $emitNotice) {
 				// Make it idempotent by checking if already processed
 				if (strpos($value, '_prepend1') === false) {
 					return $value . '_prepend1';
 				}
 				return $value;
 			})
-			->prepend_sanitizer('test_field', function($value, callable $emitNotice) {
+			->add_component_sanitizer('test_field', function($value, callable $emitNotice) {
 				// Make it idempotent by checking if already processed
 				if (strpos($value, '_prepend2') === false) {
 					return $value . '_prepend2';
 				}
 				return $value;
 			})
-			->append_sanitizer('test_field', function($value, callable $emitNotice) {
+			->add_schema_sanitizer('test_field', function($value, callable $emitNotice) {
 				// Make it idempotent by checking if already processed
 				if (strpos($value, '_append1') === false) {
 					return $value . '_append1';
 				}
 				return $value;
 			})
-			->append_sanitizer('test_field', function($value, callable $emitNotice) {
+			->add_schema_sanitizer('test_field', function($value, callable $emitNotice) {
 				// Make it idempotent by checking if already processed
 				if (strpos($value, '_append2') === false) {
 					return $value . '_append2';
@@ -663,5 +662,85 @@ final class RegisterOptionsFluentMethodsTest extends PluginLibTestCase {
 		// Should execute: prepend2 -> prepend1 -> original -> append1 -> append2
 		$expected = 'test_prepend2_prepend1_original_append1_append2';
 		$this->assertEquals($expected, $options->get_option('test_field'));
+	}
+
+	public function test_sanitizer_and_validator_logging_includes_bucket_context(): void {
+		$options = new RegisterOptions('test_logging', StorageContext::forSite(), true, $this->logger_mock);
+
+		$options->register_schema(array(
+			'log_field' => array(
+				'default'  => '',
+				'sanitize' => array(
+					function($value) {
+						return trim((string) $value);
+					},
+				),
+				'validate' => array(
+					function($value) {
+						return $value !== '';
+					},
+				),
+			),
+		));
+
+		$options->add_component_sanitizer('log_field', function($value) {
+			return strtolower((string) $value);
+		});
+		$options->add_component_validator('log_field', function($value, callable $emitWarning) {
+			if ($value === '') {
+				$emitWarning('component validator requires value');
+				return false;
+			}
+			return true;
+		});
+		$options->add_schema_validator('log_field', function($value) {
+			return strlen((string) $value) < 20;
+		});
+
+		$beforeCount = count($this->logger_mock->get_logs());
+		$options->stage_option('log_field', '  Example  ');
+		$logs = array_slice($this->logger_mock->get_logs(), $beforeCount);
+
+		$sanitizerBuckets = array();
+		foreach ($logs as $idx => $record) {
+			if ($record['message'] !== 'RegisterOptions: running sanitizer') {
+				continue;
+			}
+			if (!isset($record['context']['bucket'])) {
+				continue;
+			}
+			$bucket                      = $record['context']['bucket'];
+			$sanitizerBuckets[$bucket][] = $idx;
+		}
+
+		self::assertArrayHasKey('component', $sanitizerBuckets);
+		self::assertArrayHasKey('schema', $sanitizerBuckets);
+		self::assertNotEmpty($sanitizerBuckets['component']);
+		self::assertNotEmpty($sanitizerBuckets['schema']);
+		self::assertLessThan(
+			min($sanitizerBuckets['schema']),
+			min($sanitizerBuckets['component'])
+		);
+
+		$validatorBuckets = array();
+		foreach ($logs as $idx => $record) {
+			if ($record['message'] !== 'RegisterOptions: running validator') {
+				continue;
+			}
+			if (!isset($record['context']['bucket'])) {
+				continue;
+			}
+			$bucket                      = $record['context']['bucket'];
+			$validatorBuckets[$bucket][] = $idx;
+		}
+
+		self::assertArrayHasKey('component', $validatorBuckets);
+		self::assertArrayHasKey('schema', $validatorBuckets);
+		self::assertNotEmpty($validatorBuckets['component']);
+		self::assertNotEmpty($validatorBuckets['schema']);
+		self::assertLessThan(
+			min($validatorBuckets['schema']),
+			min($validatorBuckets['component'])
+		);
 	}
 }

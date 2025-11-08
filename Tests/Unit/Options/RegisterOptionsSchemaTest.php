@@ -62,6 +62,13 @@ final class RegisterOptionsSchemaTest extends PluginLibTestCase {
 		// Should return a boolean (true if changes made, false if no changes)
 		$this->assertIsBool($result);
 
+		$registeredSchema = $opts->get_schema();
+		$this->assertArrayHasKey('test_key', $registeredSchema);
+		$this->assertSame(array(), $registeredSchema['test_key']['sanitize']['component']);
+		$this->assertCount(1, $registeredSchema['test_key']['sanitize']['schema']);
+		$this->assertSame(array(), $registeredSchema['test_key']['validate']['component']);
+		$this->assertCount(1, $registeredSchema['test_key']['validate']['schema']);
+
 		// Verify schema was registered by checking if we can set an option
 		WP_Mock::onFilter('ran/plugin_lib/options/allow_persist')
 			->with(\WP_Mock\Functions::type('bool'), \WP_Mock\Functions::type('array'))
@@ -111,6 +118,11 @@ final class RegisterOptionsSchemaTest extends PluginLibTestCase {
 );
 
 		$opts->register_schema($initialSchema);
+		$initialMap = $opts->get_schema();
+		$this->assertSame(array(), $initialMap['existing_key']['sanitize']['component']);
+		$this->assertCount(1, $initialMap['existing_key']['sanitize']['schema']);
+		$this->assertSame(array(), $initialMap['existing_key']['validate']['component']);
+		$this->assertCount(1, $initialMap['existing_key']['validate']['schema']);
 
 		// Now register a second schema that updates the existing key (lines 529-534)
 		$updateSchema = array(
@@ -128,10 +140,13 @@ final class RegisterOptionsSchemaTest extends PluginLibTestCase {
 		// Should return a boolean (true if changes made, false if no changes)
 		$this->assertIsBool($result);
 
-		// Verify the schema merging worked by checking that the updated default was not seeded
-		// Under Option A, defaults are seeded only when missing; existing in-memory value
-		// from the initial schema remains unchanged by a later schema change.
+		// Verify the schema merging worked (default remains from first registration) and buckets intact
 		$this->assertEquals('initial_default', $opts->get_option('existing_key'));
+		$mergedMap = $opts->get_schema();
+		$this->assertSame(array(), $mergedMap['existing_key']['sanitize']['component']);
+		$this->assertCount(1, $mergedMap['existing_key']['sanitize']['schema']);
+		$this->assertSame(array(), $mergedMap['existing_key']['validate']['component']);
+		$this->assertCount(1, $mergedMap['existing_key']['validate']['schema']);
 	}
 
 	/**
@@ -277,5 +292,11 @@ final class RegisterOptionsSchemaTest extends PluginLibTestCase {
 		$this->assertTrue($changed);
 		$this->assertSame('Hello', $opts->get_option('normalize_me'));
 		$this->assertSame(5, $opts->get_option('num'));
+
+		$normalizedMap = $opts->get_schema();
+		$this->assertSame(array(), $normalizedMap['normalize_me']['sanitize']['component']);
+		$this->assertCount(1, $normalizedMap['normalize_me']['sanitize']['schema']);
+		$this->assertSame(array(), $normalizedMap['normalize_me']['validate']['component']);
+		$this->assertCount(1, $normalizedMap['normalize_me']['validate']['schema']);
 	}
 }

@@ -52,38 +52,64 @@ final class RegisterOptionsRuntimeGuardsTest extends PluginLibTestCase {
 		$meth->setAccessible(true);
 
 		$this->expectException(\InvalidArgumentException::class);
-		try {
-			$meth->invoke($opts, 'bad1', 'value');
-		} finally {
-			$this->expectLog('warning', 'runtime non-array sanitize');
-		}
+		$meth->invoke($opts, 'bad1', 'value');
 	}
 
 	/**
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::_sanitize_and_validate_option
 	 */
-	public function test_runtime_throws_when_validate_missing_or_non_callable(): void {
+	public function test_runtime_allows_missing_validate_definition(): void {
 		$opts = new RegisterOptions('opts_runtime_guard2', StorageContext::forSite(), true, $this->logger_mock);
 
-		// Inject malformed schema without validate
+		// Inject schema without validate to confirm relaxed requirement
 		$ref  = new \ReflectionClass($opts);
 		$prop = $ref->getProperty('schema');
 		$prop->setAccessible(true);
 		$prop->setValue($opts, array(
-		    'bad2' => array(
+		    'no_validate' => array(
 		        'sanitize' => null,
-		        // missing validate
+		        'validate' => array(
+		            'component' => array(),
+		            'schema'    => array(),
+		        ),
 		    ),
 		));
 
 		$meth = $ref->getMethod('_sanitize_and_validate_option');
 		$meth->setAccessible(true);
 
-		$this->expectException(\InvalidArgumentException::class);
-		try {
-			$meth->invoke($opts, 'bad2', 'value');
-		} finally {
-			$this->expectLog('warning', 'runtime missing/non-array validate');
-		}
+		self::assertSame('value', $meth->invoke($opts, 'no_validate', 'value'));
+	}
+
+	/**
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::stage_option
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::commit_merge
+	 */
+	public function test_commit_merge_succeeds_when_validator_buckets_empty(): void {
+		$opts = new RegisterOptions('opts_runtime_guard3', StorageContext::forSite(), true, $this->logger_mock);
+		WP_Mock::userFunction('apply_filters')->withAnyArgs()->andReturn(true);
+		WP_Mock::userFunction('update_option')->andReturn(true);
+		WP_Mock::userFunction('current_user_can')->withAnyArgs()->andReturn(true);
+
+		$ref  = new \ReflectionClass($opts);
+		$prop = $ref->getProperty('schema');
+		$prop->setAccessible(true);
+		$prop->setValue($opts, array(
+		    'empty_validate' => array(
+		        'sanitize' => array(
+		        	'component' => array(),
+		        	'schema'    => array(),
+		        ),
+		        'validate' => array(
+		        	'component' => array(),
+		        	'schema'    => array(),
+		        ),
+		    ),
+		));
+
+		$opts->stage_option('empty_validate', 'example-value');
+
+		self::assertSame('example-value', $opts->get_option('empty_validate'));
+		self::assertTrue($opts->commit_merge());
 	}
 }

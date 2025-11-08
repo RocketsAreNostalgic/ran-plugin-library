@@ -1466,8 +1466,8 @@ trait FormsBaseTrait {
 					return $validator_instance->validate($value, array(), $emitWarning);
 				};
 
-				// Inject the validator at the beginning of the validation chain
-				$this->base_options->prepend_validator($field_id, $validator_callable);
+				// Register the validator as a component-sourced validator
+				$this->base_options->add_component_validator($field_id, $validator_callable);
 
 				$this->logger->debug(static::class . ': Component validator injected', array(
 					'field_id'  => $field_id,

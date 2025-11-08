@@ -501,8 +501,14 @@ final class RegisterOptionsUtilityTest extends PluginLibTestCase {
 		$expectedSchema = array(
 			'alpha_key' => array(
 				'default'  => 'alpha',
-				'validate' => array(Validate::basic()->is_string()),
-				'sanitize' => null,
+				'validate' => array(
+					'component' => array(),
+					'schema'    => array(Validate::basic()->is_string()),
+				),
+				'sanitize' => array(
+					'component' => array(),
+					'schema'    => array(),
+				),
 			),
 		);
 

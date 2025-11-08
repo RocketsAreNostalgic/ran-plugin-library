@@ -62,12 +62,22 @@ final class FormsServiceSessionSchemaMergeTest extends PluginLibTestCase {
 		$result = $session->merge_schema_with_defaults('components.merge', $schema);
 
 		self::assertArrayHasKey('sanitize', $result);
-		self::assertSame($schemaSanitize, $result['sanitize'][0] ?? null);
-		self::assertSame($defaultsSanitize, $result['sanitize'][1] ?? null);
+		self::assertSame(
+			array(
+				'component' => array($defaultsSanitize),
+				'schema'    => array($schemaSanitize),
+			),
+			$result['sanitize']
+		);
 
 		self::assertArrayHasKey('validate', $result);
-		self::assertSame($defaultsValidate, $result['validate'][0] ?? null);
-		self::assertSame($schemaValidate, $result['validate'][1] ?? null);
+		self::assertSame(
+			array(
+				'component' => array($defaultsValidate),
+				'schema'    => array($schemaValidate),
+			),
+			$result['validate']
+		);
 
 		self::assertSame(
 			array('from_manifest' => true, 'from_schema' => true),
@@ -94,6 +104,27 @@ final class FormsServiceSessionSchemaMergeTest extends PluginLibTestCase {
 
 		self::assertSame($schema, $result);
 		$this->expectLog('debug', 'forms.schema.merge.no_defaults');
+	}
+
+	public function test_merge_schema_with_defaults_throws_when_no_validators(): void {
+		$manifestDefaults = array(
+			'sanitize' => array(function($value) {
+				return $value;
+			}),
+			'validate' => array(),
+		);
+
+		$manifest = Mockery::mock(ComponentManifest::class);
+		$manifest->shouldReceive('get_defaults_for')
+			->once()
+			->with('components.requires-validator')
+			->andReturn($manifestDefaults);
+		$manifest->shouldReceive('default_catalogue')->andReturn(array());
+
+		$session = new FormsServiceSession($manifest, new FormsAssets(), $this->logger_mock);
+
+		$this->expectException(\InvalidArgumentException::class);
+		$session->merge_schema_with_defaults('components.requires-validator', array());
 	}
 
 	public function test_merge_pipeline_propagates_validation_messages(): void {
@@ -162,8 +193,8 @@ final class FormsServiceSessionSchemaMergeTest extends PluginLibTestCase {
 		$options->stage_options(array('field' => ' foo '));
 
 		self::assertNotEmpty($executionOrder);
-		self::assertSame('schema_sanitize', $executionOrder[0]);
-		self::assertContains('manifest_sanitize', $executionOrder);
+		self::assertSame('manifest_sanitize', $executionOrder[0]);
+		self::assertContains('schema_sanitize', $executionOrder);
 		self::assertContains('manifest_validate', $executionOrder);
 		self::assertContains('schema_validate', $executionOrder);
 
