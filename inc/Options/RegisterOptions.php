@@ -27,6 +27,7 @@ use Ran\PluginLib\Options\Storage\UserMetaStorage;
 use Ran\PluginLib\Options\Storage\UserOptionStorage;
 use Ran\PluginLib\Options\Storage\StorageContext;
 use Ran\PluginLib\Options\OptionScope;
+use Ran\PluginLib\Forms\Validation\ValidatorPipelineService;
 use Ran\PluginLib\Options\Policy\WritePolicyInterface;
 use Ran\PluginLib\Forms\Renderer\FormMessageHandler;
 use Ran\PluginLib\Options\WriteContext;
@@ -86,12 +87,17 @@ use Ran\PluginLib\Forms\Validation\Helpers;
 class RegisterOptions {
 	use WPWrappersTrait;
 
-	private const BUCKET_COMPONENT = 'component';
-	private const BUCKET_SCHEMA    = 'schema';
+	private const BUCKET_COMPONENT = ValidatorPipelineService::BUCKET_COMPONENT;
+	private const BUCKET_SCHEMA    = ValidatorPipelineService::BUCKET_SCHEMA;
 	/**
 	 * @var string[]
 	 */
-	private const BUCKET_ORDER = array(self::BUCKET_COMPONENT, self::BUCKET_SCHEMA);
+	private const BUCKET_ORDER = ValidatorPipelineService::BUCKET_ORDER;
+
+	/**
+	 * Shared validator pipeline helper.
+	 */
+	private ?ValidatorPipelineService $validator_pipeline = null;
 
 	/**
 	 * The in-memory store for all plugin options.
@@ -1374,112 +1380,26 @@ class RegisterOptions {
 		$rules                         = $this->_coerce_schema_entry($this->schema[$normalized_key], $normalized_key);
 		$this->schema[$normalized_key] = $rules;
 
-		// Defense-in-depth: runtime guard to mirror register-time contract
-		foreach (self::BUCKET_ORDER as $bucket) {
-			foreach ($rules['sanitize'][$bucket] as $index => $sanitizer) {
-				if (!is_callable($sanitizer)) {
-					$this->_get_logger()->warning('RegisterOptions: _sanitize_and_validate_option runtime non-callable sanitizer', array('key' => $normalized_key, 'index' => $index));
-					throw new \InvalidArgumentException(static::class . ": Schema for key '{$normalized_key}' has non-callable sanitizer at index {$index} at runtime.");
-				}
-
-				$sanitizerDesc = $this->_describe_callable($sanitizer);
-				$this->_get_logger()->debug('RegisterOptions: running sanitizer', array(
-					'key'       => $normalized_key,
-					'bucket'    => $bucket,
-					'index'     => $index,
-					'sanitizer' => $sanitizerDesc,
-				));
-
-				/**
-				 * Allow sanitizers to be called with and without an emitNotice callable.
-				 * Feature-detect optional callback via try/catch in order to support
-				 * built-in functions (e.g. trim) without forcing wrappers.
-				 */
-				try {
-					$firstPass = $sanitizer($value, function (string $message) use ($normalized_key): void {
-						$this->_record_message($normalized_key, $message, 'notice');
-					});
-					$secondPass = $sanitizer($firstPass, static function (): void {
-						// No-op emitter to avoid duplicating notices during idempotence check.
-					});
-				} catch (\ArgumentCountError $e) {
-					$firstPass  = $sanitizer($value);
-					$secondPass = $sanitizer($firstPass);
-				}
-
-				if ($secondPass !== $firstPass) {
-					$valStr1 = $this->_stringify_value_for_error($firstPass);
-					$valStr2 = $this->_stringify_value_for_error($secondPass);
-					$this->_get_logger()->warning('RegisterOptions: _sanitize_and_validate_option sanitizer not idempotent', array('key' => $normalized_key, 'value' => $value, 'sanitizer' => $sanitizerDesc, 'valStr1' => $valStr1, 'valStr2' => $valStr2));
-					throw new \InvalidArgumentException(
-						static::class . ": Sanitizer for option '{$normalized_key}' at index {$index} must be idempotent. First result {$valStr1} differs from second {$valStr2}. Sanitizer {$sanitizerDesc}."
-					);
-				}
-
-				$value = $firstPass;
+		$value = $this->_get_validator_pipeline()->sanitize_and_validate(
+			$normalized_key,
+			$value,
+			$rules,
+			'RegisterOptions',
+			$this->_get_logger(),
+			function (callable $callable): string {
+				return $this->_describe_callable($callable);
+			},
+			function (mixed $subject): string {
+				return $this->_stringify_value_for_error($subject);
+			},
+			function (string $key, string $message): void {
+				$this->_record_message($key, $message, 'notice');
+			},
+			function (string $key, string $message): void {
+				$this->_record_message($key, $message, 'warning');
 			}
-		}
+		);
 
-		// Process validators array - stop on first failure
-		foreach (self::BUCKET_ORDER as $bucket) {
-			foreach ($rules['validate'][$bucket] as $index => $validator) {
-				if (!is_callable($validator)) {
-					$this->_get_logger()->warning('RegisterOptions: _sanitize_and_validate_option runtime non-callable validator', array('key' => $normalized_key, 'index' => $index));
-					throw new \InvalidArgumentException(static::class . ": Schema for key '{$normalized_key}' has non-callable validator at index {$index} at runtime.");
-				}
-
-				$validatorDesc = $this->_describe_callable($validator);
-				$this->_get_logger()->debug('RegisterOptions: running validator', array(
-					'key'       => $normalized_key,
-					'bucket'    => $bucket,
-					'index'     => $index,
-					'validator' => $validatorDesc,
-				));
-
-				/**
-				 * Allow validators to be called with and without a emmitWarning callable
-				 * using try/catch for feature detection as it works with a wide range of callables
-				 * unlike an optional param, which would require wrapping common PHP methods like trim().
-				*/
-				$messageRecorded = false;
-				try {
-					$valid = $validator($value, function (string $message) use ($normalized_key, &$messageRecorded): void {
-						$this->_record_message($normalized_key, $message, 'warning');
-						$messageRecorded = true;
-					});
-				} catch (\ArgumentCountError $e) {
-					// Fallback for validators that don't accept callback (like built-in PHP functions)
-					$valid = $validator($value);
-				}
-
-				if ($valid !== true && $valid !== false) {
-					$valStr  = $this->_stringify_value_for_error($value);
-					$gotType = gettype($valid);
-					$this->_get_logger()->warning('RegisterOptions: _sanitize_and_validate_option validator returned non-bool', array('key' => $normalized_key, 'value' => $value, 'validator' => $validatorDesc, 'gotType' => $gotType));
-					throw new \InvalidArgumentException(
-						static::class . ": Validator for option '{$normalized_key}' at index {$index} must return strict bool; got {$gotType}. Value {$valStr}; validator {$validatorDesc}."
-					);
-				}
-
-				if ($valid !== true) {
-					// Validation failed
-					$valStr = $this->_stringify_value_for_error($value);
-
-					// If no message was recorded via callback (old signature), record a default message
-					if (!$messageRecorded) {
-						$this->_record_message($normalized_key, "Validation failed for value {$valStr}", 'warning');
-					}
-
-					$this->_get_logger()->debug('RegisterOptions: validation failed, stopping validator chain', array('key' => $normalized_key, 'value' => $value, 'validator' => $validatorDesc, 'bucket' => $bucket));
-
-					// Stop processing remaining validators and return original value
-					// The caller will check for messages and decide whether to persist
-					return $value;
-				}
-			}
-		}
-
-		$this->_get_logger()->debug('RegisterOptions: _sanitize_and_validate_option completed', array('key' => $normalized_key));
 		return $value;
 	}
 
@@ -1543,10 +1463,7 @@ class RegisterOptions {
 	 * @return array{component:array<int,callable>,schema:array<int,callable>}
 	 */
 	private function _blank_bucket_map(): array {
-		return array(
-			self::BUCKET_COMPONENT => array(),
-			self::BUCKET_SCHEMA    => array(),
-		);
+		return $this->_get_validator_pipeline()->create_bucket_map();
 	}
 
 	/**
@@ -1558,25 +1475,7 @@ class RegisterOptions {
 	 * @return array<callable>
 	 */
 	private function _normalize_callable_field($callables, string $field, string $option_key): array {
-		if ($callables === null) {
-			return array();
-		}
-
-		if (\is_callable($callables)) {
-			return array($callables);
-		}
-
-		if (!\is_array($callables)) {
-			throw new \InvalidArgumentException("RegisterOptions: Schema for key '{$option_key}' has non-array '{$field}'.");
-		}
-
-		foreach ($callables as $index => $callable) {
-			if (!\is_callable($callable)) {
-				throw new \InvalidArgumentException("RegisterOptions: Schema for key '{$option_key}' has non-callable {$field} at index {$index}.");
-			}
-		}
-
-		return array_values($callables);
+		return $this->_get_validator_pipeline()->normalize_callable_field($callables, $field, $option_key, 'RegisterOptions');
 	}
 
 	/**
@@ -1587,41 +1486,7 @@ class RegisterOptions {
 	 * @return array{sanitize:array{component:array, schema:array}, validate:array{component:array, schema:array}, default?:mixed}
 	 */
 	private function _coerce_schema_entry(array $entry, string $option_key): array {
-		$normalized = array(
-			'sanitize' => $this->_blank_bucket_map(),
-			'validate' => $this->_blank_bucket_map(),
-		);
-
-		if (array_key_exists('sanitize', $entry)) {
-			if (\is_array($entry['sanitize']) && $this->_is_bucket_map($entry['sanitize'])) {
-				foreach (self::BUCKET_ORDER as $bucket) {
-					if (array_key_exists($bucket, $entry['sanitize'])) {
-						$normalized['sanitize'][$bucket] = $this->_normalize_callable_field($entry['sanitize'][$bucket], 'sanitize', $option_key);
-					}
-				}
-			} else {
-				$normalized['sanitize'][self::BUCKET_SCHEMA] = $this->_normalize_callable_field($entry['sanitize'], 'sanitize', $option_key);
-			}
-		}
-
-		if (array_key_exists('validate', $entry)) {
-			if (\is_array($entry['validate']) && $this->_is_bucket_map($entry['validate'])) {
-				foreach (self::BUCKET_ORDER as $bucket) {
-					if (array_key_exists($bucket, $entry['validate'])) {
-						$normalized['validate'][$bucket] = $this->_normalize_callable_field($entry['validate'][$bucket], 'validate', $option_key);
-					}
-				}
-			} else {
-				$normalized['validate'][self::BUCKET_SCHEMA] = $this->_normalize_callable_field($entry['validate'], 'validate', $option_key);
-			}
-		}
-
-		if (array_key_exists('default', $entry)) {
-			$normalized['default'] = $entry['default'];
-		}
-
-		$this->get_logger()->debug('RegisterOptions: _coerce_schema_entry completed', array('key' => $option_key, 'normalized' => $normalized));
-		return $normalized;
+		return $this->_get_validator_pipeline()->normalize_schema_entry($entry, $option_key, 'RegisterOptions', $this->_get_logger());
 	}
 
 	/**
@@ -1632,21 +1497,21 @@ class RegisterOptions {
 	 * @return array{component:array<callable>,schema:array<callable>}
 	 */
 	private function _merge_bucketed_callables(array $existing, array $incoming): array {
-		$merged                         = $this->_blank_bucket_map();
-		$merged[self::BUCKET_COMPONENT] = array_merge($existing[self::BUCKET_COMPONENT], $incoming[self::BUCKET_COMPONENT]);
-		if (!empty($incoming[self::BUCKET_SCHEMA])) {
-			$merged[self::BUCKET_SCHEMA] = array_values($incoming[self::BUCKET_SCHEMA]);
-		} else {
-			$merged[self::BUCKET_SCHEMA] = $existing[self::BUCKET_SCHEMA];
-		}
-		return $merged;
+		return $this->_get_validator_pipeline()->merge_bucketed_callables($existing, $incoming);
 	}
 
 	/**
 	 * Determine whether the supplied array looks like a bucket map.
 	 */
 	private function _is_bucket_map(array $candidate): bool {
-		return array_key_exists(self::BUCKET_COMPONENT, $candidate) || array_key_exists(self::BUCKET_SCHEMA, $candidate);
+		return $this->_get_validator_pipeline()->is_bucket_map($candidate);
+	}
+
+	private function _get_validator_pipeline(): ValidatorPipelineService {
+		if (!($this->validator_pipeline instanceof ValidatorPipelineService)) {
+			$this->validator_pipeline = new ValidatorPipelineService();
+		}
+		return $this->validator_pipeline;
 	}
 
 	/**
