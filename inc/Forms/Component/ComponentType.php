@@ -7,7 +7,7 @@ namespace Ran\PluginLib\Forms\Component;
  * Canonical component classifications used by ComponentRenderResult.
  */
 enum ComponentType: string {
-	case FormField     = 'form_field';
+	case FormField     = 'input';
 	case LayoutWrapper = 'layout_wrapper';
 	case Display       = 'display';
 	case Template      = 'template';

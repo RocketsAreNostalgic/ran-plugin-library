@@ -487,7 +487,7 @@ class ComponentManifest {
 		// Baseline assumptions; refined values can be introduced in later tasks.
 		return array(
 			'submits_data'   => false,
-			'component_type' => 'form_field',
+			'component_type' => 'input',
 			'repeatable'     => false,
 		);
 	}
@@ -507,7 +507,7 @@ class ComponentManifest {
 			(bool) ($payload['repeatable'] ?? false),
 			$payload['context_schema'] ?? array(),
 			(bool) ($payload['submits_data'] ?? false),        // V2
-			(string) ($payload['component_type'] ?? 'form_field') // V2
+			(string) ($payload['component_type'] ?? 'input') // V2
 		);
 	}
 
@@ -536,7 +536,7 @@ class ComponentManifest {
 		return new ComponentRenderResult(
 			markup: (string) $markup,
 			submits_data: false,        // V2: Default for raw components
-			component_type: 'form_field' // V2: Default for raw components
+			component_type: 'input' // V2: Default for raw components
 		);
 	}
 

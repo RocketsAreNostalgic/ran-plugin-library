@@ -35,5 +35,5 @@ return new ComponentRenderResult(
 	    'defaults' => array(),
 	),
 	submits_data: true,
-	component_type: 'form_field'
+	component_type: 'input'
 );

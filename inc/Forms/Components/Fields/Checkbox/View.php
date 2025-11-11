@@ -46,5 +46,5 @@ return new ComponentRenderResult(
 	    ),
 	),
 	submits_data: true,
-	component_type: 'form_field'
+	component_type: 'input'
 );
