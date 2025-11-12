@@ -1659,18 +1659,13 @@ class RegisterOptions {
 	private function _create_flat_schema_view(): array {
 		$flat = array();
 		foreach ($this->schema as $key => $entry) {
-			$coerced           = $this->_coerce_schema_entry($entry, (string) $key);
-			$componentSanitize = $coerced['sanitize'][self::BUCKET_COMPONENT] ?? array();
-			$schemaSanitize    = $coerced['sanitize'][self::BUCKET_SCHEMA]    ?? array();
-			$componentValidate = $coerced['validate'][self::BUCKET_COMPONENT] ?? array();
-			$schemaValidate    = $coerced['validate'][self::BUCKET_SCHEMA]    ?? array();
-
-			$sanitizeMerged = array_merge($componentSanitize, $schemaSanitize);
-			$validateMerged = array_merge($componentValidate, $schemaValidate);
+			$coerced        = $this->_coerce_schema_entry($entry, (string) $key);
+			$schemaSanitize = $coerced['sanitize'][self::BUCKET_SCHEMA] ?? array();
+			$schemaValidate = $coerced['validate'][self::BUCKET_SCHEMA] ?? array();
 
 			$flattened = array(
-				'sanitize' => $this->_prepare_callables_for_export($sanitizeMerged),
-				'validate' => $this->_prepare_callables_for_export($validateMerged),
+				'sanitize' => $this->_prepare_callables_for_export($schemaSanitize),
+				'validate' => $this->_prepare_callables_for_export($schemaValidate),
 			);
 			if (array_key_exists('default', $coerced)) {
 				$flattened['default'] = $coerced['default'];

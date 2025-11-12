@@ -19,6 +19,7 @@ use Ran\PluginLib\Settings\AdminSettingsMenuGroupBuilder; //
 use Ran\PluginLib\Options\Storage\StorageContext;
 use Ran\PluginLib\Options\RegisterOptions;
 use Ran\PluginLib\Options\OptionScope;
+use Ran\PluginLib\Forms\Validation\ValidatorPipelineService;
 use Ran\PluginLib\Forms\Renderer\FormMessageHandler;
 use Ran\PluginLib\Forms\Renderer\FormElementRenderer;
 use Ran\PluginLib\Forms\FormsService;
@@ -142,7 +143,7 @@ class AdminSettings implements FormsInterface {
 	 * @param string $page_slug
 	 * @return array{zone_id:string,before:?callable,after:?callable,controls:array<int,array{id:string,label:string,component:string,component_context:array<string,mixed>,order:int}>}
 	 */
-	private function getSubmitControlsForPage(string $page_slug): array {
+	private function get_submit_controls_for_page(string $page_slug): array {
 		return $this->submit_controls[$page_slug] ?? array(
 			'zone_id'  => self::DEFAULT_SUBMIT_ZONE,
 			'before'   => null,
@@ -157,7 +158,7 @@ class AdminSettings implements FormsInterface {
 	 * @param array{zone_id:string,before:?callable,after:?callable,controls:array<int,array{id:string,label:string,component:string,component_context:array<string,mixed>,order:int}>} $submit_controls
 	 * @return string
 	 */
-	private function renderSubmitControls(string $page_slug, array $submit_controls): string {
+	private function render_submit_controls(string $page_slug, array $submit_controls): string {
 		$zone_id  = $submit_controls['zone_id']  ?? self::DEFAULT_SUBMIT_ZONE;
 		$controls = $submit_controls['controls'] ?? array();
 		$this->logger->debug('admin_settings.submit_controls.render', array(
@@ -173,10 +174,10 @@ class AdminSettings implements FormsInterface {
 		));
 
 		if (empty($controls)) {
-			return $this->renderDefaultSubmitControls($page_slug);
+			return $this->render_default_submit_controls($page_slug);
 		}
 
-		return $this->renderSubmitZone($page_slug, $zone_id, $submit_controls, $controls);
+		return $this->render_submit_zone($page_slug, $zone_id, $submit_controls, $controls);
 	}
 
 	/**
@@ -186,14 +187,14 @@ class AdminSettings implements FormsInterface {
 	 * @param array<int,array{id:string,label:string,component:string,component_context:array<string,mixed>,order:int}> $controls
 	 * @return string
 	 */
-	private function renderSubmitZone(string $page_slug, string $zone_id, array $zone_meta, array $controls): string {
+	private function render_submit_zone(string $page_slug, string $zone_id, array $zone_meta, array $controls): string {
 		if ($this->form_session === null) {
 			$this->_start_form_session();
 		}
 
 		$content = '';
 		foreach ($controls as $control) {
-			$content .= $this->renderSubmitControl($control);
+			$content .= $this->render_submit_control($control);
 		}
 
 		$callback_context = array(
@@ -226,7 +227,7 @@ class AdminSettings implements FormsInterface {
 	 * @param array{id:string,label:string,component:string,component_context:array<string,mixed>,order:int} $control
 	 * @return string
 	 */
-	private function renderSubmitControl(array $control): string {
+	private function render_submit_control(array $control): string {
 		if ($this->form_session === null) {
 			$this->_start_form_session();
 		}
@@ -265,14 +266,14 @@ class AdminSettings implements FormsInterface {
 	/**
 	 * Render default submit controls used when no custom definition exists.
 	 */
-	private function renderDefaultSubmitControls(string $page_slug): string {
+	private function render_default_submit_controls(string $page_slug): string {
 		$button = (new ButtonBuilder('default-primary', 'Save Changes'))
 			->type('submit')
 			->variant('primary');
 
 		$payload = $button->to_array();
 
-		return $this->renderSubmitZone(
+		return $this->render_submit_zone(
 			$page_slug,
 			self::DEFAULT_SUBMIT_ZONE,
 			array('before' => null, 'after' => null),
@@ -467,7 +468,22 @@ class AdminSettings implements FormsInterface {
 		$ref  = $this->pages[$id_slug];
 		$meta = $this->menu_groups[$ref['group']]['pages'][$ref['page']]['meta'];
 
-		$schema   = $this->base_options->get_schema();
+		$internalSchema = $this->base_options->_get_schema_internal();
+		$schema         = array();
+		$schemaDefaults = array();
+		foreach ($internalSchema as $key => $bucketed) {
+			if (!is_array($bucketed)) {
+				continue;
+			}
+			$coerced      = $bucketed;
+			$schema[$key] = array(
+				'sanitize' => $coerced['sanitize'][ValidatorPipelineService::BUCKET_SCHEMA] ?? array(),
+				'validate' => $coerced['validate'][ValidatorPipelineService::BUCKET_SCHEMA] ?? array(),
+			);
+			if (array_key_exists('default', $coerced)) {
+				$schemaDefaults[$key] = $coerced['default'];
+			}
+		}
 		$group    = $this->main_option . '_group';
 		$options  = $this->_do_get_option($this->main_option, array());
 		$sections = $this->sections[$ref['page']] ?? array();
@@ -476,26 +492,26 @@ class AdminSettings implements FormsInterface {
 		$effective_values = $this->message_handler->get_effective_values($options);
 
 		$rendered_content = $this->_render_default_sections_wrapper($id_slug, $sections, $effective_values);
-		$submit_controls  = $this->getSubmitControlsForPage($id_slug);
+		$submit_controls  = $this->get_submit_controls_for_page($id_slug);
 
 		$payload = array(
-		    ...($context ?? array()),
-		    'heading'     => $meta['heading']     ?? '',
-		    'description' => $meta['description'] ?? '',
-		    ...array(
-		        'group'             => $group,
-		        'page_slug'         => $id_slug,
-		        'page_meta'         => $meta,
-		        'schema'            => $schema,
-		        'options'           => $options,
-		        'section_meta'      => $sections,
-		        'values'            => $effective_values,
-		        'content'           => $rendered_content,
-		        'submit_controls'   => $submit_controls,
-		        'render_submit'     => fn (): string => $this->renderSubmitControls($id_slug, $submit_controls),
-		        'messages_by_field' => $this->message_handler->get_all_messages(),
-		    ),
+			...($context ?? array()),
+			'heading'           => $meta['heading']     ?? '',
+			'description'       => $meta['description'] ?? '',
+			'schema'            => $schema,
+			'schema_defaults'   => $schemaDefaults,
+			'group'             => $group,
+			'page_slug'         => $id_slug,
+			'page_meta'         => $meta,
+			'options'           => $options,
+			'section_meta'      => $sections,
+			'values'            => $effective_values,
+			'content'           => $rendered_content,
+			'submit_controls'   => $submit_controls,
+			'render_submit'     => fn (): string => $this->render_submit_controls($id_slug, $submit_controls),
+			'messages_by_field' => $this->message_handler->get_all_messages(),
 		);
+
 		$this->logger->debug('admin_settings.render.payload', array(
 		    'page'     => $id_slug,
 		    'heading'  => $payload['heading'],

@@ -223,6 +223,44 @@ final class RegisterOptionsUtilityTest extends PluginLibTestCase {
 	}
 
 	/**
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::_register_internal_schema
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::get_schema
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::_get_schema_internal
+	 */
+	public function test_get_schema_omits_component_callables(): void {
+		$opts = RegisterOptions::site('component_visibility_example');
+
+		$opts->_register_internal_schema(array(
+			'field_alpha' => array(
+				'sanitize' => array(
+					ValidatorPipelineService::BUCKET_COMPONENT => array('strtoupper'),
+					ValidatorPipelineService::BUCKET_SCHEMA    => array('trim'),
+				),
+				'validate' => array(
+					ValidatorPipelineService::BUCKET_COMPONENT => array('ctype_alpha'),
+					ValidatorPipelineService::BUCKET_SCHEMA    => array('is_string'),
+				),
+			),
+		));
+
+		$exported = $opts->get_schema();
+		self::assertArrayHasKey('field_alpha', $exported);
+		self::assertSame(array('trim'), $exported['field_alpha']['sanitize']);
+		self::assertSame(array('is_string'), $exported['field_alpha']['validate']);
+
+		$internal = $opts->_get_schema_internal();
+		self::assertArrayHasKey('field_alpha', $internal);
+		self::assertSame(
+			array('strtoupper'),
+			$internal['field_alpha']['sanitize'][ValidatorPipelineService::BUCKET_COMPONENT]
+		);
+		self::assertSame(
+			array('ctype_alpha'),
+			$internal['field_alpha']['validate'][ValidatorPipelineService::BUCKET_COMPONENT]
+		);
+	}
+
+	/**
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::register_schema
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::get_schema
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::_get_schema_internal

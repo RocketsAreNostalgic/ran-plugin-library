@@ -3,14 +3,14 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\Tests\Unit\Forms\TestHelpers;
 
-use Ran\PluginLib\Forms\FormsBaseTrait;
-use Ran\PluginLib\Forms\FormsService;
-use Ran\PluginLib\Forms\Renderer\FormElementRenderer;
-use Ran\PluginLib\Forms\Renderer\FormMessageHandler;
-use Ran\PluginLib\Forms\Component\ComponentLoader;
-use Ran\PluginLib\Forms\Component\ComponentManifest;
-use Ran\PluginLib\Options\RegisterOptions;
 use Ran\PluginLib\Util\CollectingLogger;
+use Ran\PluginLib\Options\RegisterOptions;
+use Ran\PluginLib\Forms\Renderer\FormMessageHandler;
+use Ran\PluginLib\Forms\Renderer\FormElementRenderer;
+use Ran\PluginLib\Forms\FormsService;
+use Ran\PluginLib\Forms\FormsBaseTrait;
+use Ran\PluginLib\Forms\Component\ComponentManifest;
+use Ran\PluginLib\Forms\Component\ComponentLoader;
 
 /**
  * Minimal concrete harness exposing FormsBaseTrait internals for testing.
@@ -38,15 +38,15 @@ final class TestHarness {
 		// no-op for tests
 	}
 
-	public function makeUpdateFunction(): callable {
+	public function make_update_function(): callable {
 		return $this->_create_update_function();
 	}
 
-	public function getSubmitControlsForPage(string $container_id): array {
+	public function get_submit_controls_for_page(string $container_id): array {
 		return $this->submit_controls[$container_id] ?? array();
 	}
 
-	public function debugSubmitControls(): array {
+	public function debug_submit_controls(): array {
 		return $this->submit_controls;
 	}
 

@@ -3,11 +3,11 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\Tests\Unit\Forms;
 
-use PHPUnit\Framework\TestCase;
-use Ran\PluginLib\Tests\Unit\Forms\TestHelpers\TestHarness;
-use Ran\PluginLib\Util\CollectingLogger;
-use Ran\PluginLib\Util\ExpectLogTrait;
 use WP_Mock;
+use Ran\PluginLib\Util\ExpectLogTrait;
+use Ran\PluginLib\Util\CollectingLogger;
+use Ran\PluginLib\Tests\Unit\Forms\TestHelpers\TestHarness;
+use PHPUnit\Framework\TestCase;
 
 /**
  * @covers \Ran\PluginLib\Forms\FormsBaseTrait
@@ -38,7 +38,7 @@ final class FormsBaseTraitSubmitControlsTest extends TestCase {
 	}
 
 	public function test_submit_controls_zone_update_records_metadata(): void {
-		$update = $this->subject->makeUpdateFunction();
+		$update = $this->subject->make_update_function();
 
 		$update('submit_controls_zone', array(
 			'container_id' => 'settings-page',
@@ -47,7 +47,7 @@ final class FormsBaseTraitSubmitControlsTest extends TestCase {
 			'after'        => static fn (): string => '<p>after</p>',
 		));
 
-		$payload = $this->subject->getSubmitControlsForPage('settings-page');
+		$payload = $this->subject->get_submit_controls_for_page('settings-page');
 
 		self::assertSame('primary-controls', $payload['zone_id'] ?? null);
 		self::assertIsCallable($payload['before']);
@@ -56,7 +56,7 @@ final class FormsBaseTraitSubmitControlsTest extends TestCase {
 	}
 
 	public function test_submit_controls_set_registers_controls(): void {
-		$update = $this->subject->makeUpdateFunction();
+		$update = $this->subject->make_update_function();
 
 		$update('submit_controls_zone', array(
 			'container_id' => 'settings-page',
@@ -84,7 +84,7 @@ final class FormsBaseTraitSubmitControlsTest extends TestCase {
 			),
 		));
 
-		$payload  = $this->subject->getSubmitControlsForPage('settings-page');
+		$payload  = $this->subject->get_submit_controls_for_page('settings-page');
 		$controls = $payload['controls'] ?? array();
 
 		self::assertCount(2, $controls);
@@ -93,7 +93,7 @@ final class FormsBaseTraitSubmitControlsTest extends TestCase {
 	}
 
 	public function test_submit_controls_set_without_zone_logs_warning(): void {
-		$update = $this->subject->makeUpdateFunction();
+		$update = $this->subject->make_update_function();
 
 		$update('submit_controls_set', array(
 			'container_id' => 'settings-page',
@@ -105,7 +105,7 @@ final class FormsBaseTraitSubmitControlsTest extends TestCase {
 	}
 
 	public function test_submit_controls_set_with_invalid_payload_logs_warning(): void {
-		$update = $this->subject->makeUpdateFunction();
+		$update = $this->subject->make_update_function();
 
 		$update('submit_controls_zone', array(
 			'container_id' => 'settings-page',
@@ -124,6 +124,6 @@ final class FormsBaseTraitSubmitControlsTest extends TestCase {
 	}
 
 	public function test_get_submit_controls_for_page_defaults_to_empty_array(): void {
-		self::assertSame(array(), $this->subject->getSubmitControlsForPage('unknown'));
+		self::assertSame(array(), $this->subject->get_submit_controls_for_page('unknown'));
 	}
 }
