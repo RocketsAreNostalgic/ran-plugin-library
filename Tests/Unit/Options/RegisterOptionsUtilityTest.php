@@ -973,7 +973,7 @@ final class RegisterOptionsUtilityTest extends PluginLibTestCase {
 		$this->assertFalse($opts->has_option('any_key'));
 		$this->assertFalse($opts->get_option('any_key'));
 		// With logger injected at construction, _read_main_option runs during:
-		// 1) constructor, 2) factory re-read in ::site(), 3) explicit refresh() below
-		$this->expectLog('debug', 'RegisterOptions: _read_main_option completed', 3);
+		// 1) constructor, 2) explicit refresh() below
+		$this->expectLog('debug', 'RegisterOptions: _read_main_option completed', 2);
 	}
 }

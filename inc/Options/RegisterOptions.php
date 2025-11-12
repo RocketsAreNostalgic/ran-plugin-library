@@ -232,10 +232,7 @@ class RegisterOptions {
 	 * @return static
 	 */
 	public static function site(string $option_name, bool $autoload_on_create = true, ?Logger $logger = null): static {
-		$instance = new static($option_name, StorageContext::forSite(), $autoload_on_create, $logger);
-		// Ensure a second read to align with historical logging expectations in tests.
-		$instance->refresh_options();
-		return $instance;
+		return new static($option_name, StorageContext::forSite(), $autoload_on_create, $logger);
 	}
 
 	/**
