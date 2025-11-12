@@ -266,21 +266,27 @@ class UserSettings implements FormsInterface {
 
 		$previous_options = $opts->get_options();
 
-		$schema = $opts->get_schema();
+		$schema = $opts->_get_schema_internal();
 		if (!empty($schema)) {
 			$session = $this->get_form_session();
 			if ($session !== null) {
-				$mergedSchema = array();
-				foreach ($schema as $field_id => $rules) {
-					$componentAlias = $this->_lookup_component_alias($field_id);
-					if ($componentAlias !== null) {
-						$mergedSchema[$field_id] = $session->merge_schema_with_defaults($componentAlias, is_array($rules) ? $rules : array());
-					} else {
-						$mergedSchema[$field_id] = $rules;
-					}
+				$bucketed = $this->_assemble_bucketed_schema($session);
+				if (!empty($bucketed['schema'])) {
+					$queued = $this->_drain_queued_component_validators();
+					$opts->_register_internal_schema($bucketed['schema'], $bucketed['metadata'], $queued);
 				}
-				$opts->register_schema($mergedSchema);
 			}
+			$opts->_register_internal_schema($schema);
+			$defaults = array();
+			foreach ($schema as $normalizedKey => $entry) {
+				if (\is_array($entry) && array_key_exists('default', $entry)) {
+					$defaults[$normalizedKey] = array('default' => $entry['default']);
+				}
+			}
+			if (!empty($defaults)) {
+				$opts->register_schema($defaults);
+			}
+			$this->_flush_queued_component_validators();
 		}
 
 		// Stage options and check for validation failures

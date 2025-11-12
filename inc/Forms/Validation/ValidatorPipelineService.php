@@ -12,9 +12,9 @@ namespace Ran\PluginLib\Forms\Validation;
 use Ran\PluginLib\Util\Logger;
 
 final class ValidatorPipelineService {
-	public const BUCKET_COMPONENT = 'component';
-	public const BUCKET_SCHEMA    = 'schema';
-
+	public const BUCKET_COMPONENT           = 'component';
+	public const BUCKET_SCHEMA              = 'schema';
+	public const CLOSURE_PLACEHOLDER_PREFIX = '@closure ';
 	/**
 	 * @var string[]
 	 */
@@ -43,6 +43,10 @@ final class ValidatorPipelineService {
 			return array();
 		}
 
+		if (\is_string($callables) && str_starts_with($callables, self::CLOSURE_PLACEHOLDER_PREFIX)) {
+			return array();
+		}
+
 		if (\is_callable($callables)) {
 			return array($callables);
 		}
@@ -52,12 +56,17 @@ final class ValidatorPipelineService {
 		}
 
 		foreach ($callables as $index => $callable) {
+			if (\is_string($callable) && str_starts_with($callable, self::CLOSURE_PLACEHOLDER_PREFIX)) {
+				continue;
+			}
 			if (!\is_callable($callable)) {
 				throw new \InvalidArgumentException("{$hostLabel}: Schema for key '{$optionKey}' has non-callable {$field} at index {$index}.");
 			}
 		}
 
-		return array_values($callables);
+		return array_values(array_filter($callables, static function ($callable): bool {
+			return !(\is_string($callable) && str_starts_with($callable, self::CLOSURE_PLACEHOLDER_PREFIX));
+		}));
 	}
 
 	/**
@@ -109,9 +118,7 @@ final class ValidatorPipelineService {
 	public function merge_bucketed_callables(array $existing, array $incoming): array {
 		$merged                         = $this->create_bucket_map();
 		$merged[self::BUCKET_COMPONENT] = array_merge($existing[self::BUCKET_COMPONENT], $incoming[self::BUCKET_COMPONENT]);
-		$merged[self::BUCKET_SCHEMA]    = !empty($incoming[self::BUCKET_SCHEMA])
-			? array_values($incoming[self::BUCKET_SCHEMA])
-			: $existing[self::BUCKET_SCHEMA];
+		$merged[self::BUCKET_SCHEMA]    = array_merge($existing[self::BUCKET_SCHEMA], $incoming[self::BUCKET_SCHEMA]);
 
 		return $merged;
 	}

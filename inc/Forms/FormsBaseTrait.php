@@ -55,12 +55,70 @@ trait FormsBaseTrait {
 	/** @var array<string, array{zone_id:string, before:?callable, after:?callable, controls: array<int, array{id:string, label:string, component:string, component_context:array<string,mixed>, order:int}>}> */
 	protected array $submit_controls = array();
 
+	/** @var array<string, array<int, callable>> */
+	private array $__queued_component_validators = array();
+
 
 	// Template override system removed - now handled by FormsTemplateOverrideResolver in FormsServiceSession
 
 	private int $__section_index = 0;
 	private int $__field_index   = 0;
 	private int $__group_index   = 0;
+
+	/**
+	 * Export a normalized list of field metadata captured via builder updates.
+	 *
+	 * Each entry includes the container/section identifiers, optional group details,
+	 * and the raw field definition that was persisted by the fluent builders. This is
+	 * leveraged by schema-derivation helpers so they can operate on the canonical
+	 * field store without duplicating state.
+	 *
+	 * @return array<int, array{
+	 *     container_id:string,
+	 *     section_id:string,
+	 *     group_id:?string,
+	 *     field:array<string,mixed>,
+	 *     group?:array<string,mixed>
+	 * }>
+	 */
+	protected function _get_registered_field_metadata(): array {
+		$entries = array();
+
+		foreach ($this->fields as $container_id => $sections) {
+			foreach ($sections as $section_id => $fields) {
+				foreach ($fields as $field) {
+					$field_entry = is_array($field) ? $field : array();
+					$entries[]   = array(
+						'container_id' => (string) $container_id,
+						'section_id'   => (string) $section_id,
+						'group_id'     => null,
+						'field'        => $field_entry,
+					);
+				}
+			}
+		}
+
+		foreach ($this->groups as $container_id => $sections) {
+			foreach ($sections as $section_id => $groups) {
+				foreach ($groups as $group_id => $group) {
+					$group_fields = isset($group['fields']) && is_array($group['fields']) ? $group['fields'] : array();
+					foreach ($group_fields as $field) {
+						$field_entry = is_array($field) ? $field : array();
+						$group_entry = is_array($group) ? $group : array();
+						$entries[]   = array(
+							'container_id' => (string) $container_id,
+							'section_id'   => (string) $section_id,
+							'group_id'     => (string) $group_id,
+							'field'        => $field_entry,
+							'group'        => $group_entry,
+						);
+					}
+				}
+			}
+		}
+
+		return $entries;
+	}
 
 
 	/**
@@ -1451,30 +1509,156 @@ trait FormsBaseTrait {
 	 * @return void
 	 */
 	protected function _inject_component_validators(string $field_id, string $component): void {
-		// Get component validator factories from ComponentManifest
+		$field_key = $this->base_options->normalize_schema_key($field_id);
+		$defaults  = $this->components->get_defaults_for($component);
+		$context   = is_array($defaults['context'] ?? null) ? $defaults['context'] : array();
+		$submits   = (bool) ($context['submits_data'] ?? false);
+
 		$validator_factories = $this->components->validator_factories();
-
-		if (isset($validator_factories[$component])) {
-			$validator_factory = $validator_factories[$component];
-
-			// Create the validator instance
-			if (is_callable($validator_factory)) {
-				$validator_instance = $validator_factory();
-
-				// Create a callable wrapper that adapts ValidatorInterface to RegisterOptions signature
-				$validator_callable = function($value, callable $emitWarning) use ($validator_instance): bool {
-					return $validator_instance->validate($value, array(), $emitWarning);
-				};
-
-				// Register the validator as a component-sourced validator
-				$this->base_options->add_component_validator($field_id, $validator_callable);
-
-				$this->logger->debug(static::class . ': Component validator injected', array(
+		$factory             = $validator_factories[$component] ?? null;
+		if (!is_callable($factory)) {
+			if ($submits) {
+				$this->logger->error(static::class . ': Component missing validator for data-submitting field', array(
 					'field_id'  => $field_id,
-					'component' => $component
+					'component' => $component,
 				));
+				throw new \UnexpectedValueException(sprintf('Component "%s" must provide a validator for field "%s".', $component, $field_id));
+			}
+			return;
+		}
+
+		$validator_instance = $factory();
+		$validator_callable = function($value, callable $emitWarning) use ($validator_instance): bool {
+			return $validator_instance->validate($value, array(), $emitWarning);
+		};
+
+		if ($this->base_options->has_schema_key($field_key)) {
+			$this->base_options->_register_internal_schema(
+				array($field_key => array()),
+				array(),
+				array($field_key => array($validator_callable))
+			);
+			$this->logger->debug(static::class . ': Component validator injected', array(
+				'field_id'  => $field_id,
+				'component' => $component,
+			));
+			return;
+		}
+
+		$this->__queued_component_validators[$field_key][] = $validator_callable;
+		$this->logger->debug(static::class . ': Component validator queued pending schema', array(
+			'field_id'  => $field_id,
+			'component' => $component,
+		));
+	}
+
+	/**
+	 * Consume any queued component validators once schema entries exist.
+	 */
+	protected function _flush_queued_component_validators(): void {
+		if (empty($this->__queued_component_validators)) {
+			return;
+		}
+		foreach ($this->__queued_component_validators as $field_key => $callables) {
+			if (!$this->base_options->has_schema_key($field_key)) {
+				continue;
+			}
+			$this->base_options->_register_internal_schema(
+				array($field_key => array()),
+				array(),
+				array($field_key => array_values($callables))
+			);
+		}
+		$this->__queued_component_validators = array();
+	}
+
+	/**
+	 * Retrieve and clear queued validators awaiting schema registration.
+	 *
+	 * @internal Used by settings flows to register bucketed schema fragments.
+	 *
+	 * @return array<string, array<int, callable>>
+	 */
+	protected function _drain_queued_component_validators(): array {
+		$buffer                              = $this->__queued_component_validators;
+		$this->__queued_component_validators = array();
+		return $buffer;
+	}
+
+	/**
+	 * Build bucketed schema fragments and metadata for registered fields.
+	 *
+	 * @internal Consumed by settings facades during auto-schema backfill.
+	 *
+	 * @param FormsServiceSession $session
+	 * @return array{
+	 *     schema: array<string, array{
+	 *         sanitize: array{component: array<int, callable>, schema: array<int, callable>},
+	 *         validate: array{component: array<int, callable>, schema: array<int, callable>},
+	 *         default?: mixed
+	 *     }>,
+	 *     metadata: array<string, array<string, mixed>>
+	 * }
+	 */
+	protected function _assemble_bucketed_schema(FormsServiceSession $session): array {
+		$bucketedSchema = array();
+		$metadata       = array();
+
+		$manifestCatalogue = $this->components->default_catalogue();
+		$internalSchema    = $this->base_options->_get_schema_internal();
+
+		foreach ($this->_get_registered_field_metadata() as $entry) {
+			$field     = $entry['field'] ?? array();
+			$fieldId   = isset($field['id']) ? (string) $field['id'] : '';
+			$component = isset($field['component']) ? (string) $field['component'] : '';
+			if ($fieldId === '' || $component === '') {
+				continue;
+			}
+
+			$normalizedKey   = $this->base_options->normalize_schema_key($fieldId);
+			$currentEntry    = $internalSchema[$normalizedKey] ?? null;
+			$componentSchema = $field['schema']                ?? array();
+			if (!is_array($componentSchema)) {
+				$componentSchema = array();
+			}
+
+			// When schema already exists, only merge defaults if component buckets remain empty.
+			if (is_array($currentEntry)) {
+				$sanitizeComponents = (array) ($currentEntry['sanitize']['component'] ?? array());
+				$validateComponents = (array) ($currentEntry['validate']['component'] ?? array());
+				if ($sanitizeComponents === array() || $validateComponents === array()) {
+					$merged                         = $session->merge_schema_with_defaults($component, $currentEntry);
+					$bucketedSchema[$normalizedKey] = $merged;
+					$context                        = isset($merged['context'])                        && is_array($merged['context']) ? $merged['context'] : array();
+					$catalogueContext               = isset($manifestCatalogue[$component]['context']) && is_array($manifestCatalogue[$component]['context'])
+						? $manifestCatalogue[$component]['context']
+						: array();
+					$submits = (bool) ($context['submits_data'] ?? ($catalogueContext['submits_data'] ?? false));
+					if ($submits) {
+						$metadata[$normalizedKey]['requires_validator'] = true;
+					}
+				}
+				continue;
+			}
+
+			$merged = $session->merge_schema_with_defaults($component, $componentSchema);
+
+			$bucketedSchema[$normalizedKey] = $merged;
+
+			$context          = isset($merged['context'])                        && is_array($merged['context']) ? $merged['context'] : array();
+			$catalogueContext = isset($manifestCatalogue[$component]['context']) && is_array($manifestCatalogue[$component]['context'])
+				? $manifestCatalogue[$component]['context']
+				: array();
+			$submits = (bool) ($context['submits_data'] ?? ($catalogueContext['submits_data'] ?? false));
+			if ($submits) {
+				$metadata[$normalizedKey]['requires_validator'] = true;
 			}
 		}
+
+		return array(
+			'schema'   => $bucketedSchema,
+			'metadata' => $metadata,
+		);
 	}
 
 	/**

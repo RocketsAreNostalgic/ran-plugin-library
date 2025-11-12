@@ -326,7 +326,7 @@ class RegisterOptions {
 		}
 
 		if (!empty($this->schema)) {
-			$new->register_schema($this->schema);
+			$new->_register_internal_schema($this->schema);
 		}
 
 		return $new;
@@ -446,44 +446,20 @@ class RegisterOptions {
 			return false;
 		}
 
-		$normalized = $this->_normalize_schema_keys($schema);
+		$normalized            = $this->_normalize_schema_keys($schema);
+		$oldSchema             = $this->schema;
+		$newOptions            = $this->options;
+		$changed               = false;
+		$seedKeysApplied       = array();
+		$normalizedKeysApplied = array();
 
-		// Shallow merge rules into existing schema map (prepare locally)
-		// Use normalized rules which have backward compatibility conversion applied
-		$mergedSchema = $this->schema;
-		foreach ($normalized as $key => $incomingRules) {
-			$normalized[$key] = $this->_coerce_schema_entry($incomingRules, $key);
-			if (!isset($mergedSchema[$key])) {
-				$mergedSchema[$key] = $normalized[$key];
-				continue;
-			}
-
-			$existing           = $this->_coerce_schema_entry($mergedSchema[$key], $key);
-			$mergedSchema[$key] = array(
-				'default'  => array_key_exists('default', $normalized[$key]) ? $normalized[$key]['default'] : ($existing['default'] ?? null),
-				'sanitize' => $this->_merge_bucketed_callables($existing['sanitize'], $normalized[$key]['sanitize']),
-				'validate' => $this->_merge_bucketed_callables($existing['validate'], $normalized[$key]['validate']),
-			);
-		}
-
-		foreach ($mergedSchema as $k => $entry) {
-			$mergedSchema[$k] = $this->_coerce_schema_entry($entry, $k);
-		}
-
-		$changed    = false;
-		$newOptions = $this->options;
-		$oldSchema  = $this->schema;
-
-		// Temporarily apply merged schema for sanitize/validate, restore on failure
-		$this->schema = $mergedSchema;
 		try {
-			// Seed defaults for missing keys (prepare locally; exceptions propagate)
-			$toSeed          = array();
-			$seedKeys        = array();
-			$seedKeysApplied = array();
+			$this->_register_internal_schema($normalized);
+
+			$toSeed   = array();
+			$seedKeys = array();
 			foreach ($normalized as $key => $rules) {
-				$has_value = isset($this->options[$key]);
-				if (!$has_value && array_key_exists('default', $rules)) {
+				if (!isset($newOptions[$key]) && array_key_exists('default', $rules)) {
 					$resolved     = $this->_resolve_default_value($rules['default']);
 					$resolved     = $this->_sanitize_and_validate_option($key, $resolved);
 					$toSeed[$key] = $resolved;
@@ -491,7 +467,6 @@ class RegisterOptions {
 				}
 			}
 
-			// Apply write gate prior to mutating in-memory defaults seeding
 			if (!empty($toSeed)) {
 				$ctx    = $this->_get_storage_context();
 				$wcSeed = WriteContext::for_stage_options(
@@ -512,10 +487,8 @@ class RegisterOptions {
 				}
 			}
 
-			// Normalize values for keys covered by schema (operate on local copy)
-			$normalizedKeys        = array();
-			$normalizedChanges     = array();
-			$normalizedKeysApplied = array();
+			$normalizedChanges = array();
+			$normalizedKeys    = array();
 			foreach ($newOptions as $k => $v) {
 				if (isset($normalized[$k])) {
 					$normalizedValue = $this->_sanitize_and_validate_option($k, $v);
@@ -545,31 +518,25 @@ class RegisterOptions {
 				}
 			}
 
-			// Atomic assignment after successful preparation
-			$this->schema  = $mergedSchema;
 			$this->options = $newOptions;
 
-			// Operation-level summary (dev-friendly): seeded/normalized counts (applied only)
 			if ($this->_get_logger()->is_active()) {
-				$seedCount = isset($seedKeysApplied) ? count($seedKeysApplied) : 0;
-				$normCount = isset($normalizedKeysApplied) ? count($normalizedKeysApplied) : 0;
-				$brief     = static function(array $keys): array {
+				$brief = static function(array $keys): array {
 					return count($keys) <= 10 ? $keys : array_slice($keys, 0, 10);
 				};
 				$this->_get_logger()->debug(
 					'RegisterOptions: register_schema summary',
 					array(
-						'seeded'          => $seedCount,
-						'normalized'      => $normCount,
-						'seed_keys'       => $brief($seedKeysApplied ?? array()),
-						'normalized_keys' => $brief($normalizedKeysApplied ?? array())
+						'seeded'          => count($seedKeysApplied),
+						'normalized'      => count($normalizedKeysApplied),
+						'seed_keys'       => $brief($seedKeysApplied),
+						'normalized_keys' => $brief($normalizedKeysApplied)
 					)
 				);
 			}
-			// No implicit persistence here
+
 			return $changed;
 		} catch (\Throwable $e) {
-			// Restore prior schema to avoid partial mutations and rethrow
 			$this->schema = $oldSchema;
 			$this->_get_logger()->error('RegisterOptions: register_schema failed', array('exception' => $e));
 			throw $e;
@@ -994,7 +961,86 @@ class RegisterOptions {
 	 * @return array The schema.
 	 */
 	public function get_schema(): array {
+		return $this->_create_flat_schema_view();
+	}
+
+	/**
+	 * Internal accessor that returns the bucketed schema map.
+	 *
+	 * @internal
+	 *
+	 * @return array<string,array{sanitize:array{component:array<callable>,schema:array<callable>}, validate:array{component:array<callable>,schema:array<callable>}, default?:mixed}>
+	 */
+	public function _get_schema_internal(): array {
 		return $this->schema;
+	}
+
+	/**
+	 * Normalize an option key using internal sanitization rules.
+	 */
+	public function normalize_schema_key(string $key): string {
+		return $this->_do_sanitize_key($key);
+	}
+
+	/**
+	 * Check if schema exists for the provided key (after normalization).
+	 */
+	public function has_schema_key(string $key): bool {
+		$normalized = $this->_do_sanitize_key($key);
+		return isset($this->schema[$normalized]);
+	}
+
+	/**
+	 * Merge bucketed schema entries into the internal schema map.
+	 *
+	 * @internal Consumers should prefer register_schema(); this helper accepts bucketed structures
+	 *           and is used by auto-schema backfill logic.
+	 *
+	 * @param array<string,array{sanitize:array{component:array<callable>,schema:array<callable>}, validate:array{component:array<callable>,schema:array<callable>}, default?:mixed}> $schema
+	 * @param array<string,array<string,mixed>> $metadata Optional meta flags (e.g. ['requires_validator' => true]).
+	 * @param array<string,array<int,callable>> $queuedValidators Component validators queued prior to schema merge.
+ 	 * @return void
+ 	 */
+	public function _register_internal_schema(array $schema, array $metadata = array(), array $queuedValidators = array()): void {
+		if (empty($schema)) {
+			return;
+		}
+
+		foreach ($schema as $key => $entry) {
+			if (!\is_array($entry)) {
+				throw new \InvalidArgumentException('RegisterOptions: _register_internal_schema expects bucketed schema arrays.');
+			}
+
+			$normalized_key    = $this->_do_sanitize_key((string) $key);
+			$entryForCoercion  = $entry;
+			$requiresValidator = false;
+			if (isset($metadata[$normalized_key]) && is_array($metadata[$normalized_key])) {
+				$requiresValidator = (bool) ($metadata[$normalized_key]['requires_validator'] ?? false);
+			}
+
+			$incoming = $this->_coerce_schema_entry($entryForCoercion, $normalized_key);
+
+			if (!isset($this->schema[$normalized_key])) {
+				$this->schema[$normalized_key] = $incoming;
+			} else {
+				$existing                      = $this->_coerce_schema_entry($this->schema[$normalized_key], $normalized_key);
+				$this->schema[$normalized_key] = array(
+					'default'  => array_key_exists('default', $incoming) ? $incoming['default'] : ($existing['default'] ?? null),
+					'sanitize' => $this->_merge_bucketed_callables($existing['sanitize'], $incoming['sanitize']),
+					'validate' => $this->_merge_bucketed_callables($existing['validate'], $incoming['validate']),
+				);
+			}
+
+			if (!empty($queuedValidators[$normalized_key])) {
+				$this->schema[$normalized_key] = $this->_coerce_schema_entry($this->schema[$normalized_key], $normalized_key);
+				$componentBucket               = &$this->schema[$normalized_key]['validate'][self::BUCKET_COMPONENT];
+				$componentBucket               = array_merge($queuedValidators[$normalized_key], $componentBucket);
+			}
+
+			if ($requiresValidator) {
+				$this->_assert_internal_validator_presence($normalized_key, $this->schema[$normalized_key]);
+			}
+		}
 	}
 
 	/**
@@ -1568,28 +1614,25 @@ class RegisterOptions {
 			if (array_key_exists('sanitize', $ruleSet)) {
 				$sanitizeField = $ruleSet['sanitize'];
 				if (\is_array($sanitizeField) && $this->_is_bucket_map($sanitizeField)) {
-					foreach (self::BUCKET_ORDER as $bucket) {
-						$entry['sanitize'][$bucket] = $this->_normalize_callable_field($sanitizeField[$bucket] ?? null, 'sanitize', $nKey);
-					}
-				} else {
-					$entry['sanitize'][self::BUCKET_SCHEMA] = $this->_normalize_callable_field($sanitizeField, 'sanitize', $nKey);
+					$this->_get_logger()->warning('RegisterOptions: register_schema disallows component sanitize buckets', array('key' => $nKey));
+					throw new \InvalidArgumentException("RegisterOptions: Schema for key '{$nKey}' must not provide bucketed sanitize entries.");
 				}
+				$entry['sanitize'][self::BUCKET_SCHEMA] = $this->_normalize_callable_field($sanitizeField, 'sanitize', $nKey);
 			}
 
 			if (array_key_exists('validate', $ruleSet)) {
 				$validateField = $ruleSet['validate'];
 				if (\is_array($validateField) && $this->_is_bucket_map($validateField)) {
-					foreach (self::BUCKET_ORDER as $bucket) {
-						$entry['validate'][$bucket] = $this->_normalize_callable_field($validateField[$bucket] ?? null, 'validate', $nKey);
-					}
-				} else {
-					$entry['validate'][self::BUCKET_SCHEMA] = $this->_normalize_callable_field($validateField, 'validate', $nKey);
+					$this->_get_logger()->warning('RegisterOptions: register_schema disallows component validate buckets', array('key' => $nKey));
+					throw new \InvalidArgumentException("RegisterOptions: Schema for key '{$nKey}' must not provide bucketed validate entries.");
 				}
+				$entry['validate'][self::BUCKET_SCHEMA] = $this->_normalize_callable_field($validateField, 'validate', $nKey);
 			}
 
 			if (array_key_exists('default', $ruleSet)) {
 				$entry['default'] = $ruleSet['default'];
 			}
+
 			$normalized[$nKey] = $entry;
 		}
 		$this->_get_logger()->debug('RegisterOptions: _normalize_schema_keys completed', array('count' => count($normalized)));
@@ -1597,65 +1640,103 @@ class RegisterOptions {
 	}
 
 	/**
-	 * Register a component-sourced validator for the given option key.
+	 * Ensure required validator presence for auto-generated schema entries.
 	 */
-	public function add_component_validator(string $key, callable $validator): self {
-		$normalized_key = $this->_do_sanitize_key($key);
-		if (!isset($this->schema[$normalized_key])) {
-			throw new \InvalidArgumentException("RegisterOptions: No schema defined for option '{$normalized_key}'.");
+	private function _assert_internal_validator_presence(string $normalized_key, array $entry): void {
+		$componentValidators = $entry['validate'][self::BUCKET_COMPONENT] ?? array();
+		$schemaValidators    = $entry['validate'][self::BUCKET_SCHEMA]    ?? array();
+		if (!empty($componentValidators) || !empty($schemaValidators)) {
+			return;
 		}
 
-		$this->schema[$normalized_key] = $this->_coerce_schema_entry($this->schema[$normalized_key], $normalized_key);
-		$bucket                        = &$this->schema[$normalized_key]['validate'][self::BUCKET_COMPONENT];
-		array_unshift($bucket, $validator);
-
-		return $this;
+		$this->_get_logger()->error('RegisterOptions: Validator required but missing for option', array('key' => $normalized_key));
+		throw new \UnexpectedValueException(sprintf('RegisterOptions: Option "%s" requires at least one validator.', $normalized_key));
 	}
 
 	/**
-	 * Register a schema-sourced validator for the given option key.
+	 * Create a flattened schema view with buckets merged for external consumers.
 	 */
-	public function add_schema_validator(string $key, callable $validator): self {
-		$normalized_key = $this->_do_sanitize_key($key);
-		if (!isset($this->schema[$normalized_key])) {
-			throw new \InvalidArgumentException("RegisterOptions: No schema defined for option '{$normalized_key}'.");
+	private function _create_flat_schema_view(): array {
+		$flat = array();
+		foreach ($this->schema as $key => $entry) {
+			$coerced           = $this->_coerce_schema_entry($entry, (string) $key);
+			$componentSanitize = $coerced['sanitize'][self::BUCKET_COMPONENT] ?? array();
+			$schemaSanitize    = $coerced['sanitize'][self::BUCKET_SCHEMA]    ?? array();
+			$componentValidate = $coerced['validate'][self::BUCKET_COMPONENT] ?? array();
+			$schemaValidate    = $coerced['validate'][self::BUCKET_SCHEMA]    ?? array();
+
+			$sanitizeMerged = array_merge($componentSanitize, $schemaSanitize);
+			$validateMerged = array_merge($componentValidate, $schemaValidate);
+
+			$flattened = array(
+				'sanitize' => $this->_prepare_callables_for_export($sanitizeMerged),
+				'validate' => $this->_prepare_callables_for_export($validateMerged),
+			);
+			if (array_key_exists('default', $coerced)) {
+				$flattened['default'] = $coerced['default'];
+			}
+
+			$flat[$key] = $flattened;
 		}
 
-		$this->schema[$normalized_key]                                    = $this->_coerce_schema_entry($this->schema[$normalized_key], $normalized_key);
-		$this->schema[$normalized_key]['validate'][self::BUCKET_SCHEMA][] = $validator;
-
-		return $this;
+		return $flat;
 	}
 
 	/**
-	 * Register a component-sourced sanitizer for the given option key.
+	 * Prepare callable array for developer export.
+	 *
+	 * @param  array<int,mixed> $callables
+	 * @return array<int,mixed>
 	 */
-	public function add_component_sanitizer(string $key, callable $sanitizer): self {
-		$normalized_key = $this->_do_sanitize_key($key);
-		if (!isset($this->schema[$normalized_key])) {
-			throw new \InvalidArgumentException("RegisterOptions: No schema defined for option '{$normalized_key}'.");
-		}
-
-		$this->schema[$normalized_key] = $this->_coerce_schema_entry($this->schema[$normalized_key], $normalized_key);
-		$bucket                        = &$this->schema[$normalized_key]['sanitize'][self::BUCKET_COMPONENT];
-		array_unshift($bucket, $sanitizer);
-
-		return $this;
+	private function _prepare_callables_for_export(array $callables): array {
+		return array_values(array_map(function ($callable) {
+			return $this->_export_schema_callable($callable);
+		}, $callables));
 	}
 
 	/**
-	 * Register a schema-sourced sanitizer for the given option key.
+	 * Convert a callable into an export-safe representation.
+	 *
+	 * @param  mixed $callable
+	 * @return mixed
 	 */
-	public function add_schema_sanitizer(string $key, callable $sanitizer): self {
-		$normalized_key = $this->_do_sanitize_key($key);
-		if (!isset($this->schema[$normalized_key])) {
-			throw new \InvalidArgumentException("RegisterOptions: No schema defined for option '{$normalized_key}'.");
+	private function _export_schema_callable(mixed $callable): mixed {
+		if (\is_string($callable)) {
+			return $callable;
 		}
 
-		$this->schema[$normalized_key]                                    = $this->_coerce_schema_entry($this->schema[$normalized_key], $normalized_key);
-		$this->schema[$normalized_key]['sanitize'][self::BUCKET_SCHEMA][] = $sanitizer;
+		if (\is_array($callable) && isset($callable[0], $callable[1])) {
+			if (\is_string($callable[0])) {
+				return $callable[0] . '::' . (string) $callable[1];
+			}
+			if (\is_object($callable[0])) {
+				return $this->_export_placeholder_for_callable($callable);
+			}
+		}
 
-		return $this;
+		if ($callable instanceof \Closure) {
+			return $this->_export_placeholder_for_callable($callable);
+		}
+
+		if (\is_object($callable) && method_exists($callable, '__invoke')) {
+			return $this->_export_placeholder_for_callable($callable);
+		}
+
+		return $callable;
+	}
+
+	/**
+	 * Create a descriptive placeholder string for non-portable callables and log guidance.
+	 *
+	 * @param  mixed $callable
+	 * @return string
+	 */
+	private function _export_placeholder_for_callable(mixed $callable): string {
+		$description = $this->_describe_callable($callable);
+		$note        = ' (NOTE: Consider using a named function or Class::method for portability.)';
+		$placeholder = ValidatorPipelineService::CLOSURE_PLACEHOLDER_PREFIX . $description . $note;
+		$this->_get_logger()->info('RegisterOptions: Exported closure placeholder for schema callable, consider using a named function or Class::method for portability.', array('callable' => $description));
+		return $placeholder;
 	}
 
 	/**

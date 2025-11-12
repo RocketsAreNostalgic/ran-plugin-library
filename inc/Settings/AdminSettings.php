@@ -583,23 +583,27 @@ class AdminSettings implements FormsInterface {
 		$scope    = $this->_do_is_network_admin() ? OptionScope::Network : OptionScope::Site;
 		$resolved = $this->_resolve_context(array('scope' => $scope));
 		$tmp      = $this->base_options->with_context($resolved['storage']);
-		$schema   = $this->base_options->get_schema();
+		$schema   = $this->base_options->_get_schema_internal();
 		if (!empty($schema)) {
 			$session = $this->get_form_session();
 			if ($session !== null) {
-				$mergedSchema = array();
-				foreach ($schema as $field_id => $rules) {
-					$componentAlias = $this->_lookup_component_alias($field_id);
-					if ($componentAlias !== null) {
-						$mergedSchema[$field_id] = $session->merge_schema_with_defaults($componentAlias, is_array($rules) ? $rules : array());
-					} else {
-						$mergedSchema[$field_id] = $rules;
-					}
+				$bucketed = $this->_assemble_bucketed_schema($session);
+				if (!empty($bucketed['schema'])) {
+					$queued = $this->_drain_queued_component_validators();
+					$tmp->_register_internal_schema($bucketed['schema'], $bucketed['metadata'], $queued);
 				}
-				$tmp->register_schema($mergedSchema);
-			} else {
-				$tmp->register_schema($schema);
 			}
+			$tmp->_register_internal_schema($schema);
+			$defaults = array();
+			foreach ($schema as $normalizedKey => $entry) {
+				if (\is_array($entry) && array_key_exists('default', $entry)) {
+					$defaults[$normalizedKey] = array('default' => $entry['default']);
+				}
+			}
+			if (!empty($defaults)) {
+				$tmp->register_schema($defaults);
+			}
+			$this->_flush_queued_component_validators();
 		}
 		$policy = $this->base_options->get_write_policy();
 		if ($policy !== null) {
