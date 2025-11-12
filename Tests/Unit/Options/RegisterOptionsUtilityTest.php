@@ -5,14 +5,15 @@ declare(strict_types=1);
 namespace Ran\PluginLib\Tests\Unit\Options;
 
 use WP_Mock;
-use Ran\PluginLib\Util\Logger;
 use Ran\PluginLib\Util\Validate;
-use Ran\PluginLib\Options\OptionScope;
+use Ran\PluginLib\Util\Logger;
 use Ran\PluginLib\Util\ExpectLogTrait;
-use Ran\PluginLib\Options\RegisterOptions;
 use Ran\PluginLib\Tests\Unit\PluginLibTestCase;
 use Ran\PluginLib\Options\Storage\StorageContext;
+use Ran\PluginLib\Options\RegisterOptions;
 use Ran\PluginLib\Options\Policy\WritePolicyInterface;
+use Ran\PluginLib\Options\OptionScope;
+use Ran\PluginLib\Forms\Validation\ValidatorPipelineService;
 
 /**
  * Tests for RegisterOptions utility and edge case functionality.
@@ -29,6 +30,13 @@ final class RegisterOptionsUtilityTest extends PluginLibTestCase {
 		WP_Mock::userFunction('get_user_option')->andReturn(array())->byDefault();
 		WP_Mock::userFunction('get_user_meta')->andReturn(array())->byDefault();
 		WP_Mock::userFunction('wp_load_alloptions')->andReturn(array())->byDefault();
+		WP_Mock::userFunction('sanitize_html_class')->andReturnUsing(
+			static function ($class, $fallback = ''): string {
+				$class    = (string) $class;
+				$fallback = (string) $fallback;
+				return $class !== '' ? $class : $fallback;
+			}
+		);
 
 		// Mock sanitize_key to properly handle key normalization
 		WP_Mock::userFunction('sanitize_key')->andReturnUsing(function($key) {
@@ -51,6 +59,296 @@ final class RegisterOptionsUtilityTest extends PluginLibTestCase {
 		WP_Mock::onFilter('ran/plugin_lib/options/allow_persist/scope/site')
 			->with(\WP_Mock\Functions::type('bool'), \WP_Mock\Functions::type('array'))
 			->reply(true);
+	}
+
+	/**
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::get_schema
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::_get_schema_internal
+	 */
+	public function test_get_schema_returns_empty_when_no_schema_registered(): void {
+		$opts = RegisterOptions::site('no_schema_example');
+
+		self::assertSame(array(), $opts->get_schema());
+		self::assertSame(array(), $opts->_get_schema_internal());
+	}
+
+	/**
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::register_schema
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::get_schema
+	 */
+	public function test_get_schema_handles_mixed_sanitizers_and_validators(): void {
+		$opts = RegisterOptions::site('mixed_schema_example');
+		/** @var WritePolicyInterface|\PHPUnit\Framework\MockObject\MockObject $policy */
+		$policy = $this->createMock(WritePolicyInterface::class);
+		$policy->method('allow')->willReturn(true);
+		$opts->with_policy($policy);
+
+		$titleSanitizer = static function ($value, ?callable $emitNotice = null): string {
+			$trimmed = trim((string) $value);
+			if ($emitNotice !== null) {
+				$emitNotice('title sanitized');
+			}
+			return $trimmed;
+		};
+
+		$titleValidator = static function ($value, ?callable $emitWarning = null): bool {
+			if ($value === '') {
+				if ($emitWarning !== null) {
+					$emitWarning('Title is required');
+				}
+				return false;
+			}
+			return true;
+		};
+
+		$flagValidator = static function ($value, ?callable $emitWarning = null): bool {
+			if (!\in_array($value, array('yes', 'no'), true)) {
+				if ($emitWarning !== null) {
+					$emitWarning('Invalid flag value');
+				}
+				return false;
+			}
+			return true;
+		};
+
+		$opts->register_schema(array(
+			'title' => array(
+				'default'  => 'Hello World',
+				'sanitize' => $titleSanitizer,
+				'validate' => $titleValidator,
+			),
+			'count' => array(
+				'sanitize' => 'intval',
+				'validate' => 'is_int',
+			),
+			'flag' => array(
+				'validate' => $flagValidator,
+			),
+		));
+
+		$exported = $opts->get_schema();
+
+		self::assertArrayHasKey('title', $exported);
+		self::assertSame('Hello World', $exported['title']['default']);
+		self::assertCount(1, $exported['title']['sanitize']);
+		self::assertStringStartsWith(ValidatorPipelineService::CLOSURE_PLACEHOLDER_PREFIX, $exported['title']['sanitize'][0]);
+		self::assertStringContainsString('Consider using a named function or Class::method for portability.', $exported['title']['sanitize'][0]);
+		self::assertCount(1, $exported['title']['validate']);
+		self::assertStringStartsWith(ValidatorPipelineService::CLOSURE_PLACEHOLDER_PREFIX, $exported['title']['validate'][0]);
+		self::assertStringContainsString('Consider using a named function or Class::method for portability.', $exported['title']['validate'][0]);
+
+		self::assertArrayHasKey('count', $exported);
+		self::assertSame(array('intval'), $exported['count']['sanitize']);
+		self::assertSame(array('is_int'), $exported['count']['validate']);
+
+		self::assertArrayHasKey('flag', $exported);
+		self::assertSame(array(), $exported['flag']['sanitize']);
+		self::assertCount(1, $exported['flag']['validate']);
+		self::assertStringStartsWith(ValidatorPipelineService::CLOSURE_PLACEHOLDER_PREFIX, $exported['flag']['validate'][0]);
+		self::assertStringContainsString('Consider using a named function or Class::method for portability.', $exported['flag']['validate'][0]);
+	}
+
+	/**
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::register_schema
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::get_schema
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::_get_schema_internal
+	 */
+	public function test_get_schema_handles_mixed_callables_and_missing_fields(): void {
+		$opts = RegisterOptions::site('mixed_callables_missing_fields');
+		/** @var WritePolicyInterface|\PHPUnit\Framework\MockObject\MockObject $policy */
+		$policy = $this->createMock(WritePolicyInterface::class);
+		$policy->method('allow')->willReturn(true);
+		$opts->with_policy($policy);
+
+		$headlineClosure = static function ($value, ?callable $emitNotice = null) {
+			if ($emitNotice !== null) {
+				$emitNotice('headline sanitized');
+			}
+			return strtoupper((string) $value);
+		};
+
+		$summaryValidator = static function ($value, ?callable $emitWarning = null): bool {
+			if (!\is_string($value)) {
+				if ($emitWarning !== null) {
+					$emitWarning('Summary must be a string');
+				}
+				return false;
+			}
+			return true;
+		};
+
+		$opts->register_schema(array(
+			'headline' => array(
+				'sanitize' => array($headlineClosure, 'trim'),
+			),
+			'summary' => array(
+				'validate' => array($summaryValidator, 'is_string'),
+			),
+		));
+
+		$exported = $opts->get_schema();
+
+		self::assertArrayHasKey('headline', $exported);
+		self::assertArrayHasKey('sanitize', $exported['headline']);
+		self::assertArrayHasKey('validate', $exported['headline']);
+		self::assertCount(2, $exported['headline']['sanitize']);
+		self::assertStringStartsWith(ValidatorPipelineService::CLOSURE_PLACEHOLDER_PREFIX, $exported['headline']['sanitize'][0]);
+		self::assertStringContainsString('Consider using a named function or Class::method for portability.', $exported['headline']['sanitize'][0]);
+		self::assertSame('trim', $exported['headline']['sanitize'][1]);
+		self::assertSame(array(), $exported['headline']['validate']);
+
+		self::assertArrayHasKey('summary', $exported);
+		self::assertSame(array(), $exported['summary']['sanitize']);
+		self::assertCount(2, $exported['summary']['validate']);
+		self::assertStringStartsWith(ValidatorPipelineService::CLOSURE_PLACEHOLDER_PREFIX, $exported['summary']['validate'][0]);
+		self::assertSame('is_string', $exported['summary']['validate'][1]);
+
+		$internal = $opts->_get_schema_internal();
+
+		self::assertArrayHasKey('headline', $internal);
+		$headlineSanitizeBucket = $internal['headline']['sanitize'][ValidatorPipelineService::BUCKET_SCHEMA] ?? array();
+		self::assertCount(2, $headlineSanitizeBucket);
+		self::assertIsCallable($headlineSanitizeBucket[0]);
+		self::assertSame('trim', $headlineSanitizeBucket[1]);
+		$headlineValidateBucket = $internal['headline']['validate'][ValidatorPipelineService::BUCKET_SCHEMA] ?? array();
+		self::assertSame(array(), $headlineValidateBucket);
+
+		self::assertArrayHasKey('summary', $internal);
+		$summarySanitizeBucket = $internal['summary']['sanitize'][ValidatorPipelineService::BUCKET_SCHEMA] ?? array();
+		self::assertSame(array(), $summarySanitizeBucket);
+		$summaryValidateBucket = $internal['summary']['validate'][ValidatorPipelineService::BUCKET_SCHEMA] ?? array();
+		self::assertCount(2, $summaryValidateBucket);
+		self::assertIsCallable($summaryValidateBucket[0]);
+		self::assertSame('is_string', $summaryValidateBucket[1]);
+	}
+
+	/**
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::register_schema
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::get_schema
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::_get_schema_internal
+	 */
+	public function test_exported_schema_can_seed_identical_instance(): void {
+		$original = RegisterOptions::site('round_trip_example');
+		/** @var WritePolicyInterface|\PHPUnit\Framework\MockObject\MockObject $policy */
+		$policy = $this->createMock(WritePolicyInterface::class);
+		$policy->method('allow')->willReturn(true);
+		$original->with_policy($policy);
+
+		$original->with_schema(array(
+			'title' => array(
+				'sanitize' => array(self::class . '::round_trip_sanitize_title', 'trim'),
+				'validate' => array('strlen'),
+			),
+			'flag' => array(
+				'validate' => array(self::class . '::round_trip_validate_flag'),
+			),
+		));
+
+		$exported = $original->get_schema();
+		self::assertArrayHasKey('title', $exported);
+		self::assertArrayHasKey('flag', $exported);
+		self::assertSame(array(), $exported['flag']['sanitize'], 'Export should include empty sanitize array for flag');
+		self::assertSame(
+			array(self::class . '::round_trip_sanitize_title', 'trim'),
+			$exported['title']['sanitize'],
+			'Export should preserve named sanitize callables'
+		);
+		self::assertSame(array('strlen'), $exported['title']['validate']);
+		self::assertSame(array(self::class . '::round_trip_validate_flag'), $exported['flag']['validate']);
+
+		$clone = RegisterOptions::site('round_trip_example_clone');
+		/** @var WritePolicyInterface|\PHPUnit\Framework\MockObject\MockObject $clonePolicy */
+		$clonePolicy = $this->createMock(WritePolicyInterface::class);
+		$clonePolicy->method('allow')->willReturn(true);
+		$clone->with_policy($clonePolicy);
+
+		$clone->register_schema($exported);
+
+		self::assertSame(
+			$exported,
+			$clone->get_schema(),
+			'Round-tripped schema should match the exported schema'
+		);
+
+		$originalInternal = $original->_get_schema_internal();
+		$cloneInternal    = $clone->_get_schema_internal();
+		self::assertArrayHasKey('title', $cloneInternal);
+		self::assertArrayHasKey('flag', $cloneInternal);
+		self::assertIsCallable($cloneInternal['title']['sanitize'][ValidatorPipelineService::BUCKET_SCHEMA][0]);
+		self::assertSame(
+			$originalInternal['title']['sanitize'][ValidatorPipelineService::BUCKET_SCHEMA],
+			$cloneInternal['title']['sanitize'][ValidatorPipelineService::BUCKET_SCHEMA],
+			'Clone should retain sanitize callables'
+		);
+		self::assertSame(
+			$originalInternal['title']['validate'][ValidatorPipelineService::BUCKET_SCHEMA],
+			$cloneInternal['title']['validate'][ValidatorPipelineService::BUCKET_SCHEMA],
+			'Clone should retain named validators'
+		);
+		self::assertSame(
+			$originalInternal['flag']['validate'][ValidatorPipelineService::BUCKET_SCHEMA],
+			$cloneInternal['flag']['validate'][ValidatorPipelineService::BUCKET_SCHEMA],
+			'Clone should retain flag validator callable'
+		);
+	}
+
+	public static function round_trip_sanitize_title($value, ?callable $emitNotice = null): string {
+		$value = trim((string) $value);
+		if ($emitNotice !== null) {
+			$emitNotice('title sanitized via named function');
+		}
+		return $value;
+	}
+
+	public static function round_trip_validate_flag($value, ?callable $emitWarning = null): bool {
+		$isValid = $value === 'yes';
+		if (!$isValid && $emitWarning !== null) {
+			$emitWarning('flag must equal yes');
+		}
+		return $isValid;
+	}
+
+	/**
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::register_schema
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::_get_schema_internal
+	 */
+	public function test_get_schema_internal_preserves_bucketed_callables(): void {
+		$opts = RegisterOptions::site('internal_schema_example');
+		/** @var WritePolicyInterface|\PHPUnit\Framework\MockObject\MockObject $policy */
+		$policy = $this->createMock(WritePolicyInterface::class);
+		$policy->method('allow')->willReturn(true);
+		$opts->with_policy($policy);
+
+		$titleSanitizer = static function ($value, ?callable $emitNotice = null): string {
+			return trim((string) $value);
+		};
+
+		$titleValidator = static function ($value, ?callable $emitWarning = null): bool {
+			return $value !== '';
+		};
+
+		$opts->register_schema(array(
+			'title' => array(
+				'sanitize' => $titleSanitizer,
+				'validate' => $titleValidator,
+			),
+			'count' => array(
+				'sanitize' => 'intval',
+				'validate' => 'is_int',
+			),
+		));
+
+		$internal = $opts->_get_schema_internal();
+
+		self::assertArrayHasKey('title', $internal);
+		self::assertArrayHasKey(ValidatorPipelineService::BUCKET_SCHEMA, $internal['title']['sanitize']);
+		self::assertArrayHasKey(ValidatorPipelineService::BUCKET_SCHEMA, $internal['title']['validate']);
+		self::assertIsCallable($internal['title']['sanitize'][ValidatorPipelineService::BUCKET_SCHEMA][0]);
+		self::assertIsCallable($internal['title']['validate'][ValidatorPipelineService::BUCKET_SCHEMA][0]);
+
+		self::assertArrayHasKey('count', $internal);
+		self::assertSame(array('intval'), $internal['count']['sanitize'][ValidatorPipelineService::BUCKET_SCHEMA]);
+		self::assertSame(array('is_int'), $internal['count']['validate'][ValidatorPipelineService::BUCKET_SCHEMA]);
 	}
 
 	/**
@@ -152,7 +450,6 @@ final class RegisterOptionsUtilityTest extends PluginLibTestCase {
 			'chained_key' => array('validate' => Validate::basic()->is_string()),
 		))
 			->with_policy($mockPolicy)
-			->with_logger($mockLogger)
 			->stage_options($defaults);
 
 		// Should return self after chaining
@@ -322,7 +619,7 @@ final class RegisterOptionsUtilityTest extends PluginLibTestCase {
 		$this->_set_protected_property_value($opts, 'options', $initialData);
 
 		$mockStorage = $this->createMock(\Ran\PluginLib\Options\Storage\OptionStorageInterface::class);
-		$opts        = RegisterOptions::site('test_options');
+		$opts        = RegisterOptions::site('test_options', true, $this->logger_mock);
 
 		// Phase 4: schema required for mutated keys during migration (reinstantiated opts)
 		$opts->with_schema(array(
@@ -498,21 +795,14 @@ final class RegisterOptionsUtilityTest extends PluginLibTestCase {
 		$opts->register_schema($schema);
 
 		// After registration, single callables are converted to arrays for backward compatibility
-		$expectedSchema = array(
-			'alpha_key' => array(
-				'default'  => 'alpha',
-				'validate' => array(
-					'component' => array(),
-					'schema'    => array(Validate::basic()->is_string()),
-				),
-				'sanitize' => array(
-					'component' => array(),
-					'schema'    => array(),
-				),
-			),
-		);
+		$exported = $opts->get_schema();
 
-		$this->assertEquals($expectedSchema, $opts->get_schema());
+		self::assertArrayHasKey('alpha_key', $exported);
+		self::assertSame('alpha', $exported['alpha_key']['default']);
+		self::assertSame(array(), $exported['alpha_key']['sanitize']);
+		self::assertSame(1, count($exported['alpha_key']['validate']));
+		self::assertIsString($exported['alpha_key']['validate'][0]);
+		self::assertStringStartsWith(ValidatorPipelineService::CLOSURE_PLACEHOLDER_PREFIX, $exported['alpha_key']['validate'][0]);
 	}
 
 	/**
@@ -578,7 +868,7 @@ final class RegisterOptionsUtilityTest extends PluginLibTestCase {
 		$this->assertNotSame($base, $clone);
 		$this->assertSame('context_example', $clone->get_main_option_name());
 		$this->assertSame(OptionScope::Network, $clone->get_storage_context()->scope);
-		$this->assertEquals($base->get_schema(), $clone->get_schema());
+		$this->assertEquals($base->_get_schema_internal(), $clone->_get_schema_internal());
 		$this->assertSame($policy, $clone->get_write_policy());
 		$this->assertSame($logger, $clone->get_logger());
 	}

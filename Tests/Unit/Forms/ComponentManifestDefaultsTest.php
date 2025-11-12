@@ -62,7 +62,7 @@ final class ComponentManifestDefaultsTest extends PluginLibTestCase {
 	private function expectedContext(): array {
 		return array(
 			'submits_data'   => false,
-			'component_type' => 'form_field',
+			'component_type' => 'input',
 			'repeatable'     => false,
 		);
 	}

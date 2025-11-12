@@ -32,16 +32,16 @@ final class RegisterOptionsRegisterSchemaGuardsTest extends PluginLibTestCase {
 	public function test_register_schema_allows_missing_validate_key(): void {
 		$opts = RegisterOptions::site('schema_guard_validate');
 
-		self::assertFalse(isset($opts->get_schema()['no_validate']));
+		self::assertArrayNotHasKey('no_validate', $opts->_get_schema_internal());
 		self::assertFalse($opts->register_schema(array(
 		    'no_validate' => array(
 		        'default' => 'x',
 		    ),
 		)));
-		$schema = $opts->get_schema();
-		self::assertArrayHasKey('no_validate', $schema);
-		self::assertSame(array(), $schema['no_validate']['validate']['component']);
-		self::assertSame(array(), $schema['no_validate']['validate']['schema']);
+		$internalSchema = $opts->_get_schema_internal();
+		self::assertArrayHasKey('no_validate', $internalSchema);
+		self::assertSame(array(), $internalSchema['no_validate']['validate']['component']);
+		self::assertSame(array(), $internalSchema['no_validate']['validate']['schema']);
 	}
 
 	/**

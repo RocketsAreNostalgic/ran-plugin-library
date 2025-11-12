@@ -6,18 +6,37 @@ namespace Ran\PluginLib\Tests\Unit\Settings;
 
 use WP_Mock\Functions;
 use WP_Mock;
+use Ran\PluginLib\Util\Logger;
+use Ran\PluginLib\Util\ExpectLogTrait;
 use Ran\PluginLib\Util\CollectingLogger;
 use Ran\PluginLib\Tests\Unit\PluginLibTestCase;
-use Ran\PluginLib\Forms\FormsServiceSession;
+use Ran\PluginLib\Settings\UserSettings;
 use Ran\PluginLib\Options\Storage\StorageContext;
 use Ran\PluginLib\Options\RegisterOptions;
-use Ran\PluginLib\EnqueueAccessory\ScriptDefinition;
+use Ran\PluginLib\Forms\FormsServiceSession;
+use Ran\PluginLib\Forms\Component\Validate\ValidatorInterface;
+use Ran\PluginLib\Forms\Component\ComponentType;
 use Ran\PluginLib\Forms\Component\ComponentRenderResult;
 use Ran\PluginLib\Forms\Component\ComponentManifest;
 use Ran\PluginLib\Forms\Component\ComponentLoader;
-use Ran\PluginLib\Forms\Component\ComponentType;
-use Ran\PluginLib\Util\ExpectLogTrait;
-use Ran\PluginLib\Settings\UserSettings;
+use Ran\PluginLib\EnqueueAccessory\ScriptDefinition;
+
+final class UserSettingsBehaviorTest_AutoValidator implements ValidatorInterface {
+	public static array $calls = array();
+
+	public function __construct(private Logger $logger) {
+	}
+
+	public static function reset(): void {
+		self::$calls = array();
+	}
+
+	public function validate(mixed $value, array $context, callable $emitWarning): bool {
+		self::$calls[] = $value;
+		$emitWarning('User auto validator failed for value: ' . (string) $value);
+		return false;
+	}
+}
 
 /**
  * @covers \Ran\PluginLib\Settings\UserSettings
@@ -72,24 +91,24 @@ final class UserSettingsBehaviorTest extends PluginLibTestCase {
 		$this->options->register_schema(array(
 		    'profile_name' => array(
 		        'default'  => 'example',
-		        'validate' => array(static function ($value, callable $emitWarning): bool {
+		        'validate' => static function ($value, callable $emitWarning): bool {
 		        	if (!is_string($value)) {
 		        		$emitWarning('profile_name must be a string');
 		        		return false;
 		        	}
 		        	return true;
-		        }),
+		        },
 		    ),
 		    'profile_age' => array(
 		        'default'  => 18,
-		        'sanitize' => array(static fn ($value): int => max(0, (int) $value)),
-		        'validate' => array(static function ($value, callable $emitWarning): bool {
+		        'sanitize' => static fn ($value): int => max(0, (int) $value),
+		        'validate' => static function ($value, callable $emitWarning): bool {
 		        	if (!is_int($value) || $value < 18) {
 		        		$emitWarning('profile_age must be >= 18');
 		        		return false;
 		        	}
 		        	return true;
-		        }),
+		        },
             ),
 		));
 	}
@@ -163,6 +182,39 @@ final class UserSettingsBehaviorTest extends PluginLibTestCase {
 		$this->assertNotEmpty($messages['profile_age']['warnings'] ?? array());
 	}
 
+	public function test_save_settings_auto_schema_attaches_component_validator(): void {
+		$alias = 'fields.auto-validator-user';
+		$this->registerComponentValidator($alias);
+
+		$user_settings = $this->createUserSettings();
+		$user_settings->collection('profile')
+			->section('auto', 'Auto Section')
+				->field('auto_field', 'Auto Field', $alias)
+			->end_section()
+		->end_collection();
+
+		WP_Mock::userFunction('current_user_can')->withAnyArgs()->andReturn(true);
+		WP_Mock::userFunction('get_option')->andReturn(array('auto_field' => 'existing'));
+		WP_Mock::userFunction('get_user_meta')->andReturn(array());
+		WP_Mock::userFunction('get_user_option')->andReturn(array());
+		WP_Mock::userFunction('update_user_option')->andReturn(true);
+
+		$user_settings->save_settings(array('auto_field' => 'invalid'), array('user_id' => 123));
+
+		$messages = $user_settings->take_messages();
+		self::assertArrayHasKey('auto_field', $messages);
+		$warnings = (array) ($messages['auto_field']['warnings'] ?? array());
+		self::assertNotEmpty($warnings);
+		self::assertTrue(
+			(array_reduce($warnings, static function (bool $memo, string $message): bool {
+				return $memo || str_contains($message, 'User auto validator failed');
+			}, false)),
+			'Expected user auto component validator warning.'
+		);
+
+		self::assertSame(array('invalid'), UserSettingsBehaviorTest_AutoValidator::$calls);
+	}
+
 	public function test_render_payload_includes_structured_messages_after_validation_failure(): void {
 		$capturedPayload = null;
 		$callback        = static function (array $payload) use (&$capturedPayload): void {
@@ -211,28 +263,28 @@ final class UserSettingsBehaviorTest extends PluginLibTestCase {
 		});
 
 		$this->injectManifestDefaults('fields.merge-user', array(
-			'sanitize' => array(function (mixed $value) use (&$executionOrder) {
+			'sanitize' => static function (mixed $value) use (&$executionOrder): string {
 				$executionOrder[] = 'manifest_sanitize';
 				return (string) $value;
-			}),
-			'validate' => array(function (mixed $value, callable $emitWarning) use (&$executionOrder) {
+			},
+			'validate' => static function (mixed $value, callable $emitWarning) use (&$executionOrder): bool {
 				$executionOrder[] = 'manifest_validate';
 				return true;
-			}),
+			},
 			'context' => array('manifest_flag' => true),
 		));
 
 		$this->options->register_schema(array(
 			'merge_field_user' => array(
-				'sanitize' => array(function (mixed $value) use (&$executionOrder) {
+				'sanitize' => static function (mixed $value) use (&$executionOrder): string {
 					$executionOrder[] = 'schema_sanitize';
 					return trim((string) $value);
-				}),
-				'validate' => array(function (mixed $value, callable $emitWarning) use (&$executionOrder) {
+				},
+				'validate' => static function (mixed $value, callable $emitWarning) use (&$executionOrder): bool {
 					$executionOrder[] = 'schema_validate';
 					$emitWarning('User schema validator failed.');
 					return false;
-				}),
+				},
 			),
 		));
 
@@ -350,7 +402,7 @@ final class UserSettingsBehaviorTest extends PluginLibTestCase {
 			return new ComponentRenderResult(
 				'<div class="profile-asset">' . htmlspecialchars((string) ($context['field_id'] ?? ''), ENT_QUOTES) . '</div>',
 				script: $script,
-				component_type: 'form_field'
+				component_type: 'input'
 			);
 		});
 
@@ -577,6 +629,39 @@ final class UserSettingsBehaviorTest extends PluginLibTestCase {
 		$current             = $metadata[$alias] ?? array();
 		$current['defaults'] = $defaults;
 		$metadata[$alias]    = $current;
+		$property->setValue($this->manifest, $metadata);
+	}
+
+	private function registerComponentValidator(string $alias): void {
+		UserSettingsBehaviorTest_AutoValidator::reset();
+
+		$this->manifest->register($alias, static function (array $context): ComponentRenderResult {
+			$fieldId = htmlspecialchars((string) ($context['field_id'] ?? ''), ENT_QUOTES);
+			return new ComponentRenderResult(
+				'<input name="' . $fieldId . '" />',
+				component_type: 'input'
+			);
+		});
+
+		$this->injectManifestDefaults($alias, array(
+			'context'  => array('submits_data' => true),
+			'validate' => array(static fn ($value, callable $emitWarning): bool => true),
+		));
+
+		$this->setManifestValidatorClass($alias, UserSettingsBehaviorTest_AutoValidator::class);
+	}
+
+	private function setManifestValidatorClass(string $alias, string $validatorClass): void {
+		$reflection = new \ReflectionObject($this->manifest);
+		$property   = $reflection->getProperty('componentMetadata');
+		$property->setAccessible(true);
+		$metadata = $property->getValue($this->manifest);
+		if (!is_array($metadata)) {
+			$metadata = array();
+		}
+		$current              = $metadata[$alias] ?? array();
+		$current['validator'] = $validatorClass;
+		$metadata[$alias]     = $current;
 		$property->setValue($this->manifest, $metadata);
 	}
 }

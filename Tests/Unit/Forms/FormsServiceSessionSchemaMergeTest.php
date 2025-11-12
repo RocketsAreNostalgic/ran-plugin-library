@@ -142,17 +142,19 @@ final class FormsServiceSessionSchemaMergeTest extends PluginLibTestCase {
 			'context' => array('manifest_flag' => true),
 		);
 
+		$schemaSanitize = function ($value) use (&$executionOrder) {
+			$executionOrder[] = 'schema_sanitize';
+			return strtoupper($value);
+		};
+		$schemaValidate = function ($value, callable $emitWarning) use (&$executionOrder) {
+			$executionOrder[] = 'schema_validate';
+			$emitWarning('Schema validator failed');
+			return false;
+		};
 		$schema = array(
-			'sanitize' => array(function ($value) use (&$executionOrder) {
-				$executionOrder[] = 'schema_sanitize';
-				return strtoupper($value);
-			}),
-			'validate' => array(function ($value, callable $emitWarning) use (&$executionOrder) {
-				$executionOrder[] = 'schema_validate';
-				$emitWarning('Schema validator failed');
-				return false;
-			}),
-			'context' => array('schema_flag' => true),
+			'sanitize' => array($schemaSanitize),
+			'validate' => array($schemaValidate),
+			'context'  => array('schema_flag' => true),
 		);
 
 		$manifest = Mockery::mock(ComponentManifest::class);
@@ -188,7 +190,14 @@ final class FormsServiceSessionSchemaMergeTest extends PluginLibTestCase {
 				return true;
 			}
 		});
-		$options->register_schema(array('field' => $merged));
+		$options->_register_internal_schema(array('field' => $merged));
+		$options->register_schema(array(
+			'field' => array(
+				'sanitize' => $schemaSanitize,
+				'validate' => $schemaValidate,
+				'context'  => $merged['context'] ?? array(),
+			),
+		));
 
 		$options->stage_options(array('field' => ' foo '));
 

@@ -48,13 +48,9 @@ final class RegisterOptionsSchemaTest extends PluginLibTestCase {
 		$schema = array(
 		    'test_key' => array(
 		        'default'  => 'default_value',
-		        'sanitize' => function($value) {
-		        	return $value;
-		        },
-		        'validate' => function($value) {
-		        	return true;
-		        }
-		    )
+		        'sanitize' => static fn ($value) => $value,
+		        'validate' => static fn ($value) => true,
+		    ),
 		);
 
 		$result = $opts->register_schema($schema);
@@ -62,7 +58,7 @@ final class RegisterOptionsSchemaTest extends PluginLibTestCase {
 		// Should return a boolean (true if changes made, false if no changes)
 		$this->assertIsBool($result);
 
-		$registeredSchema = $opts->get_schema();
+		$registeredSchema = $opts->_get_schema_internal();
 		$this->assertArrayHasKey('test_key', $registeredSchema);
 		$this->assertSame(array(), $registeredSchema['test_key']['sanitize']['component']);
 		$this->assertCount(1, $registeredSchema['test_key']['sanitize']['schema']);
@@ -106,19 +102,15 @@ final class RegisterOptionsSchemaTest extends PluginLibTestCase {
 
 		// First register a schema with some keys
 		$initialSchema = array(
-	'existing_key' => array(
+		    'existing_key' => array(
 		        'default'  => 'initial_default',
-		        'sanitize' => function($value) {
-		        	return $value;
-		        },
-		        'validate' => function($value) {
-		        	return is_string($value);
-		        }
-	)
-);
+		        'sanitize' => static fn ($value) => $value,
+		        'validate' => static fn ($value): bool => is_string($value),
+		    ),
+		);
 
 		$opts->register_schema($initialSchema);
-		$initialMap = $opts->get_schema();
+		$initialMap = $opts->_get_schema_internal();
 		$this->assertSame(array(), $initialMap['existing_key']['sanitize']['component']);
 		$this->assertCount(1, $initialMap['existing_key']['sanitize']['schema']);
 		$this->assertSame(array(), $initialMap['existing_key']['validate']['component']);
@@ -126,13 +118,11 @@ final class RegisterOptionsSchemaTest extends PluginLibTestCase {
 
 		// Now register a second schema that updates the existing key (lines 529-534)
 		$updateSchema = array(
-			    'existing_key' => array(
-				'default'  => 'updated_default', // This should override
-				'sanitize' => null, // This should clear the sanitizer
-				'validate' => function ($v) {
-					return is_string($v);
-				}, // explicit for strict mode (preserves existing semantics)
-			    )
+		    'existing_key' => array(
+		        'default'  => 'updated_default',
+		        'sanitize' => null,
+		        'validate' => static fn ($v): bool => is_string($v),
+		    ),
 		);
 
 		$result = $opts->register_schema($updateSchema);
@@ -142,11 +132,19 @@ final class RegisterOptionsSchemaTest extends PluginLibTestCase {
 
 		// Verify the schema merging worked (default remains from first registration) and buckets intact
 		$this->assertEquals('initial_default', $opts->get_option('existing_key'));
-		$mergedMap = $opts->get_schema();
+		$mergedMap = $opts->_get_schema_internal();
 		$this->assertSame(array(), $mergedMap['existing_key']['sanitize']['component']);
 		$this->assertCount(1, $mergedMap['existing_key']['sanitize']['schema']);
 		$this->assertSame(array(), $mergedMap['existing_key']['validate']['component']);
-		$this->assertCount(1, $mergedMap['existing_key']['validate']['schema']);
+		$this->assertCount(2, $mergedMap['existing_key']['validate']['schema']);
+		$this->assertSame(
+			$initialMap['existing_key']['validate']['schema'][0],
+			$mergedMap['existing_key']['validate']['schema'][0]
+		);
+		$this->assertInstanceOf(
+			\Closure::class,
+			$mergedMap['existing_key']['validate']['schema'][1]
+		);
 	}
 
 	/**
@@ -183,13 +181,9 @@ final class RegisterOptionsSchemaTest extends PluginLibTestCase {
 		$schema = array(
 		    'flush_key' => array(
 		        'default'  => 'flush_value',
-		        'sanitize' => function($value) {
-		        	return $value;
-		        },
-		        'validate' => function($value) {
-		        	return true;
-		        }
-		    )
+		        'sanitize' => static fn ($value) => $value,
+		        'validate' => static fn ($value) => true,
+		    ),
 		);
 
 		// Mock write guards to allow writes
@@ -226,10 +220,8 @@ final class RegisterOptionsSchemaTest extends PluginLibTestCase {
 		$schema = array(
 		    'exception_key' => array(
 		        'default'  => 'test_value',
-		        'sanitize' => function($value) {
-		        	return $value;
-		        },
-		        'validate' => $exceptionValidator // This will throw during seeding
+		        'sanitize' => static fn ($value) => $value,
+		        'validate' => $exceptionValidator,
 		    )
 		);
 
@@ -261,24 +253,16 @@ final class RegisterOptionsSchemaTest extends PluginLibTestCase {
 		));
 
 		$schema = array(
-			'normalize_me' => array(
-				'default'  => null,
-				'sanitize' => function ($v) {
-					return trim((string) $v);
-				},
-				'validate' => function ($v) {
-					return is_string($v);
-				},
-			),
-			'num' => array(
-				'default'  => null,
-				'sanitize' => function ($v) {
-					return (int) $v;
-				},
-				'validate' => function ($v) {
-					return is_int($v);
-				},
-			),
+		    'normalize_me' => array(
+		        'default'  => null,
+		        'sanitize' => static fn ($v) => trim((string) $v),
+		        'validate' => static fn ($v): bool => is_string($v),
+		    ),
+		    'num' => array(
+		        'default'  => null,
+		        'sanitize' => static fn ($v) => (int) $v,
+		        'validate' => static fn ($v): bool => is_int($v),
+		    ),
 		);
 
 		// Ensure policy allows schema mutations for this test
@@ -293,7 +277,7 @@ final class RegisterOptionsSchemaTest extends PluginLibTestCase {
 		$this->assertSame('Hello', $opts->get_option('normalize_me'));
 		$this->assertSame(5, $opts->get_option('num'));
 
-		$normalizedMap = $opts->get_schema();
+		$normalizedMap = $opts->_get_schema_internal();
 		$this->assertSame(array(), $normalizedMap['normalize_me']['sanitize']['component']);
 		$this->assertCount(1, $normalizedMap['normalize_me']['sanitize']['schema']);
 		$this->assertSame(array(), $normalizedMap['normalize_me']['validate']['component']);

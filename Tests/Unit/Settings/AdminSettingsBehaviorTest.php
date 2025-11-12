@@ -6,6 +6,8 @@ namespace Ran\PluginLib\Tests\Unit\Settings;
 
 use WP_Mock\Functions;
 use WP_Mock;
+use Ran\PluginLib\Util\Logger;
+use Ran\PluginLib\Util\ExpectLogTrait;
 use Ran\PluginLib\Util\CollectingLogger;
 use Ran\PluginLib\Tests\Unit\PluginLibTestCase;
 use Ran\PluginLib\Settings\AdminSettings;
@@ -14,14 +16,31 @@ use Ran\PluginLib\Options\RegisterOptions;
 use Ran\PluginLib\Forms\Renderer\FormElementRenderer;
 use Ran\PluginLib\Forms\FormsServiceSession;
 use Ran\PluginLib\Forms\FormsService;
+use Ran\PluginLib\Forms\Component\Validate\ValidatorInterface;
+use Ran\PluginLib\Forms\Component\ComponentType;
 use Ran\PluginLib\Forms\Component\ComponentRenderResult;
 use Ran\PluginLib\Forms\Component\ComponentManifest;
 use Ran\PluginLib\Forms\Component\ComponentLoader;
-use Ran\PluginLib\Forms\Component\ComponentType;
 use Ran\PluginLib\EnqueueAccessory\ScriptDefinition;
 use Mockery;
 use InvalidArgumentException;
-use Ran\PluginLib\Util\ExpectLogTrait;
+
+final class AdminSettingsBehaviorTest_AutoValidator implements ValidatorInterface {
+	public static array $calls = array();
+
+	public function __construct(private Logger $logger) {
+	}
+
+	public static function reset(): void {
+		self::$calls = array();
+	}
+
+	public function validate(mixed $value, array $context, callable $emitWarning): bool {
+		self::$calls[] = $value;
+		$emitWarning('Auto component validator failed for value: ' . (string) $value);
+		return false;
+	}
+}
 
 /**
  * @covers \Ran\PluginLib\Settings\AdminSettings
@@ -92,27 +111,27 @@ final class AdminSettingsBehaviorTest extends PluginLibTestCase {
 		);
 
 		$this->options->register_schema(array(
-		    'valid_field' => array(
-		        'default'  => '',
-		        'validate' => static function ($value, callable $emitWarning): bool {
-		        	if (!is_string($value)) {
-		        		$emitWarning('valid_field must be a string');
-		        		return false;
-		        	}
-		        	return true;
-		        },
-		    ),
-		    'integer_field' => array(
-		        'default'  => 0,
-		        'sanitize' => static fn ($value): int => (int) $value,
-		        'validate' => static function ($value, callable $emitWarning): bool {
-		        	if (!is_int($value)) {
-		        		$emitWarning('integer_field must be an integer');
-		        		return false;
-		        	}
-		        	return true;
-		        },
-            ),
+			'valid_field' => array(
+				'default'  => '',
+				'validate' => static function ($value, callable $emitWarning): bool {
+					if (!is_string($value)) {
+						$emitWarning('valid_field must be a string');
+						return false;
+					}
+					return true;
+				},
+			),
+			'integer_field' => array(
+				'default'  => 0,
+				'sanitize' => static fn ($value): int => (int) $value,
+				'validate' => static function ($value, callable $emitWarning): bool {
+					if (!is_int($value)) {
+						$emitWarning('integer_field must be an integer');
+						return false;
+					}
+					return true;
+				},
+			),
 		));
 
 		$this->settings = new AdminSettings($this->options, $this->manifest, $this->logger);
@@ -147,11 +166,50 @@ final class AdminSettingsBehaviorTest extends PluginLibTestCase {
 	public function test_sanitize_returns_sanitized_payload_on_success(): void {
 		$this->setOptionValues(array());
 
-		$result = $this->settings->_sanitize(array('integer_field' => '5'));
+		$result     = $this->settings->_sanitize(array('integer_field' => '5'));
+		$schemaDump = var_export($this->options->get_schema(), true);
+		fwrite(STDOUT, "\n[AdminSettings schema dump]\n{$schemaDump}\n\n");
 
 		$this->assertSame(array('valid_field' => '', 'integer_field' => 5), $result);
 		$messages = $this->settings->take_messages();
 		$this->assertSame(array(), $messages);
+	}
+
+	public function test_sanitize_auto_schema_attaches_component_validator(): void {
+		$alias = 'fields.auto-validator';
+		$this->registerComponentValidator($alias);
+
+		$this->settings->menu_group('auto-group')
+		    ->page('auto-page')
+		        ->section('auto-section', 'Auto Section')
+		            ->field('auto_field', 'Auto Field', $alias)
+		        ->end_section()
+		    ->end_page()
+		->end_menu_group();
+
+		$this->setOptionValues(array(
+			'valid_field'   => '',
+			'integer_field' => 0,
+			'auto_field'    => 'previous-value',
+		));
+
+		$result = $this->settings->_sanitize(array('auto_field' => 'invalid'));
+
+		self::assertArrayHasKey('auto_field', $result);
+		self::assertSame('previous-value', $result['auto_field']);
+
+		$messages = $this->settings->take_messages();
+		self::assertArrayHasKey('auto_field', $messages);
+		$warnings = (array) ($messages['auto_field']['warnings'] ?? array());
+		self::assertNotEmpty($warnings);
+		self::assertTrue(
+			(array_reduce($warnings, static function (bool $memo, string $message): bool {
+				return $memo || str_contains($message, 'Auto component validator failed');
+			}, false)),
+			'Expected auto component validator warning.'
+		);
+
+		self::assertSame(array('invalid'), AdminSettingsBehaviorTest_AutoValidator::$calls);
 	}
 
 	public function test_render_unknown_page_falls_back_to_notice(): void {
@@ -365,15 +423,15 @@ final class AdminSettingsBehaviorTest extends PluginLibTestCase {
 
 		$this->options->register_schema(array(
 			'merge_field' => array(
-				'sanitize' => array(function (mixed $value) use (&$executionOrder) {
+				'sanitize' => static function (mixed $value) use (&$executionOrder): string {
 					$executionOrder[] = 'schema_sanitize';
 					return trim((string) $value);
-				}),
-				'validate' => array(function (mixed $value, callable $emitWarning) use (&$executionOrder) {
+				},
+				'validate' => static function (mixed $value, callable $emitWarning) use (&$executionOrder): bool {
 					$executionOrder[] = 'schema_validate';
 					$emitWarning('Schema validator failed.');
 					return false;
-				}),
+				},
 			),
 		));
 
@@ -395,6 +453,14 @@ final class AdminSettingsBehaviorTest extends PluginLibTestCase {
 
 		$firstManifestSanitize = array_search('manifest_sanitize', $executionOrder, true);
 		self::assertNotFalse($firstManifestSanitize, 'Expected manifest sanitizer to run.');
+		$schemaAfterManifest = array_filter(
+			$executionOrder,
+			static function (string $label, int $index) use ($firstManifestSanitize): bool {
+				return $label === 'schema_sanitize' && $index > $firstManifestSanitize;
+			},
+			ARRAY_FILTER_USE_BOTH
+		);
+		self::assertNotEmpty($schemaAfterManifest, 'Expected schema sanitizer to run after manifest sanitizer.');
 		$schemaBeforeManifest = array_filter(
 			$executionOrder,
 			static function (string $label, int $index) use ($firstManifestSanitize): bool {
@@ -402,7 +468,7 @@ final class AdminSettingsBehaviorTest extends PluginLibTestCase {
 			},
 			ARRAY_FILTER_USE_BOTH
 		);
-		self::assertNotEmpty($schemaBeforeManifest, 'Expected schema sanitizer to run before manifest sanitizer.');
+		self::assertSame(array(), array_values($schemaBeforeManifest), 'Schema sanitizer should not run before manifest sanitizer.');
 
 		$lastSchemaValidate = null;
 		foreach ($executionOrder as $idx => $label) {
@@ -463,6 +529,39 @@ final class AdminSettingsBehaviorTest extends PluginLibTestCase {
 		$current             = $metadata[$alias] ?? array();
 		$current['defaults'] = $defaults;
 		$metadata[$alias]    = $current;
+		$property->setValue($this->manifest, $metadata);
+	}
+
+	private function registerComponentValidator(string $alias): void {
+		AdminSettingsBehaviorTest_AutoValidator::reset();
+
+		$this->manifest->register($alias, static function (array $context): ComponentRenderResult {
+			$fieldId = htmlspecialchars((string) ($context['field_id'] ?? ''), ENT_QUOTES);
+			return new ComponentRenderResult(
+				'<input name="' . $fieldId . '" />',
+				component_type: 'input'
+			);
+		});
+
+		$this->injectManifestDefaults($alias, array(
+			'context'  => array('submits_data' => true),
+			'validate' => array(static fn ($value, callable $emitWarning): bool => true),
+		));
+
+		$this->setManifestValidatorClass($alias, AdminSettingsBehaviorTest_AutoValidator::class);
+	}
+
+	private function setManifestValidatorClass(string $alias, string $validatorClass): void {
+		$reflection = new \ReflectionObject($this->manifest);
+		$property   = $reflection->getProperty('componentMetadata');
+		$property->setAccessible(true);
+		$metadata = $property->getValue($this->manifest);
+		if (!is_array($metadata)) {
+			$metadata = array();
+		}
+		$current              = $metadata[$alias] ?? array();
+		$current['validator'] = $validatorClass;
+		$metadata[$alias]     = $current;
 		$property->setValue($this->manifest, $metadata);
 	}
 
@@ -532,7 +631,7 @@ final class AdminSettingsBehaviorTest extends PluginLibTestCase {
 			$value   = htmlspecialchars((string) ($context['value'] ?? ''), ENT_QUOTES);
 			return new ComponentRenderResult(
 				'<input name="' . $fieldId . '" value="' . $value . '" />',
-				component_type: 'form_field'
+				component_type: 'input'
 			);
 		});
 
@@ -558,7 +657,7 @@ final class AdminSettingsBehaviorTest extends PluginLibTestCase {
 			$label = htmlspecialchars((string) ($context['label'] ?? ''), ENT_QUOTES);
 			return new ComponentRenderResult(
 				'<button type="' . $type . '">' . $label . '</button>',
-				component_type: 'form_field'
+				component_type: 'input'
 			);
 		});
 	}
@@ -669,7 +768,7 @@ final class AdminSettingsBehaviorTest extends PluginLibTestCase {
 			return new ComponentRenderResult(
 				'<div data-asset-field="' . htmlspecialchars((string) ($context['field_id'] ?? ''), ENT_QUOTES) . '">Asset Field</div>',
 				script: $script,
-				component_type: 'form_field'
+				component_type: 'input'
 			);
 		});
 

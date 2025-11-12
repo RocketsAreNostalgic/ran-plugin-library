@@ -9,11 +9,11 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\Tests\Unit\Forms;
 
-use Mockery;
 use WP_Mock;
 use Ran\PluginLib\Tests\Unit\PluginLibTestCase;
-use Ran\PluginLib\Forms\Component\ComponentLoader;
 use Ran\PluginLib\Forms\Component\ComponentRenderResult;
+use Ran\PluginLib\Forms\Component\ComponentLoader;
+use Mockery;
 
 /**
  * Test ComponentLoader backward compatibility with caching system.
@@ -401,7 +401,7 @@ foreach ($attributes as $key => $val) {
 
 $markup = sprintf(\'<input type="text" name="%s" value="%s"%s>\', $name, $value, $attr_string);
 
-return new ComponentRenderResult(markup: $markup, submits_data: true, component_type: \'form_field\');
+return new ComponentRenderResult(markup: $markup, submits_data: true, component_type: \'input\');
 ');
 
 		// Create test select template
@@ -418,7 +418,7 @@ foreach ($options as $option) {
 }
 $html .= \'</select>\';
 
-return new ComponentRenderResult(markup: $html, submits_data: true, component_type: \'form_field\');
+return new ComponentRenderResult(markup: $html, submits_data: true, component_type: \'input\');
 ');
 
 		// Create test data template (returns array)

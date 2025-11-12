@@ -90,7 +90,7 @@ class FormsServiceSessionTest extends TestCase {
 		$render_result = new ComponentRenderResult(
 			markup: '<div>Test Field</div>',
 			submits_data: true,
-			component_type: 'form_field'
+			component_type: 'input'
 		);
 
 		// Expect ComponentManifest to be called with resolved template key
@@ -135,7 +135,7 @@ class FormsServiceSessionTest extends TestCase {
 		$render_result = new ComponentRenderResult(
 			markup: '<div>Special Field</div>',
 			submits_data: true,
-			component_type: 'form_field'
+			component_type: 'input'
 		);
 
 		// Expect ComponentManifest to be called with individual override template key
@@ -331,7 +331,7 @@ class FormsServiceSessionTest extends TestCase {
 		$render_result = new ComponentRenderResult(
 			markup: '<div>Component</div>',
 			submits_data: false,
-			component_type: 'form_field'
+			component_type: 'input'
 		);
 
 		// Expect ComponentManifest to be called directly
@@ -373,7 +373,7 @@ class FormsServiceSessionTest extends TestCase {
 		$render_result = new ComponentRenderResult(
 			markup: '<div>Rendered</div>',
 			submits_data: true,
-			component_type: 'form_field'
+			component_type: 'input'
 		);
 
 		/** @var ComponentManifest&MockObject $manifest */
@@ -425,13 +425,13 @@ class FormsServiceSessionTest extends TestCase {
 		$regular_field_result = new ComponentRenderResult(
 			markup: '<div>Regular Field</div>',
 			submits_data: true,
-			component_type: 'form_field'
+			component_type: 'input'
 		);
 
 		$special_field_result = new ComponentRenderResult(
 			markup: '<div>Special Field</div>',
 			submits_data: true,
-			component_type: 'form_field'
+			component_type: 'input'
 		);
 
 		$section_result = new ComponentRenderResult(

@@ -7,15 +7,14 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\Tests\Unit\Settings;
 
-use Ran\PluginLib\Forms\Builders\SubmitControlsBuilder;
-use Ran\PluginLib\Forms\Components\Elements\Button\Builder as ButtonBuilder;
-use Ran\PluginLib\Forms\Component\ComponentLoader;
-use Ran\PluginLib\Forms\Component\ComponentManifest;
-use Ran\PluginLib\Forms\Component\ComponentRenderResult;
-use Ran\PluginLib\Options\RegisterOptions;
-use Ran\PluginLib\Util\CollectingLogger;
-use WP_Mock;
 use WP_Mock\Tools\TestCase;
+use WP_Mock;
+use Ran\PluginLib\Util\CollectingLogger;
+use Ran\PluginLib\Options\RegisterOptions;
+use Ran\PluginLib\Forms\Component\ComponentType;
+use Ran\PluginLib\Forms\Component\ComponentRenderResult;
+use Ran\PluginLib\Forms\Component\ComponentManifest;
+use Ran\PluginLib\Forms\Component\ComponentLoader;
 
 /**
  * @covers \Ran\PluginLib\Settings\AdminSettings
@@ -184,7 +183,7 @@ final class AdminSettingsSubmitControlsRenderTest extends TestCase {
 		$this->manifest->register('fields.input', static function (array $context): ComponentRenderResult {
 			$fieldId = htmlspecialchars($context['field_id'] ?? 'field', ENT_QUOTES);
 			$value   = htmlspecialchars((string) ($context['value'] ?? ''), ENT_QUOTES);
-			return new ComponentRenderResult('<input name="' . $fieldId . '" value="' . $value . '" />', component_type: 'form_field');
+			return new ComponentRenderResult('<input name="' . $fieldId . '" value="' . $value . '" />', component_type: 'input');
 		});
 
 		$rootWrapper = static function (array $context): ComponentRenderResult {
@@ -259,7 +258,7 @@ final class AdminSettingsSubmitControlsRenderTest extends TestCase {
 				$markup = '<button type="' . $type . '"' . $extra . '>' . $label . '</button>';
 			}
 
-			return new ComponentRenderResult($markup, component_type: 'form_field');
+			return new ComponentRenderResult($markup, component_type: 'input');
 		});
 
 		$this->manifest->register('components.divider', static function (array $context): ComponentRenderResult {

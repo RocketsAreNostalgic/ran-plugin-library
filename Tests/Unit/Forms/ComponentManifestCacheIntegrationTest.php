@@ -98,7 +98,7 @@ class ComponentManifestCacheIntegrationTest extends PluginLibTestCase {
 			return new ComponentRenderResult(
 				markup: '<input type="text" name="' . ($context['name'] ?? 'test') . '">',
 				submits_data: true,
-				component_type: 'form_field'
+				component_type: 'input'
 			);
 		};
 
