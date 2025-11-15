@@ -42,6 +42,15 @@ final class AdminSettingsBehaviorTest_AutoValidator implements ValidatorInterfac
 	}
 }
 
+final class AdminSettingsBehaviorTest_PassThroughValidator implements ValidatorInterface {
+	public function __construct(private Logger $logger) {
+	}
+
+	public function validate(mixed $value, array $context, callable $emitWarning): bool {
+		return true;
+	}
+}
+
 /**
  * @covers \Ran\PluginLib\Settings\AdminSettings
  */
@@ -166,9 +175,7 @@ final class AdminSettingsBehaviorTest extends PluginLibTestCase {
 	public function test_sanitize_returns_sanitized_payload_on_success(): void {
 		$this->setOptionValues(array());
 
-		$result     = $this->settings->_sanitize(array('integer_field' => '5'));
-		$schemaDump = var_export($this->options->get_schema(), true);
-		fwrite(STDOUT, "\n[AdminSettings schema dump]\n{$schemaDump}\n\n");
+		$result = $this->settings->_sanitize(array('integer_field' => '5'));
 
 		$this->assertSame(array('valid_field' => '', 'integer_field' => 5), $result);
 		$messages = $this->settings->take_messages();
@@ -515,6 +522,118 @@ final class AdminSettingsBehaviorTest extends PluginLibTestCase {
 		);
 	}
 
+	public function test_render_and_sanitize_emit_schema_trace_logs(): void {
+		$alias = 'fields.trace';
+
+		$this->manifest->register($alias, static function (array $context): ComponentRenderResult {
+			$fieldId = htmlspecialchars((string) ($context['field_id'] ?? ''), ENT_QUOTES);
+			$value   = htmlspecialchars((string) ($context['value'] ?? ''), ENT_QUOTES);
+			return new ComponentRenderResult(
+				'<input name="' . $fieldId . '" value="' . $value . '" />',
+				component_type: 'input'
+			);
+		});
+
+		$this->injectManifestDefaults($alias, array(
+			'sanitize' => array(static fn (mixed $value): string => is_string($value) ? trim($value) : ''),
+			'validate' => array(static function (mixed $value, callable $emitWarning): bool {
+				if (!is_string($value) || $value === '') {
+					$emitWarning('trace_field must be a non-empty string');
+					return false;
+				}
+				return true;
+			}),
+			'context' => array('submits_data' => true),
+		));
+		$this->setManifestValidatorClass($alias, AdminSettingsBehaviorTest_PassThroughValidator::class);
+
+		$this->options->register_schema(array(
+			'trace_field' => array(
+				'default' => 'seed-value',
+			),
+		));
+
+		$this->settings->menu_group('trace-group')
+		    ->page('trace-page')
+		        ->section('trace-section', 'Trace Section')
+		            ->field('trace_field', 'Trace Field', $alias)
+		        ->end_section()
+		    ->end_page()
+		->end_menu_group();
+
+		$this->setOptionValues(array(
+			'valid_field'   => 'existing',
+			'integer_field' => 5,
+			'trace_field'   => 'previous',
+		));
+
+		$this->logger->collected_logs = array();
+
+		$this->captureOutput(function (): void {
+			$this->settings->render('trace-page');
+		});
+
+		$result = $this->settings->_sanitize(array(
+			'valid_field'   => 'updated value',
+			'integer_field' => '11',
+			'trace_field'   => '  updated  ',
+		));
+
+		self::assertSame(array(
+			'valid_field'   => 'updated value',
+			'integer_field' => 11,
+			'trace_field'   => 'updated',
+		), $result);
+
+		$logs = $this->logger->get_logs();
+
+		$mergeLogs = array_values(array_filter($logs, static function (array $entry): bool {
+			return $entry['level'] === 'debug'
+				&& $entry['message']  === 'forms.schema.merge';
+		}));
+		self::assertNotEmpty(
+			$mergeLogs,
+			'Expected forms.schema.merge logs. Saw messages: ' . implode(', ', array_unique(array_map(static fn (array $entry): string => $entry['message'], $logs)))
+		);
+		self::assertNotEmpty(
+			array_filter($mergeLogs, static function (array $entry) use ($alias): bool {
+				return ($entry['context']['alias'] ?? null) === $alias;
+			}),
+			'Expected forms.schema.merge log for alias ' . $alias . '. Contexts: ' . json_encode(array_map(static fn (array $entry): array => $entry['context'], $mergeLogs))
+		);
+
+		$processingLogs = array_values(array_filter($logs, static function (array $entry): bool {
+			return $entry['level'] === 'debug'
+				&& $entry['message']  === 'RegisterOptions: _register_internal_schema processing entry';
+		}));
+		self::assertNotEmpty($processingLogs, 'Expected processing logs from _register_internal_schema.');
+		self::assertNotEmpty(array_filter($processingLogs, static function (array $entry): bool {
+			return ($entry['context']['key'] ?? null) === 'trace_field';
+		}), 'Expected processing log for trace_field.');
+
+		$mergedLogs = array_values(array_filter($logs, static function (array $entry): bool {
+			return $entry['level'] === 'debug'
+				&& $entry['message']  === 'RegisterOptions: _register_internal_schema merged entry';
+		}));
+		self::assertNotEmpty($mergedLogs, 'Expected merged-entry logs from _register_internal_schema.');
+		self::assertNotEmpty(array_filter($mergedLogs, static function (array $entry): bool {
+			return ($entry['context']['key'] ?? null) === 'trace_field';
+		}), 'Expected merged-entry log for trace_field.');
+
+		// Ensure manifest validators merge into component bucket while schema bucket remains available.
+		$traceMerged = array_values(array_filter($mergedLogs, static function (array $entry): bool {
+			return ($entry['context']['key'] ?? null) === 'trace_field';
+		}));
+		self::assertGreaterThanOrEqual(1, count($traceMerged), 'Expected merged-entry log for trace_field.');
+		$traceWithComponentValidators = array_values(array_filter($traceMerged, static function (array $entry): bool {
+			return (int) ($entry['context']['validate_component_count'] ?? 0) >= 1;
+		}));
+		self::assertNotEmpty($traceWithComponentValidators, 'Expected component validators to be merged for trace_field.');
+		$representative = $traceWithComponentValidators[0];
+		self::assertArrayHasKey('validate_schema_count', $representative['context'], 'Expected schema validator count present for trace_field.');
+		self::assertGreaterThanOrEqual(0, (int) $representative['context']['validate_schema_count'], 'Expected schema validator count present for trace_field.');
+	}
+
 	/**
 	 * @param array<string,mixed> $defaults
 	 */
@@ -840,7 +959,7 @@ final class AdminSettingsBehaviorTest extends PluginLibTestCase {
 		$this->expectException(InvalidArgumentException::class);
 		$this->expectExceptionMessage("Failed to render field 'field' with component 'fields.text'");
 
-		$renderer->render_field_with_wrapper('fields.text', 'field', 'Label', $context, array(), 'wrappers/simple-wrapper', $this->settings->get_form_session());
+		$renderer->render_field_with_wrapper('fields.text', 'field', 'Label', $context, 'wrappers/simple-wrapper', 'field-wrapper', $this->settings->get_form_session());
 		$this->expectLog('error', 'FormElementRenderer: Field with wrapper rendering failed');
 	}
 }

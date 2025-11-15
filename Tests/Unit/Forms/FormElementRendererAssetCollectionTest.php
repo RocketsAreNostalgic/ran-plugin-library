@@ -256,15 +256,15 @@ class FormElementRendererAssetCollectionTest extends PluginLibTestCase {
 			'test_field',
 			'Test Field',
 			$context,
-			array(),
 			'direct-output',
+			'field-wrapper',
 			$session
 		);
 
 		// Verify HTML is returned
 		$this->assertEquals('<input type="text" name="test_field" />', $html);
 
-		$this->expectLog('debug', 'FormElementRenderer: Component rendered successfully');
+		$this->expectLog('debug', 'FormElementRenderer: Component rendered with assets');
 
 		$assets = $session->assets();
 		$this->assertTrue($assets->has_assets(), 'Expected session assets to record the style dependency.');

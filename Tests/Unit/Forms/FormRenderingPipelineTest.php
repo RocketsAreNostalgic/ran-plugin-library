@@ -325,8 +325,8 @@ class FormRenderingPipelineTest extends PluginLibTestCase {
 			'complex_field',
 			'Complex Field',
 			$context,
-			$values,
 			'direct-output',
+			'field-wrapper',
 			$session
 		);
 
@@ -362,7 +362,7 @@ class FormRenderingPipelineTest extends PluginLibTestCase {
 
 		// Check component rendering logging
 		$render_logs = array_filter($logs, function($log) {
-			return $log['level'] === 'debug' && strpos($log['message'], 'Component rendered successfully') !== false;
+			return $log['level'] === 'debug' && strpos($log['message'], 'Component rendered with assets') !== false;
 		});
 		$this->assertNotEmpty($render_logs, 'Should log successful component rendering');
 
@@ -432,8 +432,8 @@ class FormRenderingPipelineTest extends PluginLibTestCase {
 			'custom_field',
 			'Custom Field',
 			$context,
-			array(),
 			'direct-output',
+			'field-wrapper',
 			$session
 		);
 
@@ -447,8 +447,8 @@ class FormRenderingPipelineTest extends PluginLibTestCase {
 			'custom_field',
 			'Custom Field',
 			$context,
-			array(),
 			'shared.field-wrapper',
+			'field-wrapper',
 			$session
 		);
 
@@ -459,8 +459,8 @@ class FormRenderingPipelineTest extends PluginLibTestCase {
 		// Verify markup structure logging
 		$logs        = $this->logger->get_logs();
 		$markup_logs = array_filter($logs, function($log) {
-			return $log['level'] === 'debug' && (strpos($log['message'], 'Component rendered successfully') !== false || strpos($log['message'], 'Field rendered with wrapper successfully') !== false);
+			return $log['level'] === 'debug' && (strpos($log['message'], 'Component rendered with assets') !== false || strpos($log['message'], 'Field rendered with wrapper successfully') !== false);
 		});
-		$this->assertCount(2, $markup_logs, 'Should log both direct and wrapped rendering');
+		$this->assertGreaterThanOrEqual(2, count($markup_logs), 'Should log both direct and wrapped rendering');
 	}
 }

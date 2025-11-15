@@ -113,8 +113,8 @@ class FormElementRendererIntegrationTest extends PluginLibTestCase {
 			'integration_field',
 			'Integration Test Field',
 			$context,
-			array(),
 			'direct-output',
+			'field-wrapper',
 			$session  // Pass the session for asset collection
 		);
 
@@ -130,7 +130,7 @@ class FormElementRendererIntegrationTest extends PluginLibTestCase {
 		$this->assertArrayHasKey('integration-test-style', $styles);
 		$this->assertEquals('integration-test-style', $styles['integration-test-style']->handle);
 
-		$this->expectLog('debug', 'FormElementRenderer: Component rendered successfully');
+		$this->expectLog('debug', 'FormElementRenderer: Component rendered with assets');
 	}
 
 	/**
@@ -179,8 +179,8 @@ class FormElementRendererIntegrationTest extends PluginLibTestCase {
 			'simple_field',
 			'Simple Field',
 			$context,
-			array(),
 			'direct-output',
+			'field-wrapper',
 			$session  // Pass the session for asset collection
 		);
 
@@ -190,7 +190,7 @@ class FormElementRendererIntegrationTest extends PluginLibTestCase {
 		// Verify no assets were collected
 		$this->assertFalse($session->assets()->has_assets());
 
-		$this->expectLog('debug', 'FormElementRenderer: Component rendered successfully');
+		$this->expectLog('debug', 'FormElementRenderer: Component rendered with assets');
 		$logs           = $this->logger_mock->get_logs();
 		$no_assets_logs = array_filter($logs, static function($log) {
 			return isset($log['context']['has_assets']) && $log['context']['has_assets'] === false;
@@ -256,7 +256,7 @@ class FormElementRendererIntegrationTest extends PluginLibTestCase {
 			'label'     => 'Field 1'
 		);
 		$context1 = $renderer->prepare_field_context($field1, array(), array());
-		$renderer->render_field_component('fields.text', 'field1', 'Field 1', $context1, array(), 'direct-output', $session);
+		$renderer->render_field_component('fields.text', 'field1', 'Field 1', $context1, 'direct-output', 'field-wrapper', $session);
 
 		// Render second component
 		$field2 = array(
@@ -265,7 +265,7 @@ class FormElementRendererIntegrationTest extends PluginLibTestCase {
 			'label'     => 'Field 2'
 		);
 		$context2 = $renderer->prepare_field_context($field2, array(), array());
-		$renderer->render_field_component('fields.textarea', 'field2', 'Field 2', $context2, array(), 'direct-output', $session);
+		$renderer->render_field_component('fields.textarea', 'field2', 'Field 2', $context2, 'direct-output', 'field-wrapper', $session);
 
 		// Verify both assets were collected
 		$assets = $session->assets();

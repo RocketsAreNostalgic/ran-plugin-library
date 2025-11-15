@@ -204,8 +204,8 @@ class FormElementRendererAssetCollectionMinimalTest extends PluginLibTestCase {
 			'test_field',
 			'Test Field',
 			$context,
-			array(),
 			'direct-output',
+			'field-wrapper',
 			$session
 		);
 
@@ -213,7 +213,7 @@ class FormElementRendererAssetCollectionMinimalTest extends PluginLibTestCase {
 		$this->assertEquals('<input type="text" name="test_field" />', $html);
 
 		// Verify enhanced logging occurred
-		$this->expectLog('debug', 'FormElementRenderer: Component rendered successfully');
+		$this->expectLog('debug', 'FormElementRenderer: Component rendered with assets');
 
 		$assets = $session->assets();
 		$this->assertTrue($assets->has_assets(), 'Expected session assets to reflect captured style.');

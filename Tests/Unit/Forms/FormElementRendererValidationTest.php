@@ -80,25 +80,6 @@ class FormElementRendererValidationTest extends PluginLibTestCase {
 		$this->assertSame(array(), $errors);
 	}
 
-	public function test_set_and_get_template_overrides_and_logger_fallback(): void {
-		$renderer = new FormElementRenderer(
-			new ComponentManifest($this->loader, $this->logger),
-			new FormsService(new ComponentManifest($this->loader, $this->logger)),
-			$this->loader,
-			null // force fallback logger
-		);
-
-		$renderer->set_template_overrides(array('wrapper' => 'custom-wrapper'));
-
-		$this->assertSame(array('wrapper' => 'custom-wrapper'), $renderer->get_template_overrides());
-
-		$reflection = new \ReflectionClass($renderer);
-		$property   = $reflection->getProperty('logger');
-		$property->setAccessible(true);
-
-		$this->assertNotNull($property->getValue($renderer));
-	}
-
 	public function test_prepare_field_context_merges_additional_data_and_logs(): void {
 		$renderer = $this->createRenderer();
 
@@ -172,8 +153,6 @@ class FormElementRendererValidationTest extends PluginLibTestCase {
 		$renderer = new FormElementRenderer($manifest, $service, $loader, $this->logger);
 		$session  = $service->start_session();
 
-		$renderer->set_template_overrides(array('shared.field-wrapper' => 'field-wrapper'));
-
 		$field = array(
 			'field_id'  => 'field',
 			'component' => 'fields.text',
@@ -181,17 +160,35 @@ class FormElementRendererValidationTest extends PluginLibTestCase {
 		);
 
 		$context = $renderer->prepare_field_context($field, array(), array());
-		$html    = $renderer->render_field_component('fields.text', 'field', 'Label', $context, array(), 'shared.field-wrapper', $session);
+
+		$session->set_individual_element_override('field', 'field', array(
+			'field-wrapper' => 'field-wrapper'
+		));
+
+		$html = $renderer->render_field_component(
+			'fields.text',
+			'field',
+			'Label',
+			$context,
+			'shared.field-wrapper',
+			'field-wrapper',
+			$session
+		);
 
 		$this->assertStringContainsString('wrapper', $html);
 		$this->assertStringContainsString('<input />', $html);
-		$this->expectLog('debug', 'FormElementRenderer: Component rendered successfully');
+		$this->expectLog('debug', 'FormElementRenderer: Component rendered with assets');
 		$this->expectLog('debug', 'FormElementRenderer: Assets collected successfully');
 	}
 
 	public function test_render_field_component_falls_back_when_wrapper_fails(): void {
 		$manifest = Mockery::mock(ComponentManifest::class);
-		$manifest->shouldReceive('render')->andReturn(new ComponentRenderResult('<input />'));
+		$manifest->shouldReceive('render')
+			->with('fields.text', Mockery::type('array'))
+			->andReturn(new ComponentRenderResult('<input />'));
+		$manifest->shouldReceive('render')
+			->with('custom.wrapper', Mockery::type('array'))
+			->andThrow(new \RuntimeException('wrapper render failed'));
 
 		$loader = Mockery::mock(ComponentLoader::class);
 		$loader->shouldReceive('render')->andThrow(new \RuntimeException('wrapper failed'));
@@ -203,9 +200,18 @@ class FormElementRendererValidationTest extends PluginLibTestCase {
 		$field   = array('field_id' => 'field', 'component' => 'fields.text', 'label' => 'Label');
 		$context = $renderer->prepare_field_context($field, array(), array());
 
-		$html = $renderer->render_field_component('fields.text', 'field', 'Label', $context, array(), 'custom.wrapper', $session);
+		$html = $renderer->render_field_component(
+			'fields.text',
+			'field',
+			'Label',
+			$context,
+			'custom.wrapper',
+			'field-wrapper',
+			$session
+		);
 
 		$this->assertSame('<input />', $html);
+		$this->expectLog('error', 'FormElementRenderer: Session render_element failed; falling back to loader');
 		$this->expectLog('error', 'FormElementRenderer: Template wrapper failed');
 	}
 
@@ -251,7 +257,15 @@ class FormElementRendererValidationTest extends PluginLibTestCase {
 
 		$session = $service->start_session();
 
-		$html = $renderer->render_field_with_wrapper('fields.text', 'field', 'Label', $context, array(), 'wrappers/simple-wrapper', $session);
+		$html = $renderer->render_field_with_wrapper(
+			'fields.text',
+			'field',
+			'Label',
+			$context,
+			'wrappers/simple-wrapper',
+			'field-wrapper',
+			$session
+		);
 
 		$this->assertStringContainsString('component', $html);
 	}
@@ -269,7 +283,15 @@ class FormElementRendererValidationTest extends PluginLibTestCase {
 		$this->expectException(InvalidArgumentException::class);
 		$this->expectExceptionMessage("Failed to render field 'field' with component 'fields.text'");
 
-		$renderer->render_field_with_wrapper('fields.text', 'field', 'Label', $context, array(), 'wrappers/simple-wrapper', $service->start_session());
+		$renderer->render_field_with_wrapper(
+			'fields.text',
+			'field',
+			'Label',
+			$context,
+			'wrappers/simple-wrapper',
+			'field-wrapper',
+			$service->start_session()
+		);
 		$this->expectLog('error', 'FormElementRenderer: Field with wrapper rendering failed');
 	}
 
@@ -287,7 +309,15 @@ class FormElementRendererValidationTest extends PluginLibTestCase {
 		$this->expectExceptionMessage("Failed to render component 'fields.text' for field 'field'");
 
 		$session = $service->start_session();
-		$renderer->render_field_component('fields.text', 'field', 'Label', $context, array(), 'direct-output', $session);
+		$renderer->render_field_component(
+			'fields.text',
+			'field',
+			'Label',
+			$context,
+			'direct-output',
+			'field-wrapper',
+			$session
+		);
 		$this->expectLog('error', 'FormElementRenderer: Component rendering failed');
 	}
 }

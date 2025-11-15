@@ -286,7 +286,6 @@ class UserSettings implements FormsInterface {
 			if (!empty($defaults)) {
 				$opts->register_schema($defaults);
 			}
-			$this->_flush_queued_component_validators();
 		}
 
 		// Stage options and check for validation failures

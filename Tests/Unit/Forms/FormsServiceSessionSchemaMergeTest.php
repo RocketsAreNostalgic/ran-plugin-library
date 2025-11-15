@@ -242,7 +242,7 @@ final class FormsServiceSessionSchemaMergeTest extends PluginLibTestCase {
 			array(),
 			array('field' => array('warnings' => $messages['field']['warnings'] ?? array(), 'notices' => array()))
 		);
-		$renderer->render_field_component('fields.merge', 'field', 'Field Label', $context, array(), 'direct-output', $session);
+		$renderer->render_field_component('fields.merge', 'field', 'Field Label', $context, 'direct-output', 'field-wrapper', $session);
 
 		self::assertSame(array('Schema validator failed'), $context['validation_warnings']);
 		self::assertSame('Field Label', $context['label']);

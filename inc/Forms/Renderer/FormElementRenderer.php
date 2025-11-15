@@ -59,14 +59,6 @@ class FormElementRenderer {
 	private ComponentLoader $views;
 
 	/**
-	 * Template overrides for context-specific rendering.
-	 * Structure: ['template_name' => 'override_template_name']
-	 *
-	 * @var array<string, string>
-	 */
-	private array $template_overrides = array();
-
-	/**
 	 * Logger instance.
 	 *
 	 * @var Logger|null
@@ -125,26 +117,6 @@ class FormElementRenderer {
 		}
 
 		return $errors;
-	}
-
-	/**
-	 * Set template overrides for context-specific rendering.
-	 *
-	 * @param array<string, string> $overrides Template override map
-	 * @return void
-	 */
-	public function set_template_overrides(array $overrides): void {
-		$this->template_overrides = $overrides;
-		$this->_get_logger()->debug('FormElementRenderer: Template overrides set', array('count' => count($overrides)));
-	}
-
-	/**
-	 * Get current template overrides.
-	 *
-	 * @return array<string, string> Template override map
-	 */
-	public function get_template_overrides(): array {
-		return $this->template_overrides;
 	}
 
 	/**
@@ -208,6 +180,7 @@ class FormElementRenderer {
 		}
 		return $this->logger;
 	}
+
 	/**
 	 * Prepare field context by merging field configuration with runtime values and messages.
 	 *
@@ -278,8 +251,8 @@ class FormElementRenderer {
 	 * @param string                $field_id         Field identifier
 	 * @param string                $label            Field label
 	 * @param array                 $context          Prepared field context
-	 * @param array                 $values           All form values
 	 * @param string                $wrapper_template Template for wrapper (default: 'direct-output')
+	 * @param string                $template_type    Canonical template type for resolver (default: 'field-wrapper')
 	 * @param FormsServiceSession|null $session       Session for asset collection (required)
 	 * @return string Rendered component HTML
 	 * @throws \InvalidArgumentException If component rendering fails or session missing
@@ -289,8 +262,8 @@ class FormElementRenderer {
 		string $field_id,
 		string $label,
 		array $context,
-		array $values,
 		string $wrapper_template = 'direct-output',
+		string $template_type = 'field-wrapper',
 		?FormsServiceSession $session = null
 	): string {
 		try {
@@ -308,24 +281,19 @@ class FormElementRenderer {
 				$session
 			);
 
-			// Handle template wrapper if not direct output
-			if ($wrapper_template !== 'direct-output') {
-				$component_html = $this->_apply_template_wrapper(
-					$component_html,
-					$wrapper_template,
-					$field_id,
-					$label,
-					$context
-				);
+			if ($wrapper_template === 'direct-output') {
+				return $component_html;
 			}
 
-			$this->_get_logger()->debug('FormElementRenderer: Component rendered successfully', array(
-				'component'        => $component,
-				'field_id'         => $field_id,
-				'wrapper_template' => $wrapper_template
-			));
-
-			return $component_html;
+			return $this->_apply_template_wrapper(
+				$component_html,
+				$wrapper_template,
+				$template_type,
+				$field_id,
+				$label,
+				$context,
+				$session
+			);
 		} catch (\Throwable $e) {
 			$this->_get_logger()->error('FormElementRenderer: Component rendering failed', array(
 				'component' => $component,
@@ -351,8 +319,8 @@ class FormElementRenderer {
 	 * @param string                $field_id         Field identifier
 	 * @param string                $label            Field label
 	 * @param array                 $context          Prepared field context
-	 * @param array                 $values           All form values
 	 * @param string                $wrapper_template Template for wrapper (default: 'shared.field-wrapper')
+	 * @param string                $template_type    Canonical template type for resolver (default: 'field-wrapper')
 	 * @param FormsServiceSession|null $session       Session for asset collection (required)
 	 * @return string Rendered field HTML with wrapper
 	 * @throws \InvalidArgumentException If component rendering fails or session missing
@@ -362,8 +330,8 @@ class FormElementRenderer {
 		string $field_id,
 		string $label,
 		array $context,
-		array $values,
 		string $wrapper_template = 'shared.field-wrapper',
+		string $template_type = 'field-wrapper',
 		?FormsServiceSession $session = null
 	): string {
 		try {
@@ -382,13 +350,18 @@ class FormElementRenderer {
 				$session
 			);
 
-			// Apply template wrapper using ComponentLoader
+			if ($wrapper_template === 'direct-output') {
+				return $component_html;
+			}
+
 			$wrapped_html = $this->_apply_template_wrapper(
 				$component_html,
 				$wrapper_template,
+				$template_type,
 				$field_id,
 				$label,
-				$context
+				$context,
+				$session
 			);
 
 			$this->_get_logger()->debug('FormElementRenderer: Field rendered with wrapper successfully', array(
@@ -428,14 +401,14 @@ class FormElementRenderer {
 	private function _apply_template_wrapper(
 		string $component_html,
 		string $template_name,
+		string $template_type,
 		string $field_id,
 		string $label,
-		array $context
+		array $context,
+		?FormsServiceSession $session
 	): string {
-		// Check for template override
-		$actual_template = $this->template_overrides[$template_name] ?? $template_name;
-
-		// Prepare template context with required variables
+		$actual_template  = $template_name;
+		$resolvedBy       = 'default';
 		$template_context = array(
 			'field_id'            => $field_id,
 			'label'               => $label,
@@ -446,6 +419,45 @@ class FormElementRenderer {
 			'required'            => $context['required']            ?? false,
 			'context'             => $context,
 		);
+		$resolver_context                  = $context;
+		$resolver_context['field_id']      = $resolver_context['field_id']  ?? $field_id;
+		$resolver_context['_field_id']     = $resolver_context['_field_id'] ?? $field_id;
+		$resolver_context['template_type'] = $template_type;
+
+		if ($session instanceof FormsServiceSession) {
+			$element_config = $template_context;
+			try {
+				$resolved = $session->template_resolver()->resolve_template($template_type, $resolver_context);
+				if (is_string($resolved) && $resolved !== '') {
+					$actual_template                 = $resolved;
+					$resolvedBy                      = 'session';
+					$element_config['root_override'] = $actual_template;
+				}
+			} catch (\Throwable $e) {
+				$this->_get_logger()->warning('FormElementRenderer: Template resolution via session failed; falling back to default', array(
+					'template_name' => $template_name,
+					'field_id'      => $field_id,
+					'exception'     => $e->getMessage(),
+				));
+			}
+
+			try {
+				$wrapped_html = $session->render_element($template_type, $element_config, $resolver_context);
+				$this->_get_logger()->debug('FormElementRenderer: Template wrapper applied', array(
+					'template_name'   => $template_name,
+					'actual_template' => $actual_template,
+					'field_id'        => $field_id,
+					'resolved_by'     => $resolvedBy,
+				));
+				return $wrapped_html;
+			} catch (\Throwable $e) {
+				$this->_get_logger()->error('FormElementRenderer: Session render_element failed; falling back to loader', array(
+					'template_type' => $template_type,
+					'field_id'      => $field_id,
+					'exception'     => $e->getMessage(),
+				));
+			}
+		}
 
 		try {
 			// Use existing ComponentLoader to render wrapper template
@@ -455,7 +467,8 @@ class FormElementRenderer {
 			$this->_get_logger()->debug('FormElementRenderer: Template wrapper applied', array(
 				'template_name'   => $template_name,
 				'actual_template' => $actual_template,
-				'field_id'        => $field_id
+				'field_id'        => $field_id,
+				'resolved_by'     => $resolvedBy,
 			));
 
 			return $wrapped_html;

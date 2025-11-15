@@ -1010,10 +1010,27 @@ class RegisterOptions {
 
 			$normalized_key    = $this->_do_sanitize_key((string) $key);
 			$entryForCoercion  = $entry;
+			$hadExisting       = isset($this->schema[$normalized_key]);
 			$requiresValidator = false;
 			if (isset($metadata[$normalized_key]) && is_array($metadata[$normalized_key])) {
 				$requiresValidator = (bool) ($metadata[$normalized_key]['requires_validator'] ?? false);
 			}
+
+			$queuedCount = isset($queuedValidators[$normalized_key]) && is_array($queuedValidators[$normalized_key])
+				? count($queuedValidators[$normalized_key])
+				: 0;
+			$metadataKeys = isset($metadata[$normalized_key]) && is_array($metadata[$normalized_key])
+				? array_keys($metadata[$normalized_key])
+				: array();
+			$this->_get_logger()->debug(
+				'RegisterOptions: _register_internal_schema processing entry',
+				array(
+					'key'                  => $normalized_key,
+					'had_existing'         => $hadExisting,
+					'queued_validator_cnt' => $queuedCount,
+					'metadata_flags'       => $metadataKeys,
+				)
+			);
 
 			$incoming = $this->_coerce_schema_entry($entryForCoercion, $normalized_key);
 
@@ -1032,11 +1049,33 @@ class RegisterOptions {
 				$this->schema[$normalized_key] = $this->_coerce_schema_entry($this->schema[$normalized_key], $normalized_key);
 				$componentBucket               = &$this->schema[$normalized_key]['validate'][self::BUCKET_COMPONENT];
 				$componentBucket               = array_merge($queuedValidators[$normalized_key], $componentBucket);
+				$this->_get_logger()->debug(
+					'RegisterOptions: _register_internal_schema queued validators merged',
+					array(
+						'key'          => $normalized_key,
+						'queued_count' => count($queuedValidators[$normalized_key]),
+					)
+				);
 			}
 
 			if ($requiresValidator) {
 				$this->_assert_internal_validator_presence($normalized_key, $this->schema[$normalized_key]);
 			}
+
+			$this->schema[$normalized_key] = $this->_coerce_schema_entry($this->schema[$normalized_key], $normalized_key);
+			$finalEntry                    = $this->schema[$normalized_key];
+			$this->_get_logger()->debug(
+				'RegisterOptions: _register_internal_schema merged entry',
+				array(
+					'key'                      => $normalized_key,
+					'had_existing'             => $hadExisting,
+					'requires_validator'       => $requiresValidator,
+					'sanitize_component_count' => count($finalEntry['sanitize'][self::BUCKET_COMPONENT]),
+					'sanitize_schema_count'    => count($finalEntry['sanitize'][self::BUCKET_SCHEMA]),
+					'validate_component_count' => count($finalEntry['validate'][self::BUCKET_COMPONENT]),
+					'validate_schema_count'    => count($finalEntry['validate'][self::BUCKET_SCHEMA]),
+				)
+			);
 		}
 	}
 

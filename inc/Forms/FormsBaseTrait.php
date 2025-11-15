@@ -1461,7 +1461,7 @@ trait FormsBaseTrait {
 				$field_id,
 				$label,
 				$field_context,
-				$values,
+				'field-wrapper',
 				'field-wrapper',
 				$this->form_session
 			);
@@ -1532,44 +1532,13 @@ trait FormsBaseTrait {
 			return $validator_instance->validate($value, array(), $emitWarning);
 		};
 
-		if ($this->base_options->has_schema_key($field_key)) {
-			$this->base_options->_register_internal_schema(
-				array($field_key => array()),
-				array(),
-				array($field_key => array($validator_callable))
-			);
-			$this->logger->debug(static::class . ': Component validator injected', array(
-				'field_id'  => $field_id,
-				'component' => $component,
-			));
-			return;
-		}
-
+		$hadSchema                                         = $this->base_options->has_schema_key($field_key);
 		$this->__queued_component_validators[$field_key][] = $validator_callable;
 		$this->logger->debug(static::class . ': Component validator queued pending schema', array(
-			'field_id'  => $field_id,
-			'component' => $component,
+			'field_id'          => $field_id,
+			'component'         => $component,
+			'schema_registered' => $hadSchema,
 		));
-	}
-
-	/**
-	 * Consume any queued component validators once schema entries exist.
-	 */
-	protected function _flush_queued_component_validators(): void {
-		if (empty($this->__queued_component_validators)) {
-			return;
-		}
-		foreach ($this->__queued_component_validators as $field_key => $callables) {
-			if (!$this->base_options->has_schema_key($field_key)) {
-				continue;
-			}
-			$this->base_options->_register_internal_schema(
-				array($field_key => array()),
-				array(),
-				array($field_key => array_values($callables))
-			);
-		}
-		$this->__queued_component_validators = array();
 	}
 
 	/**

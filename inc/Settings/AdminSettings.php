@@ -124,7 +124,7 @@ class AdminSettings implements FormsInterface {
 		}
 
 		// Phase 6: Service initialization
-		$this->form_service    = new FormsService($this->components);
+		$this->form_service    = new FormsService($this->components, $this->logger);
 		$this->field_renderer  = new FormElementRenderer($this->components, $this->form_service, $this->views, $this->logger);
 		$this->message_handler = new FormMessageHandler($this->logger);
 
@@ -602,6 +602,10 @@ class AdminSettings implements FormsInterface {
 		$schema   = $this->base_options->_get_schema_internal();
 		if (!empty($schema)) {
 			$session = $this->get_form_session();
+			if ($session === null) {
+				$this->_start_form_session();
+				$session = $this->get_form_session();
+			}
 			if ($session !== null) {
 				$bucketed = $this->_assemble_bucketed_schema($session);
 				if (!empty($bucketed['schema'])) {
@@ -619,7 +623,6 @@ class AdminSettings implements FormsInterface {
 			if (!empty($defaults)) {
 				$tmp->register_schema($defaults);
 			}
-			$this->_flush_queued_component_validators();
 		}
 		$policy = $this->base_options->get_write_policy();
 		if ($policy !== null) {
