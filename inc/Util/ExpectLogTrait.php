@@ -121,16 +121,17 @@ trait ExpectLogTrait {
 	 * Writes ExpectLog diagnostic output when the host test enables console logging.
 	 */
 	private function expectLogOutput(string $format, ...$args): void {
-		if (!property_exists($this, 'enable_console_logging') || true !== $this->enable_console_logging) {
-			return;
-		}
-
-		$output = empty($args) ? $format : vsprintf($format, $args);
 		$stream = null;
 		if (property_exists($this, 'expect_log_output_stream') && is_resource($this->expect_log_output_stream)) {
 			$stream = $this->expect_log_output_stream;
 		}
 
+		$console_enabled = property_exists($this, 'enable_console_logging') && true === $this->enable_console_logging;
+		if (!$console_enabled && $stream === null) {
+			return;
+		}
+
+		$output = empty($args) ? $format : vsprintf($format, $args);
 		$target = $stream ?: STDERR;
 		fwrite($target, $output);
 		if ($stream) {
