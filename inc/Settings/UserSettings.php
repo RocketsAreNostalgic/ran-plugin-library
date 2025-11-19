@@ -25,6 +25,7 @@ use Ran\PluginLib\Forms\FormsInterface;
 use Ran\PluginLib\Forms\FormsBaseTrait;
 use Ran\PluginLib\Forms\Component\ComponentManifest;
 use Ran\PluginLib\Forms\Component\ComponentLoader;
+use Ran\PluginLib\Forms\Validation\ValidatorPipelineService;
 
 
 /**
@@ -122,6 +123,7 @@ class UserSettings implements FormsInterface {
 		$this->form_service    = new FormsService($this->components);
 		$this->field_renderer  = new FormElementRenderer($this->components, $this->form_service, $this->views, $this->logger);
 		$this->message_handler = new FormMessageHandler($this->logger);
+		$this->field_renderer->set_message_handler($this->message_handler);
 
 		// Phase 7: Form session configuration with context-specific defaults
 		$this->_start_form_session();
@@ -337,6 +339,7 @@ class UserSettings implements FormsInterface {
 		$collection_meta = $this->collections[$id_slug];
 		$sections        = $this->sections[$id_slug] ?? array();
 		$options         = $this->resolve_options($context)->get_options();
+		$internalSchema  = $this->base_options->_get_schema_internal();
 
 		// Get effective values from message handler (handles pending values)
 		$effective_values = $this->message_handler->get_effective_values($options);
@@ -354,11 +357,53 @@ class UserSettings implements FormsInterface {
 				'messages_by_field' => $this->message_handler->get_all_messages(),
 			),
 		);
+
+		$schemaSummary = array();
+		foreach ($internalSchema as $key => $entry) {
+			if (!is_array($entry)) {
+				continue;
+			}
+			$sanitizeComponentCount = 0;
+			$sanitizeSchemaCount    = 0;
+			$validateComponentCount = 0;
+			$validateSchemaCount    = 0;
+			if (isset($entry['sanitize']) && is_array($entry['sanitize'])) {
+				$componentBucket = $entry['sanitize'][ValidatorPipelineService::BUCKET_COMPONENT] ?? null;
+				$schemaBucket    = $entry['sanitize'][ValidatorPipelineService::BUCKET_SCHEMA]    ?? null;
+				if (is_array($componentBucket)) {
+					$sanitizeComponentCount = count($componentBucket);
+				}
+				if (is_array($schemaBucket)) {
+					$sanitizeSchemaCount = count($schemaBucket);
+				}
+			}
+			if (isset($entry['validate']) && is_array($entry['validate'])) {
+				$componentBucket = $entry['validate'][ValidatorPipelineService::BUCKET_COMPONENT] ?? null;
+				$schemaBucket    = $entry['validate'][ValidatorPipelineService::BUCKET_SCHEMA]    ?? null;
+				if (is_array($componentBucket)) {
+					$validateComponentCount = count($componentBucket);
+				}
+				if (is_array($schemaBucket)) {
+					$validateSchemaCount = count($schemaBucket);
+				}
+			}
+			$schemaSummary[$key] = array(
+				'sanitize_component_count' => $sanitizeComponentCount,
+				'sanitize_schema_count'    => $sanitizeSchemaCount,
+				'validate_component_count' => $validateComponentCount,
+				'validate_schema_count'    => $validateSchemaCount,
+				'has_default'              => array_key_exists('default', $entry),
+			);
+		}
 		$this->logger->debug('user_settings.render.payload', array(
 			'collection' => $id_slug,
 			'heading'    => $payload['heading'],
 			'has_meta'   => array_keys($collection_meta),
 			'callback'   => $this->form_session->get_root_template_callback($id_slug) !== null,
+		));
+		$this->logger->debug('user_settings.render.schema_trace', array(
+			'collection' => $id_slug,
+			'fields'     => $schemaSummary,
 		));
 
 		$callback = $this->form_session->get_root_template_callback($id_slug);

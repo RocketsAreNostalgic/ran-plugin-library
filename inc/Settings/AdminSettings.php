@@ -127,6 +127,7 @@ class AdminSettings implements FormsInterface {
 		$this->form_service    = new FormsService($this->components, $this->logger);
 		$this->field_renderer  = new FormElementRenderer($this->components, $this->form_service, $this->views, $this->logger);
 		$this->message_handler = new FormMessageHandler($this->logger);
+		$this->field_renderer->set_message_handler($this->message_handler);
 
 		// Phase 7: Form session configuration with context-specific defaults
 		$this->_start_form_session();
@@ -469,24 +470,9 @@ class AdminSettings implements FormsInterface {
 		$meta = $this->menu_groups[$ref['group']]['pages'][$ref['page']]['meta'];
 
 		$internalSchema = $this->base_options->_get_schema_internal();
-		$schema         = array();
-		$schemaDefaults = array();
-		foreach ($internalSchema as $key => $bucketed) {
-			if (!is_array($bucketed)) {
-				continue;
-			}
-			$coerced      = $bucketed;
-			$schema[$key] = array(
-				'sanitize' => $coerced['sanitize'][ValidatorPipelineService::BUCKET_SCHEMA] ?? array(),
-				'validate' => $coerced['validate'][ValidatorPipelineService::BUCKET_SCHEMA] ?? array(),
-			);
-			if (array_key_exists('default', $coerced)) {
-				$schemaDefaults[$key] = $coerced['default'];
-			}
-		}
-		$group    = $this->main_option . '_group';
-		$options  = $this->_do_get_option($this->main_option, array());
-		$sections = $this->sections[$ref['page']] ?? array();
+		$group          = $this->main_option . '_group';
+		$options        = $this->_do_get_option($this->main_option, array());
+		$sections       = $this->sections[$ref['page']] ?? array();
 
 		// Get effective values from message handler (handles pending values)
 		$effective_values = $this->message_handler->get_effective_values($options);
@@ -498,8 +484,6 @@ class AdminSettings implements FormsInterface {
 			...($context ?? array()),
 			'heading'           => $meta['heading']     ?? '',
 			'description'       => $meta['description'] ?? '',
-			'schema'            => $schema,
-			'schema_defaults'   => $schemaDefaults,
 			'group'             => $group,
 			'page_slug'         => $id_slug,
 			'page_meta'         => $meta,
@@ -512,12 +496,54 @@ class AdminSettings implements FormsInterface {
 			'messages_by_field' => $this->message_handler->get_all_messages(),
 		);
 
+		$schemaSummary = array();
+		foreach ($internalSchema as $key => $entry) {
+			if (!is_array($entry)) {
+				continue;
+			}
+			$sanitizeComponentCount = 0;
+			$sanitizeSchemaCount    = 0;
+			$validateComponentCount = 0;
+			$validateSchemaCount    = 0;
+			if (isset($entry['sanitize']) && is_array($entry['sanitize'])) {
+				$componentBucket = $entry['sanitize'][ValidatorPipelineService::BUCKET_COMPONENT] ?? null;
+				$schemaBucket    = $entry['sanitize'][ValidatorPipelineService::BUCKET_SCHEMA]    ?? null;
+				if (is_array($componentBucket)) {
+					$sanitizeComponentCount = count($componentBucket);
+				}
+				if (is_array($schemaBucket)) {
+					$sanitizeSchemaCount = count($schemaBucket);
+				}
+			}
+			if (isset($entry['validate']) && is_array($entry['validate'])) {
+				$componentBucket = $entry['validate'][ValidatorPipelineService::BUCKET_COMPONENT] ?? null;
+				$schemaBucket    = $entry['validate'][ValidatorPipelineService::BUCKET_SCHEMA]    ?? null;
+				if (is_array($componentBucket)) {
+					$validateComponentCount = count($componentBucket);
+				}
+				if (is_array($schemaBucket)) {
+					$validateSchemaCount = count($schemaBucket);
+				}
+			}
+			$schemaSummary[$key] = array(
+				'sanitize_component_count' => $sanitizeComponentCount,
+				'sanitize_schema_count'    => $sanitizeSchemaCount,
+				'validate_component_count' => $validateComponentCount,
+				'validate_schema_count'    => $validateSchemaCount,
+				'has_default'              => array_key_exists('default', $entry),
+			);
+		}
+
 		$this->logger->debug('admin_settings.render.payload', array(
 		    'page'     => $id_slug,
 		    'heading'  => $payload['heading'],
 		    'group'    => $group,
 		    'has_meta' => array_keys($meta),
 		    'callback' => $this->form_session->get_root_template_callback($id_slug) !== null,
+		));
+		$this->logger->debug('admin_settings.render.schema_trace', array(
+		    'page'   => $id_slug,
+		    'fields' => $schemaSummary,
 		));
 
 		$callback = $this->form_session->get_root_template_callback($id_slug);
