@@ -66,23 +66,38 @@ class FormElementRenderer {
 	private ?Logger $logger = null;
 
 	/**
+	 * Message handler used for retrieving validation state.
+	 */
+	private ?FormMessageHandler $message_handler = null;
+
+	/**
 	 * Creates a new FormElementRenderer instance.
 	 *
-	 * @param ComponentManifest $components    Component manifest for rendering
-	 * @param FormsService       $form_service  Form service for session management
-	 * @param ComponentLoader   $views         Component loader for view rendering
-	 * @param Logger|null       $logger        Optional logger instance
+	 * @param ComponentManifest   $components      Component manifest for rendering
+	 * @param FormsService         $form_service    Form service for session management
+	 * @param ComponentLoader     $views           Component loader for view rendering
+	 * @param Logger|null         $logger          Optional logger instance
+	 * @param FormMessageHandler|null $message_handler Optional message handler for context normalization
 	 */
 	public function __construct(
 		ComponentManifest $components,
 		FormsService $form_service,
 		ComponentLoader $views,
-		?Logger $logger = null
+		?Logger $logger = null,
+		?FormMessageHandler $message_handler = null
 	) {
-		$this->components   = $components;
-		$this->form_service = $form_service;
-		$this->views        = $views;
-		$this->logger       = $logger;
+		$this->components      = $components;
+		$this->form_service    = $form_service;
+		$this->views           = $views;
+		$this->logger          = $logger;
+		$this->message_handler = $message_handler;
+	}
+
+	/**
+	 * Inject the message handler after construction.
+	 */
+	public function set_message_handler(FormMessageHandler $message_handler): void {
+		$this->message_handler = $message_handler;
 	}
 
 	/**
@@ -155,10 +170,11 @@ class FormElementRenderer {
 			return $render_result->markup;
 		} catch (\Throwable $e) {
 			$this->_get_logger()->error('FormElementRenderer: Component rendering with assets failed', array(
-				'component' => $component,
-				'context'   => $context,
-				'exception' => $e->getMessage(),
-				'trace'     => $e->getTraceAsString(),
+				'component'         => $component,
+				'context_keys'      => array_keys($context),
+				'exception_class'   => get_class($e),
+				'exception_code'    => $e->getCode(),
+				'exception_message' => $e->getMessage(),
 			));
 
 			throw new \InvalidArgumentException(
@@ -184,34 +200,60 @@ class FormElementRenderer {
 	/**
 	 * Prepare field context by merging field configuration with runtime values and messages.
 	 *
-	 * @param array $field    Field configuration
-	 * @param array $values   Runtime values
-	 * @param array $messages Field messages (structured format with warnings/notices)
+	 * @param array $field   Raw field definition captured by builders
+	 * @param array $values  Stored option values prior to normalization
+	 * @param array $extras  Supplementary metadata (e.g. wrapper before/after markup)
 	 * @return array Prepared context for component rendering
 	 * @throws \InvalidArgumentException If field configuration is invalid
 	 */
-	public function prepare_field_context(array $field, array $values, array $messages): array {
+	public function prepare_field_context(array $field, array $values, array $extras = array()): array {
+		$normalized_field = $field;
+		$field_id         = '';
+		if (isset($normalized_field['field_id']) && is_string($normalized_field['field_id'])) {
+			$field_id = trim($normalized_field['field_id']);
+		}
+		if ($field_id === '' && isset($normalized_field['id'])) {
+			$field_id = is_string($normalized_field['id']) ? trim($normalized_field['id']) : (string) $normalized_field['id'];
+		}
+		$normalized_field['field_id'] = $field_id;
+
+		$component                     = $normalized_field['component'] ?? ($normalized_field['alias'] ?? null);
+		$component                     = is_string($component) ? trim($component) : '';
+		$normalized_field['component'] = $component;
+
+		$label                     = isset($normalized_field['label']) ? (string) $normalized_field['label'] : '';
+		$normalized_field['label'] = $label;
+
+		if (!isset($normalized_field['component_context'])) {
+			$normalized_field['component_context'] = array();
+		}
+
 		// Validate field configuration
-		$validation_errors = $this->validate_field_config($field);
+		$validation_errors = $this->validate_field_config($normalized_field);
 		if (!empty($validation_errors)) {
 			$error_message = 'Invalid field configuration: ' . implode(', ', $validation_errors);
 			$this->_get_logger()->error('FormElementRenderer: Field validation failed', array(
 				'errors' => $validation_errors,
-				'field'  => $field
+				'field'  => $normalized_field
 			));
 			throw new \InvalidArgumentException($error_message);
 		}
 
-		$field_id          = $field['field_id'];
-		$component         = $field['component'];
-		$component_context = $field['component_context'] ?? array();
-		$label             = $field['label']             ?? '';
+		$component_context              = $normalized_field['component_context'] ?? array();
+		$component_context              = is_array($component_context) ? $component_context : array();
+		$component_context['field_id']  = $component_context['field_id']  ?? $field_id;
+		$component_context['_field_id'] = $component_context['_field_id'] ?? $field_id;
+		$component_context['label']     = $component_context['label']     ?? $label;
+		$component_context['_label']    = $component_context['_label']    ?? $label;
 
-		// Get field value
-		$field_value = $values[$field_id] ?? null;
+		$effective_values = $values;
+		$field_messages   = array('warnings' => array(), 'notices' => array());
+		if ($this->message_handler instanceof FormMessageHandler) {
+			$effective_values = $this->message_handler->get_effective_values($values);
+			$field_messages   = $this->message_handler->get_messages_for_field($field_id);
+		}
 
-		// Get field messages (both warnings and notices)
-		$field_messages = $messages[$field_id] ?? array('warnings' => array(), 'notices' => array());
+		$field_value = $effective_values[$field_id] ?? ($values[$field_id] ?? null);
 
 		// Prepare base context
 		$context = array(
@@ -225,10 +267,17 @@ class FormElementRenderer {
 		);
 
 		// Add any additional field properties to context
-		foreach ($field as $key => $value) {
+		foreach ($normalized_field as $key => $value) {
 			if (!in_array($key, array('field_id', 'component', 'component_context', 'label'), true)) {
 				$context[$key] = $value;
 			}
+		}
+
+		if (isset($extras['before'])) {
+			$context['before'] = $extras['before'];
+		}
+		if (isset($extras['after'])) {
+			$context['after'] = $extras['after'];
 		}
 
 		$this->_get_logger()->debug('FormElementRenderer: Context prepared', array(
@@ -296,10 +345,11 @@ class FormElementRenderer {
 			);
 		} catch (\Throwable $e) {
 			$this->_get_logger()->error('FormElementRenderer: Component rendering failed', array(
-				'component' => $component,
-				'field_id'  => $field_id,
-				'exception' => $e->getMessage(),
-				'trace'     => $e->getTraceAsString()
+				'component'         => $component,
+				'field_id'          => $field_id,
+				'exception_class'   => get_class($e),
+				'exception_code'    => $e->getCode(),
+				'exception_message' => $e->getMessage(),
 			));
 			throw new \InvalidArgumentException(
 				"Failed to render component '{$component}' for field '{$field_id}': " . $e->getMessage(),
@@ -319,7 +369,7 @@ class FormElementRenderer {
 	 * @param string                $field_id         Field identifier
 	 * @param string                $label            Field label
 	 * @param array                 $context          Prepared field context
-	 * @param string                $wrapper_template Template for wrapper (default: 'shared.field-wrapper')
+	 * @param string                $wrapper_template Template for wrapper (default: 'layout.field.field-wrapper')
 	 * @param string                $template_type    Canonical template type for resolver (default: 'field-wrapper')
 	 * @param FormsServiceSession|null $session       Session for asset collection (required)
 	 * @return string Rendered field HTML with wrapper
@@ -330,7 +380,7 @@ class FormElementRenderer {
 		string $field_id,
 		string $label,
 		array $context,
-		string $wrapper_template = 'shared.field-wrapper',
+		string $wrapper_template = 'layout.field.field-wrapper',
 		string $template_type = 'field-wrapper',
 		?FormsServiceSession $session = null
 	): string {
@@ -373,10 +423,11 @@ class FormElementRenderer {
 			return $wrapped_html;
 		} catch (\Throwable $e) {
 			$this->_get_logger()->error('FormElementRenderer: Field with wrapper rendering failed', array(
-				'component' => $component,
-				'field_id'  => $field_id,
-				'exception' => $e->getMessage(),
-				'trace'     => $e->getTraceAsString()
+				'component'         => $component,
+				'field_id'          => $field_id,
+				'exception_class'   => get_class($e),
+				'exception_code'    => $e->getCode(),
+				'exception_message' => $e->getMessage(),
 			));
 			throw new \InvalidArgumentException(
 				"Failed to render field '{$field_id}' with component '{$component}' and wrapper '{$wrapper_template}': " . $e->getMessage(),
@@ -419,6 +470,11 @@ class FormElementRenderer {
 			'required'            => $context['required']            ?? false,
 			'context'             => $context,
 		);
+		$template_context = $this->sanitize_wrapper_context($template_context);
+		$component_html   = $template_context['component_html'];
+		if (isset($template_context['context']) && is_array($template_context['context'])) {
+			$context = $template_context['context'];
+		}
 		$resolver_context                  = $context;
 		$resolver_context['field_id']      = $resolver_context['field_id']  ?? $field_id;
 		$resolver_context['_field_id']     = $resolver_context['_field_id'] ?? $field_id;
@@ -452,9 +508,11 @@ class FormElementRenderer {
 				return $wrapped_html;
 			} catch (\Throwable $e) {
 				$this->_get_logger()->error('FormElementRenderer: Session render_element failed; falling back to loader', array(
-					'template_type' => $template_type,
-					'field_id'      => $field_id,
-					'exception'     => $e->getMessage(),
+					'template_type'     => $template_type,
+					'field_id'          => $field_id,
+					'exception_class'   => get_class($e),
+					'exception_code'    => $e->getCode(),
+					'exception_message' => $e->getMessage(),
 				));
 			}
 		}
@@ -474,15 +532,133 @@ class FormElementRenderer {
 			return $wrapped_html;
 		} catch (\Throwable $e) {
 			$this->_get_logger()->error('FormElementRenderer: Template wrapper failed', array(
-				'template_name'   => $template_name,
-				'actual_template' => $actual_template,
-				'field_id'        => $field_id,
-				'exception'       => $e
+				'template_name'     => $template_name,
+				'actual_template'   => $actual_template,
+				'field_id'          => $field_id,
+				'exception_class'   => get_class($e),
+				'exception_code'    => $e->getCode(),
+				'exception_message' => $e->getMessage(),
 			));
 
 			// Fallback to component HTML without wrapper on template error
 			return $component_html;
 		}
+	}
+
+	/**
+	 * Sanitize wrapper context fragments to prevent unsafe values reaching templates.
+	 *
+	 * @param array<string,mixed> $template_context
+	 * @return array<string,mixed>
+	 */
+	private function sanitize_wrapper_context(array $template_context): array {
+		$fragment_keys = array('before', 'after', 'description', 'content', 'component_html');
+		foreach ($fragment_keys as $key) {
+			if (array_key_exists($key, $template_context)) {
+				$template_context[$key] = $this->coerce_wrapper_fragment($template_context[$key], $key);
+			}
+		}
+
+		if (isset($template_context['context']) && is_array($template_context['context'])) {
+			$template_context['context'] = $this->sanitize_nested_context_fragments($template_context['context']);
+		}
+
+		return $template_context;
+	}
+
+	/**
+	 * Coerce wrapper fragments into safe string output for templates.
+	 *
+	 * @param mixed  $fragment
+	 * @param string $fragment_key
+	 * @return string
+	 */
+	private function coerce_wrapper_fragment(mixed $fragment, string $fragment_key): string {
+		if ($fragment === null) {
+			return '';
+		}
+
+		if ($fragment instanceof ComponentRenderResult) {
+			return $fragment->markup;
+		}
+
+		if (is_string($fragment)) {
+			return $fragment;
+		}
+
+		if (is_scalar($fragment)) {
+			return (string) $fragment;
+		}
+
+		if (is_object($fragment) && method_exists($fragment, '__toString')) {
+			try {
+				return (string) $fragment;
+			} catch (\Throwable $e) {
+				$this->_get_logger()->warning('FormElementRenderer: Wrapper fragment object failed to stringify', array(
+					'fragment_key'      => $fragment_key,
+					'exception_class'   => get_class($e),
+					'exception_message' => $e->getMessage(),
+				));
+				return '';
+			}
+		}
+
+		if (is_callable($fragment)) {
+			$this->_get_logger()->warning('FormElementRenderer: Wrapper fragment was callable; discarding', array(
+				'fragment_key' => $fragment_key,
+			));
+			return '';
+		}
+
+		if (is_array($fragment)) {
+			$this->_get_logger()->warning('FormElementRenderer: Wrapper fragment was array; discarding', array(
+				'fragment_key' => $fragment_key,
+			));
+			return '';
+		}
+
+		$this->_get_logger()->warning('FormElementRenderer: Wrapper fragment could not be coerced', array(
+			'fragment_key'  => $fragment_key,
+			'fragment_type' => gettype($fragment),
+		));
+
+		return '';
+	}
+
+	/**
+	 * Recursively sanitize nested context fragments that templates may echo.
+	 *
+	 * @param array<string,mixed> $context
+	 * @return array<string,mixed>
+	 */
+	private function sanitize_nested_context_fragments(array $context): array {
+		$fragment_keys = array('before', 'after', 'description', 'content', 'component_html');
+
+		foreach ($context as $key => $value) {
+			if (in_array($key, $fragment_keys, true)) {
+				$context[$key] = $this->coerce_wrapper_fragment($value, (string) $key);
+				continue;
+			}
+
+			if (is_array($value)) {
+				$context[$key] = $this->sanitize_nested_context_fragments($value);
+				continue;
+			}
+
+			if ($value instanceof ComponentRenderResult) {
+				$context[$key] = $value->markup;
+				continue;
+			}
+
+			if (is_callable($value)) {
+				$this->_get_logger()->warning('FormElementRenderer: Nested context fragment was callable; discarding', array(
+					'fragment_key' => $key,
+				));
+				$context[$key] = '';
+			}
+		}
+
+		return $context;
 	}
 
 	/**

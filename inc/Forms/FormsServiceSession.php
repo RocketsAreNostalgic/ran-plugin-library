@@ -26,11 +26,17 @@ class FormsServiceSession {
 	/** @var array<string,callable> */
 	private array $root_template_callbacks = array();
 
-	public function __construct(ComponentManifest $manifest, FormsAssets $assets, Logger $logger, array $form_defaults = array()) {
+	public function __construct(
+		ComponentManifest $manifest,
+		FormsAssets $assets,
+		FormsTemplateOverrideResolver $template_resolver,
+		Logger $logger,
+		array $form_defaults = array()
+	) {
 		$this->manifest          = $manifest;
 		$this->assets            = $assets;
+		$this->template_resolver = $template_resolver;
 		$this->logger            = $logger;
-		$this->template_resolver = new FormsTemplateOverrideResolver($logger);
 
 		// Set form-wide defaults if provided
 		if (!empty($form_defaults)) {
@@ -58,19 +64,49 @@ class FormsServiceSession {
 		}
 
 		// Step 1: Resolve template key via FormsTemplateOverrideResolver
-		$template_key = $this->template_resolver->resolve_template($element_type, $context);
-		if (isset($element_config['root_override']) && is_string($element_config['root_override']) && $element_config['root_override'] !== '') {
-			$template_key = $element_config['root_override'];
+		try {
+			$template_key = $this->template_resolver->resolve_template($element_type, $context);
+			if (isset($element_config['root_override']) && is_string($element_config['root_override']) && $element_config['root_override'] !== '') {
+				$template_key = $element_config['root_override'];
+			}
+
+			// Step 2: Pass resolved template key to ComponentManifest for rendering
+			$render_context = array_merge($element_config, $context);
+			$result         = $this->manifest->render($template_key, $render_context);
+
+			// Step 3: Extract and store assets from ComponentRenderResult
+			$this->assets->ingest($result);
+
+			return $result->markup;
+		} catch (\Throwable $e) {
+			$this->logger->warning('FormsServiceSession: Template render failed; returning fallback markup', array(
+				'element_type'      => $element_type,
+				'context_keys'      => array_keys($context),
+				'element_config'    => array_keys($element_config),
+				'exception_class'   => get_class($e),
+				'exception_code'    => $e->getCode(),
+				'exception_message' => $e->getMessage(),
+			));
+
+			$fallback_markup = '';
+			if (isset($element_config['component_html']) && is_string($element_config['component_html'])) {
+				$fallback_markup = $element_config['component_html'];
+			} elseif (isset($element_config['content']) && is_string($element_config['content'])) {
+				$fallback_markup = $element_config['content'];
+			}
+
+			$warning_id   = isset($context['field_id']) ? (string) $context['field_id'] : $element_type;
+			$warning_text = sprintf(
+				'Template failure while rendering "%s". Check logs for details.',
+				$template_key ?? $element_type
+			);
+
+			return $fallback_markup . sprintf(
+				"\n<!-- kepler-template-fallback: %s -->\n<div class=\"kepler-template-warning screen-reader-text\" aria-live=\"polite\">%s</div>\n",
+				esc_html($warning_id),
+				esc_html($warning_text)
+			);
 		}
-
-		// Step 2: Pass resolved template key to ComponentManifest for rendering
-		$render_context = array_merge($element_config, $context);
-		$result         = $this->manifest->render($template_key, $render_context);
-
-		// Step 3: Extract and store assets from ComponentRenderResult
-		$this->assets->ingest($result);
-
-		return $result->markup;
 	}
 
 	/**
@@ -200,6 +236,17 @@ class FormsServiceSession {
 		}
 
 		$merged = $this->_merge_schema_with_defaults($schema, $defaults);
+		if ($this->logger->is_active()) {
+			$defaultBuckets = $this->_coerce_bucketed_lists($defaults, true);
+			$schemaBuckets  = $this->_coerce_bucketed_lists($schema, false);
+			$mergedBuckets  = $this->_coerce_bucketed_lists($merged, false);
+			$this->logger->debug('forms.schema.component_counts', array(
+				'alias'                           => $alias,
+				'default_validate_component_count' => count($defaultBuckets['validate']['component']),
+				'schema_validate_component_count'  => count($schemaBuckets['validate']['component']),
+				'merged_validate_component_count'  => count($mergedBuckets['validate']['component']),
+			));
+		}
 
 		if ($merged['validate']['component'] === array() && $merged['validate']['schema'] === array()) {
 			$this->logger->error('forms.schema.merge.no_validators', array(
@@ -333,17 +380,28 @@ class FormsServiceSession {
 		$schemaContext  = isset($schema['context'])   && is_array($schema['context']) ? $schema['context'] : array();
 		$mergedContext  = isset($merged['context'])   && is_array($merged['context']) ? $merged['context'] : array();
 
+		$summary = static function (array $source): array {
+			return array(
+				'component' => isset($source['component']) && is_array($source['component']) ? count($source['component']) : 0,
+				'schema'    => isset($source['schema'])    && is_array($source['schema'])    ? count($source['schema'])    : 0,
+			);
+		};
+
+		$defaultsBuckets = $this->_coerce_bucketed_lists($defaults, true);
+		$schemaBuckets   = $this->_coerce_bucketed_lists($schema, false);
+		$mergedBuckets   = $this->_coerce_bucketed_lists($merged, false);
+
 		$this->logger->debug('forms.schema.merge', array(
-			'alias'                  => $alias,
-			'default_sanitize_count' => isset($defaults['sanitize']) && is_array($defaults['sanitize']) ? count($defaults['sanitize']) : (is_callable($defaults['sanitize'] ?? null) ? 1 : 0),
-			'default_validate_count' => isset($defaults['validate']) && is_array($defaults['validate']) ? count($defaults['validate']) : (is_callable($defaults['validate'] ?? null) ? 1 : 0),
-			'schema_sanitize_count'  => isset($schema['sanitize'])   && is_array($schema['sanitize']) ? count($schema['sanitize']) : (is_callable($schema['sanitize'] ?? null) ? 1 : 0),
-			'schema_validate_count'  => isset($schema['validate'])   && is_array($schema['validate']) ? count($schema['validate']) : (is_callable($schema['validate'] ?? null) ? 1 : 0),
-			'merged_sanitize_count'  => isset($merged['sanitize'])   && is_array($merged['sanitize']) ? count($merged['sanitize']) : (is_callable($merged['sanitize'] ?? null) ? 1 : 0),
-			'merged_validate_count'  => isset($merged['validate'])   && is_array($merged['validate']) ? count($merged['validate']) : (is_callable($merged['validate'] ?? null) ? 1 : 0),
-			'manifest_context_keys'  => array_keys($defaultContext),
-			'schema_context_keys'    => array_keys($schemaContext),
-			'merged_context_keys'    => array_keys($mergedContext),
+			'alias'                   => $alias,
+			'default_sanitize_counts' => $summary($defaultsBuckets['sanitize']),
+			'default_validate_counts' => $summary($defaultsBuckets['validate']),
+			'schema_sanitize_counts'  => $summary($schemaBuckets['sanitize']),
+			'schema_validate_counts'  => $summary($schemaBuckets['validate']),
+			'merged_sanitize_counts'  => $summary($mergedBuckets['sanitize']),
+			'merged_validate_counts'  => $summary($mergedBuckets['validate']),
+			'manifest_context_keys'   => array_keys($defaultContext),
+			'schema_context_keys'     => array_keys($schemaContext),
+			'merged_context_keys'     => array_keys($mergedContext),
 		));
 	}
 

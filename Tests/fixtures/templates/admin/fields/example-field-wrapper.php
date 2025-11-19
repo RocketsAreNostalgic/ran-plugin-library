@@ -22,6 +22,17 @@ if (!defined('ABSPATH')) {
 	exit;
 }
 
+
+$field_id            = isset($context['field_id']) ? (string) $context['field_id'] : '';
+$label               = isset($context['label']) ? (string) $context['label'] : '';
+$component_html      = isset($context['component_html']) ? (string) $context['component_html'] : '';
+$before              = isset($context['before']) ? (string) $context['before'] : '';
+$after               = isset($context['after']) ? (string) $context['after'] : '';
+$validation_warnings = isset($context['validation_warnings']) && is_array($context['validation_warnings']) ? $context['validation_warnings'] : array();
+$display_notices     = isset($context['display_notices'])     && is_array($context['display_notices']) ? $context['display_notices'] : array();
+$description         = isset($context['description']) ? (string) $context['description'] : '';
+$required            = isset($context['required']) ? (bool) $context['required'] : false;
+
 $has_warnings    = !empty($validation_warnings);
 $has_notices     = !empty($display_notices);
 $wrapper_classes = array('example-field-wrapper');

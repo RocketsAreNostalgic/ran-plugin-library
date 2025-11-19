@@ -28,15 +28,15 @@ class FormsTemplateOverrideResolver {
 	 * @var array<string, string> Template type => fallback template key mappings
 	 */
 	private static array $BASE_FALLBACKS = array(
-		'root-wrapper'            => 'shared.root-wrapper',
-		'root'                    => 'shared.root-wrapper',
-		'section-wrapper'         => 'shared.section-wrapper',
-		'section'                 => 'shared.section-wrapper',
-		'group-wrapper'           => 'shared.group-wrapper',
-		'group'                   => 'shared.group-wrapper',
-		'field-wrapper'           => 'shared.field-wrapper',
-		'field'                   => 'shared.field-wrapper',
-		'submit-controls-wrapper' => 'submit-controls-wrapper',
+		'root-wrapper'            => 'layout.container.root-wrapper',
+		'root'                    => 'layout.container.root-wrapper',
+		'section-wrapper'         => 'layout.zone.section-wrapper',
+		'section'                 => 'layout.zone.section-wrapper',
+		'group-wrapper'           => 'layout.zone.group-wrapper',
+		'group'                   => 'layout.zone.group-wrapper',
+		'field-wrapper'           => 'layout.field.field-wrapper',
+		'field'                   => 'layout.field.field-wrapper',
+		'submit-controls-wrapper' => 'layout.zone.submit-controls-wrapper',
 	);
 
 	/**
