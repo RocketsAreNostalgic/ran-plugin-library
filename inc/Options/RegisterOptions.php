@@ -535,7 +535,11 @@ class RegisterOptions {
 			return $changed;
 		} catch (\Throwable $e) {
 			$this->schema = $oldSchema;
-			$this->_get_logger()->error('RegisterOptions: register_schema failed', array('exception' => $e));
+			$this->_get_logger()->error('RegisterOptions: register_schema failed', array(
+				'exception_class'   => get_class($e),
+				'exception_code'    => $e->getCode(),
+				'exception_message' => $e->getMessage(),
+			));
 			throw $e;
 		}
 	}
@@ -805,7 +809,7 @@ class RegisterOptions {
 	 */
 	public function seed_if_missing(array $defaults): self {
 		// Distinguish truly missing from other falsy values via sentinel
-		$sentinel = new \stdClass();
+		$sentinel = new \stdClass(); // Allows us to differentiate between a missing option and an option set to nullish (e.g. false, 0, '', null)
 		$existing = $this->_do_get_option($this->main_wp_option_name, $sentinel);
 		if ($existing !== $sentinel) {
 			// Already present; do not modify DB or in-memory state
@@ -1064,16 +1068,25 @@ class RegisterOptions {
 
 			$this->schema[$normalized_key] = $this->_coerce_schema_entry($this->schema[$normalized_key], $normalized_key);
 			$finalEntry                    = $this->schema[$normalized_key];
+			$sanitizeComponentCount         = count($finalEntry['sanitize'][self::BUCKET_COMPONENT] ?? array());
+			$sanitizeSchemaCount            = count($finalEntry['sanitize'][self::BUCKET_SCHEMA] ?? array());
+			$validateComponentCount         = count($finalEntry['validate'][self::BUCKET_COMPONENT] ?? array());
+			$validateSchemaCount            = count($finalEntry['validate'][self::BUCKET_SCHEMA] ?? array());
 			$this->_get_logger()->debug(
 				'RegisterOptions: _register_internal_schema merged entry',
 				array(
-					'key'                      => $normalized_key,
-					'had_existing'             => $hadExisting,
-					'requires_validator'       => $requiresValidator,
-					'sanitize_component_count' => count($finalEntry['sanitize'][self::BUCKET_COMPONENT]),
-					'sanitize_schema_count'    => count($finalEntry['sanitize'][self::BUCKET_SCHEMA]),
-					'validate_component_count' => count($finalEntry['validate'][self::BUCKET_COMPONENT]),
-					'validate_schema_count'    => count($finalEntry['validate'][self::BUCKET_SCHEMA]),
+					'key'                        => $normalized_key,
+					'had_existing'               => $hadExisting,
+					'requires_validator'         => $requiresValidator,
+					'sanitize_component_count'   => $sanitizeComponentCount,
+					'sanitize_schema_count'      => $sanitizeSchemaCount,
+					'validate_component_count'   => $validateComponentCount,
+					'validate_schema_count'      => $validateSchemaCount,
+					'sanitize_component_summary' => $this->_summarize_callable_bucket($finalEntry['sanitize'][self::BUCKET_COMPONENT]),
+					'sanitize_schema_summary'    => $this->_summarize_callable_bucket($finalEntry['sanitize'][self::BUCKET_SCHEMA]),
+					'validate_component_summary' => $this->_summarize_callable_bucket($finalEntry['validate'][self::BUCKET_COMPONENT]),
+					'validate_schema_summary'    => $this->_summarize_callable_bucket($finalEntry['validate'][self::BUCKET_SCHEMA]),
+					'default_present'            => array_key_exists('default', $finalEntry),
 				)
 			);
 		}
@@ -1445,7 +1458,7 @@ class RegisterOptions {
 	}
 
 	/**
-	 * Applies schema-based sanitization and validation to the value of a given option key.
+	 * Apply schema-based sanitization and validation to the value of a given option key.
 	 * If no schema exists for the key, returns the value unchanged.
 	 *
 	 * @param  string $normalized_key
@@ -1558,6 +1571,31 @@ class RegisterOptions {
 	 */
 	private function _normalize_callable_field($callables, string $field, string $option_key): array {
 		return $this->_get_validator_pipeline()->normalize_callable_field($callables, $field, $option_key, 'RegisterOptions');
+	}
+
+	/**
+	 * Produce a lightweight summary for a bucket of callables so logs avoid retaining raw closures.
+	 *
+	 * @param array<int, callable> $bucket
+	 * @return array{count:int, descriptors:array<int,string>}
+	 */
+	private function _summarize_callable_bucket(array $bucket): array {
+		$count       = count($bucket);
+		$limit       = 5;
+		$descriptors = array();
+		$index       = 0;
+		foreach ($bucket as $callable) {
+			if ($index >= $limit) {
+				break;
+			}
+			$descriptors[] = $this->_describe_callable($callable);
+			$index++;
+		}
+
+		return array(
+			'count'       => $count,
+			'descriptors' => $descriptors,
+		);
 	}
 
 	/**
@@ -1809,24 +1847,12 @@ class RegisterOptions {
 			return $desc;
 		}
 		if ($callable instanceof \Closure) {
-			// Enhanced diagnostics: include file:line when available
 			$desc = 'Closure';
-			try {
-				$ref  = new \ReflectionFunction($callable);
-				$file = (string) $ref->getFileName();
-				$line = (int) $ref->getStartLine();
-				if ($file !== '') {
-					$desc = 'Closure(' . basename($file) . ':' . $line . ')';
-				}
-				// @codeCoverageIgnoreStart
-			} catch (\Throwable $e) {
-				// Fallback keeps 'Closure'; log for diagnostics. This catch is intentionally hard to
-				// exercise in unit tests without invasive tooling, since ReflectionFunction rarely
-				// throws for valid closures. We log a warning to surface any unexpected failures in
-				// real environments, but exclude this block from coverage metrics.
-				$this->_get_logger()->warning('RegisterOptions: _describe_callable closure reflection failed', array('exception' => $e));
+			if (function_exists('spl_object_id')) {
+				$desc = 'Closure#' . spl_object_id($callable);
+			} elseif (function_exists('spl_object_hash')) {
+				$desc = 'Closure#' . spl_object_hash($callable);
 			}
-			// @codeCoverageIgnoreEnd
 			$this->_get_logger()->debug('RegisterOptions: _describe_callable completed (closure)');
 			return $desc;
 		}
