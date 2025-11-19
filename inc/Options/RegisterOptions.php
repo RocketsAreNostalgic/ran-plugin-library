@@ -1068,10 +1068,10 @@ class RegisterOptions {
 
 			$this->schema[$normalized_key] = $this->_coerce_schema_entry($this->schema[$normalized_key], $normalized_key);
 			$finalEntry                    = $this->schema[$normalized_key];
-			$sanitizeComponentCount         = count($finalEntry['sanitize'][self::BUCKET_COMPONENT] ?? array());
-			$sanitizeSchemaCount            = count($finalEntry['sanitize'][self::BUCKET_SCHEMA] ?? array());
-			$validateComponentCount         = count($finalEntry['validate'][self::BUCKET_COMPONENT] ?? array());
-			$validateSchemaCount            = count($finalEntry['validate'][self::BUCKET_SCHEMA] ?? array());
+			$sanitizeComponentCount        = count($finalEntry['sanitize'][self::BUCKET_COMPONENT] ?? array());
+			$sanitizeSchemaCount           = count($finalEntry['sanitize'][self::BUCKET_SCHEMA] ?? array());
+			$validateComponentCount        = count($finalEntry['validate'][self::BUCKET_COMPONENT] ?? array());
+			$validateSchemaCount           = count($finalEntry['validate'][self::BUCKET_SCHEMA] ?? array());
 			$this->_get_logger()->debug(
 				'RegisterOptions: _register_internal_schema merged entry',
 				array(

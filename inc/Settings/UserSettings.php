@@ -18,6 +18,7 @@ use Ran\PluginLib\Util\Logger;
 use Ran\PluginLib\Options\Storage\StorageContext;
 use Ran\PluginLib\Options\RegisterOptions;
 use Ran\PluginLib\Options\OptionScope;
+use Ran\PluginLib\Forms\Validation\ValidatorPipelineService;
 use Ran\PluginLib\Forms\Renderer\FormMessageHandler;
 use Ran\PluginLib\Forms\Renderer\FormElementRenderer;
 use Ran\PluginLib\Forms\FormsService;
@@ -25,7 +26,6 @@ use Ran\PluginLib\Forms\FormsInterface;
 use Ran\PluginLib\Forms\FormsBaseTrait;
 use Ran\PluginLib\Forms\Component\ComponentManifest;
 use Ran\PluginLib\Forms\Component\ComponentLoader;
-use Ran\PluginLib\Forms\Validation\ValidatorPipelineService;
 
 
 /**
@@ -272,10 +272,10 @@ class UserSettings implements FormsInterface {
 		if (!empty($schema)) {
 			$session = $this->get_form_session();
 			if ($session !== null) {
-				$bucketed = $this->_assemble_bucketed_schema($session);
+				$bucketed = $this->_assemble_initial_bucketed_schema($session);
 				if (!empty($bucketed['schema'])) {
-					$queued = $this->_drain_queued_component_validators();
-					$opts->_register_internal_schema($bucketed['schema'], $bucketed['metadata'], $queued);
+					list($bucketedSchema, $queuedValidators) = $this->_consume_component_validator_queue($bucketed['schema']);
+					$opts->_register_internal_schema($bucketedSchema, $bucketed['metadata'], $queuedValidators);
 				}
 			}
 			$opts->_register_internal_schema($schema);

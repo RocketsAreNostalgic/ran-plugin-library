@@ -633,10 +633,10 @@ class AdminSettings implements FormsInterface {
 				$session = $this->get_form_session();
 			}
 			if ($session !== null) {
-				$bucketed = $this->_assemble_bucketed_schema($session);
+				$bucketed = $this->_assemble_initial_bucketed_schema($session);
 				if (!empty($bucketed['schema'])) {
-					$queued = $this->_drain_queued_component_validators();
-					$tmp->_register_internal_schema($bucketed['schema'], $bucketed['metadata'], $queued);
+					list($bucketedSchema, $queuedValidators) = $this->_consume_component_validator_queue($bucketed['schema']);
+					$tmp->_register_internal_schema($bucketedSchema, $bucketed['metadata'], $queuedValidators);
 				}
 			}
 			$tmp->_register_internal_schema($schema);

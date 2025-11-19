@@ -1562,7 +1562,12 @@ trait FormsBaseTrait {
 	}
 
 	/**
-	 * Build bucketed schema fragments and metadata for registered fields.
+	 * Builds the initial bucketed schema fragments and metadata for registered fields.
+	 *
+	 * This collects component-provided defaults plus any per-field schema declared on the
+	 * builders, but it does not reflect the full developer-supplied schema map. Callers are
+	 * expected to merge the returned fragment first, then layer the main schema via
+	 * RegisterOptions::register_schema()/_register_internal_schema().
 	 *
 	 * @internal Consumed by settings facades during auto-schema backfill.
 	 *
@@ -1576,7 +1581,7 @@ trait FormsBaseTrait {
 	 *     metadata: array<string, array<string, mixed>>
 	 * }
 	 */
-	protected function _assemble_bucketed_schema(FormsServiceSession $session): array {
+	protected function _assemble_initial_bucketed_schema(FormsServiceSession $session): array {
 		$bucketedSchema = array();
 		$metadata       = array();
 
@@ -1635,6 +1640,61 @@ trait FormsBaseTrait {
 			'schema'   => $bucketedSchema,
 			'metadata' => $metadata,
 		);
+	}
+
+	/**
+	 * Consume queued validators for the supplied schema fragment while preserving order.
+	 *
+	 * Any validators that do not correspond to the provided schema keys are re-queued so a
+	 * later drain can merge them once their schema entries materialize.
+	 *
+	 * @param array<string, array<string, mixed>> $bucketedSchema
+	 * @return array{
+	 *     0: array<string, array<string, mixed>>,
+	 *     1: array<string, array<int, callable>>
+	 * }
+	 */
+	protected function _consume_component_validator_queue(array $bucketedSchema): array {
+		$drained = $this->_drain_queued_component_validators();
+		if ($drained === array()) {
+			return array($bucketedSchema, array());
+		}
+
+		$queuedForSchema = array();
+		$matchedCounts   = array();
+		$unmatchedKeys   = array();
+		$schemaKeyLookup = array_fill_keys(array_keys($bucketedSchema), true);
+
+		foreach ($drained as $normalizedKey => $validators) {
+			if (!is_array($validators) || $validators === array()) {
+				continue;
+			}
+
+			$validators = array_values($validators);
+			if (isset($schemaKeyLookup[$normalizedKey])) {
+				$queuedForSchema[$normalizedKey] = $validators;
+				$matchedCounts[$normalizedKey]   = count($validators);
+				continue;
+			}
+
+			if (!isset($this->__queued_component_validators[$normalizedKey])) {
+				$this->__queued_component_validators[$normalizedKey] = $validators;
+			} else {
+				$this->__queued_component_validators[$normalizedKey] = array_merge(
+					(array) $this->__queued_component_validators[$normalizedKey],
+					$validators
+				);
+			}
+			$unmatchedKeys[] = $normalizedKey;
+		}
+
+		$this->logger->debug(static::class . ': Component validator queue consumed', array(
+			'schema_keys'    => array_keys($bucketedSchema),
+			'queued_counts'  => $matchedCounts,
+			'unmatched_keys' => $unmatchedKeys,
+		));
+
+		return array($bucketedSchema, $queuedForSchema);
 	}
 
 	/**

@@ -241,7 +241,7 @@ class FormsServiceSession {
 			$schemaBuckets  = $this->_coerce_bucketed_lists($schema, false);
 			$mergedBuckets  = $this->_coerce_bucketed_lists($merged, false);
 			$this->logger->debug('forms.schema.component_counts', array(
-				'alias'                           => $alias,
+				'alias'                            => $alias,
 				'default_validate_component_count' => count($defaultBuckets['validate']['component']),
 				'schema_validate_component_count'  => count($schemaBuckets['validate']['component']),
 				'merged_validate_component_count'  => count($mergedBuckets['validate']['component']),
