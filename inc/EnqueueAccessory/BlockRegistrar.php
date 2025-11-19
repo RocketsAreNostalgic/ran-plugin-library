@@ -202,7 +202,13 @@ class BlockRegistrar extends AssetEnqueueBaseAbstract {
 			$priority = $block_definition['priority'] ?? 10;
 
 			if ($logger->is_active()) {
-				$logger->debug("{$context} - Adding block '{$block_name}' for registration on hook '{$hook}' with priority {$priority}.");
+				$logger->debug("{$context} - Adding block '{$block_name}' for registration.", array(
+					'hook'          => $hook,
+					'priority'      => $priority,
+					'has_assets'    => isset($block_definition['assets']),
+					'has_condition' => isset($block_definition['condition']),
+					'preload_mode'  => isset($block_definition['preload']) ? $this->_describe_preload($block_definition['preload']) : 'none',
+				));
 			}
 
 			// Mark this block name as registered to prevent duplicates
@@ -247,7 +253,7 @@ class BlockRegistrar extends AssetEnqueueBaseAbstract {
 
 				if (!isset($this->registered_hooks[$hook_key])) {
 					if ($logger->is_active()) {
-						$logger->debug("{$context} - Registering action for hook '{$hook_name}' with priority {$priority}.");
+						$logger->debug("{$context} - Registering action for hook '{$hook_name}'.", array('priority' => $priority, 'block_count' => count($blocks)));
 					}
 
 					$this->_get_hooks_manager()->register_action(
@@ -377,38 +383,6 @@ class BlockRegistrar extends AssetEnqueueBaseAbstract {
 	}
 
 	/**
-	 * Get registration results for all blocks.
-	 *
-	 * Returns an array of registration results indexed by block name.
-	 * Successful registrations return WP_Block_Type objects, failed
-	 * registrations return false.
-	 *
-	 * @return array<string, \WP_Block_Type|false> Registration results.
-	 */
-	private function _get_registration_results(): array {
-		$results = array();
-
-		// Iterate over the nested blocks structure: hook -> priority -> blocks
-		foreach ($this->blocks as $hook => $priorities) {
-			foreach ($priorities as $priority => $block_definitions) {
-				foreach ($block_definitions as $block_definition) {
-					$block_name = $block_definition['block_name'];
-
-					// If successfully registered, include the WP_Block_Type object
-					if (isset($this->registered_wp_block_types[$block_name])) {
-						$results[$block_name] = $this->registered_wp_block_types[$block_name];
-					} else {
-						// If not registered (failed), mark as false
-						$results[$block_name] = false;
-					}
-				}
-			}
-		}
-
-		return $results;
-	}
-
-	/**
 	 * Get comprehensive status for all blocks.
 	 *
 	 * Returns detailed status information for all blocks including their
@@ -466,6 +440,76 @@ class BlockRegistrar extends AssetEnqueueBaseAbstract {
 
 		return $status;
 	}
+
+	/**
+	 * Get registration results for all blocks.
+	 *
+	 * Returns an array of registration results indexed by block name.
+	 * Successful registrations return WP_Block_Type objects, failed
+	 * registrations return false.
+	 *
+	 * @return array<string, \WP_Block_Type|false> Registration results.
+	 */
+	private function _get_registration_results(): array {
+		$results = array();
+
+		// Iterate over the nested blocks structure: hook -> priority -> blocks
+		foreach ($this->blocks as $hook => $priorities) {
+			foreach ($priorities as $priority => $block_definitions) {
+				foreach ($block_definitions as $block_definition) {
+					$block_name = $block_definition['block_name'];
+
+					// If successfully registered, include the WP_Block_Type object
+					if (isset($this->registered_wp_block_types[$block_name])) {
+						$results[$block_name] = $this->registered_wp_block_types[$block_name];
+					} else {
+						// If not registered (failed), mark as false
+						$results[$block_name] = false;
+					}
+				}
+			}
+		}
+
+		return $results;
+	}
+
+	/**
+	 * Provide a short descriptor for preload configuration without exposing callables.
+	 */
+	private function _describe_preload(mixed $preload): string {
+		if ($preload === true) {
+			return 'always';
+		}
+		if ($preload === 'inherit') {
+			return 'inherit';
+		}
+		if (is_callable($preload)) {
+			return $this->_describe_callable($preload);
+		}
+		return 'none';
+	}
+
+	/**
+	 * Describe a callable without leaking closures.
+	 */
+	private function _describe_callable(mixed $callable): string {
+		if (is_string($callable)) {
+			return $callable;
+		}
+		if (is_array($callable) && isset($callable[0], $callable[1])) {
+			$class = is_object($callable[0]) ? get_class($callable[0]) : (string) $callable[0];
+			return $class . '::' . (string) $callable[1];
+		}
+		if ($callable instanceof \Closure) {
+			return 'Closure';
+		}
+		if (is_object($callable) && method_exists($callable, '__invoke')) {
+			return get_class($callable) . '::__invoke';
+		}
+		return gettype($callable);
+	}
+
+
 
 	/**
 	 * Check if a WordPress hook has already fired.
@@ -538,7 +582,12 @@ class BlockRegistrar extends AssetEnqueueBaseAbstract {
 		$context = get_class($this) . '::' . __FUNCTION__;
 
 		if ($logger->is_active()) {
-			$logger->debug("{$context} - Integrating assets for block '{$block_name}'.");
+			$logger->debug("{$context} - Integrating assets for block '{$block_name}'.", array(
+				'editor_scripts'   => isset($asset_config['editor_scripts']) ? count($asset_config['editor_scripts']) : 0,
+				'frontend_scripts' => isset($asset_config['frontend_scripts']) ? count($asset_config['frontend_scripts']) : 0,
+				'editor_styles'    => isset($asset_config['editor_styles']) ? count($asset_config['editor_styles']) : 0,
+				'frontend_styles'  => isset($asset_config['frontend_styles']) ? count($asset_config['frontend_styles']) : 0,
+			));
 		}
 
 		$asset_config = $this->block_assets[$block_name];
@@ -603,8 +652,10 @@ class BlockRegistrar extends AssetEnqueueBaseAbstract {
 		$blocks = $this->blocks[$hook_name][$priority] ?? array();
 
 		if ($logger->is_active()) {
-			$block_count = count($blocks);
-			$logger->debug("{$context} - Processing {$block_count} blocks for hook '{$hook_name}' priority {$priority}.");
+			$logger->debug("{$context} - Processing blocks for hook '{$hook_name}'.", array(
+				'priority'    => $priority,
+				'block_count' => count($blocks),
+			));
 		}
 
 		foreach ($blocks as $block_definition) {
@@ -633,7 +684,7 @@ class BlockRegistrar extends AssetEnqueueBaseAbstract {
 		if (isset($block_definition['condition']) && is_callable($block_definition['condition'])) {
 			if (!call_user_func($block_definition['condition'])) {
 				if ($logger->is_active()) {
-					$logger->debug("{$context} - Condition failed for block '{$block_name}'. Skipping registration.");
+					$logger->debug("{$context} - Condition failed for block '{$block_name}'.");
 				}
 				return;
 			}
@@ -645,7 +696,7 @@ class BlockRegistrar extends AssetEnqueueBaseAbstract {
 		$registry = $this->_get_block_registry();
 		if ($registry->is_registered($block_name)) {
 			if ($logger->is_active()) {
-				$logger->debug("{$context} - Block '{$block_name}' already registered with WordPress. Skipping.");
+				$logger->debug("{$context} - Block '{$block_name}' already registered with WordPress.");
 			}
 			return;
 		}
@@ -661,7 +712,10 @@ class BlockRegistrar extends AssetEnqueueBaseAbstract {
 		$wp_config = $this->_map_assets_to_wordpress_config($wp_config, $block_name);
 
 		if ($logger->is_active()) {
-			$logger->debug("{$context} - Registering block '{$block_name}' with WordPress.");
+			$logger->debug("{$context} - Registering block '{$block_name}'.", array(
+				'has_assets'    => isset($this->block_assets[$block_name]),
+				'has_render_cb' => isset($wp_config['render_callback']) ? $this->_describe_callable($wp_config['render_callback']) : null,
+			));
 		}
 
 		// Register the block with WordPress
@@ -671,12 +725,12 @@ class BlockRegistrar extends AssetEnqueueBaseAbstract {
 			// Success: Store the WP_Block_Type object and log success
 			$this->registered_wp_block_types[$block_name] = $result;
 			if ($logger->is_active()) {
-				$logger->debug("{$context} - Successfully registered block '{$block_name}' with WordPress.");
+				$logger->debug("{$context} - Successfully registered block '{$block_name}'.");
 			}
 		} else {
 			// Failure: Log the failure
 			if ($logger->is_active()) {
-				$logger->warning("{$context} - Failed to register block '{$block_name}' with WordPress.");
+				$logger->warning("{$context} - Failed to register block '{$block_name}'.");
 			}
 		}
 	}
@@ -816,8 +870,6 @@ class BlockRegistrar extends AssetEnqueueBaseAbstract {
 			}
 		}
 	}
-
-
 
 	/**
 	 * Set up preload callbacks for registered blocks.

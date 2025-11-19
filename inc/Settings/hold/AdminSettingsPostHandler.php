@@ -134,9 +134,10 @@ class AdminSettingsPostHandler {
 			}
 		} catch (\Throwable $e) {
 			$this->logger->error('AdminSettingsPostHandler: Exception during form processing', array(
-				'page_slug' => $page_slug,
-				'exception' => $e->getMessage(),
-				'trace'     => $e->getTraceAsString()
+				'page_slug'         => $page_slug,
+				'exception_class'   => get_class($e),
+				'exception_code'    => $e->getCode(),
+				'exception_message' => $e->getMessage(),
 			));
 
 			$this->handle_submission_failure($page_slug, array('An unexpected error occurred'));
@@ -212,8 +213,9 @@ class AdminSettingsPostHandler {
 			return true;
 		} catch (\Throwable $e) {
 			$this->logger->error('AdminSettingsPostHandler: Exception in RegisterOptions processing', array(
-				'exception' => $e->getMessage(),
-				'trace'     => $e->getTraceAsString()
+				'exception_class'   => get_class($e),
+				'exception_code'    => $e->getCode(),
+				'exception_message' => $e->getMessage(),
 			));
 			return false;
 		}
@@ -340,7 +342,7 @@ class AdminSettingsPostHandler {
 
 		if (is_string($value)) {
 			// Basic sanitization - detailed validation happens in RegisterOptions
-			return \sanitize_text_field($value);
+			return $this->_do_sanitize_text_field($value);
 		}
 
 		return $value;
