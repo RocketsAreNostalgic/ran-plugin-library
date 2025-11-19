@@ -568,6 +568,9 @@ trait FormsBaseTrait {
 				return $a['order'] <=> $b['order'];
 			}
 		);
+		if ($normalized !== array()) {
+			$normalized = array_values($normalized);
+		}
 
 		$this->submit_controls[$container_id]['controls'] = $normalized;
 		if (!empty($normalized)) {
@@ -575,6 +578,12 @@ trait FormsBaseTrait {
 				'container_id' => $container_id,
 				'zone_id'      => $zone_id,
 				'count'        => count($normalized),
+				'order_map'    => array_map(static function (array $control): array {
+					return array(
+						'id'    => $control['id']    ?? null,
+						'order' => $control['order'] ?? null,
+					);
+				}, $normalized),
 			));
 		}
 	}

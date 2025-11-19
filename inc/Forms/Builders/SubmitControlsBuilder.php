@@ -205,13 +205,6 @@ final class SubmitControlsBuilder implements SubmitControlsBuilderInterface {
 			'order'             => $order ?? 0,
 		);
 
-		usort(
-			$this->controls,
-			static function(array $a, array $b): int {
-				return ($a['order'] <=> $b['order']);
-			}
-		);
-
 		$this->emit_controls_update();
 	}
 
