@@ -226,7 +226,7 @@ class ComponentManifest {
 			$factories[$alias] = function () use ($validator): ValidatorInterface {
 				$instance = new $validator($this->logger);
 				if (!$instance instanceof ValidatorInterface) {
-					$this->logger->warning(sprintf('Validator for "%s" must implement %s.', $validator, ValidatorInterface::class), array('validator' => $validator));
+					$this->logger->warning(sprintf('Validator for "%s" must implement %s.', $validator, ValidatorInterface::class), array('validator' => is_object($validator) ? get_class($validator) : $validator));
 					throw new \UnexpectedValueException(sprintf('Validator for "%s" must implement %s.', $validator, ValidatorInterface::class));
 				}
 				return $instance;

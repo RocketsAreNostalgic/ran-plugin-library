@@ -1378,12 +1378,24 @@ trait FormsBaseTrait {
 			return null;
 		}
 
+		$context_keys = array_keys($context);
+
 		try {
-			return (string) $callback($context);
+			$result         = (string) $callback($context);
+			$result_length  = strlen($result);
+			$preview_length = 120;
+			$this->logger->debug('FormsBaseTrait: Callback executed', array(
+				'context_keys'     => $context_keys,
+				'result_length'    => $result_length,
+				'result_preview'   => $preview_length >= $result_length ? $result : substr($result, 0, $preview_length),
+				'result_truncated' => $result_length > $preview_length,
+			));
+			return $result;
 		} catch (\Throwable $e) {
 			$this->logger->error('FormsBaseTrait: Callback execution failed', array(
-				'context_keys' => array_keys($context),
-				'exception'    => $e,
+				'context_keys'      => $context_keys,
+				'exception_class'   => get_class($e),
+				'exception_message' => $e->getMessage(),
 			));
 			return null;
 		}
@@ -1416,26 +1428,17 @@ trait FormsBaseTrait {
 			throw new \InvalidArgumentException(sprintf(static::class . ': field "%s" requires a component alias.', $field_id ?: 'unknown'));
 		}
 
-		$context = $field['component_context'] ?? array();
-		if (!is_array($context)) {
+		$component_context = $field['component_context'] ?? array();
+		if (!is_array($component_context)) {
 			$this->logger->error( static::class . ': field provided a non-array component_context.', array('field' => $field_id));
 			throw new \InvalidArgumentException(sprintf(static::class . ': field "%s" must provide an array component_context.', $field_id ?: 'unknown'));
 		}
-		$context['field_id']  = $field_id;
-		$context['_field_id'] = $field_id;
-		$context['label']     = $label;
-		$context['_label']    = $label;
-
-		// Get messages for this field
-		$field_messages = $this->message_handler->get_messages_for_field($field_id);
 
 		// Prepare field configuration
-		$field_config = array(
-			'field_id'          => $field_id,
-			'component'         => $component,
-			'label'             => $label,
-			'component_context' => $context
-		);
+		$field['field_id']          = $field_id;
+		$field['component']         = $component;
+		$field['label']             = $label;
+		$field['component_context'] = $component_context;
 
 		// Use FormElementRenderer for complete field processing with wrapper
 		try {
@@ -1443,17 +1446,19 @@ trait FormsBaseTrait {
 				$this->_start_form_session();
 			}
 
+			$extras = array();
+			if (array_key_exists('before', $field_item)) {
+				$extras['before'] = $field_item['before'];
+			}
+			if (array_key_exists('after', $field_item)) {
+				$extras['after'] = $field_item['after'];
+			}
+
 			$field_context = $this->field_renderer->prepare_field_context(
-				$field_config,
+				$field,
 				$values,
-				array($field_id => $field_messages)
+				$extras
 			);
-			if (isset($field_item['before'])) {
-				$field_context['before'] = $field_item['before'];
-			}
-			if (isset($field_item['after'])) {
-				$field_context['after'] = $field_item['after'];
-			}
 
 			// Let FormElementRenderer handle both component rendering and wrapper application
 			return $this->field_renderer->render_field_with_wrapper(
@@ -1467,9 +1472,11 @@ trait FormsBaseTrait {
 			);
 		} catch (\Throwable $e) {
 			$this->logger->error(static::class . ': Field rendering failed', array(
-				'field_id'  => $field_id,
-				'component' => $component,
-				'exception' => $e
+				'field_id'          => $field_id,
+				'component'         => $component,
+				'exception_class'   => get_class($e),
+				'exception_code'    => $e->getCode(),
+				'exception_message' => $e->getMessage(),
 			));
 			// @TODO will this break table based layouts?
 			return $this->_render_default_field_wrapper_warning($e->getMessage());

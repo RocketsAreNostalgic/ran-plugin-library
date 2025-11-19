@@ -30,6 +30,109 @@ final class ValidatorPipelineService {
 		);
 	}
 
+	/**
+	 * Summarize callable buckets without retaining raw closures in logs.
+	 *
+	 * @param array{component:array<int,callable>,schema:array<int,callable>} $bucketMap
+	 * @return array{component:array{count:int,descriptors:array<int,string>},schema:array{count:int,descriptors:array<int,string>}}
+	 */
+	private function summarize_bucket_map(array $bucketMap): array {
+		return array(
+			self::BUCKET_COMPONENT => $this->summarize_callable_list($bucketMap[self::BUCKET_COMPONENT] ?? array()),
+			self::BUCKET_SCHEMA    => $this->summarize_callable_list($bucketMap[self::BUCKET_SCHEMA] ?? array()),
+		);
+	}
+
+	/**
+	 * Summarize default entry for safe logging.
+	 *
+	 * @param array{sanitize:array{component:array, schema:array}, validate:array{component:array, schema:array}, default?:mixed} $normalized
+	 * @return array{has_default:bool,type?:string,value?:string,callable?:string}
+	 */
+	private function summarize_default(array $normalized): array {
+		if (!array_key_exists('default', $normalized)) {
+			return array('has_default' => false);
+		}
+
+		$default = $normalized['default'];
+		$summary = array('has_default' => true, 'type' => gettype($default));
+
+		if (
+			is_string($default) || is_int($default) || is_float($default) || is_bool($default)
+		) {
+			$summary['value'] = is_bool($default) ? ($default ? 'true' : 'false') : (string) $default;
+			return $summary;
+		}
+
+		if (is_callable($default)) {
+			$summary['callable'] = $this->describe_callable($default);
+			return $summary;
+		}
+
+		if (is_array($default)) {
+			$summary['count'] = count($default);
+			return $summary;
+		}
+
+		if (is_object($default)) {
+			$summary['class'] = get_class($default);
+		}
+
+		return $summary;
+	}
+
+	/**
+	 * @param array<int, callable> $callables
+	 * @return array{count:int,descriptors:array<int,string>}
+	 */
+	private function summarize_callable_list(array $callables): array {
+		$count       = count($callables);
+		$descriptors = array();
+		$limit       = 5;
+		foreach ($callables as $idx => $callable) {
+			if ($idx >= $limit) {
+				break;
+			}
+			$descriptors[] = $this->describe_callable($callable);
+		}
+
+		return array(
+			'count'       => $count,
+			'descriptors' => $descriptors,
+		);
+	}
+
+	private function describe_callable(callable $callable): string {
+		if (is_string($callable)) {
+			return $callable;
+		}
+
+		if (is_array($callable)) {
+			$target = $callable[0] ?? null;
+			$method = $callable[1] ?? 'unknown';
+			$target = is_object($target) ? get_class($target) : (string) $target;
+			return $target . '::' . (string) $method;
+		}
+
+		if ($callable instanceof \Closure) {
+			if (function_exists('spl_object_id')) {
+				return 'Closure#' . spl_object_id($callable);
+			}
+
+			if (function_exists('spl_object_hash')) {
+				return 'Closure#' . spl_object_hash($callable);
+			}
+
+			return 'Closure';
+		}
+
+		if (is_object($callable) && method_exists($callable, '__invoke')) {
+			return get_class($callable) . '::__invoke';
+		}
+
+		return 'callable';
+	}
+
 	public function is_bucket_map(array $candidate): bool {
 		return array_key_exists(self::BUCKET_COMPONENT, $candidate) || array_key_exists(self::BUCKET_SCHEMA, $candidate);
 	}
@@ -106,7 +209,12 @@ final class ValidatorPipelineService {
 			$normalized['default'] = $entry['default'];
 		}
 
-		$logger->debug("{$hostLabel}: _coerce_schema_entry completed", array('key' => $optionKey, 'normalized' => $normalized));
+		$logger->debug("{$hostLabel}: _coerce_schema_entry completed", array(
+			'key'              => $optionKey,
+			'sanitize_summary' => $this->summarize_bucket_map($normalized['sanitize']),
+			'validate_summary' => $this->summarize_bucket_map($normalized['validate']),
+			'default_summary'  => $this->summarize_default($normalized)
+		));
 		return $normalized;
 	}
 

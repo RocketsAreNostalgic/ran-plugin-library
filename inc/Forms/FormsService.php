@@ -12,6 +12,7 @@ namespace Ran\PluginLib\Forms;
 use Ran\PluginLib\Util\Logger;
 use Ran\PluginLib\Forms\FormsServiceSession;
 use Ran\PluginLib\Forms\Component\ComponentManifest;
+use Ran\PluginLib\Forms\FormsTemplateOverrideResolver;
 
 class FormsService {
 	private ComponentManifest $manifest;
@@ -23,8 +24,9 @@ class FormsService {
 	}
 
 	public function start_session(?FormsAssets $assets = null, array $form_defaults = array()): FormsServiceSession {
-		$bucket = $assets ?? new FormsAssets();
-		return new FormsServiceSession($this->manifest, $bucket, $this->logger, $form_defaults);
+		$bucket   = $assets ?? new FormsAssets();
+		$resolver = new FormsTemplateOverrideResolver($this->logger);
+		return new FormsServiceSession($this->manifest, $bucket, $resolver, $this->logger, $form_defaults);
 	}
 
 	public function manifest(): ComponentManifest {
