@@ -536,39 +536,22 @@ class RegisterOptions {
 			}
 
 			$this->options = $newOptions;
-
 			// Note: defaults currently always flow through sanitize/validate even when unchanged.
 			// If telemetry shows costly defaults, consider memoising canonical default signatures here
 			// so unchanged keys can skip the resolution path without breaking seed semantics.
-			if ($this->_get_logger()->is_active()) {
-				$brief = static function(array $keys): array {
-					return count($keys) <= 10 ? $keys : array_slice($keys, 0, 10);
-				};
-				if (!empty($defaultKeysSubmitted)) {
-					$this->_get_logger()->info(
-						'RegisterOptions: register_schema defaults',
-						array(
-							'submitted_count'       => count($defaultKeysSubmitted),
-							'submitted_keys'        => $brief($defaultKeysSubmitted),
-							'unchanged_count'       => count($defaultUnchangedKeys),
-							'unchanged_keys'        => $brief($defaultUnchangedKeys),
-							'changed_count'         => count($defaultChangedKeys),
-							'changed_keys'          => $brief($defaultChangedKeys),
-							'missing_options_count' => count($defaultMissingOptions),
-							'missing_option_keys'   => $brief($defaultMissingOptions),
-						)
-					);
-				}
-				$this->_get_logger()->debug(
-					'RegisterOptions: register_schema summary',
-					array(
-						'seeded'          => count($seedKeysApplied),
-						'normalized'      => count($normalizedKeysApplied),
-						'seed_keys'       => $brief($seedKeysApplied),
-						'normalized_keys' => $brief($normalizedKeysApplied)
-					)
-				);
-			}
+			$this->_register_internal_schema(
+				array(),
+				array(),
+				array(),
+				array(
+					'submitted'  => $defaultKeysSubmitted,
+					'unchanged'  => $defaultUnchangedKeys,
+					'changed'    => $defaultChangedKeys,
+					'missing'    => $defaultMissingOptions,
+					'seeded'     => $seedKeysApplied,
+					'normalized' => $normalizedKeysApplied,
+				)
+			);
 
 			return $changed;
 		} catch (\Throwable $e) {
@@ -579,6 +562,10 @@ class RegisterOptions {
 				'exception_message' => $e->getMessage(),
 			));
 			throw $e;
+		}
+
+		if ($defaultsTelemetry !== null) {
+			$this->_log_schema_defaults_summary($defaultsTelemetry);
 		}
 	}
 
@@ -1040,8 +1027,11 @@ class RegisterOptions {
 	 * @param array<string,array<int,callable>> $queuedValidators Component validators queued prior to schema merge.
  	 * @return void
  	 */
-	public function _register_internal_schema(array $schema, array $metadata = array(), array $queuedValidators = array()): void {
+	public function _register_internal_schema(array $schema, array $metadata = array(), array $queuedValidators = array(), ?array $defaultsTelemetry = null): void {
 		if (empty($schema)) {
+			if ($defaultsTelemetry !== null) {
+				$this->_log_schema_defaults_summary($defaultsTelemetry);
+			}
 			return;
 		}
 
@@ -1128,6 +1118,58 @@ class RegisterOptions {
 				)
 			);
 		}
+	}
+
+	/**
+	 * Emit defaults telemetry once schema/default processing completes.
+	 *
+	 * @param array<string,array<int,string>>|array<string,array<string>>|array<string,array> $telemetry
+	 *     Expected keys: submitted, unchanged, changed, missing, seeded, normalized.
+	 *
+	 * @return void
+	 */
+	private function _log_schema_defaults_summary(array $telemetry): void {
+		$logger = $this->_get_logger();
+		if (!method_exists($logger, 'is_active') || !$logger->is_active()) {
+			return;
+		}
+
+		$submittedKeys  = isset($telemetry['submitted'])  && is_array($telemetry['submitted']) ? $telemetry['submitted'] : array();
+		$unchangedKeys  = isset($telemetry['unchanged'])  && is_array($telemetry['unchanged']) ? $telemetry['unchanged'] : array();
+		$changedKeys    = isset($telemetry['changed'])    && is_array($telemetry['changed']) ? $telemetry['changed'] : array();
+		$missingKeys    = isset($telemetry['missing'])    && is_array($telemetry['missing']) ? $telemetry['missing'] : array();
+		$seedKeys       = isset($telemetry['seeded'])     && is_array($telemetry['seeded']) ? $telemetry['seeded'] : array();
+		$normalizedKeys = isset($telemetry['normalized']) && is_array($telemetry['normalized']) ? $telemetry['normalized'] : array();
+
+		$brief = static function (array $keys): array {
+			return count($keys) <= 10 ? $keys : array_slice($keys, 0, 10);
+		};
+
+		if (!empty($submittedKeys)) {
+			$logger->info(
+				'RegisterOptions: register_schema defaults',
+				array(
+					'submitted_count'       => count($submittedKeys),
+					'submitted_keys'        => $brief($submittedKeys),
+					'unchanged_count'       => count($unchangedKeys),
+					'unchanged_keys'        => $brief($unchangedKeys),
+					'changed_count'         => count($changedKeys),
+					'changed_keys'          => $brief($changedKeys),
+					'missing_options_count' => count($missingKeys),
+					'missing_option_keys'   => $brief($missingKeys),
+				)
+			);
+		}
+
+		$logger->info(
+			'RegisterOptions: register_schema summary',
+			array(
+				'seeded'          => count($seedKeys),
+				'normalized'      => count($normalizedKeys),
+				'seed_keys'       => $brief($seedKeys),
+				'normalized_keys' => $brief($normalizedKeys),
+			)
+		);
 	}
 
 	/**
