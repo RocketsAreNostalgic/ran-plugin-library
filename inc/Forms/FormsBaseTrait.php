@@ -1372,7 +1372,11 @@ trait FormsBaseTrait {
 			$this->_start_form_session();
 		}
 
-		$this->form_session->assets()->ingest($sectionComponent);
+		$this->form_session->ingest_component_result(
+			$sectionComponent,
+			'render_section',
+			isset($context['field_id']) && is_string($context['field_id']) ? $context['field_id'] : null
+		);
 
 		return $sectionComponent->markup;
 	}
@@ -1681,8 +1685,13 @@ trait FormsBaseTrait {
 
 			$validators = array_values($validators);
 			if (isset($schemaKeyLookup[$normalizedKey])) {
+				$count                           = count($validators);
 				$queuedForSchema[$normalizedKey] = $validators;
-				$matchedCounts[$normalizedKey]   = count($validators);
+				$matchedCounts[$normalizedKey]   = $count;
+				$this->logger->debug(static::class . ': Component validator queue matched schema key', array(
+					'normalized_key'  => $normalizedKey,
+					'validator_count' => $count,
+				));
 				continue;
 			}
 
@@ -1695,6 +1704,10 @@ trait FormsBaseTrait {
 				);
 			}
 			$unmatchedKeys[] = $normalizedKey;
+			$this->logger->debug(static::class . ': Component validator queue re-queued unmatched key', array(
+				'normalized_key'  => $normalizedKey,
+				'validator_count' => count($validators),
+			));
 		}
 
 		$this->logger->debug(static::class . ': Component validator queue consumed', array(

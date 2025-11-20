@@ -449,9 +449,29 @@ class RegisterOptions {
 		$changed               = false;
 		$seedKeysApplied       = array();
 		$normalizedKeysApplied = array();
+		$defaultKeysSubmitted  = array();
+		$defaultUnchangedKeys  = array();
+		$defaultChangedKeys    = array();
+		$defaultMissingOptions = array();
 
 		try {
 			$this->_register_internal_schema($normalized);
+
+			foreach ($normalized as $key => $rules) {
+				if (!array_key_exists('default', $rules)) {
+					continue;
+				}
+				$defaultKeysSubmitted[] = $key;
+				$hasExistingDefault     = isset($oldSchema[$key]) && array_key_exists('default', $oldSchema[$key]);
+				if ($hasExistingDefault && Helpers::canonicalStructuresMatch($oldSchema[$key]['default'], $rules['default'])) {
+					$defaultUnchangedKeys[] = $key;
+				} else {
+					$defaultChangedKeys[] = $key;
+				}
+				if (!array_key_exists($key, $newOptions)) {
+					$defaultMissingOptions[] = $key;
+				}
+			}
 
 			$toSeed   = array();
 			$seedKeys = array();
@@ -517,10 +537,28 @@ class RegisterOptions {
 
 			$this->options = $newOptions;
 
+			// Note: defaults currently always flow through sanitize/validate even when unchanged.
+			// If telemetry shows costly defaults, consider memoising canonical default signatures here
+			// so unchanged keys can skip the resolution path without breaking seed semantics.
 			if ($this->_get_logger()->is_active()) {
 				$brief = static function(array $keys): array {
 					return count($keys) <= 10 ? $keys : array_slice($keys, 0, 10);
 				};
+				if (!empty($defaultKeysSubmitted)) {
+					$this->_get_logger()->info(
+						'RegisterOptions: register_schema defaults',
+						array(
+							'submitted_count'       => count($defaultKeysSubmitted),
+							'submitted_keys'        => $brief($defaultKeysSubmitted),
+							'unchanged_count'       => count($defaultUnchangedKeys),
+							'unchanged_keys'        => $brief($defaultUnchangedKeys),
+							'changed_count'         => count($defaultChangedKeys),
+							'changed_keys'          => $brief($defaultChangedKeys),
+							'missing_options_count' => count($defaultMissingOptions),
+							'missing_option_keys'   => $brief($defaultMissingOptions),
+						)
+					);
+				}
 				$this->_get_logger()->debug(
 					'RegisterOptions: register_schema summary',
 					array(

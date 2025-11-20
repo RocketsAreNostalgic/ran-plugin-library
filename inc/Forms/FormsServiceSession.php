@@ -12,6 +12,7 @@ namespace Ran\PluginLib\Forms;
 use Ran\PluginLib\Util\WPWrappersTrait;
 use Ran\PluginLib\Util\Logger;
 use Ran\PluginLib\Forms\Component\ComponentManifest;
+use Ran\PluginLib\Forms\Component\ComponentRenderResult;
 
 /**
  * FormsServiceSession: per-render context for component dispatching and asset collection.
@@ -75,7 +76,8 @@ class FormsServiceSession {
 			$result         = $this->manifest->render($template_key, $render_context);
 
 			// Step 3: Extract and store assets from ComponentRenderResult
-			$this->assets->ingest($result);
+			$field_id = isset($context['field_id']) && is_string($context['field_id']) ? $context['field_id'] : null;
+			$this->ingest_component_result($result, sprintf('render_element:%s', $element_type), $field_id);
 
 			return $result->markup;
 		} catch (\Throwable $e) {
@@ -133,9 +135,45 @@ class FormsServiceSession {
 	 * @return string Rendered HTML markup
 	 */
 	public function render_component(string $component, array $context = array()): string {
-		$result = $this->manifest->render($component, $context);
-		$this->assets->ingest($result);
+		$result   = $this->manifest->render($component, $context);
+		$field_id = isset($context['field_id']) && is_string($context['field_id'])
+			? $context['field_id']
+			: (isset($context['_field_id']) && is_string($context['_field_id']) ? $context['_field_id'] : null);
+		$this->ingest_component_result($result, sprintf('render_component:%s', $component), $field_id);
 		return $result->markup;
+	}
+
+	/**
+	 * Ingest ComponentRenderResult assets with centralized logging and error handling.
+	 *
+	 * @param ComponentRenderResult $result
+	 * @param string                $source
+	 * @param string|null           $field_id
+	 * @return void
+	 */
+	public function ingest_component_result(ComponentRenderResult $result, string $source, ?string $field_id = null): void {
+		try {
+			$this->assets->ingest($result);
+
+			if ($result->has_assets()) {
+				$this->logger->debug('FormsServiceSession: Assets ingested successfully', array(
+					'source'         => $source,
+					'field_id'       => $field_id,
+					'has_script'     => $result->has_script(),
+					'has_style'      => $result->has_style(),
+					'requires_media' => $result->requires_media,
+					'script_handle'  => $result->has_script() ? $result->script->handle : null,
+					'style_handle'   => $result->has_style() ? $result->style->handle : null,
+				));
+			}
+		} catch (\Throwable $e) {
+			$this->logger->warning('FormsServiceSession: Asset ingestion failed; continuing without assets', array(
+				'source'          => $source,
+				'field_id'        => $field_id,
+				'error'           => $e->getMessage(),
+				'exception_class' => get_class($e),
+			));
+		}
 	}
 
 	/**

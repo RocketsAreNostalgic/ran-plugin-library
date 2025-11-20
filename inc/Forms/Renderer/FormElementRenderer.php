@@ -156,9 +156,13 @@ class FormElementRenderer {
 
 		try {
 			$render_result = $this->components->render($component, $context);
-			$field_id      = $context['field_id'] ?? $context['_field_id'] ?? 'unknown';
+			$field_id      = (string) ($context['field_id'] ?? $context['_field_id'] ?? 'unknown');
 
-			$this->_collect_component_assets($render_result, $session, $component, (string) $field_id);
+			$session->ingest_component_result(
+				$render_result,
+				sprintf('render_component_with_assets:%s', $component),
+				$field_id
+			);
 
 			$this->_get_logger()->debug('FormElementRenderer: Component rendered with assets', array(
 				'component'   => $component,
