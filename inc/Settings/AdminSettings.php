@@ -142,14 +142,66 @@ class AdminSettings implements FormsInterface {
 	 * Retrieve submit controls metadata for the given page.
 	 *
 	 * @param string $page_slug
-	 * @return array{zone_id:string,before:?callable,after:?callable,controls:array<int,array{id:string,label:string,component:string,component_context:array<string,mixed>,order:int}>}
+	 * @return array<string,mixed> Canonical submit-controls payload when defined, otherwise empty array.
 	 */
 	private function get_submit_controls_for_page(string $page_slug): array {
-		return $this->submit_controls[$page_slug] ?? array(
-			'zone_id'  => self::DEFAULT_SUBMIT_ZONE,
-			'before'   => null,
-			'after'    => null,
-			'controls' => array(),
+		return $this->submit_controls[$page_slug] ?? array();
+	}
+
+	/**
+	 * Ensure submit controls fallback is applied when builders have not seeded any controls.
+	 *
+	 * @param string $page_slug
+	 * @param array{zone_id:string,before:?callable,after:?callable,controls:array<int,array{id:string,label:string,component:string,component_context:array<string,mixed>,order:int}>} $submit_controls
+	 * @param bool $hadCanonical Whether canonical controls existed prior to fallback
+	 * @return array{zone_id:string,before:?callable,after:?callable,controls:array<int,array{id:string,label:string,component:string,component_context:array<string,mixed>,order:int}>}
+	 */
+	private function ensure_submit_controls_fallback(string $page_slug, array $submit_controls, bool $hadCanonical): array {
+		$this->logger->debug('admin_settings.submit_controls.fallback_applied', array(
+			'page'   => $page_slug,
+			'reason' => $hadCanonical ? 'empty_controls' : 'missing_definition',
+		));
+
+		$button   = (new ButtonBuilder('default-primary', 'Save Changes'))
+			->type('submit')
+			->variant('primary')
+			->to_array();
+		$controls = array(
+			array(
+				'id'                => $button['id'],
+				'label'             => $button['label'],
+				'component'         => $button['component'],
+				'component_context' => array_merge($button['component_context'], array('type' => 'submit')),
+				'order'             => $button['order'],
+			),
+		);
+
+		$submit_controls['zone_id']  = $submit_controls['zone_id'] ?? self::DEFAULT_SUBMIT_ZONE;
+		$submit_controls['before']   = $submit_controls['before']   ?? null;
+		$submit_controls['after']    = $submit_controls['after']    ?? null;
+		$submit_controls['controls'] = $controls;
+
+		$this->submit_controls[$page_slug] = $submit_controls;
+
+		return $submit_controls;
+	}
+
+	/**
+	 * Resolve canonical page metadata from the menu_groups map using the reverse lookup.
+	 *
+	 * @param string $page_slug
+	 * @return array{group:string,page:string,meta:array<string,mixed>}
+	 */
+	private function resolve_page_reference(string $page_slug): array {
+		if (!isset($this->pages[$page_slug])) {
+			throw new \InvalidArgumentException('Unknown admin settings page: ' . $page_slug);
+		}
+		$ref  = $this->pages[$page_slug];
+		$meta = $this->menu_groups[$ref['group']]['pages'][$ref['page']]['meta'] ?? array();
+		return array(
+			'group' => $ref['group'],
+			'page'  => $ref['page'],
+			'meta'  => $meta,
 		);
 	}
 
@@ -160,8 +212,15 @@ class AdminSettings implements FormsInterface {
 	 * @return string
 	 */
 	private function render_submit_controls(string $page_slug, array $submit_controls): string {
-		$zone_id  = $submit_controls['zone_id']  ?? self::DEFAULT_SUBMIT_ZONE;
-		$controls = $submit_controls['controls'] ?? array();
+		$zone_id        = $submit_controls['zone_id']        ?? self::DEFAULT_SUBMIT_ZONE;
+		$controls       = $submit_controls['controls']       ?? array();
+		$hadCanonical   = isset($this->submit_controls[$page_slug]);
+		$needsFallback  = empty($controls);
+
+		if ($needsFallback) {
+			$submit_controls = $this->ensure_submit_controls_fallback($page_slug, $submit_controls, $hadCanonical);
+			$controls        = $submit_controls['controls'];
+		}
 		$this->logger->debug('admin_settings.submit_controls.render', array(
 			'page'     => $page_slug,
 			'zone_id'  => $zone_id,
@@ -173,10 +232,6 @@ class AdminSettings implements FormsInterface {
 				);
 			}, $controls),
 		));
-
-		if (empty($controls)) {
-			return $this->render_default_submit_controls($page_slug);
-		}
 
 		return $this->render_submit_zone($page_slug, $zone_id, $submit_controls, $controls);
 	}
@@ -268,26 +323,12 @@ class AdminSettings implements FormsInterface {
 	 * Render default submit controls used when no custom definition exists.
 	 */
 	private function render_default_submit_controls(string $page_slug): string {
-		$button = (new ButtonBuilder('default-primary', 'Save Changes'))
-			->type('submit')
-			->variant('primary');
-
-		$payload = $button->to_array();
-
-		return $this->render_submit_zone(
+		$controls = $this->ensure_submit_controls_fallback(
 			$page_slug,
-			self::DEFAULT_SUBMIT_ZONE,
-			array('before' => null, 'after' => null),
-			array(
-				array(
-					'id'                => $payload['id'],
-					'label'             => $payload['label'],
-					'component'         => $payload['component'],
-					'component_context' => array_merge($payload['component_context'], array('type' => 'submit')),
-					'order'             => $payload['order'],
-				),
-			)
+			$this->get_submit_controls_for_page($page_slug),
+			isset($this->submit_controls[$page_slug])
 		);
+		return $this->render_submit_zone($page_slug, $controls['zone_id'], $controls, $controls['controls']);
 	}
 
 	/**
@@ -365,11 +406,13 @@ class AdminSettings implements FormsInterface {
 							if ($skip_first && $page_slug === $first_page_slug) {
 								continue;
 							}
+							$page_ref  = $this->resolve_page_reference($page_slug);
+							$page_meta = $page_ref['meta'];
 							$this->_do_add_submenu_page(
 								$submenu_parent,
-								$page_meta['meta']['heading'],
-								$page_meta['meta']['menu_title'],
-								$page_meta['meta']['capability'],
+								$page_meta['heading'],
+								$page_meta['menu_title'],
+								$page_meta['capability'],
 								$page_slug,
 								function () use ($page_slug) {
 									$this->render($page_slug);
@@ -466,8 +509,8 @@ class AdminSettings implements FormsInterface {
 		}
 		$this->_start_form_session();
 
-		$ref  = $this->pages[$id_slug];
-		$meta = $this->menu_groups[$ref['group']]['pages'][$ref['page']]['meta'];
+		$ref  = $this->resolve_page_reference($id_slug);
+		$meta = $ref['meta'];
 
 		$bundle = $this->_resolve_schema_bundle($this->base_options, array(
 			'intent'    => 'render',
@@ -889,11 +932,10 @@ class AdminSettings implements FormsInterface {
 			'meta' => $page_data
 		);
 
-		// Maintain master page lookup for rendering and tests
+		// Maintain master page lookup for rendering and tests (references only; metadata stays on menu_groups)
 		$this->pages[$container_id] = array(
 			'group' => $group_id,
 			'page'  => $container_id,
-			'meta'  => $page_data,
 		);
 		$this->logger->debug('settings.builder.page.updated', array(
 			'group_id'    => $group_id,
