@@ -13,6 +13,7 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\Settings;
 
+use WP_User;
 use Ran\PluginLib\Util\WPWrappersTrait;
 use Ran\PluginLib\Util\Logger;
 use Ran\PluginLib\Options\Storage\StorageContext;
@@ -268,26 +269,22 @@ class UserSettings implements FormsInterface {
 
 		$previous_options = $opts->get_options();
 
-		$schema = $opts->_get_schema_internal();
-		if (!empty($schema)) {
-			$session = $this->get_form_session();
-			if ($session !== null) {
-				$bucketed = $this->_assemble_initial_bucketed_schema($session);
-				if (!empty($bucketed['schema'])) {
-					list($bucketedSchema, $queuedValidators) = $this->_consume_component_validator_queue($bucketed['schema']);
-					$opts->_register_internal_schema($bucketedSchema, $bucketed['metadata'], $queuedValidators);
-				}
-			}
-			$opts->_register_internal_schema($schema);
-			$defaults = array();
-			foreach ($schema as $normalizedKey => $entry) {
-				if (\is_array($entry) && array_key_exists('default', $entry)) {
-					$defaults[$normalizedKey] = array('default' => $entry['default']);
-				}
-			}
-			if (!empty($defaults)) {
-				$opts->register_schema($defaults);
-			}
+		$bundle = $this->_resolve_schema_bundle($opts, array(
+			'intent'       => 'save',
+			'user_id'      => $user_id,
+			'storage_kind' => $storage,
+			'global'       => $global ? '1' : '0',
+		));
+
+		if (!empty($bundle['bucketed_schema'])) {
+			$opts->_register_internal_schema($bundle['bucketed_schema'], $bundle['metadata'], $bundle['queued_validators']);
+		}
+		if (!empty($bundle['schema'])) {
+			$opts->_register_internal_schema($bundle['schema']);
+		}
+		if (!empty($bundle['defaults'])) {
+			$opts->register_schema($bundle['defaults']);
+			$opts->_register_internal_schema($bundle['defaults']);
 		}
 
 		// Stage options and check for validation failures
@@ -338,8 +335,16 @@ class UserSettings implements FormsInterface {
 
 		$collection_meta = $this->collections[$id_slug];
 		$sections        = $this->sections[$id_slug] ?? array();
-		$options         = $this->resolve_options($context)->get_options();
-		$internalSchema  = $this->base_options->_get_schema_internal();
+		$resolvedOptions = $this->resolve_options($context);
+		$options         = $resolvedOptions->get_options();
+		$bundle          = $this->_resolve_schema_bundle($resolvedOptions, array(
+			'intent'       => 'render',
+			'collection'   => $id_slug,
+			'user_id'      => isset($context['user_id']) ? (int) $context['user_id'] : 0,
+			'storage_kind' => $resolvedOptions->get_storage_context()->user_storage ?? '',
+			'global'       => ($resolvedOptions->get_storage_context()->user_global ?? false) ? '1' : '0',
+		));
+		$internalSchema = $bundle['schema'];
 
 		// Get effective values from message handler (handles pending values)
 		$effective_values = $this->message_handler->get_effective_values($options);

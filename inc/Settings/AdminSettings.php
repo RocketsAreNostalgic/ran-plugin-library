@@ -469,7 +469,11 @@ class AdminSettings implements FormsInterface {
 		$ref  = $this->pages[$id_slug];
 		$meta = $this->menu_groups[$ref['group']]['pages'][$ref['page']]['meta'];
 
-		$internalSchema = $this->base_options->_get_schema_internal();
+		$bundle = $this->_resolve_schema_bundle($this->base_options, array(
+			'intent'    => 'render',
+			'page_slug' => $id_slug,
+		));
+		$internalSchema = $bundle['schema'];
 		$group          = $this->main_option . '_group';
 		$options        = $this->_do_get_option($this->main_option, array());
 		$sections       = $this->sections[$ref['page']] ?? array();
@@ -625,31 +629,23 @@ class AdminSettings implements FormsInterface {
 		$scope    = $this->_do_is_network_admin() ? OptionScope::Network : OptionScope::Site;
 		$resolved = $this->_resolve_context(array('scope' => $scope));
 		$tmp      = $this->base_options->with_context($resolved['storage']);
-		$schema   = $this->base_options->_get_schema_internal();
-		if (!empty($schema)) {
-			$session = $this->get_form_session();
-			if ($session === null) {
-				$this->_start_form_session();
-				$session = $this->get_form_session();
-			}
-			if ($session !== null) {
-				$bucketed = $this->_assemble_initial_bucketed_schema($session);
-				if (!empty($bucketed['schema'])) {
-					list($bucketedSchema, $queuedValidators) = $this->_consume_component_validator_queue($bucketed['schema']);
-					$tmp->_register_internal_schema($bucketedSchema, $bucketed['metadata'], $queuedValidators);
-				}
-			}
-			$tmp->_register_internal_schema($schema);
-			$defaults = array();
-			foreach ($schema as $normalizedKey => $entry) {
-				if (\is_array($entry) && array_key_exists('default', $entry)) {
-					$defaults[$normalizedKey] = array('default' => $entry['default']);
-				}
-			}
-			if (!empty($defaults)) {
-				$tmp->register_schema($defaults);
-			}
+
+		$bundle = $this->_resolve_schema_bundle($tmp, array(
+			'intent'    => 'sanitize',
+			'page_slug' => $this->main_option,
+		));
+
+		if (!empty($bundle['bucketed_schema'])) {
+			$tmp->_register_internal_schema($bundle['bucketed_schema'], $bundle['metadata'], $bundle['queued_validators']);
 		}
+		if (!empty($bundle['schema'])) {
+			$tmp->_register_internal_schema($bundle['schema']);
+		}
+		if (!empty($bundle['defaults'])) {
+			$tmp->register_schema($bundle['defaults']);
+			$tmp->_register_internal_schema($bundle['defaults']);
+		}
+
 		$policy = $this->base_options->get_write_policy();
 		if ($policy !== null) {
 			$tmp->with_policy($policy);

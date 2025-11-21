@@ -58,6 +58,9 @@ trait FormsBaseTrait {
 	/** @var array<string, array<int, callable>> */
 	private array $__queued_component_validators = array();
 
+	/** @var array<string, array<string,mixed>> */
+	private array $__schema_bundle_cache = array();
+
 
 	// Template override system removed - now handled by FormsTemplateOverrideResolver in FormsServiceSession
 
@@ -1572,6 +1575,84 @@ trait FormsBaseTrait {
 		$buffer                              = $this->__queued_component_validators;
 		$this->__queued_component_validators = array();
 		return $buffer;
+	}
+
+	/**
+	 * Resolve and memoize schema bundle for current request/context.
+	 *
+	 * @param RegisterOptions $options
+	 * @param array<string,mixed> $context
+	 * @return array{
+	 *     schema: array<string,array>,
+	 *     defaults: array<string,array{default:mixed}>,
+	 *     bucketed_schema: array<string,array>,
+	 *     metadata: array<string,array<string,mixed>>,
+	 *     queued_validators: array<string,array<int,callable>>
+	 * }
+	 */
+	protected function _resolve_schema_bundle(RegisterOptions $options, array $context = array()): array {
+		$storage       = $options->get_storage_context();
+		$cacheKeyParts = array(
+			$options->get_main_option_name(),
+			$storage->scope?->value ?? '',
+			(string) ($storage->blog_id ?? ''),
+			(string) ($storage->user_id ?? ''),
+			(string) ($storage->user_storage ?? ''),
+			(string) ($storage->user_global ?? ''),
+			isset($context['intent']) ? (string) $context['intent'] : '',
+			isset($context['page_slug']) ? (string) $context['page_slug'] : '',
+		);
+		$cacheKey = implode('|', $cacheKeyParts);
+
+		if (isset($this->__schema_bundle_cache[$cacheKey])) {
+			$this->logger->debug('forms.schema_bundle.cache_hit', array('key' => $cacheKey));
+			return $this->__schema_bundle_cache[$cacheKey];
+		}
+
+		$schemaInternal = $options->_get_schema_internal();
+		$defaults       = array();
+		foreach ($schemaInternal as $normalizedKey => $entry) {
+			if (is_array($entry) && array_key_exists('default', $entry)) {
+				$defaults[$normalizedKey] = array('default' => $entry['default']);
+			}
+		}
+
+		$bucketedSchema = array();
+		$metadata       = array();
+		$queued         = array();
+
+		$session = $this->get_form_session();
+		if ($session === null) {
+			$this->_start_form_session();
+			$session = $this->get_form_session();
+		}
+		if ($session !== null) {
+			$bucketed       = $this->_assemble_initial_bucketed_schema($session);
+			$bucketedSchema = $bucketed['schema'];
+			$metadata       = $bucketed['metadata'];
+			if (!empty($bucketedSchema)) {
+				list($bucketedSchema, $queued) = $this->_consume_component_validator_queue($bucketedSchema);
+			}
+		}
+
+		$bundle = array(
+			'schema'            => $schemaInternal,
+			'defaults'          => $defaults,
+			'bucketed_schema'   => $bucketedSchema,
+			'metadata'          => $metadata,
+			'queued_validators' => $queued,
+		);
+
+		$this->__schema_bundle_cache[$cacheKey] = $bundle;
+		$this->logger->debug('forms.schema_bundle.cached', array(
+			'key'                   => $cacheKey,
+			'schema_keys'           => array_keys($schemaInternal),
+			'default_count'         => count($defaults),
+			'bucketed_count'        => count($bucketedSchema),
+			'queued_validator_keys' => array_keys($queued),
+		));
+
+		return $bundle;
 	}
 
 	/**
