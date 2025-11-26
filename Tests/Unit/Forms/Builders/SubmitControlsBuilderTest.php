@@ -153,7 +153,7 @@ final class SubmitControlsBuilderTest extends TestCase {
 		self::assertSame('secondary', $payload['controls'][0]['component_context']['variant']);
 	}
 
-	public function test_multiple_buttons_sorted_by_order(): void {
+	public function test_multiple_buttons_emit_orders_without_local_sorting(): void {
 		$builder = $this->createBuilder();
 
 		$builder->button('secondary', 'Cancel')
@@ -163,7 +163,8 @@ final class SubmitControlsBuilderTest extends TestCase {
 			->order(10);
 
 		$payload = $this->latestControlsPayload();
-		self::assertSame(array('primary', 'secondary'), array_column($payload['controls'], 'id'));
+		self::assertSame(array('secondary', 'primary'), array_column($payload['controls'], 'id'));
+		self::assertSame(array(20, 10), array_column($payload['controls'], 'order'));
 	}
 
 	public function test_end_submit_controls_returns_root(): void {

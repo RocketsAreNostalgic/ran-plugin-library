@@ -166,7 +166,7 @@ class DeveloperAPIFinalTest extends PluginLibTestCase {
 		// 5. System default (when no overrides)
 		$clean_admin_settings = new AdminSettings($this->admin_options, $this->component_manifest, $this->logger_mock);
 		$template             = $clean_admin_settings->get_form_session()->resolve_template('field-wrapper', array());
-		$this->assertEquals('shared.field-wrapper', $template); // Should use field-specific fallback
+		$this->assertEquals('layout.field.field-wrapper', $template); // Should use field-specific fallback
 	}
 
 	/**

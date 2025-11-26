@@ -7,18 +7,18 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\Tests\Unit\Settings;
 
-use Ran\PluginLib\Forms\Component\ComponentLoader;
-use Ran\PluginLib\Forms\Component\ComponentManifest;
-use Ran\PluginLib\Options\RegisterOptions;
-use Ran\PluginLib\Settings\AdminSettings;
-use Ran\PluginLib\Settings\AdminSettingsMenuGroupBuilder;
-use Ran\PluginLib\Settings\AdminSettingsPageBuilder;
-use Ran\PluginLib\Settings\Settings;
-use Ran\PluginLib\Settings\UserSettings;
-use Ran\PluginLib\Settings\UserSettingsCollectionBuilder;
-use Ran\PluginLib\Settings\UserSettingsSectionBuilder;
-use Ran\PluginLib\Util\Logger;
 use WP_Mock\Tools\TestCase;
+use Ran\PluginLib\Util\Logger;
+use Ran\PluginLib\Settings\UserSettingsSectionBuilder;
+use Ran\PluginLib\Settings\UserSettingsCollectionBuilder;
+use Ran\PluginLib\Settings\UserSettings;
+use Ran\PluginLib\Settings\Settings;
+use Ran\PluginLib\Settings\AdminSettingsPageBuilder;
+use Ran\PluginLib\Settings\AdminSettingsMenuGroupBuilder;
+use Ran\PluginLib\Settings\AdminSettings;
+use Ran\PluginLib\Options\RegisterOptions;
+use Ran\PluginLib\Forms\Component\ComponentManifest;
+use Ran\PluginLib\Forms\Component\ComponentLoader;
 
 final class SettingsEntryPointFluentBuilderTest extends TestCase {
 	public function setUp(): void {

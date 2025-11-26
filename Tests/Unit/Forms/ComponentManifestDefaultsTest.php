@@ -13,6 +13,7 @@ use Ran\PluginLib\Forms\Component\ComponentLoader;
 use Ran\PluginLib\Forms\Component\ComponentManifest;
 use Ran\PluginLib\Forms\FormsAssets;
 use Ran\PluginLib\Forms\FormsServiceSession;
+use Ran\PluginLib\Forms\FormsTemplateOverrideResolver;
 use Ran\PluginLib\Tests\Unit\Forms\Stubs\StubBuilderWithDefaults;
 use Ran\PluginLib\Tests\Unit\Forms\Stubs\StubNormalizerWithDefaults;
 use Ran\PluginLib\Tests\Unit\Forms\Stubs\StubValidatorWithDefaults;
@@ -181,7 +182,8 @@ final class ComponentManifestDefaultsTest extends PluginLibTestCase {
 
 		$manifest = new ComponentManifest($this->loader, $this->logger_mock);
 
-		$session = new FormsServiceSession($manifest, new FormsAssets(), $this->logger_mock);
+		$resolver = new FormsTemplateOverrideResolver($this->logger_mock);
+		$session  = new FormsServiceSession($manifest, new FormsAssets(), $resolver, $this->logger_mock);
 		$this->assertSame(
 			array('session.component' => array(
 				'sanitize' => array(StubNormalizerWithDefaults::class),

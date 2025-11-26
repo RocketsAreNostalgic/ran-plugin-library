@@ -150,7 +150,7 @@ final class RegisterOptionsInternalsCoverageTest extends PluginLibTestCase {
 
 		// End-of-method logs produced during failure path
 		$this->expectLog('debug', '_stringify_value_for_error completed');
-		$this->expectLog('debug', '_describe_callable completed', 2);
+		$this->expectLog('debug', '_describe_callable completed', 4);
 	}
 
 	/**
@@ -333,7 +333,7 @@ final class RegisterOptionsInternalsCoverageTest extends PluginLibTestCase {
 		$this->assertArrayHasKey('warnings', $messages['age']);
 		$this->assertNotEmpty($messages['age']['warnings']);
 
-		$this->expectLog('debug', '_describe_callable completed (string)');
+		$this->expectLog('debug', '_describe_callable completed (string)', 2);
 	}
 
 	/**
@@ -369,7 +369,7 @@ final class RegisterOptionsInternalsCoverageTest extends PluginLibTestCase {
 		$this->assertNotEmpty($messages['age']['warnings']);
 
 		// The main goal is to ensure _describe_callable is called and logs
-		$this->expectLog('debug', '_describe_callable completed');
+		$this->expectLog('debug', '_describe_callable completed', 2);
 	}
 
 	/**
@@ -400,7 +400,7 @@ final class RegisterOptionsInternalsCoverageTest extends PluginLibTestCase {
 		$this->assertArrayHasKey('warnings', $messages['flag']);
 		$this->assertNotEmpty($messages['flag']['warnings']);
 
-		$this->expectLog('debug', '_describe_callable completed (closure)');
+		$this->expectLog('debug', '_describe_callable completed (closure)', 2);
 	}
 
 	/**
@@ -435,7 +435,7 @@ final class RegisterOptionsInternalsCoverageTest extends PluginLibTestCase {
 		$this->assertArrayHasKey('warnings', $messages['age']);
 		$this->assertNotEmpty($messages['age']['warnings']);
 
-		$this->expectLog('debug', '_describe_callable completed (invokable object)');
+		$this->expectLog('debug', '_describe_callable completed (invokable object)', 2);
 	}
 
 	/**

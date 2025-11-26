@@ -17,17 +17,17 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\Tests\Unit\EnqueueAccessory;
 
-use Mockery;
 use WP_Mock;
 use ReflectionClass;
-use PHPUnit\Framework\TestCase;
-use Ran\PluginLib\Util\CollectingLogger;
 use Ran\PluginLib\Util\ExpectLogTrait;
-use Ran\PluginLib\Config\ConfigInterface;
+use Ran\PluginLib\Util\CollectingLogger;
 use Ran\PluginLib\Tests\Unit\PluginLibTestCase;
 use Ran\PluginLib\EnqueueAccessory\StylesHandler;
-use Ran\PluginLib\EnqueueAccessory\BlockRegistrar;
 use Ran\PluginLib\EnqueueAccessory\ScriptsHandler;
+use Ran\PluginLib\EnqueueAccessory\BlockRegistrar;
+use Ran\PluginLib\Config\ConfigInterface;
+use PHPUnit\Framework\TestCase;
+use Mockery;
 
 /**
  * Class BlockRegistrarCoreTest
@@ -119,7 +119,7 @@ class BlockRegistrarCoreTest extends PluginLibTestCase {
 	 */
 	public function test_constructor_requires_config(): void {
 		$this->expectException(\TypeError::class);
-		new BlockRegistrar(); // @phpstan-ignore-line
+		new BlockRegistrar();
 	}
 
 	// === BASIC BLOCK REGISTRATION TESTS ===

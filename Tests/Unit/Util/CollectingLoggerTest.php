@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\Tests\Unit\Util;
 
-use Psr\Log\LogLevel;
-use Ran\PluginLib\Tests\Unit\PluginLibTestCase;
 use Ran\PluginLib\Util\CollectingLogger;
+use Ran\PluginLib\Tests\Unit\PluginLibTestCase;
+use Psr\Log\LogLevel;
 
 /**
  * @covers \Ran\PluginLib\Util\CollectingLogger
@@ -82,6 +82,34 @@ class CollectingLoggerTest extends PluginLibTestCase {
 		$this->assertSame('error', $logs[1]['level']);
 		$this->assertSame('Second message', $logs[1]['message']);
 		$this->assertSame(array(), $logs[1]['context']);
+	}
+
+	public function test_drain_streams_entries_to_writer(): void {
+		$this->collecting_logger->info('One', array('foo' => 'bar'));
+		$this->collecting_logger->warning('Two');
+
+		$captured = array();
+		$this->collecting_logger->drain(function(int $index, array $entry) use (&$captured): void {
+			$captured[$index] = $entry;
+		});
+
+		self::assertCount(2, $captured);
+		self::assertSame('info', $captured[0]['level']);
+		self::assertSame('One', $captured[0]['message']);
+		self::assertSame(array('foo' => 'bar'), $captured[0]['context']);
+		self::assertSame('warning', $captured[1]['level']);
+	}
+
+	public function test_create_log_dump_streams_to_file(): void {
+		$this->enable_console_logging = false;
+		$this->logger_mock->info('Test message', array('key' => 'value'));
+		$log_file = $this->create_log_dump();
+
+		self::assertFileExists($log_file);
+		$contents = file_get_contents($log_file);
+		self::assertIsString($contents);
+		self::assertStringContainsString('Test message', $contents);
+		self::assertStringContainsString('"key":"value"', $contents);
 	}
 
 	public function test_stringable_messages_are_cast_to_string(): void {

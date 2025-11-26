@@ -11,6 +11,7 @@ use Ran\PluginLib\Util\ExpectLogTrait;
 use Ran\PluginLib\Util\CollectingLogger;
 use Ran\PluginLib\EnqueueAccessory\BlockRegistrar;
 use Ran\PluginLib\Config\ConfigInterface;
+use Mockery\LegacyMockInterface;
 use Mockery;
 use Error;
 
@@ -73,6 +74,25 @@ class BlockRegistrarExtendedTest extends TestCase {
 	// === PUBLIC INTERFACE TESTS (TFS-001 Compliant) ===
 
 	/**
+	 * Assert that the last stage() log captured matches expected context.
+	 */
+	private function assertLatestStageLog(int $expectedBlockCount, int $expectedPriority = 10): void {
+		$prefix = 'Ran\PluginLib\EnqueueAccessory\BlockRegistrar::stage';
+		$logs   = $this->logger_mock->get_logs();
+		$match  = null;
+		for ($i = count($logs) - 1; $i >= 0; $i--) {
+			$entry = $logs[$i];
+			if ($entry['level'] === 'debug' && strpos($entry['message'], $prefix) !== false) {
+				$match = $entry;
+				break;
+			}
+		}
+		self::assertNotNull($match, 'Expected stage() to emit a log entry.');
+		self::assertSame($expectedPriority, $match['context']['priority'] ?? null, 'Unexpected stage priority.');
+		self::assertSame($expectedBlockCount, $match['context']['block_count'] ?? null, 'Unexpected stage block count.');
+	}
+
+	/**
 	 * Test block addition and storage through public interface.
 	 * Tests that blocks are properly stored when added via public methods.
 	 *
@@ -90,7 +110,7 @@ class BlockRegistrarExtendedTest extends TestCase {
 
 		// Verify fluent interface (observable outcome)
 		$this->assertSame($this->block_registrar, $result);
-		$this->expectLog('debug', array('Adding block', 'test/storage-block'));
+		$this->expectLog('debug', array('BlockRegistrar::add', "Adding block 'test/storage-block'"));
 	}
 
 	/**
@@ -112,7 +132,7 @@ class BlockRegistrarExtendedTest extends TestCase {
 			} // Always fails
 		));
 
-		$this->expectLog('debug', array('Adding block', 'test/conditional-block'));
+		$this->expectLog('debug', array('BlockRegistrar::add', "Adding block 'test/conditional-block'"));
 
 		// Verify no registered blocks yet (condition will prevent registration)
 		$registered_blocks = $this->block_registrar->get_registered_block_types();
@@ -140,7 +160,8 @@ class BlockRegistrarExtendedTest extends TestCase {
 
 		// Verify fluent interface (observable outcome)
 		$this->assertSame($this->block_registrar, $result);
-		$this->expectLog('debug', array("Registering action for hook 'init'"));
+		$this->expectLog('debug', array('BlockRegistrar::stage', "Registering action for hook 'init'"));
+		$this->assertLatestStageLog(1);
 	}
 
 	/**
@@ -159,9 +180,9 @@ class BlockRegistrarExtendedTest extends TestCase {
 			'title'      => 'Load Test Block'
 		));
 
-		// Use deprecated load() method
-		$this->block_registrar->load();
+		$this->block_registrar->register();
 		$this->expectLog('debug', array('BlockRegistrar::stage', "Registering action for hook 'init'"));
+		$this->assertLatestStageLog(1);
 	}
 
 	// === EDGE CASE TESTS ===
@@ -180,7 +201,7 @@ class BlockRegistrarExtendedTest extends TestCase {
 		$this->assertSame($this->block_registrar, $result);
 
 		// Should log debug message about empty array
-		$this->expectLog('debug', 'empty array. No blocks to add');
+		$this->expectLog('debug', array('BlockRegistrar::add', 'Entered with empty array. No blocks to add.'));
 	}
 
 	/**
@@ -197,7 +218,7 @@ class BlockRegistrarExtendedTest extends TestCase {
 		);
 
 		$this->block_registrar->add($single_block);
-		$this->expectLog('debug', array('Adding block', 'test/single-normalized'));
+		$this->expectLog('debug', array('BlockRegistrar::add', "Adding block 'test/single-normalized'"));
 
 		// Verify block was stored (check internal structure)
 		$reflection      = new ReflectionClass($this->block_registrar);
@@ -228,7 +249,7 @@ class BlockRegistrarExtendedTest extends TestCase {
 		);
 
 		$this->block_registrar->add($block_with_custom_hook);
-		$this->expectLog('debug', array('Adding block', 'test/custom-hook'));
+		$this->expectLog('debug', array('BlockRegistrar::add', "Adding block 'test/custom-hook'"));
 
 		// Verify block was stored under correct hook and priority
 		$reflection      = new ReflectionClass($this->block_registrar);
@@ -316,7 +337,8 @@ class BlockRegistrarExtendedTest extends TestCase {
 
 		// Stage the blocks to set up hooks
 		$this->block_registrar->stage();
-		$this->expectLog('debug', array('Ran\PluginLib\EnqueueAccessory\BlockRegistrar::stage', "Registering action for hook 'init' with priority 10."));
+		$this->expectLog('debug', array('BlockRegistrar::stage', "Registering action for hook 'init'"));
+		$this->assertLatestStageLog(1);
 
 		// Simulate WordPress calling the editor assets hook
 		// This should trigger _enqueue_editor_assets method
@@ -328,7 +350,7 @@ class BlockRegistrarExtendedTest extends TestCase {
 		$enqueue_method->invoke($this->block_registrar);
 
 		// Verify logging occurred (observable behavior)
-		$this->expectLog('debug', 'Processing editor assets for registered blocks.');
+		$this->expectLog('debug', array('BlockRegistrar::_enqueue_editor_assets', 'Processing editor assets for registered blocks.'));
 	}
 
 	/**
@@ -351,7 +373,8 @@ class BlockRegistrarExtendedTest extends TestCase {
 
 		// Stage the blocks to process assets
 		$this->block_registrar->stage();
-		$this->expectLog('debug', array('Ran\PluginLib\EnqueueAccessory\BlockRegistrar::stage', "Registering action for hook 'init' with priority 10."));
+		$this->expectLog('debug', array('BlockRegistrar::stage', "Registering action for hook 'init'"));
+		$this->assertLatestStageLog(1);
 
 		// Trigger asset integration method with correct signature
 		$reflection       = new ReflectionClass($this->block_registrar);
@@ -403,14 +426,15 @@ class BlockRegistrarExtendedTest extends TestCase {
 
 		// Stage to register hooks
 		$this->block_registrar->stage();
-		$this->expectLog('debug', array('Ran\PluginLib\EnqueueAccessory\BlockRegistrar::stage', "Registering action for hook 'init' with priority 10."));
+		$this->expectLog('debug', array('BlockRegistrar::stage', "Registering action for hook 'init'"));
+		$this->assertLatestStageLog(1);
 
 		$block_content = '<div>Test block content</div>';
 		$block         = array('blockName' => 'test/dynamic-assets');
 
 		$result = $this->block_registrar->_maybe_enqueue_dynamic_assets($block_content, $block);
 		$this->assertSame($block_content, $result);
-		$this->expectLog('debug', array('Ran\PluginLib\EnqueueAccessory\BlockRegistrar::_enqueue_dynamic_block_assets', "Enqueuing dynamic assets for block 'test/dynamic-assets'."));
+		$this->expectLog('debug', array('BlockRegistrar::_enqueue_dynamic_block_assets', "Enqueuing dynamic assets for block 'test/dynamic-assets'."));
 	}
 
 	/**
@@ -456,7 +480,7 @@ class BlockRegistrarExtendedTest extends TestCase {
 		$this->assertEmpty($registered_blocks);
 
 		// Verify appropriate logging occurred
-		$this->expectLog('debug', array("Condition failed for block 'test/conditional-registration'"));
+		$this->expectLog('debug', array('BlockRegistrar::_register_single_block', "Condition failed for block 'test/conditional-registration'"));
 	}
 
 	/**
@@ -479,11 +503,10 @@ class BlockRegistrarExtendedTest extends TestCase {
 			->andReturn(false); // WordPress returns false on failure
 
 		// Create partial mock to override _get_block_registry
-		$reflection   = new ReflectionClass($this->block_registrar);
+		$reflection = new ReflectionClass($this->block_registrar);
+		/** @var BlockRegistrar&LegacyMockInterface $partial_mock */
 		$partial_mock = Mockery::mock($this->block_registrar)->makePartial()->shouldAllowMockingProtectedMethods();
 		$partial_mock->shouldReceive('_get_block_registry')->andReturn($mock_registry);
-
-		// Trigger the protected method for coverage
 		$register_single_method = $reflection->getMethod('_register_single_block');
 		$register_single_method->setAccessible(true);
 
@@ -498,8 +521,8 @@ class BlockRegistrarExtendedTest extends TestCase {
 		$this->assertArrayNotHasKey('test/registration-failure', $registered_blocks);
 
 		// Verify appropriate logging occurred
-		$this->expectLog('debug', array("Registering block 'test/registration-failure'"));
-		$this->expectLog('warning', array("Failed to register block 'test/registration-failure'"));
+		$this->expectLog('debug', array('BlockRegistrar::_register_single_block', "Registering block 'test/registration-failure'"));
+		$this->expectLog('warning', array('BlockRegistrar::_register_single_block', "Failed to register block 'test/registration-failure'"));
 	}
 
 
@@ -523,14 +546,13 @@ class BlockRegistrarExtendedTest extends TestCase {
 		// Mock successful WordPress block registration
 		$mock_block_type       = Mockery::mock('WP_Block_Type');
 		$mock_block_type->name = 'test/complete-registration';
-
 		WP_Mock::userFunction('register_block_type')
 			->once()
 			->with('test/complete-registration', Mockery::type('array'))
 			->andReturn($mock_block_type);
 
-		// Create a partial mock to override _get_block_registry and ensure register_block_type is called
-		$reflection   = new ReflectionClass($this->block_registrar);
+		$reflection = new ReflectionClass($this->block_registrar);
+		/** @var BlockRegistrar&LegacyMockInterface $partial_mock */
 		$partial_mock = Mockery::mock($this->block_registrar)->makePartial()->shouldAllowMockingProtectedMethods();
 		$partial_mock->shouldReceive('_get_block_registry')->andReturn($mock_registry);
 
@@ -547,7 +569,7 @@ class BlockRegistrarExtendedTest extends TestCase {
 		// The expectation will be verified automatically by Mockery
 
 		// Verify logging occurred (observable behavior)
-		$this->expectLog('debug', array("Successfully registered block 'test/complete-registration'"));
+		$this->expectLog('debug', array('BlockRegistrar::_register_single_block', "Successfully registered block 'test/complete-registration'"));
 
 		// Verify the block was stored in our internal registry
 		$reflection_property = $reflection->getProperty('registered_wp_block_types');
@@ -578,7 +600,10 @@ class BlockRegistrarExtendedTest extends TestCase {
 		WP_Mock::userFunction('register_block_type')->never();
 
 		// Create partial mock to override _get_block_registry
-		$reflection   = new ReflectionClass($this->block_registrar);
+		$reflection = new ReflectionClass($this->block_registrar);
+		/**
+		 * @var BlockRegistrar&LegacyMockInterface $partial_mock
+		 */
 		$partial_mock = Mockery::mock($this->block_registrar)->makePartial()->shouldAllowMockingProtectedMethods();
 		$partial_mock->shouldReceive('_get_block_registry')->andReturn($mock_registry);
 
@@ -618,7 +643,7 @@ class BlockRegistrarExtendedTest extends TestCase {
 		$enqueue_method->setAccessible(true);
 		$enqueue_method->invoke($this->block_registrar);
 
-		$this->expectLog('debug', array('Processing editor assets'));
+		$this->expectLog('debug', array('BlockRegistrar::_enqueue_editor_assets', 'Processing editor assets for registered blocks.'));
 	}
 
 	/**
@@ -708,7 +733,7 @@ class BlockRegistrarExtendedTest extends TestCase {
 		$this->assertEquals('test-frontend-style', $result['style']);
 
 		// Verify logging occurred
-		$this->expectLog('debug', array('Ran\PluginLib\EnqueueAccessory\BlockRegistrar::_integrate_block_assets', "Integrating assets for block 'test/comprehensive-assets'"));
+		$this->expectLog('debug', array('BlockRegistrar::_integrate_block_assets', "Integrating assets for block 'test/comprehensive-assets'"));
 	}
 
 	/**
@@ -731,6 +756,7 @@ class BlockRegistrarExtendedTest extends TestCase {
 		));
 
 		// Mock _enqueue_dynamic_block_assets method
+		/** @var BlockRegistrar&LegacyMockInterface $partial_mock */
 		$partial_mock = Mockery::mock($this->block_registrar)->makePartial()->shouldAllowMockingProtectedMethods();
 		$partial_mock->shouldReceive('_enqueue_dynamic_block_assets')
 			->once()
@@ -784,6 +810,7 @@ class BlockRegistrarExtendedTest extends TestCase {
 		));
 
 		// Mock _register_single_block to track calls
+		/** @var BlockRegistrar&LegacyMockInterface $partial_mock */
 		$partial_mock = Mockery::mock($this->block_registrar)->makePartial()->shouldAllowMockingProtectedMethods();
 		$partial_mock->shouldReceive('_register_single_block')
 			->twice() // Should be called for each block
@@ -1123,7 +1150,8 @@ class BlockRegistrarExtendedTest extends TestCase {
 
 		// Stage blocks to register hooks and cache mappings
 		$this->block_registrar->stage();
-		$this->expectLog('debug', array('Ran\PluginLib\EnqueueAccessory\BlockRegistrar::stage', "Registering action for hook 'init' with priority 10."));
+		$this->expectLog('debug', array('BlockRegistrar::stage', "Registering action for hook 'init'"));
+		$this->assertLatestStageLog(2);
 
 		$staged_blocks = $this->block_registrar->debug_get_staged_blocks();
 		$this->assertArrayHasKey('init', $staged_blocks);
@@ -1201,7 +1229,7 @@ class BlockRegistrarExtendedTest extends TestCase {
 		$this->block_registrar->stage();
 		$result = $this->block_registrar->_maybe_enqueue_dynamic_assets($block_content, $block);
 		$this->assertSame($block_content, $result);
-		$this->expectLog('debug', array('Ran\PluginLib\EnqueueAccessory\BlockRegistrar::_enqueue_dynamic_block_assets', "Enqueuing dynamic assets for block 'test/dynamic-assets'."));
+		$this->expectLog('debug', array('BlockRegistrar::_enqueue_dynamic_block_assets', "Enqueuing dynamic assets for block 'test/dynamic-assets'."));
 	}
 
 	/**
@@ -1295,7 +1323,7 @@ class BlockRegistrarExtendedTest extends TestCase {
 		$method     = $reflection->getMethod('_enqueue_dynamic_block_assets');
 		$method->setAccessible(true);
 		$method->invoke($this->block_registrar, 'test/reflection-dynamic');
-		$this->expectLog('debug', array('Enqueuing dynamic assets', 'test/reflection-dynamic'));
+		$this->expectLog('debug', array('BlockRegistrar::_enqueue_dynamic_block_assets', "Enqueuing dynamic assets for block 'test/reflection-dynamic'"));
 	}
 
 	/**
@@ -1323,6 +1351,7 @@ class BlockRegistrarExtendedTest extends TestCase {
 		));
 
 		// Create a partial mock to handle the _generate_preload_tags_for_assets dependency
+		/** @var BlockRegistrar&LegacyMockInterface $partial_mock */
 		$partial_mock = Mockery::mock($this->block_registrar)->makePartial()->shouldAllowMockingProtectedMethods();
 
 		// Set the block assets on the partial mock
@@ -1494,25 +1523,25 @@ class BlockRegistrarExtendedTest extends TestCase {
 		// Test scripts-only block - this will provide coverage even if it errors
 		try {
 			$method->invoke($this->block_registrar, 'test/dynamic-scripts-only');
-			$this->expectLog('debug', array('Ran\PluginLib\EnqueueAccessory\BlockRegistrar::_enqueue_dynamic_block_assets', "Enqueuing dynamic assets for block 'test/dynamic-scripts-only'"));
+			$this->expectLog('debug', array('BlockRegistrar::_enqueue_dynamic_block_assets', "Enqueuing dynamic assets for block 'test/dynamic-scripts-only'"));
 		} catch (Error $e) {
-			$this->expectLog('debug', array('Ran\PluginLib\EnqueueAccessory\BlockRegistrar::_enqueue_dynamic_block_assets', "Enqueuing dynamic assets for block 'test/dynamic-scripts-only'"));
+			$this->expectLog('debug', array('BlockRegistrar::_enqueue_dynamic_block_assets', "Enqueuing dynamic assets for block 'test/dynamic-scripts-only'"));
 		}
 
 		// Test styles-only block
 		try {
 			$method->invoke($this->block_registrar, 'test/dynamic-styles-only');
-			$this->expectLog('debug', array('Ran\PluginLib\EnqueueAccessory\BlockRegistrar::_enqueue_dynamic_block_assets', "Enqueuing dynamic assets for block 'test/dynamic-styles-only'"));
+			$this->expectLog('debug', array('BlockRegistrar::_enqueue_dynamic_block_assets', "Enqueuing dynamic assets for block 'test/dynamic-styles-only'"));
 		} catch (Error $e) {
-			$this->expectLog('debug', array('Ran\PluginLib\EnqueueAccessory\BlockRegistrar::_enqueue_dynamic_block_assets', "Enqueuing dynamic assets for block 'test/dynamic-styles-only'"));
+			$this->expectLog('debug', array('BlockRegistrar::_enqueue_dynamic_block_assets', "Enqueuing dynamic assets for block 'test/dynamic-styles-only'"));
 		}
 
 		// Test both scripts and styles
 		try {
 			$method->invoke($this->block_registrar, 'test/dynamic-both');
-			$this->expectLog('debug', array('Ran\PluginLib\EnqueueAccessory\BlockRegistrar::_enqueue_dynamic_block_assets', "Enqueuing dynamic assets for block 'test/dynamic-both'"));
+			$this->expectLog('debug', array('BlockRegistrar::_enqueue_dynamic_block_assets', "Enqueuing dynamic assets for block 'test/dynamic-both'"));
 		} catch (Error $e) {
-			$this->expectLog('debug', array('Ran\PluginLib\EnqueueAccessory\BlockRegistrar::_enqueue_dynamic_block_assets', "Enqueuing dynamic assets for block 'test/dynamic-both'"));
+			$this->expectLog('debug', array('BlockRegistrar::_enqueue_dynamic_block_assets', "Enqueuing dynamic assets for block 'test/dynamic-both'"));
 		}
 
 		// Test non-existent block (early return - should not error)

@@ -47,7 +47,7 @@ final class FormsBaseTraitSubmitControlsTest extends TestCase {
 			'after'        => static fn (): string => '<p>after</p>',
 		));
 
-		$payload = $this->subject->get_submit_controls_for_page('settings-page');
+		$payload = $this->subject->_get_submit_controls_for_page('settings-page');
 
 		self::assertSame('primary-controls', $payload['zone_id'] ?? null);
 		self::assertIsCallable($payload['before']);
@@ -84,7 +84,7 @@ final class FormsBaseTraitSubmitControlsTest extends TestCase {
 			),
 		));
 
-		$payload  = $this->subject->get_submit_controls_for_page('settings-page');
+		$payload  = $this->subject->_get_submit_controls_for_page('settings-page');
 		$controls = $payload['controls'] ?? array();
 
 		self::assertCount(2, $controls);
@@ -123,7 +123,7 @@ final class FormsBaseTraitSubmitControlsTest extends TestCase {
 		$this->expectLog('warning', 'Submit control entry missing required metadata');
 	}
 
-	public function test_get_submit_controls_for_page_defaults_to_empty_array(): void {
-		self::assertSame(array(), $this->subject->get_submit_controls_for_page('unknown'));
+	public function test__get_submit_controls_for_page_defaults_to_empty_array(): void {
+		self::assertSame(array(), $this->subject->_get_submit_controls_for_page('unknown'));
 	}
 }

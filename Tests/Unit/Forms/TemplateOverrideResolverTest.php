@@ -420,10 +420,10 @@ class FormsTemplateOverrideResolverTest extends TestCase {
 	 */
 	public function test_system_fallback_templates(): void {
 		// Test known template types get appropriate fallbacks
-		$this->assertEquals('shared.root-wrapper', $this->resolver->resolve_template('root-wrapper', array()));
-		$this->assertEquals('shared.section-wrapper', $this->resolver->resolve_template('section-wrapper', array()));
-		$this->assertEquals('shared.group-wrapper', $this->resolver->resolve_template('group-wrapper', array()));
-		$this->assertEquals('shared.field-wrapper', $this->resolver->resolve_template('field-wrapper', array()));
+		$this->assertEquals('layout.container.root-wrapper', $this->resolver->resolve_template('root-wrapper', array()));
+		$this->assertEquals('layout.zone.section-wrapper', $this->resolver->resolve_template('section-wrapper', array()));
+		$this->assertEquals('layout.zone.group-wrapper', $this->resolver->resolve_template('group-wrapper', array()));
+		$this->assertEquals('layout.field.field-wrapper', $this->resolver->resolve_template('field-wrapper', array()));
 
 		// Test unknown template types get generic fallback
 		$this->assertEquals('shared.root-wrapper', $this->resolver->resolve_template('unknown-wrapper', array()));
@@ -438,10 +438,10 @@ class FormsTemplateOverrideResolverTest extends TestCase {
 	 */
 	public function test_base_system_fallbacks(): void {
 		// Test known template types get appropriate fallbacks
-		$this->assertEquals('shared.root-wrapper', $this->resolver->resolve_template('root-wrapper', array()));
-		$this->assertEquals('shared.section-wrapper', $this->resolver->resolve_template('section-wrapper', array()));
-		$this->assertEquals('shared.group-wrapper', $this->resolver->resolve_template('group-wrapper', array()));
-		$this->assertEquals('shared.field-wrapper', $this->resolver->resolve_template('field-wrapper', array()));
+		$this->assertEquals('layout.container.root-wrapper', $this->resolver->resolve_template('root-wrapper', array()));
+		$this->assertEquals('layout.zone.section-wrapper', $this->resolver->resolve_template('section-wrapper', array()));
+		$this->assertEquals('layout.zone.group-wrapper', $this->resolver->resolve_template('group-wrapper', array()));
+		$this->assertEquals('layout.field.field-wrapper', $this->resolver->resolve_template('field-wrapper', array()));
 
 		// Test unknown template types get generic fallback (same as FormsBaseTrait approach)
 		$this->assertEquals('shared.root-wrapper', $this->resolver->resolve_template('custom-field-wrapper', array()));

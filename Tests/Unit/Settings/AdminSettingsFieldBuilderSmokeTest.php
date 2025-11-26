@@ -8,8 +8,8 @@ declare(strict_types=1);
 namespace Ran\PluginLib\Tests\Unit\Settings;
 
 use WP_Mock\Tools\TestCase;
-use Ran\PluginLib\Util\CollectingLogger;
 use Ran\PluginLib\Util\ExpectLogTrait;
+use Ran\PluginLib\Util\CollectingLogger;
 use Ran\PluginLib\Settings\AdminSettings;
 use Ran\PluginLib\Options\RegisterOptions;
 use Ran\PluginLib\Forms\Component\ComponentManifest;

@@ -6,6 +6,7 @@ use Ran\PluginLib\Util\CollectingLogger;
 use Ran\PluginLib\Util\ExpectLogTrait;
 use Ran\PluginLib\Tests\Unit\PluginLibTestCase;
 use Ran\PluginLib\Forms\Renderer\FormElementRenderer;
+use Ran\PluginLib\Forms\Renderer\FormMessageHandler;
 use Ran\PluginLib\Forms\FormsServiceSession;
 use Ran\PluginLib\Forms\FormsService;
 use Ran\PluginLib\Forms\FormsAssets;
@@ -54,7 +55,8 @@ class FormElementRendererAssetCollectionTest extends PluginLibTestCase {
 			$this->component_manifest,
 			$this->form_service,
 			$component_loader,
-			$this->logger
+			$this->logger,
+			new FormMessageHandler($this->logger)
 		);
 	}
 
@@ -67,7 +69,6 @@ class FormElementRendererAssetCollectionTest extends PluginLibTestCase {
 	 * Test that FormElementRenderer properly collects assets from ComponentRenderResult.
 	 *
 	 * @covers ::render_component_with_assets
-	 * @covers ::_collect_component_assets
 	 */
 	public function test_render_component_with_assets_collects_assets_successfully(): void {
 		// Mock WordPress functions
@@ -107,14 +108,15 @@ class FormElementRendererAssetCollectionTest extends PluginLibTestCase {
 			->andReturn($render_result);
 
 		// Create FormsService with mocked manifest
-		$form_service = new FormsService($mock_manifest);
+		$form_service = new FormsService($mock_manifest, $this->logger);
 
 		// Create renderer with mocked manifest
 		$renderer = new FormElementRenderer(
 			$mock_manifest,
 			$form_service,
 			$this->component_manifest->get_component_loader(),
-			$this->logger
+			$this->logger,
+			new FormMessageHandler($this->logger)
 		);
 
 		// Create FormsServiceSession to test asset collection
@@ -142,6 +144,7 @@ class FormElementRendererAssetCollectionTest extends PluginLibTestCase {
 		$this->assertArrayHasKey('test-style', $styles);
 		$this->assertEquals('test-style', $styles['test-style']->handle);
 
+		$this->expectLog('debug', 'FormsServiceSession: Assets ingested successfully');
 		$this->expectLog('debug', 'FormElementRenderer: Component rendered with assets');
 	}
 
@@ -149,7 +152,6 @@ class FormElementRendererAssetCollectionTest extends PluginLibTestCase {
 	 * Test that asset collection errors are handled gracefully.
 	 *
 	 * @covers ::render_component_with_assets
-	 * @covers ::_collect_component_assets
 	 */
 	public function test_asset_collection_error_handling(): void {
 		// Create a render result with assets
@@ -171,37 +173,34 @@ class FormElementRendererAssetCollectionTest extends PluginLibTestCase {
 			->with('test-component', Mockery::type('array'))
 			->andReturn($render_result);
 
-		// Create a mock FormsServiceSession that throws an exception during asset ingestion
-		$mock_session = Mockery::mock(FormsServiceSession::class);
-		$mock_assets  = Mockery::mock(FormsAssets::class);
-		$mock_assets->shouldReceive('ingest')
-			->with($render_result)
-			->andThrow(new \RuntimeException('Asset collection failed'));
-		$mock_session->shouldReceive('assets')->andReturn($mock_assets);
+		$form_service    = new FormsService($mock_manifest, $this->logger);
+		$throwing_assets = new class extends FormsAssets {
+			public function ingest(ComponentRenderResult $result): void {
+				throw new \RuntimeException('Asset collection failed');
+			}
+		};
+		$session = $form_service->start_session($throwing_assets);
 
-		// Create renderer with mocked manifest
 		$renderer = new FormElementRenderer(
 			$mock_manifest,
-			$this->form_service,
+			$form_service,
 			$this->component_manifest->get_component_loader(),
-			$this->logger
+			$this->logger,
+			new FormMessageHandler($this->logger)
 		);
 
-		// Render component - should not throw exception despite asset collection failure
 		$context = array('field_id' => 'test_field');
-		$html    = $renderer->render_component_with_assets('test-component', $context, $mock_session);
+		$html    = $renderer->render_component_with_assets('test-component', $context, $session);
 
-		// Verify HTML is still returned despite asset collection failure
 		$this->assertEquals('<div>Test Component</div>', $html);
 
-		$this->expectLog('warning', 'FormElementRenderer: Asset collection failed, continuing with rendering');
+		$this->expectLog('warning', 'FormsServiceSession: Asset ingestion failed; continuing without assets');
 	}
 
 	/**
 	 * Test that render_field_component properly integrates with asset collection.
 	 *
 	 * @covers ::render_field_component
-	 * @covers ::_collect_component_assets
 	 */
 	public function test_render_field_component_collects_assets(): void {
 		// Mock WordPress functions
@@ -275,7 +274,6 @@ class FormElementRendererAssetCollectionTest extends PluginLibTestCase {
 	 * Test that components without assets are handled correctly.
 	 *
 	 * @covers ::render_component_with_assets
-	 * @covers ::_collect_component_assets
 	 */
 	public function test_render_component_without_assets(): void {
 		// Create a render result without assets

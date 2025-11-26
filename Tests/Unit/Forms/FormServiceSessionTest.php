@@ -3,6 +3,7 @@
 namespace Ran\PluginLib\Tests\Unit\Forms;
 
 use Ran\PluginLib\Util\Logger;
+use Ran\PluginLib\Util\CollectingLogger;
 use Ran\PluginLib\EnqueueAccessory\ScriptDefinition;
 use Ran\PluginLib\EnqueueAccessory\StyleDefinition;
 use Ran\PluginLib\Forms\FormsTemplateOverrideResolver;
@@ -31,6 +32,50 @@ class FormsServiceSessionTest extends TestCase {
 	private FormsAssets $assets;
 	/** @var Logger&MockObject */
 	private Logger $logger;
+	private FormsTemplateOverrideResolver $resolver;
+
+	public function test_ingest_component_result_emits_single_session_log(): void {
+		$logger = new CollectingLogger();
+		/** @var ComponentManifest&MockObject $manifest */
+		$manifest = $this->createMock(ComponentManifest::class);
+		$assets   = new class extends FormsAssets {
+			public int $ingest_count = 0;
+
+			public function ingest(ComponentRenderResult $result): void {
+				parent::ingest($result);
+				$this->ingest_count++;
+			}
+		};
+		$resolver = new FormsTemplateOverrideResolver($logger);
+		$session  = new FormsServiceSession($manifest, $assets, $resolver, $logger);
+
+		$style = StyleDefinition::from_array(array(
+			'handle'  => 'log-style',
+			'src'     => 'style.css',
+			'deps'    => array(),
+			'version' => '1.0.0',
+		));
+		$result = new ComponentRenderResult('<div>Logged</div>', null, $style);
+
+		$manifest->expects($this->once())
+			->method('render')
+			->with('fields.example', array('field_id' => 'example-field'))
+			->willReturn($result);
+
+		$session->render_component('fields.example', array('field_id' => 'example-field'));
+
+		$this->assertSame(1, $assets->ingest_count);
+
+		$logs     = $logger->get_logs();
+		$matching = array_filter($logs, static function(array $log): bool {
+			return isset($log['message']) && $log['message'] === 'FormsServiceSession: Assets ingested successfully';
+		});
+		$this->assertCount(1, $matching, 'Expected a single session asset ingestion log entry.');
+
+		$entry = array_values($matching)[0];
+		$this->assertSame('render_component:fields.example', $entry['context']['source'] ?? null);
+		$this->assertSame('example-field', $entry['context']['field_id'] ?? null);
+	}
 
 	protected function setUp(): void {
 		/** @var ComponentManifest&MockObject $manifest */
@@ -40,10 +85,11 @@ class FormsServiceSessionTest extends TestCase {
 		$assets       = $this->createMock(FormsAssets::class);
 		$this->assets = $assets;
 		/** @var Logger&MockObject $logger */
-		$logger       = $this->createMock(Logger::class);
-		$this->logger = $logger;
+		$logger         = $this->createMock(Logger::class);
+		$this->logger   = $logger;
+		$this->resolver = new FormsTemplateOverrideResolver($this->logger);
 
-		$this->session = new FormsServiceSession($this->manifest, $this->assets, $this->logger);
+		$this->session = new FormsServiceSession($this->manifest, $this->assets, $this->resolver, $this->logger);
 	}
 
 	/**
@@ -69,7 +115,8 @@ class FormsServiceSessionTest extends TestCase {
 			'section-wrapper' => 'admin.section-wrapper'
 		);
 
-		$session = new FormsServiceSession($this->manifest, $this->assets, $this->logger, $form_defaults);
+		$resolver = new FormsTemplateOverrideResolver($this->logger);
+		$session  = new FormsServiceSession($this->manifest, $this->assets, $resolver, $this->logger, $form_defaults);
 
 		$this->assertEquals($form_defaults, $session->get_form_defaults());
 	}
@@ -537,7 +584,8 @@ class FormsServiceSessionTest extends TestCase {
 		$logger   = $this->logger;
 		$manifest = $this->manifest;
 
-		$session = new class($manifest, $assets, $logger) extends FormsServiceSession {
+		$resolver = new FormsTemplateOverrideResolver($logger);
+		$session  = new class($manifest, $assets, $resolver, $logger) extends FormsServiceSession {
 			public array $registered_styles  = array();
 			public array $enqueued_styles    = array();
 			public array $registered_scripts = array();

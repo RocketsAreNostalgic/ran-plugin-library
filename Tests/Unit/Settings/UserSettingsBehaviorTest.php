@@ -158,6 +158,7 @@ final class UserSettingsBehaviorTest extends PluginLibTestCase {
 
 	public function test_save_settings_persists_when_validation_passes(): void {
 		$user_settings = $this->createUserSettings();
+		$logStart      = \count($this->logger->collected_logs);
 
 		WP_Mock::userFunction('current_user_can')->withAnyArgs()->andReturn(true);
 		WP_Mock::userFunction('get_option')->andReturn(array());
@@ -167,6 +168,55 @@ final class UserSettingsBehaviorTest extends PluginLibTestCase {
 
 		$messages = $user_settings->take_messages();
 		$this->assertSame(array(), $messages);
+
+		$logEntries   = \array_slice($this->logger->collected_logs, $logStart);
+		$defaultsLogs = \array_values(\array_filter($logEntries, static function (array $entry): bool {
+			return ($entry['message'] ?? '') === 'RegisterOptions: register_schema defaults';
+		}));
+		self::assertNotEmpty($defaultsLogs, 'Expected defaults telemetry log.');
+		$latestDefaults = \array_pop($defaultsLogs);
+		self::assertSame('info', strtolower((string) ($latestDefaults['level'] ?? '')));
+		$context = $latestDefaults['context'] ?? array();
+		self::assertSame(2, $context['submitted_count'] ?? null);
+		self::assertSame(array('profile_name', 'profile_age'), $context['submitted_keys'] ?? null);
+		self::assertSame(2, $context['unchanged_count'] ?? null);
+		self::assertSame(array('profile_name', 'profile_age'), $context['unchanged_keys'] ?? null);
+		self::assertSame(0, $context['changed_count'] ?? null);
+		self::assertSame(array(), $context['changed_keys'] ?? null);
+		self::assertSame(2, $context['missing_options_count'] ?? null);
+		self::assertSame(array('profile_name', 'profile_age'), $context['missing_option_keys'] ?? null);
+	}
+
+	public function test_schema_bundle_helper_caches_and_logs_hit_for_user_save_context(): void {
+		$user_settings = $this->createUserSettings();
+		$refOptions    = new \ReflectionProperty($user_settings, 'base_options');
+		$refOptions->setAccessible(true);
+		$baseOptions = $refOptions->getValue($user_settings);
+
+		$method = new \ReflectionMethod($user_settings, '_resolve_schema_bundle');
+		$method->setAccessible(true);
+
+		$this->logger->collected_logs = array();
+		$method->invoke($user_settings, $baseOptions, array('intent' => 'save', 'user_id' => 123));
+
+		$cachedLogs = $this->logger->find_logs(static function (array $entry): bool {
+			return ($entry['message'] ?? '') === 'forms.schema_bundle.cached';
+		});
+		self::assertCount(1, $cachedLogs, 'Expected schema bundle to be cached on first resolve.');
+		self::assertCount(0, $this->logger->find_logs(static function (array $entry): bool {
+			return ($entry['message'] ?? '') === 'forms.schema_bundle.cache_hit';
+		}), 'Cache hit should not occur on first resolve.');
+
+		$this->logger->collected_logs = array();
+		$method->invoke($user_settings, $baseOptions, array('intent' => 'save', 'user_id' => 123));
+		$cacheHits = $this->logger->find_logs(static function (array $entry): bool {
+			return ($entry['message'] ?? '') === 'forms.schema_bundle.cache_hit';
+		});
+		self::assertCount(1, $cacheHits, 'Expected schema bundle cache hit on second resolve.');
+		self::assertArrayHasKey('key', $cacheHits[0]['context'] ?? array());
+		self::assertCount(0, $this->logger->find_logs(static function (array $entry): bool {
+			return ($entry['message'] ?? '') === 'forms.schema_bundle.cached';
+		}), 'Bundle should not be recomputed after cache hit.');
 	}
 
 	public function test_save_settings_retains_previous_values_on_validation_failure(): void {
@@ -213,6 +263,21 @@ final class UserSettingsBehaviorTest extends PluginLibTestCase {
 		);
 
 		self::assertSame(array('invalid'), UserSettingsBehaviorTest_AutoValidator::$calls);
+
+		$matchedLogs = $this->logger->find_logs(static function (array $entry): bool {
+			if (($entry['message'] ?? null) !== UserSettings::class . ': Component validator queue matched schema key') {
+				return false;
+			}
+			$context = $entry['context'] ?? array();
+			return ($context['normalized_key'] ?? null) === 'auto_field'
+				&& ($context['validator_count'] ?? null)   === 1;
+		});
+		self::assertNotEmpty($matchedLogs, 'Expected validator queue matched log for auto_field.');
+
+		$consumedLogs = $this->logger->find_logs(static function (array $entry): bool {
+			return ($entry['message'] ?? null) === UserSettings::class . ': Component validator queue consumed';
+		});
+		self::assertNotEmpty($consumedLogs, 'Expected validator queue consumed log.');
 	}
 
 	public function test_render_payload_includes_structured_messages_after_validation_failure(): void {
@@ -251,6 +316,50 @@ final class UserSettingsBehaviorTest extends PluginLibTestCase {
 		self::assertNotEmpty($fieldMessages['warnings'], 'Expected validation warning for profile_age.');
 		self::assertContains('profile_age must be >= 18', $fieldMessages['warnings']);
 		self::assertSame(array(), $fieldMessages['notices'], 'Expected notices array to be empty.');
+
+		$logs       = $this->logger->get_logs();
+		$schemaLogs = array_values(array_filter($logs, static function (array $entry): bool {
+			return $entry['message'] === 'user_settings.render.schema_trace';
+		}));
+		self::assertNotEmpty($schemaLogs, 'Expected schema trace log from render.');
+		$latestSchemaLog = array_pop($schemaLogs);
+		self::assertArrayHasKey('fields', $latestSchemaLog['context']);
+		self::assertArrayHasKey('profile_name', $latestSchemaLog['context']['fields']);
+		self::assertArrayHasKey('profile_age', $latestSchemaLog['context']['fields']);
+		self::assertGreaterThanOrEqual(0, $latestSchemaLog['context']['fields']['profile_name']['validate_schema_count'] ?? -1);
+	}
+
+	public function test_schema_bundle_helper_caches_and_logs_hit_for_user_render_context(): void {
+		$user_settings = $this->createUserSettings();
+		$refOptions    = new \ReflectionProperty($user_settings, 'base_options');
+		$refOptions->setAccessible(true);
+		$baseOptions = $refOptions->getValue($user_settings);
+
+		$method = new \ReflectionMethod($user_settings, '_resolve_schema_bundle');
+		$method->setAccessible(true);
+
+		$this->logger->collected_logs = array();
+		$method->invoke($user_settings, $baseOptions, array('intent' => 'render', 'collection' => 'profile'));
+
+		$cachedLogs = $this->logger->find_logs(static function (array $entry): bool {
+			return ($entry['message'] ?? '') === 'forms.schema_bundle.cached';
+		});
+		self::assertCount(1, $cachedLogs, 'Expected schema bundle to be cached on first resolve.');
+		self::assertCount(0, $this->logger->find_logs(static function (array $entry): bool {
+			return ($entry['message'] ?? '') === 'forms.schema_bundle.cache_hit';
+		}), 'Cache hit should not occur on first resolve.');
+
+		$this->logger->collected_logs = array();
+		$method->invoke($user_settings, $baseOptions, array('intent' => 'render', 'collection' => 'profile'));
+
+		$cacheHits = $this->logger->find_logs(static function (array $entry): bool {
+			return ($entry['message'] ?? '') === 'forms.schema_bundle.cache_hit';
+		});
+		self::assertCount(1, $cacheHits, 'Expected schema bundle cache hit on second resolve.');
+		self::assertArrayHasKey('key', $cacheHits[0]['context'] ?? array());
+		self::assertCount(0, $this->logger->find_logs(static function (array $entry): bool {
+			return ($entry['message'] ?? '') === 'forms.schema_bundle.cached';
+		}), 'Bundle should not be recomputed after cache hit.');
 	}
 
 	public function test_save_settings_merges_manifest_defaults_and_propagates_messages(): void {

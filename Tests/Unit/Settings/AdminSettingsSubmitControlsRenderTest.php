@@ -9,6 +9,7 @@ namespace Ran\PluginLib\Tests\Unit\Settings;
 
 use WP_Mock\Tools\TestCase;
 use WP_Mock;
+use ReflectionProperty;
 use Ran\PluginLib\Util\CollectingLogger;
 use Ran\PluginLib\Options\RegisterOptions;
 use Ran\PluginLib\Forms\Component\ComponentType;
@@ -82,7 +83,7 @@ final class AdminSettingsSubmitControlsRenderTest extends TestCase {
 		$settings->render('defaults-page');
 		$output = (string) ob_get_clean();
 
-		self::assertStringContainsString('class="submit-wrapper"', $output, 'Default submit wrapper missing.');
+		self::assertStringContainsString('class="ran-zone-wrapper ran-zone-wrapper--submit-controls"', $output, 'Default submit wrapper missing.');
 		self::assertStringContainsString('data-zone="primary-controls"', $output, 'Default zone id missing.');
 		self::assertStringContainsString('<button type="submit">Save Changes</button>', $output, 'Default submit button markup missing.');
 		self::assertStringNotContainsString('custom-submit-area', $output, 'Custom submit template should not render without override.');
@@ -149,6 +150,150 @@ final class AdminSettingsSubmitControlsRenderTest extends TestCase {
 		self::assertStringNotContainsString('Save Changes', $output, 'Default submit label should not appear when custom controls provided.');
 	}
 
+	public function test__render_default_submit_controls_preserves_builder_order(): void {
+		$settings = $this->createAdminSettings();
+
+		$settings->menu_group('order-group')
+		    ->page('order-page')
+		        ->heading('Order Test')
+		        ->submit_controls()
+		            ->button('later', 'Second Button')->order(20)
+		            ->button('sooner', 'First Button')->order(10)
+		        ->end_submit_controls()
+		    ->end_page()
+		->end_menu_group();
+
+		$this->setOptionValues(array('example_field' => 'value'));
+
+		$property = new ReflectionProperty($settings, 'submit_controls');
+		$property->setAccessible(true);
+		$storedControls = $property->getValue($settings);
+		$controls       = $storedControls['order-page']['controls'] ?? array();
+		self::assertSame(array('sooner', 'later'), array_column($controls, 'id'), 'Submit controls storage should be normalized by order.');
+		self::assertSame(array(10, 20), array_column($controls, 'order'), 'Submit controls storage should retain declared order values.');
+
+		ob_start();
+		$settings->render('order-page');
+		$output = (string) ob_get_clean();
+
+		preg_match_all('/<button[^>]*>([^<]+)<\/button>/', $output, $matches);
+		self::assertNotEmpty($matches[1] ?? array(), 'Expected rendered button markup.');
+		self::assertSame(array('First Button', 'Second Button'), $matches[1], 'Rendered button order should follow normalized storage.');
+	}
+
+	public function test__render_default_submit_controls_does_not_mutate_stored_controls(): void {
+		$settings = $this->createAdminSettings();
+
+		$settings->menu_group('mutate-group')
+		    ->page('mutate-page')
+		        ->heading('Mutation Test')
+		        ->submit_controls()
+		            ->button('alpha', 'Alpha')->order(5)
+		            ->button('beta', 'Beta')->order(15)
+		        ->end_submit_controls()
+		    ->end_page()
+		->end_menu_group();
+
+		$this->setOptionValues(array('example_field' => 'value'));
+
+		$property = new ReflectionProperty($settings, 'submit_controls');
+		$property->setAccessible(true);
+		$before = $property->getValue($settings);
+
+		ob_start();
+		$settings->render('mutate-page');
+		ob_end_clean();
+
+		$after = $property->getValue($settings);
+		self::assertSame($before, $after, 'Submit controls storage should remain unchanged after rendering.');
+	}
+
+	public function test__render_default_submit_controls_does_not_log_additional_normalizations(): void {
+		$settings = $this->createAdminSettings();
+
+		$this->resetLogger();
+
+		$settings->menu_group('log-group')
+		    ->page('log-page')
+		        ->heading('Logging Test')
+		        ->submit_controls()
+		            ->button('first', 'First')->order(1)
+		            ->button('second', 'Second')->order(2)
+		        ->end_submit_controls()
+		    ->end_page()
+		->end_menu_group();
+
+		$this->setOptionValues(array('example_field' => 'value'));
+		$beforeCount = $this->countLogsForMessage('forms.submit_controls.controls.updated');
+
+		ob_start();
+		$settings->render('log-page');
+		ob_end_clean();
+
+		$afterCount = $this->countLogsForMessage('forms.submit_controls.controls.updated');
+		self::assertSame($beforeCount, $afterCount, 'Rendering submit controls should not trigger additional normalization logs.');
+	}
+
+	public function test_render_missing_submit_controls_triggers_fallback_once(): void {
+		$settings = $this->createAdminSettings();
+
+		$settings->menu_group('missing-fallback-group')
+		    ->page('missing-fallback-page')
+		        ->heading('Fallback Page')
+		    ->end_page()
+		->end_menu_group();
+
+		// Simulate missing canonical definition.
+		$property = new ReflectionProperty($settings, 'submit_controls');
+		$property->setAccessible(true);
+		$property->setValue($settings, array());
+
+		$this->setOptionValues(array('example_field' => 'value'));
+		$this->resetLogger();
+
+		ob_start();
+		$settings->render('missing-fallback-page');
+		$output = (string) ob_get_clean();
+
+		self::assertStringContainsString('<button type="submit">Save Changes</button>', $output, 'Fallback should render default submit button.');
+
+		$fallbackLogs = $this->logger->find_logs(static fn(array $entry): bool => ($entry['message'] ?? '') === 'admin_settings.submit_controls.fallback_applied');
+		self::assertCount(1, $fallbackLogs, 'Fallback should be logged exactly once.');
+		self::assertSame('missing_definition', $fallbackLogs[0]['context']['reason'] ?? null);
+
+		$storedControls = $property->getValue($settings);
+		self::assertArrayHasKey('missing-fallback-page', $storedControls, 'Fallback should persist submit controls for subsequent renders.');
+		self::assertNotEmpty($storedControls['missing-fallback-page']['controls'] ?? array(), 'Fallback controls should be stored.');
+	}
+
+	public function test_render_empty_submit_controls_triggers_fallback_once(): void {
+		$settings = $this->createAdminSettings();
+
+		$menuBuilder = $settings->menu_group('empty-fallback-group');
+		$pageBuilder = $menuBuilder->page('empty-fallback-page')->heading('Empty Controls Page');
+		$pageBuilder->submit_controls()->end_submit_controls();
+		$pageBuilder->end_page();
+		$menuBuilder->end_menu_group();
+
+		$this->setOptionValues(array('example_field' => 'value'));
+		$this->resetLogger();
+
+		ob_start();
+		$settings->render('empty-fallback-page');
+		$output = (string) ob_get_clean();
+
+		self::assertStringContainsString('<button type="submit">Save Changes</button>', $output, 'Fallback should render default submit button when controls list is empty.');
+
+		$fallbackLogs = $this->logger->find_logs(static fn(array $entry): bool => ($entry['message'] ?? '') === 'admin_settings.submit_controls.fallback_applied');
+		self::assertCount(1, $fallbackLogs, 'Fallback should be logged exactly once.');
+		self::assertSame('empty_controls', $fallbackLogs[0]['context']['reason'] ?? null);
+
+		$property = new ReflectionProperty($settings, 'submit_controls');
+		$property->setAccessible(true);
+		$storedControls = $property->getValue($settings);
+		self::assertNotEmpty($storedControls['empty-fallback-page']['controls'] ?? array(), 'Fallback controls should be stored after render.');
+	}
+
 	private function createAdminSettings(): \Ran\PluginLib\Settings\AdminSettings {
 		$options = RegisterOptions::site(self::OPTION_KEY, true, $this->logger);
 		$options->register_schema(array(
@@ -178,6 +323,41 @@ final class AdminSettingsSubmitControlsRenderTest extends TestCase {
 		$this->manifest->register('field-wrapper', static function (array $context): ComponentRenderResult {
 			$componentHtml = $context['component_html'] ?? '';
 			return new ComponentRenderResult('<div class="field-wrapper">' . $componentHtml . '</div>', component_type: ComponentType::LayoutWrapper);
+		});
+
+		$this->manifest->register('layout.zone.submit-controls-wrapper', static function (array $context): ComponentRenderResult {
+			$content = $context['content'] ?? '';
+			$zoneId  = isset($context['zone_id']) ? (string) $context['zone_id'] : '';
+			$before  = isset($context['before']) ? (string) $context['before'] : '';
+			$after   = isset($context['after'])  ? (string) $context['after']  : '';
+			$extra   = isset($context['class']) ? trim((string) $context['class']) : '';
+
+			$classes = array('ran-zone-wrapper', 'ran-zone-wrapper--submit-controls');
+			if ($extra !== '') {
+				$classes[] = $extra;
+			}
+
+			$classAttr  = implode(' ', array_map('sanitize_html_class', preg_split('/\s+/', implode(' ', $classes))));
+			$attributes = sprintf(' class="%s"', esc_attr($classAttr));
+			if ($zoneId !== '') {
+				$attributes .= sprintf(' data-zone="%s"', esc_attr($zoneId));
+			}
+
+			$markup = '<div' . $attributes . '>';
+			if ($content !== '') {
+				$markup .= '<div class="ran-zone-wrapper__inner">';
+				if ($before !== '') {
+					$markup .= $before;
+				}
+				$markup .= $content;
+				if ($after !== '') {
+					$markup .= $after;
+				}
+				$markup .= '</div>';
+			}
+			$markup .= '</div>';
+
+			return new ComponentRenderResult($markup, component_type: ComponentType::LayoutWrapper);
 		});
 
 		$this->manifest->register('fields.input', static function (array $context): ComponentRenderResult {
@@ -269,5 +449,16 @@ final class AdminSettingsSubmitControlsRenderTest extends TestCase {
 
 	private function setOptionValues(array $values): void {
 		$this->optionStore[self::OPTION_KEY] = $values;
+	}
+
+	private function resetLogger(): void {
+		$this->logger->collected_logs = array();
+	}
+
+	/**
+	 * Count logs emitted with a given message on the collecting logger.
+	 */
+	private function countLogsForMessage(string $message): int {
+		return count($this->logger->find_logs(static fn(array $entry): bool => ($entry['message'] ?? '') === $message));
 	}
 }

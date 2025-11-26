@@ -42,7 +42,7 @@ final class TestHarness {
 		return $this->_create_update_function();
 	}
 
-	public function get_submit_controls_for_page(string $container_id): array {
+	public function _get_submit_controls_for_page(string $container_id): array {
 		return $this->submit_controls[$container_id] ?? array();
 	}
 

@@ -13,8 +13,8 @@ declare(strict_types=1);
 namespace Ran\PluginLib\Tests\Unit\Settings;
 
 use WP_Mock\Tools\TestCase;
-use Ran\PluginLib\Util\CollectingLogger;
 use Ran\PluginLib\Util\ExpectLogTrait;
+use Ran\PluginLib\Util\CollectingLogger;
 use Ran\PluginLib\Settings\UserSettingsSectionBuilder;
 use Ran\PluginLib\Settings\UserSettingsCollectionBuilder;
 use Ran\PluginLib\Settings\UserSettings;

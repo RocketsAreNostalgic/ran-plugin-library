@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\Tests\Unit\Settings;
 
-use InvalidArgumentException;
-use PHPUnit\Framework\TestCase;
-use Ran\PluginLib\Options\OptionScope;
 use Ran\PluginLib\Settings\SettingsScopeHelper;
+use Ran\PluginLib\Options\OptionScope;
+use PHPUnit\Framework\TestCase;
+use InvalidArgumentException;
 
 /**
  * @covers \Ran\PluginLib\Settings\SettingsScopeHelper

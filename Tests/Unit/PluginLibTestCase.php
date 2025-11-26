@@ -4,16 +4,16 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\Tests\Unit;
 
-use Mockery;
-use WP_Mock;
-use RanTestCase;
-use Mockery\MockInterface;
-use Ran\PluginLib\Config\ConfigAbstract;
-use Ran\PluginLib\Util\CollectingLogger;
-use \Ran\PluginLib\Options\RegisterOptions;
-use PHPUnit\Framework\MockObject\MockObject;
-use Ran\PluginLib\EnqueueAccessory\AssetType;
 use \Ran\PluginLib\Options\Storage\StorageContext;
+use \Ran\PluginLib\Options\RegisterOptions;
+use WP_Mock;
+use Ran\PluginLib\Util\CollectingLogger;
+use Ran\PluginLib\EnqueueAccessory\AssetType;
+use Ran\PluginLib\Config\ConfigAbstract;
+use RanTestCase;
+use PHPUnit\Framework\MockObject\MockObject;
+use Mockery\MockInterface;
+use Mockery;
 
 /**
  * Minimal concrete class for testing ConfigAbstract initialization.
@@ -167,11 +167,12 @@ abstract class PluginLibTestCase extends RanTestCase {
 	public function tearDown(): void {
 		// Conditionally print logs if enabled for the test
 		if ($this->enable_console_logging && $this->logger_mock instanceof CollectingLogger) {
-			$logs = $this->logger_mock->collected_logs;
-			if (!empty($logs)) {
-				fwrite(STDERR, "\n--- CONSOLE LOGS FOR TEST: " . $this->getName() . " ---\n");
-				fwrite(STDERR, print_r($logs, true));
-				fwrite(STDERR, '--- END CONSOLE LOGS FOR TEST: ' . $this->getName() . " ---\n\n");
+			if (!empty($this->logger_mock->collected_logs)) {
+				$log_file = $this->create_log_dump();
+				fwrite(STDERR, "\n--- CONSOLE LOG SUMMARY FOR TEST: " . $this->getName() . " ---\n");
+				fwrite(STDERR, 'Total logs collected: ' . \count($this->logger_mock->collected_logs) . "\n");
+				fwrite(STDERR, 'Log file: ' . $log_file . "\n");
+				fwrite(STDERR, "--- END CONSOLE LOG SUMMARY ---\n\n");
 			}
 		}
 
@@ -202,6 +203,57 @@ abstract class PluginLibTestCase extends RanTestCase {
 		WP_Mock::tearDown();
 
 		parent::tearDown();
+	}
+
+	/**
+	 * Persist collected logs to a temporary file for later inspection.
+	 *
+	 * @return string Absolute path to the written log file.
+	 */
+	protected function create_log_dump(): string {
+		$base_dir = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'ran-plugin-lib-test-logs';
+		if (!is_dir($base_dir)) {
+			mkdir($base_dir, 0777, true);
+		}
+
+		$test_identifier = sprintf('%s_%s', static::class, (string) $this->getName());
+		$sanitized_name  = preg_replace('/[^a-z0-9_-]+/i', '-', $test_identifier) ?: 'test-log';
+		$file_path       = $base_dir . DIRECTORY_SEPARATOR . $sanitized_name . '-' . uniqid('', true) . '.log';
+
+		$handle = @fopen($file_path, 'wb');
+		if ($handle === false) {
+			$file_path = tempnam($base_dir, $sanitized_name . '-');
+			$handle    = $file_path !== false ? @fopen($file_path, 'wb') : false;
+		}
+
+		if ($handle === false) {
+			return 'Unable to create log dump file';
+		}
+
+		$write = static function(string $line) use ($handle): void {
+			fwrite($handle, $line);
+		};
+
+		$write('Test: ' . static::class . '::' . $this->getName() . PHP_EOL);
+		$write('Timestamp: ' . gmdate('c') . PHP_EOL);
+		$write('Log entries: ' . \count($this->logger_mock->collected_logs) . PHP_EOL . str_repeat('=', 40) . PHP_EOL);
+
+		$this->logger_mock->drain(function(int $index, array $entry) use ($write): void {
+			$write('Entry #' . ($index + 1) . PHP_EOL);
+			$write('Level: ' . ($entry['level'] ?? '') . PHP_EOL);
+			$write('Message: ' . ($entry['message'] ?? '') . PHP_EOL);
+			$context      = $entry['context'] ?? array();
+			$context_json = json_encode($context, JSON_PARTIAL_OUTPUT_ON_ERROR);
+			if ($context_json === false) {
+				$context_json = '{}';
+			}
+			$write('Context: ' . $context_json . PHP_EOL);
+			$write(str_repeat('-', 40) . PHP_EOL);
+		});
+
+		fclose($handle);
+
+		return $file_path;
 	}
 
 	/**

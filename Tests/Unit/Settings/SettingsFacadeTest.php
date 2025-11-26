@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\Tests\Unit\Settings;
 
-use BadMethodCallException;
-use PHPUnit\Framework\TestCase;
-use Ran\PluginLib\Options\RegisterOptions;
-use Ran\PluginLib\Settings\AdminSettings;
-use Ran\PluginLib\Settings\Settings;
 use Ran\PluginLib\Settings\UserSettings;
+use Ran\PluginLib\Settings\Settings;
+use Ran\PluginLib\Settings\AdminSettings;
+use Ran\PluginLib\Options\RegisterOptions;
+use PHPUnit\Framework\TestCase;
+use BadMethodCallException;
 
 /**
  * @covers \Ran\PluginLib\Settings\Settings

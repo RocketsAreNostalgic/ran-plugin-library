@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\Tests\Unit\HooksAccessory;
 
-use PHPUnit\Framework\TestCase;
 use Ran\PluginLib\HooksAccessory\HookDefinition;
+use PHPUnit\Framework\TestCase;
 
 final class HookDefinitionTest extends TestCase {
 	public function test_create_from_string(): void {
@@ -86,25 +86,23 @@ final class HookDefinitionTest extends TestCase {
 	public function test_create_invalid_definition_type_throws(): void {
 		$this->expectException(\TypeError::class);
 		// invalid: non-string/array definition
-		/** @phpstan-ignore-next-line */
-		HookDefinition::create('wp_init', 123, 'action');
+		/** @var mixed $invalid_definition */
+		$invalid_definition = 123;
+		HookDefinition::create('wp_init', $invalid_definition, 'action');
 	}
 
 	public function test_create_array_callback_not_string_throws(): void {
 		$this->expectException(\InvalidArgumentException::class);
-		/** @phpstan-ignore-next-line */
 		HookDefinition::create('wp_init', array(123, 10, 1, 'x'), 'action');
 	}
 
 	public function test_create_array_priority_not_int_throws(): void {
 		$this->expectException(\InvalidArgumentException::class);
-		/** @phpstan-ignore-next-line */
 		HookDefinition::create('wp_init', array('boot', 'hi', 1, 'x'), 'action');
 	}
 
 	public function test_create_array_accepted_args_not_int_throws(): void {
 		$this->expectException(\InvalidArgumentException::class);
-		/** @phpstan-ignore-next-line */
 		HookDefinition::create('wp_init', array('boot', 10, 'no', 'x'), 'action');
 	}
 
@@ -159,7 +157,6 @@ final class HookDefinitionTest extends TestCase {
 
 	public function test_create_multiple_invalid_key_type(): void {
 		$this->expectException(\InvalidArgumentException::class);
-		/** @phpstan-ignore-next-line */
 		HookDefinition::create_multiple(array(
 		    123 => 'boot',
 		), 'action');

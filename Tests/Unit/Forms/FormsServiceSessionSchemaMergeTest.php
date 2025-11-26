@@ -11,7 +11,9 @@ use Mockery;
 use Ran\PluginLib\Forms\FormsAssets;
 use Ran\PluginLib\Forms\FormsService;
 use Ran\PluginLib\Forms\FormsServiceSession;
+use Ran\PluginLib\Forms\FormsTemplateOverrideResolver;
 use Ran\PluginLib\Forms\Renderer\FormElementRenderer;
+use Ran\PluginLib\Forms\Renderer\FormMessageHandler;
 use Ran\PluginLib\Forms\Component\ComponentManifest;
 use Ran\PluginLib\Forms\Component\ComponentLoader;
 use Ran\PluginLib\Forms\Component\ComponentRenderResult;
@@ -51,7 +53,8 @@ final class FormsServiceSessionSchemaMergeTest extends PluginLibTestCase {
 			->andReturn($defaults);
 		$manifest->shouldReceive('default_catalogue')->andReturn(array());
 
-		$session = new FormsServiceSession($manifest, new FormsAssets(), $this->logger_mock);
+		$resolver = new FormsTemplateOverrideResolver($this->logger_mock);
+		$session  = new FormsServiceSession($manifest, new FormsAssets(), $resolver, $this->logger_mock);
 
 		$schema = array(
 			'sanitize' => array($schemaSanitize),
@@ -95,7 +98,8 @@ final class FormsServiceSessionSchemaMergeTest extends PluginLibTestCase {
 			->andReturn(array());
 		$manifest->shouldReceive('default_catalogue')->andReturn(array());
 
-		$session = new FormsServiceSession($manifest, new FormsAssets(), $this->logger_mock);
+		$resolver = new FormsTemplateOverrideResolver($this->logger_mock);
+		$session  = new FormsServiceSession($manifest, new FormsAssets(), $resolver, $this->logger_mock);
 
 		$schema = array('validate' => array(function () {
 			return true;
@@ -121,7 +125,8 @@ final class FormsServiceSessionSchemaMergeTest extends PluginLibTestCase {
 			->andReturn($manifestDefaults);
 		$manifest->shouldReceive('default_catalogue')->andReturn(array());
 
-		$session = new FormsServiceSession($manifest, new FormsAssets(), $this->logger_mock);
+		$resolver = new FormsTemplateOverrideResolver($this->logger_mock);
+		$session  = new FormsServiceSession($manifest, new FormsAssets(), $resolver, $this->logger_mock);
 
 		$this->expectException(\InvalidArgumentException::class);
 		$session->merge_schema_with_defaults('components.requires-validator', array());
@@ -164,7 +169,8 @@ final class FormsServiceSessionSchemaMergeTest extends PluginLibTestCase {
 			->andReturn($manifestDefaults);
 		$manifest->shouldReceive('default_catalogue')->andReturn(array('fields.merge' => $manifestDefaults));
 
-		$session = new FormsServiceSession($manifest, new FormsAssets(), $this->logger_mock);
+		$resolver = new FormsTemplateOverrideResolver($this->logger_mock);
+		$session  = new FormsServiceSession($manifest, new FormsAssets(), $resolver, $this->logger_mock);
 
 		$merged = $session->merge_schema_with_defaults('fields.merge', $schema);
 
@@ -228,6 +234,9 @@ final class FormsServiceSessionSchemaMergeTest extends PluginLibTestCase {
 			$loader,
 			$this->logger_mock
 		);
+		$message_handler = new FormMessageHandler($this->logger_mock);
+		$message_handler->set_messages($messages);
+		$renderer->set_message_handler($message_handler);
 		$session = $formService->start_session();
 
 		$field = array(
@@ -237,16 +246,19 @@ final class FormsServiceSessionSchemaMergeTest extends PluginLibTestCase {
 			'component_context' => array(),
 		);
 
-		$context = $renderer->prepare_field_context(
-			$field,
-			array(),
-			array('field' => array('warnings' => $messages['field']['warnings'] ?? array(), 'notices' => array()))
-		);
+		$context = $renderer->prepare_field_context($field, array(), array());
 		$renderer->render_field_component('fields.merge', 'field', 'Field Label', $context, 'direct-output', 'field-wrapper', $session);
 
 		self::assertSame(array('Schema validator failed'), $context['validation_warnings']);
 		self::assertSame('Field Label', $context['label']);
 		self::assertNotNull($capturedContext);
-		$this->expectLog('debug', 'forms.schema.merge');
+		$logs      = $this->logger_mock->get_logs();
+		$mergeLogs = array_values(array_filter($logs, static function (array $entry): bool {
+			return $entry['message'] === 'forms.schema.merge';
+		}));
+		self::assertNotEmpty($mergeLogs);
+		$latest = array_pop($mergeLogs);
+		self::assertSame('fields.merge', $latest['context']['alias'] ?? null);
+		self::assertSame(array('component' => 1, 'schema' => 1), $latest['context']['merged_validate_counts'] ?? null);
 	}
 }

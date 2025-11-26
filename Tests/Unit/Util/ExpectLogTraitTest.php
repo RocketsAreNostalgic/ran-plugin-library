@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\Tests\Unit\Util;
 
-use PHPUnit\Framework\AssertionFailedError;
 use Ran\PluginLib\Tests\Unit\PluginLibTestCase;
+use PHPUnit\Framework\AssertionFailedError;
 
 /**
  * @covers \Ran\PluginLib\Util\ExpectLogTrait
@@ -49,7 +49,7 @@ class ExpectLogTraitTest extends PluginLibTestCase {
 	}
 
 	public function test_expect_log_verbose_output_uses_configured_stream(): void {
-		$this->enable_console_logging   = true;
+		$this->enable_console_logging   = false;
 		$this->expect_log_output_stream = fopen('php://memory', 'w+');
 		$this->logger_mock->info('Info message containing needle');
 
@@ -70,7 +70,7 @@ class ExpectLogTraitTest extends PluginLibTestCase {
 	}
 
 	public function test_expect_log_output_writes_formatted_message(): void {
-		$this->enable_console_logging   = true;
+		$this->enable_console_logging   = false;
 		$this->expect_log_output_stream = fopen('php://memory', 'w+');
 
 		try {

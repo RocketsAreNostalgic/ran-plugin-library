@@ -4,19 +4,20 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\Tests\Unit\Forms;
 
-use InvalidArgumentException;
-use Mockery;
-use Ran\PluginLib\EnqueueAccessory\StyleDefinition;
-use Ran\PluginLib\Forms\Component\ComponentLoader;
-use Ran\PluginLib\Forms\Component\ComponentManifest;
-use Ran\PluginLib\Forms\Component\ComponentRenderResult;
-use Ran\PluginLib\Forms\FormsService;
-use Ran\PluginLib\Forms\FormsServiceSession;
-use Ran\PluginLib\Forms\Renderer\FormElementRenderer;
-use Ran\PluginLib\Tests\Unit\PluginLibTestCase;
-use Ran\PluginLib\Util\CollectingLogger;
-use Ran\PluginLib\Util\ExpectLogTrait;
 use WP_Mock;
+use Ran\PluginLib\Util\ExpectLogTrait;
+use Ran\PluginLib\Util\CollectingLogger;
+use Ran\PluginLib\Tests\Unit\PluginLibTestCase;
+use Ran\PluginLib\Forms\Renderer\FormMessageHandler;
+use Ran\PluginLib\Forms\Renderer\FormElementRenderer;
+use Ran\PluginLib\Forms\FormsServiceSession;
+use Ran\PluginLib\Forms\FormsService;
+use Ran\PluginLib\Forms\Component\ComponentRenderResult;
+use Ran\PluginLib\Forms\Component\ComponentManifest;
+use Ran\PluginLib\Forms\Component\ComponentLoader;
+use Ran\PluginLib\EnqueueAccessory\StyleDefinition;
+use Mockery;
+use InvalidArgumentException;
 
 /**
  * @covers \Ran\PluginLib\Forms\Renderer\FormElementRenderer
@@ -47,7 +48,9 @@ class FormElementRendererValidationTest extends PluginLibTestCase {
 		$manifest = $manifest ?? new ComponentManifest($this->loader, $logger);
 		$service  = $service  ?? new FormsService($manifest, $logger);
 
-		return new FormElementRenderer($manifest, $service, $this->loader, $logger);
+		$renderer = new FormElementRenderer($manifest, $service, $this->loader, $logger);
+		$renderer->set_message_handler(new FormMessageHandler($logger));
+		return $renderer;
 	}
 
 	public function test_validate_field_config_reports_all_failures(): void {
@@ -101,12 +104,48 @@ class FormElementRendererValidationTest extends PluginLibTestCase {
 			),
 		);
 
-		$context = $renderer->prepare_field_context($field, $values, $messages);
+		$message_handler = new FormMessageHandler($this->logger);
+		$message_handler->set_messages($messages);
+		$renderer->set_message_handler($message_handler);
+
+		$context = $renderer->prepare_field_context($field, $values, array());
 
 		$this->assertSame('stored', $context['value']);
 		$this->assertSame(array('warn'), $context['validation_warnings']);
 		$this->assertSame(array('note'), $context['display_notices']);
 		$this->assertSame('value', $context['custom']);
+		$this->expectLog('debug', 'FormElementRenderer: Context prepared');
+	}
+
+	public function test_prepare_field_context_uses_pending_values_and_surfaces_messages_once(): void {
+		$renderer = $this->createRenderer();
+
+		$field = array(
+			'field_id'  => 'pending_field',
+			'component' => 'fields.text',
+			'label'     => 'Pending Field',
+		);
+
+		$stored_values  = array('pending_field' => 'stored-value');
+		$pending_values = array('pending_field' => 'pending-value');
+
+		$message_handler = new FormMessageHandler($this->logger);
+		$message_handler->set_messages(array(
+			'pending_field' => array(
+				'warnings' => array('warning-one'),
+				'notices'  => array('notice-one'),
+			),
+		));
+		$message_handler->set_pending_values($pending_values);
+		$renderer->set_message_handler($message_handler);
+
+		$context = $renderer->prepare_field_context($field, $stored_values, array('before' => '<span>before</span>'));
+
+		$this->assertSame('pending-value', $context['value'], 'Expected pending values to override stored values');
+		$this->assertSame(array('warning-one'), $context['validation_warnings']);
+		$this->assertSame(array('notice-one'), $context['display_notices']);
+		$this->assertSame('<span>before</span>', $context['before']);
+		$this->expectLog('debug', 'FormMessageHandler: Using pending values due to validation failure');
 		$this->expectLog('debug', 'FormElementRenderer: Context prepared');
 	}
 
@@ -151,7 +190,8 @@ class FormElementRendererValidationTest extends PluginLibTestCase {
 
 		$service  = new FormsService($manifest, $this->logger);
 		$renderer = new FormElementRenderer($manifest, $service, $loader, $this->logger);
-		$session  = $service->start_session();
+		$renderer->set_message_handler(new FormMessageHandler($this->logger));
+		$session = $service->start_session();
 
 		$field = array(
 			'field_id'  => 'field',
@@ -170,15 +210,15 @@ class FormElementRendererValidationTest extends PluginLibTestCase {
 			'field',
 			'Label',
 			$context,
-			'shared.field-wrapper',
+			'layout.field.field-wrapper',
 			'field-wrapper',
 			$session
 		);
 
 		$this->assertStringContainsString('wrapper', $html);
 		$this->assertStringContainsString('<input />', $html);
+		$this->expectLog('debug', 'FormsServiceSession: Assets ingested successfully');
 		$this->expectLog('debug', 'FormElementRenderer: Component rendered with assets');
-		$this->expectLog('debug', 'FormElementRenderer: Assets collected successfully');
 	}
 
 	public function test_render_field_component_falls_back_when_wrapper_fails(): void {
@@ -210,9 +250,10 @@ class FormElementRendererValidationTest extends PluginLibTestCase {
 			$session
 		);
 
-		$this->assertSame('<input />', $html);
-		$this->expectLog('error', 'FormElementRenderer: Session render_element failed; falling back to loader');
-		$this->expectLog('error', 'FormElementRenderer: Template wrapper failed');
+		$this->assertStringContainsString('<input />', $html);
+		$this->assertStringContainsString('<!-- kepler-template-fallback: field -->', $html);
+		$this->assertStringContainsString('Template failure while rendering "layout.field.field-wrapper"', $html);
+		$this->expectLog('warning', 'FormsServiceSession: Template render failed; returning fallback markup');
 	}
 
 	public function test_render_component_with_assets_logs_successfully(): void {
@@ -235,14 +276,15 @@ class FormElementRendererValidationTest extends PluginLibTestCase {
 
 		$service  = new FormsService($manifest, $this->logger);
 		$renderer = new FormElementRenderer($manifest, $service, $this->loader, $this->logger);
-		$session  = $service->start_session();
+		$renderer->set_message_handler(new FormMessageHandler($this->logger));
+		$session = $service->start_session();
 
 		$html = $renderer->render_component_with_assets('test-component', array('field_id' => 'field'), $session);
 
 		$this->assertSame('<div>Rendered</div>', $html);
 		$this->assertTrue($session->assets()->has_assets());
+		$this->expectLog('debug', 'FormsServiceSession: Assets ingested successfully');
 		$this->expectLog('debug', 'FormElementRenderer: Component rendered with assets');
-		$this->expectLog('debug', 'FormElementRenderer: Assets collected successfully');
 	}
 
 	public function test_render_field_with_wrapper_uses_default_session_when_missing(): void {
@@ -276,6 +318,7 @@ class FormElementRendererValidationTest extends PluginLibTestCase {
 
 		$service  = new FormsService($manifest, $this->logger);
 		$renderer = new FormElementRenderer($manifest, $service, $this->loader, $this->logger);
+		$renderer->set_message_handler(new FormMessageHandler($this->logger));
 
 		$field   = array('field_id' => 'field', 'component' => 'fields.text', 'label' => 'Label');
 		$context = $renderer->prepare_field_context($field, array(), array());
