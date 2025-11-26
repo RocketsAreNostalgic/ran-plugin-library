@@ -257,9 +257,9 @@ final class AdminSettingsSubmitControlsRenderTest extends TestCase {
 
 		self::assertStringContainsString('<button type="submit">Save Changes</button>', $output, 'Fallback should render default submit button.');
 
-		$fallbackLogs = $this->logger->find_logs(static fn(array $entry): bool => ($entry['message'] ?? '') === 'admin_settings.submit_controls.fallback_applied');
-		self::assertCount(1, $fallbackLogs, 'Fallback should be logged exactly once.');
-		self::assertSame('missing_definition', $fallbackLogs[0]['context']['reason'] ?? null);
+		$fallbackLogs = $this->logger->find_logs(static fn(array $entry): bool => ($entry['message'] ?? '') === 'admin_settings.submit_controls.default_applied');
+		self::assertCount(1, $fallbackLogs, 'Default button should be logged exactly once.');
+		self::assertSame('default_button', $fallbackLogs[0]['context']['reason'] ?? null);
 
 		$storedControls = $property->getValue($settings);
 		self::assertArrayHasKey('missing-fallback-page', $storedControls, 'Fallback should persist submit controls for subsequent renders.');
@@ -284,8 +284,8 @@ final class AdminSettingsSubmitControlsRenderTest extends TestCase {
 
 		self::assertStringContainsString('<button type="submit">Save Changes</button>', $output, 'Fallback should render default submit button when controls list is empty.');
 
-		$fallbackLogs = $this->logger->find_logs(static fn(array $entry): bool => ($entry['message'] ?? '') === 'admin_settings.submit_controls.fallback_applied');
-		self::assertCount(1, $fallbackLogs, 'Fallback should be logged exactly once.');
+		$fallbackLogs = $this->logger->find_logs(static fn(array $entry): bool => ($entry['message'] ?? '') === 'admin_settings.submit_controls.default_applied');
+		self::assertCount(1, $fallbackLogs, 'Default button should be logged exactly once.');
 		self::assertSame('empty_controls', $fallbackLogs[0]['context']['reason'] ?? null);
 
 		$property = new ReflectionProperty($settings, 'submit_controls');

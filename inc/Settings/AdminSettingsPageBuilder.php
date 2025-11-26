@@ -38,10 +38,8 @@ class AdminSettingsPageBuilder implements BuilderRootInterface {
 	private $updateFn;
 
 	/** @var array<string, AdminSettingsSectionBuilder> */
-	private array $active_sections        = array();
-	private bool $submit_zone_emitted     = false;
-	private bool $default_controls_seeded = false;
-	private bool $submit_controls_cleared = false;
+	private array $active_sections    = array();
+	private bool $submit_zone_emitted = false;
 
 	/**
 	 * Constructor.
@@ -58,7 +56,6 @@ class AdminSettingsPageBuilder implements BuilderRootInterface {
 		$this->updateFn     = $updateFn;
 
 		$this->_emit_page_metadata();
-		$this->_seed_default_submit_controls();
 	}
 
 	/**
@@ -268,7 +265,6 @@ class AdminSettingsPageBuilder implements BuilderRootInterface {
 	 */
 	public function submit_controls(?string $template = null): SubmitControlsBuilder {
 		$this->_ensure_submit_controls_zone();
-		$this->_clear_default_submit_controls();
 
 		$builder = new SubmitControlsBuilder(
 			$this,
@@ -276,12 +272,6 @@ class AdminSettingsPageBuilder implements BuilderRootInterface {
 			self::SUBMIT_CONTROLS_ZONE_ID,
 			$this->updateFn
 		);
-
-		if (!$this->submit_controls_cleared) {
-			$builder->button(self::DEFAULT_CONTROL_ID, self::DEFAULT_BUTTON_LABEL, static function (ButtonBuilder $button): void {
-				$button->type('submit');
-			});
-		}
 
 		if ($template !== null && $template !== '') {
 			$builder->template($template);
@@ -395,30 +385,11 @@ class AdminSettingsPageBuilder implements BuilderRootInterface {
 	}
 
 	/**
-	 * Seed the default primary submit button when no customization occurs.
-	 */
-	protected function _seed_default_submit_controls(): void {
-		if ($this->default_controls_seeded) {
-			return;
-		}
-
-		$this->_ensure_submit_controls_zone();
-
-		$button = (new ButtonBuilder(self::DEFAULT_CONTROL_ID, self::DEFAULT_BUTTON_LABEL))
-			->type('submit')
-			->variant('primary');
-
-		($this->updateFn)('submit_controls_set', array(
-			'container_id' => $this->container_id,
-			'zone_id'      => self::SUBMIT_CONTROLS_ZONE_ID,
-			'controls'     => array($button->to_array()),
-		));
-
-		$this->default_controls_seeded = true;
-	}
-
-	/**
 	 * Ensure the submit controls zone metadata has been emitted.
+	 *
+	 * Note: Default submit buttons are now created lazily at render time via
+	 * AdminSettings::_ensure_submit_controls_fallback() when no controls exist.
+	 * This eliminates redundant seed-then-clear cycles during builder composition.
 	 */
 	protected function _ensure_submit_controls_zone(): void {
 		if ($this->submit_zone_emitted) {
@@ -431,22 +402,5 @@ class AdminSettingsPageBuilder implements BuilderRootInterface {
 		));
 
 		$this->submit_zone_emitted = true;
-	}
-
-	/**
-	 * Clear the default submit controls when author customizes them.
-	 */
-	protected function _clear_default_submit_controls(): void {
-		if ($this->submit_controls_cleared || !$this->default_controls_seeded) {
-			return;
-		}
-
-		($this->updateFn)('submit_controls_set', array(
-			'container_id' => $this->container_id,
-			'zone_id'      => self::SUBMIT_CONTROLS_ZONE_ID,
-			'controls'     => array(),
-		));
-
-		$this->submit_controls_cleared = true;
 	}
 }

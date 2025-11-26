@@ -50,7 +50,7 @@ class AdminSettings implements FormsInterface {
 	protected ComponentLoader $views;
 	protected RegisterOptions $base_options;
 
-	private const DEFAULT_SUBMIT_ZONE = 'default-submit-zone';
+	private const DEFAULT_SUBMIT_ZONE = 'primary-controls';
 
 	/**
 	 * Base context and storage captured from the injected RegisterOptions instance.
@@ -794,9 +794,18 @@ class AdminSettings implements FormsInterface {
 	 * @return array{zone_id:string,before:?callable,after:?callable,controls:array<int,array{id:string,label:string,component:string,component_context:array<string,mixed>,order:int}>}
 	 */
 	protected function _ensure_submit_controls_fallback(string $page_slug, array $submit_controls, bool $hadCanonical): array {
-		$this->logger->debug('admin_settings.submit_controls.fallback_applied', array(
+		// Log at INFO level when fallback provides default button (normal path for pages without explicit submit_controls())
+		// Log at DEBUG level with full context for diagnostics
+		$reason = $hadCanonical ? 'empty_controls' : 'default_button';
+		$this->logger->info('admin_settings.submit_controls.default_applied', array(
 			'page'   => $page_slug,
-			'reason' => $hadCanonical ? 'empty_controls' : 'missing_definition',
+			'reason' => $reason,
+		));
+		$this->logger->debug('admin_settings.submit_controls.fallback_details', array(
+			'page'          => $page_slug,
+			'reason'        => $reason,
+			'had_canonical' => $hadCanonical,
+			'zone_id'       => $submit_controls['zone_id'] ?? self::DEFAULT_SUBMIT_ZONE,
 		));
 
 		$button = (new ButtonBuilder('default-primary', 'Save Changes'))
