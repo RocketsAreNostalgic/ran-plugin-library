@@ -284,7 +284,6 @@ class UserSettings implements FormsInterface {
 		}
 		if (!empty($bundle['defaults'])) {
 			$opts->register_schema($bundle['defaults']);
-			$opts->_register_internal_schema($bundle['defaults']);
 		}
 
 		// Stage options and check for validation failures

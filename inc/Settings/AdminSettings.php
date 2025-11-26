@@ -493,7 +493,6 @@ class AdminSettings implements FormsInterface {
 		}
 		if (!empty($bundle['defaults'])) {
 			$tmp->register_schema($bundle['defaults']);
-			$tmp->_register_internal_schema($bundle['defaults']);
 		}
 
 		$policy = $this->base_options->get_write_policy();
