@@ -48,7 +48,7 @@ class FormElementRendererAssetCollectionTest extends PluginLibTestCase {
 		$this->component_manifest = new ComponentManifest($component_loader, $this->logger);
 
 		// Create FormsService
-		$this->form_service = new FormsService($this->component_manifest);
+		$this->form_service = new FormsService($this->component_manifest, $this->logger);
 
 		// Create FormElementRenderer
 		$this->renderer = new FormElementRenderer(
@@ -228,7 +228,7 @@ class FormElementRendererAssetCollectionTest extends PluginLibTestCase {
 			->andReturn($render_result);
 
 		// Create FormsService with mocked manifest
-		$form_service = new FormsService($mock_manifest);
+		$form_service = new FormsService($mock_manifest, $this->logger);
 
 		// Create renderer with mocked manifest
 		$renderer = new FormElementRenderer(
@@ -286,7 +286,7 @@ class FormElementRendererAssetCollectionTest extends PluginLibTestCase {
 			->andReturn($render_result);
 
 		// Create FormsService with mocked manifest
-		$form_service = new FormsService($mock_manifest);
+		$form_service = new FormsService($mock_manifest, $this->logger);
 
 		// Create renderer with mocked manifest
 		$renderer = new FormElementRenderer(

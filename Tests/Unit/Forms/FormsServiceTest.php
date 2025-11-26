@@ -37,8 +37,10 @@ final class FormsServiceTest extends TestCase {
 		$manifest = $this->createMock(ComponentManifest::class);
 		/** @var FormsAssets&MockObject $assets */
 		$assets = $this->createMock(FormsAssets::class);
+		/** @var Logger&MockObject $logger */
+		$logger = $this->createMock(Logger::class);
 
-		$service = new FormsService($manifest);
+		$service = new FormsService($manifest, $logger);
 
 		$session = $service->start_session($assets);
 
@@ -48,8 +50,10 @@ final class FormsServiceTest extends TestCase {
 	public function test_manifest_accessor_returns_manifest(): void {
 		/** @var ComponentManifest&\PHPUnit\Framework\MockObject\MockObject $manifest */
 		$manifest = $this->createMock(ComponentManifest::class);
+		/** @var Logger&MockObject $logger */
+		$logger = $this->createMock(Logger::class);
 
-		$service = new FormsService($manifest);
+		$service = new FormsService($manifest, $logger);
 
 		$this->assertSame($manifest, $service->manifest());
 	}
@@ -60,8 +64,10 @@ final class FormsServiceTest extends TestCase {
 		$manifest->expects($this->once())
 			->method('take_warnings')
 			->willReturn(array('warning'));
+		/** @var Logger&MockObject $logger */
+		$logger = $this->createMock(Logger::class);
 
-		$service = new FormsService($manifest);
+		$service = new FormsService($manifest, $logger);
 
 		$this->assertSame(array('warning'), $service->take_warnings());
 	}

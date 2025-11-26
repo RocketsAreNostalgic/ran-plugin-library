@@ -18,9 +18,9 @@ class FormsService {
 	private ComponentManifest $manifest;
 	private Logger $logger;
 
-	public function __construct(ComponentManifest $manifest, ?Logger $logger = null) {
+	public function __construct(ComponentManifest $manifest, Logger $logger) {
 		$this->manifest = $manifest;
-		$this->logger   = $logger ?? new Logger();
+		$this->logger   = $logger;
 	}
 
 	public function start_session(?FormsAssets $assets = null, array $form_defaults = array()): FormsServiceSession {

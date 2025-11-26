@@ -121,7 +121,7 @@ class UserSettings implements FormsInterface {
 		$this->views->register('user.field-wrapper', '../../Settings/templates/user/field-wrapper.php');
 
 		// Phase 6: Service initialization
-		$this->form_service    = new FormsService($this->components);
+		$this->form_service    = new FormsService($this->components, $this->logger);
 		$this->field_renderer  = new FormElementRenderer($this->components, $this->form_service, $this->views, $this->logger);
 		$this->message_handler = new FormMessageHandler($this->logger);
 		$this->field_renderer->set_message_handler($this->message_handler);
