@@ -45,6 +45,5 @@ return new ComponentRenderResult(
 	        'name'            => null,
 	    ),
 	),
-	submits_data: true,
 	component_type: 'input'
 );

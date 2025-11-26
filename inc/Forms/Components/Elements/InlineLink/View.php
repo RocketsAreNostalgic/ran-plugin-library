@@ -82,6 +82,5 @@ return new ComponentRenderResult(
 	        'icon_html'       => '',
 	    ),
 	),
-	submits_data: false,
 	component_type: 'display'
 );

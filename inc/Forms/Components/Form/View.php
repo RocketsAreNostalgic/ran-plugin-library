@@ -158,6 +158,5 @@ return new ComponentRenderResult(
 	        'notices'      => array(),
 	    ),
 	),
-	submits_data: false,
 	component_type: 'template'
 );

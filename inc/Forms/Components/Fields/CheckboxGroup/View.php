@@ -41,6 +41,5 @@ return new ComponentRenderResult(
 	        'legend' => '',
 	    ),
 	),
-	submits_data: true,
 	component_type: 'input'
 );

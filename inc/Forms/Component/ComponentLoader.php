@@ -427,7 +427,6 @@ class ComponentLoader {
 				(bool) ($payload['requires_media'] ?? false),
 				(bool) ($payload['repeatable'] ?? false),
 				$payload['context_schema'] ?? array(),
-				(bool) ($payload['submits_data'] ?? false),
 				(string) ($payload['component_type'] ?? 'input')
 			);
 		}

@@ -401,7 +401,7 @@ foreach ($attributes as $key => $val) {
 
 $markup = sprintf(\'<input type="text" name="%s" value="%s"%s>\', $name, $value, $attr_string);
 
-return new ComponentRenderResult(markup: $markup, submits_data: true, component_type: \'input\');
+return new ComponentRenderResult(markup: $markup, component_type: \'input\');
 ');
 
 		// Create test select template
@@ -418,7 +418,7 @@ foreach ($options as $option) {
 }
 $html .= \'</select>\';
 
-return new ComponentRenderResult(markup: $html, submits_data: true, component_type: \'input\');
+return new ComponentRenderResult(markup: $html, component_type: \'input\');
 ');
 
 		// Create test data template (returns array)

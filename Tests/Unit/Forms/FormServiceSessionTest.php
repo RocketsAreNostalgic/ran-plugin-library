@@ -4,15 +4,15 @@ namespace Ran\PluginLib\Tests\Unit\Forms;
 
 use Ran\PluginLib\Util\Logger;
 use Ran\PluginLib\Util\CollectingLogger;
-use Ran\PluginLib\EnqueueAccessory\ScriptDefinition;
-use Ran\PluginLib\EnqueueAccessory\StyleDefinition;
 use Ran\PluginLib\Forms\FormsTemplateOverrideResolver;
 use Ran\PluginLib\Forms\FormsServiceSession;
 use Ran\PluginLib\Forms\FormsAssets;
 use Ran\PluginLib\Forms\Component\ComponentRenderResult;
 use Ran\PluginLib\Forms\Component\ComponentManifest;
-use PHPUnit\Framework\MockObject\MockObject;
+use Ran\PluginLib\EnqueueAccessory\StyleDefinition;
+use Ran\PluginLib\EnqueueAccessory\ScriptDefinition;
 use PHPUnit\Framework\TestCase;
+use PHPUnit\Framework\MockObject\MockObject;
 
 /**
  * Test FormsServiceSession integration with FormsTemplateOverrideResolver
@@ -136,7 +136,6 @@ class FormsServiceSessionTest extends TestCase {
 		// Mock ComponentRenderResult
 		$render_result = new ComponentRenderResult(
 			markup: '<div>Test Field</div>',
-			submits_data: true,
 			component_type: 'input'
 		);
 
@@ -181,7 +180,6 @@ class FormsServiceSessionTest extends TestCase {
 		// Mock ComponentRenderResult
 		$render_result = new ComponentRenderResult(
 			markup: '<div>Special Field</div>',
-			submits_data: true,
 			component_type: 'input'
 		);
 
@@ -377,7 +375,6 @@ class FormsServiceSessionTest extends TestCase {
 		// Mock ComponentRenderResult
 		$render_result = new ComponentRenderResult(
 			markup: '<div>Component</div>',
-			submits_data: false,
 			component_type: 'input'
 		);
 
@@ -419,7 +416,6 @@ class FormsServiceSessionTest extends TestCase {
 
 		$render_result = new ComponentRenderResult(
 			markup: '<div>Rendered</div>',
-			submits_data: true,
 			component_type: 'input'
 		);
 
@@ -471,19 +467,16 @@ class FormsServiceSessionTest extends TestCase {
 		// Mock ComponentRenderResults
 		$regular_field_result = new ComponentRenderResult(
 			markup: '<div>Regular Field</div>',
-			submits_data: true,
 			component_type: 'input'
 		);
 
 		$special_field_result = new ComponentRenderResult(
 			markup: '<div>Special Field</div>',
-			submits_data: true,
 			component_type: 'input'
 		);
 
 		$section_result = new ComponentRenderResult(
 			markup: '<section>Custom Section</section>',
-			submits_data: false,
 			component_type: 'layout_wrapper'
 		);
 

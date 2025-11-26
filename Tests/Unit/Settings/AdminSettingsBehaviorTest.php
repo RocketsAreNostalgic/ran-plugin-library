@@ -631,7 +631,7 @@ final class AdminSettingsBehaviorTest extends PluginLibTestCase {
 				}
 				return true;
 			}),
-			'context' => array('submits_data' => true),
+			'context' => array('component_type' => 'input'),
 		));
 		$this->setManifestValidatorClass($alias, AdminSettingsBehaviorTest_PassThroughValidator::class);
 
@@ -751,7 +751,7 @@ final class AdminSettingsBehaviorTest extends PluginLibTestCase {
 		});
 
 		$this->injectManifestDefaults($alias, array(
-			'context'  => array('submits_data' => true),
+			'context'  => array('component_type' => 'input'),
 			'validate' => array(static fn ($value, callable $emitWarning): bool => true),
 		));
 

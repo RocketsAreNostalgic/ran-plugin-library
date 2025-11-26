@@ -67,6 +67,5 @@ return new ComponentRenderResult(
 	        'multiple'      => false,
 	    ),
 	),
-	submits_data: true,
 	component_type: 'input'
 );

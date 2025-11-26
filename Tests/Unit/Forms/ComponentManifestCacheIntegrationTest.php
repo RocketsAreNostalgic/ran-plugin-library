@@ -97,7 +97,6 @@ class ComponentManifestCacheIntegrationTest extends PluginLibTestCase {
 		$factory = function(array $context): ComponentRenderResult {
 			return new ComponentRenderResult(
 				markup: '<input type="text" name="' . ($context['name'] ?? 'test') . '">',
-				submits_data: true,
 				component_type: 'input'
 			);
 		};
@@ -115,7 +114,7 @@ class ComponentManifestCacheIntegrationTest extends PluginLibTestCase {
 
 		$this->assertEquals('<input type="text" name="cached">', $result_cached->markup);
 		$this->assertEquals('<input type="text" name="uncached">', $result_uncached->markup);
-		$this->assertEquals($result_cached->submits_data, $result_uncached->submits_data);
+		$this->assertEquals($result_cached->submits_data(), $result_uncached->submits_data());
 		$this->assertEquals($result_cached->component_type, $result_uncached->component_type);
 	}
 
@@ -131,7 +130,6 @@ class ComponentManifestCacheIntegrationTest extends PluginLibTestCase {
 		$manifest->register('cache.clear.test', function(array $context): ComponentRenderResult {
 			return new ComponentRenderResult(
 				markup: '<div>Test: ' . ($context['value'] ?? 'default') . '</div>',
-				submits_data: false,
 				component_type: 'display'
 			);
 		});
@@ -148,7 +146,7 @@ class ComponentManifestCacheIntegrationTest extends PluginLibTestCase {
 		$this->assertEquals('<div>Test: after</div>', $result_after->markup);
 
 		// Component properties should be identical
-		$this->assertEquals($result_before->submits_data, $result_after->submits_data);
+		$this->assertEquals($result_before->submits_data(), $result_after->submits_data());
 		$this->assertEquals($result_before->component_type, $result_after->component_type);
 		$this->assertEquals($result_before->requires_media, $result_after->requires_media);
 		$this->assertEquals($result_before->repeatable, $result_after->repeatable);
@@ -205,14 +203,14 @@ class ComponentManifestCacheIntegrationTest extends PluginLibTestCase {
 		$manifest->register('schema.submits', function(array $context): ComponentRenderResult {
 			return new ComponentRenderResult(
 				markup: '<input type="text">',
-				submits_data: true
+				component_type: 'input'
 			);
 		});
 
 		$manifest->register('schema.display', function(array $context): ComponentRenderResult {
 			return new ComponentRenderResult(
 				markup: '<div>Display only</div>',
-				submits_data: false
+				component_type: 'display'
 			);
 		});
 

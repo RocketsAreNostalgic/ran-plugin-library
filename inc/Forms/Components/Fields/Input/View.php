@@ -30,6 +30,5 @@ return new ComponentRenderResult(
 	    'optional' => array('repeatable'),
 	    'defaults' => array(),
 	),
-	submits_data: true,
 	component_type: 'input'
 );

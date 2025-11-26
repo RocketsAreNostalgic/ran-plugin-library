@@ -35,6 +35,5 @@ return new ComponentRenderResult(
 	        'label' => '',
 	    ),
 	),
-	submits_data: true,
 	component_type: 'input'
 );

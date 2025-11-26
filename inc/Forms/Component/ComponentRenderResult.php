@@ -25,7 +25,6 @@ final readonly class ComponentRenderResult {
 	 * @param bool $requires_media Whether the WordPress media picker assets must be enqueued.
 	 * @param bool $repeatable Whether the component supports repeatable instances.
 	 * @param array $context_schema Schema definition for component context validation.
-	 * @param bool $submits_data Whether the component submits data.
 	 * @param ComponentType|string $component_type Type classification of the component. Strings must match a ComponentType value.
 	 */
 	public function __construct(
@@ -35,7 +34,6 @@ final readonly class ComponentRenderResult {
 		public bool $requires_media = false,
 		public bool $repeatable = false,
 		public array $context_schema = array(),
-		public bool $submits_data = false,
 		ComponentType|string $component_type = ComponentType::FormField
 	) {
 		if (!Validate::string()->min_length(0, $this->markup)) {
@@ -49,6 +47,13 @@ final readonly class ComponentRenderResult {
 		}
 
 		$this->component_type = $component_type;
+	}
+
+	/**
+	 * Whether the component submits data.
+	 */
+	public function submits_data(): bool {
+		return $this->component_type === ComponentType::FormField->value;
 	}
 
 	/**

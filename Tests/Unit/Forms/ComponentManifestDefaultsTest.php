@@ -7,19 +7,19 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\Tests\Unit\Forms;
 
-use Mockery;
-use Mockery\MockInterface;
-use Ran\PluginLib\Forms\Component\ComponentLoader;
-use Ran\PluginLib\Forms\Component\ComponentManifest;
-use Ran\PluginLib\Forms\FormsAssets;
-use Ran\PluginLib\Forms\FormsServiceSession;
-use Ran\PluginLib\Forms\FormsTemplateOverrideResolver;
-use Ran\PluginLib\Tests\Unit\Forms\Stubs\StubBuilderWithDefaults;
-use Ran\PluginLib\Tests\Unit\Forms\Stubs\StubNormalizerWithDefaults;
-use Ran\PluginLib\Tests\Unit\Forms\Stubs\StubValidatorWithDefaults;
-use Ran\PluginLib\Tests\Unit\PluginLibTestCase;
-use Ran\PluginLib\Util\ExpectLogTrait;
 use WP_Mock;
+use Ran\PluginLib\Util\ExpectLogTrait;
+use Ran\PluginLib\Tests\Unit\PluginLibTestCase;
+use Ran\PluginLib\Tests\Unit\Forms\Stubs\StubValidatorWithDefaults;
+use Ran\PluginLib\Tests\Unit\Forms\Stubs\StubNormalizerWithDefaults;
+use Ran\PluginLib\Tests\Unit\Forms\Stubs\StubBuilderWithDefaults;
+use Ran\PluginLib\Forms\FormsTemplateOverrideResolver;
+use Ran\PluginLib\Forms\FormsServiceSession;
+use Ran\PluginLib\Forms\FormsAssets;
+use Ran\PluginLib\Forms\Component\ComponentManifest;
+use Ran\PluginLib\Forms\Component\ComponentLoader;
+use Mockery\MockInterface;
+use Mockery;
 
 final class ComponentManifestDefaultsTest extends PluginLibTestCase {
 	use ExpectLogTrait;
@@ -58,13 +58,11 @@ final class ComponentManifestDefaultsTest extends PluginLibTestCase {
 	}
 
 	/**
-	 * @return array{submits_data:bool,component_type:string,repeatable:bool}
+	 * @return array{repeatable:bool}
 	 */
 	private function expectedContext(): array {
 		return array(
-			'submits_data'   => false,
-			'component_type' => 'input',
-			'repeatable'     => false,
+			'repeatable' => false,
 		);
 	}
 

@@ -21,6 +21,7 @@ use Ran\PluginLib\Forms\Renderer\FormElementRenderer;
 use Ran\PluginLib\Forms\FormsServiceSession;
 use Ran\PluginLib\Forms\FormsService;
 use Ran\PluginLib\Forms\FormsAssets;
+use Ran\PluginLib\Forms\Component\ComponentType;
 use Ran\PluginLib\Forms\Component\ComponentRenderResult;
 use Ran\PluginLib\Forms\Component\ComponentManifest;
 
@@ -1532,10 +1533,11 @@ trait FormsBaseTrait {
 	 * @return void
 	 */
 	protected function _inject_component_validators(string $field_id, string $component): void {
-		$field_key = $this->base_options->normalize_schema_key($field_id);
-		$defaults  = $this->components->get_defaults_for($component);
-		$context   = is_array($defaults['context'] ?? null) ? $defaults['context'] : array();
-		$submits   = (bool) ($context['submits_data'] ?? false);
+		$field_key     = $this->base_options->normalize_schema_key($field_id);
+		$defaults      = $this->components->get_defaults_for($component);
+		$context       = is_array($defaults['context'] ?? null) ? $defaults['context'] : array();
+		$componentType = isset($context['component_type']) ? (string) $context['component_type'] : '';
+		$submits       = $componentType === ComponentType::FormField->value;
 
 		$validator_factories = $this->components->validator_factories();
 		$factory             = $validator_factories[$component] ?? null;
@@ -1697,6 +1699,10 @@ trait FormsBaseTrait {
 				$componentSchema = array();
 			}
 
+			$componentContextFromCatalogue = isset($manifestCatalogue[$component]['context']) && is_array($manifestCatalogue[$component]['context'])
+				? $manifestCatalogue[$component]['context']
+				: array();
+
 			// When schema already exists, only merge defaults if component buckets remain empty.
 			if (is_array($currentEntry)) {
 				$sanitizeComponents = (array) ($currentEntry['sanitize']['component'] ?? array());
@@ -1704,28 +1710,21 @@ trait FormsBaseTrait {
 				if ($sanitizeComponents === array() || $validateComponents === array()) {
 					$merged                         = $session->merge_schema_with_defaults($component, $currentEntry);
 					$bucketedSchema[$normalizedKey] = $merged;
-					$context                        = isset($merged['context'])                        && is_array($merged['context']) ? $merged['context'] : array();
-					$catalogueContext               = isset($manifestCatalogue[$component]['context']) && is_array($manifestCatalogue[$component]['context'])
-						? $manifestCatalogue[$component]['context']
-						: array();
-					$submits = (bool) ($context['submits_data'] ?? ($catalogueContext['submits_data'] ?? false));
-					if ($submits) {
+					$context                        = isset($merged['context']) && is_array($merged['context']) ? $merged['context'] : array();
+					$componentType                  = (string) ($context['component_type'] ?? ($componentContextFromCatalogue['component_type'] ?? ''));
+					if ($componentType === ComponentType::FormField->value) {
 						$metadata[$normalizedKey]['requires_validator'] = true;
 					}
 				}
 				continue;
 			}
 
-			$merged = $session->merge_schema_with_defaults($component, $componentSchema);
-
+			$merged                         = $session->merge_schema_with_defaults($component, $componentSchema);
 			$bucketedSchema[$normalizedKey] = $merged;
 
-			$context          = isset($merged['context'])                        && is_array($merged['context']) ? $merged['context'] : array();
-			$catalogueContext = isset($manifestCatalogue[$component]['context']) && is_array($manifestCatalogue[$component]['context'])
-				? $manifestCatalogue[$component]['context']
-				: array();
-			$submits = (bool) ($context['submits_data'] ?? ($catalogueContext['submits_data'] ?? false));
-			if ($submits) {
+			$context       = isset($merged['context']) && is_array($merged['context']) ? $merged['context'] : array();
+			$componentType = (string) ($context['component_type'] ?? ($componentContextFromCatalogue['component_type'] ?? ''));
+			if ($componentType === ComponentType::FormField->value) {
 				$metadata[$normalizedKey]['requires_validator'] = true;
 			}
 		}

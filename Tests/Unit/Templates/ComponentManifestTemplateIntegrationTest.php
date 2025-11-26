@@ -140,7 +140,7 @@ class ComponentManifestTemplateIntegrationTest extends TestCase {
 		// Test component rendering through ComponentManifest
 		$component_result = $this->manifest->render('test.component', array('value' => 'test-value'));
 		$this->assertStringContainsString('test-value', $component_result->markup);
-		$this->assertTrue($component_result->submits_data);
+		$this->assertTrue($component_result->submits_data());
 		$this->assertEquals('input', $component_result->component_type);
 
 		// Test template rendering through ComponentLoader

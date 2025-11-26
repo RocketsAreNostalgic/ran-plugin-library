@@ -36,6 +36,5 @@ return new ComponentRenderResult(
 	    'optional' => array(),
 	    'defaults' => array(),
 	),
-	submits_data: true,
 	component_type: 'input'
 );

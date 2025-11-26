@@ -42,6 +42,5 @@ return new ComponentRenderResult(
 	        'label_attributes' => '',
 	    ),
 	),
-	submits_data: true,
 	component_type: 'input'
 );

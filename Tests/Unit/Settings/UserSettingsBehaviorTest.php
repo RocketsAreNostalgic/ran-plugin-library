@@ -753,7 +753,7 @@ final class UserSettingsBehaviorTest extends PluginLibTestCase {
 		});
 
 		$this->injectManifestDefaults($alias, array(
-			'context'  => array('submits_data' => true),
+			'context'  => array('component_type' => 'input'),
 			'validate' => array(static fn ($value, callable $emitWarning): bool => true),
 		));
 

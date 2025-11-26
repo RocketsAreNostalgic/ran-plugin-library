@@ -89,6 +89,5 @@ return new ComponentRenderResult(
 	        'required'       => false,
 	    ),
 	),
-	submits_data: true,
 	component_type: 'input'
 );

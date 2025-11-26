@@ -22,7 +22,7 @@ class ComponentManifest {
 	private array $components = array();
 	/** @var array<int,string> */
 	private array $warnings = array();
-	/** @var array<string,array{normalizer:?string,builder:?string,validator:?string,defaults?:array{sanitize?:array<int,string>,validate?:array<int,string>,context?:array{submits_data:bool,component_type:string,repeatable:bool}}}> */
+	/** @var array<string,array{normalizer:?string,builder:?string,validator:?string,defaults?:array{sanitize?:array<int,string>,validate?:array<int,string>,context?:array{component_type:string,repeatable:bool}}}> */
 	private array $componentMetadata = array();
 	private ComponentNormalizationContext $helpers;
 	/** @var int Cache TTL in seconds */
@@ -283,7 +283,7 @@ class ComponentManifest {
 			return false;
 		}
 		$result = $this->render($alias, array());
-		return $result->submits_data;
+		return $result->submits_data();
 	}
 
 	/**
@@ -481,14 +481,13 @@ class ComponentManifest {
 	 *
 	 * @param string                     $alias
 	 * @param array<string,null|string> $meta
-	 * @return array{submits_data:bool,component_type:string,repeatable:bool}
+	 * @return array{component_type:string,repeatable:bool}
 	 */
 	private function _derive_component_context(string $alias, array $meta): array {
-		// Baseline assumptions; refined values can be introduced in later tasks.
+		// Don't assume component_type - let the View declare it explicitly.
+		// This prevents non-input components from being incorrectly flagged as requiring validators.
 		return array(
-			'submits_data'   => false,
-			'component_type' => 'input',
-			'repeatable'     => false,
+			'repeatable' => false,
 		);
 	}
 
@@ -506,7 +505,6 @@ class ComponentManifest {
 			(bool) ($payload['requires_media'] ?? false),
 			(bool) ($payload['repeatable'] ?? false),
 			$payload['context_schema'] ?? array(),
-			(bool) ($payload['submits_data'] ?? false),        // V2
 			(string) ($payload['component_type'] ?? 'input') // V2
 		);
 	}
@@ -535,7 +533,6 @@ class ComponentManifest {
 		$markup = is_string($result) ? $result : $this->views->render($alias, $context);
 		return new ComponentRenderResult(
 			markup: (string) $markup,
-			submits_data: false,        // V2: Default for raw components
 			component_type: 'input' // V2: Default for raw components
 		);
 	}

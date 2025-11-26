@@ -32,6 +32,5 @@ return new ComponentRenderResult(
 	        'value' => '',
 	    ),
 	),
-	submits_data: true,
 	component_type: 'input'
 );

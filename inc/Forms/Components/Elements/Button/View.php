@@ -48,6 +48,5 @@ return new ComponentRenderResult(
 	        'variant'           => 'primary',
 	    ),
 	),
-	submits_data: false,
 	component_type: 'display'
 );
