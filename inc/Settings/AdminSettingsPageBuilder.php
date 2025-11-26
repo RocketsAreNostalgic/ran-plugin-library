@@ -58,7 +58,7 @@ class AdminSettingsPageBuilder implements BuilderRootInterface {
 		$this->updateFn     = $updateFn;
 
 		$this->_emit_page_metadata();
-		$this->seed_default_submit_controls();
+		$this->_seed_default_submit_controls();
 	}
 
 	/**
@@ -267,8 +267,8 @@ class AdminSettingsPageBuilder implements BuilderRootInterface {
 	 * @return SubmitControlsBuilder Fluent submit controls builder.
 	 */
 	public function submit_controls(?string $template = null): SubmitControlsBuilder {
-		$this->ensure_submit_controls_zone();
-		$this->clear_default_submit_controls();
+		$this->_ensure_submit_controls_zone();
+		$this->_clear_default_submit_controls();
 
 		$builder = new SubmitControlsBuilder(
 			$this,
@@ -390,19 +390,19 @@ class AdminSettingsPageBuilder implements BuilderRootInterface {
 	/**
 	 * Emit current page metadata through the update callback.
 	 */
-	private function _emit_page_metadata(): void {
+	protected function _emit_page_metadata(): void {
 		($this->_get_update_callback())($this->_get_update_event_name(), $this->_build_update_payload('', null));
 	}
 
 	/**
 	 * Seed the default primary submit button when no customization occurs.
 	 */
-	private function seed_default_submit_controls(): void {
+	protected function _seed_default_submit_controls(): void {
 		if ($this->default_controls_seeded) {
 			return;
 		}
 
-		$this->ensure_submit_controls_zone();
+		$this->_ensure_submit_controls_zone();
 
 		$button = (new ButtonBuilder(self::DEFAULT_CONTROL_ID, self::DEFAULT_BUTTON_LABEL))
 			->type('submit')
@@ -420,7 +420,7 @@ class AdminSettingsPageBuilder implements BuilderRootInterface {
 	/**
 	 * Ensure the submit controls zone metadata has been emitted.
 	 */
-	private function ensure_submit_controls_zone(): void {
+	protected function _ensure_submit_controls_zone(): void {
 		if ($this->submit_zone_emitted) {
 			return;
 		}
@@ -436,7 +436,7 @@ class AdminSettingsPageBuilder implements BuilderRootInterface {
 	/**
 	 * Clear the default submit controls when author customizes them.
 	 */
-	private function clear_default_submit_controls(): void {
+	protected function _clear_default_submit_controls(): void {
 		if ($this->submit_controls_cleared || !$this->default_controls_seeded) {
 			return;
 		}

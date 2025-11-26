@@ -9,6 +9,7 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\Settings;
 
+use Ran\PluginLib\Forms\Component\Build\ComponentBuilderDefinitionInterface;
 use Ran\PluginLib\Forms\Builders\FieldsetBuilder;
 use Ran\PluginLib\Forms\Builders\ComponentBuilderProxy;
 
@@ -35,6 +36,31 @@ final class AdminSettingsFieldsetBuilder extends FieldsetBuilder {
 		);
 	}
 
+	/**
+	 * Add a field to this admin fieldset.
+	 *
+	 * @return AdminSettingsComponentProxy|static
+	 */
+	public function field(string $field_id, string $label, string $component, array $args = array()): AdminSettingsComponentProxy|static {
+		$result = parent::field($field_id, $label, $component, $args);
+		return $result instanceof AdminSettingsComponentProxy ? $result : $this;
+	}
+
+	/**
+	 * No-op when called on the fieldset builder directly.
+	 * Enables consistent chaining whether field() returned a proxy or $this.
+	 *
+	 * @return static
+	 */
+	public function end_field(): static {
+		return $this;
+	}
+
+	/**
+	 * End the fieldset and return the parent section builder.
+	 *
+	 * @return AdminSettingsSectionBuilder
+	 */
 	public function end_fieldset(): AdminSettingsSectionBuilder {
 		$section = parent::end_fieldset();
 		if (!$section instanceof AdminSettingsSectionBuilder) {
@@ -44,6 +70,11 @@ final class AdminSettingsFieldsetBuilder extends FieldsetBuilder {
 		return $section;
 	}
 
+	/**
+	 * End the fieldset and return the parent section builder.
+	 *
+	 * @return AdminSettingsSectionBuilder
+	 */
 	public function end_section(): AdminSettingsPageBuilder {
 		$builder = parent::end_section();
 		if (!$builder instanceof AdminSettingsPageBuilder) {
@@ -51,5 +82,29 @@ final class AdminSettingsFieldsetBuilder extends FieldsetBuilder {
 		}
 
 		return $builder;
+	}
+
+	/**
+	 * Factory method to create AdminSettingsComponentProxy.
+	 *
+	 * @return AdminSettingsComponentProxy
+	 */
+	protected function _create_component_proxy(
+		ComponentBuilderDefinitionInterface $builder,
+		string $component_alias,
+		?string $field_template,
+		array $component_context
+	): AdminSettingsComponentProxy {
+		return new AdminSettingsComponentProxy(
+			$builder,
+			$this,
+			$this->updateFn,
+			$this->container_id,
+			$this->section_id,
+			$component_alias,
+			$this->group_id,
+			$field_template,
+			$component_context
+		);
 	}
 }

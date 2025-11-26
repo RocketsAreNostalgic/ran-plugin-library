@@ -28,7 +28,6 @@ class SectionBuilder implements SectionBuilderInterface {
 	use BuilderImmediateUpdateTrait;
 	/**
 	 * @var BuilderRootInterface
-	 * @phpstan-var TRoot
 	 */
 	protected BuilderRootInterface $collectionBuilder;
 	protected FormsInterface $forms;
@@ -205,7 +204,7 @@ class SectionBuilder implements SectionBuilderInterface {
 	 * @param string $component The component alias.
 	 * @param array<string,mixed> $args Optional configuration (context, order, field_template).
 	 *
-	 * @return ComponentBuilderProxy|static The builder or fluent proxy instance.
+	 * @return ComponentBuilderProxy<SectionBuilder<TRoot>>|static The builder or fluent proxy instance.
 	 */
 	public function field(string $field_id, string $label, string $component, array $args = array()): ComponentBuilderProxy|static {
 		$component_context = $args['context']        ?? $args['component_context'] ?? array();
@@ -229,12 +228,8 @@ class SectionBuilder implements SectionBuilderInterface {
 				throw new \UnexpectedValueException(sprintf('Builder factory for "%s" must return ComponentBuilderDefinitionInterface.', $component));
 			}
 
-			$proxy = new ComponentBuilderProxy(
+			$proxy = $this->_create_component_proxy(
 				$builder,
-				$this,
-				$this->updateFn,
-				$this->container_id,
-				$this->section_id,
 				$component,
 				null,
 				$field_template,
@@ -285,6 +280,38 @@ class SectionBuilder implements SectionBuilderInterface {
 	}
 
 	/**
+	 * Factory method to create a ComponentBuilderProxy.
+	 * Override in subclasses to return context-specific proxy types.
+	 *
+	 * @param ComponentBuilderDefinitionInterface $builder The component builder.
+	 * @param string $component_alias The component alias.
+	 * @param string|null $group_id The group ID (null for section-level fields).
+	 * @param string|null $field_template The field template override.
+	 * @param array<string,mixed> $component_context The component context.
+	 *
+	 * @return ComponentBuilderProxy The proxy instance.
+	 */
+	protected function _create_component_proxy(
+		ComponentBuilderDefinitionInterface $builder,
+		string $component_alias,
+		?string $group_id,
+		?string $field_template,
+		array $component_context
+	): ComponentBuilderProxy {
+		return new ComponentBuilderProxy(
+			$builder,
+			$this,
+			$this->updateFn,
+			$this->container_id,
+			$this->section_id,
+			$component_alias,
+			$group_id,
+			$field_template,
+			$component_context
+		);
+	}
+
+	/**
 	 * Set the before section for this section.
 	 * Controls the before section template (page layout or collection wrapper).
 	 *
@@ -323,7 +350,6 @@ class SectionBuilder implements SectionBuilderInterface {
 	 * Return to the CollectionBuilder.
 	 *
 	 * @return BuilderRootInterface The root builder instance.
-	 * @phpstan-return TRoot
 	 */
 	public function end_section(): BuilderRootInterface {
 		return $this->collectionBuilder;

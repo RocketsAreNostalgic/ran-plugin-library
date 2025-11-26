@@ -200,7 +200,7 @@ class UserSettingsCollectionBuilder implements BuilderRootInterface {
 	 * @return UserSettings The Settings instance.
 	 */
 	public function end_collection(): UserSettings {
-		$this->commit();
+		$this->_commit();
 		return $this->end();
 	}
 
@@ -210,7 +210,7 @@ class UserSettingsCollectionBuilder implements BuilderRootInterface {
 	 * @return UserSettings The Settings instance.
 	 */
 	public function end(): UserSettings {
-		$this->commit();
+		$this->_commit();
 		return $this->settings;
 	}
 
@@ -293,11 +293,11 @@ class UserSettingsCollectionBuilder implements BuilderRootInterface {
 	/**
 	 * Emit collection metadata via the update callback.
 	 */
-	private function _emit_collection_metadata(): void {
+	protected function _emit_collection_metadata(): void {
 		($this->_get_update_callback())($this->_get_update_event_name(), $this->_build_update_payload('', null));
 	}
 
-	private function commit(): void {
+	protected function _commit(): void {
 		if ($this->committed) {
 			return;
 		}

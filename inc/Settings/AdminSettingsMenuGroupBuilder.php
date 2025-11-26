@@ -54,7 +54,7 @@ final class AdminSettingsMenuGroupBuilder {
 		$this->meta         = $initial_meta;
 		$this->updateFn     = $updateFn;
 
-		$this->dispatch_group_update();
+		$this->_dispatch_group_update();
 	}
 
 	/**
@@ -211,10 +211,11 @@ final class AdminSettingsMenuGroupBuilder {
 		return $this->settings;
 	}
 
-	public function end(): AdminSettings {
-		return $this->end_group();
-	}
-
+	/**
+	 * End the menu group.
+	 *
+	 * @return AdminSettings The settings object.
+	 */
 	public function end_menu_group(): AdminSettings {
 		return $this->end_group();
 	}
@@ -249,22 +250,53 @@ final class AdminSettingsMenuGroupBuilder {
 		unset($this->active_pages[$page_slug]);
 	}
 
-	private function dispatch_group_update(): void {
+	/**
+	 * Dispatch an update event for this group.
+	 *
+	 * @return void
+	 */
+	protected function _dispatch_group_update(): void {
 		($this->_get_update_callback())($this->_get_update_event_name(), $this->_build_update_payload('', null));
 	}
 
+	/**
+	 * Apply a meta update for this group.
+	 *
+	 * @param string $key The meta key to update.
+	 * @param mixed $value The value to set.
+	 *
+	 * @return void
+	 */
 	protected function _apply_meta_update(string $key, mixed $value): void {
 		$this->meta[$key] = $value;
 	}
 
+	/**
+	 * Get the update callback for this group.
+	 *
+	 * @return callable The update callback.
+	 */
 	protected function _get_update_callback(): callable {
 		return $this->updateFn;
 	}
 
+	/**
+	 * Get the update event name for this group.
+	 *
+	 * @return string The update event name.
+	 */
 	protected function _get_update_event_name(): string {
 		return 'menu_group';
 	}
 
+	/**
+	 * Build the update payload for this group.
+	 *
+	 * @param string $key The key to update.
+	 * @param mixed $value The value to update.
+	 *
+	 * @return array The update payload.
+	 */
 	protected function _build_update_payload(string $key, mixed $value): array {
 		return array(
 			'container_id' => $this->container_id,

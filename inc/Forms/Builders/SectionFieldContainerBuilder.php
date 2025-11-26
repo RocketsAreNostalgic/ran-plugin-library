@@ -12,11 +12,11 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\Forms\Builders;
 
-use Ran\PluginLib\Forms\Builders\ComponentBuilderProxy;
-use Ran\PluginLib\Forms\Builders\BuilderImmediateUpdateTrait;
-use Ran\PluginLib\Forms\Builders\BuilderRootInterface;
 use Ran\PluginLib\Forms\FormsInterface;
 use Ran\PluginLib\Forms\Component\Build\ComponentBuilderDefinitionInterface;
+use Ran\PluginLib\Forms\Builders\ComponentBuilderProxy;
+use Ran\PluginLib\Forms\Builders\BuilderRootInterface;
+use Ran\PluginLib\Forms\Builders\BuilderImmediateUpdateTrait;
 
 /**
  * @internal Shared implementation for containers that live directly under a SectionBuilder.
@@ -28,7 +28,6 @@ abstract class SectionFieldContainerBuilder implements SectionFieldContainerBuil
 
 	/**
 	 * @var SectionBuilder
-	 * @phpstan-var TSection
 	 */
 	protected SectionBuilder $sectionBuilder;
 	protected string $container_id;
@@ -103,6 +102,9 @@ abstract class SectionFieldContainerBuilder implements SectionFieldContainerBuil
 		return $this;
 	}
 
+	/**
+	 * @return ComponentBuilderProxy<SectionFieldContainerBuilderInterface<TRoot, TSection>>|static
+	 */
 	public function field(string $field_id, string $label, string $component, array $args = array()): ComponentBuilderProxy|static {
 		$component_context = $args['context']        ?? $args['component_context'] ?? array();
 		$order             = $args['order']          ?? null;
@@ -125,14 +127,9 @@ abstract class SectionFieldContainerBuilder implements SectionFieldContainerBuil
 				throw new \UnexpectedValueException(sprintf('Builder factory for "%s" must return ComponentBuilderDefinitionInterface.', $component));
 			}
 
-			$proxy = new ComponentBuilderProxy(
+			$proxy = $this->_create_component_proxy(
 				$builder,
-				$this,
-				$this->updateFn,
-				$this->container_id,
-				$this->section_id,
 				$component,
-				$this->group_id,
 				$field_template,
 				$component_context
 			);
@@ -183,6 +180,36 @@ abstract class SectionFieldContainerBuilder implements SectionFieldContainerBuil
 		}
 
 		return $this;
+	}
+
+	/**
+	 * Factory method to create a ComponentBuilderProxy.
+	 * Override in subclasses to return context-specific proxy types.
+	 *
+	 * @param ComponentBuilderDefinitionInterface $builder The component builder.
+	 * @param string $component_alias The component alias.
+	 * @param string|null $field_template The field template override.
+	 * @param array<string,mixed> $component_context The component context.
+	 *
+	 * @return ComponentBuilderProxy The proxy instance.
+	 */
+	protected function _create_component_proxy(
+		ComponentBuilderDefinitionInterface $builder,
+		string $component_alias,
+		?string $field_template,
+		array $component_context
+	): ComponentBuilderProxy {
+		return new ComponentBuilderProxy(
+			$builder,
+			$this,
+			$this->updateFn,
+			$this->container_id,
+			$this->section_id,
+			$component_alias,
+			$this->group_id,
+			$field_template,
+			$component_context
+		);
 	}
 
 	public function before(?callable $before): static {

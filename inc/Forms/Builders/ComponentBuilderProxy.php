@@ -1,6 +1,14 @@
 <?php
 /**
  * FieldBuilderProxy: Fluent bridge between settings builders and component builders.
+ *
+ * @template TParent of SectionBuilder|SectionFieldContainerBuilder
+ * @mixin TParent
+ * @method TParent end_section()
+ * @method SectionBuilder end_group()
+ * @method SectionBuilder end_fieldset()
+ * @method \Ran\PluginLib\Settings\AdminSettingsPageBuilder end_page()
+ * @method BuilderRootInterface end()
  */
 
 declare(strict_types=1);
@@ -10,14 +18,20 @@ namespace Ran\PluginLib\Forms\Builders;
 use Ran\PluginLib\Forms\Component\Build\ComponentBuilderInterface;
 use Ran\PluginLib\Forms\Component\Build\ComponentBuilderDefinitionInterface;
 use Ran\PluginLib\Forms\Component\Build\ComponentBuilderBase;
-use Ran\PluginLib\Forms\Builders\SectionBuilder;
 use Ran\PluginLib\Forms\Builders\SectionFieldContainerBuilder;
+use Ran\PluginLib\Forms\Builders\SectionBuilder;
 use Ran\PluginLib\Forms\Builders\GroupBuilder;
 use BadMethodCallException;
 
+/**
+ * @template-implements ComponentBuilderInterface
+ */
 class ComponentBuilderProxy implements ComponentBuilderInterface {
 	/** @var ComponentBuilderDefinitionInterface&ComponentBuilderInterface */
 	private ComponentBuilderDefinitionInterface $builder;
+	/**
+	 * @var SectionBuilder|SectionFieldContainerBuilder
+	 */
 	private SectionBuilder|SectionFieldContainerBuilder $parent;
 	/**
 	 * @var callable(
@@ -51,6 +65,9 @@ class ComponentBuilderProxy implements ComponentBuilderInterface {
 	 * @param string|null $group_id
 	 * @param string|null $field_template
 	 * @param array<string,mixed> $pending_context
+	 */
+	/**
+	 * @param SectionBuilder|SectionFieldContainerBuilder $parent
 	 */
 	public function __construct(
 		ComponentBuilderBase $builder,
@@ -189,6 +206,9 @@ class ComponentBuilderProxy implements ComponentBuilderInterface {
 		return $this;
 	}
 
+	/**
+	 * @return TParent
+	 */
 	public function end_field(): SectionBuilder|SectionFieldContainerBuilder {
 		return $this->parent;
 	}

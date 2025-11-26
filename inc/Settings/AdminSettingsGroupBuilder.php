@@ -9,6 +9,7 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\Settings;
 
+use Ran\PluginLib\Forms\Component\Build\ComponentBuilderDefinitionInterface;
 use Ran\PluginLib\Forms\Builders\GroupBuilder;
 use Ran\PluginLib\Forms\Builders\ComponentBuilderProxy;
 
@@ -33,6 +34,26 @@ final class AdminSettingsGroupBuilder extends GroupBuilder {
 			$updateFn,
 			$args
 		);
+	}
+
+	/**
+	 * Add a field to this admin group.
+	 *
+	 * @return AdminSettingsComponentProxy|static
+	 */
+	public function field(string $field_id, string $label, string $component, array $args = array()): AdminSettingsComponentProxy|static {
+		$result = parent::field($field_id, $label, $component, $args);
+		return $result instanceof AdminSettingsComponentProxy ? $result : $this;
+	}
+
+	/**
+	 * No-op when called on the group builder directly.
+	 * Enables consistent chaining whether field() returned a proxy or $this.
+	 *
+	 * @return static
+	 */
+	public function end_field(): static {
+		return $this;
 	}
 
 	/**
@@ -77,13 +98,26 @@ final class AdminSettingsGroupBuilder extends GroupBuilder {
 	}
 
 	/**
-	 * Add a field to this admin group.
+	 * Factory method to create AdminSettingsComponentProxy.
 	 *
-	 * @return static|ComponentBuilderProxy
+	 * @return AdminSettingsComponentProxy
 	 */
-	public function field(string $field_id, string $label, string $component, array $args = array()): static|ComponentBuilderProxy {
-		$result = parent::field($field_id, $label, $component, $args);
-
-		return $result instanceof ComponentBuilderProxy ? $result : $this;
+	protected function _create_component_proxy(
+		ComponentBuilderDefinitionInterface $builder,
+		string $component_alias,
+		?string $field_template,
+		array $component_context
+	): AdminSettingsComponentProxy {
+		return new AdminSettingsComponentProxy(
+			$builder,
+			$this,
+			$this->updateFn,
+			$this->container_id,
+			$this->section_id,
+			$component_alias,
+			$this->group_id,
+			$field_template,
+			$component_context
+		);
 	}
 }

@@ -139,199 +139,6 @@ class AdminSettings implements FormsInterface {
 	}
 
 	/**
-	 * Retrieve submit controls metadata for the given page.
-	 *
-	 * @param string $page_slug
-	 * @return array<string,mixed> Canonical submit-controls payload when defined, otherwise empty array.
-	 */
-	private function get_submit_controls_for_page(string $page_slug): array {
-		return $this->submit_controls[$page_slug] ?? array();
-	}
-
-	/**
-	 * Ensure submit controls fallback is applied when builders have not seeded any controls.
-	 *
-	 * @param string $page_slug
-	 * @param array{zone_id:string,before:?callable,after:?callable,controls:array<int,array{id:string,label:string,component:string,component_context:array<string,mixed>,order:int}>} $submit_controls
-	 * @param bool $hadCanonical Whether canonical controls existed prior to fallback
-	 * @return array{zone_id:string,before:?callable,after:?callable,controls:array<int,array{id:string,label:string,component:string,component_context:array<string,mixed>,order:int}>}
-	 */
-	private function ensure_submit_controls_fallback(string $page_slug, array $submit_controls, bool $hadCanonical): array {
-		$this->logger->debug('admin_settings.submit_controls.fallback_applied', array(
-			'page'   => $page_slug,
-			'reason' => $hadCanonical ? 'empty_controls' : 'missing_definition',
-		));
-
-		$button   = (new ButtonBuilder('default-primary', 'Save Changes'))
-			->type('submit')
-			->variant('primary')
-			->to_array();
-		$controls = array(
-			array(
-				'id'                => $button['id'],
-				'label'             => $button['label'],
-				'component'         => $button['component'],
-				'component_context' => array_merge($button['component_context'], array('type' => 'submit')),
-				'order'             => $button['order'],
-			),
-		);
-
-		$submit_controls['zone_id']  = $submit_controls['zone_id'] ?? self::DEFAULT_SUBMIT_ZONE;
-		$submit_controls['before']   = $submit_controls['before']   ?? null;
-		$submit_controls['after']    = $submit_controls['after']    ?? null;
-		$submit_controls['controls'] = $controls;
-
-		$this->submit_controls[$page_slug] = $submit_controls;
-
-		return $submit_controls;
-	}
-
-	/**
-	 * Resolve canonical page metadata from the menu_groups map using the reverse lookup.
-	 *
-	 * @param string $page_slug
-	 * @return array{group:string,page:string,meta:array<string,mixed>}
-	 */
-	private function resolve_page_reference(string $page_slug): array {
-		if (!isset($this->pages[$page_slug])) {
-			throw new \InvalidArgumentException('Unknown admin settings page: ' . $page_slug);
-		}
-		$ref  = $this->pages[$page_slug];
-		$meta = $this->menu_groups[$ref['group']]['pages'][$ref['page']]['meta'] ?? array();
-		return array(
-			'group' => $ref['group'],
-			'page'  => $ref['page'],
-			'meta'  => $meta,
-		);
-	}
-
-	/**
-	 * Render submit controls for the current page.
-	 *
-	 * @param array{zone_id:string,before:?callable,after:?callable,controls:array<int,array{id:string,label:string,component:string,component_context:array<string,mixed>,order:int}>} $submit_controls
-	 * @return string
-	 */
-	private function render_submit_controls(string $page_slug, array $submit_controls): string {
-		$zone_id        = $submit_controls['zone_id']        ?? self::DEFAULT_SUBMIT_ZONE;
-		$controls       = $submit_controls['controls']       ?? array();
-		$hadCanonical   = isset($this->submit_controls[$page_slug]);
-		$needsFallback  = empty($controls);
-
-		if ($needsFallback) {
-			$submit_controls = $this->ensure_submit_controls_fallback($page_slug, $submit_controls, $hadCanonical);
-			$controls        = $submit_controls['controls'];
-		}
-		$this->logger->debug('admin_settings.submit_controls.render', array(
-			'page'     => $page_slug,
-			'zone_id'  => $zone_id,
-			'controls' => array_map(static function (array $control): array {
-				return array(
-					'id'        => $control['id']        ?? null,
-					'component' => $control['component'] ?? null,
-					'order'     => $control['order']     ?? null,
-				);
-			}, $controls),
-		));
-
-		return $this->render_submit_zone($page_slug, $zone_id, $submit_controls, $controls);
-	}
-
-	/**
-	 * Render a single submit controls zone.
-	 *
-	 * @param array{zone_id?:string,before:?callable,after:?callable,controls?:array<int,array{id:string,label:string,component:string,component_context:array<string,mixed>,order:int}>} $zone_meta
-	 * @param array<int,array{id:string,label:string,component:string,component_context:array<string,mixed>,order:int}> $controls
-	 * @return string
-	 */
-	private function render_submit_zone(string $page_slug, string $zone_id, array $zone_meta, array $controls): string {
-		if ($this->form_session === null) {
-			$this->_start_form_session();
-		}
-
-		$content = '';
-		foreach ($controls as $control) {
-			$content .= $this->render_submit_control($control);
-		}
-
-		$callback_context = array(
-			'container_id' => $page_slug,
-			'zone_id'      => $zone_id,
-			'controls'     => $controls,
-		);
-
-		$before_markup = $this->_render_callback_output($zone_meta['before'] ?? null, $callback_context) ?? '';
-		$after_markup  = $this->_render_callback_output($zone_meta['after'] ?? null, $callback_context)  ?? '';
-
-		$content_with_callbacks = $before_markup . $content . $after_markup;
-
-		return $this->form_session->render_element(
-			'submit-controls-wrapper',
-			array(
-				'zone_id' => $zone_id,
-				'content' => $content_with_callbacks,
-			),
-			array(
-				'root_id' => $page_slug,
-				'zone_id' => $zone_id,
-			)
-		);
-	}
-
-	/**
-	 * Render a submit control button via component manifest.
-	 *
-	 * @param array{id:string,label:string,component:string,component_context:array<string,mixed>,order:int} $control
-	 * @return string
-	 */
-	private function render_submit_control(array $control): string {
-		if ($this->form_session === null) {
-			$this->_start_form_session();
-		}
-
-		$component  = $control['component']         ?? '';
-		$context    = $control['component_context'] ?? array();
-		$control_id = $control['id']                ?? '';
-		$label      = $control['label']             ?? '';
-
-		$context['field_id']  = $control_id;
-		$context['_field_id'] = $control_id;
-		$context['label']     = $label;
-		$context['_label']    = $label;
-
-		try {
-			$this->logger->debug('admin_settings.submit_control.render.start', array(
-				'control_id'   => $control_id,
-				'component'    => $component,
-				'context_keys' => array_keys($context),
-			));
-			return $this->field_renderer->render_component_with_assets(
-				$component,
-				$context,
-				$this->form_session
-			);
-		} catch (\Throwable $e) {
-			$this->logger->warning('AdminSettings: Submit control rendering failed', array(
-				'control_id' => $control_id,
-				'component'  => $component,
-				'error'      => $e->getMessage(),
-			));
-			return '';
-		}
-	}
-
-	/**
-	 * Render default submit controls used when no custom definition exists.
-	 */
-	private function render_default_submit_controls(string $page_slug): string {
-		$controls = $this->ensure_submit_controls_fallback(
-			$page_slug,
-			$this->get_submit_controls_for_page($page_slug),
-			isset($this->submit_controls[$page_slug])
-		);
-		return $this->render_submit_zone($page_slug, $controls['zone_id'], $controls, $controls['controls']);
-	}
-
-	/**
 	 * Boot admin: register settings, sections, fields, and menu pages.
 	 *
 	 * @return void
@@ -406,7 +213,7 @@ class AdminSettings implements FormsInterface {
 							if ($skip_first && $page_slug === $first_page_slug) {
 								continue;
 							}
-							$page_ref  = $this->resolve_page_reference($page_slug);
+							$page_ref  = $this->_resolve_page_reference($page_slug);
 							$page_meta = $page_ref['meta'];
 							$this->_do_add_submenu_page(
 								$submenu_parent,
@@ -509,7 +316,7 @@ class AdminSettings implements FormsInterface {
 		}
 		$this->_start_form_session();
 
-		$ref  = $this->resolve_page_reference($id_slug);
+		$ref  = $this->_resolve_page_reference($id_slug);
 		$meta = $ref['meta'];
 
 		$bundle = $this->_resolve_schema_bundle($this->base_options, array(
@@ -525,7 +332,7 @@ class AdminSettings implements FormsInterface {
 		$effective_values = $this->message_handler->get_effective_values($options);
 
 		$rendered_content = $this->_render_default_sections_wrapper($id_slug, $sections, $effective_values);
-		$submit_controls  = $this->get_submit_controls_for_page($id_slug);
+		$submit_controls  = $this->_get_submit_controls_for_page($id_slug);
 
 		$payload = array(
 			...($context ?? array()),
@@ -539,7 +346,7 @@ class AdminSettings implements FormsInterface {
 			'values'            => $effective_values,
 			'content'           => $rendered_content,
 			'submit_controls'   => $submit_controls,
-			'render_submit'     => fn (): string => $this->render_submit_controls($id_slug, $submit_controls),
+			'render_submit'     => fn (): string => $this->_render_default_submit_controls($id_slug, $submit_controls),
 			'messages_by_field' => $this->message_handler->get_all_messages(),
 		);
 
@@ -774,6 +581,25 @@ class AdminSettings implements FormsInterface {
 		};
 	}
 
+	/**
+	 * Resolve canonical page metadata from the menu_groups map using the reverse lookup.
+	 *
+	 * @param string $page_slug
+	 * @return array{group:string,page:string,meta:array<string,mixed>}
+	 */
+	protected function _resolve_page_reference(string $page_slug): array {
+		if (!isset($this->pages[$page_slug])) {
+			throw new \InvalidArgumentException('Unknown admin settings page: ' . $page_slug);
+		}
+		$ref  = $this->pages[$page_slug];
+		$meta = $this->menu_groups[$ref['group']]['pages'][$ref['page']]['meta'] ?? array();
+		return array(
+			'group' => $ref['group'],
+			'page'  => $ref['page'],
+			'meta'  => $meta,
+		);
+	}
+
 	// Resolve context helpers
 
 	/**
@@ -947,5 +773,169 @@ class AdminSettings implements FormsInterface {
 			'order'       => $page_data['order']       ?? null,
 			'template'    => $page_data['template']    ?? null,
 		));
+	}
+
+	/**
+	 * Retrieve submit controls metadata for the given page.
+	 *
+	 * @param string $page_slug
+	 * @return array<string,mixed> Canonical submit-controls payload when defined, otherwise empty array.
+	 */
+	protected function _get_submit_controls_for_page(string $page_slug): array {
+		return $this->submit_controls[$page_slug] ?? array();
+	}
+
+	/**
+	 * Ensure submit controls fallback is applied when builders have not seeded any controls.
+	 *
+	 * @param string $page_slug
+	 * @param array{zone_id:string,before:?callable,after:?callable,controls:array<int,array{id:string,label:string,component:string,component_context:array<string,mixed>,order:int}>} $submit_controls
+	 * @param bool $hadCanonical Whether canonical controls existed prior to fallback
+	 * @return array{zone_id:string,before:?callable,after:?callable,controls:array<int,array{id:string,label:string,component:string,component_context:array<string,mixed>,order:int}>}
+	 */
+	protected function _ensure_submit_controls_fallback(string $page_slug, array $submit_controls, bool $hadCanonical): array {
+		$this->logger->debug('admin_settings.submit_controls.fallback_applied', array(
+			'page'   => $page_slug,
+			'reason' => $hadCanonical ? 'empty_controls' : 'missing_definition',
+		));
+
+		$button = (new ButtonBuilder('default-primary', 'Save Changes'))
+			->type('submit')
+			->variant('primary')
+			->to_array();
+		$controls = array(
+			array(
+				'id'                => $button['id'],
+				'label'             => $button['label'],
+				'component'         => $button['component'],
+				'component_context' => array_merge($button['component_context'], array('type' => 'submit')),
+				'order'             => $button['order'],
+			),
+		);
+
+		$submit_controls['zone_id']  = $submit_controls['zone_id'] ?? self::DEFAULT_SUBMIT_ZONE;
+		$submit_controls['before']   = $submit_controls['before']  ?? null;
+		$submit_controls['after']    = $submit_controls['after']   ?? null;
+		$submit_controls['controls'] = $controls;
+
+		$this->submit_controls[$page_slug] = $submit_controls;
+
+		return $submit_controls;
+	}
+
+	// Render helpers
+
+	/**
+	 * Render a single submit controls zone.
+	 *
+	 * @param array{zone_id?:string,before:?callable,after:?callable,controls?:array<int,array{id:string,label:string,component:string,component_context:array<string,mixed>,order:int}>} $zone_meta
+	 * @param array<int,array{id:string,label:string,component:string,component_context:array<string,mixed>,order:int}> $controls
+	 * @return string
+	 */
+	protected function _render_submit_zone(string $page_slug, string $zone_id, array $zone_meta, array $controls): string {
+		if ($this->form_session === null) {
+			$this->_start_form_session();
+		}
+
+		$content = '';
+		foreach ($controls as $control) {
+			$content .= $this->_render_submit_control($control);
+		}
+
+		$callback_context = array(
+			'container_id' => $page_slug,
+			'zone_id'      => $zone_id,
+			'controls'     => $controls,
+		);
+
+		$before_markup = $this->_render_callback_output($zone_meta['before'] ?? null, $callback_context) ?? '';
+		$after_markup  = $this->_render_callback_output($zone_meta['after'] ?? null, $callback_context)  ?? '';
+
+		$content_with_callbacks = $before_markup . $content . $after_markup;
+
+		return $this->form_session->render_element(
+			'submit-controls-wrapper',
+			array(
+				'zone_id' => $zone_id,
+				'content' => $content_with_callbacks,
+			),
+			array(
+				'root_id' => $page_slug,
+				'zone_id' => $zone_id,
+			)
+		);
+	}
+
+	/**
+	 * Render a submit control button via component manifest.
+	 *
+	 * @param array{id:string,label:string,component:string,component_context:array<string,mixed>,order:int} $control
+	 * @return string
+	 */
+	protected function _render_submit_control(array $control): string {
+		if ($this->form_session === null) {
+			$this->_start_form_session();
+		}
+
+		$component  = $control['component']         ?? '';
+		$context    = $control['component_context'] ?? array();
+		$control_id = $control['id']                ?? '';
+		$label      = $control['label']             ?? '';
+
+		$context['field_id']  = $control_id;
+		$context['_field_id'] = $control_id;
+		$context['label']     = $label;
+		$context['_label']    = $label;
+
+		try {
+			$this->logger->debug('admin_settings.submit_control.render.start', array(
+				'control_id'   => $control_id,
+				'component'    => $component,
+				'context_keys' => array_keys($context),
+			));
+			return $this->field_renderer->render_component_with_assets(
+				$component,
+				$context,
+				$this->form_session
+			);
+		} catch (\Throwable $e) {
+			$this->logger->warning('AdminSettings: Submit control rendering failed', array(
+				'control_id' => $control_id,
+				'component'  => $component,
+				'error'      => $e->getMessage(),
+			));
+			return '';
+		}
+	}
+
+	/**
+	 * Render submit controls for the current page.
+	 *
+	 * @param array{zone_id:string,before:?callable,after:?callable,controls:array<int,array{id:string,label:string,component:string,component_context:array<string,mixed>,order:int}>} $submit_controls
+	 * @return string
+	 */
+	protected function _render_default_submit_controls(string $page_slug, array $submit_controls): string {
+		$zone_id       = $submit_controls['zone_id']  ?? self::DEFAULT_SUBMIT_ZONE;
+		$controls      = $submit_controls['controls'] ?? array();
+		$hadCanonical  = isset($this->submit_controls[$page_slug]);
+		$needsFallback = empty($controls);
+
+		if ($needsFallback) {
+			$submit_controls = $this->_ensure_submit_controls_fallback($page_slug, $submit_controls, $hadCanonical);
+			$controls        = $submit_controls['controls'];
+		}
+		$this->logger->debug('admin_settings.submit_controls.render', array(
+			'page'     => $page_slug,
+			'zone_id'  => $zone_id,
+			'controls' => array_map(static function (array $control): array {
+				return array(
+					'id'        => $control['id']        ?? null,
+					'component' => $control['component'] ?? null,
+					'order'     => $control['order']     ?? null,
+				);
+			}, $controls),
+		));
+
+		return $this->_render_submit_zone($page_slug, $zone_id, $submit_controls, $controls);
 	}
 }

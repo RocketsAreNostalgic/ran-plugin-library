@@ -9,8 +9,8 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\Forms\Builders;
 
-use Ran\PluginLib\Forms\Builders\SectionBuilder;
 use Ran\PluginLib\Forms\Builders\SectionFieldContainerBuilder;
+use Ran\PluginLib\Forms\Builders\SectionBuilder;
 use Ran\PluginLib\Forms\Builders\GroupBuilderInterface;
 
 class GroupBuilder extends SectionFieldContainerBuilder implements GroupBuilderInterface {
@@ -40,7 +40,6 @@ class GroupBuilder extends SectionFieldContainerBuilder implements GroupBuilderI
 	 * Commit buffered data and return to the section builder.
 	 *
 	 * @return SectionBuilder
-	 * @phpstan-return TSection
 	 */
 	public function end_group(): SectionBuilder {
 		return $this->section();
