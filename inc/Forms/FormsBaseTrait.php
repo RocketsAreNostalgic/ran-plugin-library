@@ -745,7 +745,7 @@ trait FormsBaseTrait {
 
 		if (!$updated) {
 			// Inject component validators automatically for new fields only
-			$this->_inject_component_validators($field_id, $component);
+			$this->_inject_component_validators($field_id, $component, $context);
 
 			$field_entry['index'] = $this->__field_index++;
 			$fields[]             = $field_entry;
@@ -1540,12 +1540,15 @@ trait FormsBaseTrait {
 	 *
 	 * @param string $field_id Field identifier
 	 * @param string $component Component name
+	 * @param array  $field_context Field-specific context (options, required, etc.) merged with manifest defaults
 	 * @return void
 	 */
-	protected function _inject_component_validators(string $field_id, string $component): void {
-		$field_key     = $this->base_options->normalize_schema_key($field_id);
-		$defaults      = $this->components->get_defaults_for($component);
-		$context       = is_array($defaults['context'] ?? null) ? $defaults['context'] : array();
+	protected function _inject_component_validators(string $field_id, string $component, array $field_context = array()): void {
+		$field_key       = $this->base_options->normalize_schema_key($field_id);
+		$defaults        = $this->components->get_defaults_for($component);
+		$manifestContext = is_array($defaults['context'] ?? null) ? $defaults['context'] : array();
+		// Merge manifest defaults with field-specific context; field context takes precedence
+		$context       = array_merge($manifestContext, $field_context);
 		$componentType = isset($context['component_type']) ? (string) $context['component_type'] : '';
 		$submits       = $componentType === ComponentType::FormField->value;
 
@@ -1563,8 +1566,8 @@ trait FormsBaseTrait {
 		}
 
 		$validator_instance = $factory();
-		$validator_callable = function($value, callable $emitWarning) use ($validator_instance): bool {
-			return $validator_instance->validate($value, array(), $emitWarning);
+		$validator_callable = function($value, callable $emitWarning) use ($validator_instance, $context): bool {
+			return $validator_instance->validate($value, $context, $emitWarning);
 		};
 
 		$hadSchema                                         = $this->base_options->has_schema_key($field_key);
