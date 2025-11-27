@@ -1093,12 +1093,16 @@ class RegisterOptions {
 				$this->_assert_internal_validator_presence($normalized_key, $this->schema[$normalized_key]);
 			}
 
-			$this->schema[$normalized_key] = $this->_coerce_schema_entry($this->schema[$normalized_key], $normalized_key);
-			$finalEntry                    = $this->schema[$normalized_key];
-			$sanitizeComponentCount        = count($finalEntry['sanitize'][self::BUCKET_COMPONENT] ?? array());
-			$sanitizeSchemaCount           = count($finalEntry['sanitize'][self::BUCKET_SCHEMA] ?? array());
-			$validateComponentCount        = count($finalEntry['validate'][self::BUCKET_COMPONENT] ?? array());
-			$validateSchemaCount           = count($finalEntry['validate'][self::BUCKET_SCHEMA] ?? array());
+			// Only coerce if queued validators were injected (they need normalization).
+			// Without queued validators, the merge result is already in canonical bucket form.
+			if (!empty($queuedValidators[$normalized_key])) {
+				$this->schema[$normalized_key] = $this->_coerce_schema_entry($this->schema[$normalized_key], $normalized_key);
+			}
+			$finalEntry             = $this->schema[$normalized_key];
+			$sanitizeComponentCount = count($finalEntry['sanitize'][self::BUCKET_COMPONENT] ?? array());
+			$sanitizeSchemaCount    = count($finalEntry['sanitize'][self::BUCKET_SCHEMA] ?? array());
+			$validateComponentCount = count($finalEntry['validate'][self::BUCKET_COMPONENT] ?? array());
+			$validateSchemaCount    = count($finalEntry['validate'][self::BUCKET_SCHEMA] ?? array());
 			$this->_get_logger()->debug(
 				'RegisterOptions: _register_internal_schema merged entry',
 				array(
@@ -1439,18 +1443,29 @@ class RegisterOptions {
 			'merge_from_db' => $merge_from_db,
 				)
 		);
-		$to_save = $this->options;
+		$to_save             = $this->options;
+		$__exists_from_merge = null; // null = unknown, true = confirmed from merge read
+
 		if ($merge_from_db) {
 			// Load DB snapshot and merge top-level keys (no deep merge)
 			$dbCurrent = $this->_get_storage()->read($this->main_wp_option_name);
-			if (!is_array($dbCurrent)) {
+
+			// Optimization: non-empty array proves existence, skip sentinel check later
+			if (is_array($dbCurrent) && !empty($dbCurrent)) {
+				$__exists_from_merge = true;
+				$this->_get_logger()->debug(
+					'RegisterOptions: _save_all_options merge read returned non-empty array; existence confirmed',
+					array('key_count' => count($dbCurrent))
+				);
+			} elseif (!is_array($dbCurrent)) {
 				$this->_get_logger()->debug(
 					'RegisterOptions: _save_all_options merge_from_db snapshot not array; normalizing to empty array',
 					array('snapshot_type' => gettype($dbCurrent))
 				);
-
 				$dbCurrent = array();
 			}
+			// Note: empty array case leaves $__exists_from_merge as null (ambiguous)
+
 			// Shallow top-level merge: keep DB keys, overwrite with in-memory on collision
 			foreach ($this->options as $k => $value) {
 				$dbCurrent[$k] = $value;
@@ -1479,10 +1494,17 @@ class RegisterOptions {
 		}
 
 		// Honor initial autoload preference only on creation.
-		// Determine existence via WordPress get_option sentinel (legacy-compatible, testable via WP_Mock).
-		$__sentinel     = new \stdClass(); // Allows us to differentiate between a missing option and an option set to nullish (e.g. false, 0, '', null)
-		$__raw_existing = $this->_do_get_option($this->main_wp_option_name, $__sentinel);
-		$__exists       = ($__raw_existing !== $__sentinel);
+		// Determine existence: skip sentinel check if merge read already confirmed existence.
+		if ($__exists_from_merge === true) {
+			$__exists   = true;
+			$__sentinel = null; // Not needed, but defined for consistency in retry verification
+			$this->_get_logger()->debug('RegisterOptions: _save_all_options existence confirmed from merge read; skipping sentinel check');
+		} else {
+			// Sentinel pattern: differentiate missing option from nullish stored value (false, 0, '', null)
+			$__sentinel     = new \stdClass();
+			$__raw_existing = $this->_do_get_option($this->main_wp_option_name, $__sentinel);
+			$__exists       = ($__raw_existing !== $__sentinel);
+		}
 		if ($__exists) {
 			// Existing row: use update() without autoload
 			$result = $this->_get_storage()->update($this->main_wp_option_name, $to_save);
@@ -1491,8 +1513,10 @@ class RegisterOptions {
 				$this->_get_logger()->debug('RegisterOptions: storage->update() returned false; retrying once.');
 				$result = $this->_get_storage()->update($this->main_wp_option_name, $to_save);
 				if (!$result) {
-					$__verify = $this->_do_get_option($this->main_wp_option_name, $__sentinel);
-					if ($__verify !== $__sentinel && Helpers::canonicalStructuresMatch($__verify, $to_save)) {
+					// Create sentinel for verification if we skipped the initial sentinel check
+					$__verify_sentinel = $__sentinel ?? new \stdClass();
+					$__verify          = $this->_do_get_option($this->main_wp_option_name, $__verify_sentinel);
+					if ($__verify !== $__verify_sentinel && Helpers::canonicalStructuresMatch($__verify, $to_save)) {
 						$this->_get_logger()->warning('RegisterOptions: storage->update() returned false but DB matches desired state; treating as success.');
 						$result = true;
 					} else {
