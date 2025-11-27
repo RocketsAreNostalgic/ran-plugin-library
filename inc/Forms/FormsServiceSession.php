@@ -264,6 +264,9 @@ class FormsServiceSession {
 	/**
 	 * Merge a schema definition with manifest defaults for the given component alias.
 	 *
+	 * Delegates to ValidatorPipelineService for the actual merge logic, ensuring
+	 * all schema merge operations use a single authoritative implementation.
+	 *
 	 * @param string                      $alias     Component alias registered in the manifest
 	 * @param array<string,mixed>         $schema    Integrator supplied schema entry
 	 * @param array<string,mixed>|null    $catalogue Pre-fetched defaults catalogue (optional). When provided,
@@ -280,23 +283,16 @@ class FormsServiceSession {
 			$this->logger->debug('forms.schema.merge.no_defaults', array(
 				'alias' => $alias,
 			));
-			return $schema;
+			// Still coerce schema to bucket structure for consistency
+			return $this->pipeline->coerce_to_bucket_structure($schema, false, $this->logger);
 		}
 
-		$merged = $this->_merge_schema_with_defaults($schema, $defaults);
-		if ($this->logger->is_active()) {
-			$defaultBuckets = $this->_coerce_bucketed_lists($defaults, true);
-			$schemaBuckets  = $this->_coerce_bucketed_lists($schema, false);
-			$mergedBuckets  = $this->_coerce_bucketed_lists($merged, false);
-			$this->logger->debug('forms.schema.component_counts', array(
-				'alias'                            => $alias,
-				'default_validate_component_count' => count($defaultBuckets['validate']['component']),
-				'schema_validate_component_count'  => count($schemaBuckets['validate']['component']),
-				'merged_validate_component_count'  => count($mergedBuckets['validate']['component']),
-			));
-		}
+		// Delegate to pipeline for merge logic
+		$merged = $this->pipeline->merge_schema_with_defaults($defaults, $schema, $this->logger);
 
-		if ($merged['validate']['component'] === array() && $merged['validate']['schema'] === array()) {
+		// Validate at least one validator exists
+		$hasValidators = !empty($merged['validate']['component']) || !empty($merged['validate']['schema']);
+		if (!$hasValidators) {
 			$this->logger->error('forms.schema.merge.no_validators', array(
 				'alias'    => $alias,
 				'schema'   => $schema,
@@ -308,69 +304,6 @@ class FormsServiceSession {
 		$this->_log_schema_merge($alias, $defaults, $schema, $merged);
 
 		return $merged;
-	}
-
-	/**
-	 * Internal merge implementation that keeps manifest defaults immutable.
-	 *
-	 * @param array<string,mixed> $schema
-	 * @param array<string,mixed> $defaults
-	 * @return array<string,mixed>
-	 */
-	private function _merge_schema_with_defaults(array $schema, array $defaults): array {
-		$merged = $schema;
-
-		$schemaBuckets  = $this->_coerce_bucketed_lists($schema, false);
-		$defaultBuckets = $this->_coerce_bucketed_lists($defaults, true);
-
-		$merged['sanitize'] = array(
-			'component' => array_merge($defaultBuckets['sanitize']['component'], $schemaBuckets['sanitize']['component']),
-			'schema'    => $schemaBuckets['sanitize']['schema'] !== array()
-				? $schemaBuckets['sanitize']['schema']
-				: $defaultBuckets['sanitize']['schema'],
-		);
-
-		$merged['validate'] = array(
-			'component' => array_merge($defaultBuckets['validate']['component'], $schemaBuckets['validate']['component']),
-			'schema'    => $schemaBuckets['validate']['schema'] !== array()
-				? $schemaBuckets['validate']['schema']
-				: $defaultBuckets['validate']['schema'],
-		);
-
-		$defaultContext = isset($defaults['context']) && is_array($defaults['context']) ? $defaults['context'] : array();
-		$schemaContext  = isset($schema['context'])   && is_array($schema['context']) ? $schema['context'] : array();
-		if ($defaultContext !== array() || $schemaContext !== array()) {
-			$merged['context'] = $defaultContext === array()
-				? $schemaContext
-				: array_merge($defaultContext, $schemaContext);
-		}
-
-		return $merged;
-	}
-
-	/**
-	 * Normalize callable entries to arrays for merge operations.
-	 *
-	 * @param mixed $value
-	 * @return array<int,callable>|null
-	 */
-	private function _coerce_bucketed_lists(array $source, bool $flatAsComponent): array {
-		$normalized = $this->pipeline->normalize_schema_entry($source, 'forms-session-bucket', 'FormsServiceSession', $this->logger);
-
-		if ($flatAsComponent) {
-			foreach (array('sanitize', 'validate') as $bucket) {
-				if (
-					isset($normalized[$bucket]['component'], $normalized[$bucket]['schema'])
-					&& $normalized[$bucket]['component'] === array()
-					&& $normalized[$bucket]['schema'] !== array()
-				) {
-					$normalized[$bucket]['component'] = $normalized[$bucket]['schema'];
-					$normalized[$bucket]['schema']    = array();
-				}
-			}
-		}
-
-		return $normalized;
 	}
 
 	/**

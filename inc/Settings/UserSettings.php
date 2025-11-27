@@ -276,14 +276,20 @@ class UserSettings implements FormsInterface {
 			'global'       => $global ? '1' : '0',
 		));
 
-		if (!empty($bundle['bucketed_schema'])) {
-			$opts->_register_internal_schema($bundle['bucketed_schema'], $bundle['metadata'], $bundle['queued_validators']);
+		// Consolidate bundle sources into single registration call
+		$merged = $this->_merge_schema_bundle_sources($bundle);
+		if (!empty($merged['merged_schema'])) {
+			$opts->_register_internal_schema(
+				$merged['merged_schema'],
+				$merged['metadata'],
+				$merged['queued_validators'],
+				$merged['defaults_for_seeding']
+			);
 		}
-		if (!empty($bundle['schema'])) {
-			$opts->_register_internal_schema($bundle['schema']);
-		}
-		if (!empty($bundle['defaults'])) {
-			$opts->register_schema($bundle['defaults']);
+
+		// Seed defaults for missing keys (register_schema handles seeding + telemetry)
+		if (!empty($merged['defaults_for_seeding'])) {
+			$opts->register_schema($merged['defaults_for_seeding']);
 		}
 
 		// Stage options and check for validation failures

@@ -90,7 +90,7 @@ final class FormsServiceSessionSchemaMergeTest extends PluginLibTestCase {
 		$this->expectLog('debug', 'forms.schema.merge');
 	}
 
-	public function test_merge_schema_without_defaults_is_noop(): void {
+	public function test_merge_schema_without_defaults_returns_coerced_structure(): void {
 		$manifest = Mockery::mock(ComponentManifest::class);
 		$manifest->shouldReceive('get_defaults_for')
 			->once()
@@ -101,12 +101,20 @@ final class FormsServiceSessionSchemaMergeTest extends PluginLibTestCase {
 		$resolver = new FormsTemplateOverrideResolver($this->logger_mock);
 		$session  = new FormsServiceSession($manifest, new FormsAssets(), $resolver, $this->logger_mock);
 
-		$schema = array('validate' => array(function () {
+		$validator = function () {
 			return true;
-		}));
+		};
+		$schema = array('validate' => array($validator));
 		$result = $session->merge_schema_with_defaults('components.empty', $schema);
 
-		self::assertSame($schema, $result);
+		// When no defaults exist, schema is still coerced to canonical bucket structure
+		// Flat validators go to 'schema' bucket (flatAsComponent = false)
+		self::assertArrayHasKey('sanitize', $result);
+		self::assertArrayHasKey('validate', $result);
+		self::assertSame(array(), $result['sanitize']['component']);
+		self::assertSame(array(), $result['sanitize']['schema']);
+		self::assertSame(array(), $result['validate']['component']);
+		self::assertSame(array($validator), $result['validate']['schema']);
 		$this->expectLog('debug', 'forms.schema.merge.no_defaults');
 	}
 

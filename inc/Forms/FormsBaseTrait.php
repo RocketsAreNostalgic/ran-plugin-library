@@ -1668,6 +1668,134 @@ trait FormsBaseTrait {
 	}
 
 	/**
+	 * Merge schema bundle sources into a single registration-ready array.
+	 *
+	 * Consolidates bucketed_schema, schema, and defaults into one merged schema
+	 * that can be registered with a single `_register_internal_schema()` call.
+	 *
+	 * Merge precedence:
+	 * 1. bucketed_schema (component validators) - base layer
+	 * 2. schema (developer schema validators) - merged on top
+	 * 3. defaults - only fills missing keys (does not override validators)
+	 *
+	 * @param array $bundle Schema bundle from _resolve_schema_bundle().
+	 * @return array{
+	 *     merged_schema: array<string, array>,
+	 *     metadata: array<string, array<string, mixed>>,
+	 *     queued_validators: array<string, array<int, callable>>,
+	 *     defaults_for_seeding: array<string, array>
+	 * }
+	 */
+	protected function _merge_schema_bundle_sources(array $bundle): array {
+		$merged   = array();
+		$metadata = $bundle['metadata']          ?? array();
+		$queued   = $bundle['queued_validators'] ?? array();
+
+		// Layer 1: Start with bucketed schema (component validators)
+		if (!empty($bundle['bucketed_schema'])) {
+			$merged = $bundle['bucketed_schema'];
+		}
+
+		// Layer 2: Merge in schema-level entries (developer validators)
+		// Schema validators are added to the 'schema' bucket, not replacing component validators
+		if (!empty($bundle['schema'])) {
+			foreach ($bundle['schema'] as $key => $entry) {
+				if (!isset($merged[$key])) {
+					$merged[$key] = $entry;
+				} else {
+					// Merge the schema entry buckets
+					$merged[$key] = $this->_merge_schema_entry_buckets($merged[$key], $entry);
+				}
+			}
+		}
+
+		// Layer 3: Defaults only fill missing keys (for seeding, not validation override)
+		// We keep defaults separate for seeding purposes
+		$defaultsForSeeding = $bundle['defaults'] ?? array();
+		if (!empty($defaultsForSeeding)) {
+			foreach ($defaultsForSeeding as $key => $entry) {
+				if (!isset($merged[$key])) {
+					// Key not in merged schema - add it with default only
+					$merged[$key] = $entry;
+				} elseif (!array_key_exists('default', $merged[$key]) && array_key_exists('default', $entry)) {
+					// Merged entry exists but has no default - add the default
+					$merged[$key]['default'] = $entry['default'];
+				}
+			}
+		}
+
+		$this->logger->debug('forms.schema_bundle.merged', array(
+			'bucketed_count' => count($bundle['bucketed_schema'] ?? array()),
+			'schema_count'   => count($bundle['schema'] ?? array()),
+			'defaults_count' => count($defaultsForSeeding),
+			'merged_count'   => count($merged),
+		));
+
+		return array(
+			'merged_schema'        => $merged,
+			'metadata'             => $metadata,
+			'queued_validators'    => $queued,
+			'defaults_for_seeding' => $defaultsForSeeding,
+		);
+	}
+
+	/**
+	 * Merge two schema entry bucket structures.
+	 *
+	 * Combines sanitize and validate buckets from two schema entries,
+	 * preserving both component and schema-level callables.
+	 *
+	 * @param array $existing The existing schema entry.
+	 * @param array $incoming The incoming schema entry to merge.
+	 * @return array The merged schema entry.
+	 */
+	private function _merge_schema_entry_buckets(array $existing, array $incoming): array {
+		$merged = $existing;
+
+		// Merge default (incoming takes precedence if both have it)
+		if (array_key_exists('default', $incoming)) {
+			$merged['default'] = $incoming['default'];
+		}
+
+		// Merge sanitize buckets
+		if (isset($incoming['sanitize']) && is_array($incoming['sanitize'])) {
+			if (!isset($merged['sanitize']) || !is_array($merged['sanitize'])) {
+				$merged['sanitize'] = array('component' => array(), 'schema' => array());
+			}
+			foreach (array('component', 'schema') as $bucket) {
+				if (isset($incoming['sanitize'][$bucket]) && is_array($incoming['sanitize'][$bucket])) {
+					$merged['sanitize'][$bucket] = array_merge(
+						$merged['sanitize'][$bucket] ?? array(),
+						$incoming['sanitize'][$bucket]
+					);
+				}
+			}
+		}
+
+		// Merge validate buckets
+		if (isset($incoming['validate']) && is_array($incoming['validate'])) {
+			if (!isset($merged['validate']) || !is_array($merged['validate'])) {
+				$merged['validate'] = array('component' => array(), 'schema' => array());
+			}
+			foreach (array('component', 'schema') as $bucket) {
+				if (isset($incoming['validate'][$bucket]) && is_array($incoming['validate'][$bucket])) {
+					$merged['validate'][$bucket] = array_merge(
+						$merged['validate'][$bucket] ?? array(),
+						$incoming['validate'][$bucket]
+					);
+				}
+			}
+		}
+
+		// Merge context if present
+		if (isset($incoming['context']) && is_array($incoming['context'])) {
+			$merged['context'] = array_merge($merged['context'] ?? array(), $incoming['context']);
+		}
+
+		return $merged;
+	}
+
+	/**
 	 * Builds the initial bucketed schema fragments and metadata for registered fields.
 	 *
 	 * This collects component-provided defaults plus any per-field schema declared on the

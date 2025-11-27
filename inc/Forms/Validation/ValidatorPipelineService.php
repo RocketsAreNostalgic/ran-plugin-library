@@ -232,6 +232,126 @@ final class ValidatorPipelineService {
 	}
 
 	/**
+	 * Coerce a schema entry to canonical bucket structure.
+	 *
+	 * Transforms flat callable arrays into the canonical bucket structure with
+	 * 'component' and 'schema' sub-arrays. When $flatAsComponent is true, flat
+	 * callables are placed in the 'component' bucket (for manifest defaults);
+	 * when false, they go to the 'schema' bucket (for developer schema).
+	 *
+	 * @param array  $source          Source schema fragment.
+	 * @param bool   $flatAsComponent If true, flat arrays go to 'component' bucket; else 'schema'.
+	 * @param Logger $logger          Logger instance for debug output.
+	 * @return array{
+	 *     sanitize: array{component: array<int, callable>, schema: array<int, callable>},
+	 *     validate: array{component: array<int, callable>, schema: array<int, callable>},
+	 *     context?: array,
+	 *     default?: mixed
+	 * }
+	 */
+	public function coerce_to_bucket_structure(array $source, bool $flatAsComponent, Logger $logger): array {
+		// Use existing normalize_schema_entry for the heavy lifting
+		$normalized = $this->normalize_schema_entry($source, 'coerce-bucket', 'ValidatorPipelineService', $logger);
+
+		// When flatAsComponent is true, move schema bucket contents to component bucket
+		// This handles the case where manifest defaults have flat callables that should
+		// be treated as component-level validators
+		if ($flatAsComponent) {
+			foreach (array('sanitize', 'validate') as $bucket) {
+				if (
+					isset($normalized[$bucket][self::BUCKET_COMPONENT], $normalized[$bucket][self::BUCKET_SCHEMA])
+					&& $normalized[$bucket][self::BUCKET_COMPONENT] === array()
+					&& $normalized[$bucket][self::BUCKET_SCHEMA] !== array()
+				) {
+					$normalized[$bucket][self::BUCKET_COMPONENT] = $normalized[$bucket][self::BUCKET_SCHEMA];
+					$normalized[$bucket][self::BUCKET_SCHEMA]    = array();
+				}
+			}
+		}
+
+		// Preserve context if present in source
+		if (isset($source['context']) && is_array($source['context'])) {
+			$normalized['context'] = $source['context'];
+		}
+
+		return $normalized;
+	}
+
+	/**
+	 * Merge component defaults with developer schema.
+	 *
+	 * Coerces both inputs to bucket structure, then merges with proper precedence:
+	 * - Defaults go to 'component' bucket (flatAsComponent = true)
+	 * - Schema goes to 'schema' bucket (flatAsComponent = false)
+	 * - Component buckets are merged (defaults first, then schema additions)
+	 * - Schema bucket: schema overrides defaults if non-empty
+	 * - Context arrays are merged (schema overrides defaults)
+	 * - Default value from schema takes precedence if both present
+	 *
+	 * @param array  $defaults Component defaults (flat callables → component bucket).
+	 * @param array  $schema   Developer schema (flat callables → schema bucket).
+	 * @param Logger $logger   Logger instance for debug output.
+	 * @return array{
+	 *     sanitize: array{component: array<int, callable>, schema: array<int, callable>},
+	 *     validate: array{component: array<int, callable>, schema: array<int, callable>},
+	 *     context?: array,
+	 *     default?: mixed
+	 * }
+	 */
+	public function merge_schema_with_defaults(array $defaults, array $schema, Logger $logger): array {
+		$defaultBuckets = $this->coerce_to_bucket_structure($defaults, true, $logger);
+		$schemaBuckets  = $this->coerce_to_bucket_structure($schema, false, $logger);
+
+		$merged = array(
+			'sanitize' => array(
+				self::BUCKET_COMPONENT => array_merge(
+					$defaultBuckets['sanitize'][self::BUCKET_COMPONENT],
+					$schemaBuckets['sanitize'][self::BUCKET_COMPONENT]
+				),
+				self::BUCKET_SCHEMA => $schemaBuckets['sanitize'][self::BUCKET_SCHEMA] !== array()
+					? $schemaBuckets['sanitize'][self::BUCKET_SCHEMA]
+					: $defaultBuckets['sanitize'][self::BUCKET_SCHEMA],
+			),
+			'validate' => array(
+				self::BUCKET_COMPONENT => array_merge(
+					$defaultBuckets['validate'][self::BUCKET_COMPONENT],
+					$schemaBuckets['validate'][self::BUCKET_COMPONENT]
+				),
+				self::BUCKET_SCHEMA => $schemaBuckets['validate'][self::BUCKET_SCHEMA] !== array()
+					? $schemaBuckets['validate'][self::BUCKET_SCHEMA]
+					: $defaultBuckets['validate'][self::BUCKET_SCHEMA],
+			),
+		);
+
+		// Merge context (schema overrides defaults)
+		$defaultContext = $defaultBuckets['context'] ?? array();
+		$schemaContext  = $schemaBuckets['context']  ?? array();
+		if ($defaultContext !== array() || $schemaContext !== array()) {
+			$merged['context'] = $defaultContext === array()
+				? $schemaContext
+				: array_merge($defaultContext, $schemaContext);
+		}
+
+		// Default value: schema takes precedence
+		if (array_key_exists('default', $schemaBuckets)) {
+			$merged['default'] = $schemaBuckets['default'];
+		} elseif (array_key_exists('default', $defaultBuckets)) {
+			$merged['default'] = $defaultBuckets['default'];
+		}
+
+		$logger->debug('ValidatorPipelineService: merge_schema_with_defaults completed', array(
+			'default_sanitize_component' => count($defaultBuckets['sanitize'][self::BUCKET_COMPONENT]),
+			'default_validate_component' => count($defaultBuckets['validate'][self::BUCKET_COMPONENT]),
+			'schema_sanitize_schema'     => count($schemaBuckets['sanitize'][self::BUCKET_SCHEMA]),
+			'schema_validate_schema'     => count($schemaBuckets['validate'][self::BUCKET_SCHEMA]),
+			'merged_sanitize_component'  => count($merged['sanitize'][self::BUCKET_COMPONENT]),
+			'merged_validate_component'  => count($merged['validate'][self::BUCKET_COMPONENT]),
+		));
+
+		return $merged;
+	}
+
+	/**
 	 * @param array{sanitize:array{component:array<callable>,schema:array<callable>}, validate:array{component:array<callable>,schema:array<callable>}} $rules
 	 * @param callable(callable):string $describeCallable
 	 * @param callable(mixed):string $stringifyValueForError

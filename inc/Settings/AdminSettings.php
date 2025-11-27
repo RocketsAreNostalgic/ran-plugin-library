@@ -485,14 +485,20 @@ class AdminSettings implements FormsInterface {
 			'page_slug' => $this->main_option,
 		));
 
-		if (!empty($bundle['bucketed_schema'])) {
-			$tmp->_register_internal_schema($bundle['bucketed_schema'], $bundle['metadata'], $bundle['queued_validators']);
+		// Consolidate bundle sources into single registration call
+		$merged = $this->_merge_schema_bundle_sources($bundle);
+		if (!empty($merged['merged_schema'])) {
+			$tmp->_register_internal_schema(
+				$merged['merged_schema'],
+				$merged['metadata'],
+				$merged['queued_validators'],
+				$merged['defaults_for_seeding']
+			);
 		}
-		if (!empty($bundle['schema'])) {
-			$tmp->_register_internal_schema($bundle['schema']);
-		}
-		if (!empty($bundle['defaults'])) {
-			$tmp->register_schema($bundle['defaults']);
+
+		// Seed defaults for missing keys (register_schema handles seeding + telemetry)
+		if (!empty($merged['defaults_for_seeding'])) {
+			$tmp->register_schema($merged['defaults_for_seeding']);
 		}
 
 		$policy = $this->base_options->get_write_policy();
