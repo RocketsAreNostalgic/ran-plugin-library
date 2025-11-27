@@ -62,6 +62,8 @@ trait FormsBaseTrait {
 	/** @var array<string, array<string,mixed>> */
 	private array $__schema_bundle_cache = array();
 
+	/** @var array<string, array<string,mixed>>|null Session-scoped catalogue cache for defaults memoization */
+	private ?array $__catalogue_cache = null;
 
 	// Template override system removed - now handled by FormsTemplateOverrideResolver in FormsServiceSession
 
@@ -1689,7 +1691,15 @@ trait FormsBaseTrait {
 		$bucketedSchema = array();
 		$metadata       = array();
 
-		$manifestCatalogue = $this->components->default_catalogue();
+		// Session-scoped memoization – catalogue is fetched once and reused for all merge calls.
+		// Cache clears naturally when the trait instance is garbage collected.
+		if ($this->__catalogue_cache === null) {
+			$this->__catalogue_cache = $this->components->default_catalogue();
+			$this->logger->debug(static::class . ': Catalogue fetched and cached', array(
+				'component_count' => count($this->__catalogue_cache),
+			));
+		}
+		$manifestCatalogue = $this->__catalogue_cache;
 		$internalSchema    = $this->base_options->_get_schema_internal();
 
 		foreach ($this->_get_registered_field_metadata() as $entry) {
@@ -1716,7 +1726,7 @@ trait FormsBaseTrait {
 				$sanitizeComponents = (array) ($currentEntry['sanitize']['component'] ?? array());
 				$validateComponents = (array) ($currentEntry['validate']['component'] ?? array());
 				if ($sanitizeComponents === array() || $validateComponents === array()) {
-					$merged                         = $session->merge_schema_with_defaults($component, $currentEntry);
+					$merged                         = $session->merge_schema_with_defaults($component, $currentEntry, $manifestCatalogue);
 					$bucketedSchema[$normalizedKey] = $merged;
 					$context                        = isset($merged['context']) && is_array($merged['context']) ? $merged['context'] : array();
 					$componentType                  = (string) ($context['component_type'] ?? ($componentContextFromCatalogue['component_type'] ?? ''));
@@ -1727,7 +1737,7 @@ trait FormsBaseTrait {
 				continue;
 			}
 
-			$merged                         = $session->merge_schema_with_defaults($component, $componentSchema);
+			$merged                         = $session->merge_schema_with_defaults($component, $componentSchema, $manifestCatalogue);
 			$bucketedSchema[$normalizedKey] = $merged;
 
 			$context       = isset($merged['context']) && is_array($merged['context']) ? $merged['context'] : array();

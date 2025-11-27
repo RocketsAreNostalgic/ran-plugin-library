@@ -264,12 +264,18 @@ class FormsServiceSession {
 	/**
 	 * Merge a schema definition with manifest defaults for the given component alias.
 	 *
-	 * @param string                 $alias  Component alias registered in the manifest
-	 * @param array<string,mixed>    $schema Integrator supplied schema entry
+	 * @param string                      $alias     Component alias registered in the manifest
+	 * @param array<string,mixed>         $schema    Integrator supplied schema entry
+	 * @param array<string,mixed>|null    $catalogue Pre-fetched defaults catalogue (optional). When provided,
+	 *                                               avoids re-fetching from manifest for each merge call.
 	 * @return array<string,mixed>
 	 */
-	public function merge_schema_with_defaults(string $alias, array $schema): array {
-		$defaults = $this->manifest->get_defaults_for($alias);
+	public function merge_schema_with_defaults(string $alias, array $schema, ?array $catalogue = null): array {
+		// Use pre-fetched catalogue if provided, otherwise fetch from manifest
+		$defaults = $catalogue !== null && isset($catalogue[$alias])
+			? $catalogue[$alias]
+			: $this->manifest->get_defaults_for($alias);
+
 		if ($defaults === array()) {
 			$this->logger->debug('forms.schema.merge.no_defaults', array(
 				'alias' => $alias,
