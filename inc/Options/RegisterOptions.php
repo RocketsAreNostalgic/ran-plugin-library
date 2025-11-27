@@ -1058,7 +1058,12 @@ class RegisterOptions {
 			if (!isset($this->schema[$normalized_key])) {
 				$this->schema[$normalized_key] = $incoming;
 			} else {
-				$existing                      = $this->_coerce_schema_entry($this->schema[$normalized_key], $normalized_key);
+				// Call 2: Structure check – existing entry should already be coerced from prior registration.
+				// Skip redundant coercion if already in canonical bucket form.
+				$existing = $this->_is_canonical_bucket_structure($this->schema[$normalized_key])
+					? $this->schema[$normalized_key]
+					: $this->_coerce_schema_entry($this->schema[$normalized_key], $normalized_key);
+
 				$this->schema[$normalized_key] = array(
 					'default'  => array_key_exists('default', $incoming) ? $incoming['default'] : ($existing['default'] ?? null),
 					'sanitize' => $this->_merge_bucketed_callables($existing['sanitize'], $incoming['sanitize']),
@@ -1067,9 +1072,10 @@ class RegisterOptions {
 			}
 
 			if (!empty($queuedValidators[$normalized_key])) {
-				$this->schema[$normalized_key] = $this->_coerce_schema_entry($this->schema[$normalized_key], $normalized_key);
-				$componentBucket               = &$this->schema[$normalized_key]['validate'][self::BUCKET_COMPONENT];
-				$componentBucket               = array_merge($queuedValidators[$normalized_key], $componentBucket);
+				// NOTE: Call 3 (pre-merge coercion) removed – merge result from _merge_bucketed_callables()
+				// is already in canonical bucket form, so coercion here was redundant.
+				$componentBucket = &$this->schema[$normalized_key]['validate'][self::BUCKET_COMPONENT];
+				$componentBucket = array_merge($queuedValidators[$normalized_key], $componentBucket);
 				$this->_get_logger()->debug(
 					'RegisterOptions: _register_internal_schema queued validators merged',
 					array(
@@ -1107,6 +1113,18 @@ class RegisterOptions {
 				)
 			);
 		}
+	}
+
+	/**
+	 * Public accessor: return the write policy for this instance.
+	 *
+	 * @return WritePolicyInterface The write policy.
+	 */
+	public function get_write_policy(): WritePolicyInterface {
+		if (!($this->write_policy instanceof WritePolicyInterface)) {
+			$this->write_policy = new RestrictedDefaultWritePolicy();
+		}
+		return $this->write_policy;
 	}
 
 	/**
@@ -1159,18 +1177,6 @@ class RegisterOptions {
 				'normalized_keys' => $brief($normalizedKeys),
 			)
 		);
-	}
-
-	/**
-	 * Public accessor: return the write policy for this instance.
-	 *
-	 * @return WritePolicyInterface The write policy.
-	 */
-	public function get_write_policy(): WritePolicyInterface {
-		if (!($this->write_policy instanceof WritePolicyInterface)) {
-			$this->write_policy = new RestrictedDefaultWritePolicy();
-		}
-		return $this->write_policy;
 	}
 
 	/**
@@ -1601,14 +1607,6 @@ class RegisterOptions {
 	}
 
 	/**
-	 * Determine if validator callable accepts a warning callback as second parameter.
-	 *
-	 * @param  callable $validator
-	 * @return bool
-	 */
-
-
-	/**
 	 * Record a normalized message for the supplied option key with type classification.
 	 *
 	 * @param  string $normalized_key
@@ -1696,6 +1694,27 @@ class RegisterOptions {
 		return $this->_get_validator_pipeline()->is_bucket_map($candidate);
 	}
 
+	/**
+	 * Check if schema entry is already in canonical bucket structure.
+	 *
+	 * This verifies the COMPLETE structure (all 4 arrays present), not just
+	 * partial bucket form. Used to skip redundant coercion when an entry
+	 * has already been normalized.
+	 *
+	 * @param array $entry Schema entry to check.
+	 * @return bool True if already in canonical normalized form.
+	 */
+	private function _is_canonical_bucket_structure(array $entry): bool {
+		return isset($entry['sanitize']['component'])
+			&& isset($entry['sanitize']['schema'])
+			&& isset($entry['validate']['component'])
+			&& isset($entry['validate']['schema'])
+			&& is_array($entry['sanitize']['component'])
+			&& is_array($entry['sanitize']['schema'])
+			&& is_array($entry['validate']['component'])
+			&& is_array($entry['validate']['schema']);
+	}
+
 	private function _get_validator_pipeline(): ValidatorPipelineService {
 		if (!($this->validator_pipeline instanceof ValidatorPipelineService)) {
 			$this->validator_pipeline = new ValidatorPipelineService();
@@ -1725,8 +1744,6 @@ class RegisterOptions {
 			$this->message_handler = new FormMessageHandler($this->logger);
 		}
 	}
-
-
 
 	/**
 	 * Normalize external schema map keys to internal normalized option keys.
