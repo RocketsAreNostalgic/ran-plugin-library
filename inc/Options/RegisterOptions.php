@@ -182,18 +182,17 @@ class RegisterOptions {
 	 * Initializes options by loading them from the database under `$main_wp_option_name`.
 	 * No implicit writes occur in the constructor.
 	 *
-	 * @param    string              $main_wp_option_name  The primary key for this instance's grouped settings.
-	 * @param    StorageContext|null $storage_context      Storage context for scope-aware persistence. Defaults to site scope if null.
-	 * @param    bool                $main_option_autoload Whether the entire group of options should be autoloaded by WordPress (if supported by storage). Defaults to true.
-	 * @param    Logger|null         $logger               Optional Logger for dependency injection; when provided, it is bound before the first read.
-	 * @return   mixed
+	 * @param    string                       $main_wp_option_name   The primary key for this instance's grouped settings.
+	 * @param    StorageContext|null          $storage_context       Storage context for scope-aware persistence. Defaults to site scope if null.
+	 * @param    bool                         $main_option_autoload  Whether the entire group of options should be autoloaded by WordPress (if supported by storage). Defaults to true.
+	 * @param    Logger|null                  $logger                Optional Logger for dependency injection; when provided, it is bound before the first read.
 	 */
 	public function __construct(
-        string $main_wp_option_name,
-        ?StorageContext $storage_context = null,
-        bool $main_option_autoload = true,
-        ?Logger $logger = null
-    ) {
+	        string $main_wp_option_name,
+	        ?StorageContext $storage_context = null,
+	        bool $main_option_autoload = true,
+	        ?Logger $logger = null
+	    ) {
 		// Bind provided logger first
 		if ($logger instanceof Logger) {
 			$this->logger = $logger;
@@ -317,6 +316,11 @@ class RegisterOptions {
 			$autoload,
 			$this->logger
 		);
+
+		// Share the validator pipeline with the cloned instance
+		if ($this->validator_pipeline instanceof ValidatorPipelineService) {
+			$new->_set_validator_pipeline($this->validator_pipeline);
+		}
 
 		if ($this->write_policy instanceof WritePolicyInterface) {
 			$new->with_policy($this->write_policy);
@@ -1720,6 +1724,26 @@ class RegisterOptions {
 			$this->validator_pipeline = new ValidatorPipelineService();
 		}
 		return $this->validator_pipeline;
+	}
+
+	/**
+	 * Expose the validator pipeline instance (shared when injected).
+	 */
+	public function get_validator_pipeline(): ValidatorPipelineService {
+		return $this->_get_validator_pipeline();
+	}
+
+	/**
+	 * Set the validator pipeline instance.
+	 *
+	 * @internal Used by with_context() to share pipeline with cloned instances.
+	 *           Not part of the public API.
+	 *
+	 * @param ValidatorPipelineService $pipeline The pipeline instance to use.
+	 * @return void
+	 */
+	public function _set_validator_pipeline(ValidatorPipelineService $pipeline): void {
+		$this->validator_pipeline = $pipeline;
 	}
 
 	/**

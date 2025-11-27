@@ -19,6 +19,7 @@ use Ran\PluginLib\Options\RegisterOptions;
 use Ran\PluginLib\Options\OptionScope;
 use Ran\PluginLib\Forms\Component\ComponentManifest;
 use Ran\PluginLib\Forms\Component\ComponentLoader;
+use Ran\PluginLib\Forms\Validation\ValidatorPipelineService;
 use PHPUnit\Framework\TestCase;
 use PHPUnit\Framework\MockObject\MockObject;
 
@@ -54,6 +55,8 @@ class SettingsClassTemplateCoLocationTest extends TestCase {
 		    ->willReturn('test_options');
 		$this->mock_options->method('get_logger')
 		    ->willReturn($this->mock_logger);
+		$this->mock_options->method('get_validator_pipeline')
+		    ->willReturn(new ValidatorPipelineService());
 	}
 
 	public function test_basic_template_registration_in_constructor(): void {
@@ -180,6 +183,8 @@ class SettingsClassTemplateCoLocationTest extends TestCase {
 		    ->willReturn('test_user_options');
 		$user_mock_options->method('get_logger')
 		    ->willReturn($this->mock_logger);
+		$user_mock_options->method('get_validator_pipeline')
+		    ->willReturn(new ValidatorPipelineService());
 
 		$user_settings = new class($user_mock_options, $this->mock_manifest, $this->mock_logger) extends UserSettings {
 			public function __construct($options, $manifest, $logger) {

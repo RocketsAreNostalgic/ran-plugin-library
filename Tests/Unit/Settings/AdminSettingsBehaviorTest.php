@@ -842,6 +842,13 @@ final class AdminSettingsBehaviorTest extends PluginLibTestCase {
 			);
 		});
 
+		// Inject callable defaults for fields.input to satisfy ValidatorPipelineService
+		$this->injectManifestDefaults('fields.input', array(
+			'sanitize' => array(static fn (mixed $value): string => is_string($value) ? trim($value) : ''),
+			'validate' => array(static fn (mixed $value, callable $emitWarning): bool => true),
+			'context'  => array('component_type' => 'input'),
+		));
+
 		$this->manifest->register('admin.pages.behavior-page', static function (array $context): ComponentRenderResult {
 			$content = $context['content'] ?? '';
 			return new ComponentRenderResult(

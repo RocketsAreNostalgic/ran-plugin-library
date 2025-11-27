@@ -1209,7 +1209,15 @@ trait FormsBaseTrait {
 	protected function _start_form_session(): void {
 		if ($this->form_session === null) {
 			$this->shared_assets = $this->shared_assets ?? new FormsAssets();
-			$this->form_session  = $this->form_service->start_session($this->shared_assets);
+			$pipeline            = null;
+			if (isset($this->base_options) && method_exists($this->base_options, 'get_validator_pipeline')) {
+				$pipeline = $this->base_options->get_validator_pipeline();
+			}
+			$this->form_session = $this->form_service->start_session(
+				$this->shared_assets,
+				array(),
+				$pipeline
+			);
 		}
 	}
 

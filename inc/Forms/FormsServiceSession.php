@@ -13,6 +13,7 @@ use Ran\PluginLib\Util\WPWrappersTrait;
 use Ran\PluginLib\Util\Logger;
 use Ran\PluginLib\Forms\Component\ComponentManifest;
 use Ran\PluginLib\Forms\Component\ComponentRenderResult;
+use Ran\PluginLib\Forms\Validation\ValidatorPipelineService;
 
 /**
  * FormsServiceSession: per-render context for component dispatching and asset collection.
@@ -24,6 +25,7 @@ class FormsServiceSession {
 	private FormsAssets $assets;
 	private FormsTemplateOverrideResolver $template_resolver;
 	private Logger $logger;
+	private ValidatorPipelineService $pipeline;
 	/** @var array<string,callable> */
 	private array $root_template_callbacks = array();
 
@@ -32,12 +34,14 @@ class FormsServiceSession {
 		FormsAssets $assets,
 		FormsTemplateOverrideResolver $template_resolver,
 		Logger $logger,
-		array $form_defaults = array()
+		array $form_defaults = array(),
+		?ValidatorPipelineService $pipeline = null
 	) {
 		$this->manifest          = $manifest;
 		$this->assets            = $assets;
 		$this->template_resolver = $template_resolver;
 		$this->logger            = $logger;
+		$this->pipeline          = $pipeline ?? new ValidatorPipelineService();
 
 		// Set form-wide defaults if provided
 		if (!empty($form_defaults)) {
@@ -345,63 +349,22 @@ class FormsServiceSession {
 	 * @return array<int,callable>|null
 	 */
 	private function _coerce_bucketed_lists(array $source, bool $flatAsComponent): array {
-		$blank = array(
-			'component' => array(),
-			'schema'    => array(),
-		);
+		$normalized = $this->pipeline->normalize_schema_entry($source, 'forms-session-bucket', 'FormsServiceSession', $this->logger);
 
-		$sanitize = $blank;
-		$validate = $blank;
-
-		if (isset($source['sanitize'])) {
-			$sanitizeField = $source['sanitize'];
-			if (is_array($sanitizeField) && array_key_exists('component', $sanitizeField)) {
-				$sanitize['component'] = $this->_coerce_callable_array($sanitizeField['component'] ?? null);
-				$sanitize['schema']    = $this->_coerce_callable_array($sanitizeField['schema'] ?? null);
-			} else {
-				$bucketKey            = $flatAsComponent ? 'component' : 'schema';
-				$sanitize[$bucketKey] = $this->_coerce_callable_array($sanitizeField);
-			}
-		}
-
-		if (isset($source['validate'])) {
-			$validateField = $source['validate'];
-			if (is_array($validateField) && array_key_exists('component', $validateField)) {
-				$validate['component'] = $this->_coerce_callable_array($validateField['component'] ?? null);
-				$validate['schema']    = $this->_coerce_callable_array($validateField['schema'] ?? null);
-			} else {
-				$bucketKey            = $flatAsComponent ? 'component' : 'schema';
-				$validate[$bucketKey] = $this->_coerce_callable_array($validateField);
-			}
-		}
-
-		return array(
-			'sanitize' => $sanitize,
-			'validate' => $validate,
-		);
-	}
-
-	/**
-	 * @param mixed $value
-	 * @return array<int,callable>
-	 */
-	private function _coerce_callable_array(mixed $value): array {
-		if ($value === null) {
-			return array();
-		}
-		if (is_callable($value)) {
-			return array($value);
-		}
-		if (is_array($value)) {
-			$callables = array();
-			foreach ($value as $maybeCallable) {
-				if (is_callable($maybeCallable)) {
-					$callables[] = $maybeCallable;
+		if ($flatAsComponent) {
+			foreach (array('sanitize', 'validate') as $bucket) {
+				if (
+					isset($normalized[$bucket]['component'], $normalized[$bucket]['schema'])
+					&& $normalized[$bucket]['component'] === array()
+					&& $normalized[$bucket]['schema'] !== array()
+				) {
+					$normalized[$bucket]['component'] = $normalized[$bucket]['schema'];
+					$normalized[$bucket]['schema']    = array();
 				}
 			}
-			return $callables;
 		}
-		return array();
+
+		return $normalized;
 	}
 
 	/**
@@ -425,9 +388,9 @@ class FormsServiceSession {
 			);
 		};
 
-		$defaultsBuckets = $this->_coerce_bucketed_lists($defaults, true);
-		$schemaBuckets   = $this->_coerce_bucketed_lists($schema, false);
-		$mergedBuckets   = $this->_coerce_bucketed_lists($merged, false);
+		$defaultsBuckets = $this->pipeline->normalize_schema_entry($defaults, $alias, 'FormsServiceSession', $this->logger);
+		$schemaBuckets   = $this->pipeline->normalize_schema_entry($schema, $alias, 'FormsServiceSession', $this->logger);
+		$mergedBuckets   = $this->pipeline->normalize_schema_entry($merged, $alias, 'FormsServiceSession', $this->logger);
 
 		$this->logger->debug('forms.schema.merge', array(
 			'alias'                   => $alias,
