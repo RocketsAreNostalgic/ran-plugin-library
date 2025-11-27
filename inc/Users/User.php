@@ -192,7 +192,7 @@ final class User implements UserBuilderInterface {
 		if (empty($this->optSchema) && empty($this->optValues)) {
 			return;
 		}
-		$store = new UserOptionsStore($this->config, $this->logger);
+		$store = new UserOptionsStore($this->config);
 		$store->for_user($userId, $this->optGlobal, $this->optStorage);
 		if ($this->policy instanceof WritePolicyInterface) {
 			$store->with_policy($this->policy);

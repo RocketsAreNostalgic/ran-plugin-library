@@ -22,8 +22,7 @@ class ConfigAbstractHydrator extends ConfigAbstract {
 	 * Mirrors production semantics (typed-first): no writes.
 	 */
 	public function options(?\Ran\PluginLib\Options\Storage\StorageContext $context = null, bool $autoload = true): \Ran\PluginLib\Options\RegisterOptions {
-		$opts = new \Ran\PluginLib\Options\RegisterOptions($this->get_options_key(), $context, $autoload);
-		return $opts->with_logger($this->get_logger());
+		return new \Ran\PluginLib\Options\RegisterOptions($this->get_options_key(), $context, $autoload, $this->get_logger());
 	}
 }
 

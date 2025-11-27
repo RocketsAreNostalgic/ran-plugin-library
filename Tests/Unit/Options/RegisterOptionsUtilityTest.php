@@ -443,29 +443,7 @@ final class RegisterOptionsUtilityTest extends PluginLibTestCase {
 
 	/**
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::__construct
-	 * @covers \Ran\PluginLib\Options\RegisterOptions::with_logger
-	 */
-	public function test_with_logger_sets_logger_instance(): void {
-		// Create a mock logger
-		$mockLogger = $this->getMockBuilder(\Ran\PluginLib\Util\Logger::class)
-			->disableOriginalConstructor()
-			->getMock();
-
-		// Construct without DI to exercise with_logger() behavior explicitly
-		$opts   = RegisterOptions::site('test_options');
-		$result = $opts->with_logger($mockLogger);
-
-		// Should return self for fluent interface
-		$this->assertSame($opts, $result);
-
-		// Logger should be set (we can't easily verify this without reflection, but the method should complete without error)
-		$this->assertInstanceOf(RegisterOptions::class, $opts);
-	}
-
-	/**
-	 * @covers \Ran\PluginLib\Options\RegisterOptions::__construct
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::with_policy
-	 * @covers \Ran\PluginLib\Options\RegisterOptions::with_logger
 	 */
 	public function test_fluent_interface_method_chaining(): void {
 		// Create mock objects

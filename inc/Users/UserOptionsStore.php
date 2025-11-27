@@ -10,7 +10,6 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\Users;
 
-use Ran\PluginLib\Util\Logger;
 use Ran\PluginLib\Config\ConfigInterface;
 use Ran\PluginLib\Options\RegisterOptions;
 use Ran\PluginLib\Options\Entity\UserEntity;
@@ -21,11 +20,9 @@ final class UserOptionsStore implements UserOptionsStoreInterface {
 	private ConfigInterface $config;
 	private ?RegisterOptions $opts = null;
 	private ?UserEntity $entity    = null;
-	private ?Logger $logger        = null;
 
-	public function __construct(ConfigInterface $config, ?Logger $logger = null) {
+	public function __construct(ConfigInterface $config) {
 		$this->config = $config;
-		$this->logger = $logger;
 	}
 
 	public function for_user(int $userId, bool $global = false, string $storage = 'meta'): self {
@@ -80,11 +77,9 @@ final class UserOptionsStore implements UserOptionsStoreInterface {
 		if (!($this->entity instanceof UserEntity)) {
 			throw new \InvalidArgumentException('UserOptionsStore: call for_user() before use.');
 		}
+		// Config::options() already injects the logger via constructor DI
 		$this->opts = $this->config->options(
 			StorageContext::forUser($this->entity->id, $this->entity->storage, $this->entity->global)
 		);
-		if ($this->logger instanceof Logger) {
-			$this->opts = $this->opts->with_logger($this->logger);
-		}
 	}
 }

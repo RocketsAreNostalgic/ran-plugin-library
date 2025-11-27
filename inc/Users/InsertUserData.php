@@ -54,7 +54,7 @@ final class InsertUserData extends InsertUserDataAbstract implements InsertUserD
 				$global  = (bool) ($user_data['global'] ?? false);
 				$storage = is_string($user_data['storage'] ?? null) ? (string) $user_data['storage'] : 'meta';
 
-				$repo = new UserOptionsStore($this->config, $this->logger);
+				$repo = new UserOptionsStore($this->config);
 				$repo->for_user($userId, $global, $storage);
 				if ($this->policy instanceof WritePolicyInterface) {
 					$repo->with_policy($this->policy);

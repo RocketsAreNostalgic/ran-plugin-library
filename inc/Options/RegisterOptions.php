@@ -398,17 +398,6 @@ class RegisterOptions {
 		return $notices;
 	}
 
-	/**
-	 * Fluent setter: Configure logger instance.
-	 *
-	 * @deprecated pass logger to constructor instead.
-	 * @param Logger $logger Logger instance
-	 * @return static
-	 */
-	public function with_logger(Logger $logger): static {
-		$this->logger = $logger;
-		return $this;
-	}
 
 	/**
 	 * Fluent alias of register_schema(); returns $this for chaining.
