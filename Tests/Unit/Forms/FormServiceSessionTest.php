@@ -480,21 +480,25 @@ class FormsServiceSessionTest extends TestCase {
 			component_type: 'layout_wrapper'
 		);
 
-		// Set up expectations
+		// Set up expectations using callback pattern (replaces deprecated withConsecutive)
 		/** @var ComponentManifest&MockObject $manifest */
-		$manifest = $this->manifest;
+		$manifest        = $this->manifest;
+		$invocationCount = 0;
+		$expectedCalls   = array(
+			array('admin.field-wrapper', array('field_id' => 'regular-field'), $regular_field_result),
+			array('special.field-wrapper', array('field_id' => 'special-field'), $special_field_result),
+			array('custom.section-wrapper', array('section_id' => 'any-section'), $section_result),
+		);
 		$manifest->expects($this->exactly(3))
 			->method('render')
-			->withConsecutive(
-				array('admin.field-wrapper', array('field_id' => 'regular-field')),
-				array('special.field-wrapper', array('field_id' => 'special-field')),
-				array('custom.section-wrapper', array('section_id' => 'any-section'))
-			)
-			->willReturnOnConsecutiveCalls(
-				$regular_field_result,
-				$special_field_result,
-				$section_result
-			);
+			->willReturnCallback(function ($component, $context) use (&$invocationCount, $expectedCalls) {
+				$expected = $expectedCalls[$invocationCount];
+				$this->assertSame($expected[0], $component, "Call {$invocationCount}: component mismatch");
+				$this->assertSame($expected[1], $context, "Call {$invocationCount}: context mismatch");
+				$result = $expected[2];
+				$invocationCount++;
+				return $result;
+			});
 
 		/** @var FormsAssets&MockObject $assets */
 		$assets = $this->assets;
