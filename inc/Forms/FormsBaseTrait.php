@@ -1611,13 +1611,15 @@ trait FormsBaseTrait {
 			(string) ($storage->user_id ?? ''),
 			(string) ($storage->user_storage ?? ''),
 			(string) ($storage->user_global ?? ''),
-			isset($context['intent']) ? (string) $context['intent'] : '',
 			isset($context['page_slug']) ? (string) $context['page_slug'] : '',
 		);
 		$cacheKey = implode('|', $cacheKeyParts);
 
 		if (isset($this->__schema_bundle_cache[$cacheKey])) {
-			$this->logger->debug('forms.schema_bundle.cache_hit', array('key' => $cacheKey));
+			$this->logger->debug('forms.schema_bundle.cache_hit', array(
+				'key'    => $cacheKey,
+				'intent' => $context['intent'] ?? 'none',
+			));
 			return $this->__schema_bundle_cache[$cacheKey];
 		}
 
