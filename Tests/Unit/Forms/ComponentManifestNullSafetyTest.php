@@ -15,6 +15,7 @@ use Ran\PluginLib\Util\ExpectLogTrait;
 use Ran\PluginLib\Tests\Unit\PluginLibTestCase;
 use Ran\PluginLib\Forms\Component\ComponentManifest;
 use Ran\PluginLib\Forms\Component\ComponentLoader;
+use Ran\PluginLib\Forms\Component\Cache\ComponentCacheService;
 
 class ComponentManifestNullSafetyTest extends PluginLibTestCase {
 	use ExpectLogTrait;
@@ -42,6 +43,7 @@ class ComponentManifestNullSafetyTest extends PluginLibTestCase {
 		$this->loader->shouldReceive('resolve_builder_class')->andReturn(null);
 		$this->loader->shouldReceive('resolve_validator_class')->andReturn(null);
 		$this->loader->shouldReceive('resolve_sanitizer_class')->andReturn(null);
+		$this->loader->shouldReceive('get_cache_service')->andReturn(new ComponentCacheService($this->logger_mock));
 
 		WP_Mock::userFunction('get_transient')->andReturnUsing(static function (string $key) use ($instance) {
 			return $instance->cachedMetadata[$key] ?? false;

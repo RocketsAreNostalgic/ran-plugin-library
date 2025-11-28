@@ -18,6 +18,7 @@ use Ran\PluginLib\Forms\FormsServiceSession;
 use Ran\PluginLib\Forms\FormsAssets;
 use Ran\PluginLib\Forms\Component\ComponentManifest;
 use Ran\PluginLib\Forms\Component\ComponentLoader;
+use Ran\PluginLib\Forms\Component\Cache\ComponentCacheService;
 use Mockery\MockInterface;
 use Mockery;
 
@@ -34,6 +35,7 @@ final class ComponentManifestDefaultsTest extends PluginLibTestCase {
 
 		$this->loader = Mockery::mock(ComponentLoader::class);
 		$this->loader->shouldReceive('register')->zeroOrMoreTimes();
+		$this->loader->shouldReceive('get_cache_service')->andReturn(new ComponentCacheService($this->logger_mock));
 
 		$this->cachedMetadata = array();
 
@@ -164,8 +166,8 @@ final class ComponentManifestDefaultsTest extends PluginLibTestCase {
 			),
 			$this->cachedMetadata[$cacheKey]['defaults'] ?? null
 		);
-		$this->expectLog('debug', 'ComponentManifest: Cache MISS for component');
-		$this->expectLog('debug', 'ComponentManifest: Cached component metadata');
+		// Logging now happens in ComponentCacheService
+		$this->expectLog('debug', 'ComponentCacheService: Cached value');
 
 		$this->resetLogs();
 		$secondManifest = new ComponentManifest($this->loader, $this->logger_mock);
@@ -175,7 +177,8 @@ final class ComponentManifestDefaultsTest extends PluginLibTestCase {
 			),
 			$secondManifest->get_defaults_for('cached.component')
 		);
-		$this->expectLog('debug', 'ComponentManifest: Cache HIT for component');
+		// Logging now happens in ComponentCacheService
+		$this->expectLog('debug', 'ComponentCacheService: Cache HIT');
 	}
 
 	/**

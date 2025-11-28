@@ -14,6 +14,7 @@ use Ran\PluginLib\Tests\Unit\PluginLibTestCase;
 use Ran\PluginLib\Forms\Component\ComponentManifest;
 use Ran\PluginLib\Forms\Component\ComponentLoader;
 use Ran\PluginLib\Forms\Component\CacheManager;
+use Ran\PluginLib\Forms\Component\Cache\ComponentCacheService;
 use Mockery;
 
 /**
@@ -522,5 +523,6 @@ class ComponentCachingFunctionalityTest extends PluginLibTestCase {
 		$this->loader->shouldReceive('resolve_builder_class')->andReturn(null);
 		$this->loader->shouldReceive('resolve_validator_class')->andReturn(null);
 		$this->loader->shouldReceive('resolve_sanitizer_class')->andReturn(null);
+		$this->loader->shouldReceive('get_cache_service')->andReturn(new ComponentCacheService($this->logger_mock));
 	}
 }

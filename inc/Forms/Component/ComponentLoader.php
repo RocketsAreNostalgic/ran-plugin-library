@@ -13,6 +13,7 @@ use RecursiveIteratorIterator;
 use RecursiveDirectoryIterator;
 use Ran\PluginLib\Util\WPWrappersTrait;
 use Ran\PluginLib\Util\Logger;
+use Ran\PluginLib\Forms\Component\Cache\ComponentCacheService;
 use FilesystemIterator;
 
 class ComponentLoader {
@@ -22,11 +23,8 @@ class ComponentLoader {
 	private array $map = array();
 	private string $baseDir;
 
-	/** @var int Cache TTL in seconds */
-	private int $cacheTTL;
-
-	/** @var bool Whether caching is enabled */
-	private bool $cachingEnabled;
+	/** @var ComponentCacheService Shared caching service */
+	private ComponentCacheService $cacheService;
 
 	/** @var Logger|null Logger instance for cache operations */
 	private ?Logger $logger;
@@ -37,18 +35,18 @@ class ComponentLoader {
 	 * @param string $baseDir
 	 * @param Logger $logger Logger for cache operations
 	 * @param array<string,string> $map
+	 * @param ComponentCacheService|null $cacheService Optional shared cache service
 	 */
-	public function __construct(string $baseDir, Logger $logger, array $map = array()) {
+	public function __construct(string $baseDir, Logger $logger, array $map = array(), ?ComponentCacheService $cacheService = null) {
 		$this->baseDir = rtrim($baseDir, '/');
 
 		$discovered = $this->_default_map();
 		$legacy     = $this->_legacy_aliases();
 		$overrides  = $this->_normalize_map($map);
 
-		$this->map            = array_merge($discovered, $legacy, $overrides);
-		$this->cachingEnabled = $this->_should_use_cache();
-		$this->cacheTTL       = $this->_get_cache_ttl();
-		$this->logger         = $logger;
+		$this->map          = array_merge($discovered, $legacy, $overrides);
+		$this->logger       = $logger;
+		$this->cacheService = $cacheService ?? new ComponentCacheService($logger);
 	}
 
 	/**
@@ -85,39 +83,21 @@ class ComponentLoader {
 	 */
 	public function render(string $name, array $context = array()): ComponentRenderResult {
 		// Skip cache entirely in development or when disabled
-		if (!$this->cachingEnabled) {
+		if (!$this->cacheService->is_enabled()) {
 			return $this->_render_template_directly($name, $context);
 		}
 
 		// Generate optimized cache key with collision avoidance
-		$cache_key     = $this->_generate_template_cache_key($name, $context);
-		$cached_output = $this->_do_get_transient($cache_key);
+		$cache_key     = $this->cacheService->generate_template_key($name, $context);
+		$cached_output = $this->cacheService->get($cache_key);
 
 		if ($cached_output !== false) {
-			$this->logger?->debug('ComponentLoader: Cache HIT for template', array(
-				'template'  => $name,
-				'cache_key' => $cache_key
-			));
 			return $this->_coerce_to_result($cached_output, $name, $context);
 		}
 
 		// Cache miss - render and cache
-		$this->logger?->debug('ComponentLoader: Cache MISS for template', array(
-			'template'  => $name,
-			'cache_key' => $cache_key
-		));
-
 		$output = $this->_render_template_directly($name, $context);
-		$this->_do_set_transient($cache_key, $output, $this->cacheTTL);
-
-		// Track transient for cleanup
-		$this->_track_template_transient($cache_key);
-
-		$this->logger?->info('ComponentLoader: Cached template', array(
-			'template'  => $name,
-			'cache_key' => $cache_key,
-			'ttl'       => $this->cacheTTL
-		));
+		$this->cacheService->set($cache_key, $output, ComponentCacheService::PREFIX_TEMPLATE);
 
 		return $output;
 	}
@@ -452,166 +432,25 @@ class ComponentLoader {
 	}
 
 	/**
-	 * Determine if caching should be used.
-	 *
-	 * @return bool
-	 */
-	private function _should_use_cache(): bool {
-		// Explicit disable via constant
-		if (\defined('KEPLER_COMPONENT_CACHE_DISABLED') && (bool) \constant('KEPLER_COMPONENT_CACHE_DISABLED')) {
-			return false;
-		}
-
-		// Disable in development mode (WP_DEBUG) for immediate feedback
-		if (\defined('WP_DEBUG') && \WP_DEBUG) {
-			return false;
-		}
-
-		return true;
-	}
-
-	/**
-	 * Get cache TTL in seconds.
-	 *
-	 * @return int
-	 */
-	private function _get_cache_ttl(): int {
-		// Allow override via constant
-		if (\defined('KEPLER_COMPONENT_CACHE_TTL')) {
-			return \max(300, (int) \constant('KEPLER_COMPONENT_CACHE_TTL')); // Minimum 5 minutes
-		}
-
-		// Default to 1 hour
-		return 3600;
-	}
-
-	/**
-	 * Generate optimized cache key with collision avoidance.
-	 *
-	 * @param string $name Template name
-	 * @param array<string,mixed> $context Template context
-	 * @return string Optimized cache key
-	 */
-	private function _generate_template_cache_key(string $name, array $context): string {
-		// Filter out non-serializable data (Closures, resources, etc.)
-		$serializable_context = $this->_filter_serializable_context($context);
-		$context_hash         = empty($serializable_context) ? 'empty' : hash('crc32b', serialize($serializable_context));
-		$sanitized_name       = preg_replace('/[^a-zA-Z0-9._-]/', '_', $name);
-
-		// Prefix with kepler_tpl_ to avoid collisions with other plugins
-		return "kepler_tpl_{$sanitized_name}_{$context_hash}";
-	}
-
-	/**
-	 * Filter context array to remove non-serializable values.
-	 *
-	 * @param array<string,mixed> $context Template context
-	 * @return array<string,mixed> Filtered context with only serializable values
-	 */
-	private function _filter_serializable_context(array $context): array {
-		$filtered = array();
-		foreach ($context as $key => $value) {
-			// Skip Closures and other callables
-			if (is_callable($value) || ($value instanceof \Closure)) {
-				continue;
-			}
-
-			// Skip resources
-			if (is_resource($value)) {
-				continue;
-			}
-
-			// Recursively filter nested arrays
-			if (is_array($value)) {
-				$filtered[$key] = $this->_filter_serializable_context($value);
-			} else {
-				$filtered[$key] = $value;
-			}
-		}
-		return $filtered;
-	}
-
-	/**
-	 * Track template transient for cleanup.
-	 *
-	 * @param string $transient_key
-	 */
-	private function _track_template_transient(string $transient_key): void {
-		$active_transients = $this->_do_get_option('template_cache_transients', array());
-
-		// Ensure we have an array (handle case where _do_get_option returns null)
-		if (!is_array($active_transients)) {
-			$active_transients = array();
-		}
-
-		if (!in_array($transient_key, $active_transients, true)) {
-			$active_transients[] = $transient_key;
-			$this->_do_update_option('template_cache_transients', $active_transients, false);
-		}
-	}
-
-	/**
 	 * Clear template cache.
 	 *
 	 * @param string|null $name Optional template name to clear specific template cache
 	 */
 	public function clear_template_cache(?string $name = null): void {
 		if ($name) {
-			// Clear specific template (all contexts)
-			$this->logger?->debug('ComponentLoader: CLEARING cache for template', array('template' => $name));
-			$this->_clear_template_transients_by_name($name);
+			$this->cacheService->clear_by_name($name, ComponentCacheService::PREFIX_TEMPLATE);
 		} else {
-			// Clear all template caches
-			$this->logger?->debug('ComponentLoader: CLEARING all template caches');
-			$this->_clear_all_template_transients();
+			$this->cacheService->clear_all(ComponentCacheService::PREFIX_TEMPLATE);
 		}
 	}
 
 	/**
-	 * Clear template transients by name pattern.
+	 * Get the cache service instance.
 	 *
-	 * @param string $name
+	 * @return ComponentCacheService
 	 */
-	private function _clear_template_transients_by_name(string $name): void {
-		// Clear all transients that match this template name
-		$active_transients = $this->_do_get_option('template_cache_transients', array());
-		$sanitized_name    = preg_replace('/[^a-zA-Z0-9._-]/', '_', $name);
-		$prefix            = "kepler_tpl_{$sanitized_name}_";
-		$cleared_count     = 0;
-
-		foreach ($active_transients as $key => $transient_key) {
-			if (strpos($transient_key, $prefix) === 0) {
-				$this->_do_delete_transient($transient_key);
-				unset($active_transients[$key]);
-				$cleared_count++;
-			}
-		}
-
-		$this->_do_update_option('template_cache_transients', array_values($active_transients), false);
-
-		$this->logger?->info('ComponentLoader: Cleared cache entries for template', array(
-			'template'      => $name,
-			'cleared_count' => $cleared_count
-		));
-	}
-
-	/**
-	 * Clear all template transients.
-	 */
-	private function _clear_all_template_transients(): void {
-		$active_transients = $this->_do_get_option('template_cache_transients', array());
-		$cleared_count     = 0;
-
-		foreach ($active_transients as $transient_key) {
-			$this->_do_delete_transient($transient_key);
-			$cleared_count++;
-		}
-
-		$this->_do_delete_option('template_cache_transients');
-
-		$this->logger?->info('ComponentLoader: Cleared all template cache entries', array(
-			'cleared_count' => $cleared_count
-		));
+	public function get_cache_service(): ComponentCacheService {
+		return $this->cacheService;
 	}
 
 	/**

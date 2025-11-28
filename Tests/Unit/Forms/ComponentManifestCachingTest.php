@@ -10,6 +10,7 @@ use WP_Mock;
 use Ran\PluginLib\Tests\Unit\PluginLibTestCase;
 use Ran\PluginLib\Forms\Component\ComponentManifest;
 use Ran\PluginLib\Forms\Component\ComponentLoader;
+use Ran\PluginLib\Forms\Component\Cache\ComponentCacheService;
 use Ran\PluginLib\Util\ExpectLogTrait;
 
 /**
@@ -41,6 +42,7 @@ class ComponentManifestCachingTest extends PluginLibTestCase {
 		$this->loader->shouldReceive('resolve_builder_class')->andReturn(null);
 		$this->loader->shouldReceive('resolve_validator_class')->andReturn(null);
 		$this->loader->shouldReceive('resolve_sanitizer_class')->andReturn(null);
+		$this->loader->shouldReceive('get_cache_service')->andReturn(new ComponentCacheService($this->logger_mock));
 
 		WP_Mock::userFunction('get_transient')->andReturnUsing(static function (string $key) use ($instance) {
 			return $instance->cachedMetadata[$key] ?? false;
@@ -68,10 +70,10 @@ class ComponentManifestCachingTest extends PluginLibTestCase {
 		$this->resetLogs();
 		$manifest = $this->createManifest();
 
+		// Verify metadata was cached
 		self::assertArrayHasKey('kepler_comp_meta_example-component', $this->cachedMetadata);
-		$this->expectLog('debug', 'ComponentManifest: Cache MISS for component');
-		$this->expectLog('debug', 'ComponentManifest: Cached component metadata');
-		$this->expectLog('debug', 'ComponentManifest: Cache HIT for component', 0);
+		// Logging now happens in ComponentCacheService
+		$this->expectLog('debug', 'ComponentCacheService: Cached value');
 	}
 
 	public function test_register_alias_reads_from_cache_and_logs_hit(): void {
@@ -83,8 +85,8 @@ class ComponentManifestCachingTest extends PluginLibTestCase {
 		$this->resetLogs();
 		$this->createManifest();
 
-		$this->expectLog('debug', 'ComponentManifest: Cache HIT for component');
-		$this->expectLog('debug', 'ComponentManifest: Cache MISS for component', 0);
+		// Logging now happens in ComponentCacheService
+		$this->expectLog('debug', 'ComponentCacheService: Cache HIT');
 	}
 
 	public function test_clear_cache_logs_and_removes_entries(): void {
@@ -98,11 +100,12 @@ class ComponentManifestCachingTest extends PluginLibTestCase {
 		$manifest->clear_cache('demo-component');
 
 		self::assertArrayNotHasKey('kepler_comp_meta_demo-component', $this->cachedMetadata);
-		$this->expectLog('debug', 'ComponentManifest: CLEARED cache for component');
+		// Logging now happens in ComponentCacheService
+		$this->expectLog('debug', 'ComponentCacheService: Deleted cache entry');
 
 		$this->resetLogs();
 		$manifest->clear_cache();
-		$this->expectLog('debug', 'ComponentManifest: CLEARED all component caches');
+		$this->expectLog('info', 'ComponentCacheService: Cleared all cache entries');
 	}
 
 	/**

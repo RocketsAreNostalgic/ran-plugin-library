@@ -16,6 +16,7 @@ use Ran\PluginLib\Forms\Component\Sanitize\SanitizerInterface;
 use Ran\PluginLib\Forms\Component\Normalize\NormalizeInterface;
 use Ran\PluginLib\Forms\Component\Normalize\ComponentNormalizationContext;
 use Ran\PluginLib\Forms\Component\Build\ComponentBuilderDefinitionInterface;
+use Ran\PluginLib\Forms\Component\Cache\ComponentCacheService;
 
 class ComponentManifest {
 	use WPWrappersTrait;
@@ -26,10 +27,8 @@ class ComponentManifest {
 	/** @var array<string,array{normalizer:?string,builder:?string,validator:?string,sanitizer:?string,defaults?:array{sanitize?:array<int,string>,validate?:array<int,string>,context?:array{component_type:string,repeatable:bool}}}> */
 	private array $componentMetadata = array();
 	private ComponentNormalizationContext $helpers;
-	/** @var int Cache TTL in seconds */
-	private int $cacheTTL;
-	/** @var bool Whether caching is enabled */
-	private bool $cachingEnabled;
+	/** @var ComponentCacheService Shared caching service */
+	private ComponentCacheService $cacheService;
 
 	/**
 	 * Memoized validator factory map.
@@ -59,11 +58,17 @@ class ComponentManifest {
 	 */
 	private array $sanitizerInstances = array();
 
-	public function __construct(private ComponentLoader $views, private Logger $logger) {
-		$this->logger         = $logger;
-		$this->helpers        = new ComponentNormalizationContext($this->logger);
-		$this->cachingEnabled = $this->_should_use_cache();
-		$this->cacheTTL       = $this->_get_cache_ttl();
+	/**
+	 * Constructor.
+	 *
+	 * @param ComponentLoader $views Component loader instance
+	 * @param Logger $logger Logger for operations
+	 * @param ComponentCacheService|null $cacheService Optional shared cache service
+	 */
+	public function __construct(private ComponentLoader $views, private Logger $logger, ?ComponentCacheService $cacheService = null) {
+		$this->logger       = $logger;
+		$this->helpers      = new ComponentNormalizationContext($this->logger);
+		$this->cacheService = $cacheService ?? $views->get_cache_service();
 
 		$this->_discover();
 		$this->_register_defaults();
@@ -343,23 +348,23 @@ class ComponentManifest {
 	public function clear_cache(string $alias = ''): void {
 		if ($alias !== '') {
 			// Clear specific component
-			$cache_key = $this->_generate_component_cache_key($alias);
-			$this->_do_delete_transient($cache_key);
+			$cache_key = $this->cacheService->generate_component_key($alias);
+			$this->cacheService->delete($cache_key, ComponentCacheService::PREFIX_COMPONENT);
 			unset($this->componentMetadata[$alias]);
-			$this->_remove_tracked_transient($cache_key);
-			$this->logger->debug('ComponentManifest: CLEARED cache for component', array(
-				'alias'     => $alias,
-				'cache_key' => $cache_key
-			));
 		} else {
 			// Clear all component caches
-			$component_count         = count($this->componentMetadata);
 			$this->componentMetadata = array();
-			$this->_clear_all_component_transients();
-			$this->logger->debug('ComponentManifest: CLEARED all component caches', array(
-				'cleared_count' => $component_count
-			));
+			$this->cacheService->clear_all(ComponentCacheService::PREFIX_COMPONENT);
 		}
+	}
+
+	/**
+	 * Get the cache service instance.
+	 *
+	 * @return ComponentCacheService
+	 */
+	public function get_cache_service(): ComponentCacheService {
+		return $this->cacheService;
 	}
 
 	/**
@@ -406,39 +411,24 @@ class ComponentManifest {
 	 */
 	private function _register_alias(string $alias): void {
 		// Skip cache entirely in development or when disabled
-		if (!$this->cachingEnabled) {
+		if (!$this->cacheService->is_enabled()) {
 			$this->_discover_component_metadata($alias);
 			return;
 		}
 
 		// Try cache first (staging/production only)
-		$cache_key   = $this->_generate_component_cache_key($alias);
-		$cached_meta = $this->_do_get_transient($cache_key);
+		$cache_key   = $this->cacheService->generate_component_key($alias);
+		$cached_meta = $this->cacheService->get($cache_key);
 
 		if ($cached_meta !== false) {
 			$this->componentMetadata[$alias] = $cached_meta;
-			$this->logger->debug('ComponentManifest: Cache HIT for component', array(
-				'alias'     => $alias,
-				'cache_key' => $cache_key
-			));
 			return;
 		}
 
 		// Cache miss - discover and cache
-		$this->logger->debug('ComponentManifest: Cache MISS for component', array(
-			'alias'     => $alias,
-			'cache_key' => $cache_key
-		));
-
 		$this->_discover_component_metadata($alias);
 		if (isset($this->componentMetadata[$alias])) {
-			$this->_do_set_transient($cache_key, $this->componentMetadata[$alias], $this->cacheTTL);
-			$this->_track_transient($cache_key);
-			$this->logger->debug('ComponentManifest: Cached component metadata', array(
-				'alias'     => $alias,
-				'cache_key' => $cache_key,
-				'ttl'       => $this->cacheTTL
-			));
+			$this->cacheService->set($cache_key, $this->componentMetadata[$alias], ComponentCacheService::PREFIX_COMPONENT);
 		}
 	}
 
@@ -650,109 +640,6 @@ class ComponentManifest {
 		return $this->views;
 	}
 
-	/**
-	 * Determine if caching should be used.
-	 *
-	 * @return bool
-	 */
-	private function _should_use_cache(): bool {
-		// Explicit disable via constant
-		if (\defined('KEPLER_COMPONENT_CACHE_DISABLED') && (bool) \constant('KEPLER_COMPONENT_CACHE_DISABLED')) {
-			return false;
-		}
-
-		// Disable in development mode (WP_DEBUG) for immediate feedback
-		if (\defined('WP_DEBUG') && \WP_DEBUG) {
-			return false;
-		}
-
-		return true;
-	}
-
-	/**
-	 * Get cache TTL with environment-based defaults.
-	 *
-	 * @return int TTL in seconds
-	 */
-	private function _get_cache_ttl(): int {
-		// Allow override via constant
-		if (\defined('KEPLER_COMPONENT_CACHE_TTL')) {
-			return \max(300, (int) \constant('KEPLER_COMPONENT_CACHE_TTL')); // Minimum 5 minutes
-		}
-
-		// Environment-based defaults
-		$environment = $this->_do_wp_get_environment_type();
-		switch ($environment) {
-			case 'development':
-				return 300; // 5 minutes
-			case 'staging':
-				return 1800; // 30 minutes
-			default:
-				return 3600; // 1 hour (production)
-		}
-	}
-
-	/**
-	 * Generate optimized cache key for component metadata with collision avoidance.
-	 *
-	 * @param string $alias Component alias
-	 * @return string Optimized cache key
-	 */
-	private function _generate_component_cache_key(string $alias): string {
-		// Sanitize alias and add prefix to avoid collisions
-		$sanitized_alias = preg_replace('/[^a-zA-Z0-9._-]/', '_', $alias);
-		return "kepler_comp_meta_{$sanitized_alias}";
-	}
-
-	/**
-	 * Track transient for cleanup purposes.
-	 *
-	 * @param string $transient_key
-	 */
-	private function _track_transient(string $transient_key): void {
-		$active_transients = $this->_do_get_option('component_cache_transients', array());
-
-		// Ensure we have an array (handle case where _do_get_option returns null)
-		if (!is_array($active_transients)) {
-			$active_transients = array();
-		}
-
-		if (!\in_array($transient_key, $active_transients, true)) {
-			$active_transients[] = $transient_key;
-			$this->_do_update_option('component_cache_transients', $active_transients, false);
-		}
-	}
-
-	/**
-	 * Remove tracked transient from cleanup list.
-	 *
-	 * @param string $transient_key
-	 */
-	private function _remove_tracked_transient(string $transient_key): void {
-		$active_transients = $this->_do_get_option('component_cache_transients', array());
-		$key               = \array_search($transient_key, $active_transients, true);
-		if ($key !== false) {
-			unset($active_transients[$key]);
-			$this->_do_update_option('component_cache_transients', \array_values($active_transients), false);
-		}
-	}
-
-	/**
-	 * Clear all component transients using tracked transient list.
-	 */
-	private function _clear_all_component_transients(): void {
-		$active_transients = $this->_do_get_option('component_cache_transients', array());
-		$cleared_count     = 0;
-
-		foreach ($active_transients as $transient_key) {
-			if ($this->_do_delete_transient($transient_key)) {
-				$cleared_count++;
-			}
-		}
-
-		$this->_do_delete_option('component_cache_transients');
-		$this->logger->debug('ComponentManifest: Cleared component transients', array('count' => $cleared_count));
-	}
 	/**
 	 * Validate template key format
 	 *

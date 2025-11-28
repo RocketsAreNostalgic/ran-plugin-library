@@ -16,6 +16,7 @@ use Ran\PluginLib\Forms\Component\Normalize\NormalizeInterface;
 use Ran\PluginLib\Forms\Component\ComponentRenderResult;
 use Ran\PluginLib\Forms\Component\ComponentManifest;
 use Ran\PluginLib\Forms\Component\ComponentLoader;
+use Ran\PluginLib\Forms\Component\Cache\ComponentCacheService;
 use Mockery;
 
 /**
@@ -51,6 +52,7 @@ class ComponentManifestCacheIntegrationTest extends PluginLibTestCase {
 		$this->loader->shouldReceive('resolve_builder_class')->andReturn(null);
 		$this->loader->shouldReceive('resolve_validator_class')->andReturn(null);
 		$this->loader->shouldReceive('resolve_sanitizer_class')->andReturn(null);
+		$this->loader->shouldReceive('get_cache_service')->andReturn(new ComponentCacheService($this->logger_mock));
 
 		// Test with caching enabled (production)
 		WP_Mock::userFunction('wp_get_environment_type')->andReturn('production');
@@ -274,5 +276,6 @@ class ComponentManifestCacheIntegrationTest extends PluginLibTestCase {
 		$this->loader->shouldReceive('resolve_builder_class')->andReturn(null);
 		$this->loader->shouldReceive('resolve_validator_class')->andReturn(null);
 		$this->loader->shouldReceive('resolve_sanitizer_class')->andReturn(null);
+		$this->loader->shouldReceive('get_cache_service')->andReturn(new ComponentCacheService($this->logger_mock));
 	}
 }

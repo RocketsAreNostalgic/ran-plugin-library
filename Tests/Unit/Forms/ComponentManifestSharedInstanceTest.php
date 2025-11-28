@@ -18,6 +18,7 @@ use Ran\PluginLib\Options\Storage\StorageContext;
 use Ran\PluginLib\Options\RegisterOptions;
 use Ran\PluginLib\Forms\Component\ComponentManifest;
 use Ran\PluginLib\Forms\Component\ComponentLoader;
+use Ran\PluginLib\Forms\Component\Cache\ComponentCacheService;
 use Mockery;
 
 class ComponentManifestSharedInstanceTest extends PluginLibTestCase {
@@ -58,6 +59,7 @@ class ComponentManifestSharedInstanceTest extends PluginLibTestCase {
 		$this->loader = Mockery::mock(ComponentLoader::class);
 		$this->loader->shouldReceive('aliases')->andReturn(array());
 		$this->loader->shouldReceive('register')->zeroOrMoreTimes();
+		$this->loader->shouldReceive('get_cache_service')->andReturn(new ComponentCacheService($this->logger_mock));
 
 		$this->logger_mock->collected_logs = array();
 		$this->manifest                    = new ComponentManifest($this->loader, $this->logger_mock);
