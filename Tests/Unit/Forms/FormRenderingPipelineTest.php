@@ -327,9 +327,9 @@ class FormRenderingPipelineTest extends PluginLibTestCase {
 		$this->assertEquals(array('Field updated successfully'), $context['display_notices']);
 		$this->assertEquals('A complex field with multiple assets', $context['description']);
 		$this->assertTrue($context['required']);
-		$this->assertArrayHasKey('component_context', $context);
-		$this->assertSame('Enter complex value...', $context['component_context']['placeholder'] ?? null);
-		$this->assertSame(255, $context['component_context']['max_length'] ?? null);
+		// component_context is now flattened into top-level context
+		$this->assertSame('Enter complex value...', $context['placeholder'] ?? null);
+		$this->assertSame(255, $context['max_length'] ?? null);
 
 		// Step 2: Component Rendering - Render field component
 		$html = $renderer->render_field_component(

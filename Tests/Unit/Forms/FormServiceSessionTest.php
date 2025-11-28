@@ -406,12 +406,10 @@ class FormsServiceSessionTest extends TestCase {
 		$field_id          = 'example-field';
 		$label             = 'Example Field';
 		$additionalContext = array('data' => 'value');
-		$values            = array('foo' => 'bar');
 
 		$expectedContext = array_merge($additionalContext, array(
-		    '_field_id' => $field_id,
-		    '_label'    => $label,
-		    '_values'   => $values,
+		    'field_id' => $field_id,
+		    'label'    => $label,
 		));
 
 		$render_result = new ComponentRenderResult(
@@ -432,7 +430,7 @@ class FormsServiceSessionTest extends TestCase {
 			->method('ingest')
 			->with($render_result);
 
-		$result = $this->session->render_field_component($component, $field_id, $label, $additionalContext, $values);
+		$result = $this->session->render_field_component($component, $field_id, $label, $additionalContext);
 
 		$this->assertSame('<div>Rendered</div>', $result);
 	}
