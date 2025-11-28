@@ -197,22 +197,19 @@ class FormsTemplateOverrideResolver {
 		// TIER 1: Form-wide Defaults (Final Priority)
 		// This replaces BOTH "class instance defaults" AND "system defaults" from FormsBaseTrait
 		// for a simplified two-tier system
+		// Note: No logging here - this is the expected/common path. Only log overrides and fallbacks.
 		if (isset($this->form_defaults[$template_type])) {
-			$this->logger->debug('FormsTemplateOverrideResolver: Template resolved via Tier 1 - form-wide default', array(
-				'template_type' => $template_type,
-				'template'      => $this->form_defaults[$template_type],
-				'tier'          => 'Tier 1 - Form-wide Default'
-			));
 			return $this->form_defaults[$template_type];
 		}
 
 		// EMERGENCY FALLBACK: If no form-wide default is set, use system fallback
 		// This should rarely be used if form classes properly configure form_defaults
+		// Log as WARNING since this indicates potential misconfiguration
 		$system_fallback = $this->get_system_fallback_template($template_type);
-		$this->logger->debug('FormsTemplateOverrideResolver: Template resolved via emergency fallback', array(
+		$this->logger->warning('FormsTemplateOverrideResolver: Template resolved via emergency fallback (form_defaults may be misconfigured)', array(
 			'template_type' => $template_type,
 			'template'      => $system_fallback,
-			'tier'          => 'Emergency System Fallback'
+			'hint'          => 'Ensure form_defaults includes this template_type'
 		));
 		return $system_fallback;
 	}

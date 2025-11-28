@@ -449,24 +449,71 @@ class FormsTemplateOverrideResolverTest extends TestCase {
 	}
 
 	/**
-	 * Test template resolution logging
+	 * Test template resolution logging - Tier 1 (form defaults) should NOT log
+	 *
+	 * Tier 1 is the expected/common path and should not produce debug logs.
+	 * Only Tier 2 overrides and emergency fallbacks should log.
 	 */
-	public function test_template_resolution_logging(): void {
-		// Set up logger expectations for debug logging
-		$this->logger->expects($this->once())
-			->method('debug')
-			->with(
-				$this->stringContains('FormsTemplateOverrideResolver: Template resolved via Tier 1 - form-wide default'),
-				$this->callback(function($context) {
-					return isset($context['template_type']) && isset($context['template']) && isset($context['tier']) && $context['tier'] === 'Tier 1 - Form-wide Default';
-				})
-			);
+	public function test_template_resolution_tier1_no_logging(): void {
+		// Tier 1 (form defaults) should NOT produce any debug logs
+		$this->logger->expects($this->never())
+			->method('debug');
+		$this->logger->expects($this->never())
+			->method('warning');
 
 		// Set up form default and resolve
 		$this->resolver->set_form_defaults(array('field-wrapper' => 'form.field-wrapper'));
 		$resolved = $this->resolver->resolve_template('field-wrapper', array());
 
 		$this->assertEquals('form.field-wrapper', $resolved);
+	}
+
+	/**
+	 * Test template resolution logging - Tier 2 overrides SHOULD log
+	 */
+	public function test_template_resolution_tier2_logs_override(): void {
+		// Tier 2 override should produce a debug log
+		$this->logger->expects($this->once())
+			->method('debug')
+			->with(
+				$this->stringContains('FormsTemplateOverrideResolver: Template resolved via Tier 2 - field override'),
+				$this->callback(function($context) {
+					return isset($context['template_type'])
+						&& isset($context['template'])
+						&& isset($context['field_id'])
+						&& $context['field_id'] === 'special-field';
+				})
+			);
+
+		// Set up form default AND field override
+		$this->resolver->set_form_defaults(array('field-wrapper' => 'form.field-wrapper'));
+		$this->resolver->set_field_template_overrides('special-field', array(
+			'field-wrapper' => 'special.field-wrapper'
+		));
+
+		$resolved = $this->resolver->resolve_template('field-wrapper', array('field_id' => 'special-field'));
+		$this->assertEquals('special.field-wrapper', $resolved);
+	}
+
+	/**
+	 * Test template resolution logging - emergency fallback logs WARNING
+	 */
+	public function test_template_resolution_emergency_fallback_logs_warning(): void {
+		// Emergency fallback should produce a WARNING (indicates misconfiguration)
+		$this->logger->expects($this->once())
+			->method('warning')
+			->with(
+				$this->stringContains('FormsTemplateOverrideResolver: Template resolved via emergency fallback'),
+				$this->callback(function($context) {
+					return isset($context['template_type'])
+						&& isset($context['template'])
+						&& isset($context['hint']);
+				})
+			);
+
+		// Don't set form defaults - this triggers emergency fallback
+		$resolved = $this->resolver->resolve_template('field-wrapper', array());
+		$this->assertEquals('layout.field.field-wrapper', $resolved);
 	}
 
 	/**
