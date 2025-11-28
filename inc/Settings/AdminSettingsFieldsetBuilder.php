@@ -71,9 +71,9 @@ final class AdminSettingsFieldsetBuilder extends FieldsetBuilder {
 	}
 
 	/**
-	 * End the fieldset and return the parent section builder.
+	 * End the current section and return the parent page builder.
 	 *
-	 * @return AdminSettingsSectionBuilder
+	 * @return AdminSettingsPageBuilder
 	 */
 	public function end_section(): AdminSettingsPageBuilder {
 		$builder = parent::end_section();

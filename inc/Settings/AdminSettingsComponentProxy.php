@@ -6,6 +6,10 @@
  * when building AdminSettings forms. It overrides navigation methods to return Admin-specific types.
  *
  * @package Ran\PluginLib\Settings
+ *
+ * @method AdminSettingsSectionBuilder end_fieldset() End field and fieldset, returning to the section builder.
+ * @method AdminSettingsPageBuilder end_section() End field and section, returning to the page builder.
+ * @method AdminSettingsMenuGroupBuilder end_page() End field, section, and page, returning to the menu group builder.
  */
 
 declare(strict_types=1);

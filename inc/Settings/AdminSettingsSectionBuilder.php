@@ -245,17 +245,9 @@ class AdminSettingsSectionBuilder extends SectionBuilder {
 
 	/**
 	 * End the current section and return to the parent page builder.
-	 *
-	 * @return AdminSettingsPageBuilder
 	 */
 	public function end_section(): AdminSettingsPageBuilder {
-		$builder = parent::end_section();
-
-		if (!$builder instanceof AdminSettingsPageBuilder) {
-			throw new \RuntimeException('AdminSettingsSectionBuilder must be attached to an AdminSettingsPageBuilder instance.');
-		}
-
-		return $builder;
+		return $this->pageBuilder;
 	}
 
 
