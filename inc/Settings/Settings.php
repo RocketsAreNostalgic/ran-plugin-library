@@ -42,7 +42,7 @@ final class Settings implements FormsInterface {
 		if ($components instanceof ComponentManifest) {
 			$registry = $components;
 		} else {
-			$componentDir = new ComponentLoader(dirname(__DIR__) . '/Forms/Components', array(), $registryLogger);
+			$componentDir = new ComponentLoader(dirname(__DIR__) . '/Forms/Components', $registryLogger);
 			$registry     = new ComponentManifest($componentDir, $registryLogger);
 		}
 

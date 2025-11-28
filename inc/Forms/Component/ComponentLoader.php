@@ -35,10 +35,10 @@ class ComponentLoader {
 	 * Constructor.
 	 *
 	 * @param string $baseDir
+	 * @param Logger $logger Logger for cache operations
 	 * @param array<string,string> $map
-	 * @param Logger|null $logger Optional logger for cache operations
 	 */
-	public function __construct(string $baseDir, array $map = array(), ?Logger $logger = null) {
+	public function __construct(string $baseDir, Logger $logger, array $map = array()) {
 		$this->baseDir = rtrim($baseDir, '/');
 
 		$discovered = $this->_default_map();

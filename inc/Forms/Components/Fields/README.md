@@ -18,7 +18,8 @@ Each template expects a `$context` array and returns a rendered HTML string. Vie
 ## Usage
 
 ```php
-$loader = new ComponentLoader(__DIR__ . '/views');
+$logger = new \Ran\PluginLib\Util\Logger();
+$loader = new ComponentLoader(__DIR__ . '/views', $logger);
 $html   = $loader->render('fields.fields.input', array(
     'attributes'   => array(
         'name' => 'example',
