@@ -10,8 +10,8 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\Forms\Components\Fields\Checkbox;
 
-use Ran\PluginLib\Forms\Component\Sanitize\SanitizerBase;
 use Ran\PluginLib\Forms\Validation\Helpers;
+use Ran\PluginLib\Forms\Component\Sanitize\SanitizerBase;
 
 final class Sanitizer extends SanitizerBase {
 	/**

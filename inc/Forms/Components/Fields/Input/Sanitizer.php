@@ -10,10 +10,10 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\Forms\Components\Fields\Input;
 
-use Ran\PluginLib\Forms\Component\Sanitize\SanitizerBase;
 use Ran\PluginLib\Forms\Validation\Helpers;
+use Ran\PluginLib\Forms\Component\Sanitize\SanitizerBase;
 
-final class Sanitizer extends SanitizerBase {
+class Sanitizer extends SanitizerBase {
 	/**
 	 * Sanitize input value based on input type.
 	 *
@@ -90,7 +90,7 @@ final class Sanitizer extends SanitizerBase {
 			return '';
 		}
 
-		$sanitized = sanitize_email((string) $value);
+		$sanitized = \sanitize_email((string) $value);
 
 		return $sanitized !== '' ? $sanitized : '';
 	}
@@ -107,7 +107,7 @@ final class Sanitizer extends SanitizerBase {
 			return '';
 		}
 
-		return esc_url_raw((string) $value);
+		return \esc_url_raw((string) $value);
 	}
 
 	/**
@@ -127,7 +127,14 @@ final class Sanitizer extends SanitizerBase {
 		// Keep only phone-valid characters
 		$sanitized = preg_replace('/[^\d\+\-\(\)\s]/', '', (string) $value);
 
-		return $sanitized ?? '';
+		if ($sanitized === null) {
+			return '';
+		}
+
+		// Collapse repeated whitespace and trim ends
+		$sanitized = preg_replace('/\s+/', ' ', $sanitized) ?? $sanitized;
+
+		return trim($sanitized);
 	}
 
 	/**

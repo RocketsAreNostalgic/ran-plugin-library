@@ -215,6 +215,9 @@ namespace Ran\PluginLib\Forms\Components\Fields\CheckboxOption {
 			public function disabled(bool $disabled = true): self {
 				return $this;
 			}
+			public function attribute(string $key, string $value): self {
+				return $this;
+			}
 			protected function _get_component(): string {
 				return 'checkbox-option';
 			}
@@ -327,6 +330,31 @@ namespace Ran\PluginLib\Forms\Components\Fields\MediaPicker {
 	}
 }
 
+namespace Ran\PluginLib\Forms\Components\Fields\Number {
+	if (false) {
+		class Builder extends \Ran\PluginLib\Forms\Component\Build\ComponentBuilderInputBase {
+			public function min(int|float|null $min): static {
+				return $this;
+			}
+			public function max(int|float|null $max): static {
+				return $this;
+			}
+			public function step(int|float|null $step): static {
+				return $this;
+			}
+			public function range(int|float $min, int|float $max): static {
+				return $this;
+			}
+			protected function _get_component(): string {
+				return 'number';
+			}
+			protected function _build_component_context(): array {
+				return array();
+			}
+		}
+	}
+}
+
 namespace Ran\PluginLib\Forms\Components\Fields\MultiSelect {
 	if (false) {
 		class Builder extends \Ran\PluginLib\Forms\Component\Build\ComponentBuilderBase {
@@ -346,6 +374,9 @@ namespace Ran\PluginLib\Forms\Components\Fields\MultiSelect {
 				return $this;
 			}
 			public function disabled(bool $disabled = true): self {
+				return $this;
+			}
+			public function attribute(string $key, string $value): self {
 				return $this;
 			}
 			public function option(string $value, string $label, ?string $group = null, array $attributes = array(), bool $selected = false, bool $disabled = false): self {
@@ -438,6 +469,9 @@ namespace Ran\PluginLib\Forms\Components\Fields\Select {
 			public function required(bool $required = true): self {
 				return $this;
 			}
+			public function attribute(string $key, string $value): self {
+				return $this;
+			}
 			public function option(string $value, string $label, ?string $group = null, array $attributes = array(), bool $selected = false, bool $disabled = false): self {
 				return $this;
 			}
@@ -446,6 +480,22 @@ namespace Ran\PluginLib\Forms\Components\Fields\Select {
 			}
 			protected function _get_component(): string {
 				return 'select';
+			}
+			protected function _build_component_context(): array {
+				return array();
+			}
+		}
+	}
+}
+
+namespace Ran\PluginLib\Forms\Components\Fields\Text {
+	if (false) {
+		class Builder extends \Ran\PluginLib\Forms\Component\Build\ComponentBuilderTextBase {
+			public function size(?int $size): static {
+				return $this;
+			}
+			protected function _get_component(): string {
+				return 'text';
 			}
 			protected function _build_component_context(): array {
 				return array();
