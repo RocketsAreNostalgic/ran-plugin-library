@@ -453,10 +453,8 @@ class ComponentManifest {
 					$payload    = $normalized['payload'];
 					$result     = $this->_create_result_from_payload($payload);
 					return array(
-						'result'      => $result,
-						'warnings'    => $normalized['warnings'] ?? array(),
-					    'result'   => $result,
-					    'warnings' => $normalized['warnings'] ?? array(),
+						'result'   => $result,
+						'warnings' => $normalized['warnings'] ?? array(),
 					);
 				});
 				continue;

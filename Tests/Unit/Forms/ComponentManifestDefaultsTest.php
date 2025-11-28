@@ -178,6 +178,48 @@ final class ComponentManifestDefaultsTest extends PluginLibTestCase {
 		$this->expectLog('debug', 'ComponentManifest: Cache HIT for component');
 	}
 
+	/**
+	 * Regression test: Ensures factory return arrays have exactly 2 unique keys.
+	 *
+	 * Previously, a copy-paste error caused duplicate 'result' and 'warnings' keys
+	 * in the factory return array. PHP silently resolves these at parse time, but
+	 * the code was confusing and could trigger static analysis warnings.
+	 *
+	 * @see 15-Component-Handling-Optimization-Plan.md Workstream A
+	 */
+	public function test_factory_return_has_exactly_two_keys(): void {
+		WP_Mock::userFunction('wp_get_environment_type')->andReturn('development');
+
+		$this->loader->shouldReceive('aliases')->andReturn(array('test.component' => 'components/test.php'));
+		$this->loader->shouldReceive('resolve_normalizer_class')->andReturn(StubNormalizerWithDefaults::class);
+		$this->loader->shouldReceive('resolve_builder_class')->andReturn(null);
+		$this->loader->shouldReceive('resolve_validator_class')->andReturn(null);
+		$this->loader->shouldReceive('resolve_sanitizer_class')->andReturn(null);
+		$this->loader->shouldReceive('render')->andReturn('<div>test</div>');
+		$this->loader->shouldReceive('render_payload')->andReturn(array(
+			'markup' => '<div>test</div>',
+		));
+
+		$manifest = new ComponentManifest($this->loader, $this->logger_mock);
+
+		// Get the registered factory via reflection
+		$reflection         = new \ReflectionClass($manifest);
+		$componentsProperty = $reflection->getProperty('components');
+		$componentsProperty->setAccessible(true);
+		$components = $componentsProperty->getValue($manifest);
+
+		$this->assertArrayHasKey('test.component', $components);
+		$factory = $components['test.component'];
+
+		// Call the factory with minimal context
+		$result = $factory(array('id' => 'test', 'name' => 'test', 'value' => ''));
+
+		// Verify exactly 2 keys (no duplicates)
+		$this->assertCount(2, $result, 'Factory should return exactly 2 keys');
+		$this->assertArrayHasKey('result', $result);
+		$this->assertArrayHasKey('warnings', $result);
+	}
+
 	public function test_forms_service_session_exposes_manifest_defaults(): void {
 		WP_Mock::userFunction('wp_get_environment_type')->andReturn('development');
 
