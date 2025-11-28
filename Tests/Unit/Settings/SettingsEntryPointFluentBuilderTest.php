@@ -107,7 +107,7 @@ final class SettingsEntryPointFluentBuilderTest extends TestCase {
 
 	private function create_component_manifest(Logger $logger): ComponentManifest {
 		$base_dir = dirname(__DIR__, 3) . '/inc/Forms/Components';
-		$loader   = new ComponentLoader($base_dir, array(), $logger);
+		$loader   = new ComponentLoader($base_dir, $logger);
 
 		return new ComponentManifest($loader, $logger);
 	}

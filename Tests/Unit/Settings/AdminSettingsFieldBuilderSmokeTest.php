@@ -149,7 +149,7 @@ final class AdminSettingsFieldBuilderSmokeTest extends TestCase {
 	private function createAdminSettings(): AdminSettings {
 		$logger   = $this->logger_mock;
 		$baseDir  = dirname(__DIR__, 3) . '/inc/Forms/Components';
-		$loader   = new ComponentLoader($baseDir, array(), $logger);
+		$loader   = new ComponentLoader($baseDir, $logger);
 		$manifest = new ComponentManifest($loader, $logger);
 		$options  = RegisterOptions::site('field_builder_admin_settings', true, $logger);
 

@@ -48,7 +48,7 @@ class ComponentLoaderBackwardCompatibilityTest extends PluginLibTestCase {
 	 * Requirements: 7.2, 7.5, 7.6
 	 */
 	public function test_existing_methods_work_unchanged(): void {
-		$this->loader = new ComponentLoader($this->testTemplateDir);
+		$this->loader = new ComponentLoader($this->testTemplateDir, $this->logger_mock);
 
 		// Test get_base_directory() method - should work exactly as before
 		$this->assertEquals($this->testTemplateDir, $this->loader->get_base_directory());
@@ -95,7 +95,7 @@ class ComponentLoaderBackwardCompatibilityTest extends PluginLibTestCase {
 		// Test with caching enabled (production mode)
 		WP_Mock::userFunction('wp_get_environment_type')->andReturn('production');
 
-		$this->loader = new ComponentLoader($this->testTemplateDir);
+		$this->loader = new ComponentLoader($this->testTemplateDir, $this->logger_mock);
 
 		// First render - should work identically with or without cache
 		$result1 = $this->loader->render('test.input', array('name' => 'field1', 'value' => 'value1'));
@@ -124,7 +124,7 @@ class ComponentLoaderBackwardCompatibilityTest extends PluginLibTestCase {
 		// Test with caching disabled (development mode)
 		WP_Mock::userFunction('wp_get_environment_type')->andReturn('development');
 
-		$this->loader = new ComponentLoader($this->testTemplateDir);
+		$this->loader = new ComponentLoader($this->testTemplateDir, $this->logger_mock);
 
 		// Template rendering should work exactly as before
 		$result1 = $this->loader->render('test.input', array('name' => 'dev_field', 'value' => 'dev_value'));
@@ -159,7 +159,7 @@ class ComponentLoaderBackwardCompatibilityTest extends PluginLibTestCase {
 	 * Requirements: 7.6, 7.7, 7.8
 	 */
 	public function test_existing_apis_unaffected(): void {
-		$this->loader = new ComponentLoader($this->testTemplateDir);
+		$this->loader = new ComponentLoader($this->testTemplateDir, $this->logger_mock);
 
 		// Test template registration API - should work exactly as before
 		$this->loader->register('api.test1', 'templates/test1.php');
@@ -203,7 +203,7 @@ class ComponentLoaderBackwardCompatibilityTest extends PluginLibTestCase {
 	 * Requirements: 7.7, 7.8
 	 */
 	public function test_existing_usage_patterns_compatible(): void {
-		$this->loader = new ComponentLoader($this->testTemplateDir);
+		$this->loader = new ComponentLoader($this->testTemplateDir, $this->logger_mock);
 
 		// Test pattern 1: Simple template rendering
 		$result = $this->loader->render('test.input', array('name' => 'pattern1'));
@@ -252,7 +252,7 @@ class ComponentLoaderBackwardCompatibilityTest extends PluginLibTestCase {
 	 * Requirements: 7.6, 7.8
 	 */
 	public function test_new_caching_methods_dont_break_existing_functionality(): void {
-		$this->loader = new ComponentLoader($this->testTemplateDir);
+		$this->loader = new ComponentLoader($this->testTemplateDir, $this->logger_mock);
 
 		// Render a template using existing API
 		$result1 = $this->loader->render('test.input', array('name' => 'cache_test'));
@@ -288,7 +288,7 @@ class ComponentLoaderBackwardCompatibilityTest extends PluginLibTestCase {
 		// Mock caching as disabled
 		WP_Mock::userFunction('wp_get_environment_type')->andReturn('development');
 
-		$this->loader = new ComponentLoader($this->testTemplateDir);
+		$this->loader = new ComponentLoader($this->testTemplateDir, $this->logger_mock);
 
 		// All existing functionality should work identically
 		$result1 = $this->loader->render('test.input', array('name' => 'disabled1'));
@@ -327,7 +327,7 @@ class ComponentLoaderBackwardCompatibilityTest extends PluginLibTestCase {
 	 * Requirements: 7.5, 7.6, 7.8
 	 */
 	public function test_error_handling_unchanged_with_caching(): void {
-		$this->loader = new ComponentLoader($this->testTemplateDir);
+		$this->loader = new ComponentLoader($this->testTemplateDir, $this->logger_mock);
 
 		// Test that missing template errors work exactly as before
 		$this->expectException(\LogicException::class);
@@ -340,7 +340,7 @@ class ComponentLoaderBackwardCompatibilityTest extends PluginLibTestCase {
 	 * Requirements: 7.4, 7.5, 7.8
 	 */
 	public function test_template_file_changes_handled_correctly(): void {
-		$this->loader = new ComponentLoader($this->testTemplateDir);
+		$this->loader = new ComponentLoader($this->testTemplateDir, $this->logger_mock);
 
 		// Render template first time
 		$result1 = $this->loader->render('test.input', array('name' => 'change_test'));

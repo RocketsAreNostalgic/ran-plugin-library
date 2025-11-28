@@ -63,7 +63,7 @@ class AdminSettingsFluentBuilderSmokeTest extends TestCase {
 	private function createAdminSettings(): AdminSettings {
 		$logger     = $this->logger_mock;
 		$baseDir    = dirname(__DIR__, 3) . '/inc/Forms/Components';
-		$loader     = new ComponentLoader($baseDir, array(), $logger);
+		$loader     = new ComponentLoader($baseDir, $logger);
 		$components = new ComponentManifest($loader, $logger);
 		$options    = RegisterOptions::site('test_admin_options', true, $logger);
 

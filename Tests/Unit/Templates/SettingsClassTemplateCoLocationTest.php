@@ -228,7 +228,7 @@ class SettingsClassTemplateCoLocationTest extends TestCase {
 
 		// Test component validation using real ComponentManifest methods
 		$real_manifest = new \Ran\PluginLib\Forms\Component\ComponentManifest(
-			new \Ran\PluginLib\Forms\Component\ComponentLoader(__DIR__ . '/../../fixtures/templates'),
+			new \Ran\PluginLib\Forms\Component\ComponentLoader(__DIR__ . '/../../fixtures/templates', $this->mock_logger),
 			$this->mock_logger
 		);
 

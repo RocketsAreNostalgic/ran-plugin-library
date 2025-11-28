@@ -74,7 +74,7 @@ final class UserSettingsBehaviorTest extends PluginLibTestCase {
 			->with(\WP_Mock\Functions::type('bool'), \WP_Mock\Functions::type('array'))
 			->reply(true);
 
-		$loader = new ComponentLoader(__DIR__ . '/../../fixtures/templates');
+		$loader = new ComponentLoader(__DIR__ . '/../../fixtures/templates', $this->logger);
 
 		$this->manifest = new ComponentManifest(
 			$loader,

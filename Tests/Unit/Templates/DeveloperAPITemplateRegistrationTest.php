@@ -48,7 +48,7 @@ class DeveloperAPITemplateRegistrationTest extends PluginLibTestCase {
 		WP_Mock::userFunction('get_current_user_id')->andReturn(1);
 
 		// Create component infrastructure
-		$this->component_loader   = new ComponentLoader(__DIR__ . '/../../fixtures/templates');
+		$this->component_loader   = new ComponentLoader(__DIR__ . '/../../fixtures/templates', $this->logger_mock);
 		$this->component_manifest = new ComponentManifest($this->component_loader, $this->logger_mock);
 
 		// Create settings instances
@@ -371,7 +371,7 @@ class DeveloperAPITemplateRegistrationTest extends PluginLibTestCase {
 	 */
 	public function test_template_registration_with_automatic_discovery(): void {
 		// ComponentLoader should automatically discover templates in its directory
-		$loader = new ComponentLoader(__DIR__ . '/../../fixtures/templates');
+		$loader = new ComponentLoader(__DIR__ . '/../../fixtures/templates', $this->logger_mock);
 
 		// Test that templates are discovered
 		$aliases = $loader->aliases();

@@ -50,7 +50,7 @@ class ComponentCachingFunctionalityTest extends PluginLibTestCase {
 		$this->setupBasicLoaderExpectations();
 
 		$manifest = new ComponentManifest($this->loader, $this->logger_mock);
-		$loader   = new ComponentLoader('/test', array());
+		$loader   = new ComponentLoader('/test', $this->logger_mock);
 
 		// Test cache key format validation
 		$expected_component_key = 'kepler_comp_meta_test_basic';
@@ -223,7 +223,7 @@ class ComponentCachingFunctionalityTest extends PluginLibTestCase {
 		$this->assertCount(2, $remaining_template_caches);
 
 		// Test ComponentLoader cache clearing
-		$loader = new ComponentLoader('/test', array('test.template' => 'test.php'));
+		$loader = new ComponentLoader('/test', $this->logger_mock, array('test.template' => 'test.php'));
 
 		// Clear specific template cache - simulate clearing since WP_DEBUG disables caching
 		$loader->clear_template_cache('test.template');
@@ -278,7 +278,7 @@ class ComponentCachingFunctionalityTest extends PluginLibTestCase {
 
 		// Test environment-based TTL via CacheManager since WP_DEBUG disables caching in ComponentManifest
 		$manifest     = new ComponentManifest($this->loader, $this->logger_mock);
-		$loader       = new ComponentLoader('/test', array());
+		$loader       = new ComponentLoader('/test', $this->logger_mock);
 		$cacheManager = new CacheManager($manifest, $loader, $this->logger_mock);
 
 		$stats = $cacheManager->get_stats();
@@ -420,7 +420,7 @@ class ComponentCachingFunctionalityTest extends PluginLibTestCase {
 
 		// Test CacheManager statistics
 		$manifest     = new ComponentManifest($this->loader, $this->logger_mock);
-		$loader       = new ComponentLoader('/test', array('test' => 'test.php'));
+		$loader       = new ComponentLoader('/test', $this->logger_mock, array('test' => 'test.php'));
 		$cacheManager = new CacheManager($manifest, $loader, $this->logger_mock);
 
 		$stats = $cacheManager->get_stats();

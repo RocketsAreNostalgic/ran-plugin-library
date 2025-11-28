@@ -75,7 +75,7 @@ class SectionBuilderTemplateOverrideTest extends TestCase {
 
 	private function createAdminSettings(): AdminSettings {
 		$baseDir    = dirname(__DIR__, 3) . '/inc/Forms/Components';
-		$loader     = new ComponentLoader($baseDir, array(), $this->logger);
+		$loader     = new ComponentLoader($baseDir, $this->logger);
 		$components = new ComponentManifest($loader, $this->logger);
 		$options    = RegisterOptions::site('test_admin_options', true, $this->logger);
 
@@ -92,7 +92,7 @@ class SectionBuilderTemplateOverrideTest extends TestCase {
 
 	private function createUserSettings(): UserSettings {
 		$baseDir    = dirname(__DIR__, 3) . '/inc/Forms/Components';
-		$loader     = new ComponentLoader($baseDir, array(), $this->logger);
+		$loader     = new ComponentLoader($baseDir, $this->logger);
 		$components = new ComponentManifest($loader, $this->logger);
 		$options    = RegisterOptions::user('test_user_options', 123, false, $this->logger);
 

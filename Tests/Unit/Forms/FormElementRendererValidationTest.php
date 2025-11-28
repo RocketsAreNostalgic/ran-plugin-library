@@ -31,7 +31,7 @@ class FormElementRendererValidationTest extends PluginLibTestCase {
 		parent::setUp();
 		$this->logger      = new CollectingLogger();
 		$this->logger_mock = $this->logger;
-		$this->loader      = new ComponentLoader(__DIR__ . '/../../fixtures/templates');
+		$this->loader      = new ComponentLoader(__DIR__ . '/../../fixtures/templates', $this->logger);
 
 		WP_Mock::userFunction('get_option')->andReturn(array());
 		WP_Mock::userFunction('add_option')->andReturn(true);

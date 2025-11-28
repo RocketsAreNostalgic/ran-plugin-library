@@ -47,13 +47,13 @@ final class AdminSettingsSubmitControlsRenderTest extends TestCase {
 			return array_key_exists($option, $this->optionStore) ? $this->optionStore[$option] : $default;
 		});
 
-		$baseDir = __DIR__ . '/../../fixtures/templates';
-		$loader  = new ComponentLoader($baseDir);
+		$baseDir      = __DIR__ . '/../../fixtures/templates';
+		$this->logger = new CollectingLogger();
+		$loader       = new ComponentLoader($baseDir, $this->logger);
 		$loader->register('section', 'admin/sections/test-section.php');
 		$loader->register('field-wrapper', 'admin/fields/example-field-wrapper.php');
 		$loader->register('shared.field-wrapper', 'admin/fields/example-field-wrapper.php');
 		$loader->register('section-wrapper', 'admin/section-wrapper.php');
-		$this->logger   = new CollectingLogger();
 		$this->manifest = new ComponentManifest($loader, $this->logger);
 
 		$this->registerTemplateStubs();

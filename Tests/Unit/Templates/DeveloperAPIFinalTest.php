@@ -50,7 +50,7 @@ class DeveloperAPIFinalTest extends PluginLibTestCase {
 		WP_Mock::userFunction('get_current_user_id')->andReturn(1);
 
 		// Create component infrastructure
-		$this->component_loader   = new ComponentLoader(__DIR__ . '/../../fixtures/templates');
+		$this->component_loader   = new ComponentLoader(__DIR__ . '/../../fixtures/templates', $this->logger_mock);
 		$this->component_manifest = new ComponentManifest($this->component_loader, $this->logger_mock);
 
 		// Create settings instances
@@ -77,7 +77,7 @@ class DeveloperAPIFinalTest extends PluginLibTestCase {
 	 */
 	public function test_global_template_registration_api_exists(): void {
 		// Test that ComponentLoader has register method for global registration
-		$component_loader = new ComponentLoader(__DIR__ . '/../../fixtures/templates');
+		$component_loader = new ComponentLoader(__DIR__ . '/../../fixtures/templates', $this->logger_mock);
 		$this->assertTrue(method_exists($component_loader, 'register'));
 		$this->assertTrue(method_exists($component_loader, 'aliases'));
 		$this->assertTrue(method_exists($component_loader, 'render'));
@@ -402,7 +402,7 @@ class DeveloperAPIFinalTest extends PluginLibTestCase {
 		$this->assertTrue(method_exists(\Ran\PluginLib\Settings\UserSettingsSectionBuilder::class, 'template'));
 
 		// Test ComponentLoader API methods
-		$component_loader = new ComponentLoader(__DIR__);
+		$component_loader = new ComponentLoader(__DIR__, $this->logger_mock);
 		$this->assertTrue(method_exists($component_loader, 'register'));
 		$this->assertTrue(method_exists($component_loader, 'aliases'));
 		$this->assertTrue(method_exists($component_loader, 'render'));

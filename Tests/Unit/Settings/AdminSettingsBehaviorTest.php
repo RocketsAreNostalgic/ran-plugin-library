@@ -97,7 +97,7 @@ final class AdminSettingsBehaviorTest extends PluginLibTestCase {
 			->with(\WP_Mock\Functions::type('bool'), \WP_Mock\Functions::type('array'))
 			->reply(true);
 
-		$loader = new ComponentLoader(__DIR__ . '/../../fixtures/templates');
+		$loader = new ComponentLoader(__DIR__ . '/../../fixtures/templates', $this->logger);
 		$loader->register('section', 'admin/sections/test-section.php');
 		$loader->register('field-wrapper', 'admin/fields/example-field-wrapper.php');
 		$loader->register('shared.field-wrapper', 'admin/fields/example-field-wrapper.php');

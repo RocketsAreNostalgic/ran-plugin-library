@@ -40,7 +40,8 @@ class GlobalTemplateRegistrationTest extends TestCase {
 		WP_Mock::userFunction('wp_hash')->andReturnUsing(static fn(string $value): string => md5($value));
 
 		$this->fixtures_root = dirname(__DIR__) . '/fixtures/templates';
-		$this->loader        = new ComponentLoader($this->fixtures_root);
+		$logger              = new Logger();
+		$this->loader        = new ComponentLoader($this->fixtures_root, $logger);
 	}
 
 	protected function tearDown(): void {

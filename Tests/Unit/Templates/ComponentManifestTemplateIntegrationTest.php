@@ -41,8 +41,8 @@ class ComponentManifestTemplateIntegrationTest extends TestCase {
 
 		$this->fixtures_root = dirname(__DIR__) . '/fixtures/templates';
 
-		$loader         = new ComponentLoader($this->fixtures_root);
 		$logger         = new Logger();
+		$loader         = new ComponentLoader($this->fixtures_root, $logger);
 		$this->manifest = new ComponentManifest($loader, $logger);
 	}
 

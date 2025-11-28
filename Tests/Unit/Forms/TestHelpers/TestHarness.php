@@ -21,7 +21,7 @@ final class TestHarness {
 	public function __construct(CollectingLogger $logger) {
 		$this->main_option     = 'test_option';
 		$this->pending_values  = null;
-		$component_loader      = new ComponentLoader(__DIR__ . '/../../fixtures/templates');
+		$component_loader      = new ComponentLoader(__DIR__ . '/../../fixtures/templates', $logger);
 		$this->components      = new ComponentManifest($component_loader, $logger);
 		$this->form_service    = new FormsService($this->components, $logger);
 		$this->field_renderer  = new FormElementRenderer($this->components, $this->form_service, $component_loader, $logger);

@@ -53,7 +53,7 @@ class FormRenderingPipelineTest extends PluginLibTestCase {
 		$this->logger = new CollectingLogger();
 
 		// Create ComponentLoader with test templates
-		$component_loader         = new ComponentLoader(__DIR__ . '/../../fixtures/templates');
+		$component_loader         = new ComponentLoader(__DIR__ . '/../../fixtures/templates', $this->logger);
 		$this->component_manifest = new ComponentManifest($component_loader, $this->logger);
 
 		// Create FormsService

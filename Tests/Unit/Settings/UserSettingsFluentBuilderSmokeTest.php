@@ -70,7 +70,7 @@ class UserSettingsFluentBuilderSmokeTest extends TestCase {
 	private function createUserSettings(): UserSettings {
 		$logger     = $this->logger_mock;
 		$baseDir    = dirname(__DIR__, 3) . '/inc/Forms/Components';
-		$loader     = new ComponentLoader($baseDir, array(), $logger);
+		$loader     = new ComponentLoader($baseDir, $logger);
 		$components = new ComponentManifest($loader, $logger);
 		$options    = RegisterOptions::user('test_user_options', 123, false, $logger);
 
