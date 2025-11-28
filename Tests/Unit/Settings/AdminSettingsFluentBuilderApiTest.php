@@ -1,9 +1,12 @@
 <?php
 /**
- * AdminSettings Fluent Builder Smoke Test
+ * AdminSettings Fluent Builder API Test
  *
- * Validates the complete fluent builder chain for AdminSettings:
+ * Tests the complete fluent builder chain mechanics for AdminSettings:
  * menu_group() -> page() -> section() -> group() -> field() -> input('submit')
+ *
+ * Validates builder API chaining, metadata storage, and logging.
+ * Does NOT test actual component rendering - see AdminSettingsBehaviorTest for render tests.
  *
  * @package Ran\PluginLib\Tests\Unit\Settings
  */
@@ -21,11 +24,10 @@ use Ran\PluginLib\Forms\Component\ComponentManifest;
 use Ran\PluginLib\Forms\Component\ComponentLoader;
 
 /**
- * Smoke test for AdminSettings fluent builder chain.
+ * Builder API test for AdminSettings fluent builder chain.
  *
- * This test validates that the complete fluent API chain works end-to-end
- * without errors, ensuring all builders are properly connected and data flows
- * correctly through the system.
+ * This test validates that the complete fluent API chain works correctly,
+ * ensuring all builders are properly connected and metadata flows through the system.
  *
  * @covers \Ran\PluginLib\Settings\AdminSettings
  * @covers \Ran\PluginLib\Settings\AdminSettingsPageBuilder
@@ -34,7 +36,7 @@ use Ran\PluginLib\Forms\Component\ComponentLoader;
  * @covers \Ran\PluginLib\Settings\AdminSettingsGroupBuilder
  * @covers \Ran\PluginLib\Settings\AdminSettingsFieldsetBuilder
  */
-class AdminSettingsFluentBuilderSmokeTest extends TestCase {
+class AdminSettingsFluentBuilderApiTest extends TestCase {
 	use ExpectLogTrait;
 
 	protected CollectingLogger $logger_mock;
@@ -138,7 +140,7 @@ class AdminSettingsFluentBuilderSmokeTest extends TestCase {
 	}
 
 	/**
-	 * Smoke test: Fieldset builder stores metadata and fields.
+	 * Builder API test: Fieldset builder stores metadata and fields.
 	 *
 	 * @test
 	 */
@@ -181,13 +183,12 @@ class AdminSettingsFluentBuilderSmokeTest extends TestCase {
 	}
 
 	/**
-	 * Smoke test: Complete AdminSettings fluent builder chain.
+	 * Builder API test: Complete AdminSettings fluent builder chain.
 	 *
 	 * Tests the full chain:
 	 * menu_group() -> page() -> section() -> group() -> field() -> submit
 	 *
-	 * This is a smoke test - it verifies the fluent API chain executes without
-	 * throwing errors. The actual data validation happens at runtime.
+	 * Verifies the fluent API chain executes without errors and metadata is stored correctly.
 	 *
 	 * @test
 	 */
@@ -338,7 +339,7 @@ class AdminSettingsFluentBuilderSmokeTest extends TestCase {
 	}
 
 	/**
-	 * Smoke test: Multiple pages in same menu group.
+	 * Builder API test: Multiple pages in same menu group.
 	 *
 	 * @test
 	 */
@@ -380,7 +381,7 @@ class AdminSettingsFluentBuilderSmokeTest extends TestCase {
 	}
 
 	/**
-	 * Smoke test: Section with only groups (no standalone fields).
+	 * Builder API test: Section with only groups (no standalone fields).
 	 *
 	 * @test
 	 */
@@ -426,7 +427,7 @@ class AdminSettingsFluentBuilderSmokeTest extends TestCase {
 	}
 
 	/**
-	 * Smoke test: Field ordering and indexing.
+	 * Builder API test: Field ordering and indexing.
 	 *
 	 * @test
 	 */
@@ -508,7 +509,7 @@ class AdminSettingsFluentBuilderSmokeTest extends TestCase {
 	}
 
 	/**
-	 * Smoke test: Group builder chaining without explicit end_group().
+	 * Builder API test: Group builder chaining without explicit end_group().
 	 *
 	 * @test
 	 */
@@ -539,7 +540,7 @@ class AdminSettingsFluentBuilderSmokeTest extends TestCase {
 	}
 
 	/**
-	 * Smoke test: Fieldset builder chaining without explicit end_fieldset().
+	 * Builder API test: Fieldset builder chaining without explicit end_fieldset().
 	 *
 	 * @test
 	 */

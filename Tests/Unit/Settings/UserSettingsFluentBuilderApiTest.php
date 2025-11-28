@@ -1,9 +1,12 @@
 <?php
 /**
- * UserSettings Fluent Builder Smoke Test
+ * UserSettings Fluent Builder API Test
  *
- * Validates the complete fluent builder chain for UserSettings:
+ * Tests the complete fluent builder chain mechanics for UserSettings:
  * collection() -> section() -> group() -> field() -> submit
+ *
+ * Validates builder API chaining, metadata storage, and logging.
+ * Does NOT test actual component rendering - see UserSettingsBehaviorTest for render tests.
  *
  * @package Ran\PluginLib\Tests\Unit\Settings
  */
@@ -23,7 +26,7 @@ use Ran\PluginLib\Forms\Component\ComponentManifest;
 use Ran\PluginLib\Forms\Component\ComponentLoader;
 
 /**
- * Smoke tests for the UserSettings fluent builder chain.
+ * Builder API tests for the UserSettings fluent builder chain.
  *
  * @covers \Ran\PluginLib\Settings\UserSettings
  * @covers \Ran\PluginLib\Settings\UserSettingsCollectionBuilder
@@ -31,7 +34,7 @@ use Ran\PluginLib\Forms\Component\ComponentLoader;
  * @covers \Ran\PluginLib\Settings\UserSettingsGroupBuilder
  * @covers \Ran\PluginLib\Settings\UserSettingsFieldsetBuilder
  */
-class UserSettingsFluentBuilderSmokeTest extends TestCase {
+class UserSettingsFluentBuilderApiTest extends TestCase {
 	use ExpectLogTrait;
 
 	protected CollectingLogger $logger_mock;
@@ -138,7 +141,7 @@ class UserSettingsFluentBuilderSmokeTest extends TestCase {
 	}
 
 	/**
-	 * Smoke test: Fieldset builder stores metadata and fields for user settings.
+	 * Builder API test: Fieldset builder stores metadata and fields for user settings.
 	 *
 	 * @test
 	 */
@@ -177,7 +180,7 @@ class UserSettingsFluentBuilderSmokeTest extends TestCase {
 	}
 
 	/**
-	 * Smoke test: Complete UserSettings fluent builder chain.
+	 * Builder API test: Complete UserSettings fluent builder chain.
 	 *
 	 * @test
 	 */
@@ -319,7 +322,7 @@ class UserSettingsFluentBuilderSmokeTest extends TestCase {
 	}
 
 	/**
-	 * Smoke test: Section with only groups (no standalone fields).
+	 * Builder API test: Section with only groups (no standalone fields).
 	 *
 	 * @test
 	 */
@@ -377,7 +380,7 @@ class UserSettingsFluentBuilderSmokeTest extends TestCase {
 	}
 
 	/**
-	 * Smoke test: Multiple collections with sections.
+	 * Builder API test: Multiple collections with sections.
 	 *
 	 * @test
 	 */
@@ -436,7 +439,7 @@ class UserSettingsFluentBuilderSmokeTest extends TestCase {
 	}
 
 	/**
-	 * Smoke test: Field ordering and indexing.
+	 * Builder API test: Field ordering and indexing.
 	 *
 	 * @test
 	 */
@@ -512,7 +515,7 @@ class UserSettingsFluentBuilderSmokeTest extends TestCase {
 	}
 
 	/**
-	 * Smoke test: Group builder chaining without explicit end_group().
+	 * Builder API test: Group builder chaining without explicit end_group().
 	 *
 	 * @test
 	 */
@@ -565,7 +568,7 @@ class UserSettingsFluentBuilderSmokeTest extends TestCase {
 	}
 
 	/**
-	 * Smoke test: Fieldset builder chaining without explicit end_fieldset().
+	 * Builder API test: Fieldset builder chaining without explicit end_fieldset().
 	 *
 	 * @test
 	 */
