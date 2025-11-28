@@ -31,6 +31,34 @@ class ComponentManifest {
 	/** @var bool Whether caching is enabled */
 	private bool $cachingEnabled;
 
+	/**
+	 * Memoized validator factory map.
+	 *
+	 * @var array<string, callable():ValidatorInterface>|null
+	 */
+	private ?array $validatorFactoriesCache = null;
+
+	/**
+	 * Memoized sanitizer factory map.
+	 *
+	 * @var array<string, callable():SanitizerInterface>|null
+	 */
+	private ?array $sanitizerFactoriesCache = null;
+
+	/**
+	 * Cached validator instances keyed by component alias.
+	 *
+	 * @var array<string, ValidatorInterface>
+	 */
+	private array $validatorInstances = array();
+
+	/**
+	 * Cached sanitizer instances keyed by component alias.
+	 *
+	 * @var array<string, SanitizerInterface>
+	 */
+	private array $sanitizerInstances = array();
+
 	public function __construct(private ComponentLoader $views, private Logger $logger) {
 		$this->logger         = $logger;
 		$this->helpers        = new ComponentNormalizationContext($this->logger);
@@ -197,11 +225,21 @@ class ComponentManifest {
 	/**
 	 * Returns a map of validator factories for each component.
 	 *
+	 * Uses two-level caching:
+	 * - Level 1: Memoizes the factory map (built once per manifest instance)
+	 * - Level 2: Each factory caches its instance (one instance per component alias)
+	 *
 	 * @return array<string,callable():ValidatorInterface>
 	 */
 	public function validator_factories(): array {
+		// Level 1: Return memoized factory map if available
+		if ($this->validatorFactoriesCache !== null) {
+			return $this->validatorFactoriesCache;
+		}
+
 		$factories = array();
 		if (empty($this->componentMetadata)) {
+			$this->validatorFactoriesCache = $factories;
 			return $factories;
 		}
 
@@ -224,27 +262,38 @@ class ComponentManifest {
 			if ($validator === null) {
 				continue;
 			}
-			$factories[$alias] = function () use ($validator): ValidatorInterface {
-				$instance = new $validator($this->logger);
-				if (!$instance instanceof ValidatorInterface) {
-					$this->logger->warning(sprintf('Validator for "%s" must implement %s.', $validator, ValidatorInterface::class), array('validator' => is_object($validator) ? get_class($validator) : $validator));
-					throw new \UnexpectedValueException(sprintf('Validator for "%s" must implement %s.', $validator, ValidatorInterface::class));
+			// Level 2: Factory closure uses instance cache
+			$factories[$alias] = function () use ($validator, $alias): ValidatorInterface {
+				if (isset($this->validatorInstances[$alias])) {
+					return $this->validatorInstances[$alias];
 				}
-				return $instance;
+				$this->validatorInstances[$alias] = new $validator($this->logger);
+				return $this->validatorInstances[$alias];
 			};
 		}
 
+		$this->validatorFactoriesCache = $factories;
 		return $factories;
 	}
 
 	/**
 	 * Returns a map of sanitizer factories for each component.
 	 *
+	 * Uses two-level caching:
+	 * - Level 1: Memoizes the factory map (built once per manifest instance)
+	 * - Level 2: Each factory caches its instance (one instance per component alias)
+	 *
 	 * @return array<string,callable():SanitizerInterface>
 	 */
 	public function sanitizer_factories(): array {
+		// Level 1: Return memoized factory map if available
+		if ($this->sanitizerFactoriesCache !== null) {
+			return $this->sanitizerFactoriesCache;
+		}
+
 		$factories = array();
 		if (empty($this->componentMetadata)) {
+			$this->sanitizerFactoriesCache = $factories;
 			return $factories;
 		}
 
@@ -264,16 +313,17 @@ class ComponentManifest {
 			if ($sanitizer === null) {
 				continue;
 			}
-			$factories[$alias] = function () use ($sanitizer): SanitizerInterface {
-				$instance = new $sanitizer($this->logger);
-				if (!$instance instanceof SanitizerInterface) {
-					$this->logger->warning(sprintf('Sanitizer for "%s" must implement %s.', $sanitizer, SanitizerInterface::class), array('sanitizer' => is_object($sanitizer) ? get_class($sanitizer) : $sanitizer));
-					throw new \UnexpectedValueException(sprintf('Sanitizer for "%s" must implement %s.', $sanitizer, SanitizerInterface::class));
+			// Level 2: Factory closure uses instance cache
+			$factories[$alias] = function () use ($sanitizer, $alias): SanitizerInterface {
+				if (isset($this->sanitizerInstances[$alias])) {
+					return $this->sanitizerInstances[$alias];
 				}
-				return $instance;
+				$this->sanitizerInstances[$alias] = new $sanitizer($this->logger);
+				return $this->sanitizerInstances[$alias];
 			};
 		}
 
+		$this->sanitizerFactoriesCache = $factories;
 		return $factories;
 	}
 
@@ -310,6 +360,19 @@ class ComponentManifest {
 				'cleared_count' => $component_count
 			));
 		}
+	}
+
+	/**
+	 * Clear cached validator/sanitizer instances and factory maps.
+	 *
+	 * @internal For testing only. Validators and sanitizers are stateless,
+	 * so instance caching is safe for production use.
+	 */
+	public function _clear_instance_cache(): void {
+		$this->validatorInstances      = array();
+		$this->sanitizerInstances      = array();
+		$this->validatorFactoriesCache = null;
+		$this->sanitizerFactoriesCache = null;
 	}
 
 	/**
