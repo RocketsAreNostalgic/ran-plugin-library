@@ -156,7 +156,7 @@ class FormElementRenderer {
 
 		try {
 			$render_result = $this->components->render($component, $context);
-			$field_id      = (string) ($context['field_id'] ?? $context['_field_id'] ?? 'unknown');
+			$field_id      = (string) ($context['field_id'] ?? 'unknown');
 
 			$session->ingest_component_result(
 				$render_result,
@@ -243,12 +243,8 @@ class FormElementRenderer {
 			throw new \InvalidArgumentException($error_message);
 		}
 
-		$component_context              = $normalized_field['component_context'] ?? array();
-		$component_context              = is_array($component_context) ? $component_context : array();
-		$component_context['field_id']  = $component_context['field_id']  ?? $field_id;
-		$component_context['_field_id'] = $component_context['_field_id'] ?? $field_id;
-		$component_context['label']     = $component_context['label']     ?? $label;
-		$component_context['_label']    = $component_context['_label']    ?? $label;
+		$component_context = $normalized_field['component_context'] ?? array();
+		$component_context = is_array($component_context) ? $component_context : array();
 
 		$effective_values = $values;
 		$field_messages   = array('warnings' => array(), 'notices' => array());
@@ -259,7 +255,7 @@ class FormElementRenderer {
 
 		$field_value = $effective_values[$field_id] ?? ($values[$field_id] ?? null);
 
-		// Prepare base context
+		// Prepare base context with core field properties
 		$context = array(
 			'field_id'            => $field_id,
 			'component'           => $component,
@@ -267,8 +263,16 @@ class FormElementRenderer {
 			'value'               => $field_value,
 			'validation_warnings' => $field_messages['warnings'] ?? array(),
 			'display_notices'     => $field_messages['notices']  ?? array(),
-			'component_context'   => $component_context,
 		);
+
+		// Merge component_context at top level - this includes builder-provided
+		// attributes like 'attributes', 'placeholder', 'required', 'disabled', etc.
+		// Normalizers expect these at the top level, not nested.
+		foreach ($component_context as $key => $value) {
+			if (!array_key_exists($key, $context)) {
+				$context[$key] = $value;
+			}
+		}
 
 		// Add any additional field properties to context
 		foreach ($normalized_field as $key => $value) {
@@ -480,8 +484,7 @@ class FormElementRenderer {
 			$context = $template_context['context'];
 		}
 		$resolver_context                  = $context;
-		$resolver_context['field_id']      = $resolver_context['field_id']  ?? $field_id;
-		$resolver_context['_field_id']     = $resolver_context['_field_id'] ?? $field_id;
+		$resolver_context['field_id']      = $resolver_context['field_id'] ?? $field_id;
 		$resolver_context['template_type'] = $template_type;
 
 		if ($session instanceof FormsServiceSession) {

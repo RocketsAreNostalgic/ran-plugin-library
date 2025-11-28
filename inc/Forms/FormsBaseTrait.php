@@ -557,10 +557,8 @@ trait FormsBaseTrait {
 				continue;
 			}
 
-			$context['field_id']  = $control_id;
-			$context['_field_id'] = $control_id;
-			$context['label']     = $label;
-			$context['_label']    = $label;
+			$context['field_id'] = $control_id;
+			$context['label']    = $label;
 
 			$normalized[] = array(
 				'id'                => $control_id,

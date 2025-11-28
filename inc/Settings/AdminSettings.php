@@ -897,10 +897,8 @@ class AdminSettings implements FormsInterface {
 		$control_id = $control['id']                ?? '';
 		$label      = $control['label']             ?? '';
 
-		$context['field_id']  = $control_id;
-		$context['_field_id'] = $control_id;
-		$context['label']     = $label;
-		$context['_label']    = $label;
+		$context['field_id'] = $control_id;
+		$context['label']    = $label;
 
 		try {
 			$this->logger->debug('admin_settings.submit_control.render.start', array(

@@ -57,7 +57,7 @@ $context = [
 ```php
 // Context passed to normalizer
 $context = [
-    '_field_id' => 'user_email',
+    'field_id' => 'user_email',
     '_validation_warnings' => ['Email format is invalid'],
     '_display_notices' => ['Email was converted to lowercase'],
     'value' => 'user@example.com'
@@ -153,7 +153,7 @@ Sanitizes boolean values with optional notice emission for conversions.
 
 ```php
 [
-    '_field_id' => 'field_identifier',           // Required for message lookup
+    'field_id' => 'field_identifier',            // Required for message lookup
     '_validation_warnings' => ['warning1', ...], // Temporary, removed after processing
     '_display_notices' => ['notice1', ...],      // Temporary, removed after processing
     'warnings' => ['warning1', ...],             // Final warnings array for templates

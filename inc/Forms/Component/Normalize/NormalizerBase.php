@@ -220,7 +220,7 @@ abstract class NormalizerBase implements NormalizeInterface {
 	 * Extract field ID from context.
 	 */
 	protected function _extract_field_id(array $context): string {
-		return isset($context['_field_id']) ? (string) $context['_field_id'] : '';
+		return isset($context['field_id']) ? (string) $context['field_id'] : '';
 	}
 
 	/**

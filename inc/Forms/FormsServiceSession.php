@@ -142,7 +142,7 @@ class FormsServiceSession {
 		$result   = $this->manifest->render($component, $context);
 		$field_id = isset($context['field_id']) && is_string($context['field_id'])
 			? $context['field_id']
-			: (isset($context['_field_id']) && is_string($context['_field_id']) ? $context['_field_id'] : null);
+			: null;
 		$this->ingest_component_result($result, sprintf('render_component:%s', $component), $field_id);
 		return $result->markup;
 	}
@@ -189,13 +189,11 @@ class FormsServiceSession {
 	 * @param string               $field_id
 	 * @param string               $label
 	 * @param array<string,mixed>  $context
-	 * @param array<string,mixed>  $values
 	 * @return string Rendered HTML markup
 	 */
-	public function render_field_component(string $component, string $field_id, string $label, array $context, array $values): string {
-		$context['_field_id'] = $field_id;
-		$context['_label']    = $label;
-		$context['_values']   = $values;
+	public function render_field_component(string $component, string $field_id, string $label, array $context): string {
+		$context['field_id'] = $field_id;
+		$context['label']    = $label;
 
 		return $this->render_component($component, $context);
 	}
