@@ -50,6 +50,7 @@ class ComponentManifestCacheIntegrationTest extends PluginLibTestCase {
 		$this->loader->shouldReceive('resolve_normalizer_class')->andReturn(null);
 		$this->loader->shouldReceive('resolve_builder_class')->andReturn(null);
 		$this->loader->shouldReceive('resolve_validator_class')->andReturn(null);
+		$this->loader->shouldReceive('resolve_sanitizer_class')->andReturn(null);
 
 		// Test with caching enabled (production)
 		WP_Mock::userFunction('wp_get_environment_type')->andReturn('production');
@@ -272,5 +273,6 @@ class ComponentManifestCacheIntegrationTest extends PluginLibTestCase {
 		$this->loader->shouldReceive('resolve_normalizer_class')->andReturn(null);
 		$this->loader->shouldReceive('resolve_builder_class')->andReturn(null);
 		$this->loader->shouldReceive('resolve_validator_class')->andReturn(null);
+		$this->loader->shouldReceive('resolve_sanitizer_class')->andReturn(null);
 	}
 }

@@ -12,6 +12,7 @@ namespace Ran\PluginLib\Forms\Component;
 use Ran\PluginLib\Util\WPWrappersTrait;
 use Ran\PluginLib\Util\Logger;
 use Ran\PluginLib\Forms\Component\Validate\ValidatorInterface;
+use Ran\PluginLib\Forms\Component\Sanitize\SanitizerInterface;
 use Ran\PluginLib\Forms\Component\Normalize\NormalizeInterface;
 use Ran\PluginLib\Forms\Component\Normalize\ComponentNormalizationContext;
 use Ran\PluginLib\Forms\Component\Build\ComponentBuilderDefinitionInterface;
@@ -22,7 +23,7 @@ class ComponentManifest {
 	private array $components = array();
 	/** @var array<int,string> */
 	private array $warnings = array();
-	/** @var array<string,array{normalizer:?string,builder:?string,validator:?string,defaults?:array{sanitize?:array<int,string>,validate?:array<int,string>,context?:array{component_type:string,repeatable:bool}}}> */
+	/** @var array<string,array{normalizer:?string,builder:?string,validator:?string,sanitizer:?string,defaults?:array{sanitize?:array<int,string>,validate?:array<int,string>,context?:array{component_type:string,repeatable:bool}}}> */
 	private array $componentMetadata = array();
 	private ComponentNormalizationContext $helpers;
 	/** @var int Cache TTL in seconds */
@@ -237,6 +238,46 @@ class ComponentManifest {
 	}
 
 	/**
+	 * Returns a map of sanitizer factories for each component.
+	 *
+	 * @return array<string,callable():SanitizerInterface>
+	 */
+	public function sanitizer_factories(): array {
+		$factories = array();
+		if (empty($this->componentMetadata)) {
+			return $factories;
+		}
+
+		foreach ($this->componentMetadata as $alias => $meta) {
+			if (!is_array($meta)) {
+				$this->logger->warning('ComponentManifest: Skipping cached metadata (invalid format)', array(
+					'alias'         => $alias,
+					'metadata_type' => gettype($meta),
+				));
+				continue;
+			}
+			// Sanitizers are optional – skip silently if key missing or null
+			if (!array_key_exists('sanitizer', $meta)) {
+				continue;
+			}
+			$sanitizer = $meta['sanitizer'];
+			if ($sanitizer === null) {
+				continue;
+			}
+			$factories[$alias] = function () use ($sanitizer): SanitizerInterface {
+				$instance = new $sanitizer($this->logger);
+				if (!$instance instanceof SanitizerInterface) {
+					$this->logger->warning(sprintf('Sanitizer for "%s" must implement %s.', $sanitizer, SanitizerInterface::class), array('sanitizer' => is_object($sanitizer) ? get_class($sanitizer) : $sanitizer));
+					throw new \UnexpectedValueException(sprintf('Sanitizer for "%s" must implement %s.', $sanitizer, SanitizerInterface::class));
+				}
+				return $instance;
+			};
+		}
+
+		return $factories;
+	}
+
+	/**
 	 * Pre-populates the component cache by calling existing discovery.
 	 * V2: Simple caching method that leverages existing infrastructure.
 	 */
@@ -348,6 +389,7 @@ class ComponentManifest {
 			'normalizer' => null,
 			'builder'    => null,
 			'validator'  => null,
+			'sanitizer'  => null,
 		);
 
 		$class = $this->views->resolve_normalizer_class($alias);
@@ -365,15 +407,22 @@ class ComponentManifest {
 			$meta['validator'] = $validator;
 		}
 
+		$sanitizer = $this->views->resolve_sanitizer_class($alias);
+		if ($sanitizer !== null && is_subclass_of($sanitizer, SanitizerInterface::class)) {
+			$meta['sanitizer'] = $sanitizer;
+		}
+
 		$defaults         = $this->_derive_component_defaults($alias, $meta);
 		$meta['defaults'] = $defaults;
 
+		// Check for validator/sanitizer presence in metadata (not defaults)
+		// since sanitizers/validators are now injected via factory -> queue -> merge path
 		$sources = array();
-		if (!empty($defaults['sanitize'] ?? array())) {
-			$sources[] = 'sanitize';
+		if (!empty($meta['sanitizer'])) {
+			$sources[] = 'sanitizer';
 		}
-		if (!empty($defaults['validate'] ?? array())) {
-			$sources[] = 'validate';
+		if (!empty($meta['validator'])) {
+			$sources[] = 'validator';
 		}
 
 		if (!empty($sources)) {
@@ -454,26 +503,20 @@ class ComponentManifest {
 	}
 
 	/**
-	 * Collect defaults exposed by discovered component classes.
+	 * Derive component defaults from metadata.
 	 *
-	 * @param string      $alias
-	 * @param string|null $normalizer
-	 * @param string|null $builder
-	 * @param string|null $validator
-	 * @return array<string,mixed>
+	 * Note: Sanitizers and validators are injected via the factory → queue → merge
+	 * path in FormsBaseTrait (_inject_component_validators, _inject_component_sanitizers),
+	 * not stored in defaults. Only context is needed here.
+	 *
+	 * @param string              $alias Component alias.
+	 * @param array<string,mixed> $meta  Component metadata.
+	 * @return array{context: array{repeatable: bool}}
 	 */
 	private function _derive_component_defaults(string $alias, array $meta): array {
-		$defaults = array();
-		if (!empty($meta['normalizer'])) {
-			$defaults['sanitize'] = array($meta['normalizer']);
-		}
-		if (!empty($meta['validator'])) {
-			$defaults['validate'] = array($meta['validator']);
-		}
-
-		$defaults['context'] = $this->_derive_component_context($alias, $meta);
-
-		return $defaults;
+		return array(
+			'context' => $this->_derive_component_context($alias, $meta),
+		);
 	}
 
 	/**

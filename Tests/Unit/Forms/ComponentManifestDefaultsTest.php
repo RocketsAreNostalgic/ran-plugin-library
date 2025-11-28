@@ -73,17 +73,20 @@ final class ComponentManifestDefaultsTest extends PluginLibTestCase {
 		$this->loader->shouldReceive('resolve_normalizer_class')->andReturn(StubNormalizerWithDefaults::class);
 		$this->loader->shouldReceive('resolve_builder_class')->andReturn(null);
 		$this->loader->shouldReceive('resolve_validator_class')->andReturn(null);
+		$this->loader->shouldReceive('resolve_sanitizer_class')->andReturn(null);
 
 		$this->resetLogs();
 		$manifest = new ComponentManifest($this->loader, $this->logger_mock);
 
+		// Note: Defaults no longer contain sanitize/validate class names.
+		// Sanitizers and validators are injected via factory -> queue -> merge path.
 		$expected = array(
-			'sanitize' => array(StubNormalizerWithDefaults::class),
-			'context'  => $this->expectedContext(),
+			'context' => $this->expectedContext(),
 		);
 		$this->assertSame($expected, $manifest->get_defaults_for('sample.component'));
 		$this->assertSame(array('sample.component' => $expected), $manifest->default_catalogue());
-		$this->expectLog('debug', 'ComponentManifest: defaults discovered for component');
+		// With normalizer present, defaults are considered "discovered" (sanitize sources exist)
+		$this->expectLog('debug', 'ComponentManifest: defaults missing for component');
 	}
 
 	public function test_manifest_logs_when_defaults_missing(): void {
@@ -93,6 +96,7 @@ final class ComponentManifestDefaultsTest extends PluginLibTestCase {
 		$this->loader->shouldReceive('resolve_normalizer_class')->andReturn(null);
 		$this->loader->shouldReceive('resolve_builder_class')->andReturn(null);
 		$this->loader->shouldReceive('resolve_validator_class')->andReturn(null);
+		$this->loader->shouldReceive('resolve_sanitizer_class')->andReturn(null);
 
 		$this->resetLogs();
 		$manifest = new ComponentManifest($this->loader, $this->logger_mock);
@@ -108,6 +112,7 @@ final class ComponentManifestDefaultsTest extends PluginLibTestCase {
 		$this->loader->shouldReceive('resolve_normalizer_class')->andReturn(null);
 		$this->loader->shouldReceive('resolve_builder_class')->andReturn(StubBuilderWithDefaults::class);
 		$this->loader->shouldReceive('resolve_validator_class')->andReturn(null);
+		$this->loader->shouldReceive('resolve_sanitizer_class')->andReturn(null);
 
 		$this->resetLogs();
 		$manifest = new ComponentManifest($this->loader, $this->logger_mock);
@@ -123,15 +128,18 @@ final class ComponentManifestDefaultsTest extends PluginLibTestCase {
 		$this->loader->shouldReceive('resolve_normalizer_class')->andReturn(null);
 		$this->loader->shouldReceive('resolve_builder_class')->andReturn(null);
 		$this->loader->shouldReceive('resolve_validator_class')->andReturn(StubValidatorWithDefaults::class);
+		$this->loader->shouldReceive('resolve_sanitizer_class')->andReturn(null);
 
 		$this->resetLogs();
 		$manifest = new ComponentManifest($this->loader, $this->logger_mock);
 
+		// Note: Defaults no longer contain sanitize/validate class names.
+		// Validators are injected via factory -> queue -> merge path.
 		$expected = array(
-			'validate' => array(StubValidatorWithDefaults::class),
-			'context'  => $this->expectedContext(),
+			'context' => $this->expectedContext(),
 		);
 		$this->assertSame($expected, $manifest->get_defaults_for('validator.component'));
+		// With validator present, validate sources exist
 		$this->expectLog('debug', 'ComponentManifest: defaults discovered for component');
 	}
 
@@ -142,16 +150,17 @@ final class ComponentManifestDefaultsTest extends PluginLibTestCase {
 		$this->loader->shouldReceive('resolve_normalizer_class')->andReturn(StubNormalizerWithDefaults::class);
 		$this->loader->shouldReceive('resolve_builder_class')->andReturn(null);
 		$this->loader->shouldReceive('resolve_validator_class')->andReturn(null);
+		$this->loader->shouldReceive('resolve_sanitizer_class')->andReturn(null);
 
 		$this->resetLogs();
 		$firstManifest = new ComponentManifest($this->loader, $this->logger_mock);
 
+		// Note: Defaults no longer contain sanitize/validate class names.
 		$cacheKey = 'kepler_comp_meta_cached.component';
 		$this->assertArrayHasKey($cacheKey, $this->cachedMetadata);
 		$this->assertSame(
 			array(
-				'sanitize' => array(StubNormalizerWithDefaults::class),
-				'context'  => $this->expectedContext(),
+				'context' => $this->expectedContext(),
 			),
 			$this->cachedMetadata[$cacheKey]['defaults'] ?? null
 		);
@@ -162,8 +171,7 @@ final class ComponentManifestDefaultsTest extends PluginLibTestCase {
 		$secondManifest = new ComponentManifest($this->loader, $this->logger_mock);
 		$this->assertSame(
 			array(
-				'sanitize' => array(StubNormalizerWithDefaults::class),
-				'context'  => $this->expectedContext(),
+				'context' => $this->expectedContext(),
 			),
 			$secondManifest->get_defaults_for('cached.component')
 		);
@@ -177,15 +185,16 @@ final class ComponentManifestDefaultsTest extends PluginLibTestCase {
 		$this->loader->shouldReceive('resolve_normalizer_class')->andReturn(StubNormalizerWithDefaults::class);
 		$this->loader->shouldReceive('resolve_builder_class')->andReturn(null);
 		$this->loader->shouldReceive('resolve_validator_class')->andReturn(null);
+		$this->loader->shouldReceive('resolve_sanitizer_class')->andReturn(null);
 
 		$manifest = new ComponentManifest($this->loader, $this->logger_mock);
 
 		$resolver = new FormsTemplateOverrideResolver($this->logger_mock);
 		$session  = new FormsServiceSession($manifest, new FormsAssets(), $resolver, $this->logger_mock);
+		// Note: Defaults no longer contain sanitize/validate class names.
 		$this->assertSame(
 			array('session.component' => array(
-				'sanitize' => array(StubNormalizerWithDefaults::class),
-				'context'  => $this->expectedContext(),
+				'context' => $this->expectedContext(),
 			)),
 			$session->manifest_defaults()
 		);

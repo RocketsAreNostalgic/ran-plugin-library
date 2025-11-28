@@ -536,6 +536,7 @@ class RegisterOptions {
 				array(),
 				array(),
 				array(),
+				array(),
 				array(
 					'submitted'  => $defaultKeysSubmitted,
 					'unchanged'  => $defaultUnchangedKeys,
@@ -1018,9 +1019,10 @@ class RegisterOptions {
 	 * @param array<string,array{sanitize:array{component:array<callable>,schema:array<callable>}, validate:array{component:array<callable>,schema:array<callable>}, default?:mixed}> $schema
 	 * @param array<string,array<string,mixed>> $metadata Optional meta flags (e.g. ['requires_validator' => true]).
 	 * @param array<string,array<int,callable>> $queuedValidators Component validators queued prior to schema merge.
+	 * @param array<string,array<int,callable>> $queuedSanitizers Component sanitizers queued prior to schema merge.
  	 * @return void
  	 */
-	public function _register_internal_schema(array $schema, array $metadata = array(), array $queuedValidators = array(), ?array $defaultsTelemetry = null): void {
+	public function _register_internal_schema(array $schema, array $metadata = array(), array $queuedValidators = array(), array $queuedSanitizers = array(), ?array $defaultsTelemetry = null): void {
 		if (empty($schema)) {
 			if ($defaultsTelemetry !== null) {
 				$this->_log_schema_defaults_summary($defaultsTelemetry);
@@ -1041,8 +1043,11 @@ class RegisterOptions {
 				$requiresValidator = (bool) ($metadata[$normalized_key]['requires_validator'] ?? false);
 			}
 
-			$queuedCount = isset($queuedValidators[$normalized_key]) && is_array($queuedValidators[$normalized_key])
+			$queuedValidatorCount = isset($queuedValidators[$normalized_key]) && is_array($queuedValidators[$normalized_key])
 				? count($queuedValidators[$normalized_key])
+				: 0;
+			$queuedSanitizerCount = isset($queuedSanitizers[$normalized_key]) && is_array($queuedSanitizers[$normalized_key])
+				? count($queuedSanitizers[$normalized_key])
 				: 0;
 			$metadataKeys = isset($metadata[$normalized_key]) && is_array($metadata[$normalized_key])
 				? array_keys($metadata[$normalized_key])
@@ -1052,7 +1057,8 @@ class RegisterOptions {
 				array(
 					'key'                  => $normalized_key,
 					'had_existing'         => $hadExisting,
-					'queued_validator_cnt' => $queuedCount,
+					'queued_validator_cnt' => $queuedValidatorCount,
+					'queued_sanitizer_cnt' => $queuedSanitizerCount,
 					'metadata_flags'       => $metadataKeys,
 				)
 			);
@@ -1089,13 +1095,25 @@ class RegisterOptions {
 				);
 			}
 
+			if (!empty($queuedSanitizers[$normalized_key])) {
+				$sanitizerBucket = &$this->schema[$normalized_key]['sanitize'][self::BUCKET_COMPONENT];
+				$sanitizerBucket = array_merge($queuedSanitizers[$normalized_key], $sanitizerBucket);
+				$this->_get_logger()->debug(
+					'RegisterOptions: _register_internal_schema queued sanitizers merged',
+					array(
+						'key'          => $normalized_key,
+						'queued_count' => count($queuedSanitizers[$normalized_key]),
+					)
+				);
+			}
+
 			if ($requiresValidator) {
 				$this->_assert_internal_validator_presence($normalized_key, $this->schema[$normalized_key]);
 			}
 
-			// Only coerce if queued validators were injected (they need normalization).
-			// Without queued validators, the merge result is already in canonical bucket form.
-			if (!empty($queuedValidators[$normalized_key])) {
+			// Only coerce if queued validators/sanitizers were injected (they need normalization).
+			// Without queued callables, the merge result is already in canonical bucket form.
+			if (!empty($queuedValidators[$normalized_key]) || !empty($queuedSanitizers[$normalized_key])) {
 				$this->schema[$normalized_key] = $this->_coerce_schema_entry($this->schema[$normalized_key], $normalized_key);
 			}
 			$finalEntry             = $this->schema[$normalized_key];

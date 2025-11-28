@@ -59,6 +59,9 @@ trait FormsBaseTrait {
 	/** @var array<string, array<int, callable>> */
 	private array $__queued_component_validators = array();
 
+	/** @var array<string, array<int, callable>> */
+	private array $__queued_component_sanitizers = array();
+
 	/** @var array<string, array<string,mixed>> */
 	private array $__schema_bundle_cache = array();
 
@@ -744,8 +747,9 @@ trait FormsBaseTrait {
 		}
 
 		if (!$updated) {
-			// Inject component validators automatically for new fields only
+			// Inject component validators and sanitizers automatically for new fields only
 			$this->_inject_component_validators($field_id, $component, $context);
+			$this->_inject_component_sanitizers($field_id, $component, $context);
 
 			$field_entry['index'] = $this->__field_index++;
 			$fields[]             = $field_entry;
@@ -1593,6 +1597,58 @@ trait FormsBaseTrait {
 	}
 
 	/**
+	 * Discover and inject component sanitizers for a field.
+	 *
+	 * Mirrors _inject_component_validators() but for sanitizers.
+	 * Sanitizers are optional – components without a Sanitizer.php are silently skipped.
+	 *
+	 * @param string $field_id Field identifier
+	 * @param string $component Component name
+	 * @param array  $field_context Field-specific context (options, required, etc.) merged with manifest defaults
+	 * @return void
+	 */
+	protected function _inject_component_sanitizers(string $field_id, string $component, array $field_context = array()): void {
+		$field_key       = $this->base_options->normalize_schema_key($field_id);
+		$defaults        = $this->components->get_defaults_for($component);
+		$manifestContext = is_array($defaults['context'] ?? null) ? $defaults['context'] : array();
+		// Merge manifest defaults with field-specific context; field context takes precedence
+		$context = array_merge($manifestContext, $field_context);
+
+		$sanitizer_factories = $this->components->sanitizer_factories();
+		$factory             = $sanitizer_factories[$component] ?? null;
+		if (!is_callable($factory)) {
+			// Sanitizers are optional – silently skip components without one
+			return;
+		}
+
+		$sanitizer_instance = $factory();
+		$sanitizer_callable = function($value, callable $emitNotice) use ($sanitizer_instance, $context): mixed {
+			return $sanitizer_instance->sanitize($value, $context, $emitNotice);
+		};
+
+		$hadSchema                                         = $this->base_options->has_schema_key($field_key);
+		$this->__queued_component_sanitizers[$field_key][] = $sanitizer_callable;
+		$this->logger->debug(static::class . ': Component sanitizer queued pending schema', array(
+			'field_id'          => $field_id,
+			'component'         => $component,
+			'schema_registered' => $hadSchema,
+		));
+	}
+
+	/**
+	 * Retrieve and clear queued sanitizers awaiting schema registration.
+	 *
+	 * @internal Used by settings flows to register bucketed schema fragments.
+	 *
+	 * @return array<string, array<int, callable>>
+	 */
+	protected function _drain_queued_component_sanitizers(): array {
+		$buffer                              = $this->__queued_component_sanitizers;
+		$this->__queued_component_sanitizers = array();
+		return $buffer;
+	}
+
+	/**
 	 * Resolve and memoize schema bundle for current request/context.
 	 *
 	 * @param RegisterOptions $options
@@ -1602,7 +1658,8 @@ trait FormsBaseTrait {
 	 *     defaults: array<string,array{default:mixed}>,
 	 *     bucketed_schema: array<string,array>,
 	 *     metadata: array<string,array<string,mixed>>,
-	 *     queued_validators: array<string,array<int,callable>>
+	 *     queued_validators: array<string,array<int,callable>>,
+	 *     queued_sanitizers: array<string,array<int,callable>>
 	 * }
 	 */
 	protected function _resolve_schema_bundle(RegisterOptions $options, array $context = array()): array {
@@ -1634,9 +1691,10 @@ trait FormsBaseTrait {
 			}
 		}
 
-		$bucketedSchema = array();
-		$metadata       = array();
-		$queued         = array();
+		$bucketedSchema   = array();
+		$metadata         = array();
+		$queuedValidators = array();
+		$queuedSanitizers = array();
 
 		$session = $this->get_form_session();
 		if ($session === null) {
@@ -1648,7 +1706,8 @@ trait FormsBaseTrait {
 			$bucketedSchema = $bucketed['schema'];
 			$metadata       = $bucketed['metadata'];
 			if (!empty($bucketedSchema)) {
-				list($bucketedSchema, $queued) = $this->_consume_component_validator_queue($bucketedSchema);
+				list($bucketedSchema, $queuedValidators) = $this->_consume_component_validator_queue($bucketedSchema);
+				list($bucketedSchema, $queuedSanitizers) = $this->_consume_component_sanitizer_queue($bucketedSchema);
 			}
 		}
 
@@ -1657,7 +1716,8 @@ trait FormsBaseTrait {
 			'defaults'          => $defaults,
 			'bucketed_schema'   => $bucketedSchema,
 			'metadata'          => $metadata,
-			'queued_validators' => $queued,
+			'queued_validators' => $queuedValidators,
+			'queued_sanitizers' => $queuedSanitizers,
 		);
 
 		$this->__schema_bundle_cache[$cacheKey] = $bundle;
@@ -1666,7 +1726,8 @@ trait FormsBaseTrait {
 			'schema_keys'           => array_keys($schemaInternal),
 			'default_count'         => count($defaults),
 			'bucketed_count'        => count($bucketedSchema),
-			'queued_validator_keys' => array_keys($queued),
+			'queued_validator_keys' => array_keys($queuedValidators),
+			'queued_sanitizer_keys' => array_keys($queuedSanitizers),
 		));
 
 		return $bundle;
@@ -1688,13 +1749,15 @@ trait FormsBaseTrait {
 	 *     merged_schema: array<string, array>,
 	 *     metadata: array<string, array<string, mixed>>,
 	 *     queued_validators: array<string, array<int, callable>>,
+	 *     queued_sanitizers: array<string, array<int, callable>>,
 	 *     defaults_for_seeding: array<string, array>
 	 * }
 	 */
 	protected function _merge_schema_bundle_sources(array $bundle): array {
-		$merged   = array();
-		$metadata = $bundle['metadata']          ?? array();
-		$queued   = $bundle['queued_validators'] ?? array();
+		$merged           = array();
+		$metadata         = $bundle['metadata']          ?? array();
+		$queuedValidators = $bundle['queued_validators'] ?? array();
+		$queuedSanitizers = $bundle['queued_sanitizers'] ?? array();
 
 		// Layer 1: Start with bucketed schema (component validators)
 		if (!empty($bundle['bucketed_schema'])) {
@@ -1739,7 +1802,8 @@ trait FormsBaseTrait {
 		return array(
 			'merged_schema'        => $merged,
 			'metadata'             => $metadata,
-			'queued_validators'    => $queued,
+			'queued_validators'    => $queuedValidators,
+			'queued_sanitizers'    => $queuedSanitizers,
 			'defaults_for_seeding' => $defaultsForSeeding,
 		);
 	}
@@ -1942,6 +2006,71 @@ trait FormsBaseTrait {
 		}
 
 		$this->logger->debug(static::class . ': Component validator queue consumed', array(
+			'schema_keys'    => array_keys($bucketedSchema),
+			'queued_counts'  => $matchedCounts,
+			'unmatched_keys' => $unmatchedKeys,
+		));
+
+		return array($bucketedSchema, $queuedForSchema);
+	}
+
+	/**
+	 * Consume queued sanitizers for the supplied schema fragment while preserving order.
+	 *
+	 * Mirrors _consume_component_validator_queue() but for sanitizers.
+	 * Any sanitizers that do not correspond to the provided schema keys are re-queued so a
+	 * later drain can merge them once their schema entries materialize.
+	 *
+	 * @param array<string, array<string, mixed>> $bucketedSchema
+	 * @return array{
+	 *     0: array<string, array<string, mixed>>,
+	 *     1: array<string, array<int, callable>>
+	 * }
+	 */
+	protected function _consume_component_sanitizer_queue(array $bucketedSchema): array {
+		$drained = $this->_drain_queued_component_sanitizers();
+		if ($drained === array()) {
+			return array($bucketedSchema, array());
+		}
+
+		$queuedForSchema = array();
+		$matchedCounts   = array();
+		$unmatchedKeys   = array();
+		$schemaKeyLookup = array_fill_keys(array_keys($bucketedSchema), true);
+
+		foreach ($drained as $normalizedKey => $sanitizers) {
+			if (!is_array($sanitizers) || $sanitizers === array()) {
+				continue;
+			}
+
+			$sanitizers = array_values($sanitizers);
+			if (isset($schemaKeyLookup[$normalizedKey])) {
+				$count                           = count($sanitizers);
+				$queuedForSchema[$normalizedKey] = $sanitizers;
+				$matchedCounts[$normalizedKey]   = $count;
+				$this->logger->debug(static::class . ': Component sanitizer queue matched schema key', array(
+					'normalized_key'  => $normalizedKey,
+					'sanitizer_count' => $count,
+				));
+				continue;
+			}
+
+			if (!isset($this->__queued_component_sanitizers[$normalizedKey])) {
+				$this->__queued_component_sanitizers[$normalizedKey] = $sanitizers;
+			} else {
+				$this->__queued_component_sanitizers[$normalizedKey] = array_merge(
+					(array) $this->__queued_component_sanitizers[$normalizedKey],
+					$sanitizers
+				);
+			}
+			$unmatchedKeys[] = $normalizedKey;
+			$this->logger->debug(static::class . ': Component sanitizer queue re-queued unmatched key', array(
+				'normalized_key'  => $normalizedKey,
+				'sanitizer_count' => count($sanitizers),
+			));
+		}
+
+		$this->logger->debug(static::class . ': Component sanitizer queue consumed', array(
 			'schema_keys'    => array_keys($bucketedSchema),
 			'queued_counts'  => $matchedCounts,
 			'unmatched_keys' => $unmatchedKeys,

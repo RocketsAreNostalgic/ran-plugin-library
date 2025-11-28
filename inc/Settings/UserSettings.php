@@ -283,6 +283,7 @@ class UserSettings implements FormsInterface {
 				$merged['merged_schema'],
 				$merged['metadata'],
 				$merged['queued_validators'],
+				$merged['queued_sanitizers'],
 				$merged['defaults_for_seeding']
 			);
 		}

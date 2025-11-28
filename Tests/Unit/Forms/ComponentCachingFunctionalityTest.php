@@ -521,5 +521,6 @@ class ComponentCachingFunctionalityTest extends PluginLibTestCase {
 		$this->loader->shouldReceive('resolve_normalizer_class')->andReturn(null);
 		$this->loader->shouldReceive('resolve_builder_class')->andReturn(null);
 		$this->loader->shouldReceive('resolve_validator_class')->andReturn(null);
+		$this->loader->shouldReceive('resolve_sanitizer_class')->andReturn(null);
 	}
 }

@@ -189,6 +189,13 @@ class ComponentLoader {
 	}
 
 	/**
+	 * Resolve the class name for a sanitizer by its alias.
+	 */
+	public function resolve_sanitizer_class(string $alias): ?string {
+		return $this->_resolve_component_class($alias, 'Sanitizer');
+	}
+
+	/**
 	 * Resolve the path to a template by its alias.
 	 *
 	 * @param string $name

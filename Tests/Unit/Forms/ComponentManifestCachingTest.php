@@ -40,6 +40,7 @@ class ComponentManifestCachingTest extends PluginLibTestCase {
 		$this->loader->shouldReceive('resolve_normalizer_class')->andReturn(null);
 		$this->loader->shouldReceive('resolve_builder_class')->andReturn(null);
 		$this->loader->shouldReceive('resolve_validator_class')->andReturn(null);
+		$this->loader->shouldReceive('resolve_sanitizer_class')->andReturn(null);
 
 		WP_Mock::userFunction('get_transient')->andReturnUsing(static function (string $key) use ($instance) {
 			return $instance->cachedMetadata[$key] ?? false;
