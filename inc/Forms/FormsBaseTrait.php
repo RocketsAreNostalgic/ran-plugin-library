@@ -16,6 +16,7 @@ namespace Ran\PluginLib\Forms;
 use UnexpectedValueException;
 use Ran\PluginLib\Util\Logger;
 use Ran\PluginLib\Options\RegisterOptions;
+use Ran\PluginLib\Options\OptionScope;
 use Ran\PluginLib\Forms\Renderer\FormMessageHandler;
 use Ran\PluginLib\Forms\Renderer\FormElementRenderer;
 use Ran\PluginLib\Forms\FormsServiceSession;
@@ -24,7 +25,6 @@ use Ran\PluginLib\Forms\FormsAssets;
 use Ran\PluginLib\Forms\Component\ComponentType;
 use Ran\PluginLib\Forms\Component\ComponentRenderResult;
 use Ran\PluginLib\Forms\Component\ComponentManifest;
-use Ran\PluginLib\Options\OptionScope;
 
 /**
  * Shared functionality for form-based classes.
@@ -1693,24 +1693,24 @@ trait FormsBaseTrait {
 			}
 		}
 
-		$bucketedSchema   = array();
-		$metadata         = array();
-		$queuedValidators = array();
-		$queuedSanitizers = array();
-
 		$session = $this->get_form_session();
 		if ($session === null) {
 			$this->_start_form_session();
 			$session = $this->get_form_session();
 		}
+
+		// Assemble bucketed schema with queued validators/sanitizers in one call
+		$bucketedSchema   = array();
+		$metadata         = array();
+		$queuedValidators = array();
+		$queuedSanitizers = array();
+
 		if ($session !== null) {
-			$bucketed       = $this->_assemble_initial_bucketed_schema($session);
-			$bucketedSchema = $bucketed['schema'];
-			$metadata       = $bucketed['metadata'];
-			if (!empty($bucketedSchema)) {
-				list($bucketedSchema, $queuedValidators) = $this->_consume_component_validator_queue($bucketedSchema);
-				list($bucketedSchema, $queuedSanitizers) = $this->_consume_component_sanitizer_queue($bucketedSchema);
-			}
+			$assembled        = $this->_assemble_initial_bucketed_schema($session);
+			$bucketedSchema   = $assembled['schema'];
+			$metadata         = $assembled['metadata'];
+			$queuedValidators = $assembled['queued_validators'];
+			$queuedSanitizers = $assembled['queued_sanitizers'];
 		}
 
 		$bundle = array(
@@ -1869,6 +1869,11 @@ trait FormsBaseTrait {
 	/**
 	 * Builds the initial bucketed schema fragments and metadata for registered fields.
 	 *
+	 * This method:
+	 * 1. Iterates registered fields and builds bucketed schema entries
+	 * 2. Consumes queued component validators and sanitizers
+	 * 3. Returns a complete schema bundle ready for merging
+	 *
 	 * This collects component-provided defaults plus any per-field schema declared on the
 	 * builders, but it does not reflect the full developer-supplied schema map. Callers are
 	 * expected to merge the returned fragment first, then layer the main schema via
@@ -1883,7 +1888,9 @@ trait FormsBaseTrait {
 	 *         validate: array{component: array<int, callable>, schema: array<int, callable>},
 	 *         default?: mixed
 	 *     }>,
-	 *     metadata: array<string, array<string, mixed>>
+	 *     metadata: array<string, array<string, mixed>>,
+	 *     queued_validators: array<string, array<int, callable>>,
+	 *     queued_sanitizers: array<string, array<int, callable>>
 	 * }
 	 */
 	protected function _assemble_initial_bucketed_schema(FormsServiceSession $session): array {
@@ -1946,9 +1953,20 @@ trait FormsBaseTrait {
 			}
 		}
 
+		// Consume queued validators and sanitizers as part of assembly
+		$queuedValidators = array();
+		$queuedSanitizers = array();
+
+		if ($bucketedSchema !== array()) {
+			list($bucketedSchema, $queuedValidators) = $this->_consume_component_validator_queue($bucketedSchema);
+			list($bucketedSchema, $queuedSanitizers) = $this->_consume_component_sanitizer_queue($bucketedSchema);
+		}
+
 		return array(
-			'schema'   => $bucketedSchema,
-			'metadata' => $metadata,
+			'schema'            => $bucketedSchema,
+			'metadata'          => $metadata,
+			'queued_validators' => $queuedValidators,
+			'queued_sanitizers' => $queuedSanitizers,
 		);
 	}
 
