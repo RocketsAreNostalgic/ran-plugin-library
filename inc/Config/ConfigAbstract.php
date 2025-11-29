@@ -358,6 +358,55 @@ abstract class ConfigAbstract implements ConfigInterface {
 	}
 
 	/**
+	 * Returns the PSR-4 root namespace for this plugin/theme.
+	 *
+	 * Resolution order:
+	 * 1. Explicit `@RAN: Namespace` header value
+	 * 2. PascalCase conversion of the plugin/theme Name
+	 *
+	 * @return string The namespace (e.g., "MyPlugin" or "Acme\MyPlugin")
+	 */
+	public function get_namespace(): string {
+		$cfg = $this->get_config();
+
+		// Check for explicit override via @RAN: Namespace header
+		if (isset($cfg['RAN']['Namespace']) && $cfg['RAN']['Namespace'] !== '') {
+			return (string) $cfg['RAN']['Namespace'];
+		}
+
+		// Fallback: PascalCase of plugin/theme Name
+		$name = (string) ($cfg['Name'] ?? '');
+		return $this->_to_pascal_case($name);
+	}
+
+	/**
+	 * Converts a string to PascalCase for namespace derivation.
+	 *
+	 * Examples:
+	 * - "My Plugin Name" -> "MyPluginName"
+	 * - "ran-starter-plugin" -> "RanStarterPlugin"
+	 * - "Acme's Cool Plugin!" -> "AcmesCoolPlugin"
+	 *
+	 * @param string $name The input string.
+	 * @return string The PascalCase result.
+	 */
+	protected function _to_pascal_case(string $name): string {
+		// Remove non-alphanumeric characters except spaces, hyphens, underscores
+		$name = preg_replace('/[^a-zA-Z0-9\s\-_]/', '', $name);
+
+		// Replace hyphens and underscores with spaces for word splitting
+		$name = str_replace(array('-', '_'), ' ', $name);
+
+		// Split on whitespace, capitalize each word, join
+		$words = preg_split('/\s+/', trim($name));
+		if ($words === false || $words === array('')) {
+			return '';
+		}
+
+		return implode('', array_map('ucfirst', array_map('strtolower', $words)));
+	}
+
+	/**
 	 * Explicitly hydrate plugin metadata from a plugin root file.
 	 *
 	 * @param string $plugin_file Path to the plugin's root file.

@@ -55,4 +55,15 @@ interface ConfigInterface {
 	 * The environment type backing this configuration (plugin or theme).
 	 */
 	public function get_type(): ConfigType;
+
+	/**
+	 * Get the PSR-4 root namespace for this plugin/theme.
+	 *
+	 * Resolution order:
+	 * 1. Explicit `@RAN: Namespace` header value
+	 * 2. PascalCase conversion of the plugin/theme Name
+	 *
+	 * @return string The namespace (e.g., "MyPlugin" or "Acme\MyPlugin")
+	 */
+	public function get_namespace(): string;
 }
