@@ -28,9 +28,27 @@ use Ran\PluginLib\Forms\Component\ComponentManifest;
 
 /**
  * Shared functionality for form-based classes.
+ *
+ * This trait provides shared infrastructure for AdminSettings, UserSettings, and future FrontendForms.
+ *
+ * Organization:
+ * 1. Properties (protected public contract, private internal state)
+ * 2. Abstract Methods (contract for implementers)
+ * 3. Public API (service access, template setters, messages)
+ * 4. Protected Methods by responsibility:
+ *    - Validation Message Helpers
+ *    - Session & Hook Management
+ *    - Builder Update Handlers
+ *    - Rendering Helpers
+ *    - Validator/Sanitizer Injection
+ *    - Schema Bundle Resolution
  */
 trait FormsBaseTrait {
-	// Core form infrastructure properties
+	// =========================================================================
+	// PROPERTIES
+	// =========================================================================
+
+	// -- Protected: Public contract --
 
 	protected string $main_option;
 	protected ?array $pending_values = null;
@@ -42,7 +60,6 @@ trait FormsBaseTrait {
 	protected ?FormsAssets $shared_assets        = null;
 	protected Logger $logger;
 	protected RegisterOptions $base_options;
-
 
 	// Settings structure: containers, sections, fields, and groups organized by container
 
@@ -56,6 +73,8 @@ trait FormsBaseTrait {
 	protected array $groups = array();
 	/** @var array<string, array{zone_id:string, before:?callable, after:?callable, controls: array<int, array{id:string, label:string, component:string, component_context:array<string,mixed>, order:int}>}> */
 	protected array $submit_controls = array();
+
+	// -- Private: Internal state
 
 	/** @var array<string, array<int, callable>> */
 	private array $__queued_component_validators = array();
@@ -75,61 +94,55 @@ trait FormsBaseTrait {
 	private int $__field_index   = 0;
 	private int $__group_index   = 0;
 
+	// =========================================================================
+	// ABSTRACT METHODS (Contract for implementers)
+	// =========================================================================
+
 	/**
-	 * Export a normalized list of field metadata captured via builder updates.
-	 *
-	 * Each entry includes the container/section identifiers, optional group details,
-	 * and the raw field definition that was persisted by the fluent builders. This is
-	 * leveraged by schema-derivation helpers so they can operate on the canonical
-	 * field store without duplicating state.
-	 *
-	 * @return array<int, array{
-	 *     container_id:string,
-	 *     section_id:string,
-	 *     group_id:?string,
-	 *     field:array<string,mixed>,
-	 *     group?:array<string,mixed>
-	 * }>
+	 * Boot admin: register root, sections, fields, templates.
 	 */
-	protected function _get_registered_field_metadata(): array {
-		$entries = array();
+	abstract public function boot(): void;
 
-		foreach ($this->fields as $container_id => $sections) {
-			foreach ($sections as $section_id => $fields) {
-				foreach ($fields as $field) {
-					$field_entry = is_array($field) ? $field : array();
-					$entries[]   = array(
-						'container_id' => (string) $container_id,
-						'section_id'   => (string) $section_id,
-						'group_id'     => null,
-						'field'        => $field_entry,
-					);
-				}
-			}
-		}
+	/**
+	 * Render a registered root template.
+	 *
+	 * @param string $id_slug The root identifier
+	 * @param array|null $context Optional context
+	 */
+	abstract public function render(string $id_slug, ?array $context = null): void;
 
-		foreach ($this->groups as $container_id => $sections) {
-			foreach ($sections as $section_id => $groups) {
-				foreach ($groups as $group_id => $group) {
-					$group_fields = isset($group['fields']) && is_array($group['fields']) ? $group['fields'] : array();
-					foreach ($group_fields as $field) {
-						$field_entry = is_array($field) ? $field : array();
-						$group_entry = is_array($group) ? $group : array();
-						$entries[]   = array(
-							'container_id' => (string) $container_id,
-							'section_id'   => (string) $section_id,
-							'group_id'     => (string) $group_id,
-							'field'        => $field_entry,
-							'group'        => $group_entry,
-						);
-					}
-				}
-			}
-		}
+	/**
+	 * Handle context update (eg AdminSettings page, UserSettings collection, etc) from builders.
+	 *
+	 * @param string $type The type of update
+	 * @param array $data context data to update
+	 * @return void
+	 */
+	abstract protected function _handle_context_update(string $type, array $data): void;
 
-		return $entries;
-	}
+	/**
+	 * Sanitize a key for WordPress usage.
+	 * This method should be implemented by classes that use WPWrappersTrait.
+	 *
+	 * @param string $key
+	 * @return string
+	 */
+	abstract protected function _do_sanitize_key(string $key): string;
 
+	/**
+	 * Resolve context for the specific implementation.
+	 * Each class resolves context differently based on their scope.
+	 *
+	 * @param array<string,mixed> $context
+	 * @return array
+	 */
+	abstract protected function _resolve_context(array $context): array;
+
+	// =========================================================================
+	// PUBLIC API
+	// =========================================================================
+
+	// -- Form Defaults --
 
 	/**
 	 * Override specific form-wide defaults for current context.
@@ -145,54 +158,7 @@ trait FormsBaseTrait {
 		$this->form_session->override_form_defaults($overrides);
 	}
 
-	/**
-	 * Lookup the registered component alias for a given field identifier.
-	 *
-	 * @internal
-	 *
-	 * @param string $field_id
-	 * @return string|null
-	 */
-	protected function _lookup_component_alias(string $field_id): ?string {
-		if ($field_id === '') {
-			return null;
-		}
-
-		foreach ($this->fields as $container) {
-			foreach ($container as $section) {
-				foreach ($section as $field) {
-					if (($field['id'] ?? '') === $field_id) {
-						$component = $field['component'] ?? null;
-						return is_string($component) && $component !== '' ? $component : null;
-					}
-				}
-			}
-		}
-
-		foreach ($this->groups as $container) {
-			foreach ($container as $section) {
-				foreach ($section as $group) {
-					foreach ($group['fields'] ?? array() as $field) {
-						if (($field['id'] ?? '') === $field_id) {
-							$component = $field['component'] ?? null;
-							return is_string($component) && $component !== '' ? $component : null;
-						}
-					}
-				}
-			}
-		}
-
-		foreach ($this->submit_controls as $container) {
-			foreach ($container['controls'] ?? array() as $control) {
-				if (($control['id'] ?? '') === $field_id) {
-					$component = $control['component'] ?? null;
-					return is_string($component) && $component !== '' ? $component : null;
-				}
-			}
-		}
-
-		return null;
-	}
+	// -- Template Setters --
 
 	/**
 	 * Set the root template for current context.
@@ -256,18 +222,7 @@ trait FormsBaseTrait {
 		return $this->base_options->with_context($resolved['storage']);
 	}
 
-	/**
-	 * Boot admin: register root, sections, fields, templates.
-	 */
-	abstract public function boot(): void;
-
-	/**
-	 * Render a registered root template.
-	 *
-	 * @param string $id_slug The root identifier
-	 * @param array|null $context Optional context
-	 */
-	abstract public function render(string $id_slug, ?array $context = null): void;
+	// -- Messages --
 
 	/**
 	 * Retrieve structured validation messages captured during the most recent operation.
@@ -282,6 +237,127 @@ trait FormsBaseTrait {
 			'notices'  => array(),
 		);
 	}
+
+	/**
+	 * Get the FormsServiceSession instance for direct access to template resolution.
+	 *
+	 * @return FormsServiceSession|null The FormsServiceSession instance or null if not started
+	 */
+	public function get_form_session(): ?FormsServiceSession {
+		return $this->form_session;
+	}
+
+	// =========================================================================
+	// PROTECTED METHODS
+	// =========================================================================
+
+	// -- Field/Group Utilities --
+
+	/**
+	 * Export a normalized list of field metadata captured via builder updates.
+	 *
+	 * Each entry includes the container/section identifiers, optional group details,
+	 * and the raw field definition that was persisted by the fluent builders. This is
+	 * leveraged by schema-derivation helpers so they can operate on the canonical
+	 * field store without duplicating state.
+	 *
+	 * @return array<int, array{
+	 *     container_id:string,
+	 *     section_id:string,
+	 *     group_id:?string,
+	 *     field:array<string,mixed>,
+	 *     group?:array<string,mixed>
+	 * }>
+	 */
+	protected function _get_registered_field_metadata(): array {
+		$entries = array();
+
+		foreach ($this->fields as $container_id => $sections) {
+			foreach ($sections as $section_id => $fields) {
+				foreach ($fields as $field) {
+					$field_entry = is_array($field) ? $field : array();
+					$entries[]   = array(
+						'container_id' => (string) $container_id,
+						'section_id'   => (string) $section_id,
+						'group_id'     => null,
+						'field'        => $field_entry,
+					);
+				}
+			}
+		}
+
+		foreach ($this->groups as $container_id => $sections) {
+			foreach ($sections as $section_id => $groups) {
+				foreach ($groups as $group_id => $group) {
+					$group_fields = isset($group['fields']) && is_array($group['fields']) ? $group['fields'] : array();
+					foreach ($group_fields as $field) {
+						$field_entry = is_array($field) ? $field : array();
+						$group_entry = is_array($group) ? $group : array();
+						$entries[]   = array(
+							'container_id' => (string) $container_id,
+							'section_id'   => (string) $section_id,
+							'group_id'     => (string) $group_id,
+							'field'        => $field_entry,
+							'group'        => $group_entry,
+						);
+					}
+				}
+			}
+		}
+
+		return $entries;
+	}
+
+	/**
+	 * Lookup the registered component alias for a given field identifier.
+	 *
+	 * @internal
+	 *
+	 * @param string $field_id
+	 * @return string|null
+	 */
+	protected function _lookup_component_alias(string $field_id): ?string {
+		if ($field_id === '') {
+			return null;
+		}
+
+		foreach ($this->fields as $container) {
+			foreach ($container as $section) {
+				foreach ($section as $field) {
+					if (($field['id'] ?? '') === $field_id) {
+						$component = $field['component'] ?? null;
+						return is_string($component) && $component !== '' ? $component : null;
+					}
+				}
+			}
+		}
+
+		foreach ($this->groups as $container) {
+			foreach ($container as $section) {
+				foreach ($section as $group) {
+					foreach ($group['fields'] ?? array() as $field) {
+						if (($field['id'] ?? '') === $field_id) {
+							$component = $field['component'] ?? null;
+							return is_string($component) && $component !== '' ? $component : null;
+						}
+					}
+				}
+			}
+		}
+
+		foreach ($this->submit_controls as $container) {
+			foreach ($container['controls'] ?? array() as $control) {
+				if (($control['id'] ?? '') === $field_id) {
+					$component = $control['component'] ?? null;
+					return is_string($component) && $component !== '' ? $component : null;
+				}
+			}
+		}
+
+		return null;
+	}
+
+	// -- Validation Message Helpers --
 
 	/**
 	 * Prepare the message handler for a new validation run.
@@ -372,6 +448,8 @@ trait FormsBaseTrait {
 		}
 	}
 
+	// -- Session & Hook Management --
+
 	/**
 	 * Register a batch of WordPress action hooks using the wrappers provided by the host class.
 	 *
@@ -389,25 +467,7 @@ trait FormsBaseTrait {
 		}
 	}
 
-	/**
-	 * Get the FormsServiceSession instance for direct access to template resolution.
-	 *
-	 * @return FormsServiceSession|null The FormsServiceSession instance or null if not started
-	 */
-	public function get_form_session(): ?FormsServiceSession {
-		return $this->form_session;
-	}
-
-	// Protected methods
-
-	/**
-	 * Handle context update (eg AdminSettings page, UserSettings collection, etc) from builders.
-	 *
-	 * @param string $type The type of update
-	 * @param array $data context data to update
-	 * @return void
-	 */
-	protected abstract function _handle_context_update(string $type, array $data): void;
+	// -- Builder Update Handlers --
 
 	/**
 	 * Create an update function for immediate data flow to parent storage.
@@ -1242,15 +1302,7 @@ trait FormsBaseTrait {
 		);
 	}
 
-	/**
-	 * Sanitize a key for WordPress usage.
-	 * This method should be implemented by classes that use WPWrappersTrait.
-	 *
-	 * @param string $key
-	 * @return string
-	 */
-	abstract protected function _do_sanitize_key(string $key): string;
-
+	// -- Rendering Helpers --
 
 	/**
 	 * Render sections and fields for an admin page.
@@ -1520,7 +1572,7 @@ trait FormsBaseTrait {
 	 * @param string $message The error message
 	 * @return string Rendered field HTML.
 	 */
-	private function _render_default_field_wrapper_warning(string $message): string {
+	protected function _render_default_field_wrapper_warning(string $message): string {
 		// Use FormsServiceSession to render error with proper template resolution
 		if ($this->form_session === null) {
 			$this->_start_form_session();
@@ -1535,6 +1587,8 @@ trait FormsBaseTrait {
 			'error_message' => $message
 		));
 	}
+
+	// -- Validator/Sanitizer Injection --
 
 	/**
 	 * Discover and inject component validators for a field.
@@ -1646,6 +1700,8 @@ trait FormsBaseTrait {
 		$this->__queued_component_sanitizers = array();
 		return $buffer;
 	}
+
+	// -- Schema Bundle Resolution --
 
 	/**
 	 * Resolve and memoize schema bundle for current request/context.
@@ -1820,7 +1876,7 @@ trait FormsBaseTrait {
 	 * @param array $incoming The incoming schema entry to merge.
 	 * @return array The merged schema entry.
 	 */
-	private function _merge_schema_entry_buckets(array $existing, array $incoming): array {
+	protected function _merge_schema_entry_buckets(array $existing, array $incoming): array {
 		$merged = $existing;
 
 		// Merge default (incoming takes precedence if both have it)
@@ -2098,13 +2154,4 @@ trait FormsBaseTrait {
 
 		return array($bucketedSchema, $queuedForSchema);
 	}
-
-	/**
-	 * Resolve context for the specific implementation.
-	 * Each class resolves context differently based on their scope.
-	 *
-	 * @param array<string,mixed> $context
-	 * @return array
-	 */
-	abstract protected function _resolve_context(array $context): array;
 }
