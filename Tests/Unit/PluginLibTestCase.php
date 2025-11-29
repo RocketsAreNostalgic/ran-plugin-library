@@ -32,7 +32,7 @@ class ConcreteConfigForTesting extends ConfigAbstract {
 	 * Provide options accessor required by ConfigInterface for this test concrete (typed-first).
 	 */
 	public function options(?StorageContext $context = null, bool $autoload = true): \Ran\PluginLib\Options\RegisterOptions {
-		return new RegisterOptions($this->get_options_key(), $context, $autoload);
+		return new RegisterOptions($this->get_options_key(), $context, $autoload, $this->get_logger());
 	}
 }
 

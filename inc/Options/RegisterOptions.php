@@ -182,21 +182,18 @@ class RegisterOptions {
 	 * Initializes options by loading them from the database under `$main_wp_option_name`.
 	 * No implicit writes occur in the constructor.
 	 *
-	 * @param    string                       $main_wp_option_name   The primary key for this instance's grouped settings.
-	 * @param    StorageContext|null          $storage_context       Storage context for scope-aware persistence. Defaults to site scope if null.
-	 * @param    bool                         $main_option_autoload  Whether the entire group of options should be autoloaded by WordPress (if supported by storage). Defaults to true.
-	 * @param    Logger|null                  $logger                Optional Logger for dependency injection; when provided, it is bound before the first read.
+	 * @param    string               $main_wp_option_name   The primary key for this instance's grouped settings.
+	 * @param    StorageContext|null  $storage_context       Storage context for scope-aware persistence. Defaults to site scope if null.
+	 * @param    bool                 $main_option_autoload  Whether the entire group of options should be autoloaded by WordPress (if supported by storage). Defaults to true.
+	 * @param    Logger               $logger                Logger instance for diagnostics.
 	 */
 	public function __construct(
-	        string $main_wp_option_name,
-	        ?StorageContext $storage_context = null,
-	        bool $main_option_autoload = true,
-	        ?Logger $logger = null
-	    ) {
-		// Bind provided logger first
-		if ($logger instanceof Logger) {
-			$this->logger = $logger;
-		}
+		string $main_wp_option_name,
+		?StorageContext $storage_context,
+		bool $main_option_autoload,
+		Logger $logger
+	) {
+		$this->logger = $logger;
 
 		// Initialize message handler
 		$this->message_handler = new FormMessageHandler($this->logger);
@@ -225,12 +222,15 @@ class RegisterOptions {
 	/**
 	 * Named factory: Site scope instance.
 	 *
-	 * @param string      $option_name        Main option key
-	 * @param bool        $autoload_on_create Whether to autoload on first create (site scope supports autoload)
-	 * @param Logger|null $logger             Optional logger to bind before first read
+	 * @param string $option_name        Main option key
+	 * @param bool   $autoload_on_create Whether to autoload on first create (site scope supports autoload)
+	 * @param Logger $logger             Logger instance
 	 * @return static
 	 */
 	public static function site(string $option_name, bool $autoload_on_create = true, ?Logger $logger = null): static {
+		if ($logger === null) {
+			throw new \InvalidArgumentException('RegisterOptions::site() requires a Logger instance.');
+		}
 		return new static($option_name, StorageContext::forSite(), $autoload_on_create, $logger);
 	}
 
@@ -239,11 +239,14 @@ class RegisterOptions {
 	 *
 	 * Network options do not support autoload semantics; flag is ignored at storage.
 	 *
-	 * @param  string      $option_name Main option key
-	 * @param  Logger|null $logger      Optional logger to bind before first read
+	 * @param  string $option_name Main option key
+	 * @param  Logger $logger      Logger instance
 	 * @return static
 	 */
 	public static function network(string $option_name, ?Logger $logger = null): static {
+		if ($logger === null) {
+			throw new \InvalidArgumentException('RegisterOptions::network() requires a Logger instance.');
+		}
 		return new static($option_name, StorageContext::forNetwork(), false, $logger);
 	}
 
@@ -254,13 +257,16 @@ class RegisterOptions {
 	 * Blog storage adapter currently ignores the autoload flag; we still accept it for
 	 * API parity and potential future support.
 	 *
-	 * @param string     $option_name         Main option key
-	 * @param int        $blog_id             Target blog/site ID
-	 * @param bool|null  $autoload_on_create  Autoload preference for current blog; null to leave default
-	 * @param Logger|null $logger             Optional logger to bind before first read
+	 * @param string    $option_name         Main option key
+	 * @param int       $blog_id             Target blog/site ID
+	 * @param bool|null $autoload_on_create  Autoload preference for current blog; null to leave default
+	 * @param Logger    $logger              Logger instance
 	 * @return static
 	 */
 	public static function blog(string $option_name, int $blog_id, ?bool $autoload_on_create = null, ?Logger $logger = null): static {
+		if ($logger === null) {
+			throw new \InvalidArgumentException('RegisterOptions::blog() requires a Logger instance.');
+		}
 		// Decide autoload preference (constructor requires bool). For non-current blog, force false.
 		$current_blog = (int) (new class {
 			use WPWrappersTrait;
@@ -284,13 +290,16 @@ class RegisterOptions {
 	 * To opt into user option (per-site or global), callers can later specify args via Config
 	 * or future fluent methods; for now, we default to meta with optional global option retained in args.
 	 *
-	 * @param string      $option_name Main option key
-	 * @param int         $user_id     Target user ID
-	 * @param bool        $global      When using user option storage, whether to use user_settings (network-wide)
-	 * @param Logger|null $logger      Optional logger to bind before first read
+	 * @param string $option_name Main option key
+	 * @param int    $user_id     Target user ID
+	 * @param bool   $global      When using user option storage, whether to use user_settings (network-wide)
+	 * @param Logger $logger      Logger instance
 	 * @return static
 	 */
 	public static function user(string $option_name, int $user_id, bool $global = false, ?Logger $logger = null): static {
+		if ($logger === null) {
+			throw new \InvalidArgumentException('RegisterOptions::user() requires a Logger instance.');
+		}
 		return new static($option_name, StorageContext::forUser($user_id, 'meta', $global), false, $logger);
 	}
 
@@ -575,14 +584,12 @@ class RegisterOptions {
 		$value             = $this->options[$option_name_clean] ?? $default;
 
 		// @codeCoverageIgnoreStart
-		if ($this->_get_logger()->is_active()) {
-			$log_value = is_scalar($value) ? (string) $value : (is_array($value) ? 'Array' : 'Object');
-			if (strlen($log_value) > 100) {
-				$log_value = substr($log_value, 0, 97) . '...';
-			}
-			$found_status = isset($this->options[$option_name_clean]) ? 'Found' : 'Not found, using default';
-			$this->_get_logger()->debug("RegisterOptions: Getting option '{$option_name_clean}' from '{$this->main_wp_option_name}'. Status: {$found_status}. Value: {$log_value}");
+		$log_value = is_scalar($value) ? (string) $value : (is_array($value) ? 'Array' : 'Object');
+		if (strlen($log_value) > 100) {
+			$log_value = substr($log_value, 0, 97) . '...';
 		}
+		$found_status = isset($this->options[$option_name_clean]) ? 'Found' : 'Not found, using default';
+		$this->_get_logger()->debug("RegisterOptions: Getting option '{$option_name_clean}' from '{$this->main_wp_option_name}'. Status: {$found_status}. Value: {$log_value}");
 		// @codeCoverageIgnoreEnd
 		return $value;
 	}
@@ -696,17 +703,15 @@ class RegisterOptions {
 		}
 
 		// Operation-level summary for staging
-		if ($this->_get_logger()->is_active()) {
-			$count = count($changedKeys);
-			$brief = ($count <= 10) ? $changedKeys : array_slice($changedKeys, 0, 10);
-			$this->_get_logger()->debug(
-				'RegisterOptions: stage_options summary',
-				array(
-					'changed' => $count,
-					'keys'    => $brief
-				)
-			);
-		}
+		$count = count($changedKeys);
+		$brief = ($count <= 10) ? $changedKeys : array_slice($changedKeys, 0, 10);
+		$this->_get_logger()->debug(
+			'RegisterOptions: stage_options summary',
+			array(
+				'changed' => $count,
+				'keys'    => $brief
+			)
+		);
 
 		// Return self for fluent chaining (commit_merge or commit_replace separately)
 		return $this;
@@ -1206,30 +1211,20 @@ class RegisterOptions {
 	}
 
 	/**
-	 * Public accessor: return the bound Logger instance (creates default if missing).
+	 * Public accessor: return the bound Logger instance.
 	 *
 	 * @return Logger The logger instance.
 	 */
 	public function get_logger(): Logger {
-		return $this->_get_logger();
+		return $this->logger;
 	}
 
 	/**
-	 * Returns the logger instance. Initializes a default logger if none is provided.
+	 * Returns the logger instance.
 	 *
 	 * @return Logger The logger instance.
 	 */
 	protected function _get_logger(): Logger {
-		// @codeCoverageIgnoreStart
-		if (null === $this->logger) {
-			// No config provided; create a lightweight default logger
-			$constructed_logger = new Logger(array());
-			if (null === $constructed_logger) {
-				throw new \LogicException(static::class . ': Failed to retrieve a valid logger instance.');
-			}
-			$this->logger = $constructed_logger;
-		}
-		// @codeCoverageIgnoreEnd
 		return $this->logger;
 	}
 

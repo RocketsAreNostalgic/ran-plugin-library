@@ -122,7 +122,7 @@ final class RegisterOptionsAdditionalCoverageTest extends PluginLibTestCase {
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::supports_autoload
 	 */
 	public function test_network_scope_set_option_and_autoload_false(): void {
-		$opts = RegisterOptions::network('net_opts');
+		$opts = RegisterOptions::network('net_opts', $this->logger_mock);
 		// Phase 4: schema required for set_option key
 		$opts->with_schema(array('k' => array('validate' => function ($v) {
 			return is_string($v);
@@ -155,7 +155,7 @@ final class RegisterOptionsAdditionalCoverageTest extends PluginLibTestCase {
 	 */
 	public function test_blog_scope_reads_and_autoload_semantics(): void {
 		// Use non-current blog ID to ensure effective autoload = false
-		$opts = RegisterOptions::blog('blog_opts', 9999, true);
+		$opts = RegisterOptions::blog('blog_opts', 9999, true, $this->logger_mock);
 		$this->assertFalse($opts->supports_autoload());
 
 		// Storage snapshot returns some values
@@ -174,7 +174,7 @@ final class RegisterOptionsAdditionalCoverageTest extends PluginLibTestCase {
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::supports_autoload
 	 */
 	public function test_user_scope_supports_autoload_false(): void {
-		$opts = RegisterOptions::user('user_opts', 1234, false);
+		$opts = RegisterOptions::user('user_opts', 1234, false, $this->logger_mock);
 		$this->assertFalse($opts->supports_autoload());
 	}
 
@@ -184,7 +184,7 @@ final class RegisterOptionsAdditionalCoverageTest extends PluginLibTestCase {
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::_normalize_schema_keys
 	 */
 	public function test_register_schema_normalizes_keys_and_seeds(): void {
-		$opts = RegisterOptions::site('norm_opts');
+		$opts = RegisterOptions::site('norm_opts', true, $this->logger_mock);
 
 		$schema = array(
 			    'MiXeD-Case Key' => array(
@@ -287,7 +287,7 @@ final class RegisterOptionsAdditionalCoverageTest extends PluginLibTestCase {
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::__construct
 	 */
 	public function test_string_callable_validate_success_does_not_throw(): void {
-		$opts = RegisterOptions::site('string_valid');
+		$opts = RegisterOptions::site('string_valid', true, $this->logger_mock);
 		// Allow all writes for this test
 		$policy = $this->getMockBuilder(\Ran\PluginLib\Options\Policy\WritePolicyInterface::class)->getMock();
 		$policy->method('allow')->willReturn(true);
@@ -309,7 +309,7 @@ final class RegisterOptionsAdditionalCoverageTest extends PluginLibTestCase {
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::refresh_options
 	 */
 	public function test_refresh_options_with_empty_array_resets_cache(): void {
-		$opts = RegisterOptions::site('empty_refresh');
+		$opts = RegisterOptions::site('empty_refresh', true, $this->logger_mock);
 		// Seed in-memory different from storage
 		$this->_set_protected_property_value($opts, 'options', array('foo' => 'bar'));
 
@@ -330,7 +330,7 @@ final class RegisterOptionsAdditionalCoverageTest extends PluginLibTestCase {
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::commit_merge
 	 */
 	public function test_network_scope_flush_merge_from_db(): void {
-		$opts = RegisterOptions::network('net_merge');
+		$opts = RegisterOptions::network('net_merge', $this->logger_mock);
 		// Allow all writes for this test
 		$policy = $this->getMockBuilder(\Ran\PluginLib\Options\Policy\WritePolicyInterface::class)->getMock();
 		$policy->method('allow')->willReturn(true);
@@ -370,7 +370,7 @@ final class RegisterOptionsAdditionalCoverageTest extends PluginLibTestCase {
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::stage_options
 	 */
 	public function test_stage_options_skips_noop_and_stages_changes(): void {
-		$opts = RegisterOptions::site('stage_noop');
+		$opts = RegisterOptions::site('stage_noop', true, $this->logger_mock);
 
 		// Pre-populate in-memory with an existing key
 		$this->_set_protected_property_value($opts, 'options', array('a' => 1));

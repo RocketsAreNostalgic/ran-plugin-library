@@ -10,10 +10,10 @@ declare(strict_types = 1);
 namespace Ran\PluginLib\Config;
 
 use Ran\PluginLib\Util\Logger;
-use Ran\PluginLib\Config\ConfigAbstract;
-use Ran\PluginLib\Config\ConfigInterface;
-use Ran\PluginLib\Options\RegisterOptions;
 use Ran\PluginLib\Options\Storage\StorageContext;
+use Ran\PluginLib\Options\RegisterOptions;
+use Ran\PluginLib\Config\ConfigInterface;
+use Ran\PluginLib\Config\ConfigAbstract;
 
 /**
  * Final Config class which holds key information about the plugin.

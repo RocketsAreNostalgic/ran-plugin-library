@@ -66,7 +66,7 @@ final class RegisterOptionsUtilityTest extends PluginLibTestCase {
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::_get_schema_internal
 	 */
 	public function test_get_schema_returns_empty_when_no_schema_registered(): void {
-		$opts = RegisterOptions::site('no_schema_example');
+		$opts = RegisterOptions::site('no_schema_example', true, $this->logger_mock);
 
 		self::assertSame(array(), $opts->get_schema());
 		self::assertSame(array(), $opts->_get_schema_internal());
@@ -77,7 +77,7 @@ final class RegisterOptionsUtilityTest extends PluginLibTestCase {
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::get_schema
 	 */
 	public function test_get_schema_handles_mixed_sanitizers_and_validators(): void {
-		$opts = RegisterOptions::site('mixed_schema_example');
+		$opts = RegisterOptions::site('mixed_schema_example', true, $this->logger_mock);
 		/** @var WritePolicyInterface|\PHPUnit\Framework\MockObject\MockObject $policy */
 		$policy = $this->createMock(WritePolicyInterface::class);
 		$policy->method('allow')->willReturn(true);
@@ -154,7 +154,7 @@ final class RegisterOptionsUtilityTest extends PluginLibTestCase {
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::_get_schema_internal
 	 */
 	public function test_get_schema_handles_mixed_callables_and_missing_fields(): void {
-		$opts = RegisterOptions::site('mixed_callables_missing_fields');
+		$opts = RegisterOptions::site('mixed_callables_missing_fields', true, $this->logger_mock);
 		/** @var WritePolicyInterface|\PHPUnit\Framework\MockObject\MockObject $policy */
 		$policy = $this->createMock(WritePolicyInterface::class);
 		$policy->method('allow')->willReturn(true);
@@ -228,7 +228,7 @@ final class RegisterOptionsUtilityTest extends PluginLibTestCase {
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::_get_schema_internal
 	 */
 	public function test_get_schema_omits_component_callables(): void {
-		$opts = RegisterOptions::site('component_visibility_example');
+		$opts = RegisterOptions::site('component_visibility_example', true, $this->logger_mock);
 
 		$opts->_register_internal_schema(array(
 			'field_alpha' => array(
@@ -266,7 +266,7 @@ final class RegisterOptionsUtilityTest extends PluginLibTestCase {
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::_get_schema_internal
 	 */
 	public function test_exported_schema_can_seed_identical_instance(): void {
-		$original = RegisterOptions::site('round_trip_example');
+		$original = RegisterOptions::site('round_trip_example', true, $this->logger_mock);
 		/** @var WritePolicyInterface|\PHPUnit\Framework\MockObject\MockObject $policy */
 		$policy = $this->createMock(WritePolicyInterface::class);
 		$policy->method('allow')->willReturn(true);
@@ -294,7 +294,7 @@ final class RegisterOptionsUtilityTest extends PluginLibTestCase {
 		self::assertSame(array('strlen'), $exported['title']['validate']);
 		self::assertSame(array(self::class . '::round_trip_validate_flag'), $exported['flag']['validate']);
 
-		$clone = RegisterOptions::site('round_trip_example_clone');
+		$clone = RegisterOptions::site('round_trip_example_clone', true, $this->logger_mock);
 		/** @var WritePolicyInterface|\PHPUnit\Framework\MockObject\MockObject $clonePolicy */
 		$clonePolicy = $this->createMock(WritePolicyInterface::class);
 		$clonePolicy->method('allow')->willReturn(true);
@@ -351,7 +351,7 @@ final class RegisterOptionsUtilityTest extends PluginLibTestCase {
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::_get_schema_internal
 	 */
 	public function test_get_schema_internal_preserves_bucketed_callables(): void {
-		$opts = RegisterOptions::site('internal_schema_example');
+		$opts = RegisterOptions::site('internal_schema_example', true, $this->logger_mock);
 		/** @var WritePolicyInterface|\PHPUnit\Framework\MockObject\MockObject $policy */
 		$policy = $this->createMock(WritePolicyInterface::class);
 		$policy->method('allow')->willReturn(true);
@@ -393,7 +393,7 @@ final class RegisterOptionsUtilityTest extends PluginLibTestCase {
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::__construct
 	 */
 	public function test_with_defaults_sets_default_values(): void {
-		$opts = RegisterOptions::site('test_options');
+		$opts = RegisterOptions::site('test_options', true, $this->logger_mock);
 
 		// Allow in-memory staging in this test
 		$policy = $this->getMockBuilder(\Ran\PluginLib\Options\Policy\WritePolicyInterface::class)->getMock();
@@ -426,7 +426,7 @@ final class RegisterOptionsUtilityTest extends PluginLibTestCase {
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::with_policy
 	 */
 	public function test_with_policy_sets_write_policy(): void {
-		$opts = RegisterOptions::site('test_options');
+		$opts = RegisterOptions::site('test_options', true, $this->logger_mock);
 
 		// Create a mock write policy
 		$mockPolicy = $this->getMockBuilder(\Ran\PluginLib\Options\Policy\WritePolicyInterface::class)
@@ -454,7 +454,7 @@ final class RegisterOptionsUtilityTest extends PluginLibTestCase {
 			->getMock();
 		$defaults = array('chained_key' => 'chained_value');
 
-		$opts = RegisterOptions::site('test_options');
+		$opts = RegisterOptions::site('test_options', true, $this->logger_mock);
 
 		// Allow in-memory staging in this test
 		$policy = $this->getMockBuilder(\Ran\PluginLib\Options\Policy\WritePolicyInterface::class)->getMock();
@@ -476,7 +476,7 @@ final class RegisterOptionsUtilityTest extends PluginLibTestCase {
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::migrate
 	 */
 	public function test_migrate_with_array_result(): void {
-		$opts = RegisterOptions::site('test_options');
+		$opts = RegisterOptions::site('test_options', true, $this->logger_mock);
 
 		// Phase 4: schema required for mutated keys during migration
 		$opts->with_schema(array(
@@ -531,7 +531,7 @@ final class RegisterOptionsUtilityTest extends PluginLibTestCase {
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::migrate
 	 */
 	public function test_migrate_with_scalar_result(): void {
-		$opts = RegisterOptions::site('test_options');
+		$opts = RegisterOptions::site('test_options', true, $this->logger_mock);
 
 		// Phase 4: schema required for mutated keys during migration
 		$opts->with_schema(array(
@@ -617,7 +617,7 @@ final class RegisterOptionsUtilityTest extends PluginLibTestCase {
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::migrate
 	 */
 	public function test_migrate_no_op_when_no_changes(): void {
-		$opts = RegisterOptions::site('test_options');
+		$opts = RegisterOptions::site('test_options', true, $this->logger_mock);
 
 		// Phase 4: schema required for mutated keys during migration
 		$opts->with_schema(array(
@@ -736,7 +736,7 @@ final class RegisterOptionsUtilityTest extends PluginLibTestCase {
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::_read_main_option
 	 */
 	public function test_refresh_options_reloads_from_storage(): void {
-		$opts = RegisterOptions::site('test_options');
+		$opts = RegisterOptions::site('test_options', true, $this->logger_mock);
 
 		// Seed in-memory state different from storage
 		$this->_set_protected_property_value($opts, 'options', array('foo' => 'memory_value'));
@@ -760,10 +760,10 @@ final class RegisterOptionsUtilityTest extends PluginLibTestCase {
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::supports_autoload
 	 */
 	public function test_supports_autoload_method(): void {
-		$opts = RegisterOptions::site('test_options');
+		$opts = RegisterOptions::site('test_options', true, $this->logger_mock);
 		$this->assertTrue($opts->supports_autoload()); // Site scope supports autoload
 
-		$opts = RegisterOptions::network('test_options');
+		$opts = RegisterOptions::network('test_options', $this->logger_mock);
 		$this->assertFalse($opts->supports_autoload()); // Network scope doesn't support autoload
 	}
 
@@ -772,7 +772,7 @@ final class RegisterOptionsUtilityTest extends PluginLibTestCase {
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::get_main_option_name
 	 */
 	public function test_get_main_option_name_returns_constructor_value(): void {
-		$opts = RegisterOptions::site('example_options');
+		$opts = RegisterOptions::site('example_options', true, $this->logger_mock);
 		$this->assertSame('example_options', $opts->get_main_option_name());
 	}
 
@@ -781,7 +781,7 @@ final class RegisterOptionsUtilityTest extends PluginLibTestCase {
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::get_storage_context
 	 */
 	public function test_get_storage_context_defaults_to_site_scope(): void {
-		$opts    = new RegisterOptions('storage_context_example');
+		$opts    = new RegisterOptions('storage_context_example', null, true, $this->logger_mock);
 		$context = $opts->get_storage_context();
 
 		$this->assertInstanceOf(StorageContext::class, $context);
@@ -794,7 +794,7 @@ final class RegisterOptionsUtilityTest extends PluginLibTestCase {
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::get_schema
 	 */
 	public function test_get_schema_returns_registered_schema(): void {
-		$opts = RegisterOptions::site('schema_example');
+		$opts = RegisterOptions::site('schema_example', true, $this->logger_mock);
 
 		$policy = $this->createMock(WritePolicyInterface::class);
 		$policy->method('allow')->willReturn(true);
@@ -827,7 +827,7 @@ final class RegisterOptionsUtilityTest extends PluginLibTestCase {
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::get_write_policy
 	 */
 	public function test_get_write_policy_returns_injected_policy(): void {
-		$opts   = RegisterOptions::site('policy_example');
+		$opts   = RegisterOptions::site('policy_example', true, $this->logger_mock);
 		$policy = $this->createMock(WritePolicyInterface::class);
 
 		$opts->with_policy($policy);

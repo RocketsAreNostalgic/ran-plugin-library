@@ -30,7 +30,7 @@ final class RegisterOptionsRegisterSchemaGuardsTest extends PluginLibTestCase {
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::register_schema
 	 */
 	public function test_register_schema_allows_missing_validate_key(): void {
-		$opts = RegisterOptions::site('schema_guard_validate');
+		$opts = RegisterOptions::site('schema_guard_validate', true, $this->logger_mock);
 
 		self::assertArrayNotHasKey('no_validate', $opts->_get_schema_internal());
 		self::assertFalse($opts->register_schema(array(
@@ -48,7 +48,7 @@ final class RegisterOptionsRegisterSchemaGuardsTest extends PluginLibTestCase {
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::register_schema
 	 */
 	public function test_register_schema_throws_when_sanitize_present_and_non_callable(): void {
-		$opts = RegisterOptions::site('schema_guard_sanitize');
+		$opts = RegisterOptions::site('schema_guard_sanitize', true, $this->logger_mock);
 
 		// sanitize provided but not callable (and not null)
 		$this->expectException(\InvalidArgumentException::class);

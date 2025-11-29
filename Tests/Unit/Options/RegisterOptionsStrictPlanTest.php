@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Ran\PluginLib\Tests\Unit\Options;
 
 use Ran\PluginLib\Util\Validate;
+use Ran\PluginLib\Util\Logger;
 use Ran\PluginLib\Options\RegisterOptions;
 use Ran\PluginLib\Tests\Unit\PluginLibTestCase;
 
@@ -12,10 +13,11 @@ final class RegisterOptionsStrictPlanTest extends PluginLibTestCase {
 	/**
 	 * Lightweight test double that avoids WP calls; overrides _read_main_option() to empty array.
 	 */
-	private static function makeOptions(string $key = 'strict_plan_opts'): RegisterOptions {
-		return new class($key) extends RegisterOptions {
-			public function __construct(string $k) {
-				parent::__construct($k, null, true, null);
+	private function makeOptions(string $key = 'strict_plan_opts'): RegisterOptions {
+		$logger = $this->logger_mock;
+		return new class($key, $logger) extends RegisterOptions {
+			public function __construct(string $k, Logger $logger) {
+				parent::__construct($k, null, true, $logger);
 			}
 			protected function _read_main_option(): array {
 				return array();

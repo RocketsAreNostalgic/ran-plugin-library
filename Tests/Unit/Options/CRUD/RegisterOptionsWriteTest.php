@@ -54,7 +54,7 @@ final class RegisterOptionsWriteTest extends PluginLibTestCase {
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::stage_option
 	 */
 	public function test_set_option_modifies_in_memory_options(): void {
-		$opts = RegisterOptions::site('test_options');
+		$opts = RegisterOptions::site('test_options', true, $this->logger_mock);
 		$opts->with_schema(array('test_key' => array('validate' => function ($v) {
 			return is_string($v);
 		})));
@@ -84,7 +84,7 @@ final class RegisterOptionsWriteTest extends PluginLibTestCase {
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::stage_option
 	 */
 	public function test_set_option_updates_existing_value(): void {
-		$opts = RegisterOptions::site('test_options');
+		$opts = RegisterOptions::site('test_options', true, $this->logger_mock);
 		$opts->with_schema(array('existing_key' => array('validate' => function ($v) {
 			return is_string($v);
 		})));
@@ -111,7 +111,7 @@ final class RegisterOptionsWriteTest extends PluginLibTestCase {
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::stage_option
 	 */
 	public function test_set_option_no_op_when_value_unchanged(): void {
-		$opts = RegisterOptions::site('test_options');
+		$opts = RegisterOptions::site('test_options', true, $this->logger_mock);
 		$opts->with_schema(array('existing_key' => array('validate' => function ($v) {
 			return is_string($v);
 		})));
@@ -133,7 +133,7 @@ final class RegisterOptionsWriteTest extends PluginLibTestCase {
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::stage_option
 	 */
 	public function test_set_option_line_359_coverage_pre_mutation_veto(): void {
-		$opts = RegisterOptions::site('test_options');
+		$opts = RegisterOptions::site('test_options', true, $this->logger_mock);
 		$opts->with_schema(array(
 			'test_key1' => array('validate' => function ($v) {
 				return is_string($v);
@@ -163,7 +163,7 @@ final class RegisterOptionsWriteTest extends PluginLibTestCase {
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::stage_option
 	 */
 	public function test_set_option_lines_368_369_coverage_persist_veto(): void {
-		$opts = RegisterOptions::site('test_options');
+		$opts = RegisterOptions::site('test_options', true, $this->logger_mock);
 		$opts->with_schema(array(
 			'key1' => array('validate' => function ($v) {
 				return is_string($v);
@@ -198,7 +198,7 @@ final class RegisterOptionsWriteTest extends PluginLibTestCase {
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::stage_option
 	 */
 	public function test_set_option_vetoed_by_persist_gate(): void {
-		$opts = RegisterOptions::site('test_options');
+		$opts = RegisterOptions::site('test_options', true, $this->logger_mock);
 		$opts->with_schema(array('test_key' => array('validate' => function ($v) {
 			return is_string($v);
 		})));
@@ -234,7 +234,7 @@ final class RegisterOptionsWriteTest extends PluginLibTestCase {
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::stage_option
 	 */
 	public function test_set_option_persistence_failure(): void {
-		$opts = RegisterOptions::site('test_options');
+		$opts = RegisterOptions::site('test_options', true, $this->logger_mock);
 		$opts->with_schema(array('test_key' => array('validate' => function ($v) {
 			return is_string($v);
 		})));
@@ -264,7 +264,7 @@ final class RegisterOptionsWriteTest extends PluginLibTestCase {
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::stage_option
 	 */
 	public function test_set_option_with_typed_scope_override(): void {
-		$opts = RegisterOptions::site('test_options');
+		$opts = RegisterOptions::site('test_options', true, $this->logger_mock);
 		$opts->with_schema(array('test_key' => array('validate' => function ($v) {
 			return is_string($v);
 		})));
@@ -292,7 +292,7 @@ final class RegisterOptionsWriteTest extends PluginLibTestCase {
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::stage_option
 	 */
 	public function test_add_option_fluent_interface(): void {
-		$opts = RegisterOptions::site('test_options');
+		$opts = RegisterOptions::site('test_options', true, $this->logger_mock);
 		$opts->with_schema(array('test_key' => array('validate' => function ($v) {
 			return is_string($v);
 		})));
@@ -311,7 +311,7 @@ final class RegisterOptionsWriteTest extends PluginLibTestCase {
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::stage_option
 	 */
 	public function test_stage_options_fluent_interface(): void {
-		$opts = RegisterOptions::site('test_options');
+		$opts = RegisterOptions::site('test_options', true, $this->logger_mock);
 		$opts->with_schema(array(
 			'key1' => array('validate' => function ($v) {
 				return is_string($v);
@@ -347,7 +347,7 @@ final class RegisterOptionsWriteTest extends PluginLibTestCase {
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::stage_option
 	 */
 	public function test_stage_options_method_chaining(): void {
-		$opts = RegisterOptions::site('test_options');
+		$opts = RegisterOptions::site('test_options', true, $this->logger_mock);
 		$opts->with_schema(array(
 			'first_key' => array('validate' => function ($v) {
 				return is_string($v);
@@ -379,7 +379,7 @@ final class RegisterOptionsWriteTest extends PluginLibTestCase {
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::stage_option
 	 */
 	public function test_add_option_no_op_when_value_unchanged(): void {
-		$opts = RegisterOptions::site('test_options');
+		$opts = RegisterOptions::site('test_options', true, $this->logger_mock);
 		$opts->with_schema(array('existing_key' => array('validate' => function ($v) {
 			return is_string($v);
 		})));
@@ -400,7 +400,7 @@ final class RegisterOptionsWriteTest extends PluginLibTestCase {
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::stage_option
 	 */
 	public function test_stage_options_partial_success(): void {
-		$opts = RegisterOptions::site('test_options');
+		$opts = RegisterOptions::site('test_options', true, $this->logger_mock);
 		$opts->with_schema(array(
 			'existing_key' => array('validate' => function ($v) {
 				return is_string($v);
@@ -435,7 +435,7 @@ final class RegisterOptionsWriteTest extends PluginLibTestCase {
 		* @covers \Ran\PluginLib\Options\RegisterOptions::stage_options
 		*/
 	public function test_stage_options_pre_mutation_veto_no_changes(): void {
-		$opts = RegisterOptions::site('test_options');
+		$opts = RegisterOptions::site('test_options', true, $this->logger_mock);
 		$opts->with_schema(array(
 			'a' => array('validate' => function ($v) {
 				return is_string($v);
@@ -464,7 +464,7 @@ final class RegisterOptionsWriteTest extends PluginLibTestCase {
 		* @covers \Ran\PluginLib\Options\RegisterOptions::stage_options
 		*/
 	public function test_stage_options_applies_sanitizers_when_gate_allows(): void {
-		$opts = RegisterOptions::site('test_options');
+		$opts = RegisterOptions::site('test_options', true, $this->logger_mock);
 		$opts->with_schema(array(
 			'name' => array(
 				'sanitize' => function ($v) {

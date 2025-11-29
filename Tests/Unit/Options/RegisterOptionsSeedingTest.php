@@ -179,7 +179,7 @@ final class RegisterOptionsSeedingTest extends PluginLibTestCase {
 		// Allow writes for this integration test
 		TestableRegisterOptionsSeeding::$allowWrites = true;
 		
-		$opts = TestableRegisterOptionsSeeding::site('test_options');
+		$opts = TestableRegisterOptionsSeeding::site('test_options', true, $this->logger_mock);
 
 		// Phase 4: schema required for all keys to be seeded/normalized
 		$opts->with_schema(array(
@@ -229,7 +229,7 @@ final class RegisterOptionsSeedingTest extends PluginLibTestCase {
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::_normalize_defaults
 	 */
 	public function test_normalize_defaults_direct_unit_test(): void {
-		$opts = TestableRegisterOptionsSeeding::site('test_options');
+		$opts = TestableRegisterOptionsSeeding::site('test_options', true, $this->logger_mock);
 
 		// Phase 4: schema required for normalized defaults keys
 		$opts->with_schema(array(

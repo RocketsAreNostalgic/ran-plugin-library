@@ -27,7 +27,7 @@ final class TestHarness {
 		$this->field_renderer  = new FormElementRenderer($this->components, $this->form_service, $component_loader, $logger);
 		$this->message_handler = new FormMessageHandler();
 		$this->logger          = $logger;
-		$this->base_options    = new RegisterOptions('test_option');
+		$this->base_options    = new RegisterOptions('test_option', null, true, $logger);
 	}
 
 	public function boot(): void {

@@ -48,7 +48,7 @@ final class RegisterOptionsDeleteTest extends PluginLibTestCase {
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::delete_option
 	 */
 	public function test_delete_option_existing_key(): void {
-		$opts = RegisterOptions::site('test_options');
+		$opts = RegisterOptions::site('test_options', true, $this->logger_mock);
 
 		// Pre-populate with data using properly sanitized keys
 		$this->_set_protected_property_value($opts, 'options', array('key_to_delete' => 'value', 'keep_key' => 'keep_value'));
@@ -78,7 +78,7 @@ final class RegisterOptionsDeleteTest extends PluginLibTestCase {
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::delete_option
 	 */
 	public function test_delete_option_non_existing_key(): void {
-		$opts = RegisterOptions::site('test_options');
+		$opts = RegisterOptions::site('test_options', true, $this->logger_mock);
 
 		// Mock write guards to allow deletion
 		WP_Mock::userFunction('apply_filters')->andReturn(true);
@@ -93,7 +93,7 @@ final class RegisterOptionsDeleteTest extends PluginLibTestCase {
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::clear
 	 */
 	public function test_clear_removes_all_options(): void {
-		$opts = RegisterOptions::site('test_options');
+		$opts = RegisterOptions::site('test_options', true, $this->logger_mock);
 
 		// Pre-populate with data using properly sanitized keys
 		$this->_set_protected_property_value($opts, 'options', array('key1' => 'value1', 'key2' => 'value2'));

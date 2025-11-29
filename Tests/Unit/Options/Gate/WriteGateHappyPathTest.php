@@ -177,8 +177,8 @@ final class WriteGateHappyPathTest extends PluginLibTestCase {
 	 */
 	public function test_supports_autoload_happy_path(): void {
 		$this->allow_all_persist_filters_for_site();
-		$site = RegisterOptions::site('test_options');
-		$net  = RegisterOptions::network('test_options');
+		$site = RegisterOptions::site('test_options', true, $this->logger_mock);
+		$net  = RegisterOptions::network('test_options', $this->logger_mock);
 		$this->assertTrue($site->supports_autoload());
 		$this->assertFalse($net->supports_autoload());
 	}

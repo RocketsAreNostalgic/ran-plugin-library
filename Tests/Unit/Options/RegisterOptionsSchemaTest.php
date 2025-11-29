@@ -38,7 +38,7 @@ final class RegisterOptionsSchemaTest extends PluginLibTestCase {
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::register_schema
 	 */
 	public function test_register_schema_basic(): void {
-		$opts = RegisterOptions::site('test_options');
+		$opts = RegisterOptions::site('test_options', true, $this->logger_mock);
 
 		// Allow all writes for this test
 		$policy = $this->getMockBuilder(\Ran\PluginLib\Options\Policy\WritePolicyInterface::class)->getMock();
@@ -82,7 +82,7 @@ final class RegisterOptionsSchemaTest extends PluginLibTestCase {
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::register_schema
 	 */
 	public function test_register_schema_empty_returns_false(): void {
-		$opts = RegisterOptions::site('test_options');
+		$opts = RegisterOptions::site('test_options', true, $this->logger_mock);
 
 		$result = $opts->register_schema(array());
 
@@ -93,7 +93,7 @@ final class RegisterOptionsSchemaTest extends PluginLibTestCase {
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::register_schema
 	 */
 	public function test_register_schema_merges_existing_keys(): void {
-		$opts = RegisterOptions::site('test_options');
+		$opts = RegisterOptions::site('test_options', true, $this->logger_mock);
 
 		// Ensure policy allows schema mutations for this test
 		$policy = $this->getMockBuilder(\Ran\PluginLib\Options\Policy\WritePolicyInterface::class)->getMock();
@@ -151,7 +151,7 @@ final class RegisterOptionsSchemaTest extends PluginLibTestCase {
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::with_schema
 	 */
 	public function test_with_schema_fluent_interface(): void {
-		$opts = RegisterOptions::site('test_options');
+		$opts = RegisterOptions::site('test_options', true, $this->logger_mock);
 
 		$schema = array(
 			    'fluent_key' => array(
@@ -171,7 +171,7 @@ final class RegisterOptionsSchemaTest extends PluginLibTestCase {
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::register_schema
 	 */
 	public function test_register_schema_with_flush_and_changed(): void {
-		$opts = RegisterOptions::site('test_options');
+		$opts = RegisterOptions::site('test_options', true, $this->logger_mock);
 
 		// Allow all writes for this test
 		$policy = $this->getMockBuilder(\Ran\PluginLib\Options\Policy\WritePolicyInterface::class)->getMock();
@@ -210,7 +210,7 @@ final class RegisterOptionsSchemaTest extends PluginLibTestCase {
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::register_schema
 	 */
 	public function test_register_schema_seed_defaults_exception_handling(): void {
-		$opts = RegisterOptions::site('test_options');
+		$opts = RegisterOptions::site('test_options', true, $this->logger_mock);
 
 		// Create a validation function that throws an exception
 		$exceptionValidator = function($value) {
@@ -244,7 +244,7 @@ final class RegisterOptionsSchemaTest extends PluginLibTestCase {
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::register_schema
 	 */
 	public function test_register_schema_normalizes_existing_values_and_sets_changed_true(): void {
-		$opts = RegisterOptions::site('test_options');
+		$opts = RegisterOptions::site('test_options', true, $this->logger_mock);
 
 		// Pre-populate in-memory options with values that will be normalized by schema.
 		$this->_set_protected_property_value($opts, 'options', array(

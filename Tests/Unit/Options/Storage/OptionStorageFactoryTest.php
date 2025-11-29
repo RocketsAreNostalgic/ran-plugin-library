@@ -18,7 +18,7 @@ use Ran\PluginLib\Options\Storage\NetworkOptionStorage;
  */
 final class RegisterOptionsMakeStorageTest extends PluginLibTestCase {
 	public function test_site_scope_default(): void {
-		$ro  = self::makeRO(StorageContext::forSite());
+		$ro  = $this->makeRO(StorageContext::forSite());
 		$ref = new \ReflectionClass($ro);
 		$m   = $ref->getMethod('_make_storage');
 		$m->setAccessible(true);
@@ -30,7 +30,7 @@ final class RegisterOptionsMakeStorageTest extends PluginLibTestCase {
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::_make_storage
 	 */
 	public function test_network_scope(): void {
-		$ro  = self::makeRO(StorageContext::forNetwork());
+		$ro  = $this->makeRO(StorageContext::forNetwork());
 		$ref = new \ReflectionClass($ro);
 		$m   = $ref->getMethod('_make_storage');
 		$m->setAccessible(true);
@@ -42,7 +42,7 @@ final class RegisterOptionsMakeStorageTest extends PluginLibTestCase {
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::_make_storage
 	 */
 	public function test_network_scope_from_enum_normalizes(): void {
-		$ro  = self::makeRO(StorageContext::forNetwork());
+		$ro  = $this->makeRO(StorageContext::forNetwork());
 		$ref = new \ReflectionClass($ro);
 		$m   = $ref->getMethod('_make_storage');
 		$m->setAccessible(true);
@@ -54,7 +54,7 @@ final class RegisterOptionsMakeStorageTest extends PluginLibTestCase {
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::_make_storage
 	 */
 	public function test_blog_scope_requires_blog_id(): void {
-		$ro  = self::makeRO(StorageContext::forBlog(123));
+		$ro  = $this->makeRO(StorageContext::forBlog(123));
 		$ref = new \ReflectionClass($ro);
 		$m   = $ref->getMethod('_make_storage');
 		$m->setAccessible(true);
@@ -67,7 +67,7 @@ final class RegisterOptionsMakeStorageTest extends PluginLibTestCase {
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::_make_storage
 	 */
 	public function test_blog_scope_via_string(): void {
-		$ro  = self::makeRO(StorageContext::forBlog(123));
+		$ro  = $this->makeRO(StorageContext::forBlog(123));
 		$ref = new \ReflectionClass($ro);
 		$m   = $ref->getMethod('_make_storage');
 		$m->setAccessible(true);
@@ -80,7 +80,7 @@ final class RegisterOptionsMakeStorageTest extends PluginLibTestCase {
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::_make_storage
 	 */
 	public function test_user_meta_default(): void {
-		$ro  = self::makeRO(StorageContext::forUser(7, 'meta', false));
+		$ro  = $this->makeRO(StorageContext::forUser(7, 'meta', false));
 		$ref = new \ReflectionClass($ro);
 		$m   = $ref->getMethod('_make_storage');
 		$m->setAccessible(true);
@@ -92,7 +92,7 @@ final class RegisterOptionsMakeStorageTest extends PluginLibTestCase {
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::_make_storage
 	 */
 	public function test_user_option_when_requested(): void {
-		$ro  = self::makeRO(StorageContext::forUser(7, 'option', true));
+		$ro  = $this->makeRO(StorageContext::forUser(7, 'option', true));
 		$ref = new \ReflectionClass($ro);
 		$m   = $ref->getMethod('_make_storage');
 		$m->setAccessible(true);
@@ -104,7 +104,7 @@ final class RegisterOptionsMakeStorageTest extends PluginLibTestCase {
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::_make_storage
 	 */
 	public function test_user_option_when_requested_case_insensitive(): void {
-		$ro  = self::makeRO(StorageContext::forUser(7, 'option', true));
+		$ro  = $this->makeRO(StorageContext::forUser(7, 'option', true));
 		$ref = new \ReflectionClass($ro);
 		$m   = $ref->getMethod('_make_storage');
 		$m->setAccessible(true);
@@ -118,7 +118,7 @@ final class RegisterOptionsMakeStorageTest extends PluginLibTestCase {
 	public function test_blog_scope_missing_blog_id_throws(): void {
 		$this->expectException(\InvalidArgumentException::class);
 		// StorageContext::forBlog(0) should throw; if not, _make_storage will
-		$ro = self::makeRO(StorageContext::forBlog(0));
+		$ro = $this->makeRO(StorageContext::forBlog(0));
 		$this->expectException(\InvalidArgumentException::class);
 		$ref = new \ReflectionClass($ro);
 		$m   = $ref->getMethod('_make_storage');
@@ -132,7 +132,7 @@ final class RegisterOptionsMakeStorageTest extends PluginLibTestCase {
 	public function test_user_scope_missing_user_id_throws(): void {
 		$this->expectException(\InvalidArgumentException::class);
 		// StorageContext::forUser(0, ...) should throw; if not, _make_storage will
-		$ro = self::makeRO(StorageContext::forUser(0, 'meta', false));
+		$ro = $this->makeRO(StorageContext::forUser(0, 'meta', false));
 		$this->expectException(\InvalidArgumentException::class);
 		$ref = new \ReflectionClass($ro);
 		$m   = $ref->getMethod('_make_storage');
@@ -143,9 +143,9 @@ final class RegisterOptionsMakeStorageTest extends PluginLibTestCase {
 	/**
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::_make_storage
 	 */
-	private static function makeRO(StorageContext $context): RegisterOptions {
+	private function makeRO(StorageContext $context): RegisterOptions {
 		// Use named factory then override typed context reflectively
-		$ro  = RegisterOptions::site('ro_test', true);
+		$ro  = RegisterOptions::site('ro_test', true, $this->logger_mock);
 		$ref = new \ReflectionClass($ro);
 		$pc  = $ref->getProperty('storage_context');
 		$ps  = $ref->getProperty('storage');

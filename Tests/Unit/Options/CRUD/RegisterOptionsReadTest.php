@@ -48,7 +48,7 @@ final class RegisterOptionsReadTest extends PluginLibTestCase {
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::get_option
 	 */
 	public function test_get_option_with_existing_key(): void {
-		$opts = RegisterOptions::site('test_options');
+		$opts = RegisterOptions::site('test_options', true, $this->logger_mock);
 		// Add some test data to the options
 		$this->_set_protected_property_value($opts, 'options', array('test_key' => 'test_value', 'another_key' => 42));
 
@@ -60,7 +60,7 @@ final class RegisterOptionsReadTest extends PluginLibTestCase {
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::get_option
 	 */
 	public function test_get_option_with_non_existing_key_and_default(): void {
-		$opts = RegisterOptions::site('test_options');
+		$opts = RegisterOptions::site('test_options', true, $this->logger_mock);
 
 		$this->assertEquals('default_value', $opts->get_option('non_existing_key', 'default_value'));
 		$this->assertEquals(123, $opts->get_option('another_key', 123));
@@ -70,7 +70,7 @@ final class RegisterOptionsReadTest extends PluginLibTestCase {
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::get_option
 	 */
 	public function test_get_option_with_non_existing_key_no_default(): void {
-		$opts = RegisterOptions::site('test_options');
+		$opts = RegisterOptions::site('test_options', true, $this->logger_mock);
 
 		$this->assertFalse($opts->get_option('non_existing_key')); // Default is false
 		$this->assertEquals('', $opts->get_option('another_key', '')); // Explicit empty string
@@ -80,7 +80,7 @@ final class RegisterOptionsReadTest extends PluginLibTestCase {
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::get_options
 	 */
 	public function test_get_options_returns_all_options(): void {
-		$opts     = RegisterOptions::site('test_options');
+		$opts     = RegisterOptions::site('test_options', true, $this->logger_mock);
 		$testData = array('key1' => 'value1', 'key2' => 'value2', 'key3' => 123);
 		$this->_set_protected_property_value($opts, 'options', $testData);
 
@@ -93,7 +93,7 @@ final class RegisterOptionsReadTest extends PluginLibTestCase {
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::get_option
 	 */
 	public function test_get_option_key_sanitization(): void {
-		$opts = RegisterOptions::site('test_options');
+		$opts = RegisterOptions::site('test_options', true, $this->logger_mock);
 
 		// Store value under a simple key
 		$this->_set_protected_property_value($opts, 'options', array('test_key' => 'original_value'));
@@ -112,7 +112,7 @@ final class RegisterOptionsReadTest extends PluginLibTestCase {
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::has_option
 	 */
 	public function test_has_option_with_existing_key(): void {
-		$opts = RegisterOptions::site('test_options');
+		$opts = RegisterOptions::site('test_options', true, $this->logger_mock);
 
 		// Phase 4: schema required for stage_option keys
 		$opts->with_schema(array('existing_key' => array('validate' => function ($v) {
@@ -129,7 +129,7 @@ final class RegisterOptionsReadTest extends PluginLibTestCase {
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::has_option
 	 */
 	public function test_has_option_with_non_existing_key(): void {
-		$opts = RegisterOptions::site('test_options');
+		$opts = RegisterOptions::site('test_options', true, $this->logger_mock);
 
 		$this->assertFalse($opts->has_option('non_existing_key'));
 		$this->assertFalse($opts->has_option('another_key'));

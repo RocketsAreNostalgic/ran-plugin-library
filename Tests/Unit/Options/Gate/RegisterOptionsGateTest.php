@@ -48,6 +48,7 @@ final class RegisterOptionsGateTest extends PluginLibTestCase {
 		$this->_set_protected_property_value($mockOpts, 'main_wp_option_name', 'test_options');
 		$this->_set_protected_property_value($mockOpts, 'options', array());
 		$this->_set_protected_property_value($mockOpts, 'schema', array());
+		$this->_set_protected_property_value($mockOpts, 'logger', $this->logger_mock);
 
 		// Mock the filter to veto before mutation (covers line 359)
 		$mockOpts->method('_do_apply_filter')
@@ -81,6 +82,7 @@ final class RegisterOptionsGateTest extends PluginLibTestCase {
 		$this->_set_protected_property_value($mockOpts, 'main_wp_option_name', 'test_options');
 		$this->_set_protected_property_value($mockOpts, 'options', array());
 		$this->_set_protected_property_value($mockOpts, 'schema', array());
+		$this->_set_protected_property_value($mockOpts, 'logger', $this->logger_mock);
 
 		// Mock the filter to allow first call, veto second call
 		$mockOpts->method('_do_apply_filter')
@@ -104,7 +106,7 @@ final class RegisterOptionsGateTest extends PluginLibTestCase {
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::stage_option
 	 */
 	public function test_set_option_write_gate_veto_after_mutation_with_policy(): void {
-		$opts = RegisterOptions::site('test_options');
+		$opts = RegisterOptions::site('test_options', true, $this->logger_mock);
 
 		// Phase 4: schema required for stage_option key
 		$opts->with_schema(array('test_key' => array('validate' => function ($v) {
@@ -134,7 +136,7 @@ final class RegisterOptionsGateTest extends PluginLibTestCase {
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::stage_option
 	 */
 	public function test_set_option_vetoed_by_persist_gate(): void {
-		$opts = RegisterOptions::site('test_options');
+		$opts = RegisterOptions::site('test_options', true, $this->logger_mock);
 
 		// Phase 4: schema required for stage_option key
 		$opts->with_schema(array('test_key' => array('validate' => function ($v) {
