@@ -41,10 +41,9 @@ class ComponentLoader {
 		$this->baseDir = rtrim($baseDir, '/');
 
 		$discovered = $this->_default_map();
-		$legacy     = $this->_legacy_aliases();
 		$overrides  = $this->_normalize_map($map);
 
-		$this->map          = array_merge($discovered, $legacy, $overrides);
+		$this->map          = array_merge($discovered, $overrides);
 		$this->logger       = $logger;
 		$this->cacheService = $cacheService ?? new ComponentCacheService($logger);
 	}
@@ -322,39 +321,6 @@ class ComponentLoader {
 			$normalized[$key] = $this->_normalize_path($value);
 		}
 		return $normalized;
-	}
-
-	/**
-	 * Provide backward-compatible aliases for legacy template names.
-	 *
-	 * @return array<string,string>
-	 */
-	private function _legacy_aliases(): array {
-		$aliases = array(
-			'root-wrapper'     => 'layout/container/root-wrapper.php',
-			'section-wrapper'  => 'layout/zone/section-wrapper.php',
-			'group-wrapper'    => 'layout/zone/group-wrapper.php',
-			'field-wrapper'    => 'layout/field/field-wrapper.php',
-			'fieldset-wrapper' => 'layout/field/fieldset-wrapper.php',
-		);
-
-		$resolved = array();
-		foreach ($aliases as $alias => $relativePath) {
-			if (!$this->_is_valid_template_key($alias)) {
-				continue;
-			}
-
-			if ($this->_template_exists($relativePath)) {
-				$resolved[$alias] = $relativePath;
-			}
-		}
-
-		return $resolved;
-	}
-
-	private function _template_exists(string $relativePath): bool {
-		$path = $this->baseDir . '/' . $this->_normalize_path($relativePath);
-		return is_file($path);
 	}
 
 	/**
