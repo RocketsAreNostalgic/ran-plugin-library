@@ -24,6 +24,7 @@ use Ran\PluginLib\Forms\FormsAssets;
 use Ran\PluginLib\Forms\Component\ComponentType;
 use Ran\PluginLib\Forms\Component\ComponentRenderResult;
 use Ran\PluginLib\Forms\Component\ComponentManifest;
+use Ran\PluginLib\Options\OptionScope;
 
 /**
  * Shared functionality for form-based classes.
@@ -1664,13 +1665,16 @@ trait FormsBaseTrait {
 		$storage       = $options->get_storage_context();
 		$cacheKeyParts = array(
 			$options->get_main_option_name(),
-			$storage->scope?->value ?? '',
-			(string) ($storage->blog_id ?? ''),
-			(string) ($storage->user_id ?? ''),
-			(string) ($storage->user_storage ?? ''),
-			(string) ($storage->user_global ?? ''),
-			isset($context['page_slug']) ? (string) $context['page_slug'] : '',
+			$storage->scope?->value ?? 'site',
 		);
+
+		// Add scope-specific identifiers only when needed
+		if ($storage->scope === OptionScope::Blog && $storage->blog_id !== null) {
+			$cacheKeyParts[] = (string) $storage->blog_id;
+		} elseif ($storage->scope === OptionScope::User && $storage->user_id !== null) {
+			$cacheKeyParts[] = (string) $storage->user_id;
+		}
+
 		$cacheKey = implode('|', $cacheKeyParts);
 
 		if (isset($this->__schema_bundle_cache[$cacheKey])) {
