@@ -28,6 +28,7 @@ use Ran\PluginLib\Forms\FormsBaseTrait;
 use Ran\PluginLib\Forms\Components\Elements\Button\Builder as ButtonBuilder;
 use Ran\PluginLib\Forms\Component\ComponentManifest;
 use Ran\PluginLib\Forms\Component\ComponentLoader;
+use Ran\PluginLib\Config\ConfigInterface;
 
 /**
  * Admin settings facade that coordinates Settings API registration with a scoped `RegisterOptions`
@@ -49,6 +50,11 @@ class AdminSettings implements FormsInterface {
 
 	protected ComponentLoader $views;
 	protected RegisterOptions $base_options;
+
+	/**
+	 * @var ConfigInterface|null Optional Config for namespace resolution and component registration.
+	 */
+	protected ?ConfigInterface $config = null;
 
 	private const DEFAULT_SUBMIT_ZONE = 'primary-controls';
 
@@ -80,7 +86,7 @@ class AdminSettings implements FormsInterface {
 	 * Standard initialization sequence:
 	 * 1. Logger resolution and assignment
 	 * 2. Scope validation (context-specific)
-	 * 3. Base property assignment (options, context, main_option)
+	 * 3. Base property assignment (options, context, main_option, config)
 	 * 4. Component and view setup
 	 * 5. Context-specific template registration
 	 * 6. Service initialization (FormsService, renderers, handlers)
@@ -88,11 +94,13 @@ class AdminSettings implements FormsInterface {
 	 *
 	 * @param RegisterOptions $options The base RegisterOptions instance.
 	 * @param ComponentManifest $components The shared ComponentManifest instance.
+	 * @param ConfigInterface|null $config Optional Config for namespace resolution and component registration.
 	 * @param Logger|null $logger Optional logger instance.
 	 */
 	public function __construct(
 		RegisterOptions $options,
 		ComponentManifest $components,
+		?ConfigInterface $config = null,
 		?Logger $logger = null
 	) {
 		// Phase 1: Logger resolution
@@ -111,6 +119,7 @@ class AdminSettings implements FormsInterface {
 		$this->base_options = $options;
 		$this->base_context = $context;
 		$this->main_option  = $options->get_main_option_name();
+		$this->config       = $config;
 
 		// Phase 4: Component and view setup
 		$this->components = $components;

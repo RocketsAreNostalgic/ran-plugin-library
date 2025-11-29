@@ -66,8 +66,8 @@ class DeveloperAPITemplateRegistrationTest extends PluginLibTestCase {
 			$this->logger_mock
 		);
 
-		$this->admin_settings = new AdminSettings($this->admin_options, $this->component_manifest, $this->logger_mock);
-		$this->user_settings  = new UserSettings($this->user_options, $this->component_manifest, $this->logger_mock);
+		$this->admin_settings = new AdminSettings($this->admin_options, $this->component_manifest, null, $this->logger_mock);
+		$this->user_settings  = new UserSettings($this->user_options, $this->component_manifest, null, $this->logger_mock);
 	}
 
 	/**
@@ -108,9 +108,9 @@ class DeveloperAPITemplateRegistrationTest extends PluginLibTestCase {
 	 */
 	public function test_settings_class_template_co_location_patterns(): void {
 		// Create a custom settings class that demonstrates co-location
-		$custom_admin_settings = new class($this->admin_options, $this->component_manifest, $this->logger_mock) extends AdminSettings {
-			public function __construct($options, $component_manifest, $logger) {
-				parent::__construct($options, $component_manifest, $logger);
+		$custom_admin_settings = new class($this->admin_options, $this->component_manifest, null, $this->logger_mock) extends AdminSettings {
+			public function __construct($options, $component_manifest, $config, $logger) {
+				parent::__construct($options, $component_manifest, $config, $logger);
 				$this->register_co_located_templates();
 			}
 

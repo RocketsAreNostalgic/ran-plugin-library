@@ -139,7 +139,7 @@ class ConfigNamespaceTest extends ConfigTestCase {
 	public function test_to_pascal_case_handles_empty_name(): void {
 		// Create plugin with empty-ish name but valid other headers
 		$headers = "<?php\n/**\n * Plugin Name: \n * Version: 1.0.0\n * Text Domain: test-plugin\n */\n";
-		$file = $this->tempDir . '/plugin.php';
+		$file    = $this->tempDir . '/plugin.php';
 		file_put_contents($file, $headers);
 
 		WP_Mock::userFunction('get_plugin_data')

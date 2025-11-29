@@ -62,7 +62,7 @@ class SettingsClassTemplateCoLocationTest extends TestCase {
 	public function test_basic_template_registration_in_constructor(): void {
 		$settings = new class($this->mock_options, $this->mock_manifest, $this->mock_logger) extends AdminSettings {
 			public function __construct($options, $manifest, $logger) {
-				parent::__construct($options, $manifest, $logger);
+				parent::__construct($options, $manifest, null, $logger);
 				$this->register_test_templates();
 				$this->set_test_defaults();
 			}
@@ -99,7 +99,7 @@ class SettingsClassTemplateCoLocationTest extends TestCase {
 	public function test_batch_template_registration(): void {
 		$settings = new class($this->mock_options, $this->mock_manifest, $this->mock_logger) extends AdminSettings {
 			public function __construct($options, $manifest, $logger) {
-				parent::__construct($options, $manifest, $logger);
+				parent::__construct($options, $manifest, null, $logger);
 				$this->register_batch_templates();
 			}
 
@@ -125,7 +125,7 @@ class SettingsClassTemplateCoLocationTest extends TestCase {
 	}
 
 	public function test_get_component_manifest_access_method(): void {
-		$settings = new class($this->mock_options, $this->mock_manifest, $this->mock_logger) extends AdminSettings {
+		$settings = new class($this->mock_options, $this->mock_manifest, null, $this->mock_logger) extends AdminSettings {
 			public function test_component_methods(): bool {
 				// Test that component registration is available through ComponentManifest
 				$manifest = $this->get_form_session()->manifest();
@@ -137,12 +137,12 @@ class SettingsClassTemplateCoLocationTest extends TestCase {
 	}
 
 	public function test_conditional_template_overrides(): void {
-		$settings = new class($this->mock_options, $this->mock_manifest, $this->mock_logger) extends AdminSettings {
+		$settings = new class($this->mock_options, $this->mock_manifest, null, $this->mock_logger) extends AdminSettings {
 			private bool $is_premium;
 
-			public function __construct($options, $manifest, $logger, bool $is_premium = false) {
+			public function __construct($options, $manifest, $config, $logger, bool $is_premium = false) {
 				$this->is_premium = $is_premium;
-				parent::__construct($options, $manifest, $logger);
+				parent::__construct($options, $manifest, $config, $logger);
 				$this->set_conditional_defaults();
 			}
 
@@ -162,13 +162,13 @@ class SettingsClassTemplateCoLocationTest extends TestCase {
 		};
 
 		// Test basic defaults
-		$basic_settings = new $settings($this->mock_options, $this->mock_manifest, $this->mock_logger, false);
+		$basic_settings = new $settings($this->mock_options, $this->mock_manifest, null, $this->mock_logger, false);
 		$basic_defaults = $basic_settings->get_form_session()->get_form_defaults();
 		$this->assertEquals('basic.page', $basic_defaults['page']);
 		$this->assertEquals('basic.field', $basic_defaults['field-wrapper']);
 
 		// Test premium defaults
-		$premium_settings = new $settings($this->mock_options, $this->mock_manifest, $this->mock_logger, true);
+		$premium_settings = new $settings($this->mock_options, $this->mock_manifest, null, $this->mock_logger, true);
 		$premium_defaults = $premium_settings->get_form_session()->get_form_defaults();
 		$this->assertEquals('premium.page', $premium_defaults['page']);
 		$this->assertEquals('premium.field', $premium_defaults['field-wrapper']);
@@ -186,9 +186,9 @@ class SettingsClassTemplateCoLocationTest extends TestCase {
 		$user_mock_options->method('get_validator_pipeline')
 		    ->willReturn(new ValidatorPipelineService());
 
-		$user_settings = new class($user_mock_options, $this->mock_manifest, $this->mock_logger) extends UserSettings {
-			public function __construct($options, $manifest, $logger) {
-				parent::__construct($options, $manifest, $logger);
+		$user_settings = new class($user_mock_options, $this->mock_manifest, null, $this->mock_logger) extends UserSettings {
+			public function __construct($options, $manifest, $config, $logger) {
+				parent::__construct($options, $manifest, $config, $logger);
 				$this->register_user_templates();
 				$this->set_user_defaults();
 			}
@@ -256,7 +256,7 @@ class SettingsClassTemplateCoLocationTest extends TestCase {
 	public function test_template_resolution_hierarchy(): void {
 		$settings = new class($this->mock_options, $this->mock_manifest, $this->mock_logger) extends AdminSettings {
 			public function __construct($options, $manifest, $logger) {
-				parent::__construct($options, $manifest, $logger);
+				parent::__construct($options, $manifest, null, $logger);
 				$this->override_form_defaults(array(
 				    'field-wrapper' => 'class.default-field'
 				));
@@ -331,7 +331,7 @@ class SettingsClassTemplateCoLocationTest extends TestCase {
 	public function test_template_file_existence_validation(): void {
 		$settings = new class($this->mock_options, $this->mock_manifest, $this->mock_logger) extends AdminSettings {
 			public function __construct($options, $manifest, $logger) {
-				parent::__construct($options, $manifest, $logger);
+				parent::__construct($options, $manifest, null, $logger);
 				$this->register_validated_templates();
 			}
 
@@ -390,7 +390,7 @@ class SettingsClassTemplateCoLocationTest extends TestCase {
 		// Create two different settings classes with different templates
 		$settings1 = new class($this->mock_options, $this->mock_manifest, $this->mock_logger) extends AdminSettings {
 			public function __construct($options, $manifest, $logger) {
-				parent::__construct($options, $manifest, $logger);
+				parent::__construct($options, $manifest, null, $logger);
 				$this->override_form_defaults(array(
 				    'page'          => 'settings1.page',
 				    'field-wrapper' => 'settings1.field'
@@ -400,7 +400,7 @@ class SettingsClassTemplateCoLocationTest extends TestCase {
 
 		$settings2 = new class($this->mock_options, $this->mock_manifest, $this->mock_logger) extends AdminSettings {
 			public function __construct($options, $manifest, $logger) {
-				parent::__construct($options, $manifest, $logger);
+				parent::__construct($options, $manifest, null, $logger);
 				$this->override_form_defaults(array(
 				    'page'          => 'settings2.page',
 				    'field-wrapper' => 'settings2.field'

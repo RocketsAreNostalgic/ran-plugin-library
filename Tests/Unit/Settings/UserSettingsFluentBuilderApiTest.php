@@ -95,7 +95,7 @@ class UserSettingsFluentBuilderApiTest extends TestCase {
 			'submit'             => $this->stringSchema(),
 		));
 
-		return new UserSettings($options, $components, $logger);
+		return new UserSettings($options, $components, null, $logger);
 	}
 
 	private function stringSchema(): array {

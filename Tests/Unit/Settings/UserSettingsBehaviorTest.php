@@ -120,6 +120,7 @@ final class UserSettingsBehaviorTest extends PluginLibTestCase {
 		new UserSettings(
 			new RegisterOptions('invalid_scope', StorageContext::forSite(), true, $this->logger),
 			$this->manifest,
+			null,
 			$this->logger
 		);
 	}
@@ -620,7 +621,7 @@ final class UserSettingsBehaviorTest extends PluginLibTestCase {
 
 	public function test_resolve_context_accepts_explicit_option_storage(): void {
 		$options  = new RegisterOptions('behavior_user_options', StorageContext::forUser(123, 'option', true), false, $this->logger);
-		$settings = new UserSettings($options, $this->manifest, $this->logger);
+		$settings = new UserSettings($options, $this->manifest, null, $this->logger);
 
 		$settings->resolve_options(array('user_id' => 123, 'storage' => 'option', 'global' => true));
 
@@ -643,7 +644,7 @@ final class UserSettingsBehaviorTest extends PluginLibTestCase {
 		    ),
 		));
 
-		$user_settings = new UserSettings($options, $this->manifest, $this->logger);
+		$user_settings = new UserSettings($options, $this->manifest, null, $this->logger);
 		$user_settings->resolve_options(array('user_id' => 123, 'storage' => 'option', 'global' => true));
 
 		$scopeContext = null;
@@ -688,7 +689,7 @@ final class UserSettingsBehaviorTest extends PluginLibTestCase {
 
 	private function createUserSettings(): UserSettings {
 		$this->registerTemplateStubs();
-		return new UserSettings($this->options, $this->manifest, $this->logger);
+		return new UserSettings($this->options, $this->manifest, null, $this->logger);
 	}
 
 	private function registerTemplateStubs(): void {

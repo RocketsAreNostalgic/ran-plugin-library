@@ -27,6 +27,7 @@ use Ran\PluginLib\Forms\FormsInterface;
 use Ran\PluginLib\Forms\FormsBaseTrait;
 use Ran\PluginLib\Forms\Component\ComponentManifest;
 use Ran\PluginLib\Forms\Component\ComponentLoader;
+use Ran\PluginLib\Config\ConfigInterface;
 
 
 /**
@@ -52,6 +53,11 @@ class UserSettings implements FormsInterface {
 	protected RegisterOptions $base_options;
 
 	/**
+	 * @var ConfigInterface|null Optional Config for namespace resolution and component registration.
+	 */
+	protected ?ConfigInterface $config = null;
+
+	/**
 	 * Base context, storage and global captured from the injected RegisterOptions instance.
 	 * Retained so subsequent renders and saves can derive user_id/storage defaults.
 	 */
@@ -74,7 +80,7 @@ class UserSettings implements FormsInterface {
 	 * Standard initialization sequence:
 	 * 1. Logger resolution and assignment
 	 * 2. Scope validation (context-specific)
-	 * 3. Base property assignment (options, context, main_option)
+	 * 3. Base property assignment (options, context, main_option, config)
 	 * 4. Component and view setup
 	 * 5. Context-specific template registration
 	 * 6. Service initialization (FormsService, renderers, handlers)
@@ -82,11 +88,13 @@ class UserSettings implements FormsInterface {
 	 *
 	 * @param RegisterOptions $options The base RegisterOptions instance.
 	 * @param ComponentManifest $components The shared ComponentManifest instance.
+	 * @param ConfigInterface|null $config Optional Config for namespace resolution and component registration.
 	 * @param Logger|null $logger Optional logger instance.
 	 */
 	public function __construct(
 		RegisterOptions $options,
 		ComponentManifest $components,
+		?ConfigInterface $config = null,
 		?Logger $logger = null
 	) {
 		// Phase 1: Logger resolution
@@ -105,6 +113,7 @@ class UserSettings implements FormsInterface {
 		$this->base_options = $options;
 		$this->base_context = $context;
 		$this->main_option  = $options->get_main_option_name();
+		$this->config       = $config;
 		// UserSettings-specific: storage and global flags for user context resolution
 		$this->base_storage = strtolower($context->user_storage ?? 'meta') === 'option' ? 'option' : 'meta';
 		$this->base_global  = $this->base_storage                          === 'option' ? (bool) ($context->user_global ?? false) : false;

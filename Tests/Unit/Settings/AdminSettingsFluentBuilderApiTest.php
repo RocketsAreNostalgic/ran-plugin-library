@@ -94,7 +94,7 @@ class AdminSettingsFluentBuilderApiTest extends TestCase {
 			'api_key' => $this->stringSchema(),
 		));
 
-		return new AdminSettings($options, $components, $logger);
+		return new AdminSettings($options, $components, null, $logger);
 	}
 
 	private function stringSchema(): array {

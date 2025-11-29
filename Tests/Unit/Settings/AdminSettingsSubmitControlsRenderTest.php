@@ -304,7 +304,7 @@ final class AdminSettingsSubmitControlsRenderTest extends TestCase {
 		    ),
 		));
 
-		return new \Ran\PluginLib\Settings\AdminSettings($options, $this->manifest, $this->logger);
+		return new \Ran\PluginLib\Settings\AdminSettings($options, $this->manifest, null, $this->logger);
 	}
 
 	private function registerTemplateStubs(): void {

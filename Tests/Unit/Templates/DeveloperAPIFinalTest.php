@@ -68,8 +68,8 @@ class DeveloperAPIFinalTest extends PluginLibTestCase {
 			$this->logger_mock
 		);
 
-		$this->admin_settings = new AdminSettings($this->admin_options, $this->component_manifest, $this->logger_mock);
-		$this->user_settings  = new UserSettings($this->user_options, $this->component_manifest, $this->logger_mock);
+		$this->admin_settings = new AdminSettings($this->admin_options, $this->component_manifest, null, $this->logger_mock);
+		$this->user_settings  = new UserSettings($this->user_options, $this->component_manifest, null, $this->logger_mock);
 	}
 
 	/**
@@ -164,7 +164,7 @@ class DeveloperAPIFinalTest extends PluginLibTestCase {
 		$this->assertEquals('default.field', $template);
 
 		// 5. System default (when no overrides)
-		$clean_admin_settings = new AdminSettings($this->admin_options, $this->component_manifest, $this->logger_mock);
+		$clean_admin_settings = new AdminSettings($this->admin_options, $this->component_manifest, null, $this->logger_mock);
 		$template             = $clean_admin_settings->get_form_session()->resolve_template('field-wrapper', array());
 		$this->assertEquals('layout.field.field-wrapper', $template); // Should use field-specific fallback
 	}
@@ -223,7 +223,7 @@ class DeveloperAPIFinalTest extends PluginLibTestCase {
 		$this->assertEquals('user.default.field-wrapper', $template);
 
 		// 5. System default (when no overrides)
-		$clean_user_settings = new UserSettings($this->user_options, $this->component_manifest, $this->logger_mock);
+		$clean_user_settings = new UserSettings($this->user_options, $this->component_manifest, null, $this->logger_mock);
 		$template            = $clean_user_settings->get_form_session()->resolve_template('field-wrapper', array());
 		$this->assertStringContainsString('user', $template); // Should use user context default
 	}

@@ -143,7 +143,7 @@ final class AdminSettingsBehaviorTest extends PluginLibTestCase {
 			),
 		));
 
-		$this->settings = new AdminSettings($this->options, $this->manifest, $this->logger);
+		$this->settings = new AdminSettings($this->options, $this->manifest, null, $this->logger);
 	}
 
 	public function test_register_setting_uses_settings_api(): void {

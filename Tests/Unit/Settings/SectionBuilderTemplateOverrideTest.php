@@ -87,7 +87,7 @@ class SectionBuilderTemplateOverrideTest extends TestCase {
 			),
 		));
 
-		return new AdminSettings($options, $components, $this->logger);
+		return new AdminSettings($options, $components, null, $this->logger);
 	}
 
 	private function createUserSettings(): UserSettings {
@@ -104,7 +104,7 @@ class SectionBuilderTemplateOverrideTest extends TestCase {
 			),
 		));
 
-		return new UserSettings($options, $components, $this->logger);
+		return new UserSettings($options, $components, null, $this->logger);
 	}
 
 	/**

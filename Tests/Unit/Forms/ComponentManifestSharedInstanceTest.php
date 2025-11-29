@@ -73,8 +73,8 @@ class ComponentManifestSharedInstanceTest extends PluginLibTestCase {
 		$userOptions  = new RegisterOptions('test_user_settings', StorageContext::forUser(1), true, $this->logger_mock);
 
 		// Create AdminSettings and UserSettings with the same ComponentManifest
-		$adminSettings = new AdminSettings($adminOptions, $this->manifest, $this->logger_mock);
-		$userSettings  = new UserSettings($userOptions, $this->manifest, $this->logger_mock);
+		$adminSettings = new AdminSettings($adminOptions, $this->manifest, null, $this->logger_mock);
+		$userSettings  = new UserSettings($userOptions, $this->manifest, null, $this->logger_mock);
 
 		// Verify both instances exist
 		$this->assertInstanceOf(AdminSettings::class, $adminSettings);
@@ -96,7 +96,7 @@ class ComponentManifestSharedInstanceTest extends PluginLibTestCase {
 		$options = new RegisterOptions('test_admin_settings', StorageContext::forSite(), true, $this->logger_mock);
 
 		// Should not throw exception with ComponentManifest parameter
-		$adminSettings = new AdminSettings($options, $this->manifest, $this->logger_mock);
+		$adminSettings = new AdminSettings($options, $this->manifest, null, $this->logger_mock);
 
 		// Verify the FormsServiceSession is accessible
 		$formSession = $adminSettings->get_form_session();
@@ -114,7 +114,7 @@ class ComponentManifestSharedInstanceTest extends PluginLibTestCase {
 		$options = new RegisterOptions('test_user_settings', StorageContext::forUser(1), true, $this->logger_mock);
 
 		// Should not throw exception with ComponentManifest parameter
-		$userSettings = new UserSettings($options, $this->manifest, $this->logger_mock);
+		$userSettings = new UserSettings($options, $this->manifest, null, $this->logger_mock);
 
 		// Verify the FormsServiceSession is accessible
 		$formSession = $userSettings->get_form_session();
@@ -132,8 +132,8 @@ class ComponentManifestSharedInstanceTest extends PluginLibTestCase {
 		$adminOptions = new RegisterOptions('test_admin_settings', StorageContext::forSite(), true, $this->logger_mock);
 		$userOptions  = new RegisterOptions('test_user_settings', StorageContext::forUser(1), true, $this->logger_mock);
 
-		$adminSettings = new AdminSettings($adminOptions, $this->manifest, $this->logger_mock);
-		$userSettings  = new UserSettings($userOptions, $this->manifest, $this->logger_mock);
+		$adminSettings = new AdminSettings($adminOptions, $this->manifest, null, $this->logger_mock);
+		$userSettings  = new UserSettings($userOptions, $this->manifest, null, $this->logger_mock);
 
 		// Verify old methods are gone
 		$this->assertFalse(method_exists($adminSettings, 'set_default_template_overrides'));

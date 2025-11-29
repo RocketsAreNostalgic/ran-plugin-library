@@ -96,7 +96,7 @@ final class AdminSettingsRenderSmokeTest extends PluginLibTestCase {
 			$this->logger
 		);
 
-		$this->settings = new AdminSettings($this->options, $this->manifest, $this->logger);
+		$this->settings = new AdminSettings($this->options, $this->manifest, null, $this->logger);
 	}
 
 	/**

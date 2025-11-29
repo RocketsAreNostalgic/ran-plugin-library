@@ -68,8 +68,8 @@ class DeveloperAPISimpleTest extends PluginLibTestCase {
 			$this->logger_mock
 		);
 
-		$this->admin_settings = new AdminSettings($this->admin_options, $this->component_manifest, $this->logger_mock);
-		$this->user_settings  = new UserSettings($this->user_options, $this->component_manifest, $this->logger_mock);
+		$this->admin_settings = new AdminSettings($this->admin_options, $this->component_manifest, null, $this->logger_mock);
+		$this->user_settings  = new UserSettings($this->user_options, $this->component_manifest, null, $this->logger_mock);
 	}
 
 	/**

@@ -162,7 +162,7 @@ final class AdminSettingsFieldBuilderApiTest extends TestCase {
 		    'cta-button-enabled' => $this->stringSchema(),
 		));
 
-		return new AdminSettings($options, $manifest, $logger);
+		return new AdminSettings($options, $manifest, null, $logger);
 	}
 
 	/**

@@ -14,12 +14,21 @@ use RecursiveDirectoryIterator;
 use Ran\PluginLib\Util\WPWrappersTrait;
 use Ran\PluginLib\Util\Logger;
 use Ran\PluginLib\Forms\Component\Cache\ComponentCacheService;
+use Ran\PluginLib\Config\ConfigInterface;
 use FilesystemIterator;
+use DirectoryIterator;
 
 class ComponentLoader {
 	use WPWrappersTrait;
 
-	/** @var array<string,string> */
+	/**
+	 * Component alias map.
+	 *
+	 * - Built-in components: string (relative path from baseDir)
+	 * - External components: array{path:string, namespace:string} (absolute path + PSR-4 namespace)
+	 *
+	 * @var array<string, string|array{path:string, namespace:string}>
+	 */
 	private array $map = array();
 	private string $baseDir;
 
@@ -63,6 +72,94 @@ class ComponentLoader {
 
 		$this->map[$name] = $this->_normalize_path($relativePath);
 		return $this;
+	}
+
+	/**
+	 * Register an external component with Config-based path and namespace resolution.
+	 *
+	 * @param string $name Component name (e.g., 'color-picker')
+	 * @param array{path: string, prefix?: string} $options Component options:
+	 *        - path: Relative path from plugin root to component directory
+	 *        - prefix: Optional alias prefix (e.g., 'my-plugin')
+	 * @param ConfigInterface $config Plugin configuration for path and namespace resolution
+	 * @return self
+	 */
+	public function register_component(string $name, array $options, ConfigInterface $config): self {
+		if (!$this->_is_valid_template_key($name)) {
+			$this->logger?->warning("Skipping invalid template key: '$name'");
+			return $this;
+		}
+
+		// Determine prefix and final alias
+		$prefix = $options['prefix'] ?? null;
+		$alias  = $prefix ? $prefix . '.' . $name : $name;
+
+		if (!isset($options['path'])) {
+			$this->logger?->warning("Component '$name' config missing 'path' key");
+			return $this;
+		}
+
+		$this->_register_external_component($alias, $options['path'], $config);
+		return $this;
+	}
+
+	/**
+	 * Register multiple external components from a directory.
+	 *
+	 * Scans the specified directory for subdirectories containing View.php files
+	 * and registers each as an external component.
+	 *
+	 * @param array{path: string, prefix?: string} $options Batch options:
+	 *        - path: Relative path from plugin root to components directory
+	 *        - prefix: Optional alias prefix for all discovered components
+	 * @param ConfigInterface $config Plugin configuration for path and namespace resolution
+	 * @return self
+	 */
+	public function register_components(array $options, ConfigInterface $config): self {
+		if (!isset($options['path'])) {
+			$this->logger?->warning("register_components() requires 'path' option");
+			return $this;
+		}
+
+		$basePath = rtrim($config->get_config()['PATH'] ?? '', '/');
+		$fullPath = $basePath . '/' . ltrim($options['path'], '/');
+		$prefix   = $options['prefix'] ?? null;
+
+		if (!is_dir($fullPath)) {
+			$this->logger?->warning("Components directory does not exist: $fullPath");
+			return $this;
+		}
+
+		$iterator = new DirectoryIterator($fullPath);
+		foreach ($iterator as $item) {
+			if (!$item->isDir() || $item->isDot()) {
+				continue;
+			}
+
+			$componentDir = $item->getPathname();
+			if (!is_file($componentDir . '/View.php')) {
+				continue;
+			}
+
+			$folderName   = $item->getFilename();
+			$aliasSegment = $this->_pascal_to_kebab($folderName);
+			$alias        = $prefix ? $prefix . '.' . $aliasSegment : $aliasSegment;
+
+			$relativePath = $options['path'] . '/' . $folderName;
+			$this->_register_external_component($alias, $relativePath, $config);
+		}
+
+		return $this;
+	}
+
+	/**
+	 * Check if an alias refers to an external component.
+	 *
+	 * @param string $alias Component alias
+	 * @return bool True if external (array entry), false if built-in (string entry)
+	 */
+	public function is_external(string $alias): bool {
+		return isset($this->map[$alias]) && is_array($this->map[$alias]);
 	}
 
 	/**
@@ -133,7 +230,7 @@ class ComponentLoader {
 	/**
 	 * Retrieve the registered alias map.
 	 *
-	 * @return array<string,string> Alias => relative template path.
+	 * @return array<string, string|array{path:string, namespace:string}> Alias => path info.
 	 */
 	public function aliases(): array {
 		return $this->map;
@@ -178,7 +275,7 @@ class ComponentLoader {
 	 * Resolve the path to a template by its alias.
 	 *
 	 * @param string $name
-	 * @return string
+	 * @return string Absolute path to the template file.
 	 */
 	private function _resolve_path(string $name): string {
 		if (!isset($this->map[$name])) {
@@ -188,7 +285,15 @@ class ComponentLoader {
 			throw new \LogicException(sprintf('No template mapping registered for "%s".', $name));
 		}
 
-		return $this->baseDir . '/' . $this->map[$name];
+		$entry = $this->map[$name];
+
+		// External component: array with 'path' key (absolute path)
+		if (is_array($entry)) {
+			return $entry['path'];
+		}
+
+		// Built-in component: string (relative path from baseDir)
+		return $this->baseDir . '/' . $entry;
 	}
 
 	/**
@@ -284,7 +389,26 @@ class ComponentLoader {
 		return $segment;
 	}
 
+	/**
+	 * Resolve the fully qualified class name for a component companion class.
+	 *
+	 * For external components (array entries), uses the stored namespace.
+	 * For built-in components (string entries), derives namespace from alias.
+	 *
+	 * @param string $alias Component alias (e.g., 'input.text' or 'my-plugin.color-picker')
+	 * @param string $suffix Class suffix (e.g., 'Validator', 'Sanitizer', 'Normalizer', 'Builder')
+	 * @return string|null Fully qualified class name, or null if class doesn't exist.
+	 */
 	private function _resolve_component_class(string $alias, string $suffix): ?string {
+		$entry = $this->map[$alias] ?? null;
+
+		// External component: array with 'namespace' key
+		if (is_array($entry) && isset($entry['namespace'])) {
+			$className = $entry['namespace'] . '\\' . $suffix;
+			return class_exists($className) ? $className : null;
+		}
+
+		// Built-in component: derive namespace from alias
 		$segments = explode('.', $alias);
 		if (empty($segments)) {
 			return null;
@@ -307,6 +431,52 @@ class ComponentLoader {
 		$segment = str_replace(array('-', '_'), ' ', $segment);
 		$segment = ucwords($segment);
 		return str_replace(' ', '', $segment);
+	}
+
+	/**
+	 * Register an external component with resolved path and namespace.
+	 *
+	 * @param string $alias Final component alias (e.g., 'my-plugin.color-picker')
+	 * @param string $relativePath Relative path from plugin root to component directory
+	 * @param ConfigInterface $config Plugin configuration
+	 */
+	private function _register_external_component(string $alias, string $relativePath, ConfigInterface $config): void {
+		$basePath = rtrim($config->get_config()['PATH'] ?? '', '/');
+		$fullPath = $basePath . '/' . ltrim($relativePath, '/');
+
+		if (!is_dir($fullPath)) {
+			$this->logger?->warning("Component '$alias' directory does not exist: $fullPath");
+			return;
+		}
+
+		$viewPath = $fullPath . '/View.php';
+		if (!is_file($viewPath)) {
+			$this->logger?->warning("Component '$alias' missing required View.php in: $fullPath");
+			return;
+		}
+
+		// Derive namespace from Config + relative path
+		$rootNamespace      = $config->get_namespace();
+		$pathSegments       = array_filter(explode('/', $relativePath));
+		$namespaceSegments  = array_map(array($this, '_segment_to_namespace'), $pathSegments);
+		$componentNamespace = $rootNamespace . '\\' . implode('\\', $namespaceSegments);
+
+		// Store as array with path and namespace
+		$this->map[$alias] = array(
+			'path'      => $viewPath,
+			'namespace' => $componentNamespace,
+		);
+	}
+
+	/**
+	 * Convert PascalCase to kebab-case for alias generation.
+	 *
+	 * @param string $input PascalCase string (e.g., 'ColorPicker')
+	 * @return string kebab-case string (e.g., 'color-picker')
+	 */
+	private function _pascal_to_kebab(string $input): string {
+		$result = preg_replace('/([a-z])([A-Z])/', '$1-$2', $input);
+		return strtolower($result ?? $input);
 	}
 
 	/**

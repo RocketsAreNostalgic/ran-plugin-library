@@ -17,8 +17,6 @@ use Ran\PluginLib\Settings\AdminSettingsPageBuilder;
 use Ran\PluginLib\Settings\AdminSettingsMenuGroupBuilder;
 use Ran\PluginLib\Settings\AdminSettings;
 use Ran\PluginLib\Options\RegisterOptions;
-use Ran\PluginLib\Forms\Component\ComponentManifest;
-use Ran\PluginLib\Forms\Component\ComponentLoader;
 
 final class SettingsEntryPointFluentBuilderTest extends TestCase {
 	public function setUp(): void {
@@ -46,9 +44,8 @@ final class SettingsEntryPointFluentBuilderTest extends TestCase {
 	 * @covers \Ran\PluginLib\Settings\AdminSettingsPageBuilder
 	 */
 	public function test_settings_provides_admin_builder_chain(): void {
-		$logger     = new Logger();
-		$components = $this->create_component_manifest($logger);
-		$options    = RegisterOptions::site('entry_admin_settings', true, $logger);
+		$logger  = new Logger();
+		$options = RegisterOptions::site('entry_admin_settings', true, $logger);
 
 		$options->register_schema(array(
 			'dummy_field' => array(
@@ -59,7 +56,8 @@ final class SettingsEntryPointFluentBuilderTest extends TestCase {
 			),
 		));
 
-		$settings = new Settings($options, $logger, $components);
+		// Settings now creates ComponentManifest internally; Config is optional
+		$settings = new Settings($options);
 
 		$menu_group_builder = $settings->menu_group('entry-admin-group');
 
@@ -79,9 +77,8 @@ final class SettingsEntryPointFluentBuilderTest extends TestCase {
 	 * @covers \Ran\PluginLib\Settings\UserSettingsSectionBuilder
 	 */
 	public function test_settings_provides_user_builder_chain(): void {
-		$logger     = new Logger();
-		$components = $this->create_component_manifest($logger);
-		$options    = RegisterOptions::user('entry_user_settings', 123, false, $logger);
+		$logger  = new Logger();
+		$options = RegisterOptions::user('entry_user_settings', 123, false, $logger);
 
 		$options->register_schema(array(
 			'display_name' => array(
@@ -92,7 +89,8 @@ final class SettingsEntryPointFluentBuilderTest extends TestCase {
 			),
 		));
 
-		$settings = new Settings($options, $logger, $components);
+		// Settings now creates ComponentManifest internally; Config is optional
+		$settings = new Settings($options);
 
 		$collection_builder = $settings->collection('entry-profile');
 
@@ -103,12 +101,5 @@ final class SettingsEntryPointFluentBuilderTest extends TestCase {
 		$this->assertInstanceOf(UserSettingsSectionBuilder::class, $section_builder);
 
 		$this->assertInstanceOf(UserSettings::class, $section_builder->end_section()->end_collection());
-	}
-
-	private function create_component_manifest(Logger $logger): ComponentManifest {
-		$base_dir = dirname(__DIR__, 3) . '/inc/Forms/Components';
-		$loader   = new ComponentLoader($base_dir, $logger);
-
-		return new ComponentManifest($loader, $logger);
 	}
 }

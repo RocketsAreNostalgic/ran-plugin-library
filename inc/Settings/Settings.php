@@ -23,6 +23,7 @@ use Ran\PluginLib\Forms\FormsService;
 use Ran\PluginLib\Forms\FormsInterface;
 use Ran\PluginLib\Forms\Component\ComponentManifest;
 use Ran\PluginLib\Forms\Component\ComponentLoader;
+use Ran\PluginLib\Config\ConfigInterface;
 
 /**
  * Scope-aware facade that wraps the appropriate settings implementation.
@@ -33,23 +34,34 @@ final class Settings implements FormsInterface {
 	 */
 	private FormsInterface $inner;
 
-	public function __construct(RegisterOptions $options, ?Logger $logger = null, ?ComponentManifest $components = null) {
+	/**
+	 * @var ConfigInterface|null Optional Config for namespace resolution and component registration.
+	 */
+	private ?ConfigInterface $config = null;
+
+	/**
+	 * Constructor.
+	 *
+	 * @param RegisterOptions $options The RegisterOptions instance (required).
+	 * @param ConfigInterface|null $config Optional Config for namespace resolution and component registration.
+	 */
+	public function __construct(RegisterOptions $options, ?ConfigInterface $config = null) {
+		$this->config = $config;
+
 		$context = $options->get_storage_context();
 		$scope   = $context->scope instanceof OptionScope ? $context->scope : null;
-		/** @var FormsInterface $settings */
-		$settings       = null;
-		$registryLogger = $logger instanceof Logger ? $logger : $options->get_logger();
-		if ($components instanceof ComponentManifest) {
-			$registry = $components;
-		} else {
-			$componentDir = new ComponentLoader(dirname(__DIR__) . '/Forms/Components', $registryLogger);
-			$registry     = new ComponentManifest($componentDir, $registryLogger);
-		}
+
+		// Logger from Config, or fallback to RegisterOptions logger
+		$registryLogger = $config?->get_logger() ?? $options->get_logger();
+
+		// ComponentManifest always created internally
+		$componentDir = new ComponentLoader(dirname(__DIR__) . '/Forms/Components', $registryLogger);
+		$registry     = new ComponentManifest($componentDir, $registryLogger);
 
 		try {
 			$settings = $scope === OptionScope::User
-				? new UserSettings($options, $registry, $registryLogger)
-				: new AdminSettings($options, $registry, $registryLogger); // Site, Network, Blog
+				? new UserSettings($options, $registry, $config, $registryLogger)
+				: new AdminSettings($options, $registry, $config, $registryLogger); // Site, Network, Blog
 		} catch (\Exception $e) {
 			throw new \LogicException('Invalid options object, failed to create settings instance.', 0, $e);
 		}
