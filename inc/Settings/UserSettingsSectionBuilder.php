@@ -19,6 +19,7 @@ use Ran\PluginLib\Forms\FormsInterface;
 use Ran\PluginLib\Forms\Component\Build\ComponentBuilderDefinitionInterface;
 use Ran\PluginLib\Forms\Builders\SectionBuilder;
 use Ran\PluginLib\Forms\Builders\ComponentBuilderProxy;
+use Ran\PluginLib\Forms\Builders\SimpleFieldProxy;
 use Ran\PluginLib\Forms\Builders\BuilderRootInterface;
 
 /**
@@ -81,11 +82,14 @@ class UserSettingsSectionBuilder extends SectionBuilder {
 	/**
 	 * Add a field to this section with user settings-specific typing.
 	 *
-	 * @return UserSettingsComponentProxy|static
+	 * @return UserSettingsComponentProxy|SimpleFieldProxy
 	 */
-	public function field(string $field_id, string $label, string $component, array $args = array()): UserSettingsComponentProxy|static {
+	public function field(string $field_id, string $label, string $component, array $args = array()): UserSettingsComponentProxy|SimpleFieldProxy {
 		$result = parent::field($field_id, $label, $component, $args);
-		return $result instanceof UserSettingsComponentProxy ? $result : $this;
+		if ($result instanceof UserSettingsComponentProxy || $result instanceof SimpleFieldProxy) {
+			return $result;
+		}
+		throw new \RuntimeException('Unexpected return type from parent::field()');
 	}
 
 	/**
@@ -123,6 +127,30 @@ class UserSettingsSectionBuilder extends SectionBuilder {
 	 */
 	public function end_field(): static {
 		return $this;
+	}
+
+	/**
+	 * Not valid in section context - throws exception.
+	 *
+	 * This method exists for API consistency with union return types.
+	 *
+	 * @return never
+	 * @throws \RuntimeException Always throws - cannot end fieldset from section context.
+	 */
+	public function end_fieldset(): never {
+		throw new \RuntimeException('Cannot call end_fieldset() from section context. You are not inside a fieldset.');
+	}
+
+	/**
+	 * Not valid in section context - throws exception.
+	 *
+	 * This method exists for API consistency with union return types.
+	 *
+	 * @return never
+	 * @throws \RuntimeException Always throws - cannot end group from section context.
+	 */
+	public function end_group(): never {
+		throw new \RuntimeException('Cannot call end_group() from section context. You are not inside a group.');
 	}
 
 	/**

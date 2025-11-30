@@ -204,9 +204,9 @@ class SectionBuilder implements SectionBuilderInterface {
 	 * @param string $component The component alias.
 	 * @param array<string,mixed> $args Optional configuration (context, order, field_template).
 	 *
-	 * @return ComponentBuilderProxy<SectionBuilder<TRoot>>|static The builder or fluent proxy instance.
+	 * @return ComponentBuilderProxy<SectionBuilder<TRoot>>|SimpleFieldProxy The fluent proxy instance.
 	 */
-	public function field(string $field_id, string $label, string $component, array $args = array()): ComponentBuilderProxy|static {
+	public function field(string $field_id, string $label, string $component, array $args = array()): ComponentBuilderProxy|SimpleFieldProxy {
 		$component_context = $args['context']        ?? $args['component_context'] ?? array();
 		$order             = $args['order']          ?? null;
 		$field_template    = $args['field_template'] ?? null;
@@ -254,29 +254,60 @@ class SectionBuilder implements SectionBuilderInterface {
 			return $proxy;
 		}
 
-		($this->updateFn)('field', array(
-			'container_id' => $this->container_id,
-			'section_id'   => $this->section_id,
-			'field_data'   => array(
-				'id'                => $field_id,
-				'label'             => $label,
-				'component'         => $component,
-				'component_context' => $component_context,
-				'order'             => $order,
-				'before'            => is_callable($before) ? $before : null,
-				'after'             => is_callable($after) ? $after : null,
-			)
-		));
+		// For simple components without builder factories, return a SimpleFieldProxy
+		// to allow chained before()/after() calls without affecting the parent section
+		return $this->_create_simple_field_proxy(
+			$field_id,
+			$label,
+			$component,
+			$component_context,
+			$order !== null ? (int) $order : null,
+			$field_template,
+			is_callable($before) ? $before : null,
+			is_callable($after) ? $after : null
+		);
+	}
 
-		if ($field_template !== null) {
-			($this->updateFn)('template_override', array(
-				'element_type' => 'field',
-				'element_id'   => $field_id,
-				'overrides'    => array('field-wrapper' => $field_template)
-			));
-		}
-
-		return $this;
+	/**
+	 * Factory method to create a SimpleFieldProxy.
+	 * Override in subclasses to return context-specific proxy types.
+	 *
+	 * @param string $field_id The field identifier.
+	 * @param string $label The field label.
+	 * @param string $component The component alias.
+	 * @param array<string,mixed> $component_context The component context.
+	 * @param int|null $order The field order.
+	 * @param string|null $field_template The field template override.
+	 * @param callable|null $before The before callback.
+	 * @param callable|null $after The after callback.
+	 *
+	 * @return SimpleFieldProxy The proxy instance.
+	 */
+	protected function _create_simple_field_proxy(
+		string $field_id,
+		string $label,
+		string $component,
+		array $component_context,
+		?int $order,
+		?string $field_template,
+		?callable $before,
+		?callable $after
+	): SimpleFieldProxy {
+		return new SimpleFieldProxy(
+			$this,
+			$this->updateFn,
+			$this->container_id,
+			$this->section_id,
+			null, // No group_id for section-level fields
+			$field_id,
+			$label,
+			$component,
+			$component_context,
+			$order,
+			$field_template,
+			$before,
+			$after
+		);
 	}
 
 	/**
@@ -344,6 +375,18 @@ class SectionBuilder implements SectionBuilderInterface {
 	 */
 	public function end_group(): SectionBuilder {
 		return $this;
+	}
+
+	/**
+	 * Not valid in section context - throws exception.
+	 *
+	 * This method exists for API consistency with union return types.
+	 *
+	 * @return SectionBuilderInterface
+	 * @throws \RuntimeException Always throws - cannot end fieldset from section context.
+	 */
+	public function end_fieldset(): SectionBuilderInterface {
+		throw new \RuntimeException('Cannot call end_fieldset() from section context. You are not inside a fieldset.');
 	}
 
 	/**

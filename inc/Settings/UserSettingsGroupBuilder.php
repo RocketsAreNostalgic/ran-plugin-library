@@ -14,6 +14,7 @@ namespace Ran\PluginLib\Settings;
 
 use Ran\PluginLib\Forms\Component\Build\ComponentBuilderDefinitionInterface;
 use Ran\PluginLib\Forms\Builders\GroupBuilder;
+use Ran\PluginLib\Forms\Builders\SimpleFieldProxy;
 
 final class UserSettingsGroupBuilder extends GroupBuilder {
 	public function __construct(
@@ -41,21 +42,14 @@ final class UserSettingsGroupBuilder extends GroupBuilder {
 	/**
 	 * Add a field to this user settings group.
 	 *
-	 * @return UserSettingsComponentProxy|static
+	 * @return UserSettingsComponentProxy|SimpleFieldProxy
 	 */
-	public function field(string $field_id, string $label, string $component, array $args = array()): UserSettingsComponentProxy|static {
+	public function field(string $field_id, string $label, string $component, array $args = array()): UserSettingsComponentProxy|SimpleFieldProxy {
 		$result = parent::field($field_id, $label, $component, $args);
-		return $result instanceof UserSettingsComponentProxy ? $result : $this;
-	}
-
-	/**
-	 * No-op when called on the group builder directly.
-	 * Enables consistent chaining whether field() returned a proxy or $this.
-	 *
-	 * @return static
-	 */
-	public function end_field(): static {
-		return $this;
+		if ($result instanceof UserSettingsComponentProxy || $result instanceof SimpleFieldProxy) {
+			return $result;
+		}
+		throw new \RuntimeException('Unexpected return type from parent::field()');
 	}
 
 	/**
@@ -70,6 +64,18 @@ final class UserSettingsGroupBuilder extends GroupBuilder {
 		}
 
 		return $section;
+	}
+
+	/**
+	 * Not valid in group context - throws exception.
+	 *
+	 * This method exists for API consistency with union return types.
+	 *
+	 * @return never
+	 * @throws \RuntimeException Always throws - cannot end fieldset from group context.
+	 */
+	public function end_fieldset(): never {
+		throw new \RuntimeException('Cannot call end_fieldset() from group context. Use end_group() instead.');
 	}
 
 	/**

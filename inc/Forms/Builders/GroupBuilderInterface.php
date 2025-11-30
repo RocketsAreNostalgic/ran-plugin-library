@@ -30,11 +30,11 @@ interface GroupBuilderInterface extends BuilderFieldContainerInterface {
 	public function group(string $group_id, string $title, ?callable $description_cb = null, ?array $args = array()): GroupBuilderInterface;
 
 	/**
-	 * end_group() method returns this SectionBuilder instance.
+	 * end_group() method returns the SectionBuilder instance.
 	 *
-	 * @return SectionBuilder The SectionBuilder instance.
+	 * @return SectionBuilderInterface The SectionBuilder instance.
 	 */
-	public function end_group(): SectionBuilder;
+	public function end_group(): SectionBuilderInterface;
 
 	/**
 	 * end_section() method returns the original Settings instance.

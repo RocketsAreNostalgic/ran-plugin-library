@@ -39,10 +39,25 @@ class GroupBuilder extends SectionFieldContainerBuilder implements GroupBuilderI
 	/**
 	 * Commit buffered data and return to the section builder.
 	 *
-	 * @return SectionBuilder
+	 * Emits a final group_metadata event to ensure any fields added
+	 * after before()/after() calls are reflected in the metadata.
+	 *
+	 * @return SectionBuilderInterface
 	 */
-	public function end_group(): SectionBuilder {
+	public function end_group(): SectionBuilderInterface {
+		// Emit final group metadata to capture any fields added after before()/after()
+		$this->emit_group_metadata();
 		return $this->section();
+	}
+
+	/**
+	 * Not valid in group context - throws exception.
+	 *
+	 * @return SectionBuilderInterface
+	 * @throws \RuntimeException Always throws - use end_group() instead.
+	 */
+	public function end_fieldset(): SectionBuilderInterface {
+		throw new \RuntimeException('Cannot call end_fieldset() from group context. Use end_group() instead.');
 	}
 
 	/**

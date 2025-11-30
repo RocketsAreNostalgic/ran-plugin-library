@@ -12,6 +12,7 @@ namespace Ran\PluginLib\Settings;
 use Ran\PluginLib\Forms\Component\Build\ComponentBuilderDefinitionInterface;
 use Ran\PluginLib\Forms\Builders\FieldsetBuilder;
 use Ran\PluginLib\Forms\Builders\ComponentBuilderProxy;
+use Ran\PluginLib\Forms\Builders\SimpleFieldProxy;
 
 final class UserSettingsFieldsetBuilder extends FieldsetBuilder {
 	public function __construct(
@@ -39,21 +40,14 @@ final class UserSettingsFieldsetBuilder extends FieldsetBuilder {
 	/**
 	 * Add a field to this user settings fieldset.
 	 *
-	 * @return UserSettingsComponentProxy|static
+	 * @return UserSettingsComponentProxy|SimpleFieldProxy
 	 */
-	public function field(string $field_id, string $label, string $component, array $args = array()): UserSettingsComponentProxy|static {
+	public function field(string $field_id, string $label, string $component, array $args = array()): UserSettingsComponentProxy|SimpleFieldProxy {
 		$result = parent::field($field_id, $label, $component, $args);
-		return $result instanceof UserSettingsComponentProxy ? $result : $this;
-	}
-
-	/**
-	 * No-op when called on the fieldset builder directly.
-	 * Enables consistent chaining whether field() returned a proxy or $this.
-	 *
-	 * @return static
-	 */
-	public function end_field(): static {
-		return $this;
+		if ($result instanceof UserSettingsComponentProxy || $result instanceof SimpleFieldProxy) {
+			return $result;
+		}
+		throw new \RuntimeException('Unexpected return type from parent::field()');
 	}
 
 	/**
@@ -68,6 +62,18 @@ final class UserSettingsFieldsetBuilder extends FieldsetBuilder {
 		}
 
 		return $section;
+	}
+
+	/**
+	 * Not valid in fieldset context - throws exception.
+	 *
+	 * This method exists for API consistency with union return types.
+	 *
+	 * @return never
+	 * @throws \RuntimeException Always throws - cannot end group from fieldset context.
+	 */
+	public function end_group(): never {
+		throw new \RuntimeException('Cannot call end_group() from fieldset context. Use end_fieldset() instead.');
 	}
 
 	/**

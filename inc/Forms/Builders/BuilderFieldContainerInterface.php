@@ -23,14 +23,18 @@ use Ran\PluginLib\Forms\Builders\BuilderRootInterface;
  */
 interface BuilderFieldContainerInterface {
 	/**
-	 * field() method can return the builder or a fluent proxy for component builders.
+	 * field() method returns a fluent proxy for configuring field-level options.
+	 *
+	 * For components with builder factories, returns ComponentBuilderProxy.
+	 * For simple components without builders, returns SimpleFieldProxy.
+	 * Some specialized builders (like SubmitControlsBuilder) may return static.
 	 *
 	 * @param string $field_id The field identifier
 	 * @param string $label The field label
 	 * @param string $component The component to use
 	 * @param array $args Optional arguments for the component
 	 *
-	 * @return ComponentBuilderProxy|static The builder or a fluent proxy for component builders
+	 * @return ComponentBuilderProxy|SimpleFieldProxy|static The fluent proxy for field configuration
 	 */
-	public function field(string $field_id, string $label, string $component, array $args = array()): ComponentBuilderProxy|static;
+	public function field(string $field_id, string $label, string $component, array $args = array()): ComponentBuilderProxy|SimpleFieldProxy|static;
 }

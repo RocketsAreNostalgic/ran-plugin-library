@@ -15,6 +15,7 @@ use Ran\PluginLib\Forms\FormsInterface;
 use Ran\PluginLib\Forms\Component\Build\ComponentBuilderDefinitionInterface;
 use Ran\PluginLib\Forms\Builders\SectionBuilder;
 use Ran\PluginLib\Forms\Builders\ComponentBuilderProxy;
+use Ran\PluginLib\Forms\Builders\SimpleFieldProxy;
 use Ran\PluginLib\Forms\Builders\BuilderRootInterface;
 
 class AdminSettingsSectionBuilder extends SectionBuilder {
@@ -186,21 +187,14 @@ class AdminSettingsSectionBuilder extends SectionBuilder {
 	/**
 	 * Add a field to this section with admin-specific typing.
 	 *
-	 * @return AdminSettingsComponentProxy|static
+	 * @return AdminSettingsComponentProxy|SimpleFieldProxy
 	 */
-	public function field(string $field_id, string $label, string $component, array $args = array()): AdminSettingsComponentProxy|static {
+	public function field(string $field_id, string $label, string $component, array $args = array()): AdminSettingsComponentProxy|SimpleFieldProxy {
 		$result = parent::field($field_id, $label, $component, $args);
-		return $result instanceof AdminSettingsComponentProxy ? $result : $this;
-	}
-
-	/**
-	 * No-op when called on the section builder directly.
-	 * Enables consistent chaining whether field() returned a proxy or $this.
-	 *
-	 * @return static
-	 */
-	public function end_field(): static {
-		return $this;
+		if ($result instanceof AdminSettingsComponentProxy || $result instanceof SimpleFieldProxy) {
+			return $result;
+		}
+		throw new \RuntimeException('Unexpected return type from parent::field()');
 	}
 
 	/**

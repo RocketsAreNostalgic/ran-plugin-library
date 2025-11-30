@@ -60,10 +60,20 @@ class FieldsetBuilder extends SectionFieldContainerBuilder implements FieldsetBu
 	/**
 	 * Commit buffered data and return to the section builder.
 	 *
-	 * @return SectionBuilder
+	 * @return SectionBuilderInterface
 	 */
 	public function end_fieldset(): SectionBuilderInterface {
 		return $this->section();
+	}
+
+	/**
+	 * Not valid in fieldset context - throws exception.
+	 *
+	 * @return SectionBuilderInterface
+	 * @throws \RuntimeException Always throws - use end_fieldset() instead.
+	 */
+	public function end_group(): SectionBuilderInterface {
+		throw new \RuntimeException('Cannot call end_group() from fieldset context. Use end_fieldset() instead.');
 	}
 
 	public function fieldset(string $fieldset_id, string $heading, ?callable $description_cb = null, ?array $args = null): FieldsetBuilderInterface {

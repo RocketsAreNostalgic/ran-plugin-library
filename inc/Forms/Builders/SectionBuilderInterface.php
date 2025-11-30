@@ -54,7 +54,7 @@ interface SectionBuilderInterface extends BuilderChildInterface, BuilderFieldCon
 	 *
 	 * @return ComponentBuilderProxy|static
 	 */
-	public function field(string $field_id, string $label, string $component, array $args = array()): ComponentBuilderProxy|static;
+	public function field(string $field_id, string $label, string $component, array $args = array()): ComponentBuilderProxy|SimpleFieldProxy;
 
 	/**
 	 * end_group() method returns this SectionBuilder instance.
