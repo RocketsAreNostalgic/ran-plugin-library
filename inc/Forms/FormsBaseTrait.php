@@ -1314,9 +1314,14 @@ trait FormsBaseTrait {
 	 * @return string Rendered HTML markup.
 	 */
 	protected function _render_default_sections_wrapper(string $id_slug, array $sections, array $values): string {
-		$prepared_sections = array();
-		$groups_map        = $this->groups[$id_slug] ?? array();
-		$fields_map        = $this->fields[$id_slug] ?? array();
+		$groups_map = $this->groups[$id_slug] ?? array();
+		$fields_map = $this->fields[$id_slug] ?? array();
+
+		if ($this->form_session === null) {
+			$this->_start_form_session();
+		}
+
+		$all_sections_markup = '';
 
 		foreach ($sections as $section_id => $meta) {
 			$groups = $groups_map[$section_id] ?? array();
@@ -1330,124 +1335,109 @@ trait FormsBaseTrait {
 				return ($a['order'] <=> $b['order']) ?: ($a['index'] <=> $b['index']);
 			});
 
-			// Combine groups and fields
-			$items = array();
+			// Pre-render all content for this section
+			$section_content = '';
+
+			// Render groups first
 			foreach ($groups as $group) {
 				$group_fields = $group['fields'];
 				usort($group_fields, function ($a, $b) {
 					return ($a['order'] <=> $b['order']) ?: ($a['index'] <=> $b['index']);
 				});
 
-				$group_items = array();
+				// Group before callback
+				$section_content .= $this->_render_callback_output($group['before'] ?? null, array(
+					'group_id'     => $group['group_id'] ?? '',
+					'section_id'   => $section_id,
+					'container_id' => $id_slug,
+					'fields'       => $group_fields,
+					'values'       => $values,
+				)) ?? '';
+
+				// Render each field in the group
 				foreach ($group_fields as $group_field) {
-					$field_before = isset($group_field['before']) ? $this->_render_callback_output($group_field['before'], array(
-						'field_id'     => $group_field['id'] ?? '',
-						'container_id' => $id_slug,
-						'section_id'   => $section_id,
-						'group_id'     => $group['group_id'] ?? '',
-						'values'       => $values,
-					)) : null;
-					$field_after = isset($group_field['after']) ? $this->_render_callback_output($group_field['after'], array(
-						'field_id'     => $group_field['id'] ?? '',
-						'container_id' => $id_slug,
-						'section_id'   => $section_id,
-						'group_id'     => $group['group_id'] ?? '',
-						'values'       => $values,
-					)) : null;
-					$group_items[] = array(
+					$field_item = array(
 						'field'  => $group_field,
-						'before' => $field_before,
-						'after'  => $field_after,
+						'before' => $this->_render_callback_output($group_field['before'] ?? null, array(
+							'field_id'     => $group_field['id'] ?? '',
+							'container_id' => $id_slug,
+							'section_id'   => $section_id,
+							'group_id'     => $group['group_id'] ?? '',
+							'values'       => $values,
+						)),
+						'after' => $this->_render_callback_output($group_field['after'] ?? null, array(
+							'field_id'     => $group_field['id'] ?? '',
+							'container_id' => $id_slug,
+							'section_id'   => $section_id,
+							'group_id'     => $group['group_id'] ?? '',
+							'values'       => $values,
+						)),
 					);
+					$section_content .= $this->_render_default_field_wrapper($field_item, $values);
 				}
 
-				$items[] = array(
-					'type'     => 'group',
-					'group_id' => $group['group_id'] ?? '',
-					'before'   => $this->_render_callback_output($group['before'] ?? null, array(
-						'group_id'     => $group['group_id'] ?? '',
-						'section_id'   => $section_id,
-						'container_id' => $id_slug,
-						'fields'       => $group_fields,
-						'values'       => $values,
-					)),
-					'after' => $this->_render_callback_output($group['after'] ?? null, array(
-						'group_id'     => $group['group_id'] ?? '',
-						'section_id'   => $section_id,
-						'container_id' => $id_slug,
-						'fields'       => $group_fields,
-						'values'       => $values,
-					)),
-					'items' => $group_items,
-				);
+				// Group after callback
+				$section_content .= $this->_render_callback_output($group['after'] ?? null, array(
+					'group_id'     => $group['group_id'] ?? '',
+					'section_id'   => $section_id,
+					'container_id' => $id_slug,
+					'fields'       => $group_fields,
+					'values'       => $values,
+				)) ?? '';
 			}
+
+			// Render standalone fields
 			foreach ($fields as $field) {
-				$field_before = isset($field['before']) ? $this->_render_callback_output($field['before'], array(
-					'field_id'     => $field['id'] ?? '',
-					'container_id' => $id_slug,
-					'section_id'   => $section_id,
-					'values'       => $values,
-				)) : null;
-				$field_after = isset($field['after']) ? $this->_render_callback_output($field['after'], array(
-					'field_id'     => $field['id'] ?? '',
-					'container_id' => $id_slug,
-					'section_id'   => $section_id,
-					'values'       => $values,
-				)) : null;
-				$items[] = array(
-					'type'   => 'field',
+				$field_item = array(
 					'field'  => $field,
-					'before' => $field_before,
-					'after'  => $field_after,
+					'before' => $this->_render_callback_output($field['before'] ?? null, array(
+						'field_id'     => $field['id'] ?? '',
+						'container_id' => $id_slug,
+						'section_id'   => $section_id,
+						'values'       => $values,
+					)),
+					'after' => $this->_render_callback_output($field['after'] ?? null, array(
+						'field_id'     => $field['id'] ?? '',
+						'container_id' => $id_slug,
+						'section_id'   => $section_id,
+						'values'       => $values,
+					)),
 				);
+				$section_content .= $this->_render_default_field_wrapper($field_item, $values);
 			}
 
-			// Sort items (groups first, then fields)
-			usort($items, function ($a, $b) {
-				return ($a['type'] === 'group' ? 0 : 1) <=> ($b['type'] === 'group' ? 0 : 1);
-			});
-
-			$prepared_sections[] = array(
-				'container_id'   => $id_slug,
-				'section_id'     => $section_id,
-				'title'          => (string) $meta['title'],
-				'description_cb' => $meta['description_cb'] ?? null,
-				'before'         => $this->_render_callback_output($meta['before'] ?? null, array(
+			// Render section template with pre-rendered content
+			$sectionComponent = $this->views->render('section', array(
+				'section_id'  => $section_id,
+				'title'       => (string) $meta['title'],
+				'description' => is_callable($meta['description_cb'] ?? null) ? (string) ($meta['description_cb'])() : '',
+				'content'     => $section_content,
+				'before'      => $this->_render_callback_output($meta['before'] ?? null, array(
 					'container_id' => $id_slug,
 					'section_id'   => $section_id,
 					'values'       => $values,
-				)),
+				)) ?? '',
 				'after' => $this->_render_callback_output($meta['after'] ?? null, array(
 					'container_id' => $id_slug,
 					'section_id'   => $section_id,
 					'values'       => $values,
-				)),
-				'items' => $items,
+				)) ?? '',
+			));
+
+			if (!$sectionComponent instanceof ComponentRenderResult) {
+				throw new UnexpectedValueException('Section template must return a ComponentRenderResult instance.');
+			}
+
+			$this->form_session->ingest_component_result(
+				$sectionComponent,
+				'render_section',
+				null
 			);
+
+			$all_sections_markup .= $sectionComponent->markup;
 		}
 
-		$sectionComponent = $this->views->render('section', array(
-			'sections'       => $prepared_sections,
-			'field_renderer' => function(array $field_item) use ($values): string {
-				return $this->_render_default_field_wrapper($field_item, $values);
-			},
-		));
-
-		if (!$sectionComponent instanceof ComponentRenderResult) {
-			throw new UnexpectedValueException('Section template must return a ComponentRenderResult instance.');
-		}
-
-		if ($this->form_session === null) {
-			$this->_start_form_session();
-		}
-
-		$this->form_session->ingest_component_result(
-			$sectionComponent,
-			'render_section',
-			isset($context['field_id']) && is_string($context['field_id']) ? $context['field_id'] : null
-		);
-
-		return $sectionComponent->markup;
+		return $all_sections_markup;
 	}
 
 	protected function _render_callback_output(?callable $callback, array $context): ?string {
@@ -1521,6 +1511,11 @@ trait FormsBaseTrait {
 		$field['component']         = $component;
 		$field['label']             = $label;
 		$field['component_context'] = $component_context;
+
+		// Set the name attribute with proper prefix for form submission
+		if (!isset($field['name']) && $field_id !== '') {
+			$field['name'] = $this->main_option . '[' . $field_id . ']';
+		}
 
 		// Use FormElementRenderer for complete field processing with wrapper
 		try {
