@@ -3,22 +3,27 @@
  * Shared Section Template
  *
  * Basic section container template for grouping related fields.
- * This template provides a minimal structure that can be enhanced
- * in the template architecture standardization sprint.
- * - content: string Section content
+ * Expects pre-rendered content from the caller.
+ *
+ * Context:
+ * - content: string Pre-rendered section content (fields, groups, etc.)
+ * - section_id: string Optional section identifier
+ * - title: string Optional section title
+ * - description: string Optional section description
+ * - before: string Optional content before section
+ * - after: string Optional content after section
  *
  * @package RanPluginLib\Forms\Views\Shared
  */
 
-use Ran\PluginLib\Forms\Component\ComponentRenderResult;
 use Ran\PluginLib\Forms\Component\ComponentType;
+use Ran\PluginLib\Forms\Component\ComponentRenderResult;
 
 // Prevent direct access
 if (!defined('ABSPATH')) {
 	exit;
 }
 
-// Extract context variables
 $section_id  = $context['section_id']  ?? '';
 $title       = $context['title']       ?? '';
 $description = $context['description'] ?? '';
@@ -42,7 +47,7 @@ ob_start();
 	<?php endif; ?>
 
 	<div class="form-section-content">
-		<?php echo $content; // Section content is already escaped?>
+		<?php echo $content; // Pre-rendered content from caller.?>
 	</div>
 
 	<?php if ($after !== ''): ?>

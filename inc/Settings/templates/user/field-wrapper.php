@@ -14,7 +14,15 @@
 
 use Ran\PluginLib\Forms\Component\ComponentRenderResult;
 
-if (!isset($context['content']) || $context['content'] === '') {
+// Support both 'content' and 'component_html' keys for compatibility
+$content = '';
+if (isset($context['content']) && $context['content'] !== '') {
+	$content = (string) $context['content'];
+} elseif (isset($context['component_html']) && $context['component_html'] !== '') {
+	$content = (string) $context['component_html'];
+}
+
+if ($content === '') {
 	return new ComponentRenderResult(
 		markup: '',
 		component_type: 'layout_wrapper'
@@ -22,7 +30,6 @@ if (!isset($context['content']) || $context['content'] === '') {
 }
 
 $label               = isset($context['label']) ? (string) $context['label'] : '';
-$content             = (string) $context['content'];
 $field_id            = isset($context['field_id']) ? (string) $context['field_id'] : '';
 $validation_warnings = isset($context['validation_warnings']) && is_array($context['validation_warnings']) ? $context['validation_warnings'] : array();
 $display_notices     = isset($context['display_notices'])     && is_array($context['display_notices']) ? $context['display_notices'] : array();
