@@ -147,6 +147,58 @@ class UserSettings implements FormsInterface {
 	}
 
 	/**
+	 * Register a single external component.
+	 *
+	 * Delegates to ComponentLoader and triggers discovery in ComponentManifest.
+	 *
+	 * @param string $name Component name (e.g., 'color-picker')
+	 * @param array{path: string, prefix?: string} $options Component options
+	 * @return static For fluent chaining
+	 */
+	public function register_component(string $name, array $options): static {
+		if ($this->config === null) {
+			$this->logger->warning("Cannot register external component '$name' without Config");
+			return $this;
+		}
+
+		$this->views->register_component($name, $options, $this->config);
+
+		// Trigger discovery for the newly registered component
+		$alias = isset($options['prefix']) ? $options['prefix'] . '.' . $name : $name;
+		$this->components->discover_alias($alias);
+
+		return $this;
+	}
+
+	/**
+	 * Register multiple external components from a directory.
+	 *
+	 * Delegates to ComponentLoader and triggers discovery for all new components.
+	 *
+	 * @param array{path: string, prefix?: string} $options Batch options
+	 * @return static For fluent chaining
+	 */
+	public function register_components(array $options): static {
+		if ($this->config === null) {
+			$this->logger->warning('Cannot register external components without Config');
+			return $this;
+		}
+
+		// Capture aliases before registration
+		$before = array_keys($this->views->aliases());
+
+		$this->views->register_components($options, $this->config);
+
+		// Discover all newly added aliases
+		$after = array_keys($this->views->aliases());
+		foreach (array_diff($after, $before) as $alias) {
+			$this->components->discover_alias($alias);
+		}
+
+		return $this;
+	}
+
+	/**
 	 * Boot user settings: register collections, sections, fields and save handlers.
 	 *
 	 * @return void

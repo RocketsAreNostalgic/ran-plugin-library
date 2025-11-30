@@ -58,4 +58,21 @@ interface FormsInterface {
 	 * @return FormsServiceSession|null The FormsServiceSession instance or null if not started
 	 */
 	public function get_form_session(): ?FormsServiceSession;
+
+	/**
+	 * Register a single external component.
+	 *
+	 * @param string $name Component name (e.g., 'color-picker')
+	 * @param array{path: string, prefix?: string} $options Component options
+	 * @return static For fluent chaining
+	 */
+	public function register_component(string $name, array $options): static;
+
+	/**
+	 * Register multiple external components from a directory.
+	 *
+	 * @param array{path: string, prefix?: string} $options Batch options
+	 * @return static For fluent chaining
+	 */
+	public function register_components(array $options): static;
 }

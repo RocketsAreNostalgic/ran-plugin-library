@@ -89,6 +89,33 @@ final class Settings implements FormsInterface {
 	}
 
 	/**
+	 * Register a single external component.
+	 *
+	 * Requires Config to be provided at construction time for namespace resolution.
+	 *
+	 * @param string $name Component name (e.g., 'color-picker')
+	 * @param array{path: string, prefix?: string} $options Component options
+	 * @return static For fluent chaining
+	 */
+	public function register_component(string $name, array $options): static {
+		$this->inner->register_component($name, $options);
+		return $this;
+	}
+
+	/**
+	 * Register multiple external components from a directory.
+	 *
+	 * Requires Config to be provided at construction time for namespace resolution.
+	 *
+	 * @param array{path: string, prefix?: string} $options Batch options
+	 * @return static For fluent chaining
+	 */
+	public function register_components(array $options): static {
+		$this->inner->register_components($options);
+		return $this;
+	}
+
+	/**
 	 * Expose the underlying concrete settings instance when direct access is required.
 	 */
 	public function inner(): FormsInterface {

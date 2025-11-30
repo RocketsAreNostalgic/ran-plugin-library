@@ -30,4 +30,14 @@ final class StubForms implements FormsInterface {
 	public function get_form_session(): ?FormsServiceSession {
 		return $this->session;
 	}
+
+	public function register_component(string $name, array $options): static {
+		// No-op for tests.
+		return $this;
+	}
+
+	public function register_components(array $options): static {
+		// No-op for tests.
+		return $this;
+	}
 }

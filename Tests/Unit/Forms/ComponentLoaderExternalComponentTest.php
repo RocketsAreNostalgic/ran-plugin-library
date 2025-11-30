@@ -13,7 +13,12 @@ use WP_Mock;
 use Ran\PluginLib\Tests\Unit\PluginLibTestCase;
 use Ran\PluginLib\Forms\Component\ComponentRenderResult;
 use Ran\PluginLib\Forms\Component\ComponentLoader;
+use Ran\PluginLib\Forms\Component\ComponentManifest;
 use Ran\PluginLib\Config\ConfigInterface;
+use Ran\PluginLib\Settings\AdminSettings;
+use Ran\PluginLib\Settings\UserSettings;
+use Ran\PluginLib\Options\RegisterOptions;
+use Ran\PluginLib\Options\Storage\StorageContext;
 
 /**
  * Test ComponentLoader support for external components with array entries.
@@ -433,6 +438,249 @@ class ComponentLoaderExternalComponentTest extends PluginLibTestCase {
 
 		// PascalCase should be converted to kebab-case
 		$this->assertTrue($this->loader->is_external('test.my-custom-widget'));
+	}
+
+	/**
+	 * Test ComponentManifest::discover_alias() wires up late-registered components.
+	 */
+	public function test_discover_alias_wires_up_late_registered_component(): void {
+		$this->loader = new ComponentLoader($this->testTemplateDir, $this->logger_mock);
+
+		// Create ComponentManifest - at this point only built-in components are discovered
+		$manifest = new ComponentManifest($this->loader, $this->logger_mock);
+
+		// Verify built-in component is available
+		$this->assertTrue($manifest->has('test.input'));
+
+		// Register an external component AFTER manifest construction
+		$config = $this->createMock(ConfigInterface::class);
+		$config->method('get_config')->willReturn(array(
+			'PATH' => $this->externalComponentDir,
+		));
+		$config->method('get_namespace')->willReturn('MyPlugin\\Components');
+
+		$this->loader->register_component('color-picker', array(
+			'path'   => 'ColorPicker',
+			'prefix' => 'ext',
+		), $config);
+
+		// Component is in loader but NOT yet in manifest
+		$this->assertTrue($this->loader->is_external('ext.color-picker'));
+		$this->assertFalse($manifest->has('ext.color-picker'));
+
+		// Call discover_alias to wire it up
+		$manifest->discover_alias('ext.color-picker');
+
+		// Now it should be available in manifest
+		$this->assertTrue($manifest->has('ext.color-picker'));
+
+		// And it should be renderable
+		$result = $manifest->render('ext.color-picker', array('name' => 'my_color'));
+		$this->assertInstanceOf(ComponentRenderResult::class, $result);
+		$this->assertStringContainsString('my_color', $result->markup);
+		$this->assertStringContainsString('ColorPicker', $result->markup);
+	}
+
+	/**
+	 * Test discover_alias() is idempotent - calling multiple times doesn't break anything.
+	 */
+	public function test_discover_alias_is_idempotent(): void {
+		$this->loader = new ComponentLoader($this->testTemplateDir, $this->logger_mock);
+		$manifest     = new ComponentManifest($this->loader, $this->logger_mock);
+
+		// Register external component
+		$config = $this->createMock(ConfigInterface::class);
+		$config->method('get_config')->willReturn(array(
+			'PATH' => $this->externalComponentDir,
+		));
+		$config->method('get_namespace')->willReturn('MyPlugin');
+
+		$this->loader->register_component('color-picker', array(
+			'path'   => 'ColorPicker',
+			'prefix' => 'test',
+		), $config);
+
+		// Call discover_alias multiple times
+		$manifest->discover_alias('test.color-picker');
+		$manifest->discover_alias('test.color-picker');
+		$manifest->discover_alias('test.color-picker');
+
+		// Should still work correctly
+		$this->assertTrue($manifest->has('test.color-picker'));
+		$result = $manifest->render('test.color-picker', array('name' => 'test_field'));
+		$this->assertInstanceOf(ComponentRenderResult::class, $result);
+	}
+
+	/**
+	 * Test discover_alias() works for components without normalizers (View.php only).
+	 */
+	public function test_discover_alias_works_without_normalizer(): void {
+		$this->loader = new ComponentLoader($this->testTemplateDir, $this->logger_mock);
+		$manifest     = new ComponentManifest($this->loader, $this->logger_mock);
+
+		// Register external component (no Normalizer class exists)
+		$config = $this->createMock(ConfigInterface::class);
+		$config->method('get_config')->willReturn(array(
+			'PATH' => $this->externalComponentDir,
+		));
+		$config->method('get_namespace')->willReturn('NonExistent\\Namespace');
+
+		$this->loader->register_component('color-picker', array(
+			'path'   => 'ColorPicker',
+			'prefix' => 'raw',
+		), $config);
+
+		$manifest->discover_alias('raw.color-picker');
+
+		// Should work using raw rendering (View.php only, no normalizer)
+		$this->assertTrue($manifest->has('raw.color-picker'));
+		$result = $manifest->render('raw.color-picker', array('name' => 'raw_field'));
+		$this->assertInstanceOf(ComponentRenderResult::class, $result);
+		$this->assertStringContainsString('raw_field', $result->markup);
+	}
+
+	// =========================================================================
+	// Settings Integration Tests (Workstream F)
+	// =========================================================================
+
+	/**
+	 * Test AdminSettings::register_component() delegates and triggers discovery.
+	 */
+	public function test_admin_settings_register_component(): void {
+		// Additional mocks for AdminSettings
+		WP_Mock::userFunction('add_action')->andReturn(true);
+		WP_Mock::userFunction('add_filter')->andReturn(true);
+		WP_Mock::userFunction('register_setting')->andReturn(true);
+
+		$this->loader = new ComponentLoader($this->testTemplateDir, $this->logger_mock);
+		$manifest     = new ComponentManifest($this->loader, $this->logger_mock);
+		$options      = new RegisterOptions('test_admin', StorageContext::forSite(), true, $this->logger_mock);
+
+		// Create mock Config
+		$config = $this->createMock(ConfigInterface::class);
+		$config->method('get_config')->willReturn(array(
+			'PATH' => $this->externalComponentDir,
+		));
+		$config->method('get_namespace')->willReturn('MyPlugin\\Components');
+
+		$adminSettings = new AdminSettings($options, $manifest, $config, $this->logger_mock);
+
+		// Register external component via AdminSettings
+		$result = $adminSettings->register_component('color-picker', array(
+			'path'   => 'ColorPicker',
+			'prefix' => 'my-plugin',
+		));
+
+		// Should return self for fluent chaining
+		$this->assertSame($adminSettings, $result);
+
+		// Component should be discoverable in manifest
+		$this->assertTrue($manifest->has('my-plugin.color-picker'));
+
+		// Component should be renderable
+		$renderResult = $manifest->render('my-plugin.color-picker', array('name' => 'test_color'));
+		$this->assertInstanceOf(ComponentRenderResult::class, $renderResult);
+		$this->assertStringContainsString('test_color', $renderResult->markup);
+	}
+
+	/**
+	 * Test AdminSettings::register_component() logs warning without Config.
+	 */
+	public function test_admin_settings_register_component_without_config(): void {
+		WP_Mock::userFunction('add_action')->andReturn(true);
+		WP_Mock::userFunction('add_filter')->andReturn(true);
+		WP_Mock::userFunction('register_setting')->andReturn(true);
+
+		$this->loader = new ComponentLoader($this->testTemplateDir, $this->logger_mock);
+		$manifest     = new ComponentManifest($this->loader, $this->logger_mock);
+		$options      = new RegisterOptions('test_admin', StorageContext::forSite(), true, $this->logger_mock);
+
+		// Create AdminSettings WITHOUT Config
+		$adminSettings = new AdminSettings($options, $manifest, null, $this->logger_mock);
+
+		// Register should return self but not register component
+		$result = $adminSettings->register_component('color-picker', array(
+			'path'   => 'ColorPicker',
+			'prefix' => 'my-plugin',
+		));
+
+		$this->assertSame($adminSettings, $result);
+		$this->assertFalse($manifest->has('my-plugin.color-picker'));
+	}
+
+	/**
+	 * Test AdminSettings::register_components() batch registers and triggers discovery.
+	 */
+	public function test_admin_settings_register_components_batch(): void {
+		// Create additional component directories
+		mkdir($this->externalComponentDir . '/DatePicker', 0777, true);
+		file_put_contents($this->externalComponentDir . '/DatePicker/View.php', '<?php
+use Ran\PluginLib\Forms\Component\ComponentRenderResult;
+return new ComponentRenderResult(markup: "<div>DatePicker</div>", component_type: "input");
+');
+
+		WP_Mock::userFunction('add_action')->andReturn(true);
+		WP_Mock::userFunction('add_filter')->andReturn(true);
+		WP_Mock::userFunction('register_setting')->andReturn(true);
+
+		$this->loader = new ComponentLoader($this->testTemplateDir, $this->logger_mock);
+		$manifest     = new ComponentManifest($this->loader, $this->logger_mock);
+		$options      = new RegisterOptions('test_admin', StorageContext::forSite(), true, $this->logger_mock);
+
+		$config = $this->createMock(ConfigInterface::class);
+		$config->method('get_config')->willReturn(array(
+			'PATH' => $this->externalComponentDir,
+		));
+		$config->method('get_namespace')->willReturn('MyPlugin');
+
+		$adminSettings = new AdminSettings($options, $manifest, $config, $this->logger_mock);
+
+		// Batch register
+		$result = $adminSettings->register_components(array(
+			'path'   => '',
+			'prefix' => 'ext',
+		));
+
+		// Should return self for fluent chaining
+		$this->assertSame($adminSettings, $result);
+
+		// Both components should be discoverable
+		$this->assertTrue($manifest->has('ext.color-picker'));
+		$this->assertTrue($manifest->has('ext.date-picker'));
+	}
+
+	/**
+	 * Test UserSettings::register_component() delegates and triggers discovery.
+	 */
+	public function test_user_settings_register_component(): void {
+		WP_Mock::userFunction('add_action')->andReturn(true);
+		WP_Mock::userFunction('add_filter')->andReturn(true);
+		WP_Mock::userFunction('get_user_meta')->andReturn(array());
+		WP_Mock::userFunction('get_current_user_id')->andReturn(1);
+
+		$this->loader = new ComponentLoader($this->testTemplateDir, $this->logger_mock);
+		$manifest     = new ComponentManifest($this->loader, $this->logger_mock);
+		$options      = new RegisterOptions('test_user', StorageContext::forUser(1), true, $this->logger_mock);
+
+		$config = $this->createMock(ConfigInterface::class);
+		$config->method('get_config')->willReturn(array(
+			'PATH' => $this->externalComponentDir,
+		));
+		$config->method('get_namespace')->willReturn('MyPlugin\\Components');
+
+		$userSettings = new UserSettings($options, $manifest, $config, $this->logger_mock);
+
+		// Register external component via UserSettings
+		$result = $userSettings->register_component('color-picker', array(
+			'path'   => 'ColorPicker',
+			'prefix' => 'user-plugin',
+		));
+
+		// Should return self for fluent chaining
+		$this->assertSame($userSettings, $result);
+
+		// Component should be discoverable in manifest
+		$this->assertTrue($manifest->has('user-plugin.color-picker'));
 	}
 
 	// Helper methods

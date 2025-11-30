@@ -396,6 +396,25 @@ class ComponentManifest {
 	}
 
 	/**
+	 * Discover and register metadata for a single alias.
+	 *
+	 * Used to wire up externally registered components after initial discovery.
+	 * This method discovers metadata, registers a factory, and makes the component
+	 * available for rendering.
+	 *
+	 * @param string $alias Component alias to discover (e.g., 'my-plugin.color-picker')
+	 */
+	public function discover_alias(string $alias): void {
+		// Discover and cache metadata
+		$this->_register_alias($alias);
+
+		// Register a factory for the component if not already registered
+		if (!$this->has($alias)) {
+			$this->_register_alias_factory($alias);
+		}
+	}
+
+	/**
 	 * Discovers all available components.
 	 */
 	private function _discover(): void {
@@ -496,31 +515,42 @@ class ComponentManifest {
 	 * Registers default factories for all components.
 	 */
 	private function _register_defaults(): void {
-		$normalizers = $this->create_normalizers();
-
 		foreach ($this->views->aliases() as $alias => $_path) {
-			if (isset($normalizers[$alias])) {
-				$normalizer = $normalizers[$alias];
-				$this->register($alias, function (array $context) use ($normalizer, $alias): array {
-					$normalized = $normalizer->render($context, $this->helpers, $alias);
-					$payload    = $normalized['payload'];
-					$result     = $this->_create_result_from_payload($payload);
-					return array(
-						'result'   => $result,
-						'warnings' => $normalized['warnings'] ?? array(),
-					);
-				});
-				continue;
-			}
+			$this->_register_alias_factory($alias);
+		}
+	}
 
-			$this->register($alias, function (array $context) use ($alias): array {
-				$result = $this->_render_raw_component($alias, $context);
+	/**
+	 * Register a factory for a single alias.
+	 *
+	 * @param string $alias Component alias
+	 */
+	private function _register_alias_factory(string $alias): void {
+		// Check if this alias has a normalizer
+		$meta = $this->componentMetadata[$alias] ?? null;
+		if (is_array($meta) && !empty($meta['normalizer'])) {
+			$normalizerClass = $meta['normalizer'];
+			$normalizer      = new $normalizerClass($this->views);
+			$this->register($alias, function (array $context) use ($normalizer, $alias): array {
+				$normalized = $normalizer->render($context, $this->helpers, $alias);
+				$payload    = $normalized['payload'];
+				$result     = $this->_create_result_from_payload($payload);
 				return array(
-				    'result'   => $result,
-				    'warnings' => array(),
+					'result'   => $result,
+					'warnings' => $normalized['warnings'] ?? array(),
 				);
 			});
+			return;
 		}
+
+		// No normalizer - use raw rendering
+		$this->register($alias, function (array $context) use ($alias): array {
+			$result = $this->_render_raw_component($alias, $context);
+			return array(
+				'result'   => $result,
+				'warnings' => array(),
+			);
+		});
 	}
 
 	/**

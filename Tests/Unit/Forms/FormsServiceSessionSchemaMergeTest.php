@@ -118,12 +118,19 @@ final class FormsServiceSessionSchemaMergeTest extends PluginLibTestCase {
 		$this->expectLog('debug', 'forms.schema.merge.no_defaults');
 	}
 
-	public function test_merge_schema_with_defaults_throws_when_no_validators(): void {
+	/**
+	 * Test that FormField components without validators log a warning (but don't throw).
+	 *
+	 * Validators are recommended for input components but not strictly required.
+	 * Non-input components (layout wrappers, display, templates) don't need validators at all.
+	 */
+	public function test_merge_schema_with_defaults_warns_when_no_validators(): void {
 		$manifestDefaults = array(
 			'sanitize' => array(function($value) {
 				return $value;
 			}),
 			'validate' => array(),
+			// No component_type means it defaults to FormField behavior
 		);
 
 		$manifest = Mockery::mock(ComponentManifest::class);
@@ -136,8 +143,43 @@ final class FormsServiceSessionSchemaMergeTest extends PluginLibTestCase {
 		$resolver = new FormsTemplateOverrideResolver($this->logger_mock);
 		$session  = new FormsServiceSession($manifest, new FormsAssets(), $resolver, $this->logger_mock);
 
-		$this->expectException(\InvalidArgumentException::class);
-		$session->merge_schema_with_defaults('components.requires-validator', array());
+		// Should not throw - just log a warning
+		$result = $session->merge_schema_with_defaults('components.requires-validator', array());
+
+		// Verify result is returned (not an exception)
+		$this->assertIsArray($result);
+
+		// Verify warning was logged
+		$this->expectLog('warning', 'forms.schema.merge.no_validators');
+	}
+
+	/**
+	 * Test that non-input components (layout wrappers) don't require validators.
+	 */
+	public function test_merge_schema_with_defaults_no_warning_for_layout_wrapper(): void {
+		$manifestDefaults = array(
+			'sanitize' => array(),
+			'validate' => array(),
+			'context'  => array(
+				'component_type' => 'layout_wrapper',
+			),
+		);
+
+		$manifest = Mockery::mock(ComponentManifest::class);
+		$manifest->shouldReceive('get_defaults_for')
+			->once()
+			->with('layout.wrapper')
+			->andReturn($manifestDefaults);
+		$manifest->shouldReceive('default_catalogue')->andReturn(array());
+
+		$resolver = new FormsTemplateOverrideResolver($this->logger_mock);
+		$session  = new FormsServiceSession($manifest, new FormsAssets(), $resolver, $this->logger_mock);
+
+		// Should not throw or warn - layout wrappers don't need validators
+		$result = $session->merge_schema_with_defaults('layout.wrapper', array());
+
+		$this->assertIsArray($result);
+		// No warning should be logged for non-input components
 	}
 
 	public function test_merge_pipeline_propagates_validation_messages(): void {
