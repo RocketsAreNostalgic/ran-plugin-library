@@ -332,6 +332,7 @@ class ComponentLoader {
 
 			$map[$alias] = $relative;
 		}
+
 		ksort($map);
 		return $map;
 	}

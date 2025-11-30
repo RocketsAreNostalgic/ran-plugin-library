@@ -15,8 +15,8 @@ use Ran\PluginLib\Forms\Component\Validate\ValidatorInterface;
 use Ran\PluginLib\Forms\Component\Sanitize\SanitizerInterface;
 use Ran\PluginLib\Forms\Component\Normalize\NormalizeInterface;
 use Ran\PluginLib\Forms\Component\Normalize\ComponentNormalizationContext;
-use Ran\PluginLib\Forms\Component\Build\ComponentBuilderDefinitionInterface;
 use Ran\PluginLib\Forms\Component\Cache\ComponentCacheService;
+use Ran\PluginLib\Forms\Component\Build\ComponentBuilderDefinitionInterface;
 
 class ComponentManifest {
 	use WPWrappersTrait;
@@ -112,8 +112,16 @@ class ComponentManifest {
 				);
 			}
 
-			$this->logger->warning(sprintf('Unknown form component "%s".', $alias), array('context' => $context));
-			throw new \InvalidArgumentException(sprintf('Unknown form component "%s".', $alias));
+			// Check if the alias was registered on the ComponentLoader after manifest construction
+			// (e.g., by UserSettings or AdminSettings registering their context-specific templates)
+			$loaderAliases = $this->views->aliases();
+			if (isset($loaderAliases[$alias])) {
+				// Dynamically register the factory for this alias
+				$this->_register_alias_factory($alias);
+			} else {
+				$this->logger->warning(sprintf('Unknown form component "%s".', $alias), array('context' => $context));
+				throw new \InvalidArgumentException(sprintf('Unknown form component "%s".', $alias));
+			}
 		}
 
 		$factory = $this->components[$alias];
@@ -534,7 +542,12 @@ class ComponentManifest {
 			$this->register($alias, function (array $context) use ($normalizer, $alias): array {
 				$normalized = $normalizer->render($context, $this->helpers, $alias);
 				$payload    = $normalized['payload'];
-				$result     = $this->_create_result_from_payload($payload);
+				// Handle both ComponentRenderResult and array payloads
+				if ($payload instanceof ComponentRenderResult) {
+					$result = $payload;
+				} else {
+					$result = $this->_create_result_from_payload($payload);
+				}
 				return array(
 					'result'   => $result,
 					'warnings' => $normalized['warnings'] ?? array(),

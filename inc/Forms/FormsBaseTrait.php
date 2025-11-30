@@ -1407,7 +1407,7 @@ trait FormsBaseTrait {
 			}
 
 			// Render section template with pre-rendered content
-			$sectionComponent = $this->views->render('section', array(
+			$sectionComponent = $this->views->render('layout.zone.section-wrapper', array(
 				'section_id'  => $section_id,
 				'title'       => (string) $meta['title'],
 				'description' => is_callable($meta['description_cb'] ?? null) ? (string) ($meta['description_cb'])() : '',

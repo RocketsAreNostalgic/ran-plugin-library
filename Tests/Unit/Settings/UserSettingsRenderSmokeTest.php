@@ -297,7 +297,7 @@ class UserSettingsRenderSmokeTest extends PluginLibTestCase {
 		// Register loader mappings (required for path resolution)
 		$loader->register('user.root-wrapper', 'default-page.php');
 		$loader->register('root-wrapper', 'default-page.php');
-		$loader->register('section', 'section.php');
+		$loader->register('layout.zone.section-wrapper', 'section.php');
 		$loader->register('section-wrapper', 'section.php');
 		$loader->register('field-wrapper', 'field-wrapper.php');
 		$loader->register('shared.field-wrapper', 'field-wrapper.php');
@@ -386,7 +386,7 @@ PHP;
 		$loader = new ComponentLoader(__DIR__ . '/../fixtures/templates', $this->logger);
 		$loader->register('user.root-wrapper', 'default-page.php');
 		$loader->register('root-wrapper', 'default-page.php');
-		$loader->register('section', 'section.php');
+		$loader->register('layout.zone.section-wrapper', 'section.php');
 		$loader->register('section-wrapper', 'section.php');
 		$loader->register('field-wrapper', 'field-wrapper.php');
 		$loader->register('shared.field-wrapper', 'field-wrapper.php');

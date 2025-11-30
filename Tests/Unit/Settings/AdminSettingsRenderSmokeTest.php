@@ -77,7 +77,7 @@ final class AdminSettingsRenderSmokeTest extends PluginLibTestCase {
 
 		// Set up component loader with fixture templates
 		$this->loader = new ComponentLoader(__DIR__ . '/../../fixtures/templates', $this->logger);
-		$this->loader->register('section', 'admin/sections/test-section.php');
+		$this->loader->register('layout.zone.section-wrapper', 'admin/sections/test-section.php');
 		$this->loader->register('field-wrapper', 'admin/fields/example-field-wrapper.php');
 		$this->loader->register('shared.field-wrapper', 'admin/fields/example-field-wrapper.php');
 		$this->loader->register('section-wrapper', 'admin/section-wrapper.php');
@@ -405,7 +405,7 @@ final class AdminSettingsRenderSmokeTest extends PluginLibTestCase {
 		$loader = new ComponentLoader(__DIR__ . '/../../fixtures/templates', $this->logger);
 		$loader->register('admin.root-wrapper', 'admin/pages/default-page.php');
 		$loader->register('root-wrapper', 'admin/pages/default-page.php');
-		$loader->register('section', 'admin/sections/test-section.php');
+		$loader->register('layout.zone.section-wrapper', 'admin/sections/test-section.php');
 		$loader->register('section-wrapper', 'admin/section-wrapper.php');
 		$loader->register('field-wrapper', 'admin/fields/example-field-wrapper.php');
 		$loader->register('shared.field-wrapper', 'admin/fields/example-field-wrapper.php');
@@ -879,7 +879,7 @@ class Normalizer {
 			$loader = new ComponentLoader(__DIR__ . '/../../fixtures/templates', $this->logger);
 			$loader->register('admin.root-wrapper', 'admin/pages/default-page.php');
 			$loader->register('root-wrapper', 'admin/pages/default-page.php');
-			$loader->register('section', 'admin/sections/test-section.php');
+			$loader->register('layout.zone.section-wrapper', 'admin/sections/test-section.php');
 			$loader->register('section-wrapper', 'admin/section-wrapper.php');
 			$loader->register('field-wrapper', 'admin/fields/example-field-wrapper.php');
 			$loader->register('shared.field-wrapper', 'admin/fields/example-field-wrapper.php');
@@ -1701,7 +1701,7 @@ PHP;
 		$loader = new ComponentLoader(__DIR__ . '/../../fixtures/templates', $this->logger);
 		$loader->register('admin.root-wrapper', 'admin/pages/default-page.php');
 		$loader->register('root-wrapper', 'admin/pages/default-page.php');
-		$loader->register('section', 'admin/sections/test-section.php');
+		$loader->register('layout.zone.section-wrapper', 'admin/sections/test-section.php');
 		$loader->register('section-wrapper', 'admin/section-wrapper.php');
 		$loader->register('field-wrapper', 'admin/fields/example-field-wrapper.php');
 		$loader->register('shared.field-wrapper', 'admin/fields/example-field-wrapper.php');

@@ -372,18 +372,11 @@ class UserSettings implements FormsInterface {
 			return;
 		}
 
-		$success = $opts->commit_merge();
-		if ($success) {
-			$this->_clear_pending_validation();
-		} else {
-			$this->_log_validation_failure(
-				'UserSettings::save_settings commit_merge failed unexpectedly.',
-				array('user_id' => $user_id),
-				'warning'
-			);
-			$opts->clear();
-			$opts->stage_options($previous_options);
-		}
+		$opts->commit_merge();
+		// Note: commit_merge returns false when no changes were made (WordPress behavior).
+		// This is not a failure - the data is already correct in the database.
+		// We only need to clear pending validation state on success or no-change.
+		$this->_clear_pending_validation();
 	}
 
 	/**

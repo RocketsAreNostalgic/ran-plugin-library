@@ -50,7 +50,7 @@ final class AdminSettingsSubmitControlsRenderTest extends TestCase {
 		$baseDir      = __DIR__ . '/../../fixtures/templates';
 		$this->logger = new CollectingLogger();
 		$loader       = new ComponentLoader($baseDir, $this->logger);
-		$loader->register('section', 'admin/sections/test-section.php');
+		$loader->register('layout.zone.section-wrapper', 'admin/sections/test-section.php');
 		$loader->register('field-wrapper', 'admin/fields/example-field-wrapper.php');
 		$loader->register('shared.field-wrapper', 'admin/fields/example-field-wrapper.php');
 		$loader->register('section-wrapper', 'admin/section-wrapper.php');
@@ -308,7 +308,7 @@ final class AdminSettingsSubmitControlsRenderTest extends TestCase {
 	}
 
 	private function registerTemplateStubs(): void {
-		$this->manifest->register('section', static function (array $context): ComponentRenderResult {
+		$this->manifest->register('layout.zone.section-wrapper', static function (array $context): ComponentRenderResult {
 			$title  = htmlspecialchars((string) ($context['title'] ?? ''), ENT_QUOTES);
 			$items  = $context['items'] ?? array();
 			$markup = '<section class="admin-section"><h2>' . $title . '</h2>';

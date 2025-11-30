@@ -98,10 +98,13 @@ final class AdminSettingsBehaviorTest extends PluginLibTestCase {
 			->reply(true);
 
 		$loader = new ComponentLoader(__DIR__ . '/../../fixtures/templates', $this->logger);
-		$loader->register('section', 'admin/sections/test-section.php');
+		$loader->register('layout.zone.section-wrapper', 'admin/sections/test-section.php');
 		$loader->register('field-wrapper', 'admin/fields/example-field-wrapper.php');
+		$loader->register('layout.field.field-wrapper', 'admin/fields/example-field-wrapper.php');
 		$loader->register('shared.field-wrapper', 'admin/fields/example-field-wrapper.php');
 		$loader->register('section-wrapper', 'admin/section-wrapper.php');
+		$loader->register('layout.zone.section-wrapper', 'admin/sections/test-section.php');
+		$loader->register('layout.zone.submit-controls-wrapper', 'admin/submit-controls-wrapper.php');
 		$loader->register('fields.input', 'admin/fields/test-field.php');
 		$loader->register('admin.pages.behavior-page', 'admin/pages/test-page.php');
 		$loader->register('admin.root-wrapper', 'admin/pages/default-page.php');
@@ -804,7 +807,7 @@ final class AdminSettingsBehaviorTest extends PluginLibTestCase {
 	}
 
 	private function registerTemplateStubs(): void {
-		$this->manifest->register('section', static function (array $context): ComponentRenderResult {
+		$this->manifest->register('layout.zone.section-wrapper', static function (array $context): ComponentRenderResult {
 			$renderer = $context['field_renderer'] ?? null;
 			$markup   = '<div class="admin-sections">';
 			foreach ($context['sections'] ?? array() as $section) {

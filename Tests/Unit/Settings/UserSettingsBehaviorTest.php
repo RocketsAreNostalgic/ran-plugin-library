@@ -694,7 +694,7 @@ final class UserSettingsBehaviorTest extends PluginLibTestCase {
 
 	private function registerTemplateStubs(): void {
 		$loader = $this->manifest->get_component_loader();
-		$loader->register('section', 'admin/sections/test-section.php');
+		$loader->register('layout.zone.section-wrapper', 'admin/sections/test-section.php');
 		$loader->register('section-wrapper', 'admin/sections/test-section.php');
 		$loader->register('field-wrapper', 'admin/field-wrapper-simple.php');
 		$loader->register('shared.field-wrapper', 'admin/field-wrapper-simple.php');

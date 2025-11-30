@@ -142,7 +142,7 @@ class SettingsIntegrationSeamsTest extends PluginLibTestCase {
 		// Create component infrastructure
 		$loader = new ComponentLoader(__DIR__ . '/../fixtures/templates', $this->logger);
 		$loader->register('admin.root-wrapper', 'default-page.php');
-		$loader->register('section', 'section.php');
+		$loader->register('layout.zone.section-wrapper', 'section.php');
 		$loader->register('field-wrapper', 'field-wrapper.php');
 		$manifest = new ComponentManifest($loader, $this->logger);
 
@@ -168,7 +168,7 @@ class SettingsIntegrationSeamsTest extends PluginLibTestCase {
 
 		$loader = new ComponentLoader(__DIR__ . '/../fixtures/templates', $this->logger);
 		$loader->register('admin.root-wrapper', 'default-page.php');
-		$loader->register('section', 'section.php');
+		$loader->register('layout.zone.section-wrapper', 'section.php');
 		$loader->register('field-wrapper', 'field-wrapper.php');
 		$manifest = new ComponentManifest($loader, $this->logger);
 
@@ -227,7 +227,7 @@ class SettingsIntegrationSeamsTest extends PluginLibTestCase {
 
 		$loader = new ComponentLoader(__DIR__ . '/../fixtures/templates', $this->logger);
 		$loader->register('admin.root-wrapper', 'default-page.php');
-		$loader->register('section', 'section.php');
+		$loader->register('layout.zone.section-wrapper', 'section.php');
 		$loader->register('field-wrapper', 'field-wrapper.php');
 		$manifest = new ComponentManifest($loader, $this->logger);
 
@@ -277,7 +277,7 @@ class SettingsIntegrationSeamsTest extends PluginLibTestCase {
 
 		$loader = new ComponentLoader(__DIR__ . '/../fixtures/templates', $this->logger);
 		$loader->register('user.root-wrapper', 'default-page.php');
-		$loader->register('section', 'section.php');
+		$loader->register('layout.zone.section-wrapper', 'section.php');
 		$loader->register('field-wrapper', 'field-wrapper.php');
 		$manifest = new ComponentManifest($loader, $this->logger);
 
@@ -303,7 +303,7 @@ class SettingsIntegrationSeamsTest extends PluginLibTestCase {
 
 		$loader = new ComponentLoader(__DIR__ . '/../fixtures/templates', $this->logger);
 		$loader->register('user.root-wrapper', 'default-page.php');
-		$loader->register('section', 'section.php');
+		$loader->register('layout.zone.section-wrapper', 'section.php');
 		$loader->register('field-wrapper', 'field-wrapper.php');
 		$manifest = new ComponentManifest($loader, $this->logger);
 
@@ -360,7 +360,7 @@ class SettingsIntegrationSeamsTest extends PluginLibTestCase {
 
 		$loader = new ComponentLoader(__DIR__ . '/../fixtures/templates', $this->logger);
 		$loader->register('user.root-wrapper', 'default-page.php');
-		$loader->register('section', 'section.php');
+		$loader->register('layout.zone.section-wrapper', 'section.php');
 		$loader->register('field-wrapper', 'field-wrapper.php');
 		$manifest = new ComponentManifest($loader, $this->logger);
 
@@ -422,7 +422,7 @@ return new ComponentRenderResult(
 
 			$loader = new ComponentLoader(__DIR__ . '/../fixtures/templates', $this->logger);
 			$loader->register('admin.root-wrapper', 'default-page.php');
-			$loader->register('section', 'section.php');
+			$loader->register('layout.zone.section-wrapper', 'section.php');
 			$loader->register('field-wrapper', 'field-wrapper.php');
 			$manifest = new ComponentManifest($loader, $this->logger);
 
@@ -483,7 +483,7 @@ return new ComponentRenderResult(
 
 			$loader = new ComponentLoader(__DIR__ . '/../fixtures/templates', $this->logger);
 			$loader->register('user.root-wrapper', 'default-page.php');
-			$loader->register('section', 'section.php');
+			$loader->register('layout.zone.section-wrapper', 'section.php');
 			$loader->register('field-wrapper', 'field-wrapper.php');
 			$manifest = new ComponentManifest($loader, $this->logger);
 
@@ -538,7 +538,7 @@ return new ComponentRenderResult(
 
 		$loader = new ComponentLoader(__DIR__ . '/../fixtures/templates', $this->logger);
 		$loader->register('admin.root-wrapper', 'default-page.php');
-		$loader->register('section', 'section.php');
+		$loader->register('layout.zone.section-wrapper', 'section.php');
 		$loader->register('field-wrapper', 'field-wrapper.php');
 		$manifest = new ComponentManifest($loader, $this->logger);
 
@@ -611,7 +611,7 @@ return new ComponentRenderResult(
 
 		$loader = new ComponentLoader(__DIR__ . '/../fixtures/templates', $this->logger);
 		$loader->register('user.root-wrapper', 'default-page.php');
-		$loader->register('section', 'section.php');
+		$loader->register('layout.zone.section-wrapper', 'section.php');
 		$loader->register('field-wrapper', 'field-wrapper.php');
 		$manifest = new ComponentManifest($loader, $this->logger);
 
@@ -690,7 +690,7 @@ return new ComponentRenderResult(
 
 		$loader = new ComponentLoader(__DIR__ . '/../fixtures/templates', $this->logger);
 		$loader->register('admin.root-wrapper', 'default-page.php');
-		$loader->register('section', 'section.php');
+		$loader->register('layout.zone.section-wrapper', 'section.php');
 		$loader->register('field-wrapper', 'field-wrapper.php');
 		$manifest = new ComponentManifest($loader, $this->logger);
 
@@ -755,7 +755,7 @@ return new ComponentRenderResult(
 
 		$loader = new ComponentLoader(__DIR__ . '/../fixtures/templates', $this->logger);
 		$loader->register('user.root-wrapper', 'default-page.php');
-		$loader->register('section', 'section.php');
+		$loader->register('layout.zone.section-wrapper', 'section.php');
 		$loader->register('field-wrapper', 'field-wrapper.php');
 		$manifest = new ComponentManifest($loader, $this->logger);
 
