@@ -75,6 +75,26 @@ class ComponentLoader {
 	}
 
 	/**
+	 * Register a template with an absolute path.
+	 *
+	 * Unlike register() which treats paths as relative to the base directory,
+	 * this method stores the path as-is for direct file access.
+	 *
+	 * @param string $name    Template alias
+	 * @param string $absPath Absolute path to the template file
+	 * @return self
+	 */
+	public function register_absolute(string $name, string $absPath): self {
+		if (!$this->_is_valid_template_key($name)) {
+			$this->logger?->warning("Skipping invalid template key: '$name'");
+			return $this;
+		}
+
+		$this->map[$name] = array('path' => $absPath);
+		return $this;
+	}
+
+	/**
 	 * Register an external component with Config-based path and namespace resolution.
 	 *
 	 * @param string $name Component name (e.g., 'color-picker')

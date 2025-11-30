@@ -3,6 +3,9 @@
  * UserSettingsGroupBuilder: Context-aware group builder for user settings sections.
  *
  * @package Ran\PluginLib\Settings
+ *
+ * @method static before(?callable $before) Set a callback to render content before the group.
+ * @method static after(?callable $after) Set a callback to render content after the group.
  */
 
 declare(strict_types=1);

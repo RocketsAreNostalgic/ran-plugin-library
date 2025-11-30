@@ -8,7 +8,10 @@
  *     field_id?: string,
  *     component_html?: string,
  *     validation_warnings?: array<string>,
- *     display_notices?: array<string>
+ *     display_notices?: array<string>,
+ *     before?: string,
+ *     after?: string,
+ *     context?: array
  * } $context
  */
 
@@ -34,10 +37,16 @@ $field_id            = isset($context['field_id']) ? (string) $context['field_id
 $validation_warnings = isset($context['validation_warnings']) && is_array($context['validation_warnings']) ? $context['validation_warnings'] : array();
 $display_notices     = isset($context['display_notices'])     && is_array($context['display_notices']) ? $context['display_notices'] : array();
 
+// Extract before/after from nested context or top-level
+$nested_context = isset($context['context']) && is_array($context['context']) ? $context['context'] : array();
+$before         = (string) ($context['before'] ?? $nested_context['before'] ?? '');
+$after          = (string) ($context['after'] ?? $nested_context['after'] ?? '');
+
 ob_start();
 ?>
 <tr>
 	<th scope="row">
+		<?php echo $before; ?>
 		<?php if ($label !== '') : ?>
 			<label<?php echo $field_id !== '' ? ' for="' . esc_attr($field_id) . '"' : ''; ?>><?php echo esc_html($label); ?></label>
 		<?php endif; ?>
@@ -60,6 +69,7 @@ ob_start();
 				<?php endforeach; ?>
 			</div>
 		<?php endif; ?>
+		<?php echo $after; ?>
 	</td>
 </tr>
 <?php

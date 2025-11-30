@@ -4,31 +4,41 @@
  * This template handles table-based constraints for WordPress profile pages.
  *
  * @var array{
+ *     section_id?: string,
  *     title?: string,
  *     description?: string,
  *     content: string,
+ *     before?: string,
+ *     after?: string,
  *     fields?: array
  * } $context
  */
 
-if (!isset($context['content']) || $context['content'] === '') {
-	return '';
-}
+use Ran\PluginLib\Forms\Component\ComponentRenderResult;
 
+$section_id  = isset($context['section_id']) ? (string) $context['section_id'] : '';
 $title       = isset($context['title']) ? (string) $context['title'] : '';
 $description = isset($context['description']) ? (string) $context['description'] : '';
-$content     = (string) $context['content'];
+$content     = isset($context['content']) ? (string) $context['content'] : '';
+$before      = isset($context['before']) ? (string) $context['before'] : '';
+$after       = isset($context['after']) ? (string) $context['after'] : '';
 
 ob_start();
 ?>
+<tr><td colspan="2">
+<?php echo $before; ?>
 <?php if ($title !== '') : ?>
-	<tr><th colspan="2"><?php echo esc_html($title); ?></th></tr>
+	<h3><?php echo esc_html($title); ?></h3>
 <?php endif; ?>
 
 <?php if ($description !== '') : ?>
-	<tr><td colspan="2"><?php echo wp_kses_post($description); ?></td></tr>
+	<p class="description"><?php echo wp_kses_post($description); ?></p>
 <?php endif; ?>
-
+</td></tr>
 <?php echo $content; ?>
+<tr><td colspan="2"><?php echo $after; ?></td></tr>
 <?php
-return (string) ob_get_clean();
+return new ComponentRenderResult(
+	(string) ob_get_clean(),
+	component_type: 'layout_wrapper'
+);

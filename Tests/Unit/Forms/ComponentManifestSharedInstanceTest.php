@@ -59,6 +59,7 @@ class ComponentManifestSharedInstanceTest extends PluginLibTestCase {
 		$this->loader = Mockery::mock(ComponentLoader::class);
 		$this->loader->shouldReceive('aliases')->andReturn(array());
 		$this->loader->shouldReceive('register')->zeroOrMoreTimes();
+		$this->loader->shouldReceive('register_absolute')->zeroOrMoreTimes()->andReturnSelf();
 		$this->loader->shouldReceive('get_cache_service')->andReturn(new ComponentCacheService($this->logger_mock));
 
 		$this->logger_mock->collected_logs = array();

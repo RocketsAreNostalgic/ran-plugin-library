@@ -5,7 +5,11 @@
  *
  * @var array{
  *     collection_title?: string,
+ *     heading?: string,
+ *     description?: string,
  *     content: string,
+ *     before?: string,
+ *     after?: string,
  *     render?: callable
  * } $context
  */
@@ -16,16 +20,24 @@ if (!isset($context['content']) || $context['content'] === '') {
 	return new ComponentRenderResult('');
 }
 
-$title   = isset($context['collection_title']) ? (string) $context['collection_title'] : '';
-$content = (string) $context['content'];
+$title       = isset($context['heading']) ? (string) $context['heading'] : (isset($context['collection_title']) ? (string) $context['collection_title'] : '');
+$description = isset($context['description']) ? (string) $context['description'] : '';
+$content     = (string) $context['content'];
+$before      = isset($context['before']) ? (string) $context['before'] : '';
+$after       = isset($context['after']) ? (string) $context['after'] : '';
 
 ob_start();
+echo $before;
 ?>
 <?php if ($title !== '') : ?>
 	<h2><?php echo esc_html($title); ?></h2>
+<?php endif; ?>
+<?php if ($description !== '') : ?>
+	<p class="description"><?php echo esc_html($description); ?></p>
 <?php endif; ?>
 <table class="form-table" role="presentation">
 	<?php echo $content; ?>
 </table>
 <?php
+echo $after;
 return new ComponentRenderResult((string) ob_get_clean());

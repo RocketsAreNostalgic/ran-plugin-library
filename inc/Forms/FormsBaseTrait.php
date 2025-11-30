@@ -1346,13 +1346,14 @@ trait FormsBaseTrait {
 				});
 
 				// Group before callback
-				$section_content .= $this->_render_callback_output($group['before'] ?? null, array(
+				$group_before = $this->_render_callback_output($group['before'] ?? null, array(
 					'group_id'     => $group['group_id'] ?? '',
 					'section_id'   => $section_id,
 					'container_id' => $id_slug,
 					'fields'       => $group_fields,
 					'values'       => $values,
 				)) ?? '';
+				$section_content .= $this->_wrap_group_hook($group_before);
 
 				// Render each field in the group
 				foreach ($group_fields as $group_field) {
@@ -1377,13 +1378,14 @@ trait FormsBaseTrait {
 				}
 
 				// Group after callback
-				$section_content .= $this->_render_callback_output($group['after'] ?? null, array(
+				$group_after = $this->_render_callback_output($group['after'] ?? null, array(
 					'group_id'     => $group['group_id'] ?? '',
 					'section_id'   => $section_id,
 					'container_id' => $id_slug,
 					'fields'       => $group_fields,
 					'values'       => $values,
 				)) ?? '';
+				$section_content .= $this->_wrap_group_hook($group_after);
 			}
 
 			// Render standalone fields
@@ -1407,7 +1409,8 @@ trait FormsBaseTrait {
 			}
 
 			// Render section template with pre-rendered content
-			$sectionComponent = $this->views->render('layout.zone.section-wrapper', array(
+			// Use form_session to respect context-specific template overrides (e.g., user.section-wrapper)
+			$section_context = array(
 				'section_id'  => $section_id,
 				'title'       => (string) $meta['title'],
 				'description' => is_callable($meta['description_cb'] ?? null) ? (string) ($meta['description_cb'])() : '',
@@ -1422,7 +1425,11 @@ trait FormsBaseTrait {
 					'section_id'   => $section_id,
 					'values'       => $values,
 				)) ?? '',
-			));
+			);
+
+			// Render section using the context-appropriate template
+			$section_template = $this->_get_section_template();
+			$sectionComponent = $this->views->render($section_template, $section_context);
 
 			if (!$sectionComponent instanceof ComponentRenderResult) {
 				throw new UnexpectedValueException('Section template must return a ComponentRenderResult instance.');
@@ -1438,6 +1445,31 @@ trait FormsBaseTrait {
 		}
 
 		return $all_sections_markup;
+	}
+
+	/**
+	 * Get the template alias for rendering sections.
+	 *
+	 * Override this method in subclasses to use context-specific section templates.
+	 * For example, UserSettings overrides this to return 'user.section-wrapper'.
+	 *
+	 * @return string Template alias for section wrapper
+	 */
+	protected function _get_section_template(): string {
+		return 'layout.zone.section-wrapper';
+	}
+
+	/**
+	 * Wrap group before/after hook content for the current context.
+	 *
+	 * Override this method in subclasses to wrap group hooks appropriately.
+	 * For example, UserSettings wraps in table rows for profile page compatibility.
+	 *
+	 * @param string $content The rendered hook content
+	 * @return string The wrapped content
+	 */
+	protected function _wrap_group_hook(string $content): string {
+		return $content;
 	}
 
 	protected function _render_callback_output(?callable $callback, array $context): ?string {
@@ -1524,11 +1556,12 @@ trait FormsBaseTrait {
 			}
 
 			$extras = array();
-			if (array_key_exists('before', $field_item)) {
-				$extras['before'] = $field_item['before'];
+			// before/after are already rendered strings from the caller
+			if (array_key_exists('before', $field_item) && $field_item['before'] !== null) {
+				$extras['before'] = (string) $field_item['before'];
 			}
-			if (array_key_exists('after', $field_item)) {
-				$extras['after'] = $field_item['after'];
+			if (array_key_exists('after', $field_item) && $field_item['after'] !== null) {
+				$extras['after'] = (string) $field_item['after'];
 			}
 
 			$field_context = $this->field_renderer->prepare_field_context(

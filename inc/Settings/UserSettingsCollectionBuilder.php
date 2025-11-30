@@ -80,11 +80,19 @@ class UserSettingsCollectionBuilder implements BuilderRootInterface {
 	}
 
 	/**
-	 * Set the order for this collection within the user profile page.
-	 * Higher numbers mean that the collection will be rendered higher in the list of collections on the profile page.
-	 * Defaults to 10, which will render the collection at the end of the list.
+	 * Set the priority for this collection's WordPress action hook.
 	 *
-	 * @param int $order The order (must be >= 0).
+	 * This controls the order of your collections relative to each other and to other
+	 * plugins using the `show_user_profile` / `edit_user_profile` hooks. Lower numbers
+	 * execute earlier (appear higher among plugin sections).
+	 *
+	 * **Important limitation:** This does NOT control position relative to WordPress core
+	 * profile sections (Name, Contact Info, About Yourself, Account Management). Core
+	 * sections are hardcoded in `wp-admin/user-edit.php` and the profile hooks fire
+	 * after all core sections. There is no WordPress hook to insert content between
+	 * core profile sections.
+	 *
+	 * @param int $order The hook priority (must be >= 0). Default is 10.
 	 *
 	 * @return UserSettingsCollectionBuilder The UserSettingsCollectionBuilder instance.
 	 */
@@ -176,20 +184,32 @@ class UserSettingsCollectionBuilder implements BuilderRootInterface {
 	}
 
 	/**
-	 * before() method returns this UserSettingsCollectionBuilder instance.
+	 * Set a callback to render content before this collection.
+	 *
+	 * The callback receives an array with 'container_id' and 'values' keys
+	 * and should return an HTML string.
+	 *
+	 * @param callable $before Callback that returns HTML string.
 	 *
 	 * @return UserSettingsCollectionBuilder The UserSettingsCollectionBuilder instance.
 	 */
 	public function before(callable $before): self {
+		$this->_update_meta('before', $before);
 		return $this;
 	}
 
 	/**
-	 * after() method returns this UserSettingsCollectionBuilder instance.
+	 * Set a callback to render content after this collection.
+	 *
+	 * The callback receives an array with 'container_id' and 'values' keys
+	 * and should return an HTML string.
+	 *
+	 * @param callable $after Callback that returns HTML string.
 	 *
 	 * @return UserSettingsCollectionBuilder The UserSettingsCollectionBuilder instance.
 	 */
 	public function after(callable $after): self {
+		$this->_update_meta('after', $after);
 		return $this;
 	}
 

@@ -124,10 +124,12 @@ class UserSettings implements FormsInterface {
 
 		// Phase 5: Context-specific template registration
 		// UserSettings registers complete template hierarchy for profile forms
-		$this->views->register('user.root-wrapper', '../../Settings/templates/user/root-wrapper.php');
-		$this->views->register('user.section-wrapper', '../../Settings/templates/user/section-wrapper.php');
-		$this->views->register('user.group-wrapper', '../../Settings/templates/user/group-wrapper.php');
-		$this->views->register('user.field-wrapper', '../../Settings/templates/user/field-wrapper.php');
+		// Use absolute paths to ensure templates are found regardless of ComponentLoader's base directory
+		$templates_dir = __DIR__ . '/templates/user';
+		$this->views->register_absolute('user.root-wrapper', $templates_dir . '/root-wrapper.php');
+		$this->views->register_absolute('user.section-wrapper', $templates_dir . '/section-wrapper.php');
+		$this->views->register_absolute('user.group-wrapper', $templates_dir . '/group-wrapper.php');
+		$this->views->register_absolute('user.field-wrapper', $templates_dir . '/field-wrapper.php');
 
 		// Phase 6: Service initialization
 		$this->form_service    = new FormsService($this->components, $this->logger);
@@ -409,6 +411,16 @@ class UserSettings implements FormsInterface {
 		// Get effective values from message handler (handles pending values)
 		$effective_values = $this->message_handler->get_effective_values($options);
 
+		// Render before/after callbacks for the collection
+		$before_html = $this->_render_callback_output($collection_meta['before'] ?? null, array(
+			'container_id' => $id_slug,
+			'values'       => $effective_values,
+		)) ?? '';
+		$after_html = $this->_render_callback_output($collection_meta['after'] ?? null, array(
+			'container_id' => $id_slug,
+			'values'       => $effective_values,
+		)) ?? '';
+
 		$payload = array(
 			...($context ?? array()),
 			'heading'     => $collection_meta['heading']     ?? '',
@@ -420,6 +432,8 @@ class UserSettings implements FormsInterface {
 				'values'            => $effective_values,
 				'content'           => $this->_render_default_sections_wrapper($id_slug, $sections, $effective_values),
 				'messages_by_field' => $this->message_handler->get_all_messages(),
+				'before'            => $before_html,
+				'after'             => $after_html,
 			),
 		);
 
@@ -653,5 +667,32 @@ class UserSettings implements FormsInterface {
 					'data_keys' => array_keys($data)
 				));
 		}
+	}
+
+	/**
+	 * Get the template alias for rendering sections.
+	 *
+	 * UserSettings uses table-based section templates for WordPress profile pages.
+	 *
+	 * @return string Template alias for section wrapper
+	 */
+	protected function _get_section_template(): string {
+		return 'user.section-wrapper';
+	}
+
+	/**
+	 * Wrap group before/after hook content in table rows.
+	 *
+	 * WordPress profile pages use table-based layouts, so group hooks
+	 * must be wrapped in <tr><td> elements for valid HTML.
+	 *
+	 * @param string $content The rendered hook content
+	 * @return string The wrapped content
+	 */
+	protected function _wrap_group_hook(string $content): string {
+		if ($content === '') {
+			return '';
+		}
+		return '<tr><td colspan="2">' . $content . '</td></tr>';
 	}
 }
