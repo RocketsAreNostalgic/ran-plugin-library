@@ -303,15 +303,21 @@ abstract class NormalizerBase implements NormalizeInterface {
 	 * Validate the rendered payload.
 	 */
 	protected function _validate_payload(mixed $payload, string $templateName): void {
-		if (!is_array($payload) || !isset($payload['markup'])) {
-			$error = "{$templateName} must return component payload array.";
-			$this->logger->error('Template payload validation failed', array(
-				'template'     => $templateName,
-				'payload_type' => gettype($payload),
-				'has_markup'   => is_array($payload) ? isset($payload['markup']) : false
-			));
-			throw new \UnexpectedValueException($error);
+		// Accept ComponentRenderResult objects or arrays with 'markup' key
+		if ($payload instanceof \Ran\PluginLib\Forms\Component\ComponentRenderResult) {
+			return; // Valid
 		}
+		if (is_array($payload) && isset($payload['markup'])) {
+			return; // Valid
+		}
+
+		$error = "{$templateName} must return component payload array or ComponentRenderResult.";
+		$this->logger->error('Template payload validation failed', array(
+			'template'     => $templateName,
+			'payload_type' => is_object($payload) ? get_class($payload) : gettype($payload),
+			'has_markup'   => is_array($payload) ? isset($payload['markup']) : false
+		));
+		throw new \UnexpectedValueException($error);
 	}
 
 	/**

@@ -17,8 +17,9 @@ abstract class NormalizerInputBase extends NormalizerBase {
 	 * @return array Normalized context
 	 */
 	protected function _normalize_input_context(array $context): array {
-		// Start with base normalization
-		$context = $this->_normalize_context($context);
+		// NOTE: Do NOT call _normalize_context() here - it's already called by
+		// NormalizerBase::render() before _normalize_component_specific().
+		// Calling it here would create infinite recursion.
 
 		// Handle common input attributes
 		$context = $this->_normalize_name($context);
