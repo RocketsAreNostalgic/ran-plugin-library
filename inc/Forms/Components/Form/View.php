@@ -16,7 +16,6 @@
 
 declare(strict_types=1);
 
-$wrappers   = \Ran\PluginLib\Util\WPWrappers::instance();
 $translator = \Ran\PluginLib\Util\TranslationService::for_domain('forms/view');
 
 $action     = isset($context['action']) ? (string) $context['action'] : '';
@@ -72,7 +71,7 @@ ob_start();
 if (!empty($errors)): ?>
     <div class="ran-forms__form-errors" role="alert">
         <p class="screen-reader-text" role="heading" aria-level="2">
-            <?php echo $wrappers->_do_esc_html__service('Please fix the errors below', $translator); ?>
+            <?php echo esc_html($translator->__('Please fix the errors below')); ?>
         </p>
         <ul>
             <?php foreach ($errors as $message): ?>
@@ -94,7 +93,7 @@ if (!empty($notices)): ?>
 
 $nonceFieldMarkup = '';
 if ($nonceAction !== null) {
-	$nonceFieldMarkup = $wrappers->_do_wp_nonce_field($nonceAction, $nonceField, true, false);
+	$nonceFieldMarkup = function_exists('wp_nonce_field') ? wp_nonce_field($nonceAction, $nonceField, true, false) : '';
 }
 
 $formAttributes = $formatAttributes($attributes);
@@ -105,7 +104,7 @@ ob_start();
 	<?php if (!empty($errors)): ?>
 		<div class="ran-forms__form-errors" role="alert">
 			<p class="screen-reader-text" role="heading" aria-level="2">
-				<?php echo $wrappers->_do_esc_html__service('Please fix the errors below', $translator); ?>
+				<?php echo esc_html($translator->__('Please fix the errors below')); ?>
 			</p>
 			<ul>
 				<?php foreach ($errors as $message): ?>
