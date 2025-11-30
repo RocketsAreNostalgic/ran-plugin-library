@@ -31,6 +31,12 @@ final class ConfigOptionsScopeEdgeCasesTest extends PluginLibTestCase {
 		WP_Mock::userFunction('sanitize_title')
 		    ->with($this->mock_plugin_data['TextDomain'])
 		    ->andReturn($this->mock_plugin_data['TextDomain']);
+		// Mock storage adapter functions for various scopes
+		WP_Mock::userFunction('get_option')->andReturn(array());
+		WP_Mock::userFunction('get_site_option')->andReturn(array());
+		WP_Mock::userFunction('get_user_option')->andReturn(array());
+		WP_Mock::userFunction('get_user_meta')->andReturn(array());
+		WP_Mock::userFunction('get_blog_option')->andReturn(array());
 	}
 
 	private function makeConfig(): Config {
