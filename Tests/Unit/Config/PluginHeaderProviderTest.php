@@ -46,28 +46,26 @@ namespace Ran\PluginLib\Tests\Unit\Config {
 
 		public function test_get_base_identifiers_uses_wp_functions(): void {
 			$pluginFile = $this->pluginFile;
-			$cfg        = new class extends ConfigAbstract {
-				public function get_config(): array {
-					return array();
-				}
-				public function options(?\Ran\PluginLib\Options\Storage\StorageContext $context = null, bool $autoload = true): \Ran\PluginLib\Options\RegisterOptions {
-					throw new \RuntimeException('not used');
-				}
-				public function _get_standard_plugin_headers(string $file): array {
-					return array();
-				}
-				public function _do_plugin_dir_url(string $file): string {
-					return 'https://example.com/wp-content/plugins/mock/';
-				}
-				public function _do_plugin_dir_path(string $file): string {
-					return '/var/www/html/wp-content/plugins/mock/';
-				}
-				public function _do_plugin_basename(string $file): string {
-					return 'mock/mock-plugin-file.php';
-				}
-			};
 
-			$provider            = new PluginHeaderProvider($pluginFile, $cfg);
+			// Mock WordPress functions that the provider now calls directly via WPWrappersTrait
+			WP_Mock::userFunction('plugin_dir_url')
+				->once()
+				->with($pluginFile)
+				->andReturn('https://example.com/wp-content/plugins/mock/');
+
+			WP_Mock::userFunction('plugin_dir_path')
+				->once()
+				->with($pluginFile)
+				->andReturn('/var/www/html/wp-content/plugins/mock/');
+
+			WP_Mock::userFunction('plugin_basename')
+				->once()
+				->with($pluginFile)
+				->andReturn('mock/mock-plugin-file.php');
+
+			$cfg      = $this->createMock(ConfigAbstract::class);
+			$provider = new PluginHeaderProvider($pluginFile, $cfg);
+
 			[$path, $url, $name] = $provider->get_base_identifiers();
 
 			$this->assertSame('/var/www/html/wp-content/plugins/mock/', $path);

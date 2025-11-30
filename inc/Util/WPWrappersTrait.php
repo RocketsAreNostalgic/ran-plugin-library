@@ -11,13 +11,18 @@
  */
 
 namespace Ran\PluginLib\Util;
+
 /**
  * Trait WPWrappersTrait
  *
  * Wrappers for common WordPress functions to allow for easier testing and potential future modifications.
  *
+ * These methods are prefixed with `_do_` to indicate they are internal implementation details
+ * and should not be called directly by consuming code. They exist primarily for testability.
+ *
  * @package Ran\PluginLib\Util
  *
+ * @internal All _do_* methods in this trait are internal implementation details.
  * @codeCoverageIgnore
  */
 trait WPWrappersTrait {
@@ -37,11 +42,12 @@ trait WPWrappersTrait {
 	 * @param mixed $callback The callback function or method to be executed.
 	 * @param int $priority Optional. The priority of the action. Default 10.
 	 * @param int $accepted_args Optional. The number of arguments the callback accepts. Default 1.
+	 * @internal
 	 * @return void
 	 * @see \Ran\PluginLib\HooksAccessory\HooksManagementTrait::register_action
 	 * @see \Ran\PluginLib\HooksAccessory\HooksManager
 	 */
-	public function _do_add_action(string $hook, $callback, int $priority = 10, int $accepted_args = 1): void {
+	protected function _do_add_action(string $hook, $callback, int $priority = 10, int $accepted_args = 1): void {
 		$handled = false;
 		$via     = 'none';
 		if (\defined('WP_MOCK') && \class_exists(\WP_Mock\Functions\Handler::class)) {
@@ -81,9 +87,10 @@ trait WPWrappersTrait {
 	 * Availability-guarded: No (normalizes null->0 for WP_Mock in tests)
 	 *
 	 * @param string $hook_name The hook name to check.
+	 * @internal
 	 * @return int Number of times the hook has been executed.
 	 */
-	public function _do_did_action(string $hook_name): int {
+	protected function _do_did_action(string $hook_name): int {
 		// Due to a shorcoming in WP_Mock's behavior, did_action returns null in tests.
 		// So we always return an integer, even if did_action returns null in tests,
 		$result = \did_action($hook_name);
@@ -106,11 +113,12 @@ trait WPWrappersTrait {
 	 * @param mixed $callback The callback function or method to be executed.
 	 * @param int $priority Optional. The priority of the filter. Default 10.
 	 * @param int $accepted_args Optional. The number of arguments the callback accepts. Default 1.
+	 * @internal
 	 * @return void
 	 * @see \Ran\PluginLib\HooksAccessory\HooksManagementTrait::register_filter
 	 * @see \Ran\PluginLib\HooksAccessory\HooksManager
 	 */
-	public function _do_add_filter(string $hook, $callback, int $priority = 10, int $accepted_args = 1): void {
+	protected function _do_add_filter(string $hook, $callback, int $priority = 10, int $accepted_args = 1): void {
 		$handled = false;
 		$via     = 'none';
 		if (\defined('WP_MOCK') && \class_exists(\WP_Mock\Functions\Handler::class)) {
@@ -154,9 +162,10 @@ trait WPWrappersTrait {
 	 * @param string $hook_name The name of the action
 	 * @param callable $callback The callback function
 	 * @param int $priority The priority (default: 10)
+	 * @internal
 	 * @return bool True if successful, false otherwise
 	 */
-	public function _do_remove_action(string $hook_name, callable $callback, int $priority = 10): bool {
+	protected function _do_remove_action(string $hook_name, callable $callback, int $priority = 10): bool {
 		return \remove_action($hook_name, $callback, $priority);
 	}
 
@@ -173,9 +182,10 @@ trait WPWrappersTrait {
 	 * @param string $hook_name The name of the filter
 	 * @param callable $callback The callback function
 	 * @param int $priority The priority (default: 10)
+	 * @internal
 	 * @return bool True if successful, false otherwise
 	 */
-	public function _do_remove_filter(string $hook_name, callable $callback, int $priority = 10): bool {
+	protected function _do_remove_filter(string $hook_name, callable $callback, int $priority = 10): bool {
 		return \remove_filter($hook_name, $callback, $priority);
 	}
 
@@ -190,9 +200,10 @@ trait WPWrappersTrait {
 	 *
 	 * @param string $hook_name The name of the action
 	 * @param mixed ...$args Arguments to pass to the callbacks
+	 * @internal
 	 * @return void
 	 */
-	public function _do_execute_action(string $hook_name, ...$args): void {
+	protected function _do_execute_action(string $hook_name, ...$args): void {
 		\do_action($hook_name, ...$args);
 	}
 
@@ -208,9 +219,10 @@ trait WPWrappersTrait {
 	 * @param string $hook_name The name of the filter
 	 * @param mixed $value The value to filter
 	 * @param mixed ...$args Additional arguments to pass to the callbacks
+	 * @internal
 	 * @return mixed The filtered value
 	 */
-	public function _do_apply_filter(string $hook_name, $value, ...$args) {
+	protected function _do_apply_filter(string $hook_name, $value, ...$args) {
 		// Mirror WP behavior: when no filter is attached, the input value is returned unchanged.
 		// Under WP_Mock, apply_filters may return null if not explicitly mocked; normalize to $value.
 		if (\function_exists('apply_filters')) {
@@ -235,9 +247,10 @@ trait WPWrappersTrait {
 	 * @param  string $option
 	 * @param  mixed  $default
 	 *
+	 * @internal
 	 * @return mixed
 	 */
-	public function _do_get_option(string $option, mixed $default = false): mixed {
+	protected function _do_get_option(string $option, mixed $default = false): mixed {
 		return \get_option($option, $default);
 	}
 
@@ -249,9 +262,10 @@ trait WPWrappersTrait {
 	 * @param  mixed  $value
 	 * @param  mixed  $autoload
 	 *
+	 * @internal
 	 * @return bool
 	 */
-	public function _do_update_option(string $option, mixed $value, mixed $autoload = null): bool {
+	protected function _do_update_option(string $option, mixed $value, mixed $autoload = null): bool {
 		// Availability guard: in tests/CLI WP may not be loaded. Mirror behavior of other
 		// wrappers by avoiding fatals and returning a strict bool.
 		if (!\function_exists('update_option')) {
@@ -274,9 +288,10 @@ trait WPWrappersTrait {
 	 * @param mixed $value
 	 * @param string $deprecated
 	 * @param bool|null $autoload Whether to autoload; null defers to WordPress heuristics (WP 6.6+).
+	 * @internal
 	 * @return bool
 	 */
-	public function _do_add_option(string $option, mixed $value = '', string $deprecated = '', mixed $autoload = null): bool {
+	protected function _do_add_option(string $option, mixed $value = '', string $deprecated = '', mixed $autoload = null): bool {
 		// Pass through to WP when available. In 6.6+, null triggers wp_determine_option_autoload_value() heuristics.
 		// Some test shims may return null; always normalize to strict bool.
 		if (\function_exists('add_option')) {
@@ -291,9 +306,10 @@ trait WPWrappersTrait {
 	 * Availability-guarded: No
 	 *
 	 * @param string $option
+	 * @internal
 	 * @return bool
 	 */
-	public function _do_delete_option(string $option): bool {
+	protected function _do_delete_option(string $option): bool {
 		// Some test shims may return null; always normalize to strict bool.
 		return (bool) \delete_option($option);
 	}
@@ -304,9 +320,10 @@ trait WPWrappersTrait {
 	 *
 	 * @param  string $option
 	 * @param  mixed  $default
+	 * @internal
 	 * @return mixed
 	 */
-	public function _do_get_site_option(string $option, mixed $default = false): mixed {
+	protected function _do_get_site_option(string $option, mixed $default = false): mixed {
 		return \get_site_option($option, $default);
 	}
 
@@ -317,9 +334,10 @@ trait WPWrappersTrait {
 	 *
 	 * @param  string $option
 	 * @param  mixed  $value
+	 * @internal
 	 * @return bool
 	 */
-	public function _do_update_site_option(string $option, mixed $value): bool {
+	protected function _do_update_site_option(string $option, mixed $value): bool {
 		return \update_site_option($option, $value);
 	}
 
@@ -330,9 +348,10 @@ trait WPWrappersTrait {
 	 *
 	 * @param  string $option
 	 * @param  mixed  $value
+	 * @internal
 	 * @return bool
 	 */
-	public function _do_add_site_option(string $option, mixed $value = ''): bool {
+	protected function _do_add_site_option(string $option, mixed $value = ''): bool {
 		if (\function_exists('add_site_option')) {
 			return (bool) \add_site_option($option, $value);
 		}
@@ -346,9 +365,10 @@ trait WPWrappersTrait {
 	 * Availability-guarded: Yes
 	 *
 	 * @param  string $option
+	 * @internal
 	 * @return bool
 	 */
-	public function _do_delete_site_option(string $option): bool {
+	protected function _do_delete_site_option(string $option): bool {
 		return (bool) \delete_site_option($option);
 	}
 
@@ -359,9 +379,10 @@ trait WPWrappersTrait {
 	 * @param  int    $blog_id
 	 * @param  string $option
 	 * @param  mixed  $default
+	 * @internal
 	 * @return mixed
 	 */
-	public function _do_get_blog_option(int $blog_id, string $option, mixed $default = false): mixed {
+	protected function _do_get_blog_option(int $blog_id, string $option, mixed $default = false): mixed {
 		return \get_blog_option($blog_id, $option, $default);
 	}
 
@@ -372,9 +393,10 @@ trait WPWrappersTrait {
 	 * @param  int    $blog_id
 	 * @param  string $option
 	 * @param  mixed  $value
+	 * @internal
 	 * @return bool
 	 */
-	public function _do_update_blog_option(int $blog_id, string $option, mixed $value): bool {
+	protected function _do_update_blog_option(int $blog_id, string $option, mixed $value): bool {
 		return \update_blog_option($blog_id, $option, $value);
 	}
 
@@ -387,9 +409,10 @@ trait WPWrappersTrait {
 	 * @param  int    $blog_id
 	 * @param  string $option
 	 * @param  mixed  $value
+	 * @internal
 	 * @return bool
 	 */
-	public function _do_add_blog_option(int $blog_id, string $option, mixed $value = ''): bool {
+	protected function _do_add_blog_option(int $blog_id, string $option, mixed $value = ''): bool {
 		return (bool) \add_blog_option($blog_id, $option, $value);
 	}
 
@@ -400,9 +423,10 @@ trait WPWrappersTrait {
 	 *
 	 * @param  int    $blog_id
 	 * @param  string $option
+	 * @internal
 	 * @return bool
 	 */
-	public function _do_delete_blog_option(int $blog_id, string $option): bool {
+	protected function _do_delete_blog_option(int $blog_id, string $option): bool {
 		return (bool) \delete_blog_option($blog_id, $option);
 	}
 
@@ -414,9 +438,10 @@ trait WPWrappersTrait {
 	 * Rationale: In early boot or tests, get_current_user_id() may be unavailable.
 	 * Returning 0 provides a neutral default.
 	 *
+	 * @internal
 	 * @return int
 	 */
-	public function _do_get_current_user_id(): int {
+	protected function _do_get_current_user_id(): int {
 		if (\function_exists('get_current_user_id')) {
 			return (int) \get_current_user_id();
 		}
@@ -434,9 +459,10 @@ trait WPWrappersTrait {
 	 * @param  int    $user_id
 	 * @param  string $option
 	 * @param  mixed  $deprecated
+	 * @internal
 	 * @return mixed
 	 */
-	public function _do_get_user_option(int $user_id, string $option, mixed $deprecated = ''): mixed {
+	protected function _do_get_user_option(int $user_id, string $option, mixed $deprecated = ''): mixed {
 		return \get_user_option($option, $user_id, $deprecated);
 	}
 
@@ -448,9 +474,10 @@ trait WPWrappersTrait {
 	 * @param  string $option
 	 * @param  mixed  $value
 	 * @param  bool   $global
+	 * @internal
 	 * @return bool
 	 */
-	public function _do_update_user_option(int $user_id, string $option, mixed $value, bool $global = false): bool {
+	protected function _do_update_user_option(int $user_id, string $option, mixed $value, bool $global = false): bool {
 		return (bool) \update_user_option($user_id, $option, $value, $global);
 	}
 
@@ -461,9 +488,10 @@ trait WPWrappersTrait {
 	 * @param  int    $user_id
 	 * @param  string $option_name
 	 * @param  bool   $is_global
+	 * @internal
 	 * @return bool
 	 */
-	public function _do_delete_user_option(int $user_id, string $option_name, bool $is_global = false): bool {
+	protected function _do_delete_user_option(int $user_id, string $option_name, bool $is_global = false): bool {
 		return (bool) \delete_user_option($user_id, $option_name, $is_global);
 	}
 
@@ -474,9 +502,10 @@ trait WPWrappersTrait {
 	 * @param int    $user_id User ID
 	 * @param string $key     Meta key
 	 * @param bool   $single  Whether to return a single value. Default true.
+	 * @internal
 	 * @return mixed          Meta value(s)
 	 */
-	public function _do_get_user_meta(int $user_id, string $key, bool $single = true): mixed {
+	protected function _do_get_user_meta(int $user_id, string $key, bool $single = true): mixed {
 		return \get_user_meta($user_id, $key, $single);
 	}
 
@@ -488,9 +517,10 @@ trait WPWrappersTrait {
 	 * @param string $key     Meta key
 	 * @param mixed  $value   Meta value
 	 * @param string $prev_value Previous meta value
+	 * @internal
 	 * @return int|bool           True on success
 	 */
-	public function _do_update_user_meta(int $user_id, string $key, mixed $value, string $prev_value = ''): int|bool {
+	protected function _do_update_user_meta(int $user_id, string $key, mixed $value, string $prev_value = ''): int|bool {
 		return \update_user_meta($user_id, $key, $value, $prev_value);
 	}
 
@@ -502,9 +532,10 @@ trait WPWrappersTrait {
 	 * @param string $key     Meta key
 	 * @param mixed  $value   Meta value
 	 * @param bool   $unique  Whether the meta key should be unique. Default false.
+	 * @internal
 	 * @return int|false           Meta ID on success, false on failure.
 	 */
-	public function _do_add_user_meta(int $user_id, string $key, mixed $value, bool $unique = false): int|false {
+	protected function _do_add_user_meta(int $user_id, string $key, mixed $value, bool $unique = false): int|false {
 		return \add_user_meta($user_id, $key, $value, $unique);
 	}
 
@@ -516,9 +547,10 @@ trait WPWrappersTrait {
 	 *
 	 * @param int    $user_id User ID
 	 * @param string $key     Meta key
+	 * @internal
 	 * @return bool           True on success
 	 */
-	public function _do_delete_user_meta(int $user_id, string $key): bool {
+	protected function _do_delete_user_meta(int $user_id, string $key): bool {
 		return (bool) \delete_user_meta($user_id, $key);
 	}
 
@@ -531,9 +563,10 @@ trait WPWrappersTrait {
 	 * Returning null lets callers feature-detect autoload cache without fatals.
 	 *
 	 * @param bool $force_cache Optional. Whether to force an update of the local cache from the persistent cache. Default false.
+	 * @internal
 	 * @return array|null
 	 */
-	public function _do_wp_load_alloptions($force_cache = false): ?array {
+	protected function _do_wp_load_alloptions($force_cache = false): ?array {
 		if (\function_exists('wp_load_alloptions')) {
 			$all = \wp_load_alloptions($force_cache);
 			// If WP returns a non-array here, treat as undeterminable
@@ -550,9 +583,10 @@ trait WPWrappersTrait {
 	 * Rationale: In non-multisite/early contexts get_current_blog_id() may be unavailable.
 	 * Returning 0 provides a neutral default for tests/CLI.
 	 *
+	 * @internal
 	 * @return int
 	 */
-	public function _do_get_current_blog_id(): int {
+	protected function _do_get_current_blog_id(): int {
 		// In WP_Mock tests, always try to call the function (it may be mocked)
 		if (\defined('WP_MOCK')) {
 			return (int) \get_current_blog_id();
@@ -572,9 +606,10 @@ trait WPWrappersTrait {
 	 *
 	 * @param string $capability Capability name
 	 * @param mixed  ...$args    Optional capability args (e.g., user ID for edit_user)
+	 * @internal
 	 * @return bool
 	 */
-	public function _do_current_user_can(string $capability, ...$args): bool {
+	protected function _do_current_user_can(string $capability, ...$args): bool {
 		if (\function_exists('current_user_can')) {
 			return (bool) \current_user_can($capability, ...$args);
 		}
@@ -593,9 +628,10 @@ trait WPWrappersTrait {
 	 * falling back to internal normalization mirroring WP behavior.
 	 *
 	 * @param ?string $key
+	 * @internal
 	 * @return string
 	 */
-	public function _do_sanitize_key(?string $key): string {
+	protected function _do_sanitize_key(?string $key): string {
 		$key = (string) $key;
 		if (\function_exists('sanitize_key')) {
 			$res = (string) \sanitize_key($key);
@@ -618,9 +654,10 @@ trait WPWrappersTrait {
 	 * Rationale: sanitize_text_field() may be unavailable in early contexts;
 	 * empty string allows callers to detect and short-circuit filesystem ops.
 	 *
+	 * @internal
 	 * @return string
 	 */
-	public function _do_sanitize_text_field(): string {
+	protected function _do_sanitize_text_field(): string {
 		return \function_exists('sanitize_text_field') ? (string) \sanitize_text_field() : '';
 	}
 
@@ -631,9 +668,10 @@ trait WPWrappersTrait {
 	 * Rationale: get_stylesheet_directory() may be unavailable in early contexts;
 	 * empty string allows callers to detect and short-circuit filesystem ops.
 	 *
+	 * @internal
 	 * @return string
 	 */
-	public function _do_get_stylesheet_directory(): string {
+	protected function _do_get_stylesheet_directory(): string {
 		return \function_exists('get_stylesheet_directory') ? (string) \get_stylesheet_directory() : '';
 	}
 
@@ -647,9 +685,10 @@ trait WPWrappersTrait {
 	 * @param string $plugin_file
 	 * @param bool $markup
 	 * @param bool $translate
+	 * @internal
 	 * @return array
 	 */
-	public function _do_get_plugin_data(string $plugin_file, bool $markup = false, bool $translate = false): array {
+	protected function _do_get_plugin_data(string $plugin_file, bool $markup = false, bool $translate = false): array {
 		if (!\function_exists('get_plugin_data')) {
 			return array();
 		}
@@ -669,9 +708,10 @@ trait WPWrappersTrait {
 	 * @param string|array $deps
 	 * @param string|bool|null $ver
 	 * @param array|bool $args
+	 * @internal
 	 * @return bool
 	 */
-	public function _do_wp_register_script(string $handel, string|false $src, string|array $deps = array(), string|bool|null $ver = false, array|bool $args = array()): bool {
+	protected function _do_wp_register_script(string $handel, string|false $src, string|array $deps = array(), string|bool|null $ver = false, array|bool $args = array()): bool {
 		if (!\function_exists('wp_register_script')) {
 			return null;
 		}
@@ -687,9 +727,10 @@ trait WPWrappersTrait {
 	 * @param string $handle
 	 * @param string $object_name
 	 * @param array $l10n
+	 * @internal
 	 * @return bool
 	 */
-	public function _do_wp_localize_script(string $handle, string $object_name, array $l10n ):bool {
+	protected function _do_wp_localize_script(string $handle, string $object_name, array $l10n ):bool {
 		if (!\function_exists('wp_localize_script')) {
 			return null;
 		}
@@ -703,9 +744,10 @@ trait WPWrappersTrait {
 	 * Rationale: wp_enqueue_media() may be unavailable in early contexts;
 	 *
 	 * @param array $args
+	 * @internal
 	 * @return void
 	 */
-	public function _do_wp_enqueue_media(array $args = array()): void {
+	protected function _do_wp_enqueue_media(array $args = array()): void {
 		if (\function_exists('wp_enqueue_media')) {
 			\wp_enqueue_media($args);
 		}
@@ -722,9 +764,10 @@ trait WPWrappersTrait {
 	 * @param string|array $deps
 	 * @param string|bool|null $ver
 	 * @param array|bool $args
+	 * @internal
 	 * @return void
 	 */
-	public function _do_wp_enqueue_script(string $handle, string $src = '', string|array $deps = array(), string|bool|null $ver = false, array|bool $args = array()): void {
+	protected function _do_wp_enqueue_script(string $handle, string $src = '', string|array $deps = array(), string|bool|null $ver = false, array|bool $args = array()): void {
 		if (\function_exists('wp_enqueue_media')) {
 			\wp_enqueue_media($handle, $src, $deps, $ver, $args);
 		}
@@ -738,7 +781,7 @@ trait WPWrappersTrait {
 	 *
 	 *
 	 */
-	public function _do_wp_register_style(): void {
+	protected function _do_wp_register_style(): void {
 		if (\function_exists('wp_enqueue_media')) {
 			\wp_enqueue_media();
 		}
@@ -753,9 +796,10 @@ trait WPWrappersTrait {
 	 *
 	 * @param ?string $stylesheet_dir Optional slug. Defaults to active theme.
 	 * @param ?string $theme_root     Optional absolute theme root.
+	 * @internal
 	 * @return object|null            Theme-like object or null if WP unavailable.
 	 */
-	public function _do_wp_get_theme(?string $stylesheet_dir = null, ?string $theme_root = ''): ?object {
+	protected function _do_wp_get_theme(?string $stylesheet_dir = null, ?string $theme_root = ''): ?object {
 		if (!\function_exists('wp_get_theme')) {
 			return null;
 		}
@@ -770,9 +814,10 @@ trait WPWrappersTrait {
 	 * that callers can check to avoid building invalid URLs.
 	 *
 	 * @param string $plugin_file
+	 * @internal
 	 * @return string
 	 */
-	public function _do_plugin_dir_url(string $plugin_file): string {
+	protected function _do_plugin_dir_url(string $plugin_file): string {
 		return \function_exists('plugin_dir_url') ? (string) \plugin_dir_url($plugin_file) : '';
 	}
 
@@ -784,9 +829,10 @@ trait WPWrappersTrait {
 	 * short-circuit path-dependent operations safely
 	 *
 	 * @param string $plugin_file
+	 * @internal
 	 * @return string
 	 */
-	public function _do_plugin_dir_path(string $plugin_file): string {
+	protected function _do_plugin_dir_path(string $plugin_file): string {
 		return \function_exists('plugin_dir_path') ? (string) \plugin_dir_path($plugin_file) : '';
 	}
 
@@ -798,9 +844,10 @@ trait WPWrappersTrait {
 	 * approximation for identifiers/labels in tests/CLI.
 	 *
 	 * @param string $plugin_file
+	 * @internal
 	 * @return string
 	 */
-	public function _do_plugin_basename(string $plugin_file): string {
+	protected function _do_plugin_basename(string $plugin_file): string {
 		if (\function_exists('plugin_basename')) {
 			return (string) \plugin_basename($plugin_file);
 		}
@@ -814,9 +861,10 @@ trait WPWrappersTrait {
 	 * Rationale: plugins_url() may be unavailable; empty string is a safe sentinel
 	 * for front-end URL composition.
 	 *
+	 * @internal
 	 * @return string
 	 */
-	public function _do_plugins_url(): string {
+	protected function _do_plugins_url(): string {
 		return \function_exists('plugins_url') ? (string) \plugins_url() : '';
 	}
 
@@ -827,9 +875,10 @@ trait WPWrappersTrait {
 	 * Rationale: get_stylesheet_directory_uri() may be unavailable; empty string is a safe
 	 * sentinel for front-end URL composition.
 	 *
+	 * @internal
 	 * @return string
 	 */
-	public function _do_get_stylesheet_directory_uri(): string {
+	protected function _do_get_stylesheet_directory_uri(): string {
 		return \function_exists('get_stylesheet_directory_uri') ? (string) \get_stylesheet_directory_uri() : '';
 	}
 
@@ -837,9 +886,10 @@ trait WPWrappersTrait {
 	 * Public wrapper for WordPress is_network_admin()
 	 *
 	 * Availability-guarded: Yes
+	 * @internal
 	 * @return bool
 	 */
-	public function _do_is_network_admin(): bool {
+	protected function _do_is_network_admin(): bool {
 		// In WP_Mock tests, always try to call the function (it may be mocked)
 		if (\defined('WP_MOCK')) {
 			return (bool) \is_network_admin();
@@ -854,9 +904,10 @@ trait WPWrappersTrait {
 	 * @param string $option_group
 	 * @param string $option_name
 	 * @param array  $args
+	 * @internal
 	 * @return void
 	 */
-	public function _do_register_setting(string $option_group, string $option_name, array $args = array()): void {
+	protected function _do_register_setting(string $option_group, string $option_name, array $args = array()): void {
 		if (\function_exists('register_setting')) {
 			\register_setting($option_group, $option_name, $args);
 		}
@@ -866,7 +917,7 @@ trait WPWrappersTrait {
 	 * Wrapper for WordPress add_menu_page().
 	 * Availability-guarded: Yes
 	 */
-	public function _do_add_menu_page(string $heading, string $menu_title, string $capability, string $menu_slug, callable $callback, ?string $icon_url = null, ?int $position = null): void {
+	protected function _do_add_menu_page(string $heading, string $menu_title, string $capability, string $menu_slug, callable $callback, ?string $icon_url = null, ?int $position = null): void {
 		if (\function_exists('add_menu_page')) {
 			\add_menu_page($heading, $menu_title, $capability, $menu_slug, $callback, $icon_url, $position ?? null);
 		}
@@ -876,7 +927,7 @@ trait WPWrappersTrait {
 	 * Wrapper for WordPress add_submenu_page().
 	 * Availability-guarded: Yes
 	 */
-	public function _do_add_submenu_page(string $parent_slug, string $heading, string $menu_title, string $capability, string $menu_slug, callable $callback): void {
+	protected function _do_add_submenu_page(string $parent_slug, string $heading, string $menu_title, string $capability, string $menu_slug, callable $callback): void {
 		if (\function_exists('add_submenu_page')) {
 			\add_submenu_page($parent_slug, $heading, $menu_title, $capability, $menu_slug, $callback);
 		}
@@ -892,9 +943,10 @@ trait WPWrappersTrait {
 	 * @param string   $menu_slug
 	 * @param callable $callback
 	 * @param ?int     $position
+	 * @internal
 	 * @return void
 	 */
-	public function _do_add_options_page(string $heading, string $menu_title, string $capability, string $menu_slug, callable $callback, ?int $position = null): void {
+	protected function _do_add_options_page(string $heading, string $menu_title, string $capability, string $menu_slug, callable $callback, ?int $position = null): void {
 		if (\function_exists('add_options_page')) {
 			// add_options_page signature ignores position; using parent menu API normally controls ordering.
 			\add_options_page($heading, $menu_title, $capability, $menu_slug, $callback);
@@ -908,9 +960,10 @@ trait WPWrappersTrait {
 	 * @param string   $title
 	 * @param callable $callback
 	 * @param string   $page
+	 * @internal
 	 * @return void
 	 */
-	public function _do_add_settings_section(string $id, string $title, callable $callback, string $page): void {
+	protected function _do_add_settings_section(string $id, string $title, callable $callback, string $page): void {
 		if (\function_exists('add_settings_section')) {
 			\add_settings_section($id, $title, $callback, $page);
 		}
@@ -925,9 +978,10 @@ trait WPWrappersTrait {
 	 * @param callable $callback
 	 * @param string   $page
 	 * @param string   $section
+	 * @internal
 	 * @return void
 	 */
-	public function _do_add_settings_field(string $id, string $title, callable $callback, string $page, string $section): void {
+	protected function _do_add_settings_field(string $id, string $title, callable $callback, string $page, string $section): void {
 		if (\function_exists('add_settings_field')) {
 			\add_settings_field($id, $title, $callback, $page, $section);
 		}
@@ -938,9 +992,10 @@ trait WPWrappersTrait {
 	 * Availability-guarded: Yes
 	 *
 	 * @param string $option_group
+	 * @internal
 	 * @return void
 	 */
-	public function _do_settings_fields(string $option_group): void {
+	protected function _do_settings_fields(string $option_group): void {
 		if (\function_exists('settings_fields')) {
 			\settings_fields($option_group);
 		}
@@ -951,9 +1006,10 @@ trait WPWrappersTrait {
 	 * Availability-guarded: Yes
 	 *
 	 * @param string $page
+	 * @internal
 	 * @return void
 	 */
-	public function _do_settings_sections(string $page): void {
+	protected function _do_settings_sections(string $page): void {
 		if (\function_exists('do_settings_sections')) {
 			\do_settings_sections($page);
 		}
@@ -964,9 +1020,10 @@ trait WPWrappersTrait {
 	 * Availability-guarded: Yes
 	 *
 	 * @param string $text
+	 * @internal
 	 * @return void
 	 */
-	public function _do_submit_button(string $text = 'Save Changes'): void {
+	protected function _do_submit_button(string $text = 'Save Changes'): void {
 		if (\function_exists('submit_button')) {
 			\submit_button($text);
 		}
@@ -976,9 +1033,10 @@ trait WPWrappersTrait {
 	 * Public wrapper for WordPress get_allowed_mime_types()
 	 * Availability-guarded: Yes
 	 *
+	 * @internal
 	 * @return array
 	 */
-	public function _do_get_allowed_mime_types(): array {
+	protected function _do_get_allowed_mime_types(): array {
 		if (\function_exists('wp_get_allowed_mime_types')) {
 			/** @var array $mime_types */
 			$mime_types = \get_allowed_mime_types();
@@ -995,9 +1053,10 @@ trait WPWrappersTrait {
 	 * @param string $name
 	 * @param bool $referer
 	 * @param bool $display
+	 * @internal
 	 * @return string
 	 */
-	public function _do_wp_nonce_field(int|string $action, string $name = '_wpnonce', bool $referer = true, bool $display = true): string {
+	protected function _do_wp_nonce_field(int|string $action, string $name = '_wpnonce', bool $referer = true, bool $display = true): string {
 		if (\function_exists('wp_nonce_field')) {
 			return (string) \wp_nonce_field($action, $name, $referer, $display);
 		}
@@ -1012,9 +1071,10 @@ trait WPWrappersTrait {
 	 * htmlspecialchars() provides basic HTML escaping functionality for testing.
 	 *
 	 * @param string $text Text to escape
+	 * @internal
 	 * @return string Escaped text
 	 */
-	public function _do_esc_html(string $text): string {
+	protected function _do_esc_html(string $text): string {
 		if (\function_exists('esc_html')) {
 			return (string) \esc_html($text);
 		}
@@ -1029,9 +1089,10 @@ trait WPWrappersTrait {
 	 * htmlspecialchars() provides basic attribute escaping functionality for testing.
 	 *
 	 * @param string $text Text to escape for attribute
+	 * @internal
 	 * @return string Escaped text
 	 */
-	public function _do_esc_attr(string $text): string {
+	protected function _do_esc_attr(string $text): string {
 		if (\function_exists('esc_attr')) {
 			return (string) \esc_attr($text);
 		}
@@ -1048,9 +1109,10 @@ trait WPWrappersTrait {
 	 * @param string $url URL to escape
 	 * @param array $protocols Optional. Array of allowed protocols
 	 * @param string $_context Optional. Context for escaping (unused in fallback)
+	 * @internal
 	 * @return string Escaped URL
 	 */
-	public function _do_esc_url(string $url, array $protocols = array(), string $_context = 'display'): string {
+	protected function _do_esc_url(string $url, array $protocols = array(), string $_context = 'display'): string {
 		if (\function_exists('esc_url')) {
 			return (string) \esc_url($url, $protocols, $_context);
 		}
@@ -1067,9 +1129,10 @@ trait WPWrappersTrait {
 	 * @param string $transient Transient name - must be 172 characters or less
 	 * @param mixed $value Value to store
 	 * @param int $expiration Optional. Expiration time in seconds
+	 * @internal
 	 * @return bool True on success, false on failure
 	 */
-	public function _do_set_transient(string $transient, mixed $value, int $expiration = 0): bool {
+	protected function _do_set_transient(string $transient, mixed $value, int $expiration = 0): bool {
 		if (\function_exists('set_transient')) {
 			return (bool) \set_transient($transient, $value, $expiration);
 		}
@@ -1082,9 +1145,10 @@ trait WPWrappersTrait {
 	 * @see https://developer.wordpress.org/reference/functions/get_transient/
 	 *
 	 * @param string $transient Transient name
+	 * @internal
 	 * @return mixed Value of transient, or false if not set or <expired></expired>
 	 */
-	public function _do_get_transient(string $transient): mixed {
+	protected function _do_get_transient(string $transient): mixed {
 		if (\function_exists('get_transient')) {
 			return \get_transient($transient);
 		}
@@ -1097,9 +1161,10 @@ trait WPWrappersTrait {
 	 * @see https://developer.wordpress.org/reference/functions/delete_transient/
 	 *
 	 * @param string $transient Transient name
+	 * @internal
 	 * @return bool True on success, false on failure
 	 */
-	public function _do_delete_transient(string $transient): bool {
+	protected function _do_delete_transient(string $transient): bool {
 		if (\function_exists('delete_transient')) {
 			return (bool) \delete_transient($transient);
 		}
@@ -1111,9 +1176,10 @@ trait WPWrappersTrait {
 	 * Availability-guarded: Yes
 	 * @see https://developer.wordpress.org/reference/functions/wp_get_environment_type/
 	 *
+	 * @internal
 	 * @return string Environment type (development, staging, production)
 	 */
-	public function _do_wp_get_environment_type(): string {
+	protected function _do_wp_get_environment_type(): string {
 		if (\function_exists('wp_get_environment_type')) {
 			return (string) \wp_get_environment_type();
 		}
@@ -1126,9 +1192,10 @@ trait WPWrappersTrait {
 	 *
 	 * @param string $text Text to translate
 	 * @param string $domain Text domain
+	 * @internal
 	 * @return string Translated text
 	 */
-	public function _do___(string $text, string $domain = 'default'): string {
+	protected function _do___(string $text, string $domain = 'default'): string {
 		if (\function_exists('__')) {
 			return (string) \__($text, $domain);
 		}
@@ -1141,9 +1208,10 @@ trait WPWrappersTrait {
 	 *
 	 * @param string $text Text to translate and echo
 	 * @param string $domain Text domain
+	 * @internal
 	 * @return void
 	 */
-	public function _do_e(string $text, string $domain = 'default'): void {
+	protected function _do_e(string $text, string $domain = 'default'): void {
 		if (\function_exists('_e')) {
 			\_e($text, $domain);
 		} else {
@@ -1159,9 +1227,10 @@ trait WPWrappersTrait {
 	 * @param string $plural Plural text
 	 * @param int $number Number to determine singular/plural
 	 * @param string $domain Text domain
+	 * @internal
 	 * @return string Translated text
 	 */
-	public function _do_n(string $single, string $plural, int $number, string $domain = 'default'): string {
+	protected function _do_n(string $single, string $plural, int $number, string $domain = 'default'): string {
 		$namespaced = __NAMESPACE__ . '\\_n';
 		if (\function_exists($namespaced)) {
 			return (string) $namespaced($single, $plural, $number, $domain);
@@ -1181,9 +1250,10 @@ trait WPWrappersTrait {
 	 * @param int $number Number to determine singular/plural
 	 * @param string $context Context for translation
 	 * @param string $domain Text domain
+	 * @internal
 	 * @return string Translated text
 	 */
-	public function _do_nx(string $single, string $plural, int $number, string $context, string $domain = 'default'): string {
+	protected function _do_nx(string $single, string $plural, int $number, string $context, string $domain = 'default'): string {
 		$namespaced = __NAMESPACE__ . '\\_nx';
 		if (\function_exists($namespaced)) {
 			return (string) $namespaced($single, $plural, $number, $context, $domain);
@@ -1200,9 +1270,10 @@ trait WPWrappersTrait {
 	 *
 	 * @param string $text Text to translate, escape for attributes, and echo
 	 * @param string $domain Text domain
+	 * @internal
 	 * @return void
 	 */
-	public function _do_esc_attr_e(string $text, string $domain = 'default'): void {
+	protected function _do_esc_attr_e(string $text, string $domain = 'default'): void {
 		if (\function_exists('esc_attr_e')) {
 			\esc_attr_e($text, $domain);
 		} else {
@@ -1216,9 +1287,10 @@ trait WPWrappersTrait {
 	 *
 	 * @param string $text Text to translate and escape
 	 * @param string $domain Text domain
+	 * @internal
 	 * @return string Escaped and translated text
 	 */
-	public function _do_esc_html__(string $text, string $domain = 'default'): string {
+	protected function _do_esc_html__(string $text, string $domain = 'default'): string {
 		if (\function_exists('esc_html__')) {
 			return (string) \esc_html__($text, $domain);
 		}
@@ -1234,9 +1306,10 @@ trait WPWrappersTrait {
 	 * basic JavaScript string escaping for testing purposes.
 	 *
 	 * @param string $text Text to escape for JavaScript
+	 * @internal
 	 * @return string Escaped text
 	 */
-	public function _do_esc_js(string $text): string {
+	protected function _do_esc_js(string $text): string {
 		if (\function_exists('esc_js')) {
 			return (string) \esc_js($text);
 		}
@@ -1249,9 +1322,10 @@ trait WPWrappersTrait {
 	 * Availability-guarded: Yes, with fallback to htmlspecialchars
 	 *
 	 * @param string $text Text to escape for textarea
+	 * @internal
 	 * @return string Escaped text
 	 */
-	public function _do_esc_textarea(string $text): string {
+	protected function _do_esc_textarea(string $text): string {
 		if (\function_exists('esc_textarea')) {
 			return (string) \esc_textarea($text);
 		}
@@ -1264,9 +1338,10 @@ trait WPWrappersTrait {
 	 *
 	 * @param string $text Text to translate
 	 * @param string $domain Text domain for translation
+	 * @internal
 	 * @return string Translated text
 	 */
-	public function _do__(string $text, string $domain = 'default'): string {
+	protected function _do__(string $text, string $domain = 'default'): string {
 		if (\function_exists('__')) {
 			return (string) \__($text, $domain);
 		}
@@ -1280,9 +1355,10 @@ trait WPWrappersTrait {
 	 * @param string $text Text to translate
 	 * @param string $context Context for translation
 	 * @param string $domain Text domain for translation
+	 * @internal
 	 * @return string Translated text
 	 */
-	public function _do_x(string $text, string $context, string $domain = 'default'): string {
+	protected function _do_x(string $text, string $context, string $domain = 'default'): string {
 		if (\function_exists('_x')) {
 			return (string) \_x($text, $context, $domain);
 		}
@@ -1295,9 +1371,10 @@ trait WPWrappersTrait {
 	 *
 	 * @param string $text Text to translate and escape
 	 * @param string $domain Text domain for translation
+	 * @internal
 	 * @return string Translated and escaped text
 	 */
-	public function _do_esc_html___(string $text, string $domain = 'default'): string {
+	protected function _do_esc_html___(string $text, string $domain = 'default'): string {
 		if (\function_exists('esc_html__')) {
 			return (string) \esc_html__($text, $domain);
 		}
@@ -1310,9 +1387,10 @@ trait WPWrappersTrait {
 	 *
 	 * @param string $text Text to translate and escape for attributes
 	 * @param string $domain Text domain for translation
+	 * @internal
 	 * @return string Translated and escaped text
 	 */
-	public function _do_esc_attr__(string $text, string $domain = 'default'): string {
+	protected function _do_esc_attr__(string $text, string $domain = 'default'): string {
 		if (\function_exists('esc_attr__')) {
 			return (string) \esc_attr__($text, $domain);
 		}
@@ -1326,9 +1404,10 @@ trait WPWrappersTrait {
 	 * @param string $text Text to translate and escape
 	 * @param string $context Context for translation
 	 * @param string $domain Text domain for translation
+	 * @internal
 	 * @return string Translated and escaped text
 	 */
-	public function _do_esc_html_x(string $text, string $context, string $domain = 'default'): string {
+	protected function _do_esc_html_x(string $text, string $context, string $domain = 'default'): string {
 		if (\function_exists('esc_html_x')) {
 			return (string) \esc_html_x($text, $context, $domain);
 		}
@@ -1342,9 +1421,10 @@ trait WPWrappersTrait {
 	 * @param string $text Text to translate and escape
 	 * @param string $context Context for translation
 	 * @param string $domain Text domain for translation
+	 * @internal
 	 * @return string Translated and escaped text
 	 */
-	public function _do_esc_html_e(string $text, string $domain = 'default'): string {
+	protected function _do_esc_html_e(string $text, string $domain = 'default'): string {
 		if (\function_exists('esc_html_e')) {
 			return (string) \esc_html_e($text, $domain);
 		}
@@ -1358,9 +1438,10 @@ trait WPWrappersTrait {
 	 * @param string $text Text to translate and escape for attributes
 	 * @param string $context Context for translation
 	 * @param string $domain Text domain for translation
+	 * @internal
 	 * @return string Translated and escaped text
 	 */
-	public function _do_esc_attr_x(string $text, string $context, string $domain = 'default'): string {
+	protected function _do_esc_attr_x(string $text, string $context, string $domain = 'default'): string {
 		if (\function_exists('esc_attr_x')) {
 			return (string) \esc_attr_x($text, $context, $domain);
 		}
@@ -1379,9 +1460,10 @@ trait WPWrappersTrait {
 	 * @param array       $deps   Optional. An array of registered stylesheet handles this stylesheet depends on. Default empty array.
 	 * @param string|bool $ver    Optional. String specifying stylesheet version number, if it has one, which is added to the URL as a query string for cache busting purposes. If version is set to false, a version number is automatically added equal to current installed WordPress version. If set to null, no version is added.
 	 * @param string      $media  Optional. The media for which this stylesheet has been defined. Accepts media types like 'all', 'print' and 'screen', or media queries like '(orientation: portrait)' and '(max-width: 640px)'. Default 'all'.
+	 * @internal
 	 * @return void
 	 */
-	public function _do_wp_enqueue_style(string $handle, string $src = '', array $deps = array(), string|bool|null $ver = false, string $media = 'all'): void {
+	protected function _do_wp_enqueue_style(string $handle, string $src = '', array $deps = array(), string|bool|null $ver = false, string $media = 'all'): void {
 		if (\function_exists('wp_enqueue_style')) {
 			\wp_enqueue_style($handle, $src, $deps, $ver, $media);
 		}
@@ -1394,9 +1476,10 @@ trait WPWrappersTrait {
 	 * Rationale: wp_using_ext_object_cache() was introduced in WordPress 6.1 and may be
 	 * unavailable in older versions or early contexts. Returns false as safe default.
 	 *
+	 * @internal
 	 * @return bool True if using external object cache, false otherwise
 	 */
-	public function _do_wp_using_ext_object_cache(): bool {
+	protected function _do_wp_using_ext_object_cache(): bool {
 		if (\function_exists('wp_using_ext_object_cache')) {
 			return (bool) \wp_using_ext_object_cache();
 		}

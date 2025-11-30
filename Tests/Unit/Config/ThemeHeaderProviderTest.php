@@ -54,22 +54,15 @@ final class ThemeHeaderProviderTest extends RanTestCase {
 
 	public function test_get_base_identifiers_uses_wp_functions_when_available(): void {
 		$dir = $this->stylesheetDir;
-		$cfg = new class extends ConfigAbstract {
-			public function get_config(): array {
-				return array();
-			}
-			public function options(?\Ran\PluginLib\Options\Storage\StorageContext $context = null, bool $autoload = true): \Ran\PluginLib\Options\RegisterOptions {
-				throw new \RuntimeException('not used');
-			}
-			public function _get_standard_theme_headers(string $dir): array {
-				return array();
-			}
-			public function _do_get_stylesheet_directory_uri(): string {
-				return 'https://example.com/wp-content/themes/mock-theme';
-			}
-		};
 
-		$provider            = new ThemeHeaderProvider($dir, $cfg);
+		// Mock WordPress function that the provider now calls directly via WPWrappersTrait
+		WP_Mock::userFunction('get_stylesheet_directory_uri')
+			->once()
+			->andReturn('https://example.com/wp-content/themes/mock-theme');
+
+		$cfg      = $this->createMock(ConfigAbstract::class);
+		$provider = new ThemeHeaderProvider($dir, $cfg);
+
 		[$path, $url, $name] = $provider->get_base_identifiers();
 
 		$this->assertSame($this->stylesheetDir, $path);

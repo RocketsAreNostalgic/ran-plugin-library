@@ -11,6 +11,10 @@ namespace Ran\PluginLib\Util;
  * Concrete class that uses WPWrappersTrait and TranslationServiceTrait for accessing
  * WordPress functions and translation services in templates and other non-class contexts.
  *
+ * Note: The _do_* methods inherited from WPWrappersTrait are internal implementation
+ * details and should not be called directly by consuming code.
+ *
+ * @internal The _do_* methods are for internal use only.
  * @codeCoverageIgnore
  */
 final class WPWrappers {
