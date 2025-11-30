@@ -11,9 +11,9 @@ namespace Ran\PluginLib\Forms;
 
 use Ran\PluginLib\Util\WPWrappersTrait;
 use Ran\PluginLib\Util\Logger;
-use Ran\PluginLib\Forms\Component\ComponentManifest;
-use Ran\PluginLib\Forms\Component\ComponentRenderResult;
 use Ran\PluginLib\Forms\Validation\ValidatorPipelineService;
+use Ran\PluginLib\Forms\Component\ComponentRenderResult;
+use Ran\PluginLib\Forms\Component\ComponentManifest;
 
 /**
  * FormsServiceSession: per-render context for component dispatching and asset collection.
@@ -108,7 +108,7 @@ class FormsServiceSession {
 			);
 
 			return $fallback_markup . sprintf(
-				"\n<!-- kepler-template-fallback: %s -->\n<div class=\"kepler-template-warning screen-reader-text\" aria-live=\"polite\">%s</div>\n",
+				"\n<!-- kepler-template-fallback: %s -->\n<div class=\"kepler-template-warning\" aria-live=\"polite\">%s</div>\n",
 				esc_html($warning_id),
 				esc_html($warning_text)
 			);
@@ -288,15 +288,21 @@ class FormsServiceSession {
 		// Delegate to pipeline for merge logic
 		$merged = $this->pipeline->merge_schema_with_defaults($defaults, $schema, $this->logger);
 
-		// Validate at least one validator exists
+		// Only require validators for FormField (input) type components.
+		// Layout wrappers, display components, and templates don't need validation.
+		$context       = isset($merged['context']) && is_array($merged['context']) ? $merged['context'] : array();
+		$componentType = (string) ($context['component_type'] ?? '');
+		$isFormField   = $componentType === '' || $componentType === Component\ComponentType::FormField->value;
+
 		$hasValidators = !empty($merged['validate']['component']) || !empty($merged['validate']['schema']);
-		if (!$hasValidators) {
-			$this->logger->error('forms.schema.merge.no_validators', array(
-				'alias'    => $alias,
-				'schema'   => $schema,
-				'defaults' => $defaults,
+		if ($isFormField && !$hasValidators) {
+			// Log as warning instead of error - validators are recommended but not strictly required
+			$this->logger->warning('forms.schema.merge.no_validators', array(
+				'alias'          => $alias,
+				'component_type' => $componentType,
+				'schema'         => $schema,
+				'defaults'       => $defaults,
 			));
-			throw new \InvalidArgumentException("FormsServiceSession: merge_schema_with_defaults requires at least one validator for component '{$alias}'.");
 		}
 
 		$this->_log_schema_merge($alias, $defaults, $schema, $merged);
