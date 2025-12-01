@@ -3,8 +3,9 @@
  *
  * @package KeplerLib
  */
-.kepler-fieldset-field label {
-  font-weight: 600;
-  font-size: 14px;
-  color: #1d2327;
+
+.kepler-user-settings {
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  margin-bottom: 1em;
 }

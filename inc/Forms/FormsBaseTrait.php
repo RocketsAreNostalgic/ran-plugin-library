@@ -1078,13 +1078,16 @@ trait FormsBaseTrait {
 		// Update group metadata
 		$title = $group_data['heading'] ?? $group_data['title'] ?? '';
 
-		$this->groups[$container_id][$section_id][$group_id]['title']    = (string) $title;
-		$this->groups[$container_id][$section_id][$group_id]['before']   = $group_data['before'] ?? null;
-		$this->groups[$container_id][$section_id][$group_id]['after']    = $group_data['after']  ?? null;
-		$this->groups[$container_id][$section_id][$group_id]['order']    = (int) ($group_data['order'] ?? 0);
-		$this->groups[$container_id][$section_id][$group_id]['style']    = (string) ($group_data['style'] ?? 'bordered');
-		$this->groups[$container_id][$section_id][$group_id]['required'] = (bool) ($group_data['required'] ?? false);
-		$this->groups[$container_id][$section_id][$group_id]['type']     = (string) ($group_data['type'] ?? 'group');
+		$this->groups[$container_id][$section_id][$group_id]['title']  = (string) $title;
+		$this->groups[$container_id][$section_id][$group_id]['before'] = $group_data['before'] ?? null;
+		$this->groups[$container_id][$section_id][$group_id]['after']  = $group_data['after']  ?? null;
+		$this->groups[$container_id][$section_id][$group_id]['order']  = (int) ($group_data['order'] ?? 0);
+		$this->groups[$container_id][$section_id][$group_id]['style']  = (string) ($group_data['style'] ?? '');
+		$this->groups[$container_id][$section_id][$group_id]['type']   = (string) ($group_data['type'] ?? 'group');
+		// Fieldset-specific attributes
+		$this->groups[$container_id][$section_id][$group_id]['form']     = (string) ($group_data['form'] ?? '');
+		$this->groups[$container_id][$section_id][$group_id]['name']     = (string) ($group_data['name'] ?? '');
+		$this->groups[$container_id][$section_id][$group_id]['disabled'] = (bool) ($group_data['disabled'] ?? false);
 		$this->logger->debug('settings.builder.group.metadata', array(
 			'container_id' => $container_id,
 			'section_id'   => $section_id,
@@ -1092,7 +1095,9 @@ trait FormsBaseTrait {
 			'heading'      => $this->groups[$container_id][$section_id][$group_id]['title'],
 			'order'        => $this->groups[$container_id][$section_id][$group_id]['order'],
 			'style'        => $this->groups[$container_id][$section_id][$group_id]['style'],
-			'required'     => $this->groups[$container_id][$section_id][$group_id]['required'],
+			'form'         => $this->groups[$container_id][$section_id][$group_id]['form'],
+			'name'         => $this->groups[$container_id][$section_id][$group_id]['name'],
+			'disabled'     => $this->groups[$container_id][$section_id][$group_id]['disabled'],
 			'has_before'   => $this->groups[$container_id][$section_id][$group_id]['before'] !== null,
 			'has_after'    => $this->groups[$container_id][$section_id][$group_id]['after']  !== null,
 			'fields'       => array_column($this->groups[$container_id][$section_id][$group_id]['fields'], 'id'),

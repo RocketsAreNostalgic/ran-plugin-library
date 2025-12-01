@@ -32,7 +32,7 @@ ob_start();
 // 1. Title row (if title exists)
 if ($title !== '') :
 	?>
-<tr class="group-header-row" data-group-id="<?php echo esc_attr($group_id); ?>">
+<tr class="group-header-row" data-kepler-group-id="<?php echo esc_attr($group_id); ?>">
 	<th colspan="2"><h4 class="group-title"><?php echo esc_html($title); ?></h4></th>
 </tr>
 <?php endif; ?>

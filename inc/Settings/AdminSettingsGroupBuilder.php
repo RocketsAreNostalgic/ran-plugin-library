@@ -83,7 +83,7 @@ final class AdminSettingsGroupBuilder extends GroupBuilder {
 	 *
 	 * @return AdminSettingsGroupBuilder
 	 */
-	public function group(string $group_id, string $heading, ?callable $description_cb = null, ?array $args = null): AdminSettingsGroupBuilder {
+	public function group(string $group_id, string $heading = '', ?callable $description_cb = null, ?array $args = null): AdminSettingsGroupBuilder {
 		$builder = parent::group($group_id, $heading, $description_cb, $args);
 		if (!$builder instanceof AdminSettingsGroupBuilder) {
 			throw new \RuntimeException('AdminSettingsGroupBuilder chaining expects AdminSettingsGroupBuilder instance.');

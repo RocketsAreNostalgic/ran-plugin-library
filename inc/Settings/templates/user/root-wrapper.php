@@ -31,7 +31,7 @@ $after  = (string) ($context['after'] ?? '');
 
 ob_start();
 ?>
-<div class="kepler-user-settings <?php echo esc_attr($style); ?>" data-kepler-collection-title="<?php echo esc_attr($title); ?>" data-kepler-collection-id="<?php echo esc_attr($collection_id); ?>">
+<div class="kepler-user-settings <?php echo esc_attr($style); ?>" data-kepler-collection-id="<?php echo esc_attr($collection_id); ?>">
 <?php if ($title !== '') : ?>
 	<h2><?php echo esc_html($title); ?></h2>
 <?php endif; ?>
@@ -39,7 +39,7 @@ ob_start();
 	<p class="description"><?php echo esc_html($description); ?></p>
 <?php endif; ?>
 <?php echo $before; ?>
-<table class="form-table kepler-user-settings" role="presentation">
+<table class="form-table" role="presentation">
 	<?php echo $inner_html; ?>
 </table>
 <?php echo $after; ?>

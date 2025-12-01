@@ -26,7 +26,7 @@ $after  = (string) ($context['after'] ?? '');
 
 ob_start();
 ?>
-<tr data-section-id="<?php echo esc_attr($section_id); ?>">
+<tr data-kepler-section-id="<?php echo esc_attr($section_id); ?>">
 	<th colspan="2">
 		<?php if ($title !== '') : ?>
 			<h3><?php echo esc_html($title); ?></h3>

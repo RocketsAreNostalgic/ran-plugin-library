@@ -151,7 +151,7 @@ class UserSettingsFluentBuilderApiTest extends TestCase {
 		$user->collection('profile')
 			->section('preferences', 'Preferences Section')
 				->fieldset('profile-details', 'Profile Details', null, array('style' => 'highlighted'))
-					->required(true)
+					->disabled(true)
 					->field('field_three', 'Field Three', 'fields.input')
 				->end_fieldset()
 			->end_section()
@@ -164,10 +164,10 @@ class UserSettingsFluentBuilderApiTest extends TestCase {
 			    && ($entry['context']['group_id'] ?? null)     === 'profile-details';
 		});
 		self::assertNotEmpty($groupMetadataLogs, 'Fieldset metadata log missing.');
-		$groupContext = $this->findLatestContext($groupMetadataLogs, static fn (array $context): bool => ($context['required'] ?? false) === true);
+		$groupContext = $this->findLatestContext($groupMetadataLogs, static fn (array $context): bool => ($context['disabled'] ?? false) === true);
 		self::assertSame('Profile Details', $groupContext['heading']);
 		self::assertSame('highlighted', $groupContext['style']);
-		self::assertTrue($groupContext['required']);
+		self::assertTrue($groupContext['disabled']);
 
 		$fieldLogs = $this->logger_mock->find_logs(static function (array $entry): bool {
 			return $entry['message']                           === 'settings.builder.group_field.updated'
@@ -215,7 +215,7 @@ class UserSettingsFluentBuilderApiTest extends TestCase {
 				->end_group()
 				->fieldset('contact-preferences', 'Contact Preferences')
 					->style('minimal')
-					->required()
+					->disabled()
 					->field('contact_method', 'Preferred Contact Method', 'fields.input')
 				->end_fieldset()
 			->end_section()
@@ -280,7 +280,7 @@ class UserSettingsFluentBuilderApiTest extends TestCase {
 		$fieldsetContext = $this->findLatestContext($fieldSetLogs);
 		self::assertNotNull($fieldsetContext);
 		self::assertSame('minimal', $fieldsetContext['style']);
-		self::assertTrue($fieldsetContext['required']);
+		self::assertTrue($fieldsetContext['disabled']);
 
 		$notificationFieldLogs = $this->logger_mock->find_logs(static function (array $entry): bool {
 			return $entry['message']                           === 'settings.builder.group_field.updated'

@@ -151,7 +151,7 @@ class AdminSettingsFluentBuilderApiTest extends TestCase {
 			->page('fieldset-page')
 				->section('fieldset-section', 'Fieldset Section')
 					->fieldset('profile-details', 'Profile Details', null, array('style' => 'minimal'))
-						->required(true)
+						->disabled(true)
 						->field('field_one', 'Field One', 'fields.input')
 					->end_fieldset()
 				->end_section()
@@ -166,11 +166,11 @@ class AdminSettingsFluentBuilderApiTest extends TestCase {
 		});
 		self::assertNotEmpty($fieldsetMetadataLogs, 'Fieldset metadata log missing.');
 		$fieldSetContext = $this->findLatestContext($fieldsetMetadataLogs, static function (array $context): bool {
-			return ($context['required'] ?? false) === true;
+			return ($context['disabled'] ?? false) === true;
 		});
 		self::assertSame('Profile Details', $fieldSetContext['heading']);
 		self::assertSame('minimal', $fieldSetContext['style']);
-		self::assertTrue($fieldSetContext['required']);
+		self::assertTrue($fieldSetContext['disabled']);
 
 		$fieldLogs = $this->logger_mock->find_logs(static function (array $entry): bool {
 			return $entry['message']                           === 'settings.builder.group_field.updated'
@@ -211,7 +211,7 @@ class AdminSettingsFluentBuilderApiTest extends TestCase {
 					->end_group()
 					->fieldset('contact-preferences', 'Contact Preferences')
 						->style('highlighted')
-						->required()
+						->disabled()
 						->field('contact_email', 'Contact Email', 'fields.input')
 					->end_fieldset()
 					->field('enable_feature', 'Enable Feature', 'checkbox', array('context' => array('default' => false)))
@@ -289,7 +289,7 @@ class AdminSettingsFluentBuilderApiTest extends TestCase {
 		$fieldSetMetadata = $this->findLatestContext($groupMetaLogs);
 		self::assertNotNull($fieldSetMetadata);
 		self::assertSame('highlighted', $fieldSetMetadata['style']);
-		self::assertTrue($fieldSetMetadata['required']);
+		self::assertTrue($fieldSetMetadata['disabled']);
 
 		$advancedFields = $this->logger_mock->find_logs(static function (array $entry): bool {
 			return $entry['message']                           === 'settings.builder.field.updated'

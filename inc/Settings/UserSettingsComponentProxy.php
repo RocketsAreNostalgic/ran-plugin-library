@@ -148,13 +148,13 @@ class UserSettingsComponentProxy extends ComponentBuilderProxy {
 	 * Start a sibling group from the current field's section context.
 	 *
 	 * @param string $group_id The group identifier.
-	 * @param string $heading The group heading.
+	 * @param string $heading The group heading (optional).
 	 * @param callable|null $description_cb Optional description callback.
 	 * @param array<string,mixed>|null $args Optional configuration.
 	 *
 	 * @return UserSettingsGroupBuilder
 	 */
-	public function group(string $group_id, string $heading, ?callable $description_cb = null, ?array $args = null): UserSettingsGroupBuilder {
+	public function group(string $group_id, string $heading = '', ?callable $description_cb = null, ?array $args = null): UserSettingsGroupBuilder {
 		$parent = $this->end_field();
 		if ($parent instanceof UserSettingsSectionBuilder) {
 			return $parent->group($group_id, $heading, $description_cb, $args);
@@ -169,13 +169,13 @@ class UserSettingsComponentProxy extends ComponentBuilderProxy {
 	 * Start a sibling fieldset from the current field's section context.
 	 *
 	 * @param string $fieldset_id The fieldset identifier.
-	 * @param string $heading The fieldset heading.
+	 * @param string $heading The fieldset heading (optional).
 	 * @param callable|null $description_cb Optional description callback.
 	 * @param array<string,mixed>|null $args Optional configuration.
 	 *
 	 * @return UserSettingsFieldsetBuilder
 	 */
-	public function fieldset(string $fieldset_id, string $heading, ?callable $description_cb = null, ?array $args = null): UserSettingsFieldsetBuilder {
+	public function fieldset(string $fieldset_id, string $heading = '', ?callable $description_cb = null, ?array $args = null): UserSettingsFieldsetBuilder {
 		$parent = $this->end_field();
 		if ($parent instanceof UserSettingsSectionBuilder) {
 			return $parent->fieldset($fieldset_id, $heading, $description_cb, $args);

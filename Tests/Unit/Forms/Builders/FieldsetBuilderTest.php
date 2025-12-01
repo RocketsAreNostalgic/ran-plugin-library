@@ -28,8 +28,10 @@ final class FieldsetBuilderTest extends TestCase {
 
 		$metadata = $this->latestUpdateOfType('group_metadata');
 		self::assertSame('fieldset', $metadata['group_data']['id']);
-		self::assertSame('bordered', $metadata['group_data']['style']);
-		self::assertFalse($metadata['group_data']['required']);
+		self::assertSame('', $metadata['group_data']['style']); // No default style
+		self::assertSame('', $metadata['group_data']['form']);
+		self::assertSame('', $metadata['group_data']['name']);
+		self::assertFalse($metadata['group_data']['disabled']);
 
 		$template = $this->latestUpdateOfType('template_override');
 		self::assertSame('group', $template['element_type']);
@@ -46,20 +48,40 @@ final class FieldsetBuilderTest extends TestCase {
 		self::assertSame('inline', $metadata['group_data']['style']);
 	}
 
-	public function test_required_update_sets_flag(): void {
+	public function test_disabled_update_sets_flag(): void {
 		$builder = $this->createFieldsetBuilder();
 
-		$builder->required(true);
+		$builder->disabled(true);
 
 		$metadata = $this->latestUpdateOfType('group_metadata');
-		self::assertTrue($metadata['group_data']['required']);
+		self::assertTrue($metadata['group_data']['disabled']);
 	}
 
-	public function test_style_must_be_string(): void {
+	public function test_form_update_sets_value(): void {
 		$builder = $this->createFieldsetBuilder();
 
-		$this->expectException(\InvalidArgumentException::class);
+		$builder->form('my-form');
+
+		$metadata = $this->latestUpdateOfType('group_metadata');
+		self::assertSame('my-form', $metadata['group_data']['form']);
+	}
+
+	public function test_name_update_sets_value(): void {
+		$builder = $this->createFieldsetBuilder();
+
+		$builder->name('my-fieldset');
+
+		$metadata = $this->latestUpdateOfType('group_metadata');
+		self::assertSame('my-fieldset', $metadata['group_data']['name']);
+	}
+
+	public function test_style_accepts_empty_string(): void {
+		$builder = $this->createFieldsetBuilder();
+
 		$builder->style('');
+
+		$metadata = $this->latestUpdateOfType('group_metadata');
+		self::assertSame('', $metadata['group_data']['style']);
 	}
 
 	public function test_end_fieldset_returns_section_builder(): void {

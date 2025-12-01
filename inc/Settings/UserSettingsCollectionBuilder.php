@@ -106,14 +106,14 @@ class UserSettingsCollectionBuilder implements BuilderRootInterface {
 	/**
 	 * Define a new section within this custom profile collection.
 	 *
-	 * @param string        $section_id      The section ID.
-	 * @param string        $title           The section title.
-	 * @param callable|null        $description_cb  The section description callback.
-	 * @param array<string,mixed>|null $args Optional configuration (order, before/after callbacks, classes, etc.).
+	 * @param string                   $section_id     The section ID.
+	 * @param string                   $title          The section title (optional, can be set via heading()).
+	 * @param callable|null            $description_cb The section description callback.
+	 * @param array<string,mixed>|null $args           Optional configuration (order, before/after callbacks, classes, etc.).
 	 *
 	 * @return UserSettingsSectionBuilder The UserSettingsSectionBuilder instance.
 	 */
-	public function section(string $section_id, string $title, ?callable $description_cb = null, ?array $args = null): UserSettingsSectionBuilder {
+	public function section(string $section_id, string $title = '', ?callable $description_cb = null, ?array $args = null): UserSettingsSectionBuilder {
 		$args  = $args          ?? array();
 		$order = $args['order'] ?? null;
 		// Store section meta immediately via updateFn
@@ -214,6 +214,18 @@ class UserSettingsCollectionBuilder implements BuilderRootInterface {
 	}
 
 	/**
+	 * Set the visual style for this collection.
+	 *
+	 * @param string $style The style identifier (e.g., 'card', 'plain').
+	 *
+	 * @return self
+	 */
+	public function style(string $style): self {
+		$this->_update_meta('style', $style);
+		return $this;
+	}
+
+	/**
 	 * Return to the Settings instance for chaining or boot.
 	 * Alias of end().
 	 *
@@ -274,6 +286,9 @@ class UserSettingsCollectionBuilder implements BuilderRootInterface {
 				break;
 			case 'order':
 				$this->meta['order'] = $value === null ? 0 : max(0, (int) $value);
+				break;
+			case 'style':
+				$this->meta['style'] = (string) $value;
 				break;
 			default:
 				$this->meta[$key] = $value;

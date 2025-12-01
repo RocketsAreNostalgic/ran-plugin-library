@@ -42,6 +42,7 @@ class SectionBuilder implements SectionBuilderInterface {
 	/** @var callable|null */
 	private $after;
 	private ?int $order;
+	private string $style   = '';
 	private bool $committed = false;
 	/** @var array<string, callable>|null */
 	private ?array $componentBuilderFactories = null;
@@ -58,12 +59,15 @@ class SectionBuilder implements SectionBuilderInterface {
 		BuilderRootInterface $collectionBuilder,
 		string $container_id,
 		string $section_id,
-		string $heading,
-		callable $updateFn,
+		string $heading = '',
+		?callable $updateFn = null,
 		?callable $before = null,
 		?callable $after = null,
 		?int $order = null
 	) {
+		if ($updateFn === null) {
+			throw new \InvalidArgumentException('updateFn is required');
+		}
 		$this->collectionBuilder = $collectionBuilder;
 		$this->forms             = $collectionBuilder->get_forms();
 		$this->container_id      = $container_id;
@@ -73,6 +77,7 @@ class SectionBuilder implements SectionBuilderInterface {
 		$this->before            = $before;
 		$this->after             = $after;
 		$this->order             = $order;
+		$this->style             = '';
 
 		$this->_emit_section_metadata();
 	}
@@ -136,30 +141,43 @@ class SectionBuilder implements SectionBuilderInterface {
 	}
 
 	/**
+	 * Set the visual style for this section.
+	 *
+	 * @param string $style The style identifier (e.g., 'card', 'plain').
+	 *
+	 * @return self
+	 */
+	public function style(string $style): self {
+		$this->_update_meta('style', $style);
+		return $this;
+	}
+
+	/**
 	 * Start a sibling section on the same collection and return its SectionBuilder.
 	 * Convenient when you want to chain multiple sections without returning to the collection builder.
 	 *
-	 * @param string $section_id The section ID.
-	 * @param string $heading The section heading.
-	 * @param callable|null $description_cb The section description callback.
-	 * @param array<string,mixed> $args Optional configuration (order, before/after callbacks, classes, etc.).
+	 * @param string              $section_id     The section ID.
+	 * @param string              $heading        The section heading (optional, can be set via heading()).
+	 * @param callable|null       $description_cb The section description callback.
+	 * @param array<string,mixed> $args           Optional configuration (order, before/after callbacks, classes, etc.).
 	 *
 	 * @return SectionBuilder<TRoot> The SectionBuilder instance for the new section.
 	 */
-	public function section(string $section_id, string $heading, ?callable $description_cb = null, array $args = array()): SectionBuilder {
+	public function section(string $section_id, string $heading = '', ?callable $description_cb = null, array $args = array()): SectionBuilder {
 		return $this->collectionBuilder->section($section_id, $heading, $description_cb, $args);
 	}
 
 	/**
 	 * Begin configuring a grouped set of fields within this section.
 	 *
-	 * @param string $group_id The group identifier.
-	 * @param string $heading The human-readable group heading.
-	 * @param array<string,mixed> $args Optional configuration (order, before/after callbacks, layout metadata, etc.).
+	 * @param string              $group_id       The group identifier.
+	 * @param string              $heading        The human-readable group heading (optional, can be set via heading()).
+	 * @param callable|null       $description_cb The group description callback.
+	 * @param array<string,mixed> $args           Optional configuration (order, before/after callbacks, layout metadata, etc.).
 	 *
 	 * @return GroupBuilder<TRoot, SectionBuilder<TRoot>> The fluent group builder instance.
 	 */
-	public function group(string $group_id, string $heading, ?callable $description_cb = null, ?array $args = null): GroupBuilder {
+	public function group(string $group_id, string $heading = '', ?callable $description_cb = null, ?array $args = null): GroupBuilder {
 		$args = $args ?? array();
 		return new GroupBuilder(
 			$this,
@@ -176,13 +194,14 @@ class SectionBuilder implements SectionBuilderInterface {
 	/**
 	 * Begin configuring a semantic fieldset grouping within this section.
 	 *
-	 * @param string $fieldset_id The fieldset identifier.
-	 * @param string $heading The legend to display for the fieldset.
-	 * @param array<string,mixed> $args Optional configuration (order, before/after callbacks, style metadata, etc.).
+	 * @param string              $fieldset_id    The fieldset identifier.
+	 * @param string              $heading        The legend to display for the fieldset (optional, can be set via heading()).
+	 * @param callable|null       $description_cb The fieldset description callback.
+	 * @param array<string,mixed> $args           Optional configuration (order, before/after callbacks, style metadata, etc.).
 	 *
 	 * @return FieldsetBuilderInterface<TRoot, SectionBuilderInterface<TRoot>> The fluent fieldset builder instance.
 	 */
-	public function fieldset(string $fieldset_id, string $heading, ?callable $description_cb = null, ?array $args = null): FieldsetBuilderInterface {
+	public function fieldset(string $fieldset_id, string $heading = '', ?callable $description_cb = null, ?array $args = null): FieldsetBuilderInterface {
 		$args = $args ?? array();
 		return new FieldsetBuilder(
 			$this,
@@ -455,6 +474,9 @@ class SectionBuilder implements SectionBuilderInterface {
 			case 'order':
 				$this->order = $value === null ? null : (int) $value;
 				break;
+			case 'style':
+				$this->style = (string) $value;
+				break;
 			default:
 				$this->$key = $value;
 		}
@@ -498,6 +520,7 @@ class SectionBuilder implements SectionBuilderInterface {
 				'before'      => $this->before,
 				'after'       => $this->after,
 				'order'       => $this->order,
+				'style'       => $this->style,
 			),
 		);
 	}

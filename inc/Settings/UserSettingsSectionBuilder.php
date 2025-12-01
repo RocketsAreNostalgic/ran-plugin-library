@@ -158,7 +158,7 @@ class UserSettingsSectionBuilder extends SectionBuilder {
 	 *
 	 * @return UserSettingsFieldsetBuilder
 	 */
-	public function fieldset(string $fieldset_id, string $heading, ?callable $description_cb = null, ?array $args = null): UserSettingsFieldsetBuilder {
+	public function fieldset(string $fieldset_id, string $heading = '', ?callable $description_cb = null, ?array $args = null): UserSettingsFieldsetBuilder {
 		$args = $args ?? array();
 
 		return new UserSettingsFieldsetBuilder(
@@ -178,7 +178,7 @@ class UserSettingsSectionBuilder extends SectionBuilder {
 	 *
 	 * @return UserSettingsGroupBuilder
 	 */
-	public function group(string $group_id, string $heading, ?callable $description_cb = null, ?array $args = null): UserSettingsGroupBuilder {
+	public function group(string $group_id, string $heading = '', ?callable $description_cb = null, ?array $args = null): UserSettingsGroupBuilder {
 		$args = $args ?? array();
 
 		return new UserSettingsGroupBuilder(

@@ -134,14 +134,14 @@ class AdminSettingsPageBuilder implements BuilderRootInterface {
 	/**
 	 * Define a section within this page.
 	 *
-	 * @param string $section_id The section ID.
-	 * @param string $title The section title.
-	 * @param callable|null $description_cb The section description callback.
-	 * @param array<string,mixed>|null $args Optional configuration (order, before/after callbacks, classes, etc.).
+	 * @param string                   $section_id     The section ID.
+	 * @param string                   $title          The section title (optional, can be set via heading()).
+	 * @param callable|null            $description_cb The section description callback.
+	 * @param array<string,mixed>|null $args           Optional configuration (order, before/after callbacks, classes, etc.).
 	 *
 	 * @return AdminSettingsSectionBuilder The section builder instance.
 	 */
-	public function  section(string $section_id, string $title, ?callable $description_cb = null, ?array $args = null): AdminSettingsSectionBuilder {
+	public function section(string $section_id, string $title = '', ?callable $description_cb = null, ?array $args = null): AdminSettingsSectionBuilder {
 		$args  = $args          ?? array();
 		$order = $args['order'] ?? null;
 
@@ -231,6 +231,18 @@ class AdminSettingsPageBuilder implements BuilderRootInterface {
 	 * @return AdminSettingsPageBuilder The AdminSettingsPageBuilder instance.
 	 */
 	public function after(callable $after): AdminSettingsPageBuilder {
+		return $this;
+	}
+
+	/**
+	 * Set the visual style for this page.
+	 *
+	 * @param string $style The style identifier (e.g., 'card', 'plain').
+	 *
+	 * @return self
+	 */
+	public function style(string $style): self {
+		$this->_update_meta('style', $style);
 		return $this;
 	}
 
@@ -340,6 +352,9 @@ class AdminSettingsPageBuilder implements BuilderRootInterface {
 				break;
 			case 'order':
 				$this->meta['order'] = $value === null ? 0 : max(0, (int) $value);
+				break;
+			case 'style':
+				$this->meta['style'] = (string) $value;
 				break;
 			default:
 				$this->meta[$key] = $value;

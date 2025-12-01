@@ -43,6 +43,7 @@ abstract class SectionFieldContainerBuilder implements SectionFieldContainerBuil
 	/** @var callable|null */
 	protected $after;
 	protected ?int $order;
+	protected string $style = '';
 
 	/**
 	 * Default field template for fields added to this container.
@@ -74,6 +75,7 @@ abstract class SectionFieldContainerBuilder implements SectionFieldContainerBuil
 		$this->after          = $args['after']  ?? null;
 		$order                = $args['order']  ?? null;
 		$this->order          = $order === null ? null : (int) $order;
+		$this->style          = isset($args['style']) ? (string) $args['style'] : '';
 
 		$this->emit_group_metadata();
 	}
@@ -105,6 +107,18 @@ abstract class SectionFieldContainerBuilder implements SectionFieldContainerBuil
 
 	public function order(?int $order): static {
 		$this->_update_meta('order', $order);
+		return $this;
+	}
+
+	/**
+	 * Set the visual style for this container.
+	 *
+	 * @param string $style The style identifier (e.g., 'bordered', 'plain').
+	 *
+	 * @return static
+	 */
+	public function style(string $style): static {
+		$this->_update_meta('style', $style);
 		return $this;
 	}
 
@@ -326,6 +340,9 @@ abstract class SectionFieldContainerBuilder implements SectionFieldContainerBuil
 			case 'order':
 				$this->order = $value === null ? null : (int) $value;
 				break;
+			case 'style':
+				$this->style = (string) $value;
+				break;
 		}
 
 		$this->emit_group_metadata();
@@ -363,6 +380,7 @@ abstract class SectionFieldContainerBuilder implements SectionFieldContainerBuil
 				'before'      => $this->before,
 				'after'       => $this->after,
 				'order'       => $this->order,
+				'style'       => $this->style,
 			),
 		);
 	}

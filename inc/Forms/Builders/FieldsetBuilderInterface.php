@@ -19,9 +19,21 @@ interface FieldsetBuilderInterface extends SectionFieldContainerBuilderInterface
 	public function style(string $style): self;
 
 	/**
-	 * Flag the fieldset as required when any contained field requires a value.
+	 * Set the form attribute for this fieldset.
+	 * Associates the fieldset with a form element by its ID.
 	 */
-	public function required(bool $required = true): self;
+	public function form(string $form_id): self;
+
+	/**
+	 * Set the name attribute for this fieldset.
+	 */
+	public function name(string $name): self;
+
+	/**
+	 * Set the disabled state for this fieldset.
+	 * When disabled, all form controls within the fieldset are disabled.
+	 */
+	public function disabled(bool $disabled = true): self;
 
 	/**
 	 * Commit buffered data and return to the section builder.
@@ -32,8 +44,13 @@ interface FieldsetBuilderInterface extends SectionFieldContainerBuilderInterface
 
 	/**
 	 * Open a sibling fieldset on the same section.
-
+	 *
+	 * @param string $fieldset_id    The fieldset identifier.
+	 * @param string $heading        The legend (optional, can be set via heading()).
+	 * @param callable|null $description_cb The fieldset description callback.
+	 * @param array<string,mixed>|null $args Optional configuration.
+	 *
 	 * @return FieldsetBuilderInterface<TRoot, TSection>
 	 */
-	public function fieldset(string $fieldset_id, string $heading, ?callable $description_cb = null, ?array $args = null): FieldsetBuilderInterface;
+	public function fieldset(string $fieldset_id, string $heading = '', ?callable $description_cb = null, ?array $args = null): FieldsetBuilderInterface;
 }

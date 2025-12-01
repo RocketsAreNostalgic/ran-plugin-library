@@ -12,13 +12,15 @@
  *
  * @var array{
  *     group_id: string,
- *     title: string,
+ *     title?: string,
  *     description?: string,
- *     content: string,
+ *     inner_html: string,
  *     before?: string,
  *     after?: string,
  *     style?: string,
- *     required?: bool
+ *     form?: string,
+ *     name?: string,
+ *     disabled?: bool
  * } $context
  */
 
@@ -28,29 +30,45 @@ $group_id    = isset($context['group_id']) ? (string) $context['group_id'] : '';
 $title       = isset($context['title']) ? (string) $context['title'] : '';
 $description = isset($context['description']) ? (string) $context['description'] : '';
 $inner_html  = isset($context['inner_html']) ? (string) $context['inner_html'] : '';
-$style       = isset($context['style']) ? (string) $context['style'] : 'bordered';
-$required    = isset($context['required']) && $context['required'];
+$style       = isset($context['style']) ? (string) $context['style'] : '';
+$form        = isset($context['form']) ? (string) $context['form'] : '';
+$name        = isset($context['name']) ? (string) $context['name'] : '';
+$disabled    = isset($context['disabled']) && $context['disabled'];
 
 $before = (string) ($context['before'] ?? '');
 $after  = (string) ($context['after'] ?? '');
 
-$fieldset_classes = array(
+$fieldset_classes = array_filter(array(
 	'kepler-fieldset-group',
-	'kepler-fieldset-group--' . $style,
-	$required ? 'kepler-fieldset-group--required' : '',
+	$style !== '' ? 'kepler-fieldset-group--' . $style : '',
+));
+
+// Build fieldset attributes
+$fieldset_attrs = array(
+	'class' => implode(' ', $fieldset_classes),
 );
+if ($form !== '') {
+	$fieldset_attrs['form'] = $form;
+}
+if ($name !== '') {
+	$fieldset_attrs['name'] = $name;
+}
+if ($disabled) {
+	$fieldset_attrs['disabled'] = 'disabled';
+}
 
 ob_start();
 ?>
-<tr class="fieldset-row" data-group-id="<?php echo esc_attr($group_id); ?>-heading">
+<?php if ($title !== '') : ?>
+<tr class="fieldset-row" data-kepler-group-id="<?php echo esc_attr($group_id); ?>-heading">
 	<td scope="row" colspan="2">
 		<h4 class="group-title"><?php echo esc_html($title); ?></h4>
-		<?php echo $required ? '<span class="required">*</span>' : ''; ?>
 	</td>
 </tr>
-<tr class="fieldset-wrapping-row" data-group-id="<?php echo esc_attr($group_id); ?>-fieldset">
+<?php endif; ?>
+<tr class="fieldset-wrapping-row" data-kepler-group-id="<?php echo esc_attr($group_id); ?>-fieldset">
 	<td colspan="2">
-		<fieldset class="<?php echo esc_attr(implode(' ', array_filter($fieldset_classes))); ?>">
+		<fieldset <?php foreach ($fieldset_attrs as $attr => $val) : ?><?php echo esc_attr($attr); ?>="<?php echo esc_attr($val); ?>" <?php endforeach; ?>>
 			<?php if ($title !== '') : ?>
 				<legend class="screen-reader-text"><span><?php echo esc_html($title); ?></span></legend>
 			<?php endif; ?>

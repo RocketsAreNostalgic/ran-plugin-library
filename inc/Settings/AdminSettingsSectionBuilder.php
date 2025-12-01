@@ -13,9 +13,9 @@ use Ran\PluginLib\Settings\AdminSettingsPageBuilder;
 use Ran\PluginLib\Settings\AdminSettingsComponentProxy;
 use Ran\PluginLib\Forms\FormsInterface;
 use Ran\PluginLib\Forms\Component\Build\ComponentBuilderDefinitionInterface;
+use Ran\PluginLib\Forms\Builders\SimpleFieldProxy;
 use Ran\PluginLib\Forms\Builders\SectionBuilder;
 use Ran\PluginLib\Forms\Builders\ComponentBuilderProxy;
-use Ran\PluginLib\Forms\Builders\SimpleFieldProxy;
 use Ran\PluginLib\Forms\Builders\BuilderRootInterface;
 
 class AdminSettingsSectionBuilder extends SectionBuilder {
@@ -202,7 +202,7 @@ class AdminSettingsSectionBuilder extends SectionBuilder {
 	 *
 	 * @return AdminSettingsFieldsetBuilder
 	 */
-	public function fieldset(string $fieldset_id, string $heading, ?callable $description_cb = null, ?array $args = null): AdminSettingsFieldsetBuilder {
+	public function fieldset(string $fieldset_id, string $heading = '', ?callable $description_cb = null, ?array $args = null): AdminSettingsFieldsetBuilder {
 		$args = $args ?? array();
 
 		return new AdminSettingsFieldsetBuilder(
@@ -222,7 +222,7 @@ class AdminSettingsSectionBuilder extends SectionBuilder {
 	 *
 	 * @return AdminSettingsGroupBuilder
 	 */
-	public function group(string $group_id, string $heading, ?callable $description_cb = null, ?array $args = null): AdminSettingsGroupBuilder {
+	public function group(string $group_id, string $heading = '', ?callable $description_cb = null, ?array $args = null): AdminSettingsGroupBuilder {
 		$args = $args ?? array();
 
 		return new AdminSettingsGroupBuilder(
