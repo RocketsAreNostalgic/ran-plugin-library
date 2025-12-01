@@ -932,7 +932,7 @@ class AdminSettings implements FormsInterface {
 		return $this->form_session->render_element(
 			'submit-controls-wrapper',
 			array(
-				'zone_id' => $zone_id,
+				'zone_id'    => $zone_id,
 				'inner_html' => $content_with_callbacks,
 			),
 			array(

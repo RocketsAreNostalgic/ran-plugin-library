@@ -131,9 +131,7 @@ class UserSettings implements FormsInterface {
 		$this->views->register_absolute('user.group-wrapper', $templates_dir . '/group-wrapper.php');
 		$this->views->register_absolute('user.fieldset-wrapper', $templates_dir . '/fieldset-wrapper.php');
 		$this->views->register_absolute('user.field-wrapper', $templates_dir . '/field-wrapper.php');
-		// Fieldset fields use the base div-based wrapper (no <tr>) - register alias pointing to base template
-		$base_field_wrapper = dirname(__DIR__) . '/Forms/Components/layout/field/field-wrapper.php';
-		$this->views->register_absolute('fieldset-field-wrapper', $base_field_wrapper);
+		$this->views->register_absolute('fieldset-field-wrapper', $templates_dir . '/field-wrapper.php');
 
 		// Phase 6: Service initialization
 		$this->form_service    = new FormsService($this->components, $this->logger);

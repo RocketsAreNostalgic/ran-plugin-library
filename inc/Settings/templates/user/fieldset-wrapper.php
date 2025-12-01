@@ -42,8 +42,14 @@ $fieldset_classes = array(
 
 ob_start();
 ?>
-<tr class="fieldset-row" data-group-id="<?php echo esc_attr($group_id); ?>">
-	<th scope="row"><?php echo esc_html($title); ?><?php echo $required ? '<span class="required">*</span>' : ''; ?></th>
+<tr class="fieldset-row" data-group-id="<?php echo esc_attr($group_id); ?>-heading">
+	<td scope="row" colspan="2">
+		<h4 class="group-title"><?php echo esc_html($title); ?></h4>
+		<?php echo $required ? '<span class="required">*</span>' : ''; ?>
+	</td>
+</tr>
+<tr class="fieldset-wrapping-row" data-group-id="<?php echo esc_attr($group_id); ?>-fieldset">
+	<td colspan="2">
 		<fieldset class="<?php echo esc_attr(implode(' ', array_filter($fieldset_classes))); ?>">
 			<?php if ($title !== '') : ?>
 				<legend class="screen-reader-text"><span><?php echo esc_html($title); ?></span></legend>
@@ -52,9 +58,14 @@ ob_start();
 				<p class="kepler-fieldset-group__description description"><?php echo esc_html($description); ?></p>
 			<?php endif; ?>
 			<?php echo $before; ?>
-			<?php echo $inner_html; ?>
+			<table class="form-table" role="presentation">
+				<tbody>
+					<?php echo $inner_html; ?>
+				</tbody>
+			</table>
 			<?php echo $after; ?>
 		</fieldset>
+	</td>
 </tr>
 <?php
 return new ComponentRenderResult(

@@ -26,15 +26,17 @@ $after  = (string) ($context['after'] ?? '');
 
 ob_start();
 ?>
-<tr data-section-id="<?php echo esc_attr($section_id); ?>"><td colspan="2">
-<?php if ($title !== '') : ?>
-	<h3><?php echo esc_html($title); ?></h3>
-<?php endif; ?>
-<?php if ($description !== '') : ?>
-	<p class="description"><?php echo wp_kses_post($description); ?></p>
-<?php endif; ?>
-<?php echo $before; ?>
-</td></tr>
+<tr data-section-id="<?php echo esc_attr($section_id); ?>">
+	<th colspan="2">
+		<?php if ($title !== '') : ?>
+			<h3><?php echo esc_html($title); ?></h3>
+		<?php endif; ?>
+		<?php if ($description !== '') : ?>
+			<p class="description"><?php echo wp_kses_post($description); ?></p>
+		<?php endif; ?>
+		<?php echo $before; ?>
+	</th>
+</tr>
 <?php echo $inner_html; ?>
 <tr data-section-id="<?php echo esc_attr($section_id); ?>-after"><td colspan="2"><?php echo $after; ?></td></tr>
 <?php

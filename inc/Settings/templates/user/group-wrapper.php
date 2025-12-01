@@ -33,12 +33,12 @@ ob_start();
 if ($title !== '') :
 	?>
 <tr class="group-header-row" data-group-id="<?php echo esc_attr($group_id); ?>">
-	<td colspan="2"><h4 class="group-title"><?php echo esc_html($title); ?></h4></td>
+	<th colspan="2"><h4 class="group-title"><?php echo esc_html($title); ?></h4></th>
 </tr>
 <?php endif; ?>
 <?php if ($description !== '') : ?>
 <tr class="group-description-row">
-	<td colspan="2"><p class="description"><?php echo esc_html($description); ?></p></td>
+	<th colspan="2"><p class="description"><?php echo esc_html($description); ?></p></th>
 </tr>
 <?php endif; ?>
 <?php // 2. Before hook row (if before exists)

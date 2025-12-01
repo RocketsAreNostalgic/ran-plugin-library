@@ -39,12 +39,12 @@ $description         = isset($context['description']) ? (string) $context['descr
 $validation_warnings = isset($context['validation_warnings']) && is_array($context['validation_warnings']) ? $context['validation_warnings'] : array();
 $display_notices     = isset($context['display_notices'])     && is_array($context['display_notices']) ? $context['display_notices'] : array();
 
-$required            = isset($context['required']) && $context['required'];
-$field_type          = isset($context['field_type']) ? (string) $context['field_type'] : '';
-$layout              = isset($context['layout']) ? (string) $context['layout'] : 'vertical';
+$required   = isset($context['required']) && $context['required'];
+$field_type = isset($context['field_type']) ? (string) $context['field_type'] : '';
+$layout     = isset($context['layout']) ? (string) $context['layout'] : 'vertical';
 
-$field_id            = isset($context['field_id']) ? (string) $context['field_id'] : '';
-$label               = isset($context['label']) ? (string) $context['label'] : '';
+$field_id = isset($context['field_id']) ? (string) $context['field_id'] : '';
+$label    = isset($context['label']) ? (string) $context['label'] : '';
 
 ob_start();
 ?>
