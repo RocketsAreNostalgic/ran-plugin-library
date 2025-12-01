@@ -23,8 +23,9 @@ if (!isset($context['content']) || $context['content'] === '') {
 $title       = isset($context['heading']) ? (string) $context['heading'] : (isset($context['collection_title']) ? (string) $context['collection_title'] : '');
 $description = isset($context['description']) ? (string) $context['description'] : '';
 $content     = (string) $context['content'];
-$before      = isset($context['before']) ? (string) $context['before'] : '';
-$after       = isset($context['after']) ? (string) $context['after'] : '';
+
+$before = (string) ($context['before'] ?? '');
+$after  = (string) ($context['after'] ?? '');
 
 ob_start();
 ?>

@@ -20,12 +20,13 @@ $section_id  = isset($context['section_id']) ? (string) $context['section_id'] :
 $title       = isset($context['title']) ? (string) $context['title'] : '';
 $description = isset($context['description']) ? (string) $context['description'] : '';
 $content     = isset($context['content']) ? (string) $context['content'] : '';
-$before      = isset($context['before']) ? (string) $context['before'] : '';
-$after       = isset($context['after']) ? (string) $context['after'] : '';
+
+$before = (string) ($context['before'] ?? '');
+$after  = (string) ($context['after'] ?? '');
 
 ob_start();
 ?>
-<tr><td colspan="2">
+<tr data-section-id="<?php echo esc_attr($section_id); ?>"><td colspan="2">
 <?php if ($title !== '') : ?>
 	<h3><?php echo esc_html($title); ?></h3>
 <?php endif; ?>
@@ -35,7 +36,7 @@ ob_start();
 <?php echo $before; ?>
 </td></tr>
 <?php echo $content; ?>
-<tr><td colspan="2"><?php echo $after; ?></td></tr>
+<tr data-section-id="<?php echo esc_attr($section_id); ?>-after"><td colspan="2"><?php echo $after; ?></td></tr>
 <?php
 return new ComponentRenderResult(
 	(string) ob_get_clean(),

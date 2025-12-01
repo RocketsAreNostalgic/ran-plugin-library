@@ -22,20 +22,20 @@ if (!defined('ABSPATH')) {
 $form_id       = $context['form_id'] ?? '';
 $title         = $context['title']   ?? '';
 $content       = $context['content'] ?? '';
-$before        = isset($context['before']) ? (string) $context['before'] : '';
-$after         = isset($context['after'])  ? (string) $context['after']  : '';
+$before = (string) ($context['before'] ?? '');
+$after  = (string) ($context['after'] ?? '');
 $renderSubmit  = $context['render_submit'] ?? null;
 $form_messages = $context['form_messages'] ?? array();
 
 ob_start();
 ?>
-<div class="form-wrapper" data-form-id="<?php echo esc_attr($form_id); ?>">
+<div class="kepler-form-wrapper" data-form-id="<?php echo esc_attr($form_id); ?>">
 	<?php if (!empty($title)): ?>
 		<h2 class="form-title"><?php echo esc_html($title); ?></h2>
 	<?php endif; ?>
 
 	<?php if (!empty($form_messages)): ?>
-		<div class="form-messages">
+		<div class="kepler-form-messages">
 			<?php foreach ($form_messages as $message_type => $messages): ?>
 				<?php if (!empty($messages)): ?>
 					<div class="form-messages-<?php echo esc_attr($message_type); ?>">
@@ -50,7 +50,7 @@ ob_start();
 		</div>
 	<?php endif; ?>
 
-	<div class="form-content">
+	<div class="kepler-form-content">
 		<?php if ($before !== ''): ?>
 			<?php echo $before; // Hook output should already be escaped.?>
 		<?php endif; ?>

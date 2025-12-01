@@ -28,22 +28,22 @@ $section_id  = $context['section_id']  ?? '';
 $title       = $context['title']       ?? '';
 $description = $context['description'] ?? '';
 $content     = $context['content']     ?? '';
-$before      = isset($context['before']) ? (string) $context['before'] : '';
-$after       = isset($context['after'])  ? (string) $context['after']  : '';
+$before = (string) ($context['before'] ?? '');
+$after  = (string) ($context['after'] ?? '');
 
 ob_start();
 ?>
 <div class="form-section" data-section-id="<?php echo esc_attr($section_id); ?>">
-	<?php if ($before !== ''): ?>
-		<?php echo $before; // Hook output should already be escaped.?>
-	<?php endif; ?>
-
 	<?php if (!empty($title)): ?>
 		<h3 class="form-section-title"><?php echo esc_html($title); ?></h3>
 	<?php endif; ?>
 
 	<?php if (!empty($description)): ?>
 		<p class="form-section-description"><?php echo esc_html($description); ?></p>
+	<?php endif; ?>
+
+	<?php if ($before !== ''): ?>
+		<?php echo $before; // Hook output should already be escaped.?>
 	<?php endif; ?>
 
 	<div class="form-section-content">

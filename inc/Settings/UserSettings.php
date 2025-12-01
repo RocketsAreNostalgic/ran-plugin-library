@@ -131,11 +131,9 @@ class UserSettings implements FormsInterface {
 		$this->views->register_absolute('user.group-wrapper', $templates_dir . '/group-wrapper.php');
 		$this->views->register_absolute('user.fieldset-wrapper', $templates_dir . '/fieldset-wrapper.php');
 		$this->views->register_absolute('user.field-wrapper', $templates_dir . '/field-wrapper.php');
-		// Fieldset fields use a non-table wrapper (no <tr>) matching WP core pattern
-		$this->views->register_absolute('user.fieldset-field-wrapper', $templates_dir . '/fieldset-field-wrapper.php');
-		// Short alias needed because field template overrides store the short key directly
-		// (e.g., 'field-wrapper' => 'fieldset-field-wrapper' in the override map)
-		$this->views->register_absolute('fieldset-field-wrapper', $templates_dir . '/fieldset-field-wrapper.php');
+		// Fieldset fields use the base div-based wrapper (no <tr>) - register alias pointing to base template
+		$base_field_wrapper = dirname(__DIR__) . '/Forms/Components/layout/field/field-wrapper.php';
+		$this->views->register_absolute('fieldset-field-wrapper', $base_field_wrapper);
 
 		// Phase 6: Service initialization
 		$this->form_service    = new FormsService($this->components, $this->logger);
@@ -147,11 +145,10 @@ class UserSettings implements FormsInterface {
 		$this->_start_form_session();
 		// UserSettings overrides all template levels for profile-specific rendering
 		$this->form_session->set_form_defaults(array(
-			'root-wrapper'           => 'user.root-wrapper',
-			'section-wrapper'        => 'user.section-wrapper',
-			'group-wrapper'          => 'user.group-wrapper',
-			'field-wrapper'          => 'user.field-wrapper',
-			'fieldset-field-wrapper' => 'user.fieldset-field-wrapper',
+			'root-wrapper'    => 'user.root-wrapper',
+			'section-wrapper' => 'user.section-wrapper',
+			'group-wrapper'   => 'user.group-wrapper',
+			'field-wrapper'   => 'user.field-wrapper',
 		));
 	}
 

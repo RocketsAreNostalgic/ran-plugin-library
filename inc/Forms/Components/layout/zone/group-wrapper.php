@@ -33,8 +33,8 @@ $content     = $context['content']     ?? '';
 $layout      = $context['layout']      ?? 'vertical';
 $columns     = $context['columns']     ?? 2;
 $spacing     = $context['spacing']     ?? 'normal';
-$before      = isset($context['before']) ? (string) $context['before'] : '';
-$after       = isset($context['after'])  ? (string) $context['after']  : '';
+$before = (string) ($context['before'] ?? '');
+$after  = (string) ($context['after'] ?? '');
 
 $group_classes = array(
     'group-wrapper',

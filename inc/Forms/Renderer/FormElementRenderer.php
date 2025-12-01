@@ -566,10 +566,6 @@ class FormElementRenderer {
 			}
 		}
 
-		if (isset($template_context['context']) && is_array($template_context['context'])) {
-			$template_context['context'] = $this->sanitize_nested_context_fragments($template_context['context']);
-		}
-
 		return $template_context;
 	}
 
@@ -630,42 +626,6 @@ class FormElementRenderer {
 		));
 
 		return '';
-	}
-
-	/**
-	 * Recursively sanitize nested context fragments that templates may echo.
-	 *
-	 * @param array<string,mixed> $context
-	 * @return array<string,mixed>
-	 */
-	private function sanitize_nested_context_fragments(array $context): array {
-		$fragment_keys = array('before', 'after', 'description', 'content', 'component_html');
-
-		foreach ($context as $key => $value) {
-			if (in_array($key, $fragment_keys, true)) {
-				$context[$key] = $this->coerce_wrapper_fragment($value, (string) $key);
-				continue;
-			}
-
-			if (is_array($value)) {
-				$context[$key] = $this->sanitize_nested_context_fragments($value);
-				continue;
-			}
-
-			if ($value instanceof ComponentRenderResult) {
-				$context[$key] = $value->markup;
-				continue;
-			}
-
-			if (is_callable($value)) {
-				$this->_get_logger()->warning('FormElementRenderer: Nested context fragment was callable; discarding', array(
-					'fragment_key' => $key,
-				));
-				$context[$key] = '';
-			}
-		}
-
-		return $context;
 	}
 
 	/**

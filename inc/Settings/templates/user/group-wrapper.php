@@ -23,8 +23,9 @@ $group_id    = isset($context['group_id']) ? (string) $context['group_id'] : '';
 $title       = isset($context['title']) ? (string) $context['title'] : '';
 $description = isset($context['description']) ? (string) $context['description'] : '';
 $content     = isset($context['content']) ? (string) $context['content'] : '';
-$before      = isset($context['before']) ? (string) $context['before'] : '';
-$after       = isset($context['after']) ? (string) $context['after'] : '';
+
+$before = (string) ($context['before'] ?? '');
+$after  = (string) ($context['after'] ?? '');
 
 ob_start();
 

@@ -36,6 +36,7 @@ class FormsTemplateOverrideResolver {
 		'group'                   => 'layout.zone.group-wrapper',
 		'field-wrapper'           => 'layout.field.field-wrapper',
 		'field'                   => 'layout.field.field-wrapper',
+		'fieldset-field-wrapper'  => 'layout.field.field-wrapper', // Fields inside fieldsets use div-based wrapper
 		'submit-controls-wrapper' => 'layout.zone.submit-controls-wrapper',
 	);
 

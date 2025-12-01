@@ -1,8 +1,8 @@
 <?php
 /**
- * Modern AdminSettings Field Wrapper Template
+ * Field Wrapper Template
  *
- * A modern field wrapper with clean styling, proper accessibility,
+ * A field wrapper with clean styling, proper accessibility,
  * and comprehensive validation message handling.
  *
  * Expected $context keys:
@@ -27,18 +27,35 @@ if (!defined('ABSPATH')) {
 	exit;
 }
 
-// Extract context variables
-$field_id            = $context['field_id']            ?? '';
-$label               = $context['label']               ?? '';
-$component_html      = $context['component_html']      ?? '';
-$before              = $context['before']              ?? '';
-$after               = $context['after']               ?? '';
+// Support both 'content' and 'component_html' keys for compatibility
+$content = '';
+if (isset($context['content']) && $context['content'] !== '') {
+	$content = (string) $context['content'];
+} elseif (isset($context['component_html']) && $context['component_html'] !== '') {
+	$content = (string) $context['component_html'];
+}
+
+// Early return if no content
+if ($content === '') {
+	return new ComponentRenderResult(
+		markup: '',
+		component_type: ComponentType::LayoutWrapper
+	);
+}
+
+$before = (string) ($context['before'] ?? '');
+$after  = (string) ($context['after'] ?? '');
+
+$description         = $context['description']         ?? '';
 $validation_warnings = $context['validation_warnings'] ?? array();
 $display_notices     = $context['display_notices']     ?? array();
-$description         = $context['description']         ?? '';
+
 $required            = $context['required']            ?? false;
 $field_type          = $context['field_type']          ?? '';
 $layout              = $context['layout']              ?? 'vertical';
+
+$field_id 			 = $context['field_id'] ?? '';
+$label    			 = $context['label']    ?? '';
 
 $wrapper_classes = array(
     'field-wrapper',
@@ -48,8 +65,8 @@ $wrapper_classes = array(
     !empty($validation_warnings) ? 'field-wrapper--has-warnings' : '',
     !empty($display_notices) ? 'field-wrapper--has-notices' : ''
 );
-
 ob_start();
+
 ?>
 <div class="<?php echo esc_attr(implode(' ', array_filter($wrapper_classes))); ?>" data-field-id="<?php echo esc_attr($field_id); ?>">
     <div class="field-wrapper__label-section">
@@ -68,40 +85,37 @@ ob_start();
             </div>
         <?php endif; ?>
     </div>
-
     <div class="field-wrapper__input-section">
         <div class="field-wrapper__input-container">
             <?php if ($before !== ''): ?>
                 <?php echo $before; // Hook output should already be escaped.?>
             <?php endif; ?>
-
-            <?php echo $component_html; // Already escaped?>
-
+            <?php echo $content // Already escaped?>
             <?php if ($after !== ''): ?>
                 <?php echo $after; // Hook output should already be escaped.?>
             <?php endif; ?>
         </div>
-
+		<?php if ($description !== '') : ?>
+			<p class="description"><?php echo esc_html($description); ?></p>
+		<?php endif; ?>
         <?php if (!empty($description) && $layout === 'vertical'): ?>
             <div class="field-wrapper__description">
                 <?php echo esc_html($description); ?>
             </div>
         <?php endif; ?>
-
         <?php if (!empty($validation_warnings) || !empty($display_notices)): ?>
             <div class="field-wrapper__messages">
                 <?php if (!empty($validation_warnings)): ?>
-                    <div class="field-wrapper__warnings" role="alert">
+                    <div class="form-field-warnings" role="alert">
                         <?php foreach ($validation_warnings as $warning): ?>
-                            <div class="field-wrapper__warning">
+                            <div class="form-field-warning error">
                                 <?php echo esc_html($warning); ?>
                             </div>
                         <?php endforeach; ?>
                     </div>
                 <?php endif; ?>
-
                 <?php if (!empty($display_notices)): ?>
-                    <div class="field-wrapper__notices">
+                    <div class="form-field-notices">
                         <?php foreach ($display_notices as $notice): ?>
                             <div class="field-wrapper__notice">
                                 <?php echo esc_html($notice); ?>

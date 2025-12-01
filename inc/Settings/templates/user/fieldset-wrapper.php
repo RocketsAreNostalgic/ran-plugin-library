@@ -28,34 +28,33 @@ $group_id    = isset($context['group_id']) ? (string) $context['group_id'] : '';
 $title       = isset($context['title']) ? (string) $context['title'] : '';
 $description = isset($context['description']) ? (string) $context['description'] : '';
 $content     = isset($context['content']) ? (string) $context['content'] : '';
-$before      = isset($context['before']) ? (string) $context['before'] : '';
-$after       = isset($context['after']) ? (string) $context['after'] : '';
 $style       = isset($context['style']) ? (string) $context['style'] : 'bordered';
 $required    = isset($context['required']) && $context['required'];
 
+$before = (string) ($context['before'] ?? '');
+$after  = (string) ($context['after'] ?? '');
+
 $fieldset_classes = array(
-	'fieldset-group',
-	'fieldset-group--' . $style,
-	$required ? 'fieldset-group--required' : '',
+	'kepler-fieldset-group',
+	'kepler-fieldset-group--' . $style,
+	$required ? 'kepler-fieldset-group--required' : '',
 );
 
 ob_start();
 ?>
 <tr class="fieldset-row" data-group-id="<?php echo esc_attr($group_id); ?>">
 	<th scope="row"><?php echo esc_html($title); ?><?php echo $required ? '<span class="required">*</span>' : ''; ?></th>
-	<td>
 		<fieldset class="<?php echo esc_attr(implode(' ', array_filter($fieldset_classes))); ?>">
 			<?php if ($title !== '') : ?>
 				<legend class="screen-reader-text"><span><?php echo esc_html($title); ?></span></legend>
 			<?php endif; ?>
 			<?php if ($description !== '') : ?>
-				<p class="fieldset-group__description description"><?php echo esc_html($description); ?></p>
+				<p class="kepler-fieldset-group__description description"><?php echo esc_html($description); ?></p>
 			<?php endif; ?>
 			<?php echo $before; ?>
 			<?php echo $content; ?>
 			<?php echo $after; ?>
 		</fieldset>
-	</td>
 </tr>
 <?php
 return new ComponentRenderResult(

@@ -31,8 +31,9 @@ $description = $context['description'] ?? '';
 $content     = $context['content']     ?? '';
 $style       = $context['style']       ?? 'bordered';
 $required    = $context['required']    ?? false;
-$before      = $context['before']      ?? '';
-$after       = $context['after']       ?? '';
+
+$before = (string) ($context['before'] ?? '');
+$after  = (string) ($context['after'] ?? '');
 
 $fieldset_classes = array(
     'fieldset-group',
