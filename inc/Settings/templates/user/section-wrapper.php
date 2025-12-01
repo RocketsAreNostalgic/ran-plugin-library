@@ -26,14 +26,13 @@ $after       = isset($context['after']) ? (string) $context['after'] : '';
 ob_start();
 ?>
 <tr><td colspan="2">
-<?php echo $before; ?>
 <?php if ($title !== '') : ?>
 	<h3><?php echo esc_html($title); ?></h3>
 <?php endif; ?>
-
 <?php if ($description !== '') : ?>
 	<p class="description"><?php echo wp_kses_post($description); ?></p>
 <?php endif; ?>
+<?php echo $before; ?>
 </td></tr>
 <?php echo $content; ?>
 <tr><td colspan="2"><?php echo $after; ?></td></tr>

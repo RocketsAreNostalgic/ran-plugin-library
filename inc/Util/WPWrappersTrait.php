@@ -855,17 +855,22 @@ trait WPWrappersTrait {
 	}
 
 	/**
-	 * Public wrapper for WordPress plugins_url
+	 * Public wrapper for WordPress plugins_url()
 	 *
 	 * Availability-guarded: Yes
 	 * Rationale: plugins_url() may be unavailable; empty string is a safe sentinel
 	 * for front-end URL composition.
 	 *
+	 * @param string $path   Optional. Extra path appended to the end of the URL, including
+	 *                       the relative directory if $plugin is supplied. Default empty.
+	 * @param string $plugin Optional. A full path to a file inside a plugin or mu-plugin.
+	 *                       The URL will be relative to its directory. Default empty.
+	 *                       Typically this is done by passing `__FILE__` as the argument.
 	 * @internal
 	 * @return string
 	 */
-	protected function _do_plugins_url(): string {
-		return \function_exists('plugins_url') ? (string) \plugins_url() : '';
+	protected function _do_plugins_url(string $path = '', string $plugin = ''): string {
+		return \function_exists('plugins_url') ? (string) \plugins_url($path, $plugin) : '';
 	}
 
 	/**

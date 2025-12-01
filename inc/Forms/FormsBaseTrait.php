@@ -1084,6 +1084,7 @@ trait FormsBaseTrait {
 		$this->groups[$container_id][$section_id][$group_id]['order']    = (int) ($group_data['order'] ?? 0);
 		$this->groups[$container_id][$section_id][$group_id]['style']    = (string) ($group_data['style'] ?? 'bordered');
 		$this->groups[$container_id][$section_id][$group_id]['required'] = (bool) ($group_data['required'] ?? false);
+		$this->groups[$container_id][$section_id][$group_id]['type']     = (string) ($group_data['type'] ?? 'group');
 		$this->logger->debug('settings.builder.group.metadata', array(
 			'container_id' => $container_id,
 			'section_id'   => $section_id,
@@ -1345,17 +1346,8 @@ trait FormsBaseTrait {
 					return ($a['order'] <=> $b['order']) ?: ($a['index'] <=> $b['index']);
 				});
 
-				// Group before callback
-				$group_before = $this->_render_callback_output($group['before'] ?? null, array(
-					'group_id'     => $group['group_id'] ?? '',
-					'section_id'   => $section_id,
-					'container_id' => $id_slug,
-					'fields'       => $group_fields,
-					'values'       => $values,
-				)) ?? '';
-				$section_content .= $this->_wrap_group_hook($group_before);
-
-				// Render each field in the group
+				// Render group fields content
+				$group_fields_content = '';
 				foreach ($group_fields as $group_field) {
 					$field_item = array(
 						'field'  => $group_field,
@@ -1374,10 +1366,17 @@ trait FormsBaseTrait {
 							'values'       => $values,
 						)),
 					);
-					$section_content .= $this->_render_default_field_wrapper($field_item, $values);
+					$group_fields_content .= $this->_render_default_field_wrapper($field_item, $values);
 				}
 
-				// Group after callback
+				// Render group before/after callbacks
+				$group_before = $this->_render_callback_output($group['before'] ?? null, array(
+					'group_id'     => $group['group_id'] ?? '',
+					'section_id'   => $section_id,
+					'container_id' => $id_slug,
+					'fields'       => $group_fields,
+					'values'       => $values,
+				)) ?? '';
 				$group_after = $this->_render_callback_output($group['after'] ?? null, array(
 					'group_id'     => $group['group_id'] ?? '',
 					'section_id'   => $section_id,
@@ -1385,7 +1384,9 @@ trait FormsBaseTrait {
 					'fields'       => $group_fields,
 					'values'       => $values,
 				)) ?? '';
-				$section_content .= $this->_wrap_group_hook($group_after);
+
+				// Render group using wrapper template
+				$section_content .= $this->_render_group_wrapper($group, $group_fields_content, $group_before, $group_after, $values);
 			}
 
 			// Render standalone fields
@@ -1470,6 +1471,70 @@ trait FormsBaseTrait {
 	 */
 	protected function _wrap_group_hook(string $content): string {
 		return $content;
+	}
+
+	/**
+	 * Render a group/fieldset using the group-wrapper template.
+	 *
+	 * @param array<string,mixed> $group Group metadata (group_id, title, style, etc.)
+	 * @param string $fields_content Pre-rendered fields HTML
+	 * @param string $before_content Pre-rendered before hook HTML
+	 * @param string $after_content Pre-rendered after hook HTML
+	 * @param array<string,mixed> $values Current field values
+	 *
+	 * @return string Rendered group HTML
+	 */
+	protected function _render_group_wrapper(array $group, string $fields_content, string $before_content, string $after_content, array $values): string {
+		$group_id = $group['group_id'] ?? '';
+		$title    = $group['title']    ?? '';
+		$style    = $group['style']    ?? 'bordered';
+
+		// Build context for the group wrapper template
+		$group_context = array(
+			'group_id'    => $group_id,
+			'title'       => $title,
+			'description' => '', // Could be added if groups support description callbacks
+			'content'     => $fields_content,
+			'before'      => $before_content,
+			'after'       => $after_content,
+			'layout'      => 'vertical',
+			'spacing'     => 'normal',
+			'style'       => $style,
+			'values'      => $values,
+		);
+
+		// Try to render using the group-wrapper template
+		try {
+			if ($this->form_session === null) {
+				$this->_start_form_session();
+			}
+
+			$result = $this->form_session->render_component('group-wrapper', $group_context);
+			if ($result !== '') {
+				return $result;
+			}
+		} catch (\Throwable $e) {
+			$this->logger->warning('FormsBaseTrait: Group wrapper template failed, using fallback', array(
+				'group_id'          => $group_id,
+				'exception_message' => $e->getMessage(),
+			));
+		}
+
+		// Fallback: render without template
+		$output = '';
+		if ($title !== '') {
+			$output .= '<div class="group-wrapper" data-group-id="' . esc_attr($group_id) . '">';
+			$output .= '<h4 class="group-wrapper__title">' . esc_html($title) . '</h4>';
+			$output .= '<div class="group-wrapper__content">';
+		}
+		$output .= $before_content;
+		$output .= $fields_content;
+		$output .= $after_content;
+		if ($title !== '') {
+			$output .= '</div></div>';
+		}
+
+		return $output;
 	}
 
 	protected function _render_callback_output(?callable $callback, array $context): ?string {

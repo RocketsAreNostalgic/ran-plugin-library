@@ -44,7 +44,12 @@ class FieldsetBuilder extends SectionFieldContainerBuilder implements FieldsetBu
 			$args
 		);
 
+		// Set fieldset-specific templates
 		$this->template('fieldset-wrapper');
+		// Fields inside fieldsets use a non-table wrapper (no <tr>)
+		// Note: This is a short key that will be resolved via form_defaults
+		// UserSettings maps 'fieldset-field-wrapper' => 'user.fieldset-field-wrapper'
+		$this->default_field_template = 'fieldset-field-wrapper';
 	}
 
 	public function style(string $style): self {
@@ -98,6 +103,7 @@ class FieldsetBuilder extends SectionFieldContainerBuilder implements FieldsetBu
 
 	protected function _build_update_payload(string $key, mixed $value): array {
 		$payload                           = parent::_build_update_payload($key, $value);
+		$payload['group_data']['type']     = 'fieldset'; // Override parent's 'group' type
 		$payload['group_data']['style']    = $this->style;
 		$payload['group_data']['required'] = $this->required;
 

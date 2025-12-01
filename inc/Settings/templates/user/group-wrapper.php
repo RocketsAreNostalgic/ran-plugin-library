@@ -1,17 +1,63 @@
 <?php
 /**
- * Template for rendering a collection of already-rendered field rows (groups).
+ * Template for rendering a group/fieldset in UserSettings table-based layout.
+ *
+ * Groups and fieldsets are rendered as table rows to maintain WordPress profile page compatibility.
+ * Order: Title → Description → Before → Content (fields) → After
  *
  * @var array{
- *     rows: array<int, string>
+ *     group_id: string,
+ *     title: string,
+ *     description?: string,
+ *     content: string,
+ *     before?: string,
+ *     after?: string,
+ *     style?: string,
+ *     type?: string
  * } $context
  */
 
 use Ran\PluginLib\Forms\Component\ComponentRenderResult;
 
-$rows = isset($context['rows']) && is_array($context['rows']) ? $context['rows'] : array();
+$group_id    = isset($context['group_id']) ? (string) $context['group_id'] : '';
+$title       = isset($context['title']) ? (string) $context['title'] : '';
+$description = isset($context['description']) ? (string) $context['description'] : '';
+$content     = isset($context['content']) ? (string) $context['content'] : '';
+$before      = isset($context['before']) ? (string) $context['before'] : '';
+$after       = isset($context['after']) ? (string) $context['after'] : '';
+
+ob_start();
+
+// 1. Title row (if title exists)
+if ($title !== '') :
+	?>
+<tr class="group-header-row" data-group-id="<?php echo esc_attr($group_id); ?>">
+	<td colspan="2"><h4 class="group-title"><?php echo esc_html($title); ?></h4></td>
+</tr>
+<?php endif; ?>
+<?php if ($description !== '') : ?>
+<tr class="group-description-row">
+	<td colspan="2"><p class="description"><?php echo esc_html($description); ?></p></td>
+</tr>
+<?php endif; ?>
+<?php // 2. Before hook row (if before exists)
+if ($before !== '') : ?>
+<tr class="group-before-row">
+	<td colspan="2"><?php echo $before; ?></td>
+</tr>
+<?php endif; ?>
+<?php
+// 3. Content (fields - already formatted as table rows)
+echo $content;
+?>
+<?php // 4. After hook row (if after exists)
+if ($after !== '') : ?>
+<tr class="group-after-row">
+	<td colspan="2"><?php echo $after; ?></td>
+</tr>
+<?php endif;
 
 return new ComponentRenderResult(
-	markup: implode('', array_map('strval', $rows)),
+	markup: (string) ob_get_clean(),
 	component_type: 'layout_wrapper'
 );

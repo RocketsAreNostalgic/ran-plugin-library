@@ -1,6 +1,11 @@
 <?php
 /**
- * Template for rendering a single field row in user profile sections.
+ * Template for rendering a field inside a fieldset (no table rows).
+ *
+ * Matches WordPress core pattern (e.g., color picker radio buttons):
+ * - No <tr>/<th>/<td> wrappers
+ * - Input + label inline or stacked
+ * - Used for radio groups, checkbox groups, etc.
  *
  * @var array{
  *     label: string,
@@ -44,34 +49,30 @@ $after          = (string) ($context['after'] ?? $nested_context['after'] ?? '')
 
 ob_start();
 ?>
-<tr>
-	<th scope="row">
-		<?php if ($label !== '') : ?>
-			<label<?php echo $field_id !== '' ? ' for="' . esc_attr($field_id) . '"' : ''; ?>><?php echo esc_html($label); ?></label>
-		<?php endif; ?>
-	</th>
-	<td>
-		<?php echo $before; ?>
-		<?php echo $content; ?>
-		<?php echo $after; ?>
+<div class="kepler-fieldset-field" data-field-id="<?php echo esc_attr($field_id); ?>">
+	<?php echo $before; ?>
+	<?php if ($label !== '') : ?>
+		<label<?php echo $field_id !== '' ? ' for="' . esc_attr($field_id) . '"' : ''; ?>><?php echo esc_html($label); ?></label>
+	<?php endif; ?>
+	<?php echo $content; ?>
+	<?php echo $after; ?>
 
-		<?php if (!empty($validation_warnings)) : ?>
-			<div class="form-field-warnings">
-				<?php foreach ($validation_warnings as $warning) : ?>
-					<p class="form-field-warning error"><?php echo esc_html($warning); ?></p>
-				<?php endforeach; ?>
-			</div>
-		<?php endif; ?>
+	<?php if (!empty($validation_warnings)) : ?>
+		<div class="form-field-warnings">
+			<?php foreach ($validation_warnings as $warning) : ?>
+				<p class="form-field-warning error"><?php echo esc_html($warning); ?></p>
+			<?php endforeach; ?>
+		</div>
+	<?php endif; ?>
 
-		<?php if (!empty($display_notices)) : ?>
-			<div class="form-field-notices">
-				<?php foreach ($display_notices as $notice) : ?>
-					<p class="form-field-notice notice"><?php echo esc_html($notice); ?></p>
-				<?php endforeach; ?>
-			</div>
-		<?php endif; ?>
-	</td>
-</tr>
+	<?php if (!empty($display_notices)) : ?>
+		<div class="form-field-notices">
+			<?php foreach ($display_notices as $notice) : ?>
+				<p class="form-field-notice notice"><?php echo esc_html($notice); ?></p>
+			<?php endforeach; ?>
+		</div>
+	<?php endif; ?>
+</div>
 <?php
 return new ComponentRenderResult(
 	markup: (string) ob_get_clean(),

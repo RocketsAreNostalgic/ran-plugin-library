@@ -27,7 +27,6 @@ $before      = isset($context['before']) ? (string) $context['before'] : '';
 $after       = isset($context['after']) ? (string) $context['after'] : '';
 
 ob_start();
-echo $before;
 ?>
 <?php if ($title !== '') : ?>
 	<h2><?php echo esc_html($title); ?></h2>
@@ -35,6 +34,7 @@ echo $before;
 <?php if ($description !== '') : ?>
 	<p class="description"><?php echo esc_html($description); ?></p>
 <?php endif; ?>
+<?php echo $before; ?>
 <table class="form-table" role="presentation">
 	<?php echo $content; ?>
 </table>

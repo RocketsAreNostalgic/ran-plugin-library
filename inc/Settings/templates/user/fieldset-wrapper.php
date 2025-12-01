@@ -1,0 +1,64 @@
+<?php
+/**
+ * Template for rendering a fieldset in UserSettings table-based layout.
+ *
+ * Matches WordPress core pattern (e.g., Admin Color Scheme in profile):
+ * - Fieldset is inside <td>, not wrapping the row
+ * - Legend uses screen-reader-text (visually hidden, accessible)
+ * - <th> provides visible label, legend duplicates for accessibility
+ * - No nested table - content rendered directly in fieldset
+ *
+ * Order: Title (th) → Legend (sr-only) → Description → Before → Content → After
+ *
+ * @var array{
+ *     group_id: string,
+ *     title: string,
+ *     description?: string,
+ *     content: string,
+ *     before?: string,
+ *     after?: string,
+ *     style?: string,
+ *     required?: bool
+ * } $context
+ */
+
+use Ran\PluginLib\Forms\Component\ComponentRenderResult;
+
+$group_id    = isset($context['group_id']) ? (string) $context['group_id'] : '';
+$title       = isset($context['title']) ? (string) $context['title'] : '';
+$description = isset($context['description']) ? (string) $context['description'] : '';
+$content     = isset($context['content']) ? (string) $context['content'] : '';
+$before      = isset($context['before']) ? (string) $context['before'] : '';
+$after       = isset($context['after']) ? (string) $context['after'] : '';
+$style       = isset($context['style']) ? (string) $context['style'] : 'bordered';
+$required    = isset($context['required']) && $context['required'];
+
+$fieldset_classes = array(
+	'fieldset-group',
+	'fieldset-group--' . $style,
+	$required ? 'fieldset-group--required' : '',
+);
+
+ob_start();
+?>
+<tr class="fieldset-row" data-group-id="<?php echo esc_attr($group_id); ?>">
+	<th scope="row"><?php echo esc_html($title); ?><?php echo $required ? '<span class="required">*</span>' : ''; ?></th>
+	<td>
+		<fieldset class="<?php echo esc_attr(implode(' ', array_filter($fieldset_classes))); ?>">
+			<?php if ($title !== '') : ?>
+				<legend class="screen-reader-text"><span><?php echo esc_html($title); ?></span></legend>
+			<?php endif; ?>
+			<?php if ($description !== '') : ?>
+				<p class="fieldset-group__description description"><?php echo esc_html($description); ?></p>
+			<?php endif; ?>
+			<?php echo $before; ?>
+			<?php echo $content; ?>
+			<?php echo $after; ?>
+		</fieldset>
+	</td>
+</tr>
+<?php
+return new ComponentRenderResult(
+	markup: (string) ob_get_clean(),
+	component_type: 'layout_wrapper'
+);

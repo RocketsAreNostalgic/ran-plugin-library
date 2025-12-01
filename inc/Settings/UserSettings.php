@@ -129,7 +129,13 @@ class UserSettings implements FormsInterface {
 		$this->views->register_absolute('user.root-wrapper', $templates_dir . '/root-wrapper.php');
 		$this->views->register_absolute('user.section-wrapper', $templates_dir . '/section-wrapper.php');
 		$this->views->register_absolute('user.group-wrapper', $templates_dir . '/group-wrapper.php');
+		$this->views->register_absolute('user.fieldset-wrapper', $templates_dir . '/fieldset-wrapper.php');
 		$this->views->register_absolute('user.field-wrapper', $templates_dir . '/field-wrapper.php');
+		// Fieldset fields use a non-table wrapper (no <tr>) matching WP core pattern
+		$this->views->register_absolute('user.fieldset-field-wrapper', $templates_dir . '/fieldset-field-wrapper.php');
+		// Short alias needed because field template overrides store the short key directly
+		// (e.g., 'field-wrapper' => 'fieldset-field-wrapper' in the override map)
+		$this->views->register_absolute('fieldset-field-wrapper', $templates_dir . '/fieldset-field-wrapper.php');
 
 		// Phase 6: Service initialization
 		$this->form_service    = new FormsService($this->components, $this->logger);
@@ -141,10 +147,11 @@ class UserSettings implements FormsInterface {
 		$this->_start_form_session();
 		// UserSettings overrides all template levels for profile-specific rendering
 		$this->form_session->set_form_defaults(array(
-			'root-wrapper'    => 'user.root-wrapper',
-			'section-wrapper' => 'user.section-wrapper',
-			'group-wrapper'   => 'user.group-wrapper',
-			'field-wrapper'   => 'user.field-wrapper',
+			'root-wrapper'           => 'user.root-wrapper',
+			'section-wrapper'        => 'user.section-wrapper',
+			'group-wrapper'          => 'user.group-wrapper',
+			'field-wrapper'          => 'user.field-wrapper',
+			'fieldset-field-wrapper' => 'user.fieldset-field-wrapper',
 		));
 	}
 
@@ -250,6 +257,26 @@ class UserSettings implements FormsInterface {
 		$hooks[] = array(
 			'hook'          => 'edit_user_profile_update',
 			'callback'      => $save,
+			'priority'      => 10,
+			'accepted_args' => 1,
+		);
+
+		// Enqueue UserSettings CSS on profile pages
+		$enqueue_styles = function (string $hook_suffix): void {
+			if (!in_array($hook_suffix, array('profile.php', 'user-edit.php'), true)) {
+				return;
+			}
+			$css_url = $this->_do_plugins_url('assets/user.fieldset.css', __FILE__);
+			$this->_do_wp_enqueue_style(
+				'ran-plugin-lib-user-settings',
+				$css_url,
+				array(),
+				'1.0.0'
+			);
+		};
+		$hooks[] = array(
+			'hook'          => 'admin_enqueue_scripts',
+			'callback'      => $enqueue_styles,
 			'priority'      => 10,
 			'accepted_args' => 1,
 		);
@@ -694,5 +721,70 @@ class UserSettings implements FormsInterface {
 			return '';
 		}
 		return '<tr><td colspan="2">' . $content . '</td></tr>';
+	}
+
+	/**
+	 * Render a group/fieldset using the appropriate user template.
+	 *
+	 * Groups use user.group-wrapper (table rows).
+	 * Fieldsets use user.fieldset-wrapper (semantic fieldset with nested table).
+	 *
+	 * @param array<string,mixed> $group Group metadata
+	 * @param string $fields_content Pre-rendered fields HTML
+	 * @param string $before_content Pre-rendered before hook HTML
+	 * @param string $after_content Pre-rendered after hook HTML
+	 * @param array<string,mixed> $values Current field values
+	 *
+	 * @return string Rendered group HTML
+	 */
+	protected function _render_group_wrapper(array $group, string $fields_content, string $before_content, string $after_content, array $values): string {
+		$type          = $group['type'] ?? 'group';
+		$group_context = array(
+			'group_id'    => $group['group_id']    ?? '',
+			'title'       => $group['title']       ?? '',
+			'description' => $group['description'] ?? '',
+			'content'     => $fields_content,
+			'before'      => $before_content,
+			'after'       => $after_content,
+			'style'       => $group['style']    ?? 'bordered',
+			'required'    => $group['required'] ?? false,
+			'values'      => $values,
+		);
+
+		// Select template based on type
+		$template = $type === 'fieldset' ? 'user.fieldset-wrapper' : 'user.group-wrapper';
+
+		try {
+			$result = $this->views->render($template, $group_context);
+			if ($result->markup !== '') {
+				return $result->markup;
+			}
+		} catch (\Throwable $e) {
+			$this->logger->warning('UserSettings: ' . $template . ' template failed, using fallback', array(
+				'group_id'          => $group_context['group_id'],
+				'type'              => $type,
+				'exception_message' => $e->getMessage(),
+			));
+		}
+
+		// Fallback if template fails
+		$output   = '';
+		$title    = $group_context['title'];
+		$group_id = $group_context['group_id'];
+
+		if ($title !== '') {
+			$output .= '<tr class="group-header-row" data-group-id="' . esc_attr($group_id) . '">';
+			$output .= '<td colspan="2"><h4 class="group-title">' . esc_html($title) . '</h4></td>';
+			$output .= '</tr>';
+		}
+		if ($before_content !== '') {
+			$output .= '<tr class="group-before-row"><td colspan="2">' . $before_content . '</td></tr>';
+		}
+		$output .= $fields_content;
+		if ($after_content !== '') {
+			$output .= '<tr class="group-after-row"><td colspan="2">' . $after_content . '</td></tr>';
+		}
+
+		return $output;
 	}
 }

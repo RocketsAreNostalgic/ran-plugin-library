@@ -45,6 +45,12 @@ abstract class SectionFieldContainerBuilder implements SectionFieldContainerBuil
 	protected ?int $order;
 
 	/**
+	 * Default field template for fields added to this container.
+	 * If set, fields without an explicit field_template will use this.
+	 */
+	protected ?string $default_field_template = null;
+
+	/**
 	 * @param array<string,mixed> $args
 	 */
 	public function __construct(
@@ -110,7 +116,7 @@ abstract class SectionFieldContainerBuilder implements SectionFieldContainerBuil
 	public function field(string $field_id, string $label, string $component, array $args = array()): ComponentBuilderProxy|SimpleFieldProxy {
 		$component_context = $args['context']        ?? $args['component_context'] ?? array();
 		$order             = $args['order']          ?? null;
-		$field_template    = $args['field_template'] ?? null;
+		$field_template    = $args['field_template'] ?? $this->default_field_template;
 		$before            = $args['before']         ?? null;
 		$after             = $args['after']          ?? null;
 
@@ -145,7 +151,7 @@ abstract class SectionFieldContainerBuilder implements SectionFieldContainerBuil
 			}
 
 			if ($field_template !== null) {
-				$proxy->field_template($field_template);
+				$proxy->template($field_template);
 			}
 
 			if (is_callable($before)) {
@@ -351,6 +357,7 @@ abstract class SectionFieldContainerBuilder implements SectionFieldContainerBuil
 			'group_id'     => $this->group_id,
 			'group_data'   => array(
 				'id'          => $this->group_id,
+				'type'        => 'group', // Subclasses override (e.g., FieldsetBuilder sets 'fieldset')
 				'heading'     => $this->heading,
 				'description' => $description,
 				'before'      => $this->before,

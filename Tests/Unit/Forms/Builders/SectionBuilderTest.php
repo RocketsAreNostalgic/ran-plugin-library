@@ -9,6 +9,7 @@ use Ran\PluginLib\Forms\Builders\FieldsetBuilder;
 use Ran\PluginLib\Forms\Builders\GroupBuilder;
 use Ran\PluginLib\Forms\Builders\SectionBuilder;
 use Ran\PluginLib\Forms\Builders\ComponentBuilderProxy;
+use Ran\PluginLib\Forms\Builders\SimpleFieldProxy;
 
 /**
  * @covers \Ran\PluginLib\Forms\Builders\SectionBuilder
@@ -66,12 +67,16 @@ final class SectionBuilderTest extends TestCase {
 		self::assertSame('custom.wrapper', $templateOverrides[0]['payload']['overrides']['field-wrapper'] ?? null);
 	}
 
-	public function test_field_without_factory_returns_section_builder_and_emits_field_update(): void {
+	public function test_field_without_factory_returns_simple_field_proxy_and_emits_field_update(): void {
 		$builder = $this->createSectionBuilder();
 
 		$result = $builder->field('api_key', 'API Key', 'fields.input');
 
-		self::assertSame($builder, $result);
+		// Now returns SimpleFieldProxy to allow chained before()/after() calls
+		self::assertInstanceOf(SimpleFieldProxy::class, $result);
+
+		// Trigger field emission by calling end_field()
+		$result->end_field();
 
 		$fieldUpdates = array_values(array_filter($this->updates, static fn(array $entry): bool => $entry['type'] === 'field'));
 		self::assertNotEmpty($fieldUpdates, 'Expected a field update for direct field registration.');
