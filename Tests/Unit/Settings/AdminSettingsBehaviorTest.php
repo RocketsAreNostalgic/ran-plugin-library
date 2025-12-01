@@ -829,7 +829,7 @@ final class AdminSettingsBehaviorTest extends PluginLibTestCase {
 		});
 
 		$this->manifest->register('field-wrapper', static function (array $context): ComponentRenderResult {
-			$componentHtml = (string) ($context['component_html'] ?? '');
+			$componentHtml = (string) ($context['inner_html'] ?? '');
 			return new ComponentRenderResult(
 				'<div class="test-field-wrapper">' . $componentHtml . '</div>',
 				component_type: ComponentType::LayoutWrapper
@@ -853,7 +853,7 @@ final class AdminSettingsBehaviorTest extends PluginLibTestCase {
 		));
 
 		$this->manifest->register('admin.pages.behavior-page', static function (array $context): ComponentRenderResult {
-			$content = $context['content'] ?? '';
+			$content = $context['inner_html'] ?? '';
 			return new ComponentRenderResult(
 				'<div class="admin-page">' . $content . '</div>',
 				component_type: 'layout_wrapper'
@@ -862,7 +862,7 @@ final class AdminSettingsBehaviorTest extends PluginLibTestCase {
 
 		$this->manifest->register('submit-controls-wrapper', static function (array $context): ComponentRenderResult {
 			$zone    = htmlspecialchars((string) ($context['zone_id'] ?? ''), ENT_QUOTES);
-			$content = $context['content'] ?? '';
+			$content = $context['inner_html'] ?? '';
 			return new ComponentRenderResult(
 				'<div class="submit-wrapper" data-zone="' . $zone . '">' . $content . '</div>',
 				component_type: 'layout_wrapper'

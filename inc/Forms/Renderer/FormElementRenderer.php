@@ -450,7 +450,7 @@ class FormElementRenderer {
 	 *
 	 * Enhanced to use ComponentLoader for template rendering with proper context.
 	 *
-	 * @param string $component_html Rendered component HTML
+	 * @param string $component_html Rendered inner HTML
 	 * @param string $template_name  Template name
 	 * @param string $field_id       Field identifier
 	 * @param string $label          Field label
@@ -471,7 +471,7 @@ class FormElementRenderer {
 		$template_context = array(
 			'field_id'            => $field_id,
 			'label'               => $label,
-			'component_html'      => $component_html,
+			'inner_html'          => $component_html,
 			'validation_warnings' => $context['validation_warnings'] ?? array(),
 			'display_notices'     => $context['display_notices']     ?? array(),
 			'description'         => $context['description']         ?? '',
@@ -479,7 +479,7 @@ class FormElementRenderer {
 			'context'             => $context,
 		);
 		$template_context = $this->sanitize_wrapper_context($template_context);
-		$component_html   = $template_context['component_html'];
+		$component_html   = $template_context['inner_html'];
 		if (isset($template_context['context']) && is_array($template_context['context'])) {
 			$context = $template_context['context'];
 		}
@@ -559,7 +559,7 @@ class FormElementRenderer {
 	 * @return array<string,mixed>
 	 */
 	private function sanitize_wrapper_context(array $template_context): array {
-		$fragment_keys = array('before', 'after', 'description', 'content', 'component_html');
+		$fragment_keys = array('before', 'after', 'description', 'inner_html');
 		foreach ($fragment_keys as $key) {
 			if (array_key_exists($key, $template_context)) {
 				$template_context[$key] = $this->coerce_wrapper_fragment($template_context[$key], $key);

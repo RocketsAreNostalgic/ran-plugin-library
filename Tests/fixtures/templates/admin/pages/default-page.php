@@ -6,7 +6,7 @@ use Ran\PluginLib\Forms\Component\ComponentType;
 $heading        = $context['heading']                  ?? 'Settings';
 $description    = $context['page_meta']['description'] ?? ($context['description'] ?? '');
 $settings_group = $context['group']                    ?? ($context['settings_group'] ?? '');
-$content        = $context['content']                  ?? '';
+$content        = $context['inner_html']               ?? '';
 
 ob_start();
 ?>

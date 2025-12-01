@@ -19,7 +19,7 @@ if (!defined('ABSPATH')) {
 $heading        = $context['heading']        ?? '';
 $description    = $context['description']    ?? '';
 $settings_group = $context['settings_group'] ?? '';
-$content        = $context['content']        ?? '';
+$inner_html     = $context['inner_html']     ?? '';
 
 ob_start();
 ?>
@@ -44,7 +44,7 @@ ob_start();
 ?>
 
         <div class="admin-page-content">
-            <?php echo $content; ?>
+            <?php echo $inner_html; ?>
         </div>
 
         <?php

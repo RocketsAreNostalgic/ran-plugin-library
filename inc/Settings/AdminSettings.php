@@ -405,7 +405,7 @@ class AdminSettings implements FormsInterface {
 			'options'           => $options,
 			'section_meta'      => $sections,
 			'values'            => $effective_values,
-			'content'           => $rendered_content,
+			'inner_html'        => $rendered_content,
 			'submit_controls'   => $submit_controls,
 			'render_submit'     => fn (): string => $this->_render_default_submit_controls($id_slug, $submit_controls),
 			'messages_by_field' => $this->message_handler->get_all_messages(),
@@ -933,7 +933,7 @@ class AdminSettings implements FormsInterface {
 			'submit-controls-wrapper',
 			array(
 				'zone_id' => $zone_id,
-				'content' => $content_with_callbacks,
+				'inner_html' => $content_with_callbacks,
 			),
 			array(
 				'root_id' => $page_slug,

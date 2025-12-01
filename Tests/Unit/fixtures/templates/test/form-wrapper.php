@@ -5,7 +5,7 @@
 
 use Ran\PluginLib\Forms\Component\ComponentRenderResult;
 
-$content      = $context['content']       ?? 'Test Form';
+$content      = $context['inner_html']    ?? 'Test Form';
 $renderSubmit = $context['render_submit'] ?? null;
 
 $markup = '<form class="test-form-wrapper">' . $content;

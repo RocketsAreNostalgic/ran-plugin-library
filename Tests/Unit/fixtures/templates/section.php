@@ -2,7 +2,7 @@
 
 use Ran\PluginLib\Forms\Component\ComponentRenderResult;
 
-// Support both old-style ($context['content']) and new-style ($context['sections']) usage
+// Support both old-style ($context['inner_html']) and new-style ($context['sections']) usage
 if (isset($context['sections']) && is_array($context['sections'])) {
 	// New-style: iterate over sections and render fields
 	$renderer = $context['field_renderer'] ?? null;
@@ -20,7 +20,7 @@ if (isset($context['sections']) && is_array($context['sections'])) {
 	$markup .= '</div>';
 } else {
 	// Old-style: simple content wrapper
-	$markup = '<section class="theme-section">' . ($context['content'] ?? '') . '</section>';
+	$markup = '<section class="theme-section">' . ($context['inner_html'] ?? '') . '</section>';
 }
 
 return new ComponentRenderResult(

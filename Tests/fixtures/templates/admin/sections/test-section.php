@@ -3,12 +3,12 @@
 use Ran\PluginLib\Forms\Component\ComponentRenderResult;
 use Ran\PluginLib\Forms\Component\ComponentType;
 
-// Support both old-style ($context['sections']) and new-style ($context['content']) usage
-if (isset($context['content']) && $context['content'] !== '') {
+// Support both old-style ($context['sections']) and new-style ($context['inner_html']) usage
+if (isset($context['inner_html']) && $context['inner_html'] !== '') {
 	// New-style: pre-rendered content passed directly
 	$before = (string) ($context['before'] ?? '');
 	$after  = (string) ($context['after'] ?? '');
-	$markup = $before . '<section class="test-section">' . $context['content'] . '</section>' . $after;
+	$markup = $before . '<section class="test-section">' . $context['inner_html'] . '</section>' . $after;
 } else {
 	// Old-style: iterate over sections and render fields
 	$sections      = $context['sections']       ?? array();

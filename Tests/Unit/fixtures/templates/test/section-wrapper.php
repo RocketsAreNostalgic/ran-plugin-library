@@ -2,4 +2,4 @@
 /**
  * Test section wrapper template
  */
-return '<div class="test-section-wrapper">' . ($context['content'] ?? 'Test Section') . '</div>';
+return '<div class="test-section-wrapper">' . ($context['inner_html'] ?? 'Test Section') . '</div>';

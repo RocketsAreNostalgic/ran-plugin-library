@@ -27,9 +27,9 @@ if (!defined('ABSPATH')) {
 $section_id  = $context['section_id']  ?? '';
 $title       = $context['title']       ?? '';
 $description = $context['description'] ?? '';
-$content     = $context['content']     ?? '';
-$before = (string) ($context['before'] ?? '');
-$after  = (string) ($context['after'] ?? '');
+$inner_html  = $context['inner_html']  ?? '';
+$before      = (string) ($context['before'] ?? '');
+$after       = (string) ($context['after'] ?? '');
 
 ob_start();
 ?>
@@ -47,7 +47,7 @@ ob_start();
 	<?php endif; ?>
 
 	<div class="form-section-content">
-		<?php echo $content; // Pre-rendered content from caller.?>
+		<?php echo $inner_html; // Pre-rendered inner HTML from caller.?>
 	</div>
 
 	<?php if ($after !== ''): ?>

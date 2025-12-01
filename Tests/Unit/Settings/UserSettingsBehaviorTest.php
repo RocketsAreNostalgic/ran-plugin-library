@@ -519,13 +519,13 @@ final class UserSettingsBehaviorTest extends PluginLibTestCase {
 		// Ensure root templates are registered for the render pipeline used in this test.
 		$this->manifest->register('root-wrapper', static function (array $context): ComponentRenderResult {
 			return new ComponentRenderResult(
-				'<div class="root-wrapper">' . ($context['content'] ?? '') . '</div>',
+				'<div class="root-wrapper">' . ($context['inner_html'] ?? '') . '</div>',
 				component_type: 'layout_wrapper'
 			);
 		});
 		$this->manifest->register('user.root-wrapper', static function (array $context): ComponentRenderResult {
 			return new ComponentRenderResult(
-				'<div class="user-root-wrapper">' . ($context['content'] ?? '') . '</div>',
+				'<div class="user-root-wrapper">' . ($context['inner_html'] ?? '') . '</div>',
 				component_type: 'layout_wrapper'
 			);
 		});
@@ -699,7 +699,7 @@ final class UserSettingsBehaviorTest extends PluginLibTestCase {
 		$loader->register('field-wrapper', 'admin/field-wrapper-simple.php');
 		$loader->register('shared.field-wrapper', 'admin/field-wrapper-simple.php');
 		$this->manifest->register('field-wrapper', static function (array $context): ComponentRenderResult {
-			$componentHtml = (string) ($context['component_html'] ?? '');
+			$componentHtml = (string) ($context['inner_html'] ?? '');
 			return new ComponentRenderResult(
 				'<div class="test-field-wrapper">' . $componentHtml . '</div>',
 				component_type: ComponentType::LayoutWrapper
@@ -710,14 +710,14 @@ final class UserSettingsBehaviorTest extends PluginLibTestCase {
 		$loader->register('user.root-wrapper', 'admin/pages/default-page.php');
 		$loader->register('root-wrapper', 'admin/pages/default-page.php');
 		$this->manifest->register('user.root-wrapper', static function (array $context): ComponentRenderResult {
-			$content = (string) ($context['content'] ?? '');
+			$content = (string) ($context['inner_html'] ?? '');
 			return new ComponentRenderResult(
 				'<div class="user-root-wrapper">' . $content . '</div>',
 				component_type: ComponentType::LayoutWrapper
 			);
 		});
 		$this->manifest->register('root-wrapper', static function (array $context): ComponentRenderResult {
-			$content = (string) ($context['content'] ?? '');
+			$content = (string) ($context['inner_html'] ?? '');
 			return new ComponentRenderResult(
 				'<div class="root-wrapper">' . $content . '</div>',
 				component_type: ComponentType::LayoutWrapper

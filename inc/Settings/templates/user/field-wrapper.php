@@ -4,9 +4,8 @@
  *
  * @var array{
  *     label: string,
- *     content: string,
+ *     inner_html: string,
  *     field_id?: string,
- *     component_html?: string,
  *     description?: string,
  *     required?: bool,
  *     validation_warnings?: array<string>,
@@ -24,15 +23,9 @@ if (!defined('ABSPATH')) {
 	exit;
 }
 
-// Support both 'content' and 'component_html' keys for compatibility
-$content = '';
-if (isset($context['content']) && $context['content'] !== '') {
-	$content = (string) $context['content'];
-} elseif (isset($context['component_html']) && $context['component_html'] !== '') {
-	$content = (string) $context['component_html'];
-}
+$inner_html = isset($context['inner_html']) ? (string) $context['inner_html'] : '';
 
-if ($content === '') {
+if ($inner_html === '') {
 	return new ComponentRenderResult(
 		markup: '',
 		component_type: ComponentType::LayoutWrapper
@@ -63,7 +56,7 @@ ob_start();
 	</th>
 	<td>
 		<?php echo $before; ?>
-		<?php echo $content; ?>
+		<?php echo $inner_html; ?>
 		<?php echo $after; ?>
 		<?php if ($description !== '') : ?>
 			<p class="description"><?php echo esc_html($description); ?></p>

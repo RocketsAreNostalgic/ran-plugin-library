@@ -95,10 +95,8 @@ class FormsServiceSession {
 			));
 
 			$fallback_markup = '';
-			if (isset($element_config['component_html']) && is_string($element_config['component_html'])) {
-				$fallback_markup = $element_config['component_html'];
-			} elseif (isset($element_config['content']) && is_string($element_config['content'])) {
-				$fallback_markup = $element_config['content'];
+			if (isset($element_config['inner_html']) && is_string($element_config['inner_html'])) {
+				$fallback_markup = $element_config['inner_html'];
 			}
 
 			$warning_id   = isset($context['field_id']) ? (string) $context['field_id'] : $element_type;

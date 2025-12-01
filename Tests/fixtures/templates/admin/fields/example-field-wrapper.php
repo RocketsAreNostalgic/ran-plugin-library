@@ -7,9 +7,9 @@
 
 use Ran\PluginLib\Forms\Component\ComponentRenderResult;
 
-$field_id       = isset($context['field_id']) ? (string) $context['field_id'] : '';
-$label          = isset($context['label']) ? (string) $context['label'] : '';
-$component_html = isset($context['component_html']) ? (string) $context['component_html'] : '';
+$field_id   = isset($context['field_id']) ? (string) $context['field_id'] : '';
+$label      = isset($context['label']) ? (string) $context['label'] : '';
+$inner_html = isset($context['inner_html']) ? (string) $context['inner_html'] : '';
 
 // Check nested context for before/after (they may be nested under 'context')
 $nested_context = isset($context['context']) && is_array($context['context']) ? $context['context'] : array();
@@ -18,7 +18,7 @@ $after          = (string) ($nested_context['after'] ?? $context['after'] ?? '')
 
 $markup = $before . '<div class="field-wrapper" data-field-id="' . htmlspecialchars($field_id, ENT_QUOTES) . '">'
 	. '<label>' . htmlspecialchars($label, ENT_QUOTES) . '</label>'
-	. $component_html
+	. $inner_html
 	. '</div>' . $after;
 
 return new ComponentRenderResult(

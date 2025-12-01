@@ -321,12 +321,12 @@ final class AdminSettingsSubmitControlsRenderTest extends TestCase {
 		});
 
 		$this->manifest->register('field-wrapper', static function (array $context): ComponentRenderResult {
-			$componentHtml = $context['component_html'] ?? '';
+			$componentHtml = $context['inner_html'] ?? '';
 			return new ComponentRenderResult('<div class="field-wrapper">' . $componentHtml . '</div>', component_type: ComponentType::LayoutWrapper);
 		});
 
 		$this->manifest->register('layout.zone.submit-controls-wrapper', static function (array $context): ComponentRenderResult {
-			$content = $context['content'] ?? '';
+			$content = $context['inner_html'] ?? '';
 			$zoneId  = isset($context['zone_id']) ? (string) $context['zone_id'] : '';
 			$before  = isset($context['before']) ? (string) $context['before'] : '';
 			$after   = isset($context['after'])  ? (string) $context['after']  : '';
@@ -368,7 +368,7 @@ final class AdminSettingsSubmitControlsRenderTest extends TestCase {
 
 		$rootWrapper = static function (array $context): ComponentRenderResult {
 			$heading      = htmlspecialchars((string) ($context['heading'] ?? ''), ENT_QUOTES);
-			$content      = $context['content'] ?? '';
+			$content      = $context['inner_html'] ?? '';
 			$renderSubmit = is_callable($context['render_submit'] ?? null) ? (string) ($context['render_submit']()) : '';
 
 			$markup = '<div class="root-wrapper">'
@@ -385,7 +385,7 @@ final class AdminSettingsSubmitControlsRenderTest extends TestCase {
 
 		$this->manifest->register('submit-controls-wrapper', static function (array $context): ComponentRenderResult {
 			$zone    = htmlspecialchars((string) ($context['zone_id'] ?? ''), ENT_QUOTES);
-			$content = $context['content'] ?? '';
+			$content = $context['inner_html'] ?? '';
 
 			$markup = '<div class="submit-wrapper" data-zone="' . $zone . '">'
 			    . $content
@@ -396,7 +396,7 @@ final class AdminSettingsSubmitControlsRenderTest extends TestCase {
 
 		$this->manifest->register('admin.custom-submit-wrapper', static function (array $context): ComponentRenderResult {
 			$zone    = htmlspecialchars((string) ($context['zone_id'] ?? ''), ENT_QUOTES);
-			$content = $context['content'] ?? '';
+			$content = $context['inner_html'] ?? '';
 
 			$markup = '<div class="custom-submit-area" data-zone="' . $zone . '">'
 			    . '<span class="prefix">|</span>'

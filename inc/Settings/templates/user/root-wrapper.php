@@ -7,7 +7,7 @@
  *     collection_title?: string,
  *     heading?: string,
  *     description?: string,
- *     content: string,
+ *     inner_html: string,
  *     before?: string,
  *     after?: string,
  *     render?: callable
@@ -16,13 +16,13 @@
 
 use Ran\PluginLib\Forms\Component\ComponentRenderResult;
 
-if (!isset($context['content']) || $context['content'] === '') {
+if (!isset($context['inner_html']) || $context['inner_html'] === '') {
 	return new ComponentRenderResult('');
 }
 
 $title       = isset($context['heading']) ? (string) $context['heading'] : (isset($context['collection_title']) ? (string) $context['collection_title'] : '');
 $description = isset($context['description']) ? (string) $context['description'] : '';
-$content     = (string) $context['content'];
+$inner_html  = (string) $context['inner_html'];
 
 $before = (string) ($context['before'] ?? '');
 $after  = (string) ($context['after'] ?? '');
@@ -37,7 +37,7 @@ ob_start();
 <?php endif; ?>
 <?php echo $before; ?>
 <table class="form-table" role="presentation">
-	<?php echo $content; ?>
+	<?php echo $inner_html; ?>
 </table>
 <?php
 echo $after;

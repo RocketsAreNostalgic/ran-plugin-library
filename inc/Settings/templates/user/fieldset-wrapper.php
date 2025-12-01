@@ -27,7 +27,7 @@ use Ran\PluginLib\Forms\Component\ComponentRenderResult;
 $group_id    = isset($context['group_id']) ? (string) $context['group_id'] : '';
 $title       = isset($context['title']) ? (string) $context['title'] : '';
 $description = isset($context['description']) ? (string) $context['description'] : '';
-$content     = isset($context['content']) ? (string) $context['content'] : '';
+$inner_html  = isset($context['inner_html']) ? (string) $context['inner_html'] : '';
 $style       = isset($context['style']) ? (string) $context['style'] : 'bordered';
 $required    = isset($context['required']) && $context['required'];
 
@@ -52,7 +52,7 @@ ob_start();
 				<p class="kepler-fieldset-group__description description"><?php echo esc_html($description); ?></p>
 			<?php endif; ?>
 			<?php echo $before; ?>
-			<?php echo $content; ?>
+			<?php echo $inner_html; ?>
 			<?php echo $after; ?>
 		</fieldset>
 </tr>

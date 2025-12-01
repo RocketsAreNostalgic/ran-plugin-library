@@ -19,7 +19,7 @@ use Ran\PluginLib\Forms\Component\ComponentRenderResult;
 $section_id  = isset($context['section_id']) ? (string) $context['section_id'] : '';
 $title       = isset($context['title']) ? (string) $context['title'] : '';
 $description = isset($context['description']) ? (string) $context['description'] : '';
-$content     = isset($context['content']) ? (string) $context['content'] : '';
+$inner_html  = isset($context['inner_html']) ? (string) $context['inner_html'] : '';
 
 $before = (string) ($context['before'] ?? '');
 $after  = (string) ($context['after'] ?? '');
@@ -35,7 +35,7 @@ ob_start();
 <?php endif; ?>
 <?php echo $before; ?>
 </td></tr>
-<?php echo $content; ?>
+<?php echo $inner_html; ?>
 <tr data-section-id="<?php echo esc_attr($section_id); ?>-after"><td colspan="2"><?php echo $after; ?></td></tr>
 <?php
 return new ComponentRenderResult(

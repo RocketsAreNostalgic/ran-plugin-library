@@ -5,7 +5,7 @@
 
 use Ran\PluginLib\Forms\Component\ComponentRenderResult;
 
-$content = $context['content'] ?? '';
+$content = $context['inner_html'] ?? '';
 
 return new ComponentRenderResult(
 	markup: '<div class="submit-controls-wrapper">' . $content . '</div>',

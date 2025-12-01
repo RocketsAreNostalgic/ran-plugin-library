@@ -26,11 +26,11 @@ if (!defined('ABSPATH')) {
 	exit;
 }
 
-$content = $context['content'] ?? '';
-$zone_id = isset($context['zone_id']) ? (string) $context['zone_id'] : '';
-$extra   = isset($context['class']) ? trim((string) $context['class']) : '';
-$before  = isset($context['before']) ? (string) $context['before'] : '';
-$after   = isset($context['after'])  ? (string) $context['after']  : '';
+$inner_html = $context['inner_html'] ?? '';
+$zone_id    = isset($context['zone_id']) ? (string) $context['zone_id'] : '';
+$extra      = isset($context['class']) ? trim((string) $context['class']) : '';
+$before     = isset($context['before']) ? (string) $context['before'] : '';
+$after      = isset($context['after'])  ? (string) $context['after']  : '';
 
 $classes = array(
 	'ran-zone-wrapper',
@@ -58,13 +58,13 @@ foreach ($attribute_pairs as $name => $value) {
 ob_start();
 ?>
 <div<?php echo $attribute_markup; ?>>
-	<?php if ($content !== ''): ?>
+	<?php if ($inner_html !== ''): ?>
 		<div class="ran-zone-wrapper__inner">
 			<?php if ($before !== ''): ?>
 				<?php echo $before; // Hook output should already be escaped.?>
 			<?php endif; ?>
 
-			<?php echo $content; // Content is expected to be pre-escaped.?>
+			<?php echo $inner_html; // Inner HTML is expected to be pre-escaped.?>
 
 			<?php if ($after !== ''): ?>
 				<?php echo $after; // Hook output should already be escaped.?>

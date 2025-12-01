@@ -7,7 +7,7 @@
  *
  * @var string $field_id The field identifier
  * @var string $label Field label
- * @var string $component_html Rendered component HTML
+ * @var string $inner_html Rendered component HTML
  * @var array $validation_warnings Validation warning messages
  * @var array $display_notices Display notice messages
  * @var string $description Field description/help text
@@ -50,7 +50,7 @@ ob_start();
 
     <td class="example-user-field-input">
         <div class="example-user-input-container">
-            <?php echo $component_html; ?>
+            <?php echo $inner_html; ?>
 
             <?php if ($has_warnings): ?>
                 <div class="example-user-field-warnings" role="alert">

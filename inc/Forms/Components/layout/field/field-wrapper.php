@@ -8,7 +8,7 @@
  * Expected $context keys:
  * - field_id: string - Field identifier
  * - label: string - Field label
- * - component_html: string - Rendered component HTML
+ * - inner_html: string - Rendered inner HTML content
  * - validation_warnings: array - Validation warning messages
  * - display_notices: array - Display notice messages
  * - description: string - Field description/help text (optional)
@@ -27,16 +27,10 @@ if (!defined('ABSPATH')) {
 	exit;
 }
 
-// Support both 'content' and 'component_html' keys for compatibility
-$content = '';
-if (isset($context['content']) && $context['content'] !== '') {
-	$content = (string) $context['content'];
-} elseif (isset($context['component_html']) && $context['component_html'] !== '') {
-	$content = (string) $context['component_html'];
-}
+$inner_html = isset($context['inner_html']) ? (string) $context['inner_html'] : '';
 
-// Early return if no content
-if ($content === '') {
+// Early return if no inner_html
+if ($inner_html === '') {
 	return new ComponentRenderResult(
 		markup: '',
 		component_type: ComponentType::LayoutWrapper
@@ -50,12 +44,12 @@ $description         = $context['description']         ?? '';
 $validation_warnings = $context['validation_warnings'] ?? array();
 $display_notices     = $context['display_notices']     ?? array();
 
-$required            = $context['required']            ?? false;
-$field_type          = $context['field_type']          ?? '';
-$layout              = $context['layout']              ?? 'vertical';
+$required   = $context['required']   ?? false;
+$field_type = $context['field_type'] ?? '';
+$layout     = $context['layout']     ?? 'vertical';
 
-$field_id 			 = $context['field_id'] ?? '';
-$label    			 = $context['label']    ?? '';
+$field_id = $context['field_id'] ?? '';
+$label    = $context['label']    ?? '';
 
 $wrapper_classes = array(
     'field-wrapper',
@@ -90,7 +84,7 @@ ob_start();
             <?php if ($before !== ''): ?>
                 <?php echo $before; // Hook output should already be escaped.?>
             <?php endif; ?>
-            <?php echo $content // Already escaped?>
+            <?php echo $inner_html // Already escaped?>
             <?php if ($after !== ''): ?>
                 <?php echo $after; // Hook output should already be escaped.?>
             <?php endif; ?>

@@ -29,12 +29,12 @@ if (!defined('ABSPATH')) {
 $group_id    = $context['group_id']    ?? '';
 $title       = $context['title']       ?? '';
 $description = $context['description'] ?? '';
-$content     = $context['content']     ?? '';
+$inner_html  = $context['inner_html']  ?? '';
 $layout      = $context['layout']      ?? 'vertical';
 $columns     = $context['columns']     ?? 2;
 $spacing     = $context['spacing']     ?? 'normal';
-$before = (string) ($context['before'] ?? '');
-$after  = (string) ($context['after'] ?? '');
+$before      = (string) ($context['before'] ?? '');
+$after       = (string) ($context['after'] ?? '');
 
 $group_classes = array(
     'group-wrapper',
@@ -63,7 +63,7 @@ ob_start();
             <?php echo $before; // Hook output should already be escaped.?>
         <?php endif; ?>
 
-        <?php echo $content; // Already escaped?>
+        <?php echo $inner_html; // Already escaped?>
 
         <?php if ($after !== ''): ?>
             <?php echo $after; // Hook output should already be escaped.?>

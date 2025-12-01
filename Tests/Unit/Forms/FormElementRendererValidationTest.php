@@ -185,7 +185,7 @@ class FormElementRendererValidationTest extends PluginLibTestCase {
 		$loader->shouldReceive('render')
 			->with('field-wrapper', Mockery::type('array'))
 			->andReturnUsing(static function(string $template, array $context) {
-				return new ComponentRenderResult('<div class="wrapper">' . ($context['component_html'] ?? '') . '</div>');
+				return new ComponentRenderResult('<div class="wrapper">' . ($context['inner_html'] ?? '') . '</div>');
 			});
 
 		$service  = new FormsService($manifest, $this->logger);

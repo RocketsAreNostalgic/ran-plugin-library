@@ -1415,7 +1415,7 @@ trait FormsBaseTrait {
 				'section_id'  => $section_id,
 				'title'       => (string) $meta['title'],
 				'description' => is_callable($meta['description_cb'] ?? null) ? (string) ($meta['description_cb'])() : '',
-				'content'     => $section_content,
+				'inner_html'  => $section_content,
 				'before'      => $this->_render_callback_output($meta['before'] ?? null, array(
 					'container_id' => $id_slug,
 					'section_id'   => $section_id,
@@ -1494,7 +1494,7 @@ trait FormsBaseTrait {
 			'group_id'    => $group_id,
 			'title'       => $title,
 			'description' => '', // Could be added if groups support description callbacks
-			'content'     => $fields_content,
+			'inner_html'  => $fields_content,
 			'before'      => $before_content,
 			'after'       => $after_content,
 			'layout'      => 'vertical',
@@ -1675,7 +1675,7 @@ trait FormsBaseTrait {
 		return $this->form_session->render_component('field-wrapper', array(
 			'field_id'      => 'error',
 			'label'         => 'Error',
-			'content'       => esc_html($message),
+			'inner_html'    => esc_html($message),
 			'is_error'      => true,
 			'error_message' => $message
 		));

@@ -90,13 +90,13 @@ class GlobalTemplateRegistrationTest extends TestCase {
 		}
 
 		$this->assertEquals('<div class="theme-page">Test Content</div>',
-			$this->loader->render('mytheme.page', array('content' => 'Test Content'))->markup);
+			$this->loader->render('mytheme.page', array('inner_html' => 'Test Content'))->markup);
 		$this->assertEquals('<section class="theme-section">Test Section</section>',
-			$this->loader->render('mytheme.section', array('content' => 'Test Section'))->markup);
+			$this->loader->render('mytheme.section', array('inner_html' => 'Test Section'))->markup);
 		$this->assertEquals('<fieldset class="theme-group">Test Group</fieldset>',
-			$this->loader->render('mytheme.group', array('content' => 'Test Group'))->markup);
+			$this->loader->render('mytheme.group', array('inner_html' => 'Test Group'))->markup);
 		$this->assertEquals('<div class="theme-field"><input type="text"></div>',
-			$this->loader->render('mytheme.field-wrapper', array('component_html' => '<input type="text">'))->markup);
+			$this->loader->render('mytheme.field-wrapper', array('inner_html' => '<input type="text">'))->markup);
 	}
 
 	/**
@@ -121,7 +121,7 @@ class GlobalTemplateRegistrationTest extends TestCase {
 		}
 
 		$this->assertEquals('<main class="modern-page">Page Content</main>',
-			$this->loader->render('modern.page', array('content' => 'Page Content'))->markup);
+			$this->loader->render('modern.page', array('inner_html' => 'Page Content'))->markup);
 	}
 
 	/**
@@ -154,13 +154,13 @@ class GlobalTemplateRegistrationTest extends TestCase {
 		}
 
 		$this->assertStringContainsString('complete-page',
-			$this->loader->render('complete.page', array('content' => 'Test'))->markup);
+			$this->loader->render('complete.page', array('inner_html' => 'Test'))->markup);
 		$this->assertStringContainsString('complete-section',
-			$this->loader->render('complete.section', array('content' => 'Test'))->markup);
+			$this->loader->render('complete.section', array('inner_html' => 'Test'))->markup);
 		$this->assertStringContainsString('complete-group',
-			$this->loader->render('complete.group', array('content' => 'Test'))->markup);
+			$this->loader->render('complete.group', array('inner_html' => 'Test'))->markup);
 		$this->assertStringContainsString('complete-field-wrapper',
-			$this->loader->render('complete.field-wrapper', array('component_html' => '<input>'))->markup);
+			$this->loader->render('complete.field-wrapper', array('inner_html' => '<input>'))->markup);
 	}
 
 	/**
@@ -206,7 +206,7 @@ class GlobalTemplateRegistrationTest extends TestCase {
 		}
 
 		$this->assertEquals('<div class="default-page">Test</div>',
-			$this->loader->render('conditional.default-page', array('content' => 'Test'))->markup);
+			$this->loader->render('conditional.default-page', array('inner_html' => 'Test'))->markup);
 	}
 
 	/**
@@ -225,11 +225,11 @@ class GlobalTemplateRegistrationTest extends TestCase {
 	public function test_template_override_functionality(): void {
 		$this->loader->register('test.template', 'overrides/original.php');
 		$this->assertEquals('<div class="original">Test</div>',
-			$this->loader->render('test.template', array('content' => 'Test'))->markup);
+			$this->loader->render('test.template', array('inner_html' => 'Test'))->markup);
 
 		$this->loader->register('test.template', 'overrides/override.php');
 		$this->assertEquals('<div class="override">Test</div>',
-			$this->loader->render('test.template', array('content' => 'Test'))->markup);
+			$this->loader->render('test.template', array('inner_html' => 'Test'))->markup);
 	}
 
 	/**
@@ -242,6 +242,6 @@ class GlobalTemplateRegistrationTest extends TestCase {
 		$this->loader->register('manifest.test', 'manifest/manifest-test.php');
 
 		$this->assertEquals('<div class="manifest-template">Integration Test</div>',
-			$this->loader->render('manifest.test', array('content' => 'Integration Test'))->markup);
+			$this->loader->render('manifest.test', array('inner_html' => 'Integration Test'))->markup);
 	}
 }

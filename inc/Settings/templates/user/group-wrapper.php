@@ -22,7 +22,7 @@ use Ran\PluginLib\Forms\Component\ComponentRenderResult;
 $group_id    = isset($context['group_id']) ? (string) $context['group_id'] : '';
 $title       = isset($context['title']) ? (string) $context['title'] : '';
 $description = isset($context['description']) ? (string) $context['description'] : '';
-$content     = isset($context['content']) ? (string) $context['content'] : '';
+$inner_html  = isset($context['inner_html']) ? (string) $context['inner_html'] : '';
 
 $before = (string) ($context['before'] ?? '');
 $after  = (string) ($context['after'] ?? '');
@@ -48,8 +48,8 @@ if ($before !== '') : ?>
 </tr>
 <?php endif; ?>
 <?php
-// 3. Content (fields - already formatted as table rows)
-echo $content;
+// 3. Inner HTML (fields - already formatted as table rows)
+echo $inner_html;
 ?>
 <?php // 4. After hook row (if after exists)
 if ($after !== '') : ?>

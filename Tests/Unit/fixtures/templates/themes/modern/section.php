@@ -3,6 +3,6 @@
 use Ran\PluginLib\Forms\Component\ComponentRenderResult;
 
 return new ComponentRenderResult(
-	markup: '<section class="modern-section">' . ($context['content'] ?? '') . '</section>',
+	markup: '<section class="modern-section">' . ($context['inner_html'] ?? '') . '</section>',
 	component_type: 'layout_wrapper'
 );

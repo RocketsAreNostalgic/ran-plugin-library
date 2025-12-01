@@ -17,7 +17,7 @@ if (!defined('ABSPATH')) {
 $heading        = $context['heading']        ?? '';
 $description    = $context['description']    ?? '';
 $settings_group = $context['settings_group'] ?? '';
-$content        = $context['content']        ?? '';
+$content        = $context['inner_html']     ?? '';
 
 ob_start();
 ?>

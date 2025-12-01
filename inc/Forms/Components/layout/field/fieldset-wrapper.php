@@ -28,7 +28,7 @@ if (!defined('ABSPATH')) {
 $group_id    = $context['group_id']    ?? '';
 $title       = $context['title']       ?? '';
 $description = $context['description'] ?? '';
-$content     = $context['content']     ?? '';
+$inner_html  = $context['inner_html']  ?? '';
 $style       = $context['style']       ?? 'bordered';
 $required    = $context['required']    ?? false;
 
@@ -61,7 +61,7 @@ ob_start();
             <?php echo $before; // Hook output should already be escaped.?>
         <?php endif; ?>
 
-        <?php echo $content; // Already escaped?>
+        <?php echo $inner_html; // Already escaped?>
 
         <?php if ($after !== ''): ?>
             <?php echo $after; // Hook output should already be escaped.?>
