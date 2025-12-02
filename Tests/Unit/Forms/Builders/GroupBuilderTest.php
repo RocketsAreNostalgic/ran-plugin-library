@@ -33,14 +33,14 @@ final class GroupBuilderTest extends TestCase {
 		$group = $this->createGroupBuilder();
 
 		$this->expectException(\InvalidArgumentException::class);
-		$group->field('field', 'Label', '');
+		$group->field_simple('field', 'Label', '');
 	}
 
 	public function test_field_requires_array_component_context(): void {
 		$group = $this->createGroupBuilder();
 
 		$this->expectException(\InvalidArgumentException::class);
-		$group->field('field', 'Label', 'fields.input', array('context' => 'not-array'));
+		$group->field_simple('field', 'Label', 'fields.input', array('context' => 'not-array'));
 	}
 
 	public function test_field_with_factory_returns_proxy_and_emits_updates(): void {
@@ -75,7 +75,7 @@ final class GroupBuilderTest extends TestCase {
 	public function test_field_without_factory_emits_group_field_update(): void {
 		$group = $this->createGroupBuilder();
 
-		$group->field('api_key', 'API Key', 'fields.input');
+		$group->field_simple('api_key', 'API Key', 'fields.input');
 
 		$groupFieldUpdates = array_values(array_filter($this->updates, static fn(array $entry): bool => $entry['type'] === 'group_field'));
 		self::assertNotEmpty($groupFieldUpdates, 'Expected group_field update to be emitted.');

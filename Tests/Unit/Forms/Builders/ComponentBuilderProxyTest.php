@@ -63,7 +63,7 @@ final class ComponentBuilderProxyTest extends TestCase {
 		self::assertTrue($lastPayload['component_context']['readonly'] ?? false);
 	}
 
-	public function test_methods_on_parent_are_invoked_after_end_field(): void {
+	public function test_end_field_returns_parent_builder(): void {
 		$proxy   = $this->createProxy();
 		$section = $proxy->end_field();
 		/** @var StubSectionBuilder $section */
@@ -71,7 +71,8 @@ final class ComponentBuilderProxyTest extends TestCase {
 		self::assertInstanceOf(StubSectionBuilder::class, $section);
 		self::assertFalse($section->wasMarkerCalled());
 
-		$result = $proxy->parent_marker();
+		// After end_field(), we can call parent methods directly on the returned section
+		$result = $section->parent_marker();
 
 		self::assertSame('marker', $result);
 		self::assertTrue($section->wasMarkerCalled());

@@ -195,7 +195,7 @@ final class AdminSettingsBehaviorTest extends PluginLibTestCase {
 				'capability' => 'manage_options',
 			))
 				->section('reference-section', 'Reference Section')
-					->field('reference_field', 'Reference Field', 'fields.input')
+					->field_simple('reference_field', 'Reference Field', 'fields.input')
 				->end_section()
 			->end_page()
 		->end_menu_group();
@@ -261,7 +261,7 @@ final class AdminSettingsBehaviorTest extends PluginLibTestCase {
 		$this->settings->menu_group('auto-group')
 		    ->page('auto-page')
 		        ->section('auto-section', 'Auto Section')
-		            ->field('auto_field', 'Auto Field', $alias)
+		            ->field_simple('auto_field', 'Auto Field', $alias)
 		        ->end_section()
 		    ->end_page()
 		->end_menu_group();
@@ -320,7 +320,7 @@ final class AdminSettingsBehaviorTest extends PluginLibTestCase {
 		    ->page('behavior-page')
 		        ->heading('Behavior Page')
 		        ->section('behavior-section', 'Behavior Section')
-		            ->field('valid_field', 'Valid Field', 'fields.input')
+		            ->field_simple('valid_field', 'Valid Field', 'fields.input')
 		        ->end_section()
 		    ->end_page()
 		->end_menu_group();
@@ -343,7 +343,7 @@ final class AdminSettingsBehaviorTest extends PluginLibTestCase {
 		            'before' => static fn (): string => '<div class="section-before">section-before</div>',
 		            'after'  => static fn (): string => '<div class="section-after">section-after</div>',
 		        ))
-		            ->field('valid_field', 'Standalone Field', 'fields.input')
+		            ->field_simple('valid_field', 'Standalone Field', 'fields.input')
 		                ->before(static fn (): string => '<span class="field-before">field-before</span>')
 		                ->after(static fn (): string => '<span class="field-after">field-after</span>')
 		            ->end_field()
@@ -351,7 +351,7 @@ final class AdminSettingsBehaviorTest extends PluginLibTestCase {
 		                'before' => static fn (): string => '<div class="group-before">group-before</div>',
 		                'after'  => static fn (): string => '<div class="group-after">group-after</div>',
 		            ))
-		                ->field('integer_field', 'Group Field', 'fields.input', array(
+		                ->field_simple('integer_field', 'Group Field', 'fields.input', array(
 		                    'before' => static fn (): string => '<span class="group-field-before">group-field-before</span>',
 		                    'after'  => static fn (): string => '<span class="group-field-after">group-field-after</span>',
 		                ))
@@ -536,7 +536,7 @@ final class AdminSettingsBehaviorTest extends PluginLibTestCase {
 		$this->settings->menu_group('merge-group')
 		    ->page('merge-page')
 		        ->section('merge-section', 'Merge Section')
-		            ->field('merge_field', 'Merge Field', 'fields.merge')
+		            ->field_simple('merge_field', 'Merge Field', 'fields.merge')
 		        ->end_section()
 		    ->end_page()
 		->end_menu_group();
@@ -647,7 +647,7 @@ final class AdminSettingsBehaviorTest extends PluginLibTestCase {
 		$this->settings->menu_group('trace-group')
 		    ->page('trace-page')
 		        ->section('trace-section', 'Trace Section')
-		            ->field('trace_field', 'Trace Field', $alias)
+		            ->field_simple('trace_field', 'Trace Field', $alias)
 		        ->end_section()
 		    ->end_page()
 		->end_menu_group();
@@ -884,7 +884,7 @@ final class AdminSettingsBehaviorTest extends PluginLibTestCase {
 		    ->page('submit-page')
 		        ->heading('Submit Page')
 		        ->section('submit-section', 'Submit Section')
-		            ->field('valid_field', 'Valid Field', 'fields.input')
+		            ->field_simple('valid_field', 'Valid Field', 'fields.input')
 		        ->end_section()
 		    ->end_page()
 		->end_menu_group();
@@ -903,7 +903,7 @@ final class AdminSettingsBehaviorTest extends PluginLibTestCase {
 		$this->settings->menu_group('custom-submit-group')
 			->page('custom-submit-page')
 				->section('custom-submit-section', 'Custom Submit Section')
-					->field('valid_field', 'Valid Field', 'fields.input')
+					->field_simple('valid_field', 'Valid Field', 'fields.input')
 				->end_section()
 				->submit_controls()
 					->button('primary', 'Publish Settings');
@@ -931,7 +931,7 @@ final class AdminSettingsBehaviorTest extends PluginLibTestCase {
 		        ->heading('Messages Page')
 		        ->template($renderOverride)
 		        ->section('messages-section', 'Messages Section')
-		            ->field('valid_field', 'Valid Field', 'fields.input')
+		            ->field_simple('valid_field', 'Valid Field', 'fields.input')
 		        ->end_section()
 		    ->end_page()
 		->end_menu_group();
@@ -994,12 +994,12 @@ final class AdminSettingsBehaviorTest extends PluginLibTestCase {
 
 		$pageBuilder
 			->section('asset-section', 'Asset Section')
-				->field('asset_field', 'Asset Field', 'fields.asset-field')
+				->field_simple('asset_field', 'Asset Field', 'fields.asset-field')
 			->end_section();
 
 		$pageBuilder
 			->submit_controls()
-				->field('asset_submit', 'Save Changes', 'fields.asset-field')
+				->field_simple('asset_submit', 'Save Changes', 'fields.asset-field')
 			->end_submit_controls();
 
 		$pageBuilder->end_page();

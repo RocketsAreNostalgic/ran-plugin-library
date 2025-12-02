@@ -86,7 +86,7 @@ class UserSettingsRenderSmokeTest extends PluginLibTestCase {
 			$settings->register_component('view-only', array('path' => 'ViewOnly', 'prefix' => 'ext'));
 
 			$settings->collection('profile')
-				->section('s1', 'Section')->field('field_1', 'Label 1', 'ext.view-only')->end_section()
+				->section('s1', 'Section')->field_simple('field_1', 'Label 1', 'ext.view-only')->end_section()
 			->end_collection();
 
 			$output = $this->captureOutput(fn() => $settings->render('profile'));
@@ -110,7 +110,7 @@ class UserSettingsRenderSmokeTest extends PluginLibTestCase {
 			$settings->register_component('view-validator', array('path' => 'ViewValidator', 'prefix' => 'ext'));
 
 			$settings->collection('profile')
-				->section('s2', 'Section')->field('field_2', 'Label 2', 'ext.view-validator')->end_section()
+				->section('s2', 'Section')->field_simple('field_2', 'Label 2', 'ext.view-validator')->end_section()
 			->end_collection();
 
 			$output = $this->captureOutput(fn() => $settings->render('profile'));
@@ -133,7 +133,7 @@ class UserSettingsRenderSmokeTest extends PluginLibTestCase {
 			$settings->register_component('view-normalizer', array('path' => 'ViewNormalizer', 'prefix' => 'ext'));
 
 			$settings->collection('profile')
-				->section('s3', 'Section')->field('field_3', 'Label 3', 'ext.view-normalizer')->end_section()
+				->section('s3', 'Section')->field_simple('field_3', 'Label 3', 'ext.view-normalizer')->end_section()
 			->end_collection();
 
 			$output = $this->captureOutput(fn() => $settings->render('profile'));
@@ -157,7 +157,7 @@ class UserSettingsRenderSmokeTest extends PluginLibTestCase {
 			$settings->register_component('full-stack', array('path' => 'FullStack', 'prefix' => 'ext'));
 
 			$settings->collection('profile')
-				->section('s4', 'Section')->field('field_4', 'Label 4', 'ext.full-stack')->end_section()
+				->section('s4', 'Section')->field_simple('field_4', 'Label 4', 'ext.full-stack')->end_section()
 			->end_collection();
 
 			$output = $this->captureOutput(fn() => $settings->render('profile'));
@@ -180,7 +180,7 @@ class UserSettingsRenderSmokeTest extends PluginLibTestCase {
 
 			$settings->collection('profile')
 				->section('s5', 'Section')
-					->field('field_5', 'Label 5', 'ext.view-dev-schema', array(
+					->field_simple('field_5', 'Label 5', 'ext.view-dev-schema', array(
 						'schema' => array('default' => 'default_value', 'sanitize' => array(fn($v) => trim((string) $v))),
 					))
 				->end_section()
@@ -207,7 +207,7 @@ class UserSettingsRenderSmokeTest extends PluginLibTestCase {
 
 			$settings->collection('profile')
 				->section('s6', 'Section')
-					->field('field_6', 'Label 6', 'ext.validator-dev-schema', array(
+					->field_simple('field_6', 'Label 6', 'ext.validator-dev-schema', array(
 						'schema' => array('default' => 'validated_default'),
 					))
 				->end_section()
@@ -234,7 +234,7 @@ class UserSettingsRenderSmokeTest extends PluginLibTestCase {
 
 			$settings->collection('profile')
 				->section('s7', 'Section')
-					->field('field_7', 'Label 7', 'ext.normalizer-dev-schema', array(
+					->field_simple('field_7', 'Label 7', 'ext.normalizer-dev-schema', array(
 						'schema' => array('default' => 'normalized_default'),
 					))
 				->end_section()
@@ -262,7 +262,7 @@ class UserSettingsRenderSmokeTest extends PluginLibTestCase {
 
 			$settings->collection('profile')
 				->section('s8', 'Section')
-					->field('field_8', 'Label 8', 'ext.full-stack-schema', array(
+					->field_simple('field_8', 'Label 8', 'ext.full-stack-schema', array(
 						'schema' => array('default' => 'ultimate_default', 'validate' => array(fn($v, $emit) => !empty($v))),
 					))
 				->end_section()

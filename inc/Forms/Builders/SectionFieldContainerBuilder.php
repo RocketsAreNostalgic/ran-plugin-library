@@ -119,21 +119,32 @@ abstract class SectionFieldContainerBuilder implements SectionFieldContainerBuil
 	/**
 	 * Set the visual style for this container.
 	 *
-	 * @param string $style The style identifier (e.g., 'bordered', 'plain').
+	 * @param string|callable $style The style identifier or a resolver returning a string.
 	 *
 	 * @return static
 	 */
-	public function style(string $style): static {
-		$this->_update_meta('style', $style);
+	public function style(string|callable $style): static {
+		$normalized = $style === '' ? '' : $this->_resolve_style_arg($style);
+		$this->_update_meta('style', $normalized);
 		return $this;
 	}
 
 	/**
-	 * Add a field to this group/fieldset.
+	 * Add a field with a component builder.
 	 *
-	 * @return ComponentBuilderProxy<SectionFieldContainerBuilderInterface<TRoot, TSection>>|SimpleFieldProxy
+	 * Use this for components that have registered builder factories (e.g., fields.input,
+	 * fields.select). Throws if the component has no registered builder factory.
+	 *
+	 * @param string $field_id The field identifier.
+	 * @param string $label The field label.
+	 * @param string $component The component alias (must have a registered builder factory).
+	 * @param array<string,mixed> $args Optional arguments for the component.
+	 *
+	 * @return ComponentBuilderProxy The fluent proxy for field configuration.
+	 *
+	 * @throws \InvalidArgumentException If the component has no registered builder factory.
 	 */
-	public function field(string $field_id, string $label, string $component, array $args = array()): ComponentBuilderProxy|SimpleFieldProxy {
+	public function field(string $field_id, string $label, string $component, array $args = array()): ComponentBuilderProxy {
 		$component_context = $args['context']        ?? $args['component_context'] ?? array();
 		$order             = $args['order']          ?? null;
 		$field_template    = $args['field_template'] ?? $this->default_field_template;
@@ -149,43 +160,76 @@ abstract class SectionFieldContainerBuilder implements SectionFieldContainerBuil
 		}
 
 		$factory = $this->sectionBuilder->get_component_builder_factory($component);
-		if ($factory instanceof \Closure || is_callable($factory)) {
-			$builder = $factory($field_id, $label);
-			if (!$builder instanceof ComponentBuilderDefinitionInterface) {
-				throw new \UnexpectedValueException(sprintf('Builder factory for "%s" must return ComponentBuilderDefinitionInterface.', $component));
-			}
-
-			$proxy = $this->_create_component_proxy(
-				$builder,
-				$component,
-				$field_template,
-				$component_context
-			);
-
-			if (!empty($component_context)) {
-				$proxy->apply_context($component_context);
-			}
-
-			if ($order !== null) {
-				$proxy->order((int) $order);
-			}
-
-			if ($field_template !== null) {
-				$proxy->template($field_template);
-			}
-
-			if (is_callable($before)) {
-				$proxy->before($before);
-			}
-			if (is_callable($after)) {
-				$proxy->after($after);
-			}
-
-			return $proxy;
+		if (!($factory instanceof \Closure || is_callable($factory))) {
+			throw new \InvalidArgumentException(sprintf(
+				'Field "%s" uses component "%s" which has no registered builder factory. Use field_simple() for components without builders.',
+				$field_id,
+				$component
+			));
 		}
 
-		// For simple components without builder factories, return a SimpleFieldProxy
-		// to allow chained before()/after() calls without affecting the parent group
+		$builder = $factory($field_id, $label);
+		if (!$builder instanceof ComponentBuilderDefinitionInterface) {
+			throw new \UnexpectedValueException(sprintf('Builder factory for "%s" must return ComponentBuilderDefinitionInterface.', $component));
+		}
+
+		$proxy = $this->_create_component_proxy(
+			$builder,
+			$component,
+			$field_template,
+			$component_context
+		);
+
+		if (!empty($component_context)) {
+			$proxy->apply_context($component_context);
+		}
+
+		if ($order !== null) {
+			$proxy->order((int) $order);
+		}
+
+		if ($field_template !== null) {
+			$proxy->template($field_template);
+		}
+
+		if (is_callable($before)) {
+			$proxy->before($before);
+		}
+		if (is_callable($after)) {
+			$proxy->after($after);
+		}
+
+		return $proxy;
+	}
+
+	/**
+	 * Add a simple field without a component builder.
+	 *
+	 * Use this for components that render directly without builder support (e.g., raw HTML,
+	 * custom markup). Returns a SimpleFieldProxy with limited fluent configuration.
+	 *
+	 * @param string $field_id The field identifier.
+	 * @param string $label The field label.
+	 * @param string $component The component alias.
+	 * @param array<string,mixed> $args Optional arguments for the component.
+	 *
+	 * @return SimpleFieldProxy The fluent proxy for simple field configuration.
+	 */
+	public function field_simple(string $field_id, string $label, string $component, array $args = array()): SimpleFieldProxy {
+		$component_context = $args['context']        ?? $args['component_context'] ?? array();
+		$order             = $args['order']          ?? null;
+		$field_template    = $args['field_template'] ?? $this->default_field_template;
+		$before            = $args['before']         ?? null;
+		$after             = $args['after']          ?? null;
+
+		$component = trim($component);
+		if ($component === '') {
+			throw new \InvalidArgumentException(sprintf('Field "%s" requires a component alias.', $field_id));
+		}
+		if (!is_array($component_context)) {
+			throw new \InvalidArgumentException(sprintf('Field "%s" must provide an array component_context.', $field_id));
+		}
+
 		return $this->_create_simple_field_proxy(
 			$field_id,
 			$label,
@@ -389,6 +433,22 @@ abstract class SectionFieldContainerBuilder implements SectionFieldContainerBuil
 				'style'       => $this->style,
 			),
 		);
+	}
+
+	/**
+	 * Normalize a style argument to a trimmed string.
+	 *
+	 * @param string|callable $style Style value or resolver callback returning a string.
+	 *
+	 * @return string
+	 * @throws \InvalidArgumentException When the resolved value is not a string.
+	 */
+	protected function _resolve_style_arg(string|callable $style): string {
+		$resolved = is_callable($style) ? $style() : $style;
+		if (!is_string($resolved)) {
+			throw new \InvalidArgumentException('Style callback must return a string.');
+		}
+		return trim($resolved);
 	}
 
 	/**

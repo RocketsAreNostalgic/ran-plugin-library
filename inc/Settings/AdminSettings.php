@@ -56,8 +56,6 @@ class AdminSettings implements FormsInterface {
 	 */
 	protected ?ConfigInterface $config = null;
 
-	private const DEFAULT_SUBMIT_ZONE = 'primary-controls';
-
 	/**
 	 * Base context and storage captured from the injected RegisterOptions instance.
 	 * Retained so subsequent renders and saves can derive storage defaults.
@@ -80,6 +78,11 @@ class AdminSettings implements FormsInterface {
 	 * @var array<string, array{group:string, page:string}>
 	 */
 	private array $pages = array();
+
+	/**
+	 * Default submit zone for admin forms.
+	 */
+	private const DEFAULT_SUBMIT_ZONE = 'primary-controls';
 
 	/** Constructor.
 	 *
@@ -479,8 +482,8 @@ class AdminSettings implements FormsInterface {
 	}
 
 	// Protected
-
 	// WP Settings API hooks
+
 	/**
 	 * Register the setting with WordPress Settings API and wire sanitize callback.
 	 *
@@ -696,7 +699,7 @@ class AdminSettings implements FormsInterface {
 		);
 	}
 
-	// Update handlers
+	// Handlers
 
 	/**
 	 * Handle AdminSettings-specific update types.

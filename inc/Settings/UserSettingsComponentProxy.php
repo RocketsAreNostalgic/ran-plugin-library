@@ -194,17 +194,10 @@ class UserSettingsComponentProxy extends ComponentBuilderProxy {
 	 * @param string $component The component alias.
 	 * @param array<string,mixed> $args Optional configuration.
 	 *
-	 * @return UserSettingsComponentProxy|UserSettingsSectionBuilder|UserSettingsGroupBuilder|UserSettingsFieldsetBuilder
+	 * @return UserSettingsComponentProxy
 	 */
-	public function field(string $field_id, string $label, string $component, array $args = array()): UserSettingsComponentProxy|UserSettingsSectionBuilder|UserSettingsGroupBuilder|UserSettingsFieldsetBuilder {
+	public function field(string $field_id, string $label, string $component, array $args = array()): UserSettingsComponentProxy {
 		$parent = $this->end_field();
-		$result = $parent->field($field_id, $label, $component, $args);
-
-		// Return proper type based on what parent returns
-		if ($result instanceof UserSettingsComponentProxy) {
-			return $result;
-		}
-
-		return $parent;
+		return $parent->field($field_id, $label, $component, $args);
 	}
 }

@@ -147,7 +147,7 @@ class DeveloperAPISimpleTest extends PluginLibTestCase {
 		));
 		$this->assertEquals('admin.custom.section', $template);
 
-		$admin_section_builder->field('admin-field', 'Admin Field', 'component', array(
+		$admin_section_builder->field_simple('admin-field', 'Admin Field', 'component', array(
 			'field_template' => 'admin.custom.field',
 		))->order(15);
 		$template = $admin_session->resolve_template('field-wrapper', array(
@@ -188,7 +188,7 @@ class DeveloperAPISimpleTest extends PluginLibTestCase {
 		$this->assertEquals('custom.section', $template);
 
 		// Field override via section builder
-		$section_builder->field('field-id', 'Label', 'component', array(
+		$section_builder->field_simple('field-id', 'Label', 'component', array(
 			'field_template' => 'custom.field',
 		));
 		$template = $user_session->resolve_template('field-wrapper', array(

@@ -159,7 +159,7 @@ final class AdminSettingsRenderSmokeTest extends PluginLibTestCase {
 		$this->settings->menu_group('smoke-menu')
 			->page('smoke-page')
 				->section('smoke-section', 'Smoke Section')
-					->field('username', 'Username', 'fields.smoke-input')
+					->field_simple('username', 'Username', 'fields.smoke-input')
 				->end_section()
 			->end_page()
 		->end_menu_group();
@@ -199,7 +199,7 @@ final class AdminSettingsRenderSmokeTest extends PluginLibTestCase {
 		$this->settings->menu_group('attr-menu')
 			->page('attr-page')
 				->section('attr-section', 'Attributes Section')
-					->field('email', 'Email Address', 'fields.smoke-input', array(
+					->field_simple('email', 'Email Address', 'fields.smoke-input', array(
 						'component_context' => array(
 							'placeholder'  => 'you@example.com',
 							'autocomplete' => 'email',
@@ -245,7 +245,7 @@ final class AdminSettingsRenderSmokeTest extends PluginLibTestCase {
 		$this->settings->menu_group('default-menu')
 			->page('default-page')
 				->section('default-section', 'Default Section')
-					->field('theme', 'Theme', 'fields.smoke-input')
+					->field_simple('theme', 'Theme', 'fields.smoke-input')
 				->end_section()
 			->end_page()
 		->end_menu_group();
@@ -284,9 +284,9 @@ final class AdminSettingsRenderSmokeTest extends PluginLibTestCase {
 		$this->settings->menu_group('multi-menu')
 			->page('multi-page')
 				->section('multi-section', 'Multiple Fields')
-					->field('first_name', 'First Name', 'fields.smoke-input')
-					->field('last_name', 'Last Name', 'fields.smoke-input')
-					->field('age', 'Age', 'fields.smoke-input')
+					->field_simple('first_name', 'First Name', 'fields.smoke-input')
+					->field_simple('last_name', 'Last Name', 'fields.smoke-input')
+					->field_simple('age', 'Age', 'fields.smoke-input')
 				->end_section()
 			->end_page()
 		->end_menu_group();
@@ -324,7 +324,7 @@ final class AdminSettingsRenderSmokeTest extends PluginLibTestCase {
 			->page('group-page')
 				->section('group-section', 'Grouped Section')
 					->group('profile-group', 'Profile Group')
-						->field('grouped_field', 'Grouped Field', 'fields.smoke-input')
+						->field_simple('grouped_field', 'Grouped Field', 'fields.smoke-input')
 					->end_group()
 				->end_section()
 			->end_page()
@@ -354,7 +354,7 @@ final class AdminSettingsRenderSmokeTest extends PluginLibTestCase {
 			->page('fieldset-page')
 				->section('fieldset-section', 'Fieldset Section')
 					->fieldset('contact-fieldset', 'Contact Details')
-						->field('fieldset_field', 'Fieldset Field', 'fields.smoke-input')
+						->field_simple('fieldset_field', 'Fieldset Field', 'fields.smoke-input')
 					->end_fieldset()
 				->end_section()
 			->end_page()
@@ -516,7 +516,7 @@ class Normalizer {
 			$settings->menu_group('m1')
 				->page('p1')
 					->section('s1', 'Section')
-						->field('field_1', 'Label 1', 'ext.view-only')
+						->field_simple('field_1', 'Label 1', 'ext.view-only')
 					->end_section()
 				->end_page()
 			->end_menu_group();
@@ -558,7 +558,7 @@ class Normalizer {
 			$settings->menu_group('m2')
 				->page('p2')
 					->section('s2', 'Section')
-						->field('field_2', 'Label 2', 'ext.with-validator')
+						->field_simple('field_2', 'Label 2', 'ext.with-validator')
 					->end_section()
 				->end_page()
 			->end_menu_group();
@@ -599,7 +599,7 @@ class Normalizer {
 			$settings->menu_group('m3')
 				->page('p3')
 					->section('s3', 'Section')
-						->field('field_3', 'Label 3', 'ext.with-normalizer')
+						->field_simple('field_3', 'Label 3', 'ext.with-normalizer')
 					->end_section()
 				->end_page()
 			->end_menu_group();
@@ -641,7 +641,7 @@ class Normalizer {
 			$settings->menu_group('m4')
 				->page('p4')
 					->section('s4', 'Section')
-						->field('field_4', 'Label 4', 'ext.full-stack')
+						->field_simple('field_4', 'Label 4', 'ext.full-stack')
 					->end_section()
 				->end_page()
 			->end_menu_group();
@@ -681,7 +681,7 @@ class Normalizer {
 			$settings->menu_group('m5')
 				->page('p5')
 					->section('s5', 'Section')
-						->field('field_5', 'Label 5', 'ext.with-dev-schema', array(
+						->field_simple('field_5', 'Label 5', 'ext.with-dev-schema', array(
 							'schema' => array(
 								'default'  => 'default_from_schema',
 								'sanitize' => array(fn($v) => strtoupper((string) $v)),
@@ -727,7 +727,7 @@ class Normalizer {
 			$settings->menu_group('m6')
 				->page('p6')
 					->section('s6', 'Section')
-						->field('field_6', 'Label 6', 'ext.validator-dev-schema', array(
+						->field_simple('field_6', 'Label 6', 'ext.validator-dev-schema', array(
 							'schema' => array(
 								'default'  => 'schema_default',
 								'validate' => array(fn($v, $emit) => strlen((string) $v) > 0),
@@ -773,7 +773,7 @@ class Normalizer {
 			$settings->menu_group('m7')
 				->page('p7')
 					->section('s7', 'Section')
-						->field('field_7', 'Label 7', 'ext.normalizer-dev-schema', array(
+						->field_simple('field_7', 'Label 7', 'ext.normalizer-dev-schema', array(
 							'schema' => array(
 								'default'  => 'normalized_default',
 								'sanitize' => array(fn($v) => trim((string) $v)),
@@ -820,7 +820,7 @@ class Normalizer {
 			$settings->menu_group('m8')
 				->page('p8')
 					->section('s8', 'Section')
-						->field('field_8', 'Label 8', 'ext.full-stack-schema', array(
+						->field_simple('field_8', 'Label 8', 'ext.full-stack-schema', array(
 							'schema' => array(
 								'default'  => 'ultimate_default',
 								'sanitize' => array(fn($v) => trim((string) $v)),
@@ -897,9 +897,9 @@ class Normalizer {
 			$settings->menu_group('batch')
 				->page('batch-page')
 					->section('batch-section', 'Batch Components')
-						->field('field_a', 'Field A', 'batch.component-a')
-						->field('field_b', 'Field B', 'batch.component-b')
-						->field('field_c', 'Field C', 'batch.component-c')
+						->field_simple('field_a', 'Field A', 'batch.component-a')
+						->field_simple('field_b', 'Field B', 'batch.component-b')
+						->field_simple('field_c', 'Field C', 'batch.component-c')
 					->end_section()
 				->end_page()
 			->end_menu_group();
@@ -949,7 +949,7 @@ class Normalizer {
 			$settings->menu_group('st')
 				->page('st-page')
 					->section('s', 'Section')
-						->field('test_field', 'Test', 'ext.stored-test', array(
+						->field_simple('test_field', 'Test', 'ext.stored-test', array(
 							'schema' => array(
 								'default' => 'default_value',
 							),
@@ -991,7 +991,7 @@ class Normalizer {
 			$settings->menu_group('sch')
 				->page('sch-page')
 					->section('s', 'Section')
-						->field('test_field', 'Test', 'ext.schema-test', array(
+						->field_simple('test_field', 'Test', 'ext.schema-test', array(
 							'schema' => array(
 								'default'  => 'default_val',
 								'sanitize' => array(fn($v) => trim((string) $v)),
@@ -1037,8 +1037,8 @@ class Normalizer {
 			$settings->menu_group('mf')
 				->page('mf-page')
 					->section('s', 'Section')
-						->field('field_a', 'Field A', 'ext.multi-field')
-						->field('field_b', 'Field B', 'ext.multi-field')
+						->field_simple('field_a', 'Field A', 'ext.multi-field')
+						->field_simple('field_b', 'Field B', 'ext.multi-field')
 					->end_section()
 				->end_page()
 			->end_menu_group();
@@ -1078,7 +1078,7 @@ class Normalizer {
 			$settings->menu_group('cx')
 				->page('cx-page')
 					->section('s', 'Section')
-						->field('complex_field', 'Complex Field', 'ext.complex-schema', array(
+						->field_simple('complex_field', 'Complex Field', 'ext.complex-schema', array(
 							'schema' => array(
 								'default'  => 'default_complex',
 								'sanitize' => array(
@@ -1152,7 +1152,7 @@ class Normalizer {
 			$settings->menu_group('ss')
 				->page('ss-page')
 					->section('s', 'Section')
-						->field('san_field', 'Sanitize Field', 'ext.sanitize-comp')
+						->field_simple('san_field', 'Sanitize Field', 'ext.sanitize-comp')
 					->end_section()
 				->end_page()
 			->end_menu_group();
@@ -1210,7 +1210,7 @@ class Normalizer {
 			$settings->menu_group('sv')
 				->page('sv-page')
 					->section('s', 'Section')
-						->field('val_field', 'Validate Field', 'ext.validate-comp')
+						->field_simple('val_field', 'Validate Field', 'ext.validate-comp')
 					->end_section()
 				->end_page()
 			->end_menu_group();
@@ -1262,7 +1262,7 @@ class Normalizer {
 			$settings->menu_group('sa')
 				->page('sa-page')
 					->section('s', 'Section')
-						->field('acc_field', 'Accept Field', 'ext.accept-comp')
+						->field_simple('acc_field', 'Accept Field', 'ext.accept-comp')
 					->end_section()
 				->end_page()
 			->end_menu_group();
@@ -1325,7 +1325,7 @@ class Normalizer {
 			$settings->menu_group('sm')
 				->page('sm-page')
 					->section('s', 'Section')
-						->field('multi_field', 'Multi Field', 'ext.multi-san-comp')
+						->field_simple('multi_field', 'Multi Field', 'ext.multi-san-comp')
 					->end_section()
 				->end_page()
 			->end_menu_group();
@@ -1399,7 +1399,7 @@ class Normalizer {
 			$settings->menu_group('mg')
 				->page('mg-page')
 					->section('s', 'Section')
-						->field('merge_field', 'Merge Field', 'ext.merge-comp')
+						->field_simple('merge_field', 'Merge Field', 'ext.merge-comp')
 					->end_section()
 				->end_page()
 			->end_menu_group();
@@ -1488,7 +1488,7 @@ PHP;
 			$settings->menu_group('iv')
 				->page('iv-page')
 					->section('s', 'Section')
-						->field('int_field', 'Integration Field', 'ext.integration-validator')
+						->field_simple('int_field', 'Integration Field', 'ext.integration-validator')
 					->end_section()
 				->end_page()
 			->end_menu_group();
@@ -1561,7 +1561,7 @@ PHP;
 			$settings->menu_group('iva')
 				->page('iva-page')
 					->section('s', 'Section')
-						->field('acc_field', 'Accept Field', 'ext.integration-validator-accept')
+						->field_simple('acc_field', 'Accept Field', 'ext.integration-validator-accept')
 					->end_section()
 				->end_page()
 			->end_menu_group();
@@ -1656,7 +1656,7 @@ PHP;
 			$settings->menu_group('is')
 				->page('is-page')
 					->section('s', 'Section')
-						->field('san_field', 'Sanitize Field', 'ext.integration-sanitizer')
+						->field_simple('san_field', 'Sanitize Field', 'ext.integration-sanitizer')
 					->end_section()
 				->end_page()
 			->end_menu_group();

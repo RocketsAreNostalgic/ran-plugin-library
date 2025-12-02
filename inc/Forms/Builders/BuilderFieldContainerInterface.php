@@ -23,18 +23,34 @@ use Ran\PluginLib\Forms\Builders\BuilderRootInterface;
  */
 interface BuilderFieldContainerInterface {
 	/**
-	 * field() method returns a fluent proxy for configuring field-level options.
+	 * Add a field with a component builder.
 	 *
-	 * For components with builder factories, returns ComponentBuilderProxy.
-	 * For simple components without builders, returns SimpleFieldProxy.
-	 * Some specialized builders (like SubmitControlsBuilder) may return static.
+	 * Use this for components that have registered builder factories (e.g., fields.input,
+	 * fields.select). Returns a ComponentBuilderProxy with full fluent configuration.
 	 *
-	 * @param string $field_id The field identifier
-	 * @param string $label The field label
-	 * @param string $component The component to use
-	 * @param array $args Optional arguments for the component
+	 * @param string $field_id The field identifier.
+	 * @param string $label The field label.
+	 * @param string $component The component alias (must have a registered builder factory).
+	 * @param array<string,mixed> $args Optional arguments for the component.
 	 *
-	 * @return ComponentBuilderProxy|SimpleFieldProxy|static The fluent proxy for field configuration
+	 * @return ComponentBuilderProxy The fluent proxy for field configuration.
+	 *
+	 * @throws \InvalidArgumentException If the component has no registered builder factory.
 	 */
-	public function field(string $field_id, string $label, string $component, array $args = array()): ComponentBuilderProxy|SimpleFieldProxy|static;
+	public function field(string $field_id, string $label, string $component, array $args = array()): ComponentBuilderProxy;
+
+	/**
+	 * Add a simple field without a component builder.
+	 *
+	 * Use this for components that render directly without builder support (e.g., raw HTML,
+	 * custom markup). Returns a SimpleFieldProxy with limited fluent configuration.
+	 *
+	 * @param string $field_id The field identifier.
+	 * @param string $label The field label.
+	 * @param string $component The component alias.
+	 * @param array<string,mixed> $args Optional arguments for the component.
+	 *
+	 * @return SimpleFieldProxy The fluent proxy for simple field configuration.
+	 */
+	public function field_simple(string $field_id, string $label, string $component, array $args = array()): SimpleFieldProxy;
 }

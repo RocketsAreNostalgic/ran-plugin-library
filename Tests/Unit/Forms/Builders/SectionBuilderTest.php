@@ -67,12 +67,12 @@ final class SectionBuilderTest extends TestCase {
 		self::assertSame('custom.wrapper', $templateOverrides[0]['payload']['overrides']['field-wrapper'] ?? null);
 	}
 
-	public function test_field_without_factory_returns_simple_field_proxy_and_emits_field_update(): void {
+	public function test_field_simple_returns_simple_field_proxy_and_emits_field_update(): void {
 		$builder = $this->createSectionBuilder();
 
-		$result = $builder->field('api_key', 'API Key', 'fields.input');
+		$result = $builder->field_simple('api_key', 'API Key', 'fields.custom');
 
-		// Now returns SimpleFieldProxy to allow chained before()/after() calls
+		// field_simple() returns SimpleFieldProxy for components without builders
 		self::assertInstanceOf(SimpleFieldProxy::class, $result);
 
 		// Trigger field emission by calling end_field()
@@ -81,6 +81,15 @@ final class SectionBuilderTest extends TestCase {
 		$fieldUpdates = array_values(array_filter($this->updates, static fn(array $entry): bool => $entry['type'] === 'field'));
 		self::assertNotEmpty($fieldUpdates, 'Expected a field update for direct field registration.');
 		self::assertSame('api_key', $fieldUpdates[0]['payload']['field_data']['id']);
+	}
+
+	public function test_field_throws_when_no_builder_factory(): void {
+		$builder = $this->createSectionBuilder();
+
+		$this->expectException(\InvalidArgumentException::class);
+		$this->expectExceptionMessage('Use field_simple() for components without builders');
+
+		$builder->field('api_key', 'API Key', 'fields.custom');
 	}
 
 	public function test_group_returns_group_builder_and_emits_group_metadata(): void {
@@ -100,6 +109,17 @@ final class SectionBuilderTest extends TestCase {
 		$fieldSet = $builder->fieldset('profile-details', 'Profile Details', null, array('style' => 'minimal', 'required' => true));
 
 		self::assertInstanceOf(FieldsetBuilder::class, $fieldSet);
+	}
+
+	public function test_style_accepts_callable_resolver(): void {
+		$builder = $this->createSectionBuilder();
+
+		$builder->style(static fn (): string => '  callable-style  ');
+
+		$sectionUpdates = array_values(array_filter($this->updates, static fn(array $entry): bool => $entry['type'] === 'section_metadata'));
+		self::assertNotEmpty($sectionUpdates, 'Expected section metadata updates.');
+		$payload = $sectionUpdates[count($sectionUpdates) - 1]['payload'];
+		self::assertSame('callable-style', $payload['group_data']['style']);
 	}
 
 	public function test_template_throws_when_key_is_blank(): void {

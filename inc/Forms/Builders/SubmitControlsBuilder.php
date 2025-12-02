@@ -132,16 +132,19 @@ final class SubmitControlsBuilder implements SubmitControlsBuilderInterface {
 	}
 
 	/**
-	 * Register any component as a submit control using the shared fluent signature.
+	 * Register any component as a submit control.
+	 *
+	 * Unlike BuilderFieldContainerInterface::field(), this does not use component builders.
+	 * Controls are registered directly without fluent proxy configuration.
 	 *
 	 * @param string $control_id Unique control identifier.
 	 * @param string $label      Optional display label (may be empty for non-button controls).
 	 * @param string $component  Registered component alias.
 	 * @param array<string,mixed> $args Optional configuration (context/order/label overrides).
 	 *
-	 * @return static|ComponentBuilderProxy
+	 * @return static
 	 */
-	public function field(string $control_id, string $label, string $component, array $args = array()): static|ComponentBuilderProxy {
+	public function field(string $control_id, string $label, string $component, array $args = array()): static {
 		$control_id = trim($control_id);
 		if ($control_id === '') {
 			throw new InvalidArgumentException('Submit control id cannot be empty.');

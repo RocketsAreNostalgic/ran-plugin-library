@@ -141,6 +141,7 @@ class UserSettings implements FormsInterface {
 
 		// Phase 7: Form session configuration with context-specific defaults
 		$this->_start_form_session();
+
 		// UserSettings overrides all template levels for profile-specific rendering
 		$this->form_session->set_form_defaults(array(
 			'root-wrapper'    => 'user.root-wrapper',
@@ -443,10 +444,13 @@ class UserSettings implements FormsInterface {
 			'values'       => $effective_values,
 		)) ?? '';
 
+		$collection_style = isset($collection_meta['style']) ? trim((string) $collection_meta['style']) : '';
+
 		$payload = array(
 			...($context ?? array()),
 			'heading'     => $collection_meta['heading']     ?? '',
 			'description' => $collection_meta['description'] ?? '',
+			'style'       => $collection_style,
 			...array(
 				'id_slug'           => $id_slug,
 				'collection_meta'   => $collection_meta,
@@ -651,6 +655,9 @@ class UserSettings implements FormsInterface {
 			case 'collection':
 				$container_id    = $data['container_id']    ?? '';
 				$collection_data = $data['collection_data'] ?? array();
+				if (array_key_exists('style', $collection_data)) {
+					$collection_data['style'] = trim((string) $collection_data['style']);
+				}
 
 				if ($container_id === '') {
 					$this->logger->warning('UserSettings: Collection update missing container_id', $data);
@@ -664,6 +671,7 @@ class UserSettings implements FormsInterface {
 				$this->collections[$container_id] = array_merge($this->collections[$container_id], $collection_data);
 				$this->logger->debug('settings.builder.collection.updated', array(
 					'container_id' => $container_id,
+					'style'        => $this->collections[$container_id]['style'] ?? '',
 					'collection'   => $this->collections[$container_id],
 				));
 				break;
@@ -690,6 +698,8 @@ class UserSettings implements FormsInterface {
 				));
 		}
 	}
+
+	//
 
 	/**
 	 * Get the template alias for rendering sections.

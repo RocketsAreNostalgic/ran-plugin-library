@@ -40,13 +40,13 @@ final class UserSettingsGroupBuilder extends GroupBuilder {
 	}
 
 	/**
-	 * Add a field to this user settings group.
+	 * Add a field with a component builder to this user settings group.
 	 *
-	 * @return UserSettingsComponentProxy|SimpleFieldProxy
+	 * @return UserSettingsComponentProxy
 	 */
-	public function field(string $field_id, string $label, string $component, array $args = array()): UserSettingsComponentProxy|SimpleFieldProxy {
+	public function field(string $field_id, string $label, string $component, array $args = array()): UserSettingsComponentProxy {
 		$result = parent::field($field_id, $label, $component, $args);
-		if ($result instanceof UserSettingsComponentProxy || $result instanceof SimpleFieldProxy) {
+		if ($result instanceof UserSettingsComponentProxy) {
 			return $result;
 		}
 		throw new \RuntimeException('Unexpected return type from parent::field()');

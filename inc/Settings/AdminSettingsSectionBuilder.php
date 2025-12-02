@@ -185,13 +185,13 @@ class AdminSettingsSectionBuilder extends SectionBuilder {
 	}
 
 	/**
-	 * Add a field to this section with admin-specific typing.
+	 * Add a field with a component builder to this section.
 	 *
-	 * @return AdminSettingsComponentProxy|SimpleFieldProxy
+	 * @return AdminSettingsComponentProxy
 	 */
-	public function field(string $field_id, string $label, string $component, array $args = array()): AdminSettingsComponentProxy|SimpleFieldProxy {
+	public function field(string $field_id, string $label, string $component, array $args = array()): AdminSettingsComponentProxy {
 		$result = parent::field($field_id, $label, $component, $args);
-		if ($result instanceof AdminSettingsComponentProxy || $result instanceof SimpleFieldProxy) {
+		if ($result instanceof AdminSettingsComponentProxy) {
 			return $result;
 		}
 		throw new \RuntimeException('Unexpected return type from parent::field()');

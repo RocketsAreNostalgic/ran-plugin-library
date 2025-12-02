@@ -10,9 +10,22 @@ declare(strict_types=1);
 namespace Ran\PluginLib\Forms\Builders;
 
 use Ran\PluginLib\Forms\Builders\BuilderRootInterface;
-use Ran\PluginLib\Forms\Builders\BuilderFieldContainerInterface;
 
-interface SubmitControlsBuilderInterface extends BuilderFieldContainerInterface {
+interface SubmitControlsBuilderInterface {
+	/**
+	 * Register any component as a submit control.
+	 *
+	 * Unlike BuilderFieldContainerInterface::field(), this does not use component builders.
+	 * Controls are registered directly without fluent proxy configuration.
+	 *
+	 * @param string $control_id Unique control identifier.
+	 * @param string $label Display label.
+	 * @param string $component Registered component alias.
+	 * @param array<string,mixed> $args Optional configuration.
+	 *
+	 * @return static
+	 */
+	public function field(string $control_id, string $label, string $component, array $args = array()): static;
 	/**
 	 * Override submit wrapper template.
 	 */

@@ -65,12 +65,12 @@ class FieldsetBuilder extends SectionFieldContainerBuilder implements FieldsetBu
 	 * Set the visual style for this fieldset.
 	 * Overrides parent to add validation.
 	 *
-	 * @param string $style The style identifier (e.g., 'bordered', 'plain').
+	 * @param string|callable $style The style identifier or resolver returning a string.
 	 *
 	 * @return static
 	 */
-	public function style(string $style): static {
-		return parent::style($this->_normalize_style($style));
+	public function style(string|callable $style): static {
+		return parent::style($style === '' ? '' : $this->_resolve_style_arg($style));
 	}
 
 	/**
@@ -200,6 +200,9 @@ class FieldsetBuilder extends SectionFieldContainerBuilder implements FieldsetBu
 	 * @throws InvalidArgumentException If the style is not a string.
 	 */
 	protected function _normalize_style(mixed $style): string {
+		if (is_callable($style)) {
+			$style = $style();
+		}
 		if (!is_string($style)) {
 			throw new InvalidArgumentException('Fieldset style must be a string.');
 		}

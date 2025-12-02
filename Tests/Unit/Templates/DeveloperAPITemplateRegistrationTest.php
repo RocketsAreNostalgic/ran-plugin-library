@@ -165,7 +165,7 @@ class DeveloperAPITemplateRegistrationTest extends PluginLibTestCase {
 		$result = $section_builder->template('custom.section');
 		$this->assertSame($section_builder, $result);
 
-		$section_builder->field('field-id', 'Label', 'component');
+		$section_builder->field_simple('field-id', 'Label', 'component');
 	}
 
 	/**

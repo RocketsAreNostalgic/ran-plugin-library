@@ -38,13 +38,13 @@ final class UserSettingsFieldsetBuilder extends FieldsetBuilder {
 	}
 
 	/**
-	 * Add a field to this user settings fieldset.
+	 * Add a field with a component builder to this user settings fieldset.
 	 *
-	 * @return UserSettingsComponentProxy|SimpleFieldProxy
+	 * @return UserSettingsComponentProxy
 	 */
-	public function field(string $field_id, string $label, string $component, array $args = array()): UserSettingsComponentProxy|SimpleFieldProxy {
+	public function field(string $field_id, string $label, string $component, array $args = array()): UserSettingsComponentProxy {
 		$result = parent::field($field_id, $label, $component, $args);
-		if ($result instanceof UserSettingsComponentProxy || $result instanceof SimpleFieldProxy) {
+		if ($result instanceof UserSettingsComponentProxy) {
 			return $result;
 		}
 		throw new \RuntimeException('Unexpected return type from parent::field()');

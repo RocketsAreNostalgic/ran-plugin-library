@@ -5,20 +5,25 @@
  * This proxy captures field-level before/after callbacks for simple components
  * that don't have a full ComponentBuilderDefinitionInterface. It ensures that
  * chained ->before() and ->after() calls affect the field, not the parent container.
+ * Call end_field() to return to the parent builder.
  *
  * @package Ran\PluginLib\Forms\Builders
+ *
+ * @template TParent of SectionBuilder|SectionFieldContainerBuilder
  */
 
 declare(strict_types=1);
 
 namespace Ran\PluginLib\Forms\Builders;
 
+use BadMethodCallException;
+
 /**
  * Proxy for simple field configurations without component builders.
  *
- * @template TParent of SectionBuilder|SectionFieldContainerBuilder
+ * @template-implements FieldProxyInterface
  */
-class SimpleFieldProxy {
+class SimpleFieldProxy implements FieldProxyInterface {
 	/** @var SectionBuilder|SectionFieldContainerBuilder */
 	private SectionBuilder|SectionFieldContainerBuilder $parent;
 
@@ -78,7 +83,21 @@ class SimpleFieldProxy {
 	}
 
 	/**
+	 * Set the field ID.
+	 *
+	 * @param string $id The field ID.
+	 *
+	 * @return static
+	 */
+	public function id(string $id): static {
+		$this->field_id = $id;
+		return $this;
+	}
+
+	/**
 	 * Set the before callback for this field.
+	 *
+	 * @param callable|null $before The before callback.
 	 *
 	 * @return static
 	 */
@@ -90,6 +109,8 @@ class SimpleFieldProxy {
 	/**
 	 * Set the after callback for this field.
 	 *
+	 * @param callable|null $after The after callback.
+	 *
 	 * @return static
 	 */
 	public function after(?callable $after): static {
@@ -99,6 +120,8 @@ class SimpleFieldProxy {
 
 	/**
 	 * Set the field order.
+	 *
+	 * @param int $order The field order.
 	 *
 	 * @return static
 	 */
@@ -129,6 +152,18 @@ class SimpleFieldProxy {
 	public function style(string|callable $style): static {
 		$this->style = $style === '' ? '' : $this->_resolve_style_arg($style);
 		return $this;
+	}
+
+	/**
+	 * Throws - call end_field() before configuring section heading.
+	 *
+	 * @param string $heading The heading.
+	 *
+	 * @return never
+	 * @throws BadMethodCallException Always.
+	 */
+	public function heading(string $heading): static {
+		throw new BadMethodCallException('Call end_field() before configuring section heading.');
 	}
 
 	/**
@@ -238,6 +273,7 @@ class SimpleFieldProxy {
 	/**
 	 * Magic method to forward calls to parent builder after emitting field.
 	 *
+	 * @internal
 	 * @param string $name Method name.
 	 * @param array<int,mixed> $arguments Method arguments.
 	 *
@@ -250,6 +286,8 @@ class SimpleFieldProxy {
 
 	/**
 	 * Ensure field is emitted when proxy is destroyed.
+	 *
+	 * @internal
 	 */
 	public function __destruct() {
 		$this->_emit_field_update();

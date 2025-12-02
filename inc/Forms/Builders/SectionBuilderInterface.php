@@ -45,16 +45,36 @@ interface SectionBuilderInterface extends BuilderChildInterface, BuilderFieldCon
 	public function fieldset(string $fieldset_id, string $title, ?callable $description_cb = null, ?array $args = null): FieldsetBuilderInterface;
 
 	/**
-	 * Define a new field within this section.
+	 * Add a field with a component builder.
+	 *
+	 * Use this for components that have registered builder factories (e.g., fields.input,
+	 * fields.select). Throws if the component has no registered builder factory.
+	 *
+	 * @param string $field_id The field ID.
+	 * @param string $label The field label.
+	 * @param string $component The component alias (must have a registered builder factory).
+	 * @param array<string,mixed> $args Optional configuration (context, order, field_template).
+	 *
+	 * @return ComponentBuilderProxy The fluent proxy for field configuration.
+	 *
+	 * @throws \InvalidArgumentException If the component has no registered builder factory.
+	 */
+	public function field(string $field_id, string $label, string $component, array $args = array()): ComponentBuilderProxy;
+
+	/**
+	 * Add a simple field without a component builder.
+	 *
+	 * Use this for components that render directly without builder support (e.g., raw HTML,
+	 * custom markup). Returns a SimpleFieldProxy with limited fluent configuration.
 	 *
 	 * @param string $field_id The field ID.
 	 * @param string $label The field label.
 	 * @param string $component The component alias.
 	 * @param array<string,mixed> $args Optional configuration (context, order, field_template).
 	 *
-	 * @return ComponentBuilderProxy|static
+	 * @return SimpleFieldProxy The fluent proxy for simple field configuration.
 	 */
-	public function field(string $field_id, string $label, string $component, array $args = array()): ComponentBuilderProxy|SimpleFieldProxy;
+	public function field_simple(string $field_id, string $label, string $component, array $args = array()): SimpleFieldProxy;
 
 	/**
 	 * end_group() method returns this SectionBuilder instance.

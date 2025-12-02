@@ -187,7 +187,7 @@ class SettingsIntegrationSeamsTest extends PluginLibTestCase {
 		$settings->menu_group('test-group')
 			->page('test-page')
 				->section('s1', 'Test Section')
-					->field('test_field', 'Test Field', 'test.input')
+					->field_simple('test_field', 'Test Field', 'test.input')
 				->end_section()
 			->end_page()
 		->end_menu_group();
@@ -240,7 +240,7 @@ class SettingsIntegrationSeamsTest extends PluginLibTestCase {
 		$settings->menu_group('sg')
 			->page('sp')
 				->section('ss', 'Section')
-					->field('schema_field', 'Schema Field', 'fields.input')
+					->field_simple('schema_field', 'Schema Field', 'fields.input')
 				->end_section()
 			->end_page()
 		->end_menu_group();
@@ -321,7 +321,7 @@ class SettingsIntegrationSeamsTest extends PluginLibTestCase {
 
 		$settings->collection('profile')
 			->section('s1', 'Profile Section')
-				->field('profile_field', 'Profile Field', 'profile.input')
+				->field_simple('profile_field', 'Profile Field', 'profile.input')
 			->end_section()
 		->end_collection();
 
@@ -372,7 +372,7 @@ class SettingsIntegrationSeamsTest extends PluginLibTestCase {
 
 		$settings->collection('profile')
 			->section('ss', 'Section')
-				->field('user_schema_field', 'User Schema Field', 'fields.input')
+				->field_simple('user_schema_field', 'User Schema Field', 'fields.input')
 			->end_section()
 		->end_collection();
 
@@ -437,7 +437,7 @@ return new ComponentRenderResult(
 			$settings->menu_group('ext-group')
 				->page('ext-page')
 					->section('ext-section', 'External Section')
-						->field('ext_field', 'External Field', 'ext.seam-component')
+						->field_simple('ext_field', 'External Field', 'ext.seam-component')
 					->end_section()
 				->end_page()
 			->end_menu_group();
@@ -497,7 +497,7 @@ return new ComponentRenderResult(
 
 			$settings->collection('profile')
 				->section('ext-section', 'External Section')
-					->field('user_ext_field', 'User External Field', 'ext.user-seam-component')
+					->field_simple('user_ext_field', 'User External Field', 'ext.user-seam-component')
 				->end_section()
 			->end_collection();
 
@@ -555,7 +555,7 @@ return new ComponentRenderResult(
 		$settings->menu_group('rt')
 			->page('rt-page')
 				->section('rt-section', 'Roundtrip Section')
-					->field('roundtrip_field', 'Roundtrip Field', 'fields.input')
+					->field_simple('roundtrip_field', 'Roundtrip Field', 'fields.input')
 				->end_section()
 			->end_page()
 		->end_menu_group();
@@ -578,7 +578,7 @@ return new ComponentRenderResult(
 		$settings2->menu_group('rt')
 			->page('rt-page')
 				->section('rt-section', 'Roundtrip Section')
-					->field('roundtrip_field', 'Roundtrip Field', 'fields.input')
+					->field_simple('roundtrip_field', 'Roundtrip Field', 'fields.input')
 				->end_section()
 			->end_page()
 		->end_menu_group();
@@ -627,7 +627,7 @@ return new ComponentRenderResult(
 
 		$settings->collection('profile')
 			->section('rt-section', 'Roundtrip Section')
-				->field('user_roundtrip_field', 'User Roundtrip Field', 'fields.input')
+				->field_simple('user_roundtrip_field', 'User Roundtrip Field', 'fields.input')
 			->end_section()
 		->end_collection();
 
@@ -648,7 +648,7 @@ return new ComponentRenderResult(
 
 		$settings2->collection('profile')
 			->section('rt-section', 'Roundtrip Section')
-				->field('user_roundtrip_field', 'User Roundtrip Field', 'fields.input')
+				->field_simple('user_roundtrip_field', 'User Roundtrip Field', 'fields.input')
 			->end_section()
 		->end_collection();
 
@@ -703,7 +703,7 @@ return new ComponentRenderResult(
 		$settings->menu_group('vf')
 			->page('vf-page')
 				->section('vf-section', 'Validation Section')
-					->field('validated_field', 'Validated Field', 'fields.input')
+					->field_simple('validated_field', 'Validated Field', 'fields.input')
 				->end_section()
 			->end_page()
 		->end_menu_group();
@@ -767,7 +767,7 @@ return new ComponentRenderResult(
 
 		$settings->collection('profile')
 			->section('vf-section', 'Validation Section')
-				->field('user_validated_field', 'User Validated Field', 'fields.input')
+				->field_simple('user_validated_field', 'User Validated Field', 'fields.input')
 			->end_section()
 		->end_collection();
 

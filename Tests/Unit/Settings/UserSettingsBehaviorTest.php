@@ -240,7 +240,7 @@ final class UserSettingsBehaviorTest extends PluginLibTestCase {
 		$user_settings = $this->createUserSettings();
 		$user_settings->collection('profile')
 			->section('auto', 'Auto Section')
-				->field('auto_field', 'Auto Field', $alias)
+				->field_simple('auto_field', 'Auto Field', $alias)
 			->end_section()
 		->end_collection();
 
@@ -291,7 +291,7 @@ final class UserSettingsBehaviorTest extends PluginLibTestCase {
 		$collection    = $user_settings->collection('profile');
 		$collection->template($callback);
 		$collection->section('basic', 'Basic Info')
-			->field('profile_name', 'Profile Name', 'fields.input')
+			->field_simple('profile_name', 'Profile Name', 'fields.input')
 		->end_section();
 		$collection->end_collection();
 
@@ -401,7 +401,7 @@ final class UserSettingsBehaviorTest extends PluginLibTestCase {
 		$user_settings = $this->createUserSettings();
 		$user_settings->collection('profile')
 			->section('merge', 'Merge Section')
-				->field('merge_field_user', 'Merge Field', 'fields.merge-user')
+				->field_simple('merge_field_user', 'Merge Field', 'fields.merge-user')
 			->end_section()
 		->end_collection();
 
@@ -532,7 +532,7 @@ final class UserSettingsBehaviorTest extends PluginLibTestCase {
 
 		$user_settings = $this->createUserSettings();
 		$user_settings->collection('profile')->section('basic', 'Basic Info')
-			->field('profile_asset', 'Profile Asset', 'fields.profile-asset')
+			->field_simple('profile_asset', 'Profile Asset', 'fields.profile-asset')
 		->end_section();
 
 		WP_Mock::userFunction('current_user_can')->withAnyArgs()->andReturn(true);

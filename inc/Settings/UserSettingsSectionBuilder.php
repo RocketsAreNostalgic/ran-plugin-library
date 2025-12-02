@@ -80,13 +80,13 @@ class UserSettingsSectionBuilder extends SectionBuilder {
 	}
 
 	/**
-	 * Add a field to this section with user settings-specific typing.
+	 * Add a field with a component builder to this section.
 	 *
-	 * @return UserSettingsComponentProxy|SimpleFieldProxy
+	 * @return UserSettingsComponentProxy
 	 */
-	public function field(string $field_id, string $label, string $component, array $args = array()): UserSettingsComponentProxy|SimpleFieldProxy {
+	public function field(string $field_id, string $label, string $component, array $args = array()): UserSettingsComponentProxy {
 		$result = parent::field($field_id, $label, $component, $args);
-		if ($result instanceof UserSettingsComponentProxy || $result instanceof SimpleFieldProxy) {
+		if ($result instanceof UserSettingsComponentProxy) {
 			return $result;
 		}
 		throw new \RuntimeException('Unexpected return type from parent::field()');

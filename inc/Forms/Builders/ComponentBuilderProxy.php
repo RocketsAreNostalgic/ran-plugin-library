@@ -1,14 +1,13 @@
 <?php
 /**
- * FieldBuilderProxy: Fluent bridge between settings builders and component builders.
+ * ComponentBuilderProxy: Fluent bridge between settings builders and component builders.
+ *
+ * Provides field-level fluent methods for components with full builder support.
+ * Call end_field() to return to the parent builder.
+ *
+ * @package Ran\PluginLib\Forms\Builders
  *
  * @template TParent of SectionBuilder|SectionFieldContainerBuilder
- * @mixin TParent
- * @method TParent end_section()
- * @method SectionBuilder end_group()
- * @method SectionBuilder end_fieldset()
- * @method \Ran\PluginLib\Settings\AdminSettingsPageBuilder end_page()
- * @method BuilderRootInterface end()
  */
 
 declare(strict_types=1);
@@ -20,13 +19,13 @@ use Ran\PluginLib\Forms\Component\Build\ComponentBuilderDefinitionInterface;
 use Ran\PluginLib\Forms\Component\Build\ComponentBuilderBase;
 use Ran\PluginLib\Forms\Builders\SectionFieldContainerBuilder;
 use Ran\PluginLib\Forms\Builders\SectionBuilder;
-use Ran\PluginLib\Forms\Builders\GroupBuilder;
 use BadMethodCallException;
 
 /**
  * @template-implements ComponentBuilderInterface
+ * @template-implements FieldProxyInterface
  */
-class ComponentBuilderProxy implements ComponentBuilderInterface {
+class ComponentBuilderProxy implements ComponentBuilderInterface, FieldProxyInterface {
 	/** @var ComponentBuilderDefinitionInterface&ComponentBuilderInterface */
 	private ComponentBuilderDefinitionInterface $builder;
 	/**
@@ -97,7 +96,9 @@ class ComponentBuilderProxy implements ComponentBuilderInterface {
 
 	/**
 	 * Proxy fluent builder methods to the underlying component builder.
-	 * Falls back to parent builder methods after committing.
+	 *
+	 * Only forwards to the component builder, not the parent. Use end_field()
+	 * to return to the parent builder before calling parent methods.
 	 *
 	 * @param string $name
 	 * @param array<int,mixed> $arguments
@@ -112,15 +113,20 @@ class ComponentBuilderProxy implements ComponentBuilderInterface {
 			return $result;
 		}
 
-		if (method_exists($this->parent, $name)) {
-			$parent = $this->end_field();
-			return $parent->$name(...$arguments);
-		}
-
-		throw new BadMethodCallException(sprintf('Method "%s" is not supported by the field builder proxy.', $name));
+		throw new BadMethodCallException(sprintf(
+			'Method "%s" is not available on field proxy. Call end_field() first to return to the parent builder.',
+			$name
+		));
 	}
 
-	public function template(string $template_key): self {
+	/**
+	 * Set the template override for this field.
+	 *
+	 * @param string $template_key The template key.
+	 *
+	 * @return self
+	 */
+	public function template(string $template_key): static {
 		$template = trim($template_key);
 		if ($template !== '') {
 			$this->field_template = $template;
@@ -129,43 +135,93 @@ class ComponentBuilderProxy implements ComponentBuilderInterface {
 		return $this;
 	}
 
-	public function id(string $id): self {
+	/**
+	 * Set the ID for this field.
+	 *
+	 * @param string $id The ID.
+	 *
+	 * @return self
+	 */
+	public function id(string $id): static {
 		$this->builder->id($id);
 		$this->field_id = $id;
 		$this->_emit_field_update();
 		return $this;
 	}
 
+	/**
+	 * Set the disabled state for this field.
+	 *
+	 * @param bool $disabled The disabled state.
+	 *
+	 * @return self
+	 */
 	public function disabled(bool $disabled = true): self {
 		$this->builder->disabled($disabled);
 		$this->_emit_field_update();
 		return $this;
 	}
 
+	/**
+	 * Set the required state for this field.
+	 *
+	 * @param bool $required The required state.
+	 *
+	 * @return self
+	 */
 	public function required(bool $required = true): self {
 		$this->builder->required($required);
 		$this->_emit_field_update();
 		return $this;
 	}
 
+	/**
+	 * Set the readonly state for this field.
+	 *
+	 * @param bool $readonly The readonly state.
+	 *
+	 * @return self
+	 */
 	public function readonly(bool $readonly = true): self {
 		$this->builder->readonly($readonly);
 		$this->_emit_field_update();
 		return $this;
 	}
 
+	/**
+	 * Set an attribute for this field.
+	 *
+	 * @param string $attribute The attribute name.
+	 * @param string $value The attribute value.
+	 *
+	 * @return self
+	 */
 	public function attribute(string $attribute, string $value): self {
 		$this->builder->attribute($attribute, $value);
 		$this->_emit_field_update();
 		return $this;
 	}
 
+	/**
+	 * Set the aria label for this field.
+	 *
+	 * @param string $ariaLabel The aria label.
+	 *
+	 * @return self
+	 */
 	public function ariaLabel(string $ariaLabel): self {
 		$this->builder->ariaLabel($ariaLabel);
 		$this->_emit_field_update();
 		return $this;
 	}
 
+	/**
+	 * Set the aria described by for this field.
+	 *
+	 * @param string $ariaDescribedBy The aria described by.
+	 *
+	 * @return self
+	 */
 	public function ariaDescribedBy(string $ariaDescribedBy): self {
 		$this->builder->ariaDescribedBy($ariaDescribedBy);
 		$this->_emit_field_update();
@@ -185,10 +241,24 @@ class ComponentBuilderProxy implements ComponentBuilderInterface {
 		return $this;
 	}
 
+	/**
+	 * Set the heading for this field.
+	 *
+	 * @param string $heading The heading.
+	 *
+	 * @return self
+	 */
 	public function heading(string $heading): self {
 		throw new BadMethodCallException('Call end_field() before configuring section heading.');
 	}
 
+	/**
+	 * Set the description for this field.
+	 *
+	 * @param string $description The description.
+	 *
+	 * @return self
+	 */
 	public function description(string $description): self {
 		if (method_exists($this->builder, 'description')) {
 			call_user_func(array($this->builder, 'description'), $description);
@@ -199,7 +269,14 @@ class ComponentBuilderProxy implements ComponentBuilderInterface {
 		throw new BadMethodCallException('Field builder does not support description().');
 	}
 
-	public function order(int $order): self {
+	/**
+	 * Set the order for this field.
+	 *
+	 * @param int $order The order.
+	 *
+	 * @return self
+	 */
+	public function order(int $order): static {
 		$this->pending_order = $order;
 		if (method_exists($this->builder, 'order')) {
 			call_user_func(array($this->builder, 'order'), $order);
@@ -208,13 +285,27 @@ class ComponentBuilderProxy implements ComponentBuilderInterface {
 		return $this;
 	}
 
-	public function before(callable $before): self {
+	/**
+	 * Set the before callback for this field.
+	 *
+	 * @param callable|null $before The before callback.
+	 *
+	 * @return self
+	 */
+	public function before(?callable $before): static {
 		$this->before_callback = $before;
 		$this->_emit_field_update();
 		return $this;
 	}
 
-	public function after(callable $after): self {
+	/**
+	 * Set the after callback for this field.
+	 *
+	 * @param callable|null $after The after callback.
+	 *
+	 * @return self
+	 */
+	public function after(?callable $after): static {
 		$this->after_callback = $after;
 		$this->_emit_field_update();
 		return $this;
@@ -227,11 +318,21 @@ class ComponentBuilderProxy implements ComponentBuilderInterface {
 		return $this->parent;
 	}
 
+	/**
+	 * Apply context to the builder.
+	 *
+	 * @param array<string,mixed> $context The context.
+	 *
+	 * @return void
+	 */
 	public function apply_context(array $context): void {
 		$this->pending_context = $this->_hydrate_builder($context);
 		$this->_emit_field_update();
 	}
 
+	/**
+	 * Emit the field update event.
+	 */
 	private function _emit_field_update(): void {
 		$field                      = $this->builder->to_array();
 		$context                    = is_array($field['component_context'] ?? null) ? $field['component_context'] : array();
@@ -266,6 +367,9 @@ class ComponentBuilderProxy implements ComponentBuilderInterface {
 		$this->_emit_template_override();
 	}
 
+	/**
+	 * Emit the template override event.
+	 */
 	private function _emit_template_override(): void {
 		if ($this->field_template === null || $this->field_id === '') {
 			return;
@@ -278,6 +382,13 @@ class ComponentBuilderProxy implements ComponentBuilderInterface {
 		));
 	}
 
+	/**
+	 * Resolve the order for the field.
+	 *
+	 * @param array<string,mixed> $field The field data.
+	 *
+	 * @return int
+	 */
 	private function _resolve_order(array $field): int {
 		if ($this->pending_order !== null) {
 			return $this->pending_order;
@@ -288,6 +399,13 @@ class ComponentBuilderProxy implements ComponentBuilderInterface {
 		return 0;
 	}
 
+	/**
+	 * Hydrate the builder with context.
+	 *
+	 * @param array<string,mixed> $context The context.
+	 *
+	 * @return array<string,mixed>
+	 */
 	private function _hydrate_builder(array $context): array {
 		$remaining = $this->pending_context;
 
@@ -336,6 +454,13 @@ class ComponentBuilderProxy implements ComponentBuilderInterface {
 		return $remaining;
 	}
 
+	/**
+	 * Normalize a key to a method name.
+	 *
+	 * @param string $key The key.
+	 *
+	 * @return string
+	 */
 	private function _normalize_to_method(string $key): string {
 		$key        = str_replace(array('-', '_'), ' ', $key);
 		$key        = ucwords(strtolower($key));

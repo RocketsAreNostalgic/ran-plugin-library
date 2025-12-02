@@ -81,18 +81,11 @@ class AdminSettingsComponentProxy extends ComponentBuilderProxy {
 	 * @param string $component The component alias.
 	 * @param array<string,mixed> $args Optional configuration.
 	 *
-	 * @return AdminSettingsComponentProxy|AdminSettingsSectionBuilder|AdminSettingsGroupBuilder|AdminSettingsFieldsetBuilder
+	 * @return AdminSettingsComponentProxy
 	 */
-	public function field(string $field_id, string $label, string $component, array $args = array()): AdminSettingsComponentProxy|AdminSettingsSectionBuilder|AdminSettingsGroupBuilder|AdminSettingsFieldsetBuilder {
+	public function field(string $field_id, string $label, string $component, array $args = array()): AdminSettingsComponentProxy {
 		$parent = $this->end_field();
-		$result = $parent->field($field_id, $label, $component, $args);
-
-		// Return proper type based on what parent returns
-		if ($result instanceof AdminSettingsComponentProxy) {
-			return $result;
-		}
-
-		return $parent;
+		return $parent->field($field_id, $label, $component, $args);
 	}
 
 	/**
