@@ -26,7 +26,7 @@ ob_start();
 
 if ($linkAttributes === '') {
 	$normalizedAttributes = $attributes;
-	$baseClasses          = array('ran-forms__inline-link');
+	$baseClasses          = array('kplr-link');
 	if (isset($normalizedAttributes['class'])) {
 		$baseClasses[] = (string) $normalizedAttributes['class'];
 	}
@@ -57,9 +57,9 @@ $linkAttributes = $linkAttributes !== '' ? ' ' . trim($linkAttributes) : '';
 ?>
 <a<?php echo $linkAttributes; ?>>
 	<?php if ($icon_html !== ''): ?>
-		<span class="ran-forms__inline-link-icon"><?php echo $icon_html; ?></span>
+		<span class="kplr-link__icon"><?php echo $icon_html; ?></span>
 	<?php endif; ?>
-	<span class="ran-forms__inline-link-label"><?php echo esc_html($label); ?></span>
+	<span class="kplr-link__label"><?php echo esc_html($label); ?></span>
 </a>
 <?php
 

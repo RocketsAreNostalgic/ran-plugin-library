@@ -62,7 +62,7 @@ ob_start();
 ?>
 <input<?php echo $formatAttributes($attributes); ?> />
 <?php if (!empty($existingFiles)): ?>
-	<ul class="ran-forms__file-existing">
+	<ul class="kplr-file__existing">
 		<?php foreach ($existingFiles as $fileLabel): ?>
 			<li><?php echo esc_html((string) $fileLabel); ?></li>
 		<?php endforeach; ?>

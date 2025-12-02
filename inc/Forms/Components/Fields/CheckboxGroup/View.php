@@ -16,7 +16,7 @@ $optionsHtml = isset($context['options_html']) && is_array($context['options_htm
 
 ob_start();
 ?>
-<fieldset class="checkbox-group"<?php echo $attributes !== '' ? ' ' . $attributes : ''; ?>>
+<fieldset class="kplr-checkbox-group"<?php echo $attributes !== '' ? ' ' . $attributes : ''; ?>>
 	<?php if ($legend !== '') : ?>
 		<legend><?php echo esc_html($legend); ?></legend>
 	<?php endif; ?>

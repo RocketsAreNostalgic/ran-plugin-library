@@ -23,27 +23,48 @@ $group_id    = isset($context['group_id']) ? (string) $context['group_id'] : '';
 $title       = isset($context['title']) ? (string) $context['title'] : '';
 $description = isset($context['description']) ? (string) $context['description'] : '';
 $inner_html  = isset($context['inner_html']) ? (string) $context['inner_html'] : '';
+$style       = trim((string) ($context['style'] ?? ''));
 
 $before = (string) ($context['before'] ?? '');
 $after  = (string) ($context['after'] ?? '');
+
+$title_row_classes = array('kplr-group');
+if ($style !== '') {
+	$title_row_classes[] = $style;
+}
+
+$description_row_classes = array('kplr-group__description-row');
+if ($style !== '') {
+	$description_row_classes[] = $style;
+}
+
+$before_row_classes = array('kplr-group__before');
+if ($style !== '') {
+	$before_row_classes[] = $style;
+}
+
+$after_row_classes = array('kplr-group__after');
+if ($style !== '') {
+	$after_row_classes[] = $style;
+}
 
 ob_start();
 
 // 1. Title row (if title exists)
 if ($title !== '') :
 	?>
-<tr class="group-header-row" data-kepler-group-id="<?php echo esc_attr($group_id); ?>">
-	<th colspan="2"><h4 class="group-title"><?php echo esc_html($title); ?></h4></th>
+<tr class="<?php echo esc_attr(implode(' ', $title_row_classes)); ?>" data-kplr-group-id="<?php echo esc_attr($group_id); ?>">
+	<th class="kplr-group__header" colspan="2"><h4 class="kplr-group__title"><?php echo esc_html($title); ?></h4></th>
 </tr>
 <?php endif; ?>
 <?php if ($description !== '') : ?>
-<tr class="group-description-row">
-	<th colspan="2"><p class="description"><?php echo esc_html($description); ?></p></th>
+<tr class="<?php echo esc_attr(implode(' ', $description_row_classes)); ?>">
+	<th colspan="2"><p class="kplr-group__description"><?php echo esc_html($description); ?></p></th>
 </tr>
 <?php endif; ?>
 <?php // 2. Before hook row (if before exists)
 if ($before !== '') : ?>
-<tr class="group-before-row">
+<tr class="<?php echo esc_attr(implode(' ', $before_row_classes)); ?>">
 	<td colspan="2"><?php echo $before; ?></td>
 </tr>
 <?php endif; ?>
@@ -53,7 +74,7 @@ echo $inner_html;
 ?>
 <?php // 4. After hook row (if after exists)
 if ($after !== '') : ?>
-<tr class="group-after-row">
+<tr class="<?php echo esc_attr(implode(' ', $after_row_classes)); ?>">
 	<td colspan="2"><?php echo $after; ?></td>
 </tr>
 <?php endif;

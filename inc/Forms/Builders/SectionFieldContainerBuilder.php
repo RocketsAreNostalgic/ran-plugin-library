@@ -75,7 +75,13 @@ abstract class SectionFieldContainerBuilder implements SectionFieldContainerBuil
 		$this->after          = $args['after']  ?? null;
 		$order                = $args['order']  ?? null;
 		$this->order          = $order === null ? null : (int) $order;
-		$this->style          = isset($args['style']) ? (string) $args['style'] : '';
+
+		if (array_key_exists('style', $args)) {
+			$styleArg    = $args['style'];
+			$this->style = $styleArg === '' ? '' : $this->_resolve_style_arg($styleArg);
+		} else {
+			$this->style = '';
+		}
 
 		$this->emit_group_metadata();
 	}

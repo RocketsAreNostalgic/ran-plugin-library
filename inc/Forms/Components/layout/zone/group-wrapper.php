@@ -10,9 +10,9 @@
  * - title: string - Group title (optional)
  * - description: string - Group description (optional)
  * - content: string - Inner HTML content.
- * - layout: string - 'vertical', 'horizontal', 'grid' (default: vertical)
- * - columns: int - Number of columns for grid layout (default: 2)
- * - spacing: string - 'compact', 'normal', 'spacious' (default: normal)
+ * - style: string - Optional style class
+ * - before: string - Optional content before the group
+ * - after: string - Optional content after the group
  *
  * @package RanPluginLib\Forms\Views\Shared
  */
@@ -30,35 +30,33 @@ $group_id    = $context['group_id']    ?? '';
 $title       = $context['title']       ?? '';
 $description = $context['description'] ?? '';
 $inner_html  = $context['inner_html']  ?? '';
-$layout      = $context['layout']      ?? 'vertical';
-$columns     = $context['columns']     ?? 2;
-$spacing     = $context['spacing']     ?? 'normal';
+$style       = trim((string) ($context['style'] ?? ''));
 $before      = (string) ($context['before'] ?? '');
 $after       = (string) ($context['after'] ?? '');
 
 $group_classes = array(
-    'group-wrapper',
-    "group-wrapper--{$layout}",
-    "group-wrapper--{$spacing}"
+	'kplr-group',
 );
+if ($style !== '') {
+	$group_classes[] = $style;
+}
 
 ob_start();
 ?>
-<div class="<?php echo esc_attr(implode(' ', $group_classes)); ?>" data-group-id="<?php echo esc_attr($group_id); ?>">
+<div class="<?php echo esc_attr(implode(' ', $group_classes)); ?>" data-kplr-group-id="<?php echo esc_attr($group_id); ?>">
 
     <?php if (!empty($title) || !empty($description)): ?>
-        <div class="group-wrapper__header">
-            <?php if (!empty($title)): ?>
-                <h4 class="group-wrapper__title"><?php echo esc_html($title); ?></h4>
-            <?php endif; ?>
-
-            <?php if (!empty($description)): ?>
-                <p class="group-wrapper__description"><?php echo esc_html($description); ?></p>
-            <?php endif; ?>
-        </div>
+        <div class="kplr-group__header">
+			<?php if (!empty($title)) : ?>
+				<h4 class="kplr-group__title"><?php echo esc_html($title); ?></h4>
+			<?php endif; ?>
+			<?php if (!empty($description)) : ?>
+				<p class="kplr-group__description"><?php echo esc_html($description); ?></p>
+			<?php endif; ?>
+		</div>
     <?php endif; ?>
 
-    <div class="group-wrapper__content">
+    <div class="kplr-group__content">
         <?php if ($before !== ''): ?>
             <?php echo $before; // Hook output should already be escaped.?>
         <?php endif; ?>

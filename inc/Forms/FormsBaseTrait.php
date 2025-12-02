@@ -685,6 +685,7 @@ trait FormsBaseTrait {
 			'after'          => $section_data['after']          ?? null,
 			'order'          => (int) ($section_data['order'] ?? 0),
 			'index'          => $this->__section_index++,
+			'style'          => trim((string) ($section_data['style'] ?? '')),
 		);
 		$this->logger->debug('settings.builder.section.updated', array(
 			'container_id'       => $container_id,
@@ -725,6 +726,9 @@ trait FormsBaseTrait {
 		$section['after']          = $group_data['after']       ?? $section['after'];
 		if (array_key_exists('order', $group_data) && $group_data['order'] !== null) {
 			$section['order'] = (int) $group_data['order'];
+		}
+		if (array_key_exists('style', $group_data)) {
+			$section['style'] = trim((string) $group_data['style']);
 		}
 		$this->logger->debug('settings.builder.section.metadata', array(
 			'container_id'       => $container_id,
@@ -906,7 +910,7 @@ trait FormsBaseTrait {
 			'before'   => $group_data['before'] ?? null,
 			'after'    => $group_data['after']  ?? null,
 			'order'    => (int) ($group_data['order'] ?? 0),
-			'style'    => (string) ($group_data['style'] ?? 'bordered'),
+			'style'    => trim((string) ($group_data['style'] ?? '')),
 			'required' => (bool) ($group_data['required'] ?? false),
 			'index'    => $this->__group_index++,
 		);
@@ -1082,7 +1086,7 @@ trait FormsBaseTrait {
 		$this->groups[$container_id][$section_id][$group_id]['before'] = $group_data['before'] ?? null;
 		$this->groups[$container_id][$section_id][$group_id]['after']  = $group_data['after']  ?? null;
 		$this->groups[$container_id][$section_id][$group_id]['order']  = (int) ($group_data['order'] ?? 0);
-		$this->groups[$container_id][$section_id][$group_id]['style']  = (string) ($group_data['style'] ?? '');
+		$this->groups[$container_id][$section_id][$group_id]['style']  = trim((string) ($group_data['style'] ?? ''));
 		$this->groups[$container_id][$section_id][$group_id]['type']   = (string) ($group_data['type'] ?? 'group');
 		// Fieldset-specific attributes
 		$this->groups[$container_id][$section_id][$group_id]['form']     = (string) ($group_data['form'] ?? '');
@@ -1416,6 +1420,7 @@ trait FormsBaseTrait {
 
 			// Render section template with pre-rendered content
 			// Use form_session to respect context-specific template overrides (e.g., user.section-wrapper)
+			$section_style   = trim((string) ($meta['style'] ?? ''));
 			$section_context = array(
 				'section_id'  => $section_id,
 				'title'       => (string) $meta['title'],
@@ -1431,6 +1436,7 @@ trait FormsBaseTrait {
 					'section_id'   => $section_id,
 					'values'       => $values,
 				)) ?? '',
+				'style' => trim($section_style),
 			);
 
 			// Render section using the context-appropriate template
@@ -1492,7 +1498,7 @@ trait FormsBaseTrait {
 	protected function _render_group_wrapper(array $group, string $fields_content, string $before_content, string $after_content, array $values): string {
 		$group_id = $group['group_id'] ?? '';
 		$title    = $group['title']    ?? '';
-		$style    = $group['style']    ?? 'bordered';
+		$style    = trim((string) ($group['style'] ?? ''));
 
 		// Build context for the group wrapper template
 		$group_context = array(
@@ -1526,9 +1532,13 @@ trait FormsBaseTrait {
 		}
 
 		// Fallback: render without template
+		$group_classes = array('group-wrapper');
+		if ($style !== '') {
+			$group_classes[] = $style;
+		}
 		$output = '';
 		if ($title !== '') {
-			$output .= '<div class="group-wrapper" data-group-id="' . esc_attr($group_id) . '">';
+			$output .= '<div class="' . esc_attr(implode(' ', $group_classes)) . '" data-group-id="' . esc_attr($group_id) . '">';
 			$output .= '<h4 class="group-wrapper__title">' . esc_html($title) . '</h4>';
 			$output .= '<div class="group-wrapper__content">';
 		}

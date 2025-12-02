@@ -31,12 +31,12 @@ $after  = (string) ($context['after'] ?? '');
 
 ob_start();
 ?>
-<div class="kepler-user-settings <?php echo esc_attr($style); ?>" data-kepler-collection-id="<?php echo esc_attr($collection_id); ?>">
+<div class="kplr-form user-settings<?php echo $style !== '' ? ' ' . esc_attr($style) : ''; ?>" data-kplr-form-id="<?php echo esc_attr($collection_id); ?>">
 <?php if ($title !== '') : ?>
-	<h2><?php echo esc_html($title); ?></h2>
+	<h2 class="kplr-form__title"><?php echo esc_html($title); ?></h2>
 <?php endif; ?>
 <?php if ($description !== '') : ?>
-	<p class="description"><?php echo esc_html($description); ?></p>
+	<p class="kplr-form__description"><?php echo esc_html($description); ?></p>
 <?php endif; ?>
 <?php echo $before; ?>
 <table class="form-table" role="presentation">

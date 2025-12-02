@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Base class for input-like form component builders.
  * Provides common functionality for text inputs, textareas, and other input elements.
@@ -16,6 +17,7 @@ abstract class ComponentBuilderInputBase extends ComponentBuilderBase {
 	protected bool $required       = false;
 	protected bool $autofocus      = false;
 	protected ?string $name        = null;
+	protected string $style        = '';
 	/** @var array<string,mixed> */
 	private array $base_metadata;
 
@@ -103,6 +105,36 @@ abstract class ComponentBuilderInputBase extends ComponentBuilderBase {
 	public function autofocus(bool $autofocus = true): static {
 		$this->autofocus = $autofocus;
 		return $this;
+	}
+
+	/**
+	 * Sets the visual style for this field.
+	 *
+	 * @param string|callable $style The style identifier or resolver returning a string.
+	 * @return static
+	 */
+	public function style(string|callable $style): static {
+		if ($style === '') {
+			$this->style = '';
+		} elseif (is_callable($style)) {
+			$resolved = $style();
+			if (!is_string($resolved)) {
+				throw new \InvalidArgumentException('Field style callback must return a string.');
+			}
+			$this->style = trim($resolved);
+		} else {
+			$this->style = trim($style);
+		}
+		return $this;
+	}
+
+	/**
+	 * Get the style css classes for this field.
+	 *
+	 * @return string
+	 */
+	public function get_style(): string {
+		return $this->style;
 	}
 
 	/**

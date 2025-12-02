@@ -41,6 +41,13 @@ interface SectionFieldContainerBuilderInterface extends BuilderFieldContainerInt
 	public function template(string $template_key): static;
 
 	/**
+	 * Configure a style override for the container wrapper.
+	 *
+	 * @return static
+	 */
+	public function style(string|callable $style): self;
+
+	/**
 	 * Adjust the container order relative to siblings.
 	 *
 	 * @return static

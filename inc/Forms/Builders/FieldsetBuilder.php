@@ -38,8 +38,9 @@ class FieldsetBuilder extends SectionFieldContainerBuilder implements FieldsetBu
 		$this->name     = isset($args['name']) ? (string) $args['name'] : '';
 		$this->disabled = (bool) ($args['disabled'] ?? false);
 
-		if (isset($args['style']) && $args['style'] !== '') {
-			$args['style'] = $this->_normalize_style($args['style']);
+		if (array_key_exists('style', $args)) {
+			$styleArg      = $args['style'];
+			$args['style'] = $styleArg === '' ? '' : $this->_resolve_style_arg($styleArg);
 		}
 
 		parent::__construct(

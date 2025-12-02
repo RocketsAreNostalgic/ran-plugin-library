@@ -37,7 +37,7 @@ if ($children === '') {
 
 $attributes = array_merge(
 	array(
-	    'class'  => 'ran-forms__form',
+	    'class'  => 'kplr-form__form',
 	    'method' => $method,
 	    'action' => $action,
 	),
@@ -69,7 +69,7 @@ $nonceField = isset($context['nonce_field']) && $context['nonce_field'] !== ''
 
 ob_start();
 if (!empty($errors)): ?>
-    <div class="ran-forms__form-errors" role="alert">
+    <div class="kplr-form__errors" role="alert">
         <p class="screen-reader-text" role="heading" aria-level="2">
             <?php echo esc_html($translator->__('Please fix the errors below')); ?>
         </p>
@@ -82,7 +82,7 @@ if (!empty($errors)): ?>
 <?php endif;
 
 if (!empty($notices)): ?>
-    <div class="ran-forms__form-notices" role="status">
+    <div class="kplr-form__notices" role="status">
         <ul>
             <?php foreach ($notices as $message): ?>
                 <li><?php echo esc_html((string) $message); ?></li>
@@ -100,9 +100,9 @@ $formAttributes = $formatAttributes($attributes);
 
 ob_start();
 ?>
-<div class="ran-forms__form-wrapper">
+<div class="kplr-form__wrapper">
 	<?php if (!empty($errors)): ?>
-		<div class="ran-forms__form-errors" role="alert">
+		<div class="kplr-form__errors" role="alert">
 			<p class="screen-reader-text" role="heading" aria-level="2">
 				<?php echo esc_html($translator->__('Please fix the errors below')); ?>
 			</p>
@@ -115,7 +115,7 @@ ob_start();
 	<?php endif; ?>
 
 	<?php if (!empty($notices)): ?>
-		<div class="ran-forms__form-notices" role="status">
+		<div class="kplr-form__notices" role="status">
 			<ul>
 				<?php foreach ($notices as $message): ?>
 					<li><?php echo esc_html((string) $message); ?></li>
@@ -126,7 +126,7 @@ ob_start();
 
 	<form<?php echo $formAttributes; ?>>
 		<?php echo $nonceFieldMarkup; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped?>
-		<div class="ran-forms__form-inner">
+		<div class="kplr-form__inner">
 			<?php // Children should come from reusable field templates or sanitized HTML.?>
 			<?php echo $children; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped?>
 		</div>

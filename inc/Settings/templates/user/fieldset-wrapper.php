@@ -38,14 +38,28 @@ $disabled    = isset($context['disabled']) && $context['disabled'];
 $before = (string) ($context['before'] ?? '');
 $after  = (string) ($context['after'] ?? '');
 
-$fieldset_classes = array_filter(array(
-	'kepler-fieldset-group',
-	$style !== '' ? 'kepler-fieldset-group--' . $style : '',
-));
+$fieldset_classes = array('kplr-fieldset');
+if ($style !== '') {
+	$fieldset_classes[] = 'kplr-fieldset--' . $style;
+	$fieldset_classes[] = $style;
+}
+if ($disabled) {
+	$fieldset_classes[] = 'kplr-fieldset--disabled';
+}
+
+$title_row_classes = array('kplr-fieldset__title-row');
+if ($style !== '') {
+	$title_row_classes[] = $style;
+}
+
+$wrapper_row_classes = array('kplr-fieldset__wrapper-row');
+if ($style !== '') {
+	$wrapper_row_classes[] = $style;
+}
 
 // Build fieldset attributes
 $fieldset_attrs = array(
-	'class' => implode(' ', $fieldset_classes),
+    'class' => implode(' ', $fieldset_classes),
 );
 if ($form !== '') {
 	$fieldset_attrs['form'] = $form;
@@ -60,20 +74,20 @@ if ($disabled) {
 ob_start();
 ?>
 <?php if ($title !== '') : ?>
-<tr class="fieldset-row" data-kepler-group-id="<?php echo esc_attr($group_id); ?>-heading">
-	<td scope="row" colspan="2">
-		<h4 class="group-title"><?php echo esc_html($title); ?></h4>
-	</td>
+<tr class="<?php echo esc_attr(implode(' ', $title_row_classes)); ?>" data-kplr-group-id="<?php echo esc_attr($group_id); ?>-heading">
+	<th scope="row" colspan="2">
+		<h4 class="kplr-fieldset__title"><?php echo esc_html($title); ?></h4>
+	</th>
 </tr>
 <?php endif; ?>
-<tr class="fieldset-wrapping-row" data-kepler-group-id="<?php echo esc_attr($group_id); ?>-fieldset">
+<tr class="<?php echo esc_attr(implode(' ', $wrapper_row_classes)); ?>" data-kplr-group-id="<?php echo esc_attr($group_id); ?>">
 	<td colspan="2">
 		<fieldset <?php foreach ($fieldset_attrs as $attr => $val) : ?><?php echo esc_attr($attr); ?>="<?php echo esc_attr($val); ?>" <?php endforeach; ?>>
 			<?php if ($title !== '') : ?>
-				<legend class="screen-reader-text"><span><?php echo esc_html($title); ?></span></legend>
+				<legend class="kplr-fieldset__legend screen-reader-text"><span><?php echo esc_html($title); ?></span></legend>
 			<?php endif; ?>
 			<?php if ($description !== '') : ?>
-				<p class="kepler-fieldset-group__description description"><?php echo esc_html($description); ?></p>
+				<p class="kplr-fieldset__description"><?php echo esc_html($description); ?></p>
 			<?php endif; ?>
 			<?php echo $before; ?>
 			<table class="form-table" role="presentation">

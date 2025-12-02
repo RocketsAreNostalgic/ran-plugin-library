@@ -10,4 +10,5 @@ interface ComponentBuilderInterface {
 	public function attribute(string $key, string $value): self;
 	public function ariaLabel(string $label): self;
 	public function ariaDescribedBy(string $id): self;
+	public function style(string|callable $style): self;
 }

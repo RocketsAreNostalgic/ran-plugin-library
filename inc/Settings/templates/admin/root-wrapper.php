@@ -20,17 +20,23 @@ $heading        = $context['heading']        ?? '';
 $description    = $context['description']    ?? '';
 $settings_group = $context['settings_group'] ?? '';
 $inner_html     = $context['inner_html']     ?? '';
+$style          = trim((string) ($context['style'] ?? ''));
+
+$root_classes = array('wrap', 'kplr-form', 'admin-settings');
+if ($style !== '') {
+	$root_classes[] = $style;
+}
 
 ob_start();
 ?>
 
-<div class="wrap admin-settings-page">
+<div class="<?php echo esc_attr(implode(' ', $root_classes)); ?>">
     <?php if (!empty($heading)): ?>
-        <h1><?php echo esc_html($heading); ?></h1>
+        <h1 class="kplr-form__title"><?php echo esc_html($heading); ?></h1>
     <?php endif; ?>
 
     <?php if (!empty($description)): ?>
-        <p class="description"><?php echo esc_html($description); ?></p>
+        <p class="kplr-form__description"><?php echo esc_html($description); ?></p>
     <?php endif; ?>
 
     <form method="post" action="options.php">
@@ -38,19 +44,19 @@ ob_start();
         if (!empty($settings_group)) {
         	// Mock settings_fields for testing
         	if (function_exists('settings_fields')) {
-        		settings_fields($settings_group);
+        		\settings_fields($settings_group);
         	}
         }
 ?>
 
-        <div class="admin-page-content">
+        <div class="kplr-form__content">
             <?php echo $inner_html; ?>
         </div>
 
         <?php
 // Mock submit_button for testing
 if (function_exists('submit_button')) {
-	submit_button();
+	\submit_button();
 } else {
 	echo '<input type="submit" class="button-primary" value="Save Changes" />';
 }

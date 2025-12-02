@@ -29,18 +29,18 @@ $form_messages = $context['form_messages'] ?? array();
 
 ob_start();
 ?>
-<div class="kepler-form-wrapper" data-form-id="<?php echo esc_attr($form_id); ?>">
+<div class="kplr-form" data-kplr-form-id="<?php echo esc_attr($form_id); ?>">
 	<?php if (!empty($title)): ?>
-		<h2 class="form-title"><?php echo esc_html($title); ?></h2>
+		<h2 class="kplr-form__title"><?php echo esc_html($title); ?></h2>
 	<?php endif; ?>
 
 	<?php if (!empty($form_messages)): ?>
-		<div class="kepler-form-messages">
-			<?php foreach ($form_messages as $message_type => $messages): ?>
-				<?php if (!empty($messages)): ?>
-					<div class="form-messages-<?php echo esc_attr($message_type); ?>">
-						<?php foreach ($messages as $message): ?>
-							<div class="form-message form-message-<?php echo esc_attr($message_type); ?>">
+		<div class="kplr-messages">
+			<?php foreach ($form_messages as $message_type => $messages) : ?>
+				<?php if (!empty($messages)) : ?>
+					<div class="kplr-messages__<?php echo esc_attr($message_type); ?>">
+						<?php foreach ($messages as $message) : ?>
+							<div class="kplr-messages__item kplr-messages__item--<?php echo esc_attr($message_type); ?>">
 								<?php echo esc_html($message); ?>
 							</div>
 						<?php endforeach; ?>
@@ -50,7 +50,7 @@ ob_start();
 		</div>
 	<?php endif; ?>
 
-	<div class="kepler-form-content">
+	<div class="kplr-form__content">
 		<?php if ($before !== ''): ?>
 			<?php echo $before; // Hook output should already be escaped.?>
 		<?php endif; ?>
@@ -63,7 +63,7 @@ ob_start();
 	</div>
 
 	<?php if (is_callable($renderSubmit)): ?>
-		<div class="form-submit-controls">
+		<div class="kplr-form__submit">
 			<?php echo (string) $renderSubmit(); ?>
 		</div>
 	<?php endif; ?>

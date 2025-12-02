@@ -36,7 +36,8 @@ class SimpleFieldProxy {
 	private array $component_context;
 
 	private ?int $order;
-	private ?string $field_template;
+	private ?string $template;
+	private string $style = '';
 
 	/** @var callable|null */
 	private $before_callback = null;
@@ -57,7 +58,7 @@ class SimpleFieldProxy {
 		string $component,
 		array $component_context,
 		?int $order,
-		?string $field_template,
+		?string $template,
 		?callable $before,
 		?callable $after
 	) {
@@ -71,7 +72,7 @@ class SimpleFieldProxy {
 		$this->component         = $component;
 		$this->component_context = $component_context;
 		$this->order             = $order;
-		$this->field_template    = $field_template;
+		$this->template          = $template;
 		$this->before_callback   = $before;
 		$this->after_callback    = $after;
 	}
@@ -109,10 +110,24 @@ class SimpleFieldProxy {
 	/**
 	 * Set the field template override.
 	 *
+	 * @param string $template The template key.
+	 *
 	 * @return static
 	 */
-	public function field_template(string $template): static {
-		$this->field_template = $template;
+	public function template(string $template): static {
+		$this->template = $template;
+		return $this;
+	}
+
+	/**
+	 * Set the visual style for this field.
+	 *
+	 * @param string|callable $style The style identifier or resolver returning a string.
+	 *
+	 * @return static
+	 */
+	public function style(string|callable $style): static {
+		$this->style = $style === '' ? '' : $this->_resolve_style_arg($style);
 		return $this;
 	}
 
@@ -124,45 +139,6 @@ class SimpleFieldProxy {
 	public function end_field(): SectionBuilder|SectionFieldContainerBuilder {
 		$this->_emit_field_update();
 		return $this->parent;
-	}
-
-	/**
-	 * Emit the field update event.
-	 */
-	private function _emit_field_update(): void {
-		if ($this->emitted) {
-			return;
-		}
-		$this->emitted = true;
-
-		$payload = array(
-			'container_id' => $this->container_id,
-			'section_id'   => $this->section_id,
-			'field_data'   => array(
-				'id'                => $this->field_id,
-				'label'             => $this->label,
-				'component'         => $this->component,
-				'component_context' => $this->component_context,
-				'order'             => $this->order,
-				'before'            => $this->before_callback,
-				'after'             => $this->after_callback,
-			),
-		);
-
-		if ($this->group_id !== null) {
-			$payload['group_id'] = $this->group_id;
-			($this->updateFn)('group_field', $payload);
-		} else {
-			($this->updateFn)('field', $payload);
-		}
-
-		if ($this->field_template !== null) {
-			($this->updateFn)('template_override', array(
-				'element_type' => 'field',
-				'element_id'   => $this->field_id,
-				'overrides'    => array('field-wrapper' => $this->field_template),
-			));
-		}
 	}
 
 	/**
@@ -211,6 +187,55 @@ class SimpleFieldProxy {
 	}
 
 	/**
+	 * Emit the field update event.
+	 */
+	private function _emit_field_update(): void {
+		if ($this->emitted) {
+			return;
+		}
+		$this->emitted = true;
+
+		$payload = array(
+			'container_id' => $this->container_id,
+			'section_id'   => $this->section_id,
+			'field_data'   => array(
+				'id'                => $this->field_id,
+				'label'             => $this->label,
+				'component'         => $this->component,
+				'component_context' => $this->component_context,
+				'order'             => $this->order,
+				'before'            => $this->before_callback,
+				'after'             => $this->after_callback,
+				'style'             => $this->style !== '' ? $this->style : null,
+			),
+		);
+
+		if ($this->group_id !== null) {
+			$payload['group_id'] = $this->group_id;
+			($this->updateFn)('group_field', $payload);
+		} else {
+			($this->updateFn)('field', $payload);
+		}
+
+		$this->_emit_template_override();
+	}
+
+	/**
+	 * Emit the template override event.
+	 */
+	private function _emit_template_override(): void {
+		if ($this->template === null || $this->field_id === '') {
+			return;
+		}
+
+		($this->updateFn)('template_override', array(
+			'element_type' => 'field',
+			'element_id'   => $this->field_id,
+			'overrides'    => array('field-wrapper' => $this->template),
+		));
+	}
+
+	/**
 	 * Magic method to forward calls to parent builder after emitting field.
 	 *
 	 * @param string $name Method name.
@@ -228,5 +253,21 @@ class SimpleFieldProxy {
 	 */
 	public function __destruct() {
 		$this->_emit_field_update();
+	}
+
+	/**
+	 * Normalize a style argument to a trimmed string.
+	 *
+	 * @param string|callable $style Style value or resolver callback returning a string.
+	 *
+	 * @return string
+	 * @throws \InvalidArgumentException When the resolved value is not a string.
+	 */
+	private function _resolve_style_arg(string|callable $style): string {
+		$resolved = is_callable($style) ? $style() : $style;
+		if (!is_string($resolved)) {
+			throw new \InvalidArgumentException('Field style callback must return a string.');
+		}
+		return trim($resolved);
 	}
 }

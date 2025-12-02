@@ -237,12 +237,13 @@ class AdminSettingsPageBuilder implements BuilderRootInterface {
 	/**
 	 * Set the visual style for this page.
 	 *
-	 * @param string $style The style identifier (e.g., 'card', 'plain').
+	 * @param string|callable $style The style identifier or resolver returning a string.
 	 *
 	 * @return self
 	 */
-	public function style(string $style): self {
-		$this->_update_meta('style', $style);
+	public function style(string|callable $style): self {
+		$normalized = $style === '' ? '' : $this->_resolve_style_arg($style);
+		$this->_update_meta('style', $normalized);
 		return $this;
 	}
 
@@ -354,7 +355,7 @@ class AdminSettingsPageBuilder implements BuilderRootInterface {
 				$this->meta['order'] = $value === null ? 0 : max(0, (int) $value);
 				break;
 			case 'style':
-				$this->meta['style'] = (string) $value;
+				$this->meta['style'] = trim((string) $value);
 				break;
 			default:
 				$this->meta[$key] = $value;
@@ -417,5 +418,21 @@ class AdminSettingsPageBuilder implements BuilderRootInterface {
 		));
 
 		$this->submit_zone_emitted = true;
+	}
+
+	/**
+	 * Normalize a style argument to a trimmed string.
+	 *
+	 * @param string|callable $style
+	 *
+	 * @return string
+	 * @throws \InvalidArgumentException When the resolved value is not a string.
+	 */
+	protected function _resolve_style_arg(string|callable $style): string {
+		$resolved = is_callable($style) ? $style() : $style;
+		if (!is_string($resolved)) {
+			throw new \InvalidArgumentException('AdminSettings style callback must return a string.');
+		}
+		return trim($resolved);
 	}
 }

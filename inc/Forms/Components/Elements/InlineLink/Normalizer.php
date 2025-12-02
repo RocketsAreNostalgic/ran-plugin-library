@@ -17,7 +17,7 @@ final class Normalizer extends NormalizerBase {
 		$rel    = $this->_sanitize_string($context['rel'] ?? '', 'rel');
 
 		// Build CSS classes
-		$classes = array('ran-forms__inline-link');
+		$classes = array('kplr-link');
 		if (isset($context['attributes']['class'])) {
 			$classes[] = $this->_sanitize_string($context['attributes']['class'], 'class');
 		}

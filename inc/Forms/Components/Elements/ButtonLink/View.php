@@ -23,7 +23,7 @@ $linkAttributes = isset($context['link_attributes']) ? trim((string) $context['l
 
 if ($linkAttributes === '') {
 	$normalizedAttributes = $attributes;
-	$baseClasses          = array('ran-forms__button', 'ran-forms__button--link');
+	$baseClasses          = array('kplr-button', 'kplr-button--link');
 	if (isset($normalizedAttributes['class'])) {
 		$baseClasses[] = (string) $normalizedAttributes['class'];
 	}
@@ -58,9 +58,9 @@ ob_start();
 ?>
 <a<?php echo $linkAttributes !== '' ? ' ' . $linkAttributes : ''; ?>>
 	<?php if ($icon_html !== ''): ?>
-		<span class="ran-forms__button-icon"><?php echo $icon_html; ?></span>
+		<span class="kplr-button__icon"><?php echo $icon_html; ?></span>
 	<?php endif; ?>
-	<span class="ran-forms__button-label"><?php echo esc_html($label); ?></span>
+	<span class="kplr-button__label"><?php echo esc_html($label); ?></span>
 </a>
 <?php
 

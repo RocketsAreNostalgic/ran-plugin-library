@@ -20,25 +20,38 @@ $section_id  = isset($context['section_id']) ? (string) $context['section_id'] :
 $title       = isset($context['title']) ? (string) $context['title'] : '';
 $description = isset($context['description']) ? (string) $context['description'] : '';
 $inner_html  = isset($context['inner_html']) ? (string) $context['inner_html'] : '';
+$style       = trim((string) ($context['style'] ?? ''));
 
 $before = (string) ($context['before'] ?? '');
 $after  = (string) ($context['after'] ?? '');
 
+$section_classes = array('kplr-section');
+if ($style !== '') {
+	$section_classes[] = $style;
+}
+
+$after_classes = array('kplr-section__after');
+if ($style !== '') {
+	$after_classes[] = $style;
+}
+
 ob_start();
 ?>
-<tr data-kepler-section-id="<?php echo esc_attr($section_id); ?>">
-	<th colspan="2">
+<tr class="<?php echo esc_attr(implode(' ', $section_classes)); ?>" data-kplr-section-id="<?php echo esc_attr($section_id); ?>">
+	<th class="kplr-section__header" colspan="2">
 		<?php if ($title !== '') : ?>
-			<h3><?php echo esc_html($title); ?></h3>
+			<h3 class="kplr-section__title"><?php echo esc_html($title); ?></h3>
 		<?php endif; ?>
 		<?php if ($description !== '') : ?>
-			<p class="description"><?php echo wp_kses_post($description); ?></p>
+			<p class="kplr-section__description"><?php echo wp_kses_post($description); ?></p>
 		<?php endif; ?>
 		<?php echo $before; ?>
 	</th>
 </tr>
 <?php echo $inner_html; ?>
-<tr data-section-id="<?php echo esc_attr($section_id); ?>-after"><td colspan="2"><?php echo $after; ?></td></tr>
+<?php if ($after !== '') : ?>
+<tr class="<?php echo esc_attr(implode(' ', $after_classes)); ?>" data-kplr-section-id="<?php echo esc_attr($section_id); ?>-after"><td colspan="2"><?php echo $after; ?></td></tr>
+<?php endif; ?>
 <?php
 return new ComponentRenderResult(
 	(string) ob_get_clean(),

@@ -16,7 +16,7 @@ interface FieldsetBuilderInterface extends SectionFieldContainerBuilderInterface
 	/**
 	 * Define the visual style for the fieldset wrapper.
 	 */
-	public function style(string $style): self;
+	public function style(string|callable $style): self;
 
 	/**
 	 * Set the form attribute for this fieldset.

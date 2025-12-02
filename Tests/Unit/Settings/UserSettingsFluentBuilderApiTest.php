@@ -149,6 +149,7 @@ class UserSettingsFluentBuilderApiTest extends TestCase {
 		$user = $this->createUserSettings();
 
 		$user->collection('profile')
+			->style(static fn (): string => '  collection-style  ')
 			->section('preferences', 'Preferences Section')
 				->fieldset('profile-details', 'Profile Details', null, array('style' => 'highlighted'))
 					->disabled(true)

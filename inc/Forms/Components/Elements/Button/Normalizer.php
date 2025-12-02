@@ -26,7 +26,7 @@ final class Normalizer extends NormalizerBase {
 		);
 
 		// Build CSS classes
-		$baseClasses = array('ran-forms__button', $variant === 'secondary' ? 'ran-forms__button--secondary' : 'ran-forms__button--primary');
+		$baseClasses = array('kplr-button', $variant === 'secondary' ? 'kplr-button--secondary' : 'kplr-button--primary');
 		if (isset($context['attributes']['class'])) {
 			$baseClasses[] = $this->_sanitize_string($context['attributes']['class'], 'class');
 		}

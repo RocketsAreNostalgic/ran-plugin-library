@@ -395,6 +395,8 @@ class AdminSettings implements FormsInterface {
 		$rendered_content = $this->_render_default_sections_wrapper($id_slug, $sections, $effective_values);
 		$submit_controls  = $this->_get_submit_controls_for_page($id_slug);
 
+		$page_style = isset($meta['style']) ? trim((string) $meta['style']) : '';
+
 		$payload = array(
 			...($context ?? array()),
 			'heading'           => $meta['heading']     ?? '',
@@ -402,6 +404,7 @@ class AdminSettings implements FormsInterface {
 			'group'             => $group,
 			'page_slug'         => $id_slug,
 			'page_meta'         => $meta,
+			'style'             => $page_style,
 			'options'           => $options,
 			'section_meta'      => $sections,
 			'values'            => $effective_values,
@@ -805,7 +808,10 @@ class AdminSettings implements FormsInterface {
 		}
 		$container_id = $data['container_id'] ?? '';
 		$page_data    = $data['page_data']    ?? array();
-		$group_id     = $data['group_id']     ?? '';
+		if (array_key_exists('style', $page_data)) {
+			$page_data['style'] = trim((string) $page_data['style']);
+		}
+		$group_id = $data['group_id'] ?? '';
 
 		if ($container_id === '' || $group_id === '') {
 			$this->logger->warning('AdminSettings: Page update missing required IDs', $data);

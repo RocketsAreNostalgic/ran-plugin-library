@@ -54,6 +54,7 @@ class ComponentBuilderProxy implements ComponentBuilderInterface {
 	private $before_callback = null;
 	/** @var callable|null */
 	private $after_callback = null;
+	private string $style   = '';
 
 	/**
 	 * @param ComponentBuilderBase $builder
@@ -171,6 +172,19 @@ class ComponentBuilderProxy implements ComponentBuilderInterface {
 		return $this;
 	}
 
+	/**
+	 * Set the visual style for this field.
+	 *
+	 * @param string|callable $style The style identifier or resolver returning a string.
+	 *
+	 * @return self
+	 */
+	public function style(string|callable $style): static {
+		$this->style = $style === '' ? '' : $this->_resolve_style_arg($style);
+		$this->_emit_field_update();
+		return $this;
+	}
+
 	public function heading(string $heading): self {
 		throw new BadMethodCallException('Call end_field() before configuring section heading.');
 	}
@@ -231,6 +245,9 @@ class ComponentBuilderProxy implements ComponentBuilderInterface {
 		}
 		if ($this->after_callback !== null) {
 			$field['after'] = $this->after_callback;
+		}
+		if ($this->style !== '') {
+			$field['style'] = $this->style;
 		}
 
 		$payload = array(
@@ -324,5 +341,21 @@ class ComponentBuilderProxy implements ComponentBuilderInterface {
 		$key        = ucwords(strtolower($key));
 		$normalized = lcfirst(str_replace(' ', '', $key));
 		return $normalized;
+	}
+
+	/**
+	 * Normalize a style argument to a trimmed string.
+	 *
+	 * @param string|callable $style Style value or resolver callback returning a string.
+	 *
+	 * @return string
+	 * @throws \InvalidArgumentException When the resolved value is not a string.
+	 */
+	private function _resolve_style_arg(string|callable $style): string {
+		$resolved = is_callable($style) ? $style() : $style;
+		if (!is_string($resolved)) {
+			throw new \InvalidArgumentException('Field style callback must return a string.');
+		}
+		return trim($resolved);
 	}
 }

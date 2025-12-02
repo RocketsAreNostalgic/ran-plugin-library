@@ -19,13 +19,13 @@ $removeDisabled  = $hasSelection ? '' : 'disabled="disabled" aria-disabled="true
 
 ob_start();
 ?>
-<div class="ran-forms__media-picker" data-ran-forms-media-picker>
+<div class="kplr-media-picker" data-kplr-media-picker>
 	<input <?php echo $inputAttributes; ?> />
-	<div class="ran-forms__media-picker-actions">
+	<div class="kplr-media-picker__actions">
 		<button
 			id="<?php echo esc_attr($buttonId); ?>"
 			type="button"
-			class="button ran-forms__media-picker-button"
+			class="button kplr-media-picker__button"
 			data-default-label="<?php echo esc_attr($selectLabel); ?>"
 			data-replace-label="<?php echo esc_attr($replaceLabel); ?>"
 			data-multiple="<?php echo $multiple ? 'true' : 'false'; ?>"
@@ -35,13 +35,13 @@ ob_start();
 		<button
 			id="<?php echo esc_attr($removeId); ?>"
 			type="button"
-			class="button button-link-delete ran-forms__media-picker-remove"
+			class="button button-link-delete kplr-media-picker__remove"
 			<?php echo $removeDisabled; ?>
 		>
 			<?php echo esc_html($removeLabel); ?>
 		</button>
 	</div>
-	<div class="ran-forms__media-picker-preview" data-ran-forms-media-preview>
+	<div class="kplr-media-picker__preview" data-kplr-media-preview>
 		<?php echo $previewHtml; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped?>
 	</div>
 </div>

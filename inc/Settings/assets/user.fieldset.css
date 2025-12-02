@@ -4,7 +4,7 @@
  * @package KeplerLib
  */
 
-.kepler-user-settings {
+.kplr-form.user-settings {
   border: 1px solid #ccc;
   border-radius: 4px;
   margin-bottom: 1em;

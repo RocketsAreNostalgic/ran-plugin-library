@@ -48,6 +48,15 @@ final class FieldsetBuilderTest extends TestCase {
 		self::assertSame('inline', $metadata['group_data']['style']);
 	}
 
+	public function test_style_accepts_callable_resolver(): void {
+		$builder = $this->createFieldsetBuilder();
+
+		$builder->style(static fn (): string => '  dynamic-style  ');
+
+		$metadata = $this->latestUpdateOfType('group_metadata');
+		self::assertSame('dynamic-style', $metadata['group_data']['style']);
+	}
+
 	public function test_disabled_update_sets_flag(): void {
 		$builder = $this->createFieldsetBuilder();
 

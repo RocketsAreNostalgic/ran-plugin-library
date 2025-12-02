@@ -30,23 +30,29 @@ $description = $context['description'] ?? '';
 $inner_html  = $context['inner_html']  ?? '';
 $before      = (string) ($context['before'] ?? '');
 $after       = (string) ($context['after'] ?? '');
+$style       = trim((string) ($context['style'] ?? ''));
+
+$section_classes = array('kplr-section');
+if ($style !== '') {
+	$section_classes[] = $style;
+}
 
 ob_start();
 ?>
-<div class="form-section" data-section-id="<?php echo esc_attr($section_id); ?>">
+<div class="<?php echo esc_attr(implode(' ', $section_classes)); ?>" data-kplr-section-id="<?php echo esc_attr($section_id); ?>">
 	<?php if (!empty($title)): ?>
-		<h3 class="form-section-title"><?php echo esc_html($title); ?></h3>
+		<h3 class="kplr-section__title"><?php echo esc_html($title); ?></h3>
 	<?php endif; ?>
 
 	<?php if (!empty($description)): ?>
-		<p class="form-section-description"><?php echo esc_html($description); ?></p>
+		<p class="kplr-section__description"><?php echo esc_html($description); ?></p>
 	<?php endif; ?>
 
 	<?php if ($before !== ''): ?>
 		<?php echo $before; // Hook output should already be escaped.?>
 	<?php endif; ?>
 
-	<div class="form-section-content">
+	<div class="kplr-section__content">
 		<?php echo $inner_html; // Pre-rendered inner HTML from caller.?>
 	</div>
 

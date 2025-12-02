@@ -52,35 +52,33 @@ $field_id = $context['field_id'] ?? '';
 $label    = $context['label']    ?? '';
 
 $wrapper_classes = array(
-    'field-wrapper',
-    "field-wrapper--{$layout}",
-    !empty($field_type) ? "field-wrapper--{$field_type}" : '',
-    $required ? 'field-wrapper--required' : '',
-    !empty($validation_warnings) ? 'field-wrapper--has-warnings' : '',
-    !empty($display_notices) ? 'field-wrapper--has-notices' : ''
+	'kplr-field',
+	'kplr-field--' . $layout,
+	!empty($field_type) ? 'kplr-field--' . $field_type : '',
+	$required ? 'kplr-field--required' : '',
+	!empty($validation_warnings) ? 'kplr-field--has-warnings' : '',
+	!empty($display_notices) ? 'kplr-field--has-notices' : '',
 );
 ob_start();
 
 ?>
-<div class="<?php echo esc_attr(implode(' ', array_filter($wrapper_classes))); ?>" data-field-id="<?php echo esc_attr($field_id); ?>">
-    <div class="field-wrapper__label-section">
+<div class="<?php echo esc_attr(implode(' ', array_filter($wrapper_classes))); ?>" data-kplr-field-id="<?php echo esc_attr($field_id); ?>">
+    <div class="kplr-field__label-area">
         <?php if (!empty($label)): ?>
-            <label for="<?php echo esc_attr($field_id); ?>" class="field-wrapper__label">
+            <label for="<?php echo esc_attr($field_id); ?>" class="kplr-field__label">
                 <?php echo esc_html($label); ?>
                 <?php if ($required): ?>
-                    <span class="field-wrapper__required-indicator" aria-label="required">*</span>
+                    <span class="kplr-field__required" aria-label="required">*</span>
                 <?php endif; ?>
             </label>
         <?php endif; ?>
 
-        <?php if (!empty($description) && $layout === 'horizontal'): ?>
-            <div class="field-wrapper__description">
-                <?php echo esc_html($description); ?>
-            </div>
-        <?php endif; ?>
+        <?php if (!empty($description) && $layout === 'horizontal') : ?>
+			<p class="kplr-field__description"><?php echo esc_html($description); ?></p>
+		<?php endif; ?>
     </div>
-    <div class="field-wrapper__input-section">
-        <div class="field-wrapper__input-container">
+    <div class="kplr-field__input-area">
+        <div class="kplr-field__input">
             <?php if ($before !== ''): ?>
                 <?php echo $before; // Hook output should already be escaped.?>
             <?php endif; ?>
@@ -89,36 +87,27 @@ ob_start();
                 <?php echo $after; // Hook output should already be escaped.?>
             <?php endif; ?>
         </div>
-		<?php if ($description !== '') : ?>
-			<p class="description"><?php echo esc_html($description); ?></p>
+		<?php if ($description !== '' && $layout === 'vertical') : ?>
+			<p class="kplr-field__description"><?php echo esc_html($description); ?></p>
 		<?php endif; ?>
-        <?php if (!empty($description) && $layout === 'vertical'): ?>
-            <div class="field-wrapper__description">
-                <?php echo esc_html($description); ?>
-            </div>
-        <?php endif; ?>
-        <?php if (!empty($validation_warnings) || !empty($display_notices)): ?>
-            <div class="field-wrapper__messages">
-                <?php if (!empty($validation_warnings)): ?>
-                    <div class="form-field-warnings" role="alert">
-                        <?php foreach ($validation_warnings as $warning): ?>
-                            <div class="form-field-warning error">
-                                <?php echo esc_html($warning); ?>
-                            </div>
-                        <?php endforeach; ?>
-                    </div>
-                <?php endif; ?>
-                <?php if (!empty($display_notices)): ?>
-                    <div class="form-field-notices">
-                        <?php foreach ($display_notices as $notice): ?>
-                            <div class="field-wrapper__notice">
-                                <?php echo esc_html($notice); ?>
-                            </div>
-                        <?php endforeach; ?>
-                    </div>
-                <?php endif; ?>
-            </div>
-        <?php endif; ?>
+        <?php if (!empty($validation_warnings) || !empty($display_notices)) : ?>
+			<div class="kplr-messages">
+				<?php if (!empty($validation_warnings)) : ?>
+					<div class="kplr-messages__warnings" role="alert">
+						<?php foreach ($validation_warnings as $warning) : ?>
+							<div class="kplr-messages__item kplr-messages__item--warning"><?php echo esc_html($warning); ?></div>
+						<?php endforeach; ?>
+					</div>
+				<?php endif; ?>
+				<?php if (!empty($display_notices)) : ?>
+					<div class="kplr-messages__notices">
+						<?php foreach ($display_notices as $notice) : ?>
+							<div class="kplr-messages__item kplr-messages__item--notice"><?php echo esc_html($notice); ?></div>
+						<?php endforeach; ?>
+					</div>
+				<?php endif; ?>
+			</div>
+		<?php endif; ?>
     </div>
 </div>
 <?php

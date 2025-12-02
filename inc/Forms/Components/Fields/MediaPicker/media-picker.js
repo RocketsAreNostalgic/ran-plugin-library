@@ -8,7 +8,7 @@
     return;
   }
 
-  const pickerSelector = "[data-ran-forms-media-picker]";
+  const pickerSelector = "[data-kplr-media-picker]";
 
   const initPicker = (picker) => {
     const input = picker.querySelector('input[type="hidden"]');
@@ -16,10 +16,8 @@
       return;
     }
     const button = picker.querySelector("[data-default-label]");
-    const removeButton = picker.querySelector(
-      ".ran-forms__media-picker-remove",
-    );
-    const preview = picker.querySelector("[data-ran-forms-media-preview]");
+    const removeButton = picker.querySelector(".kplr-media-picker__remove");
+    const preview = picker.querySelector("[data-kplr-media-preview]");
 
     let frame = null;
 
@@ -90,7 +88,7 @@
         return '<img src="' + data.url + '" alt="' + (data.alt || "") + '" />';
       }
       return (
-        '<span class="ran-forms__media-picker-file">' +
+        '<span class="kplr-media-picker__file">' +
         (data.filename || data.url) +
         "</span>"
       );

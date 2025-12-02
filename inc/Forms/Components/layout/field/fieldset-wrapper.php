@@ -36,27 +36,30 @@ $before = (string) ($context['before'] ?? '');
 $after  = (string) ($context['after'] ?? '');
 
 $fieldset_classes = array(
-    'fieldset-group',
-    "fieldset-group--{$style}",
-    $required ? 'fieldset-group--required' : ''
+	'kplr-fieldset',
+	'kplr-fieldset--' . $style,
+	$required ? 'kplr-fieldset--required' : '',
 );
+if ($style !== '') {
+	$fieldset_classes[] = $style;
+}
 
 ob_start();
 ?>
-<fieldset class="<?php echo esc_attr(implode(' ', array_filter($fieldset_classes))); ?>" data-group-id="<?php echo esc_attr($group_id); ?>">
+<fieldset class="<?php echo esc_attr(implode(' ', array_filter($fieldset_classes))); ?>" data-kplr-group-id="<?php echo esc_attr($group_id); ?>">
     <?php if (!empty($title)): ?>
-        <legend class="fieldset-group__legend <?php echo $required ? 'fieldset-group__legend--required' : ''; ?>">
+        <legend class="kplr-fieldset__legend<?php echo $required ? ' kplr-fieldset__legend--required' : ''; ?>">
             <?php echo esc_html($title); ?>
         </legend>
     <?php endif; ?>
 
     <?php if (!empty($description)): ?>
-        <div class="fieldset-group__description">
+        <div class="kplr-fieldset__description">
             <?php echo esc_html($description); ?>
         </div>
     <?php endif; ?>
 
-    <div class="fieldset-group__content">
+    <div class="kplr-fieldset__content">
         <?php if ($before !== ''): ?>
             <?php echo $before; // Hook output should already be escaped.?>
         <?php endif; ?>

@@ -22,9 +22,9 @@ ob_start();
 ?>
 <button<?php echo $buttonAttributes !== '' ? ' ' . $buttonAttributes : ''; ?>>
 	<?php if ($icon_html !== ''): ?>
-		<span class="ran-forms__button-icon"><?php echo $icon_html; ?></span>
+		<span class="kplr-button__icon"><?php echo $icon_html; ?></span>
 	<?php endif; ?>
-	<span class="ran-forms__button-label"><?php echo esc_html($label); ?></span>
+	<span class="kplr-button__label"><?php echo esc_html($label); ?></span>
 </button>
 <?php
 
