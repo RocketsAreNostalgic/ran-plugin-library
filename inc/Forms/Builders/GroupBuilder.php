@@ -12,6 +12,7 @@ namespace Ran\PluginLib\Forms\Builders;
 use Ran\PluginLib\Forms\Builders\SectionFieldContainerBuilder;
 use Ran\PluginLib\Forms\Builders\SectionBuilder;
 use Ran\PluginLib\Forms\Builders\GroupBuilderInterface;
+use Ran\PluginLib\Forms\Component\Build\ComponentBuilderDefinitionInterface;
 
 class GroupBuilder extends SectionFieldContainerBuilder implements GroupBuilderInterface {
 	public function __construct(
@@ -72,5 +73,52 @@ class GroupBuilder extends SectionFieldContainerBuilder implements GroupBuilderI
 	 */
 	public function group(string $group_id, string $heading, ?callable $description_cb = null, ?array $args = null): GroupBuilderInterface {
 		return $this->section()->group($group_id, $heading, $description_cb, $args ?? array());
+	}
+
+	/**
+	 * Add a field with a component builder to this group.
+	 *
+	 * @param string $field_id The field identifier.
+	 * @param string $label The field label.
+	 * @param string $component The component alias.
+	 * @param array<string,mixed> $args Optional arguments.
+	 *
+	 * @return GroupFieldProxy The proxy instance with correct return type for end_field().
+	 */
+	public function field(string $field_id, string $label, string $component, array $args = array()): GroupFieldProxy {
+		$proxy = parent::field($field_id, $label, $component, $args);
+		if (!$proxy instanceof GroupFieldProxy) {
+			throw new \RuntimeException('Unexpected proxy type from parent::field()');
+		}
+		return $proxy;
+	}
+
+	/**
+	 * Factory method to create a GroupFieldProxy.
+	 *
+	 * @param ComponentBuilderDefinitionInterface $builder The component builder.
+	 * @param string $component_alias The component alias.
+	 * @param string|null $field_template The field template override.
+	 * @param array<string,mixed> $component_context The component context.
+	 *
+	 * @return GroupFieldProxy The proxy instance.
+	 */
+	protected function _create_component_proxy(
+		ComponentBuilderDefinitionInterface $builder,
+		string $component_alias,
+		?string $field_template,
+		array $component_context
+	): GroupFieldProxy {
+		return new GroupFieldProxy(
+			$builder,
+			$this,
+			$this->updateFn,
+			$this->container_id,
+			$this->section_id,
+			$component_alias,
+			$this->group_id,
+			$field_template,
+			$component_context
+		);
 	}
 }

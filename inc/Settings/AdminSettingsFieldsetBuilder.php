@@ -10,9 +10,8 @@ declare(strict_types=1);
 namespace Ran\PluginLib\Settings;
 
 use Ran\PluginLib\Forms\Component\Build\ComponentBuilderDefinitionInterface;
+use Ran\PluginLib\Forms\Builders\FieldsetFieldProxy;
 use Ran\PluginLib\Forms\Builders\FieldsetBuilder;
-use Ran\PluginLib\Forms\Builders\ComponentBuilderProxy;
-use Ran\PluginLib\Forms\Builders\SimpleFieldProxy;
 
 final class AdminSettingsFieldsetBuilder extends FieldsetBuilder {
 	public function __construct(
@@ -40,11 +39,11 @@ final class AdminSettingsFieldsetBuilder extends FieldsetBuilder {
 	/**
 	 * Add a field with a component builder to this admin fieldset.
 	 *
-	 * @return AdminSettingsComponentProxy
+	 * @return AdminSettingsFieldsetFieldProxy
 	 */
-	public function field(string $field_id, string $label, string $component, array $args = array()): AdminSettingsComponentProxy {
+	public function field(string $field_id, string $label, string $component, array $args = array()): AdminSettingsFieldsetFieldProxy {
 		$result = parent::field($field_id, $label, $component, $args);
-		if ($result instanceof AdminSettingsComponentProxy) {
+		if ($result instanceof AdminSettingsFieldsetFieldProxy) {
 			return $result;
 		}
 		throw new \RuntimeException('Unexpected return type from parent::field()');
@@ -79,17 +78,17 @@ final class AdminSettingsFieldsetBuilder extends FieldsetBuilder {
 	}
 
 	/**
-	 * Factory method to create AdminSettingsComponentProxy.
+	 * Factory method to create AdminSettingsFieldsetFieldProxy.
 	 *
-	 * @return AdminSettingsComponentProxy
+	 * @return AdminSettingsFieldsetFieldProxy
 	 */
 	protected function _create_component_proxy(
 		ComponentBuilderDefinitionInterface $builder,
 		string $component_alias,
 		?string $field_template,
 		array $component_context
-	): AdminSettingsComponentProxy {
-		return new AdminSettingsComponentProxy(
+	): AdminSettingsFieldsetFieldProxy {
+		return new AdminSettingsFieldsetFieldProxy(
 			$builder,
 			$this,
 			$this->updateFn,

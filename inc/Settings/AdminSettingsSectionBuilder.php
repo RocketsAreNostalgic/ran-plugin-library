@@ -13,9 +13,7 @@ use Ran\PluginLib\Settings\AdminSettingsPageBuilder;
 use Ran\PluginLib\Settings\AdminSettingsComponentProxy;
 use Ran\PluginLib\Forms\FormsInterface;
 use Ran\PluginLib\Forms\Component\Build\ComponentBuilderDefinitionInterface;
-use Ran\PluginLib\Forms\Builders\SimpleFieldProxy;
 use Ran\PluginLib\Forms\Builders\SectionBuilder;
-use Ran\PluginLib\Forms\Builders\ComponentBuilderProxy;
 use Ran\PluginLib\Forms\Builders\BuilderRootInterface;
 
 class AdminSettingsSectionBuilder extends SectionBuilder {
@@ -57,9 +55,9 @@ class AdminSettingsSectionBuilder extends SectionBuilder {
 	/**
 	 * Set the heading for this section.
 	 *
-	 * @return AdminSettingsSectionBuilder
+	 * @return static
 	 */
-	public function heading(string $heading): AdminSettingsSectionBuilder {
+	public function heading(string $heading): static {
 		parent::heading($heading);
 		return $this;
 	}
@@ -67,9 +65,9 @@ class AdminSettingsSectionBuilder extends SectionBuilder {
 	/**
 	 * Set the before callback for this section.
 	 *
-	 * @return AdminSettingsSectionBuilder
+	 * @return static
 	 */
-	public function before(?callable $before): AdminSettingsSectionBuilder {
+	public function before(?callable $before): static {
 		parent::before($before);
 		return $this;
 	}
@@ -77,9 +75,9 @@ class AdminSettingsSectionBuilder extends SectionBuilder {
 	/**
 	 * Set the after callback for this section.
 	 *
-	 * @return AdminSettingsSectionBuilder
+	 * @return static
 	 */
-	public function after(callable $after): AdminSettingsSectionBuilder {
+	public function after(?callable $after): static {
 		parent::after($after);
 		return $this;
 	}

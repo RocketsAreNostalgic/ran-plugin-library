@@ -11,8 +11,6 @@ namespace Ran\PluginLib\Settings;
 
 use Ran\PluginLib\Forms\Component\Build\ComponentBuilderDefinitionInterface;
 use Ran\PluginLib\Forms\Builders\FieldsetBuilder;
-use Ran\PluginLib\Forms\Builders\ComponentBuilderProxy;
-use Ran\PluginLib\Forms\Builders\SimpleFieldProxy;
 
 final class UserSettingsFieldsetBuilder extends FieldsetBuilder {
 	public function __construct(
@@ -40,11 +38,11 @@ final class UserSettingsFieldsetBuilder extends FieldsetBuilder {
 	/**
 	 * Add a field with a component builder to this user settings fieldset.
 	 *
-	 * @return UserSettingsComponentProxy
+	 * @return UserSettingsFieldsetFieldProxy
 	 */
-	public function field(string $field_id, string $label, string $component, array $args = array()): UserSettingsComponentProxy {
+	public function field(string $field_id, string $label, string $component, array $args = array()): UserSettingsFieldsetFieldProxy {
 		$result = parent::field($field_id, $label, $component, $args);
-		if ($result instanceof UserSettingsComponentProxy) {
+		if ($result instanceof UserSettingsFieldsetFieldProxy) {
 			return $result;
 		}
 		throw new \RuntimeException('Unexpected return type from parent::field()');
@@ -91,17 +89,17 @@ final class UserSettingsFieldsetBuilder extends FieldsetBuilder {
 	}
 
 	/**
-	 * Factory method to create UserSettingsComponentProxy.
+	 * Factory method to create UserSettingsFieldsetFieldProxy.
 	 *
-	 * @return UserSettingsComponentProxy
+	 * @return UserSettingsFieldsetFieldProxy
 	 */
 	protected function _create_component_proxy(
 		ComponentBuilderDefinitionInterface $builder,
 		string $component_alias,
 		?string $field_template,
 		array $component_context
-	): UserSettingsComponentProxy {
-		return new UserSettingsComponentProxy(
+	): UserSettingsFieldsetFieldProxy {
+		return new UserSettingsFieldsetFieldProxy(
 			$builder,
 			$this,
 			$this->updateFn,

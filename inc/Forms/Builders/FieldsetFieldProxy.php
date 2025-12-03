@@ -56,6 +56,30 @@ class FieldsetFieldProxy extends ComponentBuilderProxy {
 	}
 
 	/**
+	 * Set the before callback for this field.
+	 *
+	 * @param callable|null $before The before callback.
+	 *
+	 * @return $this
+	 */
+	public function before(?callable $before): static {
+		parent::before($before);
+		return $this;
+	}
+
+	/**
+	 * Set the after callback for this field.
+	 *
+	 * @param callable|null $after The after callback.
+	 *
+	 * @return $this
+	 */
+	public function after(?callable $after): static {
+		parent::after($after);
+		return $this;
+	}
+
+	/**
 	 * End field configuration and return to the FieldsetBuilder.
 	 *
 	 * @return FieldsetBuilder The parent FieldsetBuilder for continued chaining.

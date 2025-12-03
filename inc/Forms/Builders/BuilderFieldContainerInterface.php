@@ -38,19 +38,4 @@ interface BuilderFieldContainerInterface {
 	 * @throws \InvalidArgumentException If the component has no registered builder factory.
 	 */
 	public function field(string $field_id, string $label, string $component, array $args = array()): ComponentBuilderProxy;
-
-	/**
-	 * Add a simple field without a component builder.
-	 *
-	 * Use this for components that render directly without builder support (e.g., raw HTML,
-	 * custom markup). Returns a SimpleFieldProxy with limited fluent configuration.
-	 *
-	 * @param string $field_id The field identifier.
-	 * @param string $label The field label.
-	 * @param string $component The component alias.
-	 * @param array<string,mixed> $args Optional arguments for the component.
-	 *
-	 * @return SimpleFieldProxy The fluent proxy for simple field configuration.
-	 */
-	public function field_simple(string $field_id, string $label, string $component, array $args = array()): SimpleFieldProxy;
 }

@@ -176,6 +176,21 @@ class UserSettings implements FormsInterface {
 	}
 
 	/**
+	 * Register a builder factory for a component.
+	 *
+	 * Use this for components that don't have a Builder.php file but need
+	 * to work with the field() fluent API.
+	 *
+	 * @param string $alias The component alias (e.g., 'ext.my-component')
+	 * @param string|callable $builder The builder class name or factory callable
+	 * @return static For fluent chaining
+	 */
+	public function register_builder(string $alias, string|callable $builder): static {
+		$this->components->register_builder($alias, $builder);
+		return $this;
+	}
+
+	/**
 	 * Register multiple external components from a directory.
 	 *
 	 * Delegates to ComponentLoader and triggers discovery for all new components.

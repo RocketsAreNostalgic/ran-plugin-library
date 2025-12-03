@@ -14,6 +14,7 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\Forms\Builders;
 
+use Ran\PluginLib\Forms\Component\Build\ComponentBuilderDefinitionInterface;
 use InvalidArgumentException;
 
 class FieldsetBuilder extends SectionFieldContainerBuilder implements FieldsetBuilderInterface {
@@ -208,5 +209,52 @@ class FieldsetBuilder extends SectionFieldContainerBuilder implements FieldsetBu
 		}
 
 		return trim($style);
+	}
+
+	/**
+	 * Add a field with a component builder to this fieldset.
+	 *
+	 * @param string $field_id The field identifier.
+	 * @param string $label The field label.
+	 * @param string $component The component alias.
+	 * @param array<string,mixed> $args Optional arguments.
+	 *
+	 * @return FieldsetFieldProxy The proxy instance with correct return type for end_field().
+	 */
+	public function field(string $field_id, string $label, string $component, array $args = array()): FieldsetFieldProxy {
+		$proxy = parent::field($field_id, $label, $component, $args);
+		if (!$proxy instanceof FieldsetFieldProxy) {
+			throw new \RuntimeException('Unexpected proxy type from parent::field()');
+		}
+		return $proxy;
+	}
+
+	/**
+	 * Factory method to create a FieldsetFieldProxy.
+	 *
+	 * @param ComponentBuilderDefinitionInterface $builder The component builder.
+	 * @param string $component_alias The component alias.
+	 * @param string|null $field_template The field template override.
+	 * @param array<string,mixed> $component_context The component context.
+	 *
+	 * @return FieldsetFieldProxy The proxy instance.
+	 */
+	protected function _create_component_proxy(
+		ComponentBuilderDefinitionInterface $builder,
+		string $component_alias,
+		?string $field_template,
+		array $component_context
+	): FieldsetFieldProxy {
+		return new FieldsetFieldProxy(
+			$builder,
+			$this,
+			$this->updateFn,
+			$this->container_id,
+			$this->section_id,
+			$component_alias,
+			$this->group_id,
+			$field_template,
+			$component_context
+		);
 	}
 }

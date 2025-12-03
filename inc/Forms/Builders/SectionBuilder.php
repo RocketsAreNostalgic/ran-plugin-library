@@ -249,7 +249,7 @@ class SectionBuilder implements SectionBuilderInterface {
 		$factory = $this->get_component_builder_factory($component);
 		if (!($factory instanceof \Closure || is_callable($factory))) {
 			throw new \InvalidArgumentException(sprintf(
-				'Field "%s" uses component "%s" which has no registered builder factory. Use field_simple() for components without builders.',
+				'Field "%s" uses component "%s" which has no registered builder factory.',
 				$field_id,
 				$component
 			));
@@ -284,88 +284,6 @@ class SectionBuilder implements SectionBuilderInterface {
 		}
 
 		return $proxy;
-	}
-
-	/**
-	 * Add a simple field without a component builder.
-	 *
-	 * Use this for components that render directly without builder support (e.g., raw HTML,
-	 * custom markup). Returns a SimpleFieldProxy with limited fluent configuration.
-	 *
-	 * @param string $field_id The field ID.
-	 * @param string $label The field label.
-	 * @param string $component The component alias.
-	 * @param array<string,mixed> $args Optional configuration (context, order, field_template).
-	 *
-	 * @return SimpleFieldProxy The fluent proxy for simple field configuration.
-	 */
-	public function field_simple(string $field_id, string $label, string $component, array $args = array()): SimpleFieldProxy {
-		$component_context = $args['context']        ?? $args['component_context'] ?? array();
-		$order             = $args['order']          ?? null;
-		$field_template    = $args['field_template'] ?? null;
-		$before            = $args['before']         ?? null;
-		$after             = $args['after']          ?? null;
-
-		$component = trim($component);
-		if ($component === '') {
-			throw new \InvalidArgumentException(sprintf('Field "%s" requires a component alias.', $field_id));
-		}
-		if (!is_array($component_context)) {
-			throw new \InvalidArgumentException(sprintf('Field "%s" must provide an array component_context.', $field_id));
-		}
-
-		return $this->_create_simple_field_proxy(
-			$field_id,
-			$label,
-			$component,
-			$component_context,
-			$order !== null ? (int) $order : null,
-			$field_template,
-			is_callable($before) ? $before : null,
-			is_callable($after) ? $after : null
-		);
-	}
-
-	/**
-	 * Factory method to create a SimpleFieldProxy.
-	 * Override in subclasses to return context-specific proxy types.
-	 *
-	 * @param string $field_id The field identifier.
-	 * @param string $label The field label.
-	 * @param string $component The component alias.
-	 * @param array<string,mixed> $component_context The component context.
-	 * @param int|null $order The field order.
-	 * @param string|null $field_template The field template override.
-	 * @param callable|null $before The before callback.
-	 * @param callable|null $after The after callback.
-	 *
-	 * @return SimpleFieldProxy The proxy instance.
-	 */
-	protected function _create_simple_field_proxy(
-		string $field_id,
-		string $label,
-		string $component,
-		array $component_context,
-		?int $order,
-		?string $field_template,
-		?callable $before,
-		?callable $after
-	): SimpleFieldProxy {
-		return new SimpleFieldProxy(
-			$this,
-			$this->updateFn,
-			$this->container_id,
-			$this->section_id,
-			null, // No group_id for section-level fields
-			$field_id,
-			$label,
-			$component,
-			$component_context,
-			$order,
-			$field_template,
-			$before,
-			$after
-		);
 	}
 
 	/**

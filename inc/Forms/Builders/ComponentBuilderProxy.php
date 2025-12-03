@@ -7,7 +7,7 @@
  *
  * @package Ran\PluginLib\Forms\Builders
  *
- * @template TParent of SectionBuilder|SectionFieldContainerBuilder
+ * @template TParent of SectionBuilder|SectionFieldContainerBuilder|GroupBuilder|FieldsetBuilder
  */
 
 declare(strict_types=1);
@@ -29,9 +29,9 @@ class ComponentBuilderProxy implements ComponentBuilderInterface, FieldProxyInte
 	/** @var ComponentBuilderDefinitionInterface&ComponentBuilderInterface */
 	private ComponentBuilderDefinitionInterface $builder;
 	/**
-	 * @var SectionBuilder|SectionFieldContainerBuilder
+	 * @var TParent
 	 */
-	private SectionBuilder|SectionFieldContainerBuilder $parent;
+	private SectionBuilder|SectionFieldContainerBuilder|GroupBuilder|FieldsetBuilder $parent;
 	/**
 	 * @var callable(
 	 *     string,
@@ -57,7 +57,7 @@ class ComponentBuilderProxy implements ComponentBuilderInterface, FieldProxyInte
 
 	/**
 	 * @param ComponentBuilderBase $builder
-	 * @param SectionBuilder|SectionFieldContainerBuilder $parent
+	 * @param TParent $parent
 	 * @param callable $updateFn
 	 * @param string $container_id
 	 * @param string $section_id
@@ -66,12 +66,9 @@ class ComponentBuilderProxy implements ComponentBuilderInterface, FieldProxyInte
 	 * @param string|null $field_template
 	 * @param array<string,mixed> $pending_context
 	 */
-	/**
-	 * @param SectionBuilder|SectionFieldContainerBuilder $parent
-	 */
 	public function __construct(
 		ComponentBuilderBase $builder,
-		SectionBuilder|SectionFieldContainerBuilder $parent,
+		SectionBuilder|SectionFieldContainerBuilder|GroupBuilder|FieldsetBuilder $parent,
 		callable $updateFn,
 		string $container_id,
 		string $section_id,
@@ -314,7 +311,7 @@ class ComponentBuilderProxy implements ComponentBuilderInterface, FieldProxyInte
 	/**
 	 * @return TParent
 	 */
-	public function end_field(): SectionBuilder|SectionFieldContainerBuilder {
+	public function end_field(): SectionBuilder|SectionFieldContainerBuilder|GroupBuilder|FieldsetBuilder {
 		return $this->parent;
 	}
 

@@ -3,7 +3,7 @@
  * FieldProxyInterface: Public API for field configuration proxies.
  *
  * This interface defines the fluent methods available when configuring a field.
- * Both ComponentBuilderProxy and SimpleFieldProxy implement this interface.
+ * ComponentBuilderProxy implements this interface.
  *
  * @package Ran\PluginLib\Forms\Builders
  */
@@ -15,7 +15,7 @@ namespace Ran\PluginLib\Forms\Builders;
 /**
  * Interface for field configuration proxies.
  *
- * @template TParent of SectionBuilder|SectionFieldContainerBuilder
+ * @template TParent of SectionBuilder|SectionFieldContainerBuilder|GroupBuilder|FieldsetBuilder
  */
 interface FieldProxyInterface {
 	/**
@@ -77,5 +77,5 @@ interface FieldProxyInterface {
 	 *
 	 * @return TParent
 	 */
-	public function end_field(): SectionBuilder|SectionFieldContainerBuilder;
+	public function end_field(): SectionBuilder|SectionFieldContainerBuilder|GroupBuilder|FieldsetBuilder;
 }

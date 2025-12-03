@@ -19,7 +19,6 @@ use Ran\PluginLib\Forms\FormsInterface;
 use Ran\PluginLib\Forms\Component\Build\ComponentBuilderDefinitionInterface;
 use Ran\PluginLib\Forms\Builders\SectionBuilder;
 use Ran\PluginLib\Forms\Builders\ComponentBuilderProxy;
-use Ran\PluginLib\Forms\Builders\SimpleFieldProxy;
 use Ran\PluginLib\Forms\Builders\BuilderRootInterface;
 
 /**

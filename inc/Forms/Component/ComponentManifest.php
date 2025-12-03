@@ -85,6 +85,27 @@ class ComponentManifest {
 	}
 
 	/**
+	 * Registers a builder factory for a component.
+	 *
+	 * This allows tests and external code to register builder factories
+	 * for components that don't have a Builder.php file.
+	 *
+	 * @param string $alias The component alias.
+	 * @param string|callable $builder The fully-qualified builder class name, or a factory callable.
+	 */
+	public function register_builder(string $alias, string|callable $builder): void {
+		if (!isset($this->componentMetadata[$alias])) {
+			$this->componentMetadata[$alias] = array(
+				'normalizer' => null,
+				'builder'    => null,
+				'validator'  => null,
+				'sanitizer'  => null,
+			);
+		}
+		$this->componentMetadata[$alias]['builder'] = $builder;
+	}
+
+	/**
 	 * Checks if a component is registered.
 	 *
 	 * @param string $alias
@@ -227,9 +248,15 @@ class ComponentManifest {
 			if ($builder === null) {
 				continue;
 			}
-			$factories[$alias] = function (string $id, string $label, mixed ...$args) use ($builder): ComponentBuilderDefinitionInterface {
-				return new $builder($id, $label, ...$args);
-			};
+
+			// Support both class names and factory callables
+			if (is_callable($builder)) {
+				$factories[$alias] = $builder;
+			} else {
+				$factories[$alias] = function (string $id, string $label, mixed ...$args) use ($builder): ComponentBuilderDefinitionInterface {
+					return new $builder($id, $label, ...$args);
+				};
+			}
 		}
 
 		return $factories;

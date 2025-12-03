@@ -11,8 +11,6 @@ namespace Ran\PluginLib\Settings;
 
 use Ran\PluginLib\Forms\Component\Build\ComponentBuilderDefinitionInterface;
 use Ran\PluginLib\Forms\Builders\GroupBuilder;
-use Ran\PluginLib\Forms\Builders\ComponentBuilderProxy;
-use Ran\PluginLib\Forms\Builders\SimpleFieldProxy;
 
 final class AdminSettingsGroupBuilder extends GroupBuilder {
 	public function __construct(
@@ -40,11 +38,11 @@ final class AdminSettingsGroupBuilder extends GroupBuilder {
 	/**
 	 * Add a field with a component builder to this admin group.
 	 *
-	 * @return AdminSettingsComponentProxy
+	 * @return AdminSettingsGroupFieldProxy
 	 */
-	public function field(string $field_id, string $label, string $component, array $args = array()): AdminSettingsComponentProxy {
+	public function field(string $field_id, string $label, string $component, array $args = array()): AdminSettingsGroupFieldProxy {
 		$result = parent::field($field_id, $label, $component, $args);
-		if ($result instanceof AdminSettingsComponentProxy) {
+		if ($result instanceof AdminSettingsGroupFieldProxy) {
 			return $result;
 		}
 		throw new \RuntimeException('Unexpected return type from parent::field()');
@@ -92,17 +90,17 @@ final class AdminSettingsGroupBuilder extends GroupBuilder {
 	}
 
 	/**
-	 * Factory method to create AdminSettingsComponentProxy.
+	 * Factory method to create AdminSettingsGroupFieldProxy.
 	 *
-	 * @return AdminSettingsComponentProxy
+	 * @return AdminSettingsGroupFieldProxy
 	 */
 	protected function _create_component_proxy(
 		ComponentBuilderDefinitionInterface $builder,
 		string $component_alias,
 		?string $field_template,
 		array $component_context
-	): AdminSettingsComponentProxy {
-		return new AdminSettingsComponentProxy(
+	): AdminSettingsGroupFieldProxy {
+		return new AdminSettingsGroupFieldProxy(
 			$builder,
 			$this,
 			$this->updateFn,

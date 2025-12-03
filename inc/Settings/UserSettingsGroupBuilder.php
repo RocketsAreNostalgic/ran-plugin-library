@@ -3,9 +3,6 @@
  * UserSettingsGroupBuilder: Context-aware group builder for user settings sections.
  *
  * @package Ran\PluginLib\Settings
- *
- * @method static before(?callable $before) Set a callback to render content before the group.
- * @method static after(?callable $after) Set a callback to render content after the group.
  */
 
 declare(strict_types=1);
@@ -14,9 +11,8 @@ namespace Ran\PluginLib\Settings;
 
 use Ran\PluginLib\Forms\Component\Build\ComponentBuilderDefinitionInterface;
 use Ran\PluginLib\Forms\Builders\GroupBuilder;
-use Ran\PluginLib\Forms\Builders\SimpleFieldProxy;
 
-final class UserSettingsGroupBuilder extends GroupBuilder {
+class UserSettingsGroupBuilder extends GroupBuilder {
 	public function __construct(
 		UserSettingsSectionBuilder $sectionBuilder,
 		string $container_id,
@@ -42,14 +38,17 @@ final class UserSettingsGroupBuilder extends GroupBuilder {
 	/**
 	 * Add a field with a component builder to this user settings group.
 	 *
-	 * @return UserSettingsComponentProxy
+	 * Overrides parent to return UserSettingsGroupFieldProxy directly for IDE type hints.
+	 *
+	 * @param string $field_id The field identifier.
+	 * @param string $label The field label.
+	 * @param string $component The component alias.
+	 * @param array<string,mixed> $args Optional arguments.
+	 *
+	 * @return UserSettingsGroupFieldProxy
 	 */
-	public function field(string $field_id, string $label, string $component, array $args = array()): UserSettingsComponentProxy {
-		$result = parent::field($field_id, $label, $component, $args);
-		if ($result instanceof UserSettingsComponentProxy) {
-			return $result;
-		}
-		throw new \RuntimeException('Unexpected return type from parent::field()');
+	public function field(string $field_id, string $label, string $component, array $args = array()): UserSettingsGroupFieldProxy {
+		return parent::field($field_id, $label, $component, $args);
 	}
 
 	/**
@@ -93,17 +92,17 @@ final class UserSettingsGroupBuilder extends GroupBuilder {
 	}
 
 	/**
-	 * Factory method to create UserSettingsComponentProxy.
+	 * Factory method to create UserSettingsGroupFieldProxy.
 	 *
-	 * @return UserSettingsComponentProxy
+	 * @return UserSettingsGroupFieldProxy
 	 */
 	protected function _create_component_proxy(
 		ComponentBuilderDefinitionInterface $builder,
 		string $component_alias,
 		?string $field_template,
 		array $component_context
-	): UserSettingsComponentProxy {
-		return new UserSettingsComponentProxy(
+	): UserSettingsGroupFieldProxy {
+		return new UserSettingsGroupFieldProxy(
 			$builder,
 			$this,
 			$this->updateFn,
