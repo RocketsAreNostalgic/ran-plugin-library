@@ -27,7 +27,11 @@
       "Ran\\PluginLib\\": "inc/"
     },
     "exclude-from-classmap": [
-      "inc/**/docs/**"
+      "inc/docs-to-review/",
+      "**/docs/",
+      "**/hold/",
+      "**/Example/",
+      "**/Examples/"
     ]
   },
   "autoload-dev": {
@@ -81,10 +85,12 @@
     "qa:ci": [
       "@cs:check",
       "@standards:full",
-      "@test:coverage"
+      "@test:coverage-ci"
     ],
     "hooks:install": "bash ./scripts/install-git-hooks.sh",
-    "test": "phpdbg -d memory_limit=512M -qrr vendor/bin/phpunit",
-    "test:coverage": "phpdbg -qrr vendor/bin/phpunit --coverage-text"
+    "test": "vendor/bin/phpunit --no-coverage",
+    "test:coverage": "/opt/homebrew/opt/php@8.3/bin/php -d pcov.enabled=1 -d memory_limit=512M vendor/bin/phpunit",
+    "test:coverage-ci": "vendor/bin/phpunit",
+    "test:integration": "vendor/bin/phpunit --no-coverage --group integration"
   }
 }

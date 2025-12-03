@@ -18,6 +18,9 @@
 	verbose="false"
 	backupGlobals="false"
 >
+	<php>
+		<ini name="memory_limit" value="256M"/>
+	</php>
 	<testsuites>
 		<testsuite name="Unit Tests">
 			<directory>Tests/Unit</directory>
@@ -41,8 +44,6 @@
 		</exclude>
 		<report>
 			<html outputDirectory="Tests/coverage/html-coverage" lowUpperBound="50" highLowerBound="90"/>
-			<clover outputFile="Tests/coverage/clover.xml"/>
-			<php outputFile="Tests/coverage/coverage.php"/>
 		</report>
 	</coverage>
 </phpunit>
