@@ -11,9 +11,6 @@
 
 namespace Ran\PluginLib\Forms\Builders;
 
-use Ran\PluginLib\Forms\Builders\SectionBuilder;
-use Ran\PluginLib\Forms\Builders\GroupBuilder;
-use Ran\PluginLib\Forms\Builders\BuilderRootInterface;
 use Ran\PluginLib\Forms\Builders\BuilderFieldContainerInterface;
 
 interface GroupBuilderInterface extends BuilderFieldContainerInterface {
@@ -35,11 +32,4 @@ interface GroupBuilderInterface extends BuilderFieldContainerInterface {
 	 * @return SectionBuilderInterface The SectionBuilder instance.
 	 */
 	public function end_group(): SectionBuilderInterface;
-
-	/**
-	 * end_section() method returns the original Settings instance.
-	 *
-	 * @return BuilderRootInterface The root builder instance.
-	 */
-	public function end_section(): BuilderRootInterface;
 }

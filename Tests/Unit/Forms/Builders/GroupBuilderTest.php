@@ -104,13 +104,6 @@ final class GroupBuilderTest extends TestCase {
 		self::assertSame($this->currentSection, $section);
 	}
 
-	public function test_end_section_returns_root_builder(): void {
-		$group = $this->createGroupBuilder();
-		$root  = $group->end_section();
-
-		self::assertSame($this->currentRoot, $root);
-	}
-
 	/**
 	 * @param array<string, callable(string,string):StubComponentBuilder> $factories
 	 */

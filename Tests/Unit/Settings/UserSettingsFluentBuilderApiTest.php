@@ -526,11 +526,11 @@ class UserSettingsFluentBuilderApiTest extends TestCase {
 	}
 
 	/**
-	 * Builder API test: Group builder chaining without explicit end_group().
+	 * Builder API test: Group builder explicit chaining.
 	 *
 	 * @test
 	 */
-	public function test_user_settings_group_chain_without_explicit_end_group(): void {
+	public function test_user_settings_group_explicit_chain(): void {
 		$user = $this->createUserSettings();
 
 		$collectionBuilder = $user->collection('implicit-group-collection');
@@ -538,7 +538,7 @@ class UserSettingsFluentBuilderApiTest extends TestCase {
 		$groupBuilder      = $sectionBuilder->group('implicit-group', 'Implicit Group');
 		$groupBuilder->field('group_field', 'Implicit Field', 'fields.input')->end_field();
 
-		$groupBuilder->end_section()->end_collection()->end();
+		$groupBuilder->end_group()->end_section()->end_collection()->end();
 
 		$groupMetaLogs = $this->logger_mock->find_logs(static function (array $entry): bool {
 			return $entry['message']                           === 'settings.builder.group.metadata'
@@ -579,11 +579,11 @@ class UserSettingsFluentBuilderApiTest extends TestCase {
 	}
 
 	/**
-	 * Builder API test: Fieldset builder chaining without explicit end_fieldset().
+	 * Builder API test: Fieldset builder explicit chaining.
 	 *
 	 * @test
 	 */
-	public function test_user_settings_fieldset_chain_without_explicit_end_fieldset(): void {
+	public function test_user_settings_fieldset_explicit_chain(): void {
 		$user = $this->createUserSettings();
 
 		$collectionBuilder = $user->collection('implicit-fieldset-collection');
@@ -591,7 +591,7 @@ class UserSettingsFluentBuilderApiTest extends TestCase {
 		$fieldsetBuilder   = $sectionBuilder->fieldset('implicit-fieldset', 'Implicit Fieldset');
 		$fieldsetBuilder->field('contact_method', 'Implicit Field', 'fields.input')->end_field();
 
-		$fieldsetBuilder->end_section()->end_collection()->end(); // final end() is no-op, but exists for API consistency with AdminSettings
+		$fieldsetBuilder->end_fieldset()->end_section()->end_collection()->end(); // final end() is no-op, but exists for API consistency with AdminSettings
 
 		$fieldsetLogs = $this->logger_mock->find_logs(static function (array $entry): bool {
 			return $entry['message']                           === 'settings.builder.group.metadata'

@@ -67,11 +67,4 @@ interface SectionFieldContainerBuilderInterface extends BuilderFieldContainerInt
 	 * @return static
 	 */
 	public function after(?callable $after): static;
-
-	/**
-	 * Finish the container and return to the root builder.
-	 *
-	 * @return BuilderRootInterface
-	 */
-	public function end_section(): BuilderRootInterface;
 }

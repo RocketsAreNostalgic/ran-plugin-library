@@ -63,20 +63,6 @@ final class AdminSettingsGroupBuilder extends GroupBuilder {
 	}
 
 	/**
-	 * Commit buffered data and return to the page builder.
-	 *
-	 * @return AdminSettingsPageBuilder
-	 */
-	public function end_section(): AdminSettingsPageBuilder {
-		$builder = parent::end_section();
-		if (!$builder instanceof AdminSettingsPageBuilder) {
-			throw new \RuntimeException('AdminSettingsGroupBuilder must be attached to an AdminSettingsPageBuilder instance.');
-		}
-
-		return $builder;
-	}
-
-	/**
 	 * Start a sibling admin group on the same section.
 	 *
 	 * @return AdminSettingsGroupBuilder

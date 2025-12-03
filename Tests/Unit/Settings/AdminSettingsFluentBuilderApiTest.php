@@ -509,11 +509,11 @@ class AdminSettingsFluentBuilderApiTest extends TestCase {
 	}
 
 	/**
-	 * Builder API test: Group builder chaining without explicit end_group().
+	 * Builder API test: Group builder explicit chaining.
 	 *
 	 * @test
 	 */
-	public function test_admin_settings_group_chain_without_explicit_end_group(): void {
+	public function test_admin_settings_group_explicit_chain(): void {
 		$admin = $this->createAdminSettings();
 
 		$menuBuilder    = $admin->menu_group('implicit-group-menu');
@@ -522,7 +522,7 @@ class AdminSettingsFluentBuilderApiTest extends TestCase {
 		$groupBuilder   = $sectionBuilder->group('implicit-group', 'Implicit Group');
 		$groupBuilder->field('group_field', 'Implicit Field', 'fields.input')->end_field();
 
-		$groupBuilder->end_section()->end_page()->end_menu_group();
+		$groupBuilder->end_group()->end_section()->end_page()->end_menu_group();
 
 		$reflection = new \ReflectionClass($admin);
 		$groupsProp = $reflection->getProperty('groups');
@@ -540,11 +540,11 @@ class AdminSettingsFluentBuilderApiTest extends TestCase {
 	}
 
 	/**
-	 * Builder API test: Fieldset builder chaining without explicit end_fieldset().
+	 * Builder API test: Fieldset builder explicit chaining.
 	 *
 	 * @test
 	 */
-	public function test_admin_settings_fieldset_chain_without_explicit_end_fieldset(): void {
+	public function test_admin_settings_fieldset_explicit_chain(): void {
 		$admin = $this->createAdminSettings();
 
 		$menuBuilder     = $admin->menu_group('implicit-fieldset-menu');
@@ -553,7 +553,7 @@ class AdminSettingsFluentBuilderApiTest extends TestCase {
 		$fieldsetBuilder = $sectionBuilder->fieldset('implicit-fieldset', 'Implicit Fieldset');
 		$fieldsetBuilder->field('contact_email', 'Implicit Field', 'fields.input');
 
-		$fieldsetBuilder->end_section()->end_page()->end_menu_group();
+		$fieldsetBuilder->end_fieldset()->end_section()->end_page()->end_menu_group();
 
 		$reflection = new \ReflectionClass($admin);
 		$groupsProp = $reflection->getProperty('groups');

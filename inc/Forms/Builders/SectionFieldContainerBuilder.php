@@ -242,10 +242,6 @@ abstract class SectionFieldContainerBuilder implements SectionFieldContainerBuil
 		return $this;
 	}
 
-	public function end_section(): BuilderRootInterface {
-		return $this->sectionBuilder->end_section();
-	}
-
 	/**
 	 * End the group and return to the section builder.
 	 *

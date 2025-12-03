@@ -66,32 +66,6 @@ class UserSettingsGroupBuilder extends GroupBuilder {
 	}
 
 	/**
-	 * Not valid in group context - throws exception.
-	 *
-	 * This method exists for API consistency with union return types.
-	 *
-	 * @return never
-	 * @throws \RuntimeException Always throws - cannot end fieldset from group context.
-	 */
-	public function end_fieldset(): never {
-		throw new \RuntimeException('Cannot call end_fieldset() from group context. Use end_group() instead.');
-	}
-
-	/**
-	 * End the group and return to the parent UserSettingsCollectionBuilder.
-	 *
-	 * @return UserSettingsCollectionBuilder
-	 */
-	public function end_section(): UserSettingsCollectionBuilder {
-		$builder = parent::end_section();
-		if (!$builder instanceof UserSettingsCollectionBuilder) {
-			throw new \RuntimeException('UserSettingsGroupBuilder must be attached to a UserSettingsCollectionBuilder instance.');
-		}
-
-		return $builder;
-	}
-
-	/**
 	 * Factory method to create UserSettingsGroupFieldProxy.
 	 *
 	 * @return UserSettingsGroupFieldProxy
