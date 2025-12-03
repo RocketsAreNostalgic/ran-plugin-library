@@ -153,7 +153,7 @@ class UserSettingsFluentBuilderApiTest extends TestCase {
 			->section('preferences', 'Preferences Section')
 				->fieldset('profile-details', 'Profile Details', null, array('style' => 'highlighted'))
 					->disabled(true)
-					->field_simple('field_three', 'Field Three', 'fields.input')
+					->field('field_three', 'Field Three', 'fields.input')->end_field()
 				->end_fieldset()
 			->end_section()
 		->end();
@@ -207,8 +207,8 @@ class UserSettingsFluentBuilderApiTest extends TestCase {
 				->after(function (): string {
 					return '<p class="user-section-after">USER SECTION AFTER</p>';
 				})
-				->field_simple('display_name', 'Display Name', 'fields.input', array('context' => array('default' => 'Test User')))
-				->field_simple('bio', 'Biography', 'textarea', array('context' => array('default' => 'Test biography')))
+				->field('display_name', 'Display Name', 'fields.input', array('context' => array('default' => 'Test User')))->end_field()
+				->field('bio', 'Biography', 'fields.textarea', array('context' => array('default' => 'Test biography')))->end_field()
 				->group('notifications', 'Notification Preferences')
 					->before(function (): string {
 						return '<span class="user-group-before">USER GROUP BEFORE</span>';
@@ -216,23 +216,23 @@ class UserSettingsFluentBuilderApiTest extends TestCase {
 					->after(function (): string {
 						return '<span class="user-group-after">USER GROUP AFTER</span>';
 					})
-					->field_simple(
+					->field(
 						'email_alerts',
 						'Email Alerts',
-						'checkbox',
-						array('context' => array('default' => true))
+						'fields.input',
+						array('context' => array('default' => ''))
 					)
-						->order(30)
+						->order(30)->end_field()
 				->end_group()
 				->fieldset('contact-preferences', 'Contact Preferences')
 					->style('minimal')
 					->disabled()
-					->field_simple('contact_method', 'Preferred Contact Method', 'fields.input')
+					->field('contact_method', 'Preferred Contact Method', 'fields.input')->end_field()
 				->end_fieldset()
 			->end_section()
 			->section('security', 'Security Settings')
-				->field_simple('two_factor', 'Two-Factor Authentication', 'checkbox', array('context' => array('default' => false)))
-				->field_simple('submit', 'Save Settings', 'submit-button')
+				->field('two_factor', 'Two-Factor Authentication', 'fields.input', array('context' => array('default' => '')))->end_field()
+				->field('submit', 'Save Settings', 'fields.input')->end_field()
 			->end_section()
 		->end();
 
@@ -344,10 +344,10 @@ class UserSettingsFluentBuilderApiTest extends TestCase {
 			->section('grouped-section', 'Grouped Section')
 				->heading('Grouped Settings')
 				->group('group-one', 'Group One')
-					->field_simple('field_one', 'Field One', 'fields.input')
+					->field('field_one', 'Field One', 'fields.input')->end_field()
 				->end_group()
 				->group('group-two', 'Group Two')
-					->field_simple('field_two', 'Field Two', 'fields.input')
+					->field('field_two', 'Field Two', 'fields.input')->end_field()
 				->end_group()
 			->end_section()
 		->end();
@@ -401,13 +401,13 @@ class UserSettingsFluentBuilderApiTest extends TestCase {
 		$user->collection('profile')
 			->heading('Profile Information')
 			->section('basic', 'Basic Information')
-				->field_simple('display_name', 'Display Name', 'fields.input')
+				->field('display_name', 'Display Name', 'fields.input')->end_field()
 			->end_section()
 		->end_collection()
 		->collection('preferences')
 			->heading('User Preferences')
 			->section('general', 'General Preferences')
-				->field_simple('preferences_field', 'Preferences Field', 'fields.input')
+				->field('preferences_field', 'Preferences Field', 'fields.input')->end_field()
 			->end_section()
 		->end();
 
@@ -459,11 +459,11 @@ class UserSettingsFluentBuilderApiTest extends TestCase {
 
 		$user->collection('profile')
 			->section('test-section', 'Test Section')
-				->field_simple('field_three', 'Field Three', 'fields.input', array('order' => 30))
-				->field_simple('field_one', 'Field One', 'fields.input', array('order' => 10))
-				->field_simple('field_two', 'Field Two', 'fields.input', array('order' => 20))
+				->field('field_three', 'Field Three', 'fields.input', array('order' => 30))->end_field()
+				->field('field_one', 'Field One', 'fields.input', array('order' => 10))->end_field()
+				->field('field_two', 'Field Two', 'fields.input', array('order' => 20))->end_field()
 				->group('group-one', 'Group One')
-					->field_simple(
+					->field(
 						'group_field',
 						'Grouped Field',
 						'fields.input',
@@ -471,7 +471,7 @@ class UserSettingsFluentBuilderApiTest extends TestCase {
 							'context' => array('attributes' => array('placeholder' => 'Grouped Placeholder')),
 							'order'   => 30,
 						)
-					)
+					)->end_field()
 				->end_group()
 			->end_section()
 		->end();
@@ -536,7 +536,7 @@ class UserSettingsFluentBuilderApiTest extends TestCase {
 		$collectionBuilder = $user->collection('implicit-group-collection');
 		$sectionBuilder    = $collectionBuilder->section('implicit-group-section', 'Implicit Group Section');
 		$groupBuilder      = $sectionBuilder->group('implicit-group', 'Implicit Group');
-		$groupBuilder->field_simple('group_field', 'Implicit Field', 'fields.input');
+		$groupBuilder->field('group_field', 'Implicit Field', 'fields.input')->end_field();
 
 		$groupBuilder->end_section()->end_collection()->end();
 
@@ -589,7 +589,7 @@ class UserSettingsFluentBuilderApiTest extends TestCase {
 		$collectionBuilder = $user->collection('implicit-fieldset-collection');
 		$sectionBuilder    = $collectionBuilder->section('implicit-fieldset-section', 'Implicit Fieldset Section');
 		$fieldsetBuilder   = $sectionBuilder->fieldset('implicit-fieldset', 'Implicit Fieldset');
-		$fieldsetBuilder->field_simple('contact_method', 'Implicit Field', 'fields.input');
+		$fieldsetBuilder->field('contact_method', 'Implicit Field', 'fields.input')->end_field();
 
 		$fieldsetBuilder->end_section()->end_collection()->end(); // final end() is no-op, but exists for API consistency with AdminSettings
 

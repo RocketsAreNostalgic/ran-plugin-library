@@ -136,7 +136,7 @@ class SectionBuilderTemplateOverrideTest extends TestCase {
 			->page('test-page')
 				->section('template-section', 'Template Section')
 					->field_template('custom-field-wrapper')
-					->field_simple('test_field', 'Test Field', 'fields.input')
+					->field('test_field', 'Test Field', 'fields.input')
 				->end_section()
 			->end_page()
 		->end_menu_group();
@@ -160,7 +160,7 @@ class SectionBuilderTemplateOverrideTest extends TestCase {
 			->page('test-page')
 				->section('template-section', 'Template Section')
 					->group_template('custom-group-wrapper')
-					->field_simple('test_field', 'Test Field', 'fields.input')
+					->field('test_field', 'Test Field', 'fields.input')
 				->end_section()
 			->end_page()
 		->end_menu_group();
@@ -184,7 +184,7 @@ class SectionBuilderTemplateOverrideTest extends TestCase {
 			->page('test-page')
 				->section('template-section', 'Template Section')
 					->section_template('custom-section-wrapper')
-					->field_simple('test_field', 'Test Field', 'fields.input')
+					->field('test_field', 'Test Field', 'fields.input')
 				->end_section()
 			->end_page()
 		->end_menu_group();
@@ -208,7 +208,7 @@ class SectionBuilderTemplateOverrideTest extends TestCase {
 			->page('test-page')
 				->section('template-section', 'Template Section')
 					->fieldset_template('custom-fieldset-wrapper')
-					->field_simple('test_field', 'Test Field', 'fields.input')
+					->field('test_field', 'Test Field', 'fields.input')
 				->end_section()
 			->end_page()
 		->end_menu_group();
@@ -318,7 +318,7 @@ class SectionBuilderTemplateOverrideTest extends TestCase {
 					->group_template('custom-group-wrapper')
 					->fieldset_template('custom-fieldset-wrapper')
 					->section_template('custom-section-wrapper')
-					->field_simple('test_field', 'Test Field', 'fields.input')
+					->field('test_field', 'Test Field', 'fields.input')
 				->end_section()
 			->end_page()
 		->end_menu_group();
@@ -347,7 +347,7 @@ class SectionBuilderTemplateOverrideTest extends TestCase {
 		$user->collection('profile')
 			->section('template-section', 'Template Section')
 				->field_template('custom-field-wrapper')
-				->field_simple('test_field', 'Test Field', 'fields.input')
+				->field('test_field', 'Test Field', 'fields.input')
 			->end_section()
 		->end_collection();
 
@@ -369,7 +369,7 @@ class SectionBuilderTemplateOverrideTest extends TestCase {
 		$user->collection('profile')
 			->section('template-section', 'Template Section')
 				->group_template('custom-group-wrapper')
-				->field_simple('test_field', 'Test Field', 'fields.input')
+				->field('test_field', 'Test Field', 'fields.input')
 			->end_section()
 		->end_collection();
 
@@ -391,7 +391,7 @@ class SectionBuilderTemplateOverrideTest extends TestCase {
 		$user->collection('profile')
 			->section('template-section', 'Template Section')
 				->section_template('custom-section-wrapper')
-				->field_simple('test_field', 'Test Field', 'fields.input')
+				->field('test_field', 'Test Field', 'fields.input')
 			->end_section()
 		->end_collection();
 
@@ -413,7 +413,7 @@ class SectionBuilderTemplateOverrideTest extends TestCase {
 		$user->collection('profile')
 			->section('template-section', 'Template Section')
 				->fieldset_template('custom-fieldset-wrapper')
-				->field_simple('test_field', 'Test Field', 'fields.input')
+				->field('test_field', 'Test Field', 'fields.input')
 			->end_section()
 		->end_collection();
 
@@ -516,7 +516,7 @@ class SectionBuilderTemplateOverrideTest extends TestCase {
 				->group_template('custom-group-wrapper')
 				->fieldset_template('custom-fieldset-wrapper')
 				->section_template('custom-section-wrapper')
-				->field_simple('test_field', 'Test Field', 'fields.input')
+				->field('test_field', 'Test Field', 'fields.input')
 			->end_section()
 		->end_collection();
 

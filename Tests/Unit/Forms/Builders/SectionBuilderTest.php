@@ -9,7 +9,7 @@ use Ran\PluginLib\Forms\Builders\FieldsetBuilder;
 use Ran\PluginLib\Forms\Builders\GroupBuilder;
 use Ran\PluginLib\Forms\Builders\SectionBuilder;
 use Ran\PluginLib\Forms\Builders\ComponentBuilderProxy;
-use Ran\PluginLib\Forms\Builders\SimpleFieldProxy;
+use Ran\PluginLib\Forms\Builders\SectionFieldProxy;
 
 /**
  * @covers \Ran\PluginLib\Forms\Builders\SectionBuilder
@@ -67,13 +67,15 @@ final class SectionBuilderTest extends TestCase {
 		self::assertSame('custom.wrapper', $templateOverrides[0]['payload']['overrides']['field-wrapper'] ?? null);
 	}
 
-	public function test_field_simple_returns_simple_field_proxy_and_emits_field_update(): void {
-		$builder = $this->createSectionBuilder();
+	public function test_field_returns_section_field_proxy_and_emits_field_update(): void {
+		$builder = $this->createSectionBuilder(array(
+			'fields.input' => fn (string $id, string $label): StubComponentBuilder => new StubComponentBuilder($id, $label, 'fields.input'),
+		));
 
-		$result = $builder->field_simple('api_key', 'API Key', 'fields.custom');
+		$result = $builder->field('api_key', 'API Key', 'fields.input');
 
-		// field_simple() returns SimpleFieldProxy for components without builders
-		self::assertInstanceOf(SimpleFieldProxy::class, $result);
+		// field() returns ComponentBuilderProxy when builder factory exists
+		self::assertInstanceOf(ComponentBuilderProxy::class, $result);
 
 		// Trigger field emission by calling end_field()
 		$result->end_field();
@@ -87,7 +89,7 @@ final class SectionBuilderTest extends TestCase {
 		$builder = $this->createSectionBuilder();
 
 		$this->expectException(\InvalidArgumentException::class);
-		$this->expectExceptionMessage('Use field_simple() for components without builders');
+		$this->expectExceptionMessage('has no registered builder factory');
 
 		$builder->field('api_key', 'API Key', 'fields.custom');
 	}

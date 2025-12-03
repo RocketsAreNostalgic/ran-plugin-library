@@ -22,6 +22,7 @@ use Ran\PluginLib\Forms\Component\ComponentRenderResult;
 use Ran\PluginLib\Forms\Component\ComponentManifest;
 use Ran\PluginLib\Forms\Component\ComponentLoader;
 use Ran\PluginLib\EnqueueAccessory\ScriptDefinition;
+use Ran\PluginLib\Forms\Components\Fields\Input\Builder as InputBuilder;
 use Mockery;
 use InvalidArgumentException;
 
@@ -80,6 +81,8 @@ final class AdminSettingsBehaviorTest extends PluginLibTestCase {
 		WP_Mock::userFunction('delete_transient')->andReturn(true);
 		WP_Mock::userFunction('sanitize_key')->andReturnArg(0);
 		WP_Mock::userFunction('sanitize_html_class')->andReturnArg(0);
+		WP_Mock::userFunction('sanitize_text_field')->andReturnArg(0);
+		WP_Mock::userFunction('wp_kses_post')->andReturnArg(0);
 		WP_Mock::userFunction('esc_attr')->andReturnArg(0);
 		WP_Mock::userFunction('current_user_can')->andReturn(true);
 		WP_Mock::userFunction('get_option')->andReturnUsing(static function (string $option, mixed $default = false) use ($self) {
@@ -97,18 +100,17 @@ final class AdminSettingsBehaviorTest extends PluginLibTestCase {
 			->with(\WP_Mock\Functions::type('bool'), \WP_Mock\Functions::type('array'))
 			->reply(true);
 
-		$loader = new ComponentLoader(__DIR__ . '/../../fixtures/templates', $this->logger);
-		$loader->register('layout.zone.section-wrapper', 'admin/sections/test-section.php');
-		$loader->register('field-wrapper', 'admin/fields/example-field-wrapper.php');
-		$loader->register('layout.field.field-wrapper', 'admin/fields/example-field-wrapper.php');
-		$loader->register('shared.field-wrapper', 'admin/fields/example-field-wrapper.php');
-		$loader->register('section-wrapper', 'admin/section-wrapper.php');
-		$loader->register('layout.zone.section-wrapper', 'admin/sections/test-section.php');
-		$loader->register('layout.zone.submit-controls-wrapper', 'admin/submit-controls-wrapper.php');
-		$loader->register('fields.input', 'admin/fields/test-field.php');
-		$loader->register('admin.pages.behavior-page', 'admin/pages/test-page.php');
-		$loader->register('admin.root-wrapper', 'admin/pages/default-page.php');
-		$loader->register('root-wrapper', 'admin/pages/default-page.php');
+		$loader      = new ComponentLoader(__DIR__ . '/../../../inc/Forms/Components', $this->logger);
+		$fixturesDir = __DIR__ . '/../../fixtures/templates';
+		$loader->register_absolute('layout.zone.section-wrapper', $fixturesDir . '/admin/sections/test-section.php');
+		$loader->register_absolute('field-wrapper', $fixturesDir . '/admin/fields/example-field-wrapper.php');
+		$loader->register_absolute('layout.field.field-wrapper', $fixturesDir . '/admin/fields/example-field-wrapper.php');
+		$loader->register_absolute('shared.field-wrapper', $fixturesDir . '/admin/fields/example-field-wrapper.php');
+		$loader->register_absolute('section-wrapper', $fixturesDir . '/admin/section-wrapper.php');
+		$loader->register_absolute('layout.zone.submit-controls-wrapper', $fixturesDir . '/admin/submit-controls-wrapper.php');
+		$loader->register_absolute('admin.pages.behavior-page', $fixturesDir . '/admin/pages/test-page.php');
+		$loader->register_absolute('admin.root-wrapper', $fixturesDir . '/admin/pages/default-page.php');
+		$loader->register_absolute('root-wrapper', $fixturesDir . '/admin/pages/default-page.php');
 
 		$this->manifest = new ComponentManifest(
 			$loader,
@@ -195,7 +197,7 @@ final class AdminSettingsBehaviorTest extends PluginLibTestCase {
 				'capability' => 'manage_options',
 			))
 				->section('reference-section', 'Reference Section')
-					->field_simple('reference_field', 'Reference Field', 'fields.input')
+					->field('reference_field', 'Reference Field', 'fields.input')
 				->end_section()
 			->end_page()
 		->end_menu_group();
@@ -261,7 +263,7 @@ final class AdminSettingsBehaviorTest extends PluginLibTestCase {
 		$this->settings->menu_group('auto-group')
 		    ->page('auto-page')
 		        ->section('auto-section', 'Auto Section')
-		            ->field_simple('auto_field', 'Auto Field', $alias)
+		            ->field('auto_field', 'Auto Field', $alias)
 		        ->end_section()
 		    ->end_page()
 		->end_menu_group();
@@ -320,7 +322,7 @@ final class AdminSettingsBehaviorTest extends PluginLibTestCase {
 		    ->page('behavior-page')
 		        ->heading('Behavior Page')
 		        ->section('behavior-section', 'Behavior Section')
-		            ->field_simple('valid_field', 'Valid Field', 'fields.input')
+		            ->field('valid_field', 'Valid Field', 'fields.input')
 		        ->end_section()
 		    ->end_page()
 		->end_menu_group();
@@ -343,7 +345,7 @@ final class AdminSettingsBehaviorTest extends PluginLibTestCase {
 		            'before' => static fn (): string => '<div class="section-before">section-before</div>',
 		            'after'  => static fn (): string => '<div class="section-after">section-after</div>',
 		        ))
-		            ->field_simple('valid_field', 'Standalone Field', 'fields.input')
+		            ->field('valid_field', 'Standalone Field', 'fields.input')
 		                ->before(static fn (): string => '<span class="field-before">field-before</span>')
 		                ->after(static fn (): string => '<span class="field-after">field-after</span>')
 		            ->end_field()
@@ -351,7 +353,7 @@ final class AdminSettingsBehaviorTest extends PluginLibTestCase {
 		                'before' => static fn (): string => '<div class="group-before">group-before</div>',
 		                'after'  => static fn (): string => '<div class="group-after">group-after</div>',
 		            ))
-		                ->field_simple('integer_field', 'Group Field', 'fields.input', array(
+		                ->field('integer_field', 'Group Field', 'fields.input', array(
 		                    'before' => static fn (): string => '<span class="group-field-before">group-field-before</span>',
 		                    'after'  => static fn (): string => '<span class="group-field-after">group-field-after</span>',
 		                ))
@@ -507,6 +509,7 @@ final class AdminSettingsBehaviorTest extends PluginLibTestCase {
 			return new ComponentRenderResult('<input type="text" />');
 		});
 
+		$this->injectBuilderFactory('fields.merge');
 		$this->injectManifestDefaults('fields.merge', array(
 			'sanitize' => array(function (mixed $value) use (&$executionOrder) {
 				$executionOrder[] = 'manifest_sanitize';
@@ -536,7 +539,7 @@ final class AdminSettingsBehaviorTest extends PluginLibTestCase {
 		$this->settings->menu_group('merge-group')
 		    ->page('merge-page')
 		        ->section('merge-section', 'Merge Section')
-		            ->field_simple('merge_field', 'Merge Field', 'fields.merge')
+		            ->field('merge_field', 'Merge Field', 'fields.merge')
 		        ->end_section()
 		    ->end_page()
 		->end_menu_group();
@@ -625,6 +628,7 @@ final class AdminSettingsBehaviorTest extends PluginLibTestCase {
 			);
 		});
 
+		$this->injectBuilderFactory($alias);
 		$this->injectManifestDefaults($alias, array(
 			'sanitize' => array(static fn (mixed $value): string => is_string($value) ? trim($value) : ''),
 			'validate' => array(static function (mixed $value, callable $emitWarning): bool {
@@ -647,7 +651,7 @@ final class AdminSettingsBehaviorTest extends PluginLibTestCase {
 		$this->settings->menu_group('trace-group')
 		    ->page('trace-page')
 		        ->section('trace-section', 'Trace Section')
-		            ->field_simple('trace_field', 'Trace Field', $alias)
+		            ->field('trace_field', 'Trace Field', $alias)
 		        ->end_section()
 		    ->end_page()
 		->end_menu_group();
@@ -753,6 +757,7 @@ final class AdminSettingsBehaviorTest extends PluginLibTestCase {
 			);
 		});
 
+		$this->injectBuilderFactory($alias);
 		$this->injectManifestDefaults($alias, array(
 			'context'  => array('component_type' => 'input'),
 			'validate' => array(static fn ($value, callable $emitWarning): bool => true),
@@ -772,6 +777,23 @@ final class AdminSettingsBehaviorTest extends PluginLibTestCase {
 		$current              = $metadata[$alias] ?? array();
 		$current['validator'] = $validatorClass;
 		$metadata[$alias]     = $current;
+		$property->setValue($this->manifest, $metadata);
+	}
+
+	/**
+	 * Inject a builder factory for a fake component alias.
+	 */
+	private function injectBuilderFactory(string $alias): void {
+		$reflection = new \ReflectionObject($this->manifest);
+		$property   = $reflection->getProperty('componentMetadata');
+		$property->setAccessible(true);
+		$metadata = $property->getValue($this->manifest);
+		if (!is_array($metadata)) {
+			$metadata = array();
+		}
+		$current            = $metadata[$alias] ?? array();
+		$current['builder'] = static fn (string $id, string $label): InputBuilder => new InputBuilder($id, $label);
+		$metadata[$alias]   = $current;
 		$property->setValue($this->manifest, $metadata);
 	}
 
@@ -884,7 +906,7 @@ final class AdminSettingsBehaviorTest extends PluginLibTestCase {
 		    ->page('submit-page')
 		        ->heading('Submit Page')
 		        ->section('submit-section', 'Submit Section')
-		            ->field_simple('valid_field', 'Valid Field', 'fields.input')
+		            ->field('valid_field', 'Valid Field', 'fields.input')
 		        ->end_section()
 		    ->end_page()
 		->end_menu_group();
@@ -903,7 +925,7 @@ final class AdminSettingsBehaviorTest extends PluginLibTestCase {
 		$this->settings->menu_group('custom-submit-group')
 			->page('custom-submit-page')
 				->section('custom-submit-section', 'Custom Submit Section')
-					->field_simple('valid_field', 'Valid Field', 'fields.input')
+					->field('valid_field', 'Valid Field', 'fields.input')
 				->end_section()
 				->submit_controls()
 					->button('primary', 'Publish Settings');
@@ -931,7 +953,7 @@ final class AdminSettingsBehaviorTest extends PluginLibTestCase {
 		        ->heading('Messages Page')
 		        ->template($renderOverride)
 		        ->section('messages-section', 'Messages Section')
-		            ->field_simple('valid_field', 'Valid Field', 'fields.input')
+		            ->field('valid_field', 'Valid Field', 'fields.input')
 		        ->end_section()
 		    ->end_page()
 		->end_menu_group();
@@ -994,12 +1016,12 @@ final class AdminSettingsBehaviorTest extends PluginLibTestCase {
 
 		$pageBuilder
 			->section('asset-section', 'Asset Section')
-				->field_simple('asset_field', 'Asset Field', 'fields.asset-field')
+				->field('asset_field', 'Asset Field', 'fields.asset-field')
 			->end_section();
 
 		$pageBuilder
 			->submit_controls()
-				->field_simple('asset_submit', 'Save Changes', 'fields.asset-field')
+				->field('asset_submit', 'Save Changes', 'fields.asset-field')
 			->end_submit_controls();
 
 		$pageBuilder->end_page();

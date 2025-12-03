@@ -79,6 +79,8 @@ class UserSettingsRenderSmokeTest extends PluginLibTestCase {
 		$externalDir = sys_get_temp_dir() . '/ran-user-m1-' . uniqid();
 		mkdir($externalDir . '/ViewOnly', 0777, true);
 		file_put_contents($externalDir . '/ViewOnly/View.php', $this->createViewPhp('view-only'));
+		file_put_contents($externalDir . '/ViewOnly/Builder.php', $this->createBuilderPhp('UserTestPlugin\\Components', 'ViewOnly'));
+		require_once $externalDir . '/ViewOnly/Builder.php';
 
 		try {
 			$this->userMetaValues['matrix_1'] = array('field_1' => 'stored_value_1');
@@ -86,7 +88,7 @@ class UserSettingsRenderSmokeTest extends PluginLibTestCase {
 			$settings->register_component('view-only', array('path' => 'ViewOnly', 'prefix' => 'ext'));
 
 			$settings->collection('profile')
-				->section('s1', 'Section')->field_simple('field_1', 'Label 1', 'ext.view-only')->end_section()
+				->section('s1', 'Section')->field('field_1', 'Label 1', 'ext.view-only')->end_section()
 			->end_collection();
 
 			$output = $this->captureOutput(fn() => $settings->render('profile'));
@@ -102,7 +104,9 @@ class UserSettingsRenderSmokeTest extends PluginLibTestCase {
 		$externalDir = sys_get_temp_dir() . '/ran-user-m2-' . uniqid();
 		mkdir($externalDir . '/ViewValidator', 0777, true);
 		file_put_contents($externalDir . '/ViewValidator/View.php', $this->createViewPhp('view-validator'));
-		file_put_contents($externalDir . '/ViewValidator/Validator.php', $this->createValidatorPhp('TestPlugin\\Components', 'ViewValidator'));
+		file_put_contents($externalDir . '/ViewValidator/Builder.php', $this->createBuilderPhp('UserTestPlugin\\Components', 'ViewValidator'));
+		require_once $externalDir . '/ViewValidator/Builder.php';
+		file_put_contents($externalDir . '/ViewValidator/Validator.php', $this->createValidatorPhp('UserTestPlugin\\Components', 'ViewValidator'));
 
 		try {
 			$this->userMetaValues['matrix_2'] = array('field_2' => 'validated_value');
@@ -110,7 +114,7 @@ class UserSettingsRenderSmokeTest extends PluginLibTestCase {
 			$settings->register_component('view-validator', array('path' => 'ViewValidator', 'prefix' => 'ext'));
 
 			$settings->collection('profile')
-				->section('s2', 'Section')->field_simple('field_2', 'Label 2', 'ext.view-validator')->end_section()
+				->section('s2', 'Section')->field('field_2', 'Label 2', 'ext.view-validator')->end_section()
 			->end_collection();
 
 			$output = $this->captureOutput(fn() => $settings->render('profile'));
@@ -125,7 +129,9 @@ class UserSettingsRenderSmokeTest extends PluginLibTestCase {
 		$externalDir = sys_get_temp_dir() . '/ran-user-m3-' . uniqid();
 		mkdir($externalDir . '/ViewNormalizer', 0777, true);
 		file_put_contents($externalDir . '/ViewNormalizer/View.php', $this->createViewPhp('view-normalizer'));
-		file_put_contents($externalDir . '/ViewNormalizer/Normalizer.php', $this->createNormalizerPhp('TestPlugin\\Components', 'ViewNormalizer'));
+		file_put_contents($externalDir . '/ViewNormalizer/Builder.php', $this->createBuilderPhp('UserTestPlugin\\Components', 'ViewNormalizer'));
+		require_once $externalDir . '/ViewNormalizer/Builder.php';
+		file_put_contents($externalDir . '/ViewNormalizer/Normalizer.php', $this->createNormalizerPhp('UserTestPlugin\\Components', 'ViewNormalizer'));
 
 		try {
 			$this->userMetaValues['matrix_3'] = array('field_3' => 'normalized_value');
@@ -133,7 +139,7 @@ class UserSettingsRenderSmokeTest extends PluginLibTestCase {
 			$settings->register_component('view-normalizer', array('path' => 'ViewNormalizer', 'prefix' => 'ext'));
 
 			$settings->collection('profile')
-				->section('s3', 'Section')->field_simple('field_3', 'Label 3', 'ext.view-normalizer')->end_section()
+				->section('s3', 'Section')->field('field_3', 'Label 3', 'ext.view-normalizer')->end_section()
 			->end_collection();
 
 			$output = $this->captureOutput(fn() => $settings->render('profile'));
@@ -148,8 +154,10 @@ class UserSettingsRenderSmokeTest extends PluginLibTestCase {
 		$externalDir = sys_get_temp_dir() . '/ran-user-m4-' . uniqid();
 		mkdir($externalDir . '/FullStack', 0777, true);
 		file_put_contents($externalDir . '/FullStack/View.php', $this->createViewPhp('full-stack'));
-		file_put_contents($externalDir . '/FullStack/Validator.php', $this->createValidatorPhp('TestPlugin\\Components', 'FullStack'));
-		file_put_contents($externalDir . '/FullStack/Normalizer.php', $this->createNormalizerPhp('TestPlugin\\Components', 'FullStack'));
+		file_put_contents($externalDir . '/FullStack/Builder.php', $this->createBuilderPhp('UserTestPlugin\\Components', 'FullStack'));
+		require_once $externalDir . '/FullStack/Builder.php';
+		file_put_contents($externalDir . '/FullStack/Validator.php', $this->createValidatorPhp('UserTestPlugin\\Components', 'FullStack'));
+		file_put_contents($externalDir . '/FullStack/Normalizer.php', $this->createNormalizerPhp('UserTestPlugin\\Components', 'FullStack'));
 
 		try {
 			$this->userMetaValues['matrix_4'] = array('field_4' => 'full_stack_value');
@@ -157,7 +165,7 @@ class UserSettingsRenderSmokeTest extends PluginLibTestCase {
 			$settings->register_component('full-stack', array('path' => 'FullStack', 'prefix' => 'ext'));
 
 			$settings->collection('profile')
-				->section('s4', 'Section')->field_simple('field_4', 'Label 4', 'ext.full-stack')->end_section()
+				->section('s4', 'Section')->field('field_4', 'Label 4', 'ext.full-stack')->end_section()
 			->end_collection();
 
 			$output = $this->captureOutput(fn() => $settings->render('profile'));
@@ -172,6 +180,8 @@ class UserSettingsRenderSmokeTest extends PluginLibTestCase {
 		$externalDir = sys_get_temp_dir() . '/ran-user-m5-' . uniqid();
 		mkdir($externalDir . '/ViewDevSchema', 0777, true);
 		file_put_contents($externalDir . '/ViewDevSchema/View.php', $this->createViewPhp('view-dev-schema'));
+		file_put_contents($externalDir . '/ViewDevSchema/Builder.php', $this->createBuilderPhp('UserTestPlugin\\Components', 'ViewDevSchema'));
+		require_once $externalDir . '/ViewDevSchema/Builder.php';
 
 		try {
 			$this->userMetaValues['matrix_5'] = array('field_5' => 'schema_value');
@@ -180,7 +190,7 @@ class UserSettingsRenderSmokeTest extends PluginLibTestCase {
 
 			$settings->collection('profile')
 				->section('s5', 'Section')
-					->field_simple('field_5', 'Label 5', 'ext.view-dev-schema', array(
+					->field('field_5', 'Label 5', 'ext.view-dev-schema', array(
 						'schema' => array('default' => 'default_value', 'sanitize' => array(fn($v) => trim((string) $v))),
 					))
 				->end_section()
@@ -198,7 +208,9 @@ class UserSettingsRenderSmokeTest extends PluginLibTestCase {
 		$externalDir = sys_get_temp_dir() . '/ran-user-m6-' . uniqid();
 		mkdir($externalDir . '/ValidatorDevSchema', 0777, true);
 		file_put_contents($externalDir . '/ValidatorDevSchema/View.php', $this->createViewPhp('validator-dev-schema'));
-		file_put_contents($externalDir . '/ValidatorDevSchema/Validator.php', $this->createValidatorPhp('TestPlugin\\Components', 'ValidatorDevSchema'));
+		file_put_contents($externalDir . '/ValidatorDevSchema/Builder.php', $this->createBuilderPhp('UserTestPlugin\\Components', 'ValidatorDevSchema'));
+		require_once $externalDir . '/ValidatorDevSchema/Builder.php';
+		file_put_contents($externalDir . '/ValidatorDevSchema/Validator.php', $this->createValidatorPhp('UserTestPlugin\\Components', 'ValidatorDevSchema'));
 
 		try {
 			$this->userMetaValues['matrix_6'] = array('field_6' => 'validated_schema_value');
@@ -207,7 +219,7 @@ class UserSettingsRenderSmokeTest extends PluginLibTestCase {
 
 			$settings->collection('profile')
 				->section('s6', 'Section')
-					->field_simple('field_6', 'Label 6', 'ext.validator-dev-schema', array(
+					->field('field_6', 'Label 6', 'ext.validator-dev-schema', array(
 						'schema' => array('default' => 'validated_default'),
 					))
 				->end_section()
@@ -225,7 +237,9 @@ class UserSettingsRenderSmokeTest extends PluginLibTestCase {
 		$externalDir = sys_get_temp_dir() . '/ran-user-m7-' . uniqid();
 		mkdir($externalDir . '/NormalizerDevSchema', 0777, true);
 		file_put_contents($externalDir . '/NormalizerDevSchema/View.php', $this->createViewPhp('normalizer-dev-schema'));
-		file_put_contents($externalDir . '/NormalizerDevSchema/Normalizer.php', $this->createNormalizerPhp('TestPlugin\\Components', 'NormalizerDevSchema'));
+		file_put_contents($externalDir . '/NormalizerDevSchema/Builder.php', $this->createBuilderPhp('UserTestPlugin\\Components', 'NormalizerDevSchema'));
+		require_once $externalDir . '/NormalizerDevSchema/Builder.php';
+		file_put_contents($externalDir . '/NormalizerDevSchema/Normalizer.php', $this->createNormalizerPhp('UserTestPlugin\\Components', 'NormalizerDevSchema'));
 
 		try {
 			$this->userMetaValues['matrix_7'] = array('field_7' => 'normalized_schema_value');
@@ -234,7 +248,7 @@ class UserSettingsRenderSmokeTest extends PluginLibTestCase {
 
 			$settings->collection('profile')
 				->section('s7', 'Section')
-					->field_simple('field_7', 'Label 7', 'ext.normalizer-dev-schema', array(
+					->field('field_7', 'Label 7', 'ext.normalizer-dev-schema', array(
 						'schema' => array('default' => 'normalized_default'),
 					))
 				->end_section()
@@ -252,8 +266,10 @@ class UserSettingsRenderSmokeTest extends PluginLibTestCase {
 		$externalDir = sys_get_temp_dir() . '/ran-user-m8-' . uniqid();
 		mkdir($externalDir . '/FullStackSchema', 0777, true);
 		file_put_contents($externalDir . '/FullStackSchema/View.php', $this->createViewPhp('full-stack-schema'));
-		file_put_contents($externalDir . '/FullStackSchema/Validator.php', $this->createValidatorPhp('TestPlugin\\Components', 'FullStackSchema'));
-		file_put_contents($externalDir . '/FullStackSchema/Normalizer.php', $this->createNormalizerPhp('TestPlugin\\Components', 'FullStackSchema'));
+		file_put_contents($externalDir . '/FullStackSchema/Builder.php', $this->createBuilderPhp('UserTestPlugin\\Components', 'FullStackSchema'));
+		require_once $externalDir . '/FullStackSchema/Builder.php';
+		file_put_contents($externalDir . '/FullStackSchema/Validator.php', $this->createValidatorPhp('UserTestPlugin\\Components', 'FullStackSchema'));
+		file_put_contents($externalDir . '/FullStackSchema/Normalizer.php', $this->createNormalizerPhp('UserTestPlugin\\Components', 'FullStackSchema'));
 
 		try {
 			$this->userMetaValues['matrix_8'] = array('field_8' => 'ultimate_value');
@@ -262,7 +278,7 @@ class UserSettingsRenderSmokeTest extends PluginLibTestCase {
 
 			$settings->collection('profile')
 				->section('s8', 'Section')
-					->field_simple('field_8', 'Label 8', 'ext.full-stack-schema', array(
+					->field('field_8', 'Label 8', 'ext.full-stack-schema', array(
 						'schema' => array('default' => 'ultimate_default', 'validate' => array(fn($v, $emit) => !empty($v))),
 					))
 				->end_section()
@@ -290,7 +306,7 @@ class UserSettingsRenderSmokeTest extends PluginLibTestCase {
 	private function createExternalComponentSettings(string $externalDir, string $optionName): UserSettings {
 		$config = $this->createMock(ConfigInterface::class);
 		$config->method('get_config')->willReturn(array('PATH' => $externalDir));
-		$config->method('get_namespace')->willReturn('TestPlugin\\Components');
+		$config->method('get_namespace')->willReturn('UserTestPlugin\\Components');
 
 		$loader = new ComponentLoader(__DIR__ . '/../fixtures/templates', $this->logger);
 
@@ -323,6 +339,24 @@ $markup = sprintf(
 $markup = sprintf($markup, $label, $name, $value);
 
 return new ComponentRenderResult(markup: $markup, component_type: "input");
+';
+	}
+
+	private function createBuilderPhp(string $namespace, string $componentName): string {
+		return '<?php
+namespace ' . $namespace . '\\' . $componentName . ';
+
+use Ran\PluginLib\Forms\Component\Build\ComponentBuilderInputBase;
+
+final class Builder extends ComponentBuilderInputBase {
+    protected function _get_component(): string {
+        return "fields.input";
+    }
+
+    protected function _build_component_context(): array {
+        return array();
+    }
+}
 ';
 	}
 

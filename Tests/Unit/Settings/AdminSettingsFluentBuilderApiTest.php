@@ -152,7 +152,7 @@ class AdminSettingsFluentBuilderApiTest extends TestCase {
 				->section('fieldset-section', 'Fieldset Section')
 					->fieldset('profile-details', 'Profile Details', null, array('style' => 'minimal'))
 						->disabled(true)
-						->field_simple('field_one', 'Field One', 'fields.input')
+						->field('field_one', 'Field One', 'fields.input')->end_field()
 					->end_fieldset()
 				->end_section()
 			->end_page()
@@ -206,19 +206,19 @@ class AdminSettingsFluentBuilderApiTest extends TestCase {
 					->group('basic-group', 'Basic Options')
 						->before(static fn (): string => '<div class="group-before">GROUP BEFORE</div>')
 						->after(static fn (): string => '<div class="group-after">GROUP AFTER</div>')
-						->field_simple('site_title', 'Site Title', 'fields.input', array('context' => array('default' => 'My Site')))
-						->field_simple('site_description', 'Site Description', 'textarea', array('context' => array('default' => 'A great site')))
+						->field('site_title', 'Site Title', 'fields.input', array('context' => array('default' => 'My Site')))->end_field()
+						->field('site_description', 'Site Description', 'fields.textarea', array('context' => array('default' => 'A great site')))->end_field()
 					->end_group()
 					->fieldset('contact-preferences', 'Contact Preferences')
 						->style('highlighted')
 						->disabled()
-						->field_simple('contact_email', 'Contact Email', 'fields.input')
+						->field('contact_email', 'Contact Email', 'fields.input')->end_field()
 					->end_fieldset()
-					->field_simple('enable_feature', 'Enable Feature', 'checkbox', array('context' => array('default' => false)))
+					->field('enable_feature', 'Enable Feature', 'fields.input', array('context' => array('default' => '')))->end_field()
 				->end_section()
 				->section('advanced-section', 'Advanced Settings')
-					->field_simple('api_key', 'API Key', 'fields.input', array('context' => array('default' => '')))
-					->field_simple('submit', 'Save Settings', 'submit-button')
+					->field('api_key', 'API Key', 'fields.input', array('context' => array('default' => '')))->end_field()
+					->field('submit', 'Save Settings', 'fields.input')->end_field()
 				->end_section()
 			->end_page()
 		->end_menu_group();
@@ -350,13 +350,13 @@ class AdminSettingsFluentBuilderApiTest extends TestCase {
 			->page('general-page')
 				->heading('General')
 				->section('general-section', 'General Section')
-					->field_simple('general_field', 'General Field', 'fields.input')
+					->field('general_field', 'General Field', 'fields.input')->end_field()
 				->end_section()
 			->end_page()
 			->page('advanced-page')
 				->heading('Advanced')
 				->section('advanced-section', 'Advanced Section')
-					->field_simple('advanced_field', 'Advanced Field', 'fields.input')
+					->field('advanced_field', 'Advanced Field', 'fields.input')->end_field()
 				->end_section()
 			->end_page()
 		->end_menu_group();
@@ -393,10 +393,10 @@ class AdminSettingsFluentBuilderApiTest extends TestCase {
 				->section('grouped-section', 'Grouped Section')
 					->heading('Grouped Settings')
 					->group('group-one', 'Group One')
-						->field_simple('field_one', 'Field One', 'fields.input')
+						->field('field_one', 'Field One', 'fields.input')->end_field()
 					->end_group()
 					->group('group-two', 'Group Two')
-						->field_simple('field_two', 'Field Two', 'fields.input')
+						->field('field_two', 'Field Two', 'fields.input')->end_field()
 					->end_group()
 				->end_section()
 			->end_page()
@@ -437,22 +437,22 @@ class AdminSettingsFluentBuilderApiTest extends TestCase {
 		$admin->menu_group('test-menu')
 			->page('test-page')
 				->section('test-section', 'Test Section')
-					->field_simple('field_three', 'Field Three', 'fields.input', array('order' => 30))
-					->field_simple('field_one', 'Field One', 'fields.input', array('order' => 10))
-					->field_simple('field_two', 'Field Two', 'fields.input', array('order' => 20))
+					->field('field_three', 'Field Three', 'fields.input', array('order' => 30))->end_field()
+					->field('field_one', 'Field One', 'fields.input', array('order' => 10))->end_field()
+					->field('field_two', 'Field Two', 'fields.input', array('order' => 20))->end_field()
 					->group('group-one', 'Group One')
-						->field_simple('group_field_1', 'Grouped Field 1', 'fields.input', array(
+						->field('group_field_1', 'Grouped Field 1', 'fields.input', array(
 							'context' => array('attributes' => array('placeholder' => 'Grouped Placeholder 1')),
 							'order'   => 30,
-						))
-						->field_simple('group_field_2', 'Grouped Field 2', 'fields.input', array(
+						))->end_field()
+						->field('group_field_2', 'Grouped Field 2', 'fields.input', array(
 							'context' => array('attributes' => array('placeholder' => 'Grouped Placeholder 2')),
 							'order'   => 40,
-						))
-						->field_simple('group_field_3', 'Grouped Field 3', 'fields.input', array(
+						))->end_field()
+						->field('group_field_3', 'Grouped Field 3', 'fields.input', array(
 							'context' => array('attributes' => array('placeholder' => 'Grouped Placeholder 3')),
 							'order'   => 10,
-						))
+						))->end_field()
 					->end_group()
 				->end_section()
 			->end_page()
@@ -520,7 +520,7 @@ class AdminSettingsFluentBuilderApiTest extends TestCase {
 		$pageBuilder    = $menuBuilder->page('implicit-group-page');
 		$sectionBuilder = $pageBuilder->section('implicit-group-section', 'Implicit Group Section');
 		$groupBuilder   = $sectionBuilder->group('implicit-group', 'Implicit Group');
-		$groupBuilder->field_simple('group_field', 'Implicit Field', 'fields.input');
+		$groupBuilder->field('group_field', 'Implicit Field', 'fields.input')->end_field();
 
 		$groupBuilder->end_section()->end_page()->end_menu_group();
 
@@ -551,7 +551,7 @@ class AdminSettingsFluentBuilderApiTest extends TestCase {
 		$pageBuilder     = $menuBuilder->page('implicit-fieldset-page');
 		$sectionBuilder  = $pageBuilder->section('implicit-fieldset-section', 'Implicit Fieldset Section');
 		$fieldsetBuilder = $sectionBuilder->fieldset('implicit-fieldset', 'Implicit Fieldset');
-		$fieldsetBuilder->field_simple('contact_email', 'Implicit Field', 'fields.input');
+		$fieldsetBuilder->field('contact_email', 'Implicit Field', 'fields.input');
 
 		$fieldsetBuilder->end_section()->end_page()->end_menu_group();
 

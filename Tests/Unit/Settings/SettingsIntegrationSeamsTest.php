@@ -181,13 +181,15 @@ class SettingsIntegrationSeamsTest extends PluginLibTestCase {
 				component_type: 'input'
 			);
 		});
+		// Register a builder factory for the custom component
+		$manifest->register_builder('test.input', \Ran\PluginLib\Forms\Components\Fields\Input\Builder::class);
 
 		$settings = new AdminSettings($options, $manifest, $config, $this->logger);
 
 		$settings->menu_group('test-group')
 			->page('test-page')
 				->section('s1', 'Test Section')
-					->field_simple('test_field', 'Test Field', 'test.input')
+					->field('test_field', 'Test Field', 'test.input')
 				->end_section()
 			->end_page()
 		->end_menu_group();
@@ -234,13 +236,14 @@ class SettingsIntegrationSeamsTest extends PluginLibTestCase {
 		$manifest->register('fields.input', static function (array $context): ComponentRenderResult {
 			return new ComponentRenderResult('<input type="text">', component_type: 'input');
 		});
+		$manifest->register_builder('fields.input', \Ran\PluginLib\Forms\Components\Fields\Input\Builder::class);
 
 		$settings = new AdminSettings($options, $manifest, $config, $this->logger);
 
 		$settings->menu_group('sg')
 			->page('sp')
 				->section('ss', 'Section')
-					->field_simple('schema_field', 'Schema Field', 'fields.input')
+					->field('schema_field', 'Schema Field', 'fields.input')
 				->end_section()
 			->end_page()
 		->end_menu_group();
@@ -316,12 +319,13 @@ class SettingsIntegrationSeamsTest extends PluginLibTestCase {
 				component_type: 'input'
 			);
 		});
+		$manifest->register_builder('profile.input', \Ran\PluginLib\Forms\Components\Fields\Input\Builder::class);
 
 		$settings = new UserSettings($options, $manifest, $config, $this->logger);
 
 		$settings->collection('profile')
 			->section('s1', 'Profile Section')
-				->field_simple('profile_field', 'Profile Field', 'profile.input')
+				->field('profile_field', 'Profile Field', 'profile.input')
 			->end_section()
 		->end_collection();
 
@@ -367,12 +371,13 @@ class SettingsIntegrationSeamsTest extends PluginLibTestCase {
 		$manifest->register('fields.input', static function (array $context): ComponentRenderResult {
 			return new ComponentRenderResult('<input type="text">', component_type: 'input');
 		});
+		$manifest->register_builder('fields.input', \Ran\PluginLib\Forms\Components\Fields\Input\Builder::class);
 
 		$settings = new UserSettings($options, $manifest, $config, $this->logger);
 
 		$settings->collection('profile')
 			->section('ss', 'Section')
-				->field_simple('user_schema_field', 'User Schema Field', 'fields.input')
+				->field('user_schema_field', 'User Schema Field', 'fields.input')
 			->end_section()
 		->end_collection();
 
@@ -407,6 +412,8 @@ return new ComponentRenderResult(
     component_type: "input"
 );';
 		file_put_contents($externalDir . '/SeamComponent/View.php', $viewCode);
+		file_put_contents($externalDir . '/SeamComponent/Builder.php', $this->createBuilderPhp('SeamTest', 'SeamComponent'));
+		require_once $externalDir . '/SeamComponent/Builder.php';
 
 		try {
 			$config = $this->createMock(ConfigInterface::class);
@@ -437,7 +444,7 @@ return new ComponentRenderResult(
 			$settings->menu_group('ext-group')
 				->page('ext-page')
 					->section('ext-section', 'External Section')
-						->field_simple('ext_field', 'External Field', 'ext.seam-component')
+						->field('ext_field', 'External Field', 'ext.seam-component')
 					->end_section()
 				->end_page()
 			->end_menu_group();
@@ -468,6 +475,8 @@ return new ComponentRenderResult(
     component_type: "input"
 );';
 		file_put_contents($externalDir . '/UserSeamComponent/View.php', $viewCode);
+		file_put_contents($externalDir . '/UserSeamComponent/Builder.php', $this->createBuilderPhp('UserSeamTest', 'UserSeamComponent'));
+		require_once $externalDir . '/UserSeamComponent/Builder.php';
 
 		try {
 			$config = $this->createMock(ConfigInterface::class);
@@ -497,7 +506,7 @@ return new ComponentRenderResult(
 
 			$settings->collection('profile')
 				->section('ext-section', 'External Section')
-					->field_simple('user_ext_field', 'User External Field', 'ext.user-seam-component')
+					->field('user_ext_field', 'User External Field', 'ext.user-seam-component')
 				->end_section()
 			->end_collection();
 
@@ -549,13 +558,14 @@ return new ComponentRenderResult(
 				component_type: 'input'
 			);
 		});
+		$manifest->register_builder('fields.input', \Ran\PluginLib\Forms\Components\Fields\Input\Builder::class);
 
 		$settings = new AdminSettings($options, $manifest, $config, $this->logger);
 
 		$settings->menu_group('rt')
 			->page('rt-page')
 				->section('rt-section', 'Roundtrip Section')
-					->field_simple('roundtrip_field', 'Roundtrip Field', 'fields.input')
+					->field('roundtrip_field', 'Roundtrip Field', 'fields.input')
 				->end_section()
 			->end_page()
 		->end_menu_group();
@@ -578,7 +588,7 @@ return new ComponentRenderResult(
 		$settings2->menu_group('rt')
 			->page('rt-page')
 				->section('rt-section', 'Roundtrip Section')
-					->field_simple('roundtrip_field', 'Roundtrip Field', 'fields.input')
+					->field('roundtrip_field', 'Roundtrip Field', 'fields.input')
 				->end_section()
 			->end_page()
 		->end_menu_group();
@@ -622,12 +632,13 @@ return new ComponentRenderResult(
 				component_type: 'input'
 			);
 		});
+		$manifest->register_builder('fields.input', \Ran\PluginLib\Forms\Components\Fields\Input\Builder::class);
 
 		$settings = new UserSettings($options, $manifest, $config, $this->logger);
 
 		$settings->collection('profile')
 			->section('rt-section', 'Roundtrip Section')
-				->field_simple('user_roundtrip_field', 'User Roundtrip Field', 'fields.input')
+				->field('user_roundtrip_field', 'User Roundtrip Field', 'fields.input')
 			->end_section()
 		->end_collection();
 
@@ -648,7 +659,7 @@ return new ComponentRenderResult(
 
 		$settings2->collection('profile')
 			->section('rt-section', 'Roundtrip Section')
-				->field_simple('user_roundtrip_field', 'User Roundtrip Field', 'fields.input')
+				->field('user_roundtrip_field', 'User Roundtrip Field', 'fields.input')
 			->end_section()
 		->end_collection();
 
@@ -697,13 +708,14 @@ return new ComponentRenderResult(
 		$manifest->register('fields.input', static function (array $context): ComponentRenderResult {
 			return new ComponentRenderResult('<input type="text">', component_type: 'input');
 		});
+		$manifest->register_builder('fields.input', \Ran\PluginLib\Forms\Components\Fields\Input\Builder::class);
 
 		$settings = new AdminSettings($options, $manifest, $config, $this->logger);
 
 		$settings->menu_group('vf')
 			->page('vf-page')
 				->section('vf-section', 'Validation Section')
-					->field_simple('validated_field', 'Validated Field', 'fields.input')
+					->field('validated_field', 'Validated Field', 'fields.input')
 				->end_section()
 			->end_page()
 		->end_menu_group();
@@ -762,12 +774,13 @@ return new ComponentRenderResult(
 		$manifest->register('fields.input', static function (array $context): ComponentRenderResult {
 			return new ComponentRenderResult('<input type="text">', component_type: 'input');
 		});
+		$manifest->register_builder('fields.input', \Ran\PluginLib\Forms\Components\Fields\Input\Builder::class);
 
 		$settings = new UserSettings($options, $manifest, $config, $this->logger);
 
 		$settings->collection('profile')
 			->section('vf-section', 'Validation Section')
-				->field_simple('user_validated_field', 'User Validated Field', 'fields.input')
+				->field('user_validated_field', 'User Validated Field', 'fields.input')
 			->end_section()
 		->end_collection();
 
@@ -835,6 +848,24 @@ return new ComponentRenderResult(
 		ob_start();
 		$fn();
 		return ob_get_clean() ?: '';
+	}
+
+	protected function createBuilderPhp(string $namespace, string $componentName): string {
+		return '<?php
+namespace ' . $namespace . '\\' . $componentName . ';
+
+use Ran\PluginLib\Forms\Component\Build\ComponentBuilderInputBase;
+
+final class Builder extends ComponentBuilderInputBase {
+    protected function _get_component(): string {
+        return "fields.input";
+    }
+
+    protected function _build_component_context(): array {
+        return array();
+    }
+}
+';
 	}
 
 	protected function cleanupDirectory(string $dir): void {

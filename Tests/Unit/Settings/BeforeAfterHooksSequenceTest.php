@@ -35,6 +35,7 @@ use Ran\PluginLib\Forms\Component\ComponentRenderResult;
 use Ran\PluginLib\Forms\Component\ComponentManifest;
 use Ran\PluginLib\Forms\Component\ComponentLoader;
 use Ran\PluginLib\Config\ConfigInterface;
+use Ran\PluginLib\Forms\Components\Fields\Input\Builder as InputBuilder;
 
 /**
  * @covers \Ran\PluginLib\Settings\UserSettings
@@ -84,6 +85,7 @@ final class BeforeAfterHooksSequenceTest extends PluginLibTestCase {
 		WP_Mock::userFunction('delete_transient')->andReturn(true);
 		WP_Mock::userFunction('sanitize_key')->andReturnArg(0);
 		WP_Mock::userFunction('sanitize_html_class')->andReturnArg(0);
+		WP_Mock::userFunction('sanitize_text_field')->andReturnArg(0);
 		WP_Mock::userFunction('esc_attr')->andReturnArg(0);
 		WP_Mock::userFunction('esc_html')->andReturnArg(0);
 		WP_Mock::userFunction('wp_kses_post')->andReturnArg(0);
@@ -126,7 +128,7 @@ final class BeforeAfterHooksSequenceTest extends PluginLibTestCase {
 					->group('test-group', 'Test Group')
 						->before(fn() => '<!-- GROUP_BEFORE -->')
 						->after(fn() => '<!-- GROUP_AFTER -->')
-						->field_simple('test_field', 'Test Field', $this->getInputComponentAlias())
+						->field('test_field', 'Test Field', $this->getInputComponentAlias())
 							->before(fn() => '<!-- FIELD_BEFORE -->')
 							->after(fn() => '<!-- FIELD_AFTER -->')
 						->end_field()
@@ -182,7 +184,7 @@ final class BeforeAfterHooksSequenceTest extends PluginLibTestCase {
 		$settings
 			->collection('order-collection')
 				->section('order-section', 'Order Section')
-					->field_simple('order_field', 'Order Field', $this->getInputComponentAlias())
+					->field('order_field', 'Order Field', $this->getInputComponentAlias())
 						->before(fn() => '<!-- BEFORE_FIELD_CONTENT -->')
 						->after(fn() => '<!-- AFTER_FIELD_CONTENT -->')
 					->end_field()
@@ -229,7 +231,7 @@ final class BeforeAfterHooksSequenceTest extends PluginLibTestCase {
 			->page('admin-page')
 				->heading('Admin Page')
 				->section('admin-section', 'Admin Section')
-					->field_simple('admin_field', 'Admin Field', $this->getInputComponentAlias())
+					->field('admin_field', 'Admin Field', $this->getInputComponentAlias())
 						->before(fn() => '<!-- ADMIN_FIELD_BEFORE -->')
 						->after(fn() => '<!-- ADMIN_FIELD_AFTER -->')
 					->end_field()
@@ -267,7 +269,7 @@ final class BeforeAfterHooksSequenceTest extends PluginLibTestCase {
 		$settings->menu_group('admin-order-menu')
 			->page('admin-order-page')
 				->section('admin-order-section', 'Admin Order Section')
-					->field_simple('admin_order_field', 'Admin Order Field', $this->getInputComponentAlias())
+					->field('admin_order_field', 'Admin Order Field', $this->getInputComponentAlias())
 						->before(fn() => '<!-- ADMIN_BEFORE_FIELD -->')
 						->after(fn() => '<!-- ADMIN_AFTER_FIELD -->')
 					->end_field()
@@ -311,7 +313,7 @@ final class BeforeAfterHooksSequenceTest extends PluginLibTestCase {
 		$userSettings
 			->collection('parity-collection')
 				->section('parity-section', 'Parity Section')
-					->field_simple('parity_field', 'Parity Field', $this->getInputComponentAlias())
+					->field('parity_field', 'Parity Field', $this->getInputComponentAlias())
 						->before(fn() => '<!-- F_BEFORE -->')
 						->after(fn() => '<!-- F_AFTER -->')
 					->end_field()
@@ -332,7 +334,7 @@ final class BeforeAfterHooksSequenceTest extends PluginLibTestCase {
 		$adminSettings->menu_group('parity-menu')
 			->page('parity-page')
 				->section('parity-section', 'Parity Section')
-					->field_simple('parity_field', 'Parity Field', $this->getInputComponentAlias())
+					->field('parity_field', 'Parity Field', $this->getInputComponentAlias())
 						->before(fn() => '<!-- F_BEFORE -->')
 						->after(fn() => '<!-- F_AFTER -->')
 					->end_field()
@@ -376,7 +378,7 @@ final class BeforeAfterHooksSequenceTest extends PluginLibTestCase {
 				->before(fn() => '<!-- COLLECTION_BEFORE -->')
 				->after(fn() => '<!-- COLLECTION_AFTER -->')
 				->section('hook-section', 'Hook Section')
-					->field_simple('test_field', 'Test Field', $this->getInputComponentAlias())
+					->field('test_field', 'Test Field', $this->getInputComponentAlias())
 					->end_field()
 				->end_section()
 			->end_collection()
@@ -413,8 +415,8 @@ final class BeforeAfterHooksSequenceTest extends PluginLibTestCase {
 		$config->method('get_config')->willReturn(array('PATH' => __DIR__));
 		$config->method('get_namespace')->willReturn('TestPlugin\\Components');
 
-		// Use a base loader - UserSettings registers its own templates in constructor
-		$loader   = new ComponentLoader(__DIR__ . '/../../fixtures/templates', $this->logger);
+		// Use real components + fixture templates
+		$loader   = new ComponentLoader(__DIR__ . '/../../../inc/Forms/Components', $this->logger);
 		$manifest = new ComponentManifest($loader, $this->logger);
 		$options  = new RegisterOptions($optionName, StorageContext::forUser(123), false, $this->logger);
 
@@ -435,15 +437,16 @@ final class BeforeAfterHooksSequenceTest extends PluginLibTestCase {
 		$config->method('get_config')->willReturn(array('PATH' => __DIR__));
 		$config->method('get_namespace')->willReturn('TestPlugin\\Components');
 
-		$loader = new ComponentLoader(__DIR__ . '/../../fixtures/templates', $this->logger);
-		$loader->register('admin.root-wrapper', 'admin/pages/default-page.php');
-		$loader->register('root-wrapper', 'admin/pages/default-page.php');
-		$loader->register('layout.zone.section-wrapper', 'admin/sections/test-section.php');
-		$loader->register('section-wrapper', 'admin/sections/test-section.php');
-		$loader->register('field-wrapper', 'admin/field-wrapper-simple.php');
-		$loader->register('shared.field-wrapper', 'admin/field-wrapper-simple.php');
-		$loader->register('layout.field.field-wrapper', 'admin/field-wrapper-simple.php');
-		$loader->register('layout.zone.submit-controls-wrapper', 'admin/submit-controls-wrapper.php');
+		$loader      = new ComponentLoader(__DIR__ . '/../../../inc/Forms/Components', $this->logger);
+		$fixturesDir = __DIR__ . '/../../fixtures/templates';
+		$loader->register_absolute('admin.root-wrapper', $fixturesDir . '/admin/pages/default-page.php');
+		$loader->register_absolute('root-wrapper', $fixturesDir . '/admin/pages/default-page.php');
+		$loader->register_absolute('layout.zone.section-wrapper', $fixturesDir . '/admin/sections/test-section.php');
+		$loader->register_absolute('section-wrapper', $fixturesDir . '/admin/sections/test-section.php');
+		$loader->register_absolute('field-wrapper', $fixturesDir . '/admin/field-wrapper-simple.php');
+		$loader->register_absolute('shared.field-wrapper', $fixturesDir . '/admin/field-wrapper-simple.php');
+		$loader->register_absolute('layout.field.field-wrapper', $fixturesDir . '/admin/field-wrapper-simple.php');
+		$loader->register_absolute('layout.zone.submit-controls-wrapper', $fixturesDir . '/admin/submit-controls-wrapper.php');
 
 		$manifest = new ComponentManifest($loader, $this->logger);
 		$options  = new RegisterOptions($optionName, StorageContext::forSite(), true, $this->logger);
@@ -477,6 +480,24 @@ final class BeforeAfterHooksSequenceTest extends PluginLibTestCase {
 				sprintf('<input type="text" name="%s" value="%s" data-marker="test-input" />', $name, $value)
 			);
 		});
+		$this->injectBuilderFactory($manifest, 'test.input');
+	}
+
+	/**
+	 * Inject a builder factory for a fake component alias.
+	 */
+	private function injectBuilderFactory(ComponentManifest $manifest, string $alias): void {
+		$reflection = new \ReflectionObject($manifest);
+		$property   = $reflection->getProperty('componentMetadata');
+		$property->setAccessible(true);
+		$metadata = $property->getValue($manifest);
+		if (!is_array($metadata)) {
+			$metadata = array();
+		}
+		$current            = $metadata[$alias] ?? array();
+		$current['builder'] = static fn (string $id, string $label): InputBuilder => new InputBuilder($id, $label);
+		$metadata[$alias]   = $current;
+		$property->setValue($manifest, $metadata);
 	}
 
 	/**

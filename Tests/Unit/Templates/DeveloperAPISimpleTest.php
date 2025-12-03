@@ -24,6 +24,7 @@ use Ran\PluginLib\Options\Storage\StorageContext;
 use Ran\PluginLib\Options\RegisterOptions;
 use Ran\PluginLib\Forms\Component\ComponentManifest;
 use Ran\PluginLib\Forms\Component\ComponentLoader;
+use Ran\PluginLib\Forms\Components\Fields\Input\Builder as InputBuilder;
 
 /**
  * @covers \Ran\PluginLib\Settings\AdminSettings
@@ -49,9 +50,11 @@ class DeveloperAPISimpleTest extends PluginLibTestCase {
 		WP_Mock::userFunction('get_current_blog_id')->andReturn(1);
 		WP_Mock::userFunction('get_current_user_id')->andReturn(1);
 
-		// Create component infrastructure
-		$this->component_loader   = new ComponentLoader(__DIR__ . '/../../fixtures/templates', $this->logger_mock);
+		// Create component infrastructure with real components
+		$this->component_loader   = new ComponentLoader(__DIR__ . '/../../../inc/Forms/Components', $this->logger_mock);
 		$this->component_manifest = new ComponentManifest($this->component_loader, $this->logger_mock);
+		// Ensure builder factory is registered (avoids test isolation issues)
+		$this->component_manifest->register_builder('fields.input', \Ran\PluginLib\Forms\Components\Fields\Input\Builder::class);
 
 		// Create settings instances
 		$this->admin_options = new RegisterOptions(
@@ -147,9 +150,9 @@ class DeveloperAPISimpleTest extends PluginLibTestCase {
 		));
 		$this->assertEquals('admin.custom.section', $template);
 
-		$admin_section_builder->field_simple('admin-field', 'Admin Field', 'component', array(
+		$admin_section_builder->field('admin-field', 'Admin Field', 'fields.input', array(
 			'field_template' => 'admin.custom.field',
-		))->order(15);
+		))->order(15)->end_field();
 		$template = $admin_session->resolve_template('field-wrapper', array(
 			'root_id'    => 'test-page',
 			'section_id' => 'admin-section',
@@ -188,9 +191,9 @@ class DeveloperAPISimpleTest extends PluginLibTestCase {
 		$this->assertEquals('custom.section', $template);
 
 		// Field override via section builder
-		$section_builder->field_simple('field-id', 'Label', 'component', array(
+		$section_builder->field('field-id', 'Label', 'fields.input', array(
 			'field_template' => 'custom.field',
-		));
+		))->end_field();
 		$template = $user_session->resolve_template('field-wrapper', array(
 			'root_id'    => 'profile',
 			'section_id' => 'test-section',

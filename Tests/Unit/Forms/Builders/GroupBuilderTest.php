@@ -3,11 +3,11 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\Tests\Unit\Forms\Builders;
 
-use PHPUnit\Framework\TestCase;
-use Ran\PluginLib\Forms\Builders\BuilderRootInterface;
-use Ran\PluginLib\Forms\Builders\GroupBuilder;
 use Ran\PluginLib\Forms\Builders\SectionBuilder;
+use Ran\PluginLib\Forms\Builders\GroupBuilder;
 use Ran\PluginLib\Forms\Builders\ComponentBuilderProxy;
+use Ran\PluginLib\Forms\Builders\BuilderRootInterface;
+use PHPUnit\Framework\TestCase;
 
 /**
  * @covers \Ran\PluginLib\Forms\Builders\GroupBuilder
@@ -33,14 +33,14 @@ final class GroupBuilderTest extends TestCase {
 		$group = $this->createGroupBuilder();
 
 		$this->expectException(\InvalidArgumentException::class);
-		$group->field_simple('field', 'Label', '');
+		$group->field('field', 'Label', '');
 	}
 
 	public function test_field_requires_array_component_context(): void {
 		$group = $this->createGroupBuilder();
 
 		$this->expectException(\InvalidArgumentException::class);
-		$group->field_simple('field', 'Label', 'fields.input', array('context' => 'not-array'));
+		$group->field('field', 'Label', 'fields.input', array('context' => 'not-array'));
 	}
 
 	public function test_field_with_factory_returns_proxy_and_emits_updates(): void {
@@ -72,10 +72,12 @@ final class GroupBuilderTest extends TestCase {
 		self::assertSame('custom.wrapper', $templateOverrides[0]['payload']['overrides']['field-wrapper'] ?? null);
 	}
 
-	public function test_field_without_factory_emits_group_field_update(): void {
-		$group = $this->createGroupBuilder();
+	public function test_field_with_factory_emits_group_field_update(): void {
+		$group = $this->createGroupBuilder(array(
+			'fields.input' => fn (string $id, string $label): StubComponentBuilder => new StubComponentBuilder($id, $label, 'fields.input'),
+		));
 
-		$group->field_simple('api_key', 'API Key', 'fields.input');
+		$group->field('api_key', 'API Key', 'fields.input');
 
 		$groupFieldUpdates = array_values(array_filter($this->updates, static fn(array $entry): bool => $entry['type'] === 'group_field'));
 		self::assertNotEmpty($groupFieldUpdates, 'Expected group_field update to be emitted.');

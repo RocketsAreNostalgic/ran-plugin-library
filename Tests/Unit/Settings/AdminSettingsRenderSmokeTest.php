@@ -23,6 +23,7 @@ use Ran\PluginLib\Tests\Unit\PluginLibTestCase;
 use Ran\PluginLib\Settings\AdminSettings;
 use Ran\PluginLib\Options\Storage\StorageContext;
 use Ran\PluginLib\Options\RegisterOptions;
+use Ran\PluginLib\Forms\Components\Fields\Input\Builder as InputBuilder;
 use Ran\PluginLib\Forms\Component\ComponentRenderResult;
 use Ran\PluginLib\Forms\Component\ComponentManifest;
 use Ran\PluginLib\Forms\Component\ComponentLoader;
@@ -67,6 +68,8 @@ final class AdminSettingsRenderSmokeTest extends PluginLibTestCase {
 		WP_Mock::userFunction('delete_transient')->andReturn(true);
 		WP_Mock::userFunction('sanitize_key')->andReturnArg(0);
 		WP_Mock::userFunction('sanitize_html_class')->andReturnArg(0);
+		WP_Mock::userFunction('sanitize_text_field')->andReturnArg(0);
+		WP_Mock::userFunction('wp_kses_post')->andReturnArg(0);
 		WP_Mock::userFunction('esc_attr')->andReturnArg(0);
 		WP_Mock::userFunction('current_user_can')->andReturn(true);
 		WP_Mock::userFunction('get_option')->andReturnUsing(static function (string $option, mixed $default = false) use ($self) {
@@ -75,15 +78,16 @@ final class AdminSettingsRenderSmokeTest extends PluginLibTestCase {
 		WP_Mock::userFunction('settings_fields')->andReturnNull();
 		WP_Mock::userFunction('submit_button')->andReturnNull();
 
-		// Set up component loader with fixture templates
-		$this->loader = new ComponentLoader(__DIR__ . '/../../fixtures/templates', $this->logger);
-		$this->loader->register('layout.zone.section-wrapper', 'admin/sections/test-section.php');
-		$this->loader->register('field-wrapper', 'admin/fields/example-field-wrapper.php');
-		$this->loader->register('shared.field-wrapper', 'admin/fields/example-field-wrapper.php');
-		$this->loader->register('section-wrapper', 'admin/section-wrapper.php');
-		$this->loader->register('admin.pages.smoke-page', 'admin/pages/test-page.php');
-		$this->loader->register('admin.root-wrapper', 'admin/pages/default-page.php');
-		$this->loader->register('root-wrapper', 'admin/pages/default-page.php');
+		// Set up component loader with real components + fixture templates
+		$this->loader = new ComponentLoader(__DIR__ . '/../../../inc/Forms/Components', $this->logger);
+		$fixturesDir  = __DIR__ . '/../../fixtures/templates';
+		$this->loader->register_absolute('layout.zone.section-wrapper', $fixturesDir . '/admin/sections/test-section.php');
+		$this->loader->register_absolute('field-wrapper', $fixturesDir . '/admin/fields/example-field-wrapper.php');
+		$this->loader->register_absolute('shared.field-wrapper', $fixturesDir . '/admin/fields/example-field-wrapper.php');
+		$this->loader->register_absolute('section-wrapper', $fixturesDir . '/admin/section-wrapper.php');
+		$this->loader->register_absolute('admin.pages.smoke-page', $fixturesDir . '/admin/pages/test-page.php');
+		$this->loader->register_absolute('admin.root-wrapper', $fixturesDir . '/admin/pages/default-page.php');
+		$this->loader->register_absolute('root-wrapper', $fixturesDir . '/admin/pages/default-page.php');
 
 		$this->manifest = new ComponentManifest($this->loader, $this->logger);
 
@@ -127,6 +131,24 @@ final class AdminSettingsRenderSmokeTest extends PluginLibTestCase {
 				sprintf('<input type="text" name="%s" value="%s" />', $name, $value)
 			);
 		});
+		$this->injectBuilderFactory($alias);
+	}
+
+	/**
+	 * Inject a builder factory for a fake component alias.
+	 */
+	private function injectBuilderFactory(string $alias): void {
+		$reflection = new \ReflectionObject($this->manifest);
+		$property   = $reflection->getProperty('componentMetadata');
+		$property->setAccessible(true);
+		$metadata = $property->getValue($this->manifest);
+		if (!is_array($metadata)) {
+			$metadata = array();
+		}
+		$current            = $metadata[$alias] ?? array();
+		$current['builder'] = static fn (string $id, string $label): InputBuilder => new InputBuilder($id, $label);
+		$metadata[$alias]   = $current;
+		$property->setValue($this->manifest, $metadata);
 	}
 
 	/**
@@ -159,7 +181,7 @@ final class AdminSettingsRenderSmokeTest extends PluginLibTestCase {
 		$this->settings->menu_group('smoke-menu')
 			->page('smoke-page')
 				->section('smoke-section', 'Smoke Section')
-					->field_simple('username', 'Username', 'fields.smoke-input')
+					->field('username', 'Username', 'fields.smoke-input')
 				->end_section()
 			->end_page()
 		->end_menu_group();
@@ -199,7 +221,7 @@ final class AdminSettingsRenderSmokeTest extends PluginLibTestCase {
 		$this->settings->menu_group('attr-menu')
 			->page('attr-page')
 				->section('attr-section', 'Attributes Section')
-					->field_simple('email', 'Email Address', 'fields.smoke-input', array(
+					->field('email', 'Email Address', 'fields.smoke-input', array(
 						'component_context' => array(
 							'placeholder'  => 'you@example.com',
 							'autocomplete' => 'email',
@@ -245,7 +267,7 @@ final class AdminSettingsRenderSmokeTest extends PluginLibTestCase {
 		$this->settings->menu_group('default-menu')
 			->page('default-page')
 				->section('default-section', 'Default Section')
-					->field_simple('theme', 'Theme', 'fields.smoke-input')
+					->field('theme', 'Theme', 'fields.smoke-input')
 				->end_section()
 			->end_page()
 		->end_menu_group();
@@ -284,9 +306,9 @@ final class AdminSettingsRenderSmokeTest extends PluginLibTestCase {
 		$this->settings->menu_group('multi-menu')
 			->page('multi-page')
 				->section('multi-section', 'Multiple Fields')
-					->field_simple('first_name', 'First Name', 'fields.smoke-input')
-					->field_simple('last_name', 'Last Name', 'fields.smoke-input')
-					->field_simple('age', 'Age', 'fields.smoke-input')
+					->field('first_name', 'First Name', 'fields.smoke-input')
+					->field('last_name', 'Last Name', 'fields.smoke-input')
+					->field('age', 'Age', 'fields.smoke-input')
 				->end_section()
 			->end_page()
 		->end_menu_group();
@@ -324,7 +346,7 @@ final class AdminSettingsRenderSmokeTest extends PluginLibTestCase {
 			->page('group-page')
 				->section('group-section', 'Grouped Section')
 					->group('profile-group', 'Profile Group')
-						->field_simple('grouped_field', 'Grouped Field', 'fields.smoke-input')
+						->field('grouped_field', 'Grouped Field', 'fields.smoke-input')
 					->end_group()
 				->end_section()
 			->end_page()
@@ -354,7 +376,7 @@ final class AdminSettingsRenderSmokeTest extends PluginLibTestCase {
 			->page('fieldset-page')
 				->section('fieldset-section', 'Fieldset Section')
 					->fieldset('contact-fieldset', 'Contact Details')
-						->field_simple('fieldset_field', 'Fieldset Field', 'fields.smoke-input')
+						->field('fieldset_field', 'Fieldset Field', 'fields.smoke-input')
 					->end_fieldset()
 				->end_section()
 			->end_page()
@@ -438,6 +460,27 @@ return new ComponentRenderResult(markup: $markup, component_type: "input");
 	}
 
 	/**
+	 * Helper to create Builder.php content for external components.
+	 */
+	private function createBuilderPhp(string $namespace, string $componentName): string {
+		return '<?php
+namespace ' . $namespace . '\\' . $componentName . ';
+
+use Ran\PluginLib\Forms\Component\Build\ComponentBuilderInputBase;
+
+final class Builder extends ComponentBuilderInputBase {
+    protected function _get_component(): string {
+        return "fields.input";
+    }
+
+    protected function _build_component_context(): array {
+        return array();
+    }
+}
+';
+	}
+
+	/**
 	 * Helper to create Validator.php content (stub - doesn't implement interface).
 	 */
 	private function createValidatorPhp(string $namespace, string $componentName): string {
@@ -503,6 +546,8 @@ class Normalizer {
 		mkdir($externalDir . '/ViewOnly', 0777, true);
 
 		file_put_contents($externalDir . '/ViewOnly/View.php', $this->createViewPhp('view-only'));
+		file_put_contents($externalDir . '/ViewOnly/Builder.php', $this->createBuilderPhp('TestPlugin\\Components', 'ViewOnly'));
+		require_once $externalDir . '/ViewOnly/Builder.php';
 
 		try {
 			$this->optionValues['matrix_1'] = array('field_1' => 'value_from_db');
@@ -516,7 +561,7 @@ class Normalizer {
 			$settings->menu_group('m1')
 				->page('p1')
 					->section('s1', 'Section')
-						->field_simple('field_1', 'Label 1', 'ext.view-only')
+						->field('field_1', 'Label 1', 'ext.view-only')
 					->end_section()
 				->end_page()
 			->end_menu_group();
@@ -544,6 +589,8 @@ class Normalizer {
 		mkdir($externalDir . '/WithValidator', 0777, true);
 
 		file_put_contents($externalDir . '/WithValidator/View.php', $this->createViewPhp('view-validator'));
+		file_put_contents($externalDir . '/WithValidator/Builder.php', $this->createBuilderPhp('TestPlugin\\Components', 'WithValidator'));
+		require_once $externalDir . '/WithValidator/Builder.php';
 		file_put_contents($externalDir . '/WithValidator/Validator.php', $this->createValidatorPhp('TestPlugin\\Components', 'WithValidator'));
 
 		try {
@@ -558,7 +605,7 @@ class Normalizer {
 			$settings->menu_group('m2')
 				->page('p2')
 					->section('s2', 'Section')
-						->field_simple('field_2', 'Label 2', 'ext.with-validator')
+						->field('field_2', 'Label 2', 'ext.with-validator')
 					->end_section()
 				->end_page()
 			->end_menu_group();
@@ -585,6 +632,8 @@ class Normalizer {
 		mkdir($externalDir . '/WithNormalizer', 0777, true);
 
 		file_put_contents($externalDir . '/WithNormalizer/View.php', $this->createViewPhp('view-normalizer'));
+		file_put_contents($externalDir . '/WithNormalizer/Builder.php', $this->createBuilderPhp('TestPlugin\\Components', 'WithNormalizer'));
+		require_once $externalDir . '/WithNormalizer/Builder.php';
 		file_put_contents($externalDir . '/WithNormalizer/Normalizer.php', $this->createNormalizerPhp('TestPlugin\\Components', 'WithNormalizer'));
 
 		try {
@@ -599,7 +648,7 @@ class Normalizer {
 			$settings->menu_group('m3')
 				->page('p3')
 					->section('s3', 'Section')
-						->field_simple('field_3', 'Label 3', 'ext.with-normalizer')
+						->field('field_3', 'Label 3', 'ext.with-normalizer')
 					->end_section()
 				->end_page()
 			->end_menu_group();
@@ -626,6 +675,8 @@ class Normalizer {
 		mkdir($externalDir . '/FullStack', 0777, true);
 
 		file_put_contents($externalDir . '/FullStack/View.php', $this->createViewPhp('full-stack'));
+		file_put_contents($externalDir . '/FullStack/Builder.php', $this->createBuilderPhp('TestPlugin\\Components', 'FullStack'));
+		require_once $externalDir . '/FullStack/Builder.php';
 		file_put_contents($externalDir . '/FullStack/Validator.php', $this->createValidatorPhp('TestPlugin\\Components', 'FullStack'));
 		file_put_contents($externalDir . '/FullStack/Normalizer.php', $this->createNormalizerPhp('TestPlugin\\Components', 'FullStack'));
 
@@ -641,7 +692,7 @@ class Normalizer {
 			$settings->menu_group('m4')
 				->page('p4')
 					->section('s4', 'Section')
-						->field_simple('field_4', 'Label 4', 'ext.full-stack')
+						->field('field_4', 'Label 4', 'ext.full-stack')
 					->end_section()
 				->end_page()
 			->end_menu_group();
@@ -668,6 +719,8 @@ class Normalizer {
 		mkdir($externalDir . '/WithDevSchema', 0777, true);
 
 		file_put_contents($externalDir . '/WithDevSchema/View.php', $this->createViewPhp('view-dev-schema'));
+		file_put_contents($externalDir . '/WithDevSchema/Builder.php', $this->createBuilderPhp('TestPlugin\\Components', 'WithDevSchema'));
+		require_once $externalDir . '/WithDevSchema/Builder.php';
 
 		try {
 			$this->optionValues['matrix_5'] = array('field_5' => 'schema_value');
@@ -681,7 +734,7 @@ class Normalizer {
 			$settings->menu_group('m5')
 				->page('p5')
 					->section('s5', 'Section')
-						->field_simple('field_5', 'Label 5', 'ext.with-dev-schema', array(
+						->field('field_5', 'Label 5', 'ext.with-dev-schema', array(
 							'schema' => array(
 								'default'  => 'default_from_schema',
 								'sanitize' => array(fn($v) => strtoupper((string) $v)),
@@ -713,6 +766,8 @@ class Normalizer {
 		mkdir($externalDir . '/ValidatorDevSchema', 0777, true);
 
 		file_put_contents($externalDir . '/ValidatorDevSchema/View.php', $this->createViewPhp('validator-dev-schema'));
+		file_put_contents($externalDir . '/ValidatorDevSchema/Builder.php', $this->createBuilderPhp('TestPlugin\\Components', 'ValidatorDevSchema'));
+		require_once $externalDir . '/ValidatorDevSchema/Builder.php';
 		file_put_contents($externalDir . '/ValidatorDevSchema/Validator.php', $this->createValidatorPhp('TestPlugin\\Components', 'ValidatorDevSchema'));
 
 		try {
@@ -727,7 +782,7 @@ class Normalizer {
 			$settings->menu_group('m6')
 				->page('p6')
 					->section('s6', 'Section')
-						->field_simple('field_6', 'Label 6', 'ext.validator-dev-schema', array(
+						->field('field_6', 'Label 6', 'ext.validator-dev-schema', array(
 							'schema' => array(
 								'default'  => 'schema_default',
 								'validate' => array(fn($v, $emit) => strlen((string) $v) > 0),
@@ -759,6 +814,8 @@ class Normalizer {
 		mkdir($externalDir . '/NormalizerDevSchema', 0777, true);
 
 		file_put_contents($externalDir . '/NormalizerDevSchema/View.php', $this->createViewPhp('normalizer-dev-schema'));
+		file_put_contents($externalDir . '/NormalizerDevSchema/Builder.php', $this->createBuilderPhp('TestPlugin\\Components', 'NormalizerDevSchema'));
+		require_once $externalDir . '/NormalizerDevSchema/Builder.php';
 		file_put_contents($externalDir . '/NormalizerDevSchema/Normalizer.php', $this->createNormalizerPhp('TestPlugin\\Components', 'NormalizerDevSchema'));
 
 		try {
@@ -773,7 +830,7 @@ class Normalizer {
 			$settings->menu_group('m7')
 				->page('p7')
 					->section('s7', 'Section')
-						->field_simple('field_7', 'Label 7', 'ext.normalizer-dev-schema', array(
+						->field('field_7', 'Label 7', 'ext.normalizer-dev-schema', array(
 							'schema' => array(
 								'default'  => 'normalized_default',
 								'sanitize' => array(fn($v) => trim((string) $v)),
@@ -805,6 +862,8 @@ class Normalizer {
 		mkdir($externalDir . '/FullStackSchema', 0777, true);
 
 		file_put_contents($externalDir . '/FullStackSchema/View.php', $this->createViewPhp('full-stack-schema'));
+		file_put_contents($externalDir . '/FullStackSchema/Builder.php', $this->createBuilderPhp('TestPlugin\\Components', 'FullStackSchema'));
+		require_once $externalDir . '/FullStackSchema/Builder.php';
 		file_put_contents($externalDir . '/FullStackSchema/Validator.php', $this->createValidatorPhp('TestPlugin\\Components', 'FullStackSchema'));
 		file_put_contents($externalDir . '/FullStackSchema/Normalizer.php', $this->createNormalizerPhp('TestPlugin\\Components', 'FullStackSchema'));
 
@@ -820,7 +879,7 @@ class Normalizer {
 			$settings->menu_group('m8')
 				->page('p8')
 					->section('s8', 'Section')
-						->field_simple('field_8', 'Label 8', 'ext.full-stack-schema', array(
+						->field('field_8', 'Label 8', 'ext.full-stack-schema', array(
 							'schema' => array(
 								'default'  => 'ultimate_default',
 								'sanitize' => array(fn($v) => trim((string) $v)),
@@ -854,15 +913,21 @@ class Normalizer {
 		// Component A: View only
 		mkdir($externalDir . '/ComponentA', 0777, true);
 		file_put_contents($externalDir . '/ComponentA/View.php', $this->createViewPhp('batch-a'));
+		file_put_contents($externalDir . '/ComponentA/Builder.php', $this->createBuilderPhp('BatchPlugin', 'ComponentA'));
+		require_once $externalDir . '/ComponentA/Builder.php';
 
 		// Component B: View + Validator
 		mkdir($externalDir . '/ComponentB', 0777, true);
 		file_put_contents($externalDir . '/ComponentB/View.php', $this->createViewPhp('batch-b'));
+		file_put_contents($externalDir . '/ComponentB/Builder.php', $this->createBuilderPhp('BatchPlugin', 'ComponentB'));
+		require_once $externalDir . '/ComponentB/Builder.php';
 		file_put_contents($externalDir . '/ComponentB/Validator.php', $this->createValidatorPhp('BatchPlugin', 'ComponentB'));
 
 		// Component C: View + Normalizer
 		mkdir($externalDir . '/ComponentC', 0777, true);
 		file_put_contents($externalDir . '/ComponentC/View.php', $this->createViewPhp('batch-c'));
+		file_put_contents($externalDir . '/ComponentC/Builder.php', $this->createBuilderPhp('BatchPlugin', 'ComponentC'));
+		require_once $externalDir . '/ComponentC/Builder.php';
 		file_put_contents($externalDir . '/ComponentC/Normalizer.php', $this->createNormalizerPhp('BatchPlugin', 'ComponentC'));
 
 		try {
@@ -897,9 +962,9 @@ class Normalizer {
 			$settings->menu_group('batch')
 				->page('batch-page')
 					->section('batch-section', 'Batch Components')
-						->field_simple('field_a', 'Field A', 'batch.component-a')
-						->field_simple('field_b', 'Field B', 'batch.component-b')
-						->field_simple('field_c', 'Field C', 'batch.component-c')
+						->field('field_a', 'Field A', 'batch.component-a')
+						->field('field_b', 'Field B', 'batch.component-b')
+						->field('field_c', 'Field C', 'batch.component-c')
 					->end_section()
 				->end_page()
 			->end_menu_group();
@@ -936,6 +1001,8 @@ class Normalizer {
 		mkdir($externalDir . '/StoredTest', 0777, true);
 
 		file_put_contents($externalDir . '/StoredTest/View.php', $this->createViewPhp('stored-test'));
+		file_put_contents($externalDir . '/StoredTest/Builder.php', $this->createBuilderPhp('TestPlugin\\Components', 'StoredTest'));
+		require_once $externalDir . '/StoredTest/Builder.php';
 
 		try {
 			$this->optionValues['stored_test'] = array('test_field' => 'my_stored_value');
@@ -949,7 +1016,7 @@ class Normalizer {
 			$settings->menu_group('st')
 				->page('st-page')
 					->section('s', 'Section')
-						->field_simple('test_field', 'Test', 'ext.stored-test', array(
+						->field('test_field', 'Test', 'ext.stored-test', array(
 							'schema' => array(
 								'default' => 'default_value',
 							),
@@ -977,6 +1044,8 @@ class Normalizer {
 		mkdir($externalDir . '/SchemaTest', 0777, true);
 
 		file_put_contents($externalDir . '/SchemaTest/View.php', $this->createViewPhp('schema-test'));
+		file_put_contents($externalDir . '/SchemaTest/Builder.php', $this->createBuilderPhp('TestPlugin\\Components', 'SchemaTest'));
+		require_once $externalDir . '/SchemaTest/Builder.php';
 
 		try {
 			$this->optionValues['schema_test'] = array('test_field' => 'test_value');
@@ -991,7 +1060,7 @@ class Normalizer {
 			$settings->menu_group('sch')
 				->page('sch-page')
 					->section('s', 'Section')
-						->field_simple('test_field', 'Test', 'ext.schema-test', array(
+						->field('test_field', 'Test', 'ext.schema-test', array(
 							'schema' => array(
 								'default'  => 'default_val',
 								'sanitize' => array(fn($v) => trim((string) $v)),
@@ -1021,6 +1090,8 @@ class Normalizer {
 		mkdir($externalDir . '/MultiField', 0777, true);
 
 		file_put_contents($externalDir . '/MultiField/View.php', $this->createViewPhp('multi-field'));
+		file_put_contents($externalDir . '/MultiField/Builder.php', $this->createBuilderPhp('TestPlugin\\Components', 'MultiField'));
+		require_once $externalDir . '/MultiField/Builder.php';
 
 		try {
 			$this->optionValues['multi_field'] = array(
@@ -1037,8 +1108,8 @@ class Normalizer {
 			$settings->menu_group('mf')
 				->page('mf-page')
 					->section('s', 'Section')
-						->field_simple('field_a', 'Field A', 'ext.multi-field')
-						->field_simple('field_b', 'Field B', 'ext.multi-field')
+						->field('field_a', 'Field A', 'ext.multi-field')
+						->field('field_b', 'Field B', 'ext.multi-field')
 					->end_section()
 				->end_page()
 			->end_menu_group();
@@ -1064,6 +1135,8 @@ class Normalizer {
 		mkdir($externalDir . '/ComplexSchema', 0777, true);
 
 		file_put_contents($externalDir . '/ComplexSchema/View.php', $this->createViewPhp('complex-schema'));
+		file_put_contents($externalDir . '/ComplexSchema/Builder.php', $this->createBuilderPhp('TestPlugin\\Components', 'ComplexSchema'));
+		require_once $externalDir . '/ComplexSchema/Builder.php';
 
 		try {
 			$this->optionValues['complex_schema'] = array('complex_field' => 'complex_value');
@@ -1078,7 +1151,7 @@ class Normalizer {
 			$settings->menu_group('cx')
 				->page('cx-page')
 					->section('s', 'Section')
-						->field_simple('complex_field', 'Complex Field', 'ext.complex-schema', array(
+						->field('complex_field', 'Complex Field', 'ext.complex-schema', array(
 							'schema' => array(
 								'default'  => 'default_complex',
 								'sanitize' => array(
@@ -1122,6 +1195,8 @@ class Normalizer {
 		mkdir($externalDir . '/SanitizeComp', 0777, true);
 
 		file_put_contents($externalDir . '/SanitizeComp/View.php', $this->createViewPhp('save-sanitize'));
+		file_put_contents($externalDir . '/SanitizeComp/Builder.php', $this->createBuilderPhp('TestPlugin\\Components', 'SanitizeComp'));
+		require_once $externalDir . '/SanitizeComp/Builder.php';
 
 		try {
 			$sanitizerCalled = false;
@@ -1152,7 +1227,7 @@ class Normalizer {
 			$settings->menu_group('ss')
 				->page('ss-page')
 					->section('s', 'Section')
-						->field_simple('san_field', 'Sanitize Field', 'ext.sanitize-comp')
+						->field('san_field', 'Sanitize Field', 'ext.sanitize-comp')
 					->end_section()
 				->end_page()
 			->end_menu_group();
@@ -1180,6 +1255,8 @@ class Normalizer {
 		mkdir($externalDir . '/ValidateComp', 0777, true);
 
 		file_put_contents($externalDir . '/ValidateComp/View.php', $this->createViewPhp('save-validate'));
+		file_put_contents($externalDir . '/ValidateComp/Builder.php', $this->createBuilderPhp('TestPlugin\\Components', 'ValidateComp'));
+		require_once $externalDir . '/ValidateComp/Builder.php';
 
 		try {
 			$validatorCalled = false;
@@ -1210,7 +1287,7 @@ class Normalizer {
 			$settings->menu_group('sv')
 				->page('sv-page')
 					->section('s', 'Section')
-						->field_simple('val_field', 'Validate Field', 'ext.validate-comp')
+						->field('val_field', 'Validate Field', 'ext.validate-comp')
 					->end_section()
 				->end_page()
 			->end_menu_group();
@@ -1237,6 +1314,8 @@ class Normalizer {
 		mkdir($externalDir . '/AcceptComp', 0777, true);
 
 		file_put_contents($externalDir . '/AcceptComp/View.php', $this->createViewPhp('save-accept'));
+		file_put_contents($externalDir . '/AcceptComp/Builder.php', $this->createBuilderPhp('TestPlugin\\Components', 'AcceptComp'));
+		require_once $externalDir . '/AcceptComp/Builder.php';
 
 		try {
 			$validatorCalled = false;
@@ -1262,7 +1341,7 @@ class Normalizer {
 			$settings->menu_group('sa')
 				->page('sa-page')
 					->section('s', 'Section')
-						->field_simple('acc_field', 'Accept Field', 'ext.accept-comp')
+						->field('acc_field', 'Accept Field', 'ext.accept-comp')
 					->end_section()
 				->end_page()
 			->end_menu_group();
@@ -1288,6 +1367,8 @@ class Normalizer {
 		mkdir($externalDir . '/MultiSanComp', 0777, true);
 
 		file_put_contents($externalDir . '/MultiSanComp/View.php', $this->createViewPhp('multi-san'));
+		file_put_contents($externalDir . '/MultiSanComp/Builder.php', $this->createBuilderPhp('TestPlugin\\Components', 'MultiSanComp'));
+		require_once $externalDir . '/MultiSanComp/Builder.php';
 
 		try {
 			$executionOrder = array();
@@ -1325,7 +1406,7 @@ class Normalizer {
 			$settings->menu_group('sm')
 				->page('sm-page')
 					->section('s', 'Section')
-						->field_simple('multi_field', 'Multi Field', 'ext.multi-san-comp')
+						->field('multi_field', 'Multi Field', 'ext.multi-san-comp')
 					->end_section()
 				->end_page()
 			->end_menu_group();
@@ -1355,6 +1436,8 @@ class Normalizer {
 		mkdir($externalDir . '/MergeComp', 0777, true);
 
 		file_put_contents($externalDir . '/MergeComp/View.php', $this->createViewPhp('merge-comp'));
+		file_put_contents($externalDir . '/MergeComp/Builder.php', $this->createBuilderPhp('TestPlugin\\Components', 'MergeComp'));
+		require_once $externalDir . '/MergeComp/Builder.php';
 
 		try {
 			$manifestSanitizerCalled = false;
@@ -1399,7 +1482,7 @@ class Normalizer {
 			$settings->menu_group('mg')
 				->page('mg-page')
 					->section('s', 'Section')
-						->field_simple('merge_field', 'Merge Field', 'ext.merge-comp')
+						->field('merge_field', 'Merge Field', 'ext.merge-comp')
 					->end_section()
 				->end_page()
 			->end_menu_group();
@@ -1439,6 +1522,8 @@ class Normalizer {
 
 		// Create View.php
 		file_put_contents($componentDir . '/View.php', $this->createViewPhp('integration-validator'));
+		file_put_contents($componentDir . '/Builder.php', $this->createBuilderPhp('ExternalTestComponents', 'IntegrationValidator'));
+		require_once $componentDir . '/Builder.php';
 
 		// Create a REAL Validator.php that writes to a tracking file
 		$trackingFile  = $externalDir . '/validator_executed.txt';
@@ -1488,7 +1573,7 @@ PHP;
 			$settings->menu_group('iv')
 				->page('iv-page')
 					->section('s', 'Section')
-						->field_simple('int_field', 'Integration Field', 'ext.integration-validator')
+						->field('int_field', 'Integration Field', 'ext.integration-validator')
 					->end_section()
 				->end_page()
 			->end_menu_group();
@@ -1521,6 +1606,8 @@ PHP;
 		mkdir($componentDir, 0777, true);
 
 		file_put_contents($componentDir . '/View.php', $this->createViewPhp('integration-validator-accept'));
+		file_put_contents($componentDir . '/Builder.php', $this->createBuilderPhp('ExternalTestComponentsAccept', 'IntegrationValidatorAccept'));
+		require_once $componentDir . '/Builder.php';
 
 		$trackingFile  = $externalDir . '/validator_accepted.txt';
 		$validatorCode = <<<PHP
@@ -1561,7 +1648,7 @@ PHP;
 			$settings->menu_group('iva')
 				->page('iva-page')
 					->section('s', 'Section')
-						->field_simple('acc_field', 'Accept Field', 'ext.integration-validator-accept')
+						->field('acc_field', 'Accept Field', 'ext.integration-validator-accept')
 					->end_section()
 				->end_page()
 			->end_menu_group();
@@ -1592,6 +1679,8 @@ PHP;
 		mkdir($componentDir, 0777, true);
 
 		file_put_contents($componentDir . '/View.php', $this->createViewPhp('integration-sanitizer'));
+		file_put_contents($componentDir . '/Builder.php', $this->createBuilderPhp('ExternalTestComponentsSan', 'IntegrationSanitizer'));
+		require_once $componentDir . '/Builder.php';
 
 		$trackingFile = $externalDir . '/sanitizer_executed.txt';
 
@@ -1656,7 +1745,7 @@ PHP;
 			$settings->menu_group('is')
 				->page('is-page')
 					->section('s', 'Section')
-						->field_simple('san_field', 'Sanitize Field', 'ext.integration-sanitizer')
+						->field('san_field', 'Sanitize Field', 'ext.integration-sanitizer')
 					->end_section()
 				->end_page()
 			->end_menu_group();

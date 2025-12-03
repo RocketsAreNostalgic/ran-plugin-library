@@ -19,6 +19,7 @@ use Ran\PluginLib\Settings\UserSettings;
 use Ran\PluginLib\Settings\AdminSettings;
 use Ran\PluginLib\Options\Storage\StorageContext;
 use Ran\PluginLib\Options\RegisterOptions;
+use Ran\PluginLib\Forms\Components\Fields\Input\Builder as InputBuilder;
 use Ran\PluginLib\Forms\Component\ComponentManifest;
 use Ran\PluginLib\Forms\Component\ComponentLoader;
 
@@ -47,9 +48,11 @@ class DeveloperAPITemplateRegistrationTest extends PluginLibTestCase {
 		WP_Mock::userFunction('get_current_blog_id')->andReturn(1);
 		WP_Mock::userFunction('get_current_user_id')->andReturn(1);
 
-		// Create component infrastructure
-		$this->component_loader   = new ComponentLoader(__DIR__ . '/../../fixtures/templates', $this->logger_mock);
+		// Create component infrastructure with real components
+		$this->component_loader   = new ComponentLoader(__DIR__ . '/../../../inc/Forms/Components', $this->logger_mock);
 		$this->component_manifest = new ComponentManifest($this->component_loader, $this->logger_mock);
+		// Ensure builder factory is registered (avoids test isolation issues)
+		$this->component_manifest->register_builder('fields.input', \Ran\PluginLib\Forms\Components\Fields\Input\Builder::class);
 
 		// Create settings instances
 		$this->admin_options = new RegisterOptions(
@@ -165,7 +168,7 @@ class DeveloperAPITemplateRegistrationTest extends PluginLibTestCase {
 		$result = $section_builder->template('custom.section');
 		$this->assertSame($section_builder, $result);
 
-		$section_builder->field_simple('field-id', 'Label', 'component');
+		$section_builder->field('field-id', 'Label', 'fields.input')->end_field();
 	}
 
 	/**

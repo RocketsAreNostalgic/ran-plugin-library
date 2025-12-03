@@ -20,6 +20,7 @@ use Ran\PluginLib\Forms\Component\ComponentRenderResult;
 use Ran\PluginLib\Forms\Component\ComponentManifest;
 use Ran\PluginLib\Forms\Component\ComponentLoader;
 use Ran\PluginLib\EnqueueAccessory\ScriptDefinition;
+use Ran\PluginLib\Forms\Components\Fields\Input\Builder as InputBuilder;
 
 final class UserSettingsBehaviorTest_AutoValidator implements ValidatorInterface {
 	public static array $calls = array();
@@ -70,11 +71,13 @@ final class UserSettingsBehaviorTest extends PluginLibTestCase {
 		WP_Mock::userFunction('delete_transient')->andReturn(true);
 		WP_Mock::userFunction('sanitize_key')->andReturnArg(0);
 		WP_Mock::userFunction('sanitize_html_class')->andReturnArg(0);
+		WP_Mock::userFunction('sanitize_text_field')->andReturnArg(0);
+		WP_Mock::userFunction('wp_kses_post')->andReturnArg(0);
 		WP_Mock::onFilter('ran/plugin_lib/options/allow_persist')
 			->with(\WP_Mock\Functions::type('bool'), \WP_Mock\Functions::type('array'))
 			->reply(true);
 
-		$loader = new ComponentLoader(__DIR__ . '/../../fixtures/templates', $this->logger);
+		$loader = new ComponentLoader(__DIR__ . '/../../../inc/Forms/Components', $this->logger);
 
 		$this->manifest = new ComponentManifest(
 			$loader,
@@ -240,7 +243,7 @@ final class UserSettingsBehaviorTest extends PluginLibTestCase {
 		$user_settings = $this->createUserSettings();
 		$user_settings->collection('profile')
 			->section('auto', 'Auto Section')
-				->field_simple('auto_field', 'Auto Field', $alias)
+				->field('auto_field', 'Auto Field', $alias)
 			->end_section()
 		->end_collection();
 
@@ -291,7 +294,7 @@ final class UserSettingsBehaviorTest extends PluginLibTestCase {
 		$collection    = $user_settings->collection('profile');
 		$collection->template($callback);
 		$collection->section('basic', 'Basic Info')
-			->field_simple('profile_name', 'Profile Name', 'fields.input')
+			->field('profile_name', 'Profile Name', 'fields.input')
 		->end_section();
 		$collection->end_collection();
 
@@ -372,6 +375,7 @@ final class UserSettingsBehaviorTest extends PluginLibTestCase {
 			return new ComponentRenderResult('<input type="text" />');
 		});
 
+		$this->injectBuilderFactory('fields.merge-user');
 		$this->injectManifestDefaults('fields.merge-user', array(
 			'sanitize' => static function (mixed $value) use (&$executionOrder): string {
 				$executionOrder[] = 'manifest_sanitize';
@@ -401,7 +405,7 @@ final class UserSettingsBehaviorTest extends PluginLibTestCase {
 		$user_settings = $this->createUserSettings();
 		$user_settings->collection('profile')
 			->section('merge', 'Merge Section')
-				->field_simple('merge_field_user', 'Merge Field', 'fields.merge-user')
+				->field('merge_field_user', 'Merge Field', 'fields.merge-user')
 			->end_section()
 		->end_collection();
 
@@ -515,6 +519,7 @@ final class UserSettingsBehaviorTest extends PluginLibTestCase {
 				component_type: 'input'
 			);
 		});
+		$this->injectBuilderFactory('fields.profile-asset');
 
 		// Ensure root templates are registered for the render pipeline used in this test.
 		$this->manifest->register('root-wrapper', static function (array $context): ComponentRenderResult {
@@ -532,7 +537,7 @@ final class UserSettingsBehaviorTest extends PluginLibTestCase {
 
 		$user_settings = $this->createUserSettings();
 		$user_settings->collection('profile')->section('basic', 'Basic Info')
-			->field_simple('profile_asset', 'Profile Asset', 'fields.profile-asset')
+			->field('profile_asset', 'Profile Asset', 'fields.profile-asset')
 		->end_section();
 
 		WP_Mock::userFunction('current_user_can')->withAnyArgs()->andReturn(true);
@@ -753,6 +758,7 @@ final class UserSettingsBehaviorTest extends PluginLibTestCase {
 			);
 		});
 
+		$this->injectBuilderFactory($alias);
 		$this->injectManifestDefaults($alias, array(
 			'context'  => array('component_type' => 'input'),
 			'validate' => array(static fn ($value, callable $emitWarning): bool => true),
@@ -772,6 +778,24 @@ final class UserSettingsBehaviorTest extends PluginLibTestCase {
 		$current              = $metadata[$alias] ?? array();
 		$current['validator'] = $validatorClass;
 		$metadata[$alias]     = $current;
+		$property->setValue($this->manifest, $metadata);
+	}
+
+	/**
+	 * Inject a builder factory for a fake component alias.
+	 * Uses ComponentBuilderInputBase as a generic builder.
+	 */
+	private function injectBuilderFactory(string $alias): void {
+		$reflection = new \ReflectionObject($this->manifest);
+		$property   = $reflection->getProperty('componentMetadata');
+		$property->setAccessible(true);
+		$metadata = $property->getValue($this->manifest);
+		if (!is_array($metadata)) {
+			$metadata = array();
+		}
+		$current            = $metadata[$alias] ?? array();
+		$current['builder'] = static fn (string $id, string $label): InputBuilder => new InputBuilder($id, $label);
+		$metadata[$alias]   = $current;
 		$property->setValue($this->manifest, $metadata);
 	}
 }
