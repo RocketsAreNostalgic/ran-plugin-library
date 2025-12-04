@@ -3,9 +3,9 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\Tests\Unit\Forms\Builders;
 
-use Ran\PluginLib\Forms\Builders\BuilderRootInterface;
-use Ran\PluginLib\Forms\Builders\SectionBuilderInterface;
 use Ran\PluginLib\Forms\FormsInterface;
+use Ran\PluginLib\Forms\Builders\SectionBuilderInterface;
+use Ran\PluginLib\Forms\Builders\BuilderRootInterface;
 
 final class StubRootBuilder implements BuilderRootInterface {
 	public function __construct(private FormsInterface $forms) {

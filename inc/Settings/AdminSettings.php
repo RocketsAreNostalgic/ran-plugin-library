@@ -242,11 +242,20 @@ class AdminSettings implements FormsInterface {
 							continue;
 						}
 
+						// Skip groups with incomplete meta (not properly committed)
+						if (!isset($meta['heading']) || !isset($meta['menu_title']) || !isset($meta['capability'])) {
+							$this->logger->warning('AdminSettings: Skipping group with incomplete meta', array(
+								'group_slug' => $group_slug,
+								'meta_keys'  => array_keys($meta),
+							));
+							continue;
+						}
+
 						$first_page_slug = array_key_first($pages);
-						$submenu_parent  = $meta['parent'];
+						$submenu_parent  = $meta['parent'] ?? null;
 						$skip_first      = false;
 
-						if ($meta['parent'] === null) {
+						if ($submenu_parent === null) {
 							$this->_do_add_menu_page(
 								$meta['heading'],
 								$meta['menu_title'],
@@ -255,12 +264,12 @@ class AdminSettings implements FormsInterface {
 								function () use ($first_page_slug) {
 									$this->render($first_page_slug);
 								},
-								$meta['icon'],
-								$meta['position']
+								$meta['icon'] ?? null,
+								$meta['position'] ?? null
 							);
 							$submenu_parent = $group_slug;
 							$skip_first     = true;
-						} elseif ($meta['parent'] === 'options-general.php') {
+						} elseif ($submenu_parent === 'options-general.php') {
 							$this->_do_add_options_page(
 								$meta['heading'],
 								$meta['menu_title'],
@@ -269,13 +278,13 @@ class AdminSettings implements FormsInterface {
 								function () use ($first_page_slug) {
 									$this->render($first_page_slug);
 								},
-								$meta['position']
+								$meta['position'] ?? null
 							);
 							$submenu_parent = 'options-general.php';
 							$skip_first     = true;
 						} else {
 							$this->_do_add_submenu_page(
-								$meta['parent'],
+								$submenu_parent,
 								$meta['heading'],
 								$meta['menu_title'],
 								$meta['capability'],
@@ -817,6 +826,12 @@ class AdminSettings implements FormsInterface {
 	 * @return void
 	 */
 	protected function _handle_context_update(string $type, array $data): void {
+		// Route AdminSettings-specific types to custom handler
+		if (in_array($type, ['menu_group', 'menu_group_commit'], true)) {
+			$this->_handle_custom_update($type, $data);
+			return;
+		}
+
 		if ($type !== 'page') {
 			$this->logger->warning('AdminSettings: Unsupported context update type received', array(
 				'type'      => $type,
