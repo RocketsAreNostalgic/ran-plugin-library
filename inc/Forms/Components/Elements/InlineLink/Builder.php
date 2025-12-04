@@ -20,22 +20,22 @@ final class Builder extends ComponentBuilderBase {
 		$this->url = $url;
 	}
 
-	public function target(?string $target): self {
+	public function target(?string $target): static {
 		$this->target = $target;
 		return $this;
 	}
 
-	public function rel(?string $rel): self {
+	public function rel(?string $rel): static {
 		$this->rel = $rel;
 		return $this;
 	}
 
-	public function icon_html(?string $html): self {
+	public function icon_html(?string $html): static {
 		$this->icon_html = $html;
 		return $this;
 	}
 
-	public function url(string $url): self {
+	public function url(string $url): static {
 		$this->url = $url;
 		return $this;
 	}

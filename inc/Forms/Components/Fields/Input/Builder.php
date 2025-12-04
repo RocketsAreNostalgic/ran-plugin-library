@@ -21,7 +21,7 @@ final class Builder extends ComponentBuilderTextBase {
 	 * @param string $type
 	 * @return self
 	 */
-	public function type(string $type): self {
+	public function type(string $type): static {
 		$this->type = $type;
 		return $this;
 	}

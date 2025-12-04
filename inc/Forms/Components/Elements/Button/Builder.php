@@ -24,7 +24,7 @@ final class Builder extends ComponentBuilderBase {
 	 *
 	 * @param string $type
 	 */
-	public function type(string $type): self {
+	public function type(string $type): static {
 		$this->type = $type;
 		return $this;
 	}
@@ -34,7 +34,7 @@ final class Builder extends ComponentBuilderBase {
 	 *
 	 * @param bool $disabled
 	 */
-	public function disabled(bool $disabled = true): self {
+	public function disabled(bool $disabled = true): static {
 		$this->disabled = $disabled;
 		return $this;
 	}
@@ -44,7 +44,7 @@ final class Builder extends ComponentBuilderBase {
 	 *
 	 * @param string $variant
 	 */
-	public function variant(string $variant): self {
+	public function variant(string $variant): static {
 		$this->variant = strtolower($variant);
 		return $this;
 	}
@@ -54,7 +54,7 @@ final class Builder extends ComponentBuilderBase {
 	 *
 	 * @param string|null $html
 	 */
-	public function icon_html(?string $html): self {
+	public function icon_html(?string $html): static {
 		$this->icon_html = $html;
 		return $this;
 	}

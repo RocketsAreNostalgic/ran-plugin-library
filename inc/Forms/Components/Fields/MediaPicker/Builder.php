@@ -31,71 +31,71 @@ final class Builder extends ComponentBuilderBase {
 
 	// attributes() and attribute() methods inherited from ComponentBuilderBase
 
-	public function data(array $data): self {
+	public function data(array $data): static {
 		foreach ($data as $key => $value) {
 			$this->data[(string) $key] = (string) $value;
 		}
 		return $this;
 	}
 
-	public function name(?string $name): self {
+	public function name(?string $name): static {
 		$this->name = $name;
 		return $this;
 	}
 
-	public function inputId(?string $id): self {
+	public function inputId(?string $id): static {
 		$this->inputId = $id;
 		return $this;
 	}
 
-	public function buttonId(?string $id): self {
+	public function buttonId(?string $id): static {
 		$this->buttonId = $id;
 		return $this;
 	}
 
-	public function removeId(?string $id): self {
+	public function removeId(?string $id): static {
 		$this->removeId = $id;
 		return $this;
 	}
 
-	public function value(?string $value): self {
+	public function value(?string $value): static {
 		$this->value = $value;
 		return $this;
 	}
 
 	// description() method inherited from ComponentBuilderBase
 
-	public function descriptionId(?string $descriptionId): self {
+	public function descriptionId(?string $descriptionId): static {
 		$this->descriptionId = $descriptionId;
 		return $this;
 	}
 
-	public function selectLabel(?string $label): self {
+	public function selectLabel(?string $label): static {
 		$this->selectLabel = $label;
 		return $this;
 	}
 
-	public function replaceLabel(?string $label): self {
+	public function replaceLabel(?string $label): static {
 		$this->replaceLabel = $label;
 		return $this;
 	}
 
-	public function removeLabel(?string $label): self {
+	public function removeLabel(?string $label): static {
 		$this->removeLabel = $label;
 		return $this;
 	}
 
-	public function previewHtml(?string $html): self {
+	public function previewHtml(?string $html): static {
 		$this->previewHtml = $html;
 		return $this;
 	}
 
-	public function multiple(bool $multiple = true): self {
+	public function multiple(bool $multiple = true): static {
 		$this->multiple = $multiple;
 		return $this;
 	}
 
-	public function hasSelection(?bool $hasSelection): self {
+	public function hasSelection(?bool $hasSelection): static {
 		$this->hasSelection = $hasSelection;
 		return $this;
 	}

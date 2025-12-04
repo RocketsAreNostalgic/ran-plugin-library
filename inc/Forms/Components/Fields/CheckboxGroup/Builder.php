@@ -22,21 +22,21 @@ final class Builder extends ComponentBuilderBase {
 		parent::__construct($id, $label);
 	}
 
-	public function legend(?string $legend): self {
+	public function legend(?string $legend): static {
 		$this->legend = $legend;
 		return $this;
 	}
 
 	// description() method inherited from ComponentBuilderBase
 
-	public function defaults(array $values): self {
+	public function defaults(array $values): static {
 		$this->defaults = array_map('strval', $values);
 		return $this;
 	}
 
 	// attribute() method inherited from ComponentBuilderBase
 
-	public function checkbox(string $value, string $label, ?string $description = null, array $attributes = array(), bool $defaultChecked = false): self {
+	public function checkbox(string $value, string $label, ?string $description = null, array $attributes = array(), bool $defaultChecked = false): static {
 		$optionId = $this->id . '__option_' . (++$this->__option_index);
 		$name     = $this->resolveName($attributes);
 		$builder  = new CheckboxOptionBuilder($optionId, $label, $name);
@@ -58,7 +58,7 @@ final class Builder extends ComponentBuilderBase {
 		return $this;
 	}
 
-	public function option(CheckboxOptionBuilder $option): self {
+	public function option(CheckboxOptionBuilder $option): static {
 		$this->__option_index++;
 		$this->options[] = $option;
 		return $this;

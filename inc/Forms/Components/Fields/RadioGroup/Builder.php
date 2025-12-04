@@ -16,19 +16,19 @@ final class Builder extends ComponentBuilderBase {
 	/** @var array<int,array{value:string,label:string,description:?string,attributes:array<string,string>,disabled:bool,label_attributes:array<string,string>}> */
 	protected array $options = array();
 
-	public function legend(?string $legend): self {
+	public function legend(?string $legend): static {
 		$this->legend = $legend;
 		return $this;
 	}
 
 	// description() method inherited from ComponentBuilderBase
 
-	public function name(?string $name): self {
+	public function name(?string $name): static {
 		$this->name = $name !== null ? trim($name) : null;
 		return $this;
 	}
 
-	public function default(string $value): self {
+	public function default(string $value): static {
 		$this->default = $value;
 		return $this;
 	}
@@ -39,7 +39,7 @@ final class Builder extends ComponentBuilderBase {
 	 * @param array<string,string> $attributes
 	 * @param array<string,string> $labelAttributes
 	 */
-	public function option(string $value, string $label, ?string $description = null, array $attributes = array(), array $labelAttributes = array(), bool $disabled = false): self {
+	public function option(string $value, string $label, ?string $description = null, array $attributes = array(), array $labelAttributes = array(), bool $disabled = false): static {
 		$this->options[] = array(
 		    'value'            => $value,
 		    'label'            => $label,

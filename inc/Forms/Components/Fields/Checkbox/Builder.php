@@ -22,29 +22,29 @@ final class Builder extends ComponentBuilderBase {
 
 	// description() method inherited from ComponentBuilderBase
 
-	public function text(?string $text): self {
+	public function text(?string $text): static {
 		$this->text = $text;
 		return $this;
 	}
 
-	public function name(string $name): self {
+	public function name(string $name): static {
 		$this->name               = trim($name);
 		$this->attributes['name'] = $this->name;
 		return $this;
 	}
 
-	public function values(string $checkedValue, ?string $uncheckedValue = null): self {
+	public function values(string $checkedValue, ?string $uncheckedValue = null): static {
 		$this->checkedValue   = $checkedValue;
 		$this->uncheckedValue = $uncheckedValue ?? 'off';
 		return $this;
 	}
 
-	public function defaultChecked(bool $checked = true): self {
+	public function defaultChecked(bool $checked = true): static {
 		$this->defaultChecked = $checked;
 		return $this;
 	}
 
-	public function attribute(string $key, string $value): self {
+	public function attribute(string $key, string $value): static {
 		parent::attribute($key, $value);
 		if ($key === 'name') {
 			$this->name = trim($value);
@@ -53,7 +53,9 @@ final class Builder extends ComponentBuilderBase {
 	}
 
 	protected function _build_component_context(): array {
-		if ($this->name === null || $this->name === '') {
+		// Use field ID as default name if not explicitly set (consistent with other input builders)
+		$name = $this->name ?? $this->id;
+		if ($name === '') {
 			throw new \InvalidArgumentException(sprintf('CheckboxField "%s" requires a name before rendering.', $this->id));
 		}
 
@@ -62,7 +64,7 @@ final class Builder extends ComponentBuilderBase {
 
 		// Add required properties
 		$context['checked_value'] = $this->checkedValue;
-		$context['name']          = $this->name;
+		$context['name']          = $name;
 
 		// Add optional properties using base class helpers
 		$this->_add_if_not_empty($context, 'label_text', $this->text);

@@ -24,7 +24,7 @@ final class Builder extends ComponentBuilderBase {
 		$this->name = $name;
 	}
 
-	public function name(string $name): self {
+	public function name(string $name): static {
 		$this->name = $name;
 		return $this;
 	}
@@ -38,7 +38,7 @@ final class Builder extends ComponentBuilderBase {
 	 *
 	 * @return self
 	 */
-	public function multiple(bool $multiple = true): self {
+	public function multiple(bool $multiple = true): static {
 		$this->multiple = $multiple;
 		return $this;
 	}
@@ -50,7 +50,7 @@ final class Builder extends ComponentBuilderBase {
 	 *
 	 * @return self
 	 */
-	public function required(bool $required = true): self {
+	public function required(bool $required = true): static {
 		$this->required = $required;
 		return $this;
 	}
@@ -60,7 +60,7 @@ final class Builder extends ComponentBuilderBase {
 	 *
 	 * @param string|array<int,string>|null $accept
 	 */
-	public function accept($accept): self {
+	public function accept($accept): static {
 		$this->accept = $accept;
 		return $this;
 	}
@@ -70,12 +70,12 @@ final class Builder extends ComponentBuilderBase {
 	 */
 	// description() method inherited from ComponentBuilderBase
 
-	public function descriptionId(?string $descriptionId): self {
+	public function descriptionId(?string $descriptionId): static {
 		$this->descriptionId = $descriptionId;
 		return $this;
 	}
 
-	public function inputId(?string $id): self {
+	public function inputId(?string $id): static {
 		$this->inputId = $id;
 		return $this;
 	}
@@ -83,7 +83,7 @@ final class Builder extends ComponentBuilderBase {
 	/**
 	 * @param array<int,string> $files
 	 */
-	public function existing_files(array $files): self {
+	public function existing_files(array $files): static {
 		$this->existing_files = array_map('strval', $files);
 		return $this;
 	}

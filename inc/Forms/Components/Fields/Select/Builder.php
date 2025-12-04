@@ -24,7 +24,7 @@ final class Builder extends ComponentBuilderBase {
 		parent::__construct($id, $label);
 	}
 
-	public function name(?string $name): self {
+	public function name(?string $name): static {
 		if ($name === null) {
 			$this->name = null;
 			unset($this->attributes['name']);
@@ -36,7 +36,7 @@ final class Builder extends ComponentBuilderBase {
 		return $this;
 	}
 
-	public function elementId(?string $id): self {
+	public function elementId(?string $id): static {
 		if ($id === null) {
 			$this->elementId = null;
 			unset($this->attributes['id']);
@@ -50,32 +50,32 @@ final class Builder extends ComponentBuilderBase {
 
 	// description() method inherited from ComponentBuilderBase
 
-	public function descriptionId(?string $descriptionId): self {
+	public function descriptionId(?string $descriptionId): static {
 		$this->descriptionId = $descriptionId;
 		return $this;
 	}
 
-	public function value(?string $value): self {
+	public function value(?string $value): static {
 		$this->value = $value;
 		return $this;
 	}
 
-	public function default(?string $default): self {
+	public function default(?string $default): static {
 		$this->default = $default;
 		return $this;
 	}
 
-	public function disabled(bool $disabled = true): self {
+	public function disabled(bool $disabled = true): static {
 		$this->disabled = $disabled;
 		return $this;
 	}
 
-	public function required(bool $required = true): self {
+	public function required(bool $required = true): static {
 		$this->required = $required;
 		return $this;
 	}
 
-	public function attribute(string $key, string $value): self {
+	public function attribute(string $key, string $value): static {
 		parent::attribute($key, $value);
 		if ($key === 'name') {
 			$this->name = trim($value);
@@ -93,7 +93,7 @@ final class Builder extends ComponentBuilderBase {
 		array $attributes = array(),
 		bool $selected = false,
 		bool $disabled = false
-	): self {
+	): static {
 		$this->options[] = array(
 		    'value'      => $value,
 		    'label'      => $label,
@@ -105,7 +105,7 @@ final class Builder extends ComponentBuilderBase {
 		return $this;
 	}
 
-	public function options(array $options): self {
+	public function options(array $options): static {
 		$this->options = array();
 		foreach ($options as $option) {
 			if (!is_array($option)) {

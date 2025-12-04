@@ -15,27 +15,27 @@ final class StubRootBuilder implements BuilderRootInterface {
 		throw new \BadMethodCallException('StubRootBuilder::section() is not implemented for these tests.');
 	}
 
-	public function heading(string $heading): self {
+	public function heading(string $heading): static {
 		return $this;
 	}
 
-	public function description(string $description): self {
+	public function description(string $description): static {
 		return $this;
 	}
 
-	public function template(string $template_key): self {
+	public function template(string $template_key): static {
 		return $this;
 	}
 
-	public function order(int $order): self {
+	public function order(int $order): static {
 		return $this;
 	}
 
-	public function before(callable $before): self {
+	public function before(callable $before): static {
 		return $this;
 	}
 
-	public function after(callable $after): self {
+	public function after(callable $after): static {
 		return $this;
 	}
 

@@ -23,23 +23,23 @@ final class Builder extends ComponentBuilderBase {
 
 	// description() method inherited from ComponentBuilderBase
 
-	public function value(string $value): self {
+	public function value(string $value): static {
 		$this->value               = $value;
 		$this->attributes['value'] = $this->value;
 		return $this;
 	}
 
-	public function defaultChecked(bool $checked = true): self {
+	public function defaultChecked(bool $checked = true): static {
 		$this->defaultChecked = $checked;
 		return $this;
 	}
 
-	public function disabled(bool $disabled = true): self {
+	public function disabled(bool $disabled = true): static {
 		$this->disabled = $disabled;
 		return $this;
 	}
 
-	public function attribute(string $key, string $value): self {
+	public function attribute(string $key, string $value): static {
 		parent::attribute($key, $value);
 		if ($key === 'name') {
 			$this->setName($value);

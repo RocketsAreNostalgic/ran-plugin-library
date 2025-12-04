@@ -19,7 +19,7 @@ final class Builder extends ComponentBuilderTextBase {
 	 * @param int|null $rows
 	 * @return self
 	 */
-	public function rows(?int $rows): self {
+	public function rows(?int $rows): static {
 		$this->rows = $rows;
 		return $this;
 	}
@@ -30,7 +30,7 @@ final class Builder extends ComponentBuilderTextBase {
 	 * @param int|null $cols
 	 * @return self
 	 */
-	public function cols(?int $cols): self {
+	public function cols(?int $cols): static {
 		$this->cols = $cols;
 		return $this;
 	}

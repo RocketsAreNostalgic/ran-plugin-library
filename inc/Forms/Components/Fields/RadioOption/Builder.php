@@ -25,17 +25,17 @@ final class Builder extends ComponentBuilderBase {
 
 	// description() method inherited from ComponentBuilderBase
 
-	public function checked(bool $checked = true): self {
+	public function checked(bool $checked = true): static {
 		$this->checked = $checked;
 		return $this;
 	}
 
-	public function disabled(bool $disabled = true): self {
+	public function disabled(bool $disabled = true): static {
 		$this->disabled = $disabled;
 		return $this;
 	}
 
-	public function attribute(string $key, string $value): self {
+	public function attribute(string $key, string $value): static {
 		parent::attribute($key, $value);
 		if ($key === 'name') {
 			$this->setName($value);
@@ -46,7 +46,7 @@ final class Builder extends ComponentBuilderBase {
 		return $this;
 	}
 
-	public function labelAttribute(string $key, string $value): self {
+	public function labelAttribute(string $key, string $value): static {
 		$this->labelAttributes[$key] = (string) $value;
 		return $this;
 	}
