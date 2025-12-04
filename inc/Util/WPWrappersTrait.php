@@ -627,11 +627,11 @@ trait WPWrappersTrait {
 	 * (e.g., early CLI/tests). Also guards against unexpected empty returns by
 	 * falling back to internal normalization mirroring WP behavior.
 	 *
-	 * @param ?string $key
+	 * @param string $key
 	 * @internal
 	 * @return string
 	 */
-	protected function _do_sanitize_key(?string $key): string {
+	protected function _do_sanitize_key(string $key): string {
 		$key = (string) $key;
 		if (\function_exists('sanitize_key')) {
 			$res = (string) \sanitize_key($key);
