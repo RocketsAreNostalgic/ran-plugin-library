@@ -84,7 +84,7 @@ class FieldsetFieldProxy extends ComponentBuilderProxy {
 	 *
 	 * @return FieldsetBuilder The parent FieldsetBuilder for continued chaining.
 	 */
-	public function end_field(): FieldsetBuilder {
+	public function end_field(): mixed {
 		return $this->fieldsetParent;
 	}
 }

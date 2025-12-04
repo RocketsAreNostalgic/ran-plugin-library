@@ -44,7 +44,7 @@ interface BuilderRootInterface extends BuilderChildInterface {
 	 *
 	 * @return FormsInterface The main form instance.
 	 */
-	public function end(): FormsInterface;
+	public function end(): mixed;
 
 	/**
 	 * Expose the root FormsInterface to child builders.

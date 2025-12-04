@@ -115,9 +115,9 @@ class FieldsetBuilder extends SectionFieldContainerBuilder implements FieldsetBu
 	/**
 	 * Commit buffered data and return to the section builder.
 	 *
-	 * @return SectionBuilderInterface
+	 * @return TSection
 	 */
-	public function end_fieldset(): SectionBuilderInterface {
+	public function end_fieldset(): mixed {
 		return $this->section();
 	}
 

@@ -77,5 +77,5 @@ interface FieldProxyInterface {
 	 *
 	 * @return TParent
 	 */
-	public function end_field(): SectionBuilder|SectionFieldContainerBuilder|GroupBuilder|FieldsetBuilder;
+	public function end_field(): mixed;
 }

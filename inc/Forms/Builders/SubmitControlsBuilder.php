@@ -53,7 +53,7 @@ final class SubmitControlsBuilder implements SubmitControlsBuilderInterface {
 		}
 	}
 
-	public function template(string|callable|null $template): self {
+	public function template(string|callable|null $template): static {
 		if ($template === null) {
 			($this->updateFn)('template_override', array(
 				'element_type' => 'root',
@@ -94,13 +94,13 @@ final class SubmitControlsBuilder implements SubmitControlsBuilderInterface {
 		return $this;
 	}
 
-	public function before(?callable $before): self {
+	public function before(?callable $before): static {
 		$this->before = $before;
 		$this->emit_zone_metadata();
 		return $this;
 	}
 
-	public function after(?callable $after): self {
+	public function after(?callable $after): static {
 		$this->after = $after;
 		$this->emit_zone_metadata();
 		return $this;
@@ -112,7 +112,7 @@ final class SubmitControlsBuilder implements SubmitControlsBuilderInterface {
 	 * @param string $control_id Unique identifier for the control.
 	 * @param string $label      Button label (required).
 	 */
-	public function button(string $control_id, string $label): self|SubmitControlButtonProxy {
+	public function button(string $control_id, string $label): static|SubmitControlButtonProxy {
 		$control_id = trim($control_id);
 		if ($control_id === '') {
 			throw new InvalidArgumentException('Submit control id cannot be empty.');

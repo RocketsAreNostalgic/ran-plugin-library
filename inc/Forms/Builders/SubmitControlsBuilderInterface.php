@@ -29,22 +29,22 @@ interface SubmitControlsBuilderInterface {
 	/**
 	 * Override submit wrapper template.
 	 */
-	public function template(string $template_key): self;
+	public function template(string $template_key): static;
 
 	/**
 	 * Provide markup rendered before controls.
 	 */
-	public function before(?callable $before): self;
+	public function before(?callable $before): static;
 
 	/**
 	 * Provide markup rendered after controls.
 	 */
-	public function after(?callable $after): self;
+	public function after(?callable $after): static;
 
 	/**
 	 * Add a button control and return a fluent proxy for customization.
 	 */
-	public function button(string $control_id, string $label): self|SubmitControlButtonProxy;
+	public function button(string $control_id, string $label): static|SubmitControlButtonProxy;
 
 	/**
 	 * Return to parent builder.

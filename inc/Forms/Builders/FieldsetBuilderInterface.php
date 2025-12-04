@@ -28,31 +28,31 @@ interface FieldsetBuilderInterface extends SectionFieldContainerBuilderInterface
 	/**
 	 * Define the visual style for the fieldset wrapper.
 	 */
-	public function style(string|callable $style): self;
+	public function style(string|callable $style): static;
 
 	/**
 	 * Set the form attribute for this fieldset.
 	 * Associates the fieldset with a form element by its ID.
 	 */
-	public function form(string $form_id): self;
+	public function form(string $form_id): static;
 
 	/**
 	 * Set the name attribute for this fieldset.
 	 */
-	public function name(string $name): self;
+	public function name(string $name): static;
 
 	/**
 	 * Set the disabled state for this fieldset.
 	 * When disabled, all form controls within the fieldset are disabled.
 	 */
-	public function disabled(bool $disabled = true): self;
+	public function disabled(bool $disabled = true): static;
 
 	/**
 	 * Commit buffered data and return to the section builder.
 	 *
 	 * @return TSection
 	 */
-	public function end_fieldset(): SectionBuilderInterface;
+	public function end_fieldset(): mixed;
 
 	/**
 	 * Open a sibling fieldset on the same section.

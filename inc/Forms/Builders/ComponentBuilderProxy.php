@@ -153,7 +153,7 @@ class ComponentBuilderProxy implements ComponentBuilderInterface, FieldProxyInte
 	 *
 	 * @return self
 	 */
-	public function disabled(bool $disabled = true): self {
+	public function disabled(bool $disabled = true): static {
 		$this->builder->disabled($disabled);
 		$this->_emit_field_update();
 		return $this;
@@ -166,7 +166,7 @@ class ComponentBuilderProxy implements ComponentBuilderInterface, FieldProxyInte
 	 *
 	 * @return self
 	 */
-	public function required(bool $required = true): self {
+	public function required(bool $required = true): static {
 		$this->builder->required($required);
 		$this->_emit_field_update();
 		return $this;
@@ -179,7 +179,7 @@ class ComponentBuilderProxy implements ComponentBuilderInterface, FieldProxyInte
 	 *
 	 * @return self
 	 */
-	public function readonly(bool $readonly = true): self {
+	public function readonly(bool $readonly = true): static {
 		$this->builder->readonly($readonly);
 		$this->_emit_field_update();
 		return $this;
@@ -193,7 +193,7 @@ class ComponentBuilderProxy implements ComponentBuilderInterface, FieldProxyInte
 	 *
 	 * @return self
 	 */
-	public function attribute(string $attribute, string $value): self {
+	public function attribute(string $attribute, string $value): static {
 		$this->builder->attribute($attribute, $value);
 		$this->_emit_field_update();
 		return $this;
@@ -206,7 +206,7 @@ class ComponentBuilderProxy implements ComponentBuilderInterface, FieldProxyInte
 	 *
 	 * @return self
 	 */
-	public function ariaLabel(string $ariaLabel): self {
+	public function ariaLabel(string $ariaLabel): static {
 		$this->builder->ariaLabel($ariaLabel);
 		$this->_emit_field_update();
 		return $this;
@@ -219,7 +219,7 @@ class ComponentBuilderProxy implements ComponentBuilderInterface, FieldProxyInte
 	 *
 	 * @return self
 	 */
-	public function ariaDescribedBy(string $ariaDescribedBy): self {
+	public function ariaDescribedBy(string $ariaDescribedBy): static {
 		$this->builder->ariaDescribedBy($ariaDescribedBy);
 		$this->_emit_field_update();
 		return $this;
@@ -245,7 +245,7 @@ class ComponentBuilderProxy implements ComponentBuilderInterface, FieldProxyInte
 	 *
 	 * @return self
 	 */
-	public function heading(string $heading): self {
+	public function heading(string $heading): static {
 		throw new BadMethodCallException('Call end_field() before configuring section heading.');
 	}
 
@@ -256,7 +256,7 @@ class ComponentBuilderProxy implements ComponentBuilderInterface, FieldProxyInte
 	 *
 	 * @return self
 	 */
-	public function description(string $description): self {
+	public function description(string $description): static {
 		if (method_exists($this->builder, 'description')) {
 			call_user_func(array($this->builder, 'description'), $description);
 			$this->_emit_field_update();
@@ -311,7 +311,7 @@ class ComponentBuilderProxy implements ComponentBuilderInterface, FieldProxyInte
 	/**
 	 * @return TParent
 	 */
-	public function end_field(): SectionBuilder|SectionFieldContainerBuilder|GroupBuilder|FieldsetBuilder {
+	public function end_field(): mixed {
 		return $this->parent;
 	}
 

@@ -41,7 +41,7 @@ abstract class ComponentBuilderBase implements ComponentBuilderDefinitionInterfa
 	 *
 	 * @return self
 	 */
-	public function order(?int $order): self {
+	public function order(?int $order): static {
 		$this->order = $order;
 		return $this;
 	}
@@ -52,7 +52,7 @@ abstract class ComponentBuilderBase implements ComponentBuilderDefinitionInterfa
 	 * @param array<string,string> $attributes
 	 * @return self
 	 */
-	public function attributes(array $attributes): self {
+	public function attributes(array $attributes): static {
 		foreach ($attributes as $key => $value) {
 			$this->attribute((string) $key, (string) $value);
 		}
@@ -66,7 +66,7 @@ abstract class ComponentBuilderBase implements ComponentBuilderDefinitionInterfa
 	 * @param string $value
 	 * @return self
 	 */
-	public function attribute(string $key, string $value): self {
+	public function attribute(string $key, string $value): static {
 		$this->attributes[$key] = (string) $value;
 		return $this;
 	}
@@ -77,7 +77,7 @@ abstract class ComponentBuilderBase implements ComponentBuilderDefinitionInterfa
 	 * @param string|null $description
 	 * @return self
 	 */
-	public function description(?string $description): self {
+	public function description(?string $description): static {
 		$this->description = $description;
 		return $this;
 	}

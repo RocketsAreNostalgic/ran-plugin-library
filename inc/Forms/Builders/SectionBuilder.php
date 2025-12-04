@@ -89,7 +89,7 @@ class SectionBuilder implements SectionBuilderInterface {
 	 *
 	 * @return SectionBuilder The SectionBuilder instance.
 	 */
-	public function heading(string $heading): self {
+	public function heading(string $heading): static {
 		$this->_update_meta('heading', $heading);
 		return $this;
 	}
@@ -101,7 +101,7 @@ class SectionBuilder implements SectionBuilderInterface {
 	 *
 	 * @return SectionBuilder The SectionBuilder instance.
 	 */
-	public function description(string $description): self {
+	public function description(string $description): static {
 		$this->_update_meta('description', $description);
 		return $this;
 	}
@@ -114,7 +114,7 @@ class SectionBuilder implements SectionBuilderInterface {
 	 *
 	 * @return SectionBuilder The SectionBuilder instance.
 	 */
-	public function template(string $template_key): self {
+	public function template(string $template_key): static {
 		$template_key = trim($template_key);
 		if ($template_key === '') {
 			throw new \InvalidArgumentException('Template key cannot be empty');
@@ -135,7 +135,7 @@ class SectionBuilder implements SectionBuilderInterface {
 	 *
 	 * @return GroupBuilder The GroupBuilder instance.
 	 */
-	public function order(?int $order): self {
+	public function order(?int $order): static {
 		$this->_update_meta('order', $order);
 		return $this;
 	}
@@ -147,7 +147,7 @@ class SectionBuilder implements SectionBuilderInterface {
 	 *
 	 * @return self
 	 */
-	public function style(string|callable $style): self {
+	public function style(string|callable $style): static {
 		$normalized = $style === '' ? '' : $this->_resolve_style_arg($style);
 		$this->_update_meta('style', $normalized);
 		return $this;
@@ -326,7 +326,7 @@ class SectionBuilder implements SectionBuilderInterface {
 	 *
 	 * @return self The builder instance for chaining.
 	 */
-	public function before(?callable $before): self {
+	public function before(?callable $before): static {
 		$this->_update_meta('before', $before);
 		return $this;
 	}
@@ -339,7 +339,7 @@ class SectionBuilder implements SectionBuilderInterface {
 	 *
 	 * @return self The builder instance for chaining.
 	 */
-	public function after(callable $after): self {
+	public function after(callable $after): static {
 		$this->_update_meta('after', $after);
 		return $this;
 	}
@@ -358,19 +358,19 @@ class SectionBuilder implements SectionBuilderInterface {
 	 *
 	 * This method exists for API consistency with union return types.
 	 *
-	 * @return SectionBuilderInterface
+	 * @return never
 	 * @throws \RuntimeException Always throws - cannot end fieldset from section context.
 	 */
-	public function end_fieldset(): SectionBuilderInterface {
+	public function end_fieldset(): mixed {
 		throw new \RuntimeException('Cannot call end_fieldset() from section context. You are not inside a fieldset.');
 	}
 
 	/**
 	 * Return to the CollectionBuilder.
 	 *
-	 * @return BuilderRootInterface The root builder instance.
+	 * @return TRoot The root builder instance.
 	 */
-	public function end_section(): BuilderRootInterface {
+	public function end_section(): mixed {
 		return $this->collectionBuilder;
 	}
 

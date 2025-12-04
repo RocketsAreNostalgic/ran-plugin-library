@@ -27,7 +27,7 @@ interface BuilderChildInterface {
 	 *
 	 * @return self The builder instance for chaining.
 	 */
-	public function heading(string $heading): self;
+	public function heading(string $heading): static;
 
 	/**
 	 * Set the description for the current container.
@@ -36,7 +36,7 @@ interface BuilderChildInterface {
 	 *
 	 * @return self The builder instance for chaining.
 	 */
-	public function description(string $description): self;
+	public function description(string $description): static;
 
 	/**
 	 * Set the template for this current container.
@@ -46,7 +46,7 @@ interface BuilderChildInterface {
 	 * @return self The builder instance for chaining.
 	 * @throws \InvalidArgumentException If template key is empty.
 	 */
-	public function template(string $template_key): self;
+	public function template(string $template_key): static;
 
 	/**
 	 * Set the order for this container.
@@ -56,7 +56,7 @@ interface BuilderChildInterface {
 	 *
 	 * @return self The builder instance for chaining.
 	 */
-	public function order(int $order): self;
+	public function order(int $order): static;
 
 	/**
 	 * Set the before section for this container.
@@ -66,7 +66,7 @@ interface BuilderChildInterface {
 	 *
 	 * @return self The builder instance for chaining.
 	 */
-	public function before(callable $before): self;
+	public function before(callable $before): static;
 
 	/**
 	 * Set the after section for this container.
@@ -76,5 +76,5 @@ interface BuilderChildInterface {
 	 *
 	 * @return self The builder instance for chaining.
 	 */
-	public function after(callable $after): self;
+	public function after(callable $after): static;
 }

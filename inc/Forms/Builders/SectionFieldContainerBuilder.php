@@ -261,10 +261,10 @@ abstract class SectionFieldContainerBuilder implements SectionFieldContainerBuil
 	 * This method exists for API consistency with union return types.
 	 * FieldsetBuilder overrides with proper implementation.
 	 *
-	 * @return SectionBuilderInterface
+	 * @return TSection
 	 * @throws \RuntimeException When called from wrong context.
 	 */
-	public function end_fieldset(): SectionBuilderInterface {
+	public function end_fieldset(): mixed {
 		throw new \RuntimeException('Cannot call end_fieldset() from this context.');
 	}
 

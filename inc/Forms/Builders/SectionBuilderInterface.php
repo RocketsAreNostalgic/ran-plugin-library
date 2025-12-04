@@ -73,5 +73,5 @@ interface SectionBuilderInterface extends BuilderChildInterface, BuilderFieldCon
 	 *
 	 * @return TRoot The root builder instance.
 	 */
-	public function end_section(): BuilderRootInterface;
+	public function end_section(): mixed;
 }

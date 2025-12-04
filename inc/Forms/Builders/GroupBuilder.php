@@ -54,10 +54,10 @@ class GroupBuilder extends SectionFieldContainerBuilder implements GroupBuilderI
 	/**
 	 * Not valid in group context - throws exception.
 	 *
-	 * @return SectionBuilderInterface
+	 * @return never
 	 * @throws \RuntimeException Always throws - use end_group() instead.
 	 */
-	public function end_fieldset(): SectionBuilderInterface {
+	public function end_fieldset(): mixed {
 		throw new \RuntimeException('Cannot call end_fieldset() from group context. Use end_group() instead.');
 	}
 
