@@ -18,7 +18,7 @@ if (!defined('ABSPATH')) {
 // Extract context variables
 $heading        = $context['heading']        ?? '';
 $description    = $context['description']    ?? '';
-$settings_group = $context['settings_group'] ?? '';
+$settings_group = $context['group'] ?? ($context['settings_group'] ?? '');
 $inner_html     = $context['inner_html']     ?? '';
 $style          = trim((string) ($context['style'] ?? ''));
 

@@ -21,17 +21,19 @@ if (!defined('ABSPATH')) {
 // Extract context variables
 $form_id       = $context['form_id']    ?? '';
 $title         = $context['title']      ?? '';
+$heading       = $context['heading']    ?? $title;
 $inner_html    = $context['inner_html'] ?? '';
 $before        = (string) ($context['before'] ?? '');
 $after         = (string) ($context['after'] ?? '');
 $renderSubmit  = $context['render_submit'] ?? null;
 $form_messages = $context['form_messages'] ?? array();
+$group         = $context['group']      ?? '';  // WordPress Settings API group
 
 ob_start();
 ?>
-<div class="kplr-form" data-kplr-form-id="<?php echo esc_attr($form_id); ?>">
-	<?php if (!empty($title)): ?>
-		<h2 class="kplr-form__title"><?php echo esc_html($title); ?></h2>
+<div class="wrap">
+	<?php if (!empty($heading)): ?>
+		<h1><?php echo esc_html($heading); ?></h1>
 	<?php endif; ?>
 
 	<?php if (!empty($form_messages)): ?>
@@ -50,23 +52,32 @@ ob_start();
 		</div>
 	<?php endif; ?>
 
-	<div class="kplr-form__content">
-		<?php if ($before !== ''): ?>
-			<?php echo $before; // Hook output should already be escaped.?>
-		<?php endif; ?>
+	<form method="post" action="options.php" class="kplr-form" data-kplr-form-id="<?php echo esc_attr($form_id); ?>">
+		<?php
+		// Output WordPress Settings API hidden fields (nonce, option_page, action)
+		if (!empty($group) && function_exists('settings_fields')) {
+			settings_fields($group);
+		}
+		?>
 
-		<?php echo $inner_html; // Form inner HTML is already escaped?>
+		<div class="kplr-form__content">
+			<?php if ($before !== ''): ?>
+				<?php echo $before; // Hook output should already be escaped.?>
+			<?php endif; ?>
 
-		<?php if ($after !== ''): ?>
-			<?php echo $after; // Hook output should already be escaped.?>
-		<?php endif; ?>
-	</div>
+			<?php echo $inner_html; // Form inner HTML is already escaped?>
 
-	<?php if (is_callable($renderSubmit)): ?>
-		<div class="kplr-form__submit">
-			<?php echo (string) $renderSubmit(); ?>
+			<?php if ($after !== ''): ?>
+				<?php echo $after; // Hook output should already be escaped.?>
+			<?php endif; ?>
 		</div>
-	<?php endif; ?>
+
+		<?php if (is_callable($renderSubmit)): ?>
+			<div class="kplr-form__submit">
+				<?php echo (string) $renderSubmit(); ?>
+			</div>
+		<?php endif; ?>
+	</form>
 </div>
 <?php
 return new ComponentRenderResult(
