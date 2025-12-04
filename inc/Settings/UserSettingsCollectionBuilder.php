@@ -14,21 +14,25 @@ declare(strict_types=1);
 namespace Ran\PluginLib\Settings;
 
 use Ran\PluginLib\Settings\UserSettingsSectionBuilder;
+use Ran\PluginLib\Settings\UserSettingsBuilderRootInterface;
 use Ran\PluginLib\Forms\FormsInterface;
 use Ran\PluginLib\Forms\Builders\SectionBuilderInterface;
 use Ran\PluginLib\Forms\Builders\SectionBuilder;
-use Ran\PluginLib\Forms\Builders\BuilderRootInterface;
 use Ran\PluginLib\Forms\Builders\BuilderImmediateUpdateTrait;
 
 /**
  * UserSettingsCollectionBuilder: Fluent builder for user settings collections.
  */
-class UserSettingsCollectionBuilder implements BuilderRootInterface {
+class UserSettingsCollectionBuilder implements UserSettingsBuilderRootInterface {
 	use BuilderImmediateUpdateTrait;
+
 	private UserSettings $settings;
+
 	private string $container_id;
+
 	/** @var array{template:?callable, priority:int} */
 	private array $meta;
+
 	/** @var callable */
 	private $updateFn;
 	private bool $committed = false;
@@ -60,7 +64,7 @@ class UserSettingsCollectionBuilder implements BuilderRootInterface {
 	 *
 	 * @return UserSettingsCollectionBuilder The UserSettingsCollectionBuilder instance.
 	 */
-	public function heading(string $heading): self {
+	public function heading(string $heading): static {
 		$this->_update_meta('heading', $heading);
 
 		return $this;
@@ -73,7 +77,7 @@ class UserSettingsCollectionBuilder implements BuilderRootInterface {
 	 *
 	 * @return UserSettingsCollectionBuilder The UserSettingsCollectionBuilder instance.
 	 */
-	public function description(string $description): self {
+	public function description(string $description): static {
 		$this->_update_meta('description', $description);
 
 		return $this;
@@ -96,7 +100,7 @@ class UserSettingsCollectionBuilder implements BuilderRootInterface {
 	 *
 	 * @return UserSettingsCollectionBuilder The UserSettingsCollectionBuilder instance.
 	 */
-	public function order(int $order): UserSettingsCollectionBuilder {
+	public function order(int $order): static {
 		$order = $order < 0 ? 0 : $order;
 		$this->_update_meta('order', $order);
 
@@ -149,7 +153,7 @@ class UserSettingsCollectionBuilder implements BuilderRootInterface {
 	 *
 	 * @return UserSettingsCollectionBuilder The UserSettingsCollectionBuilder instance.
 	 */
-	public function template(string|callable|null $template): self {
+	public function template(string|callable|null $template): static {
 		if ($template === null) {
 			($this->updateFn)('template_override', array(
 				'element_type' => 'root',
@@ -193,7 +197,7 @@ class UserSettingsCollectionBuilder implements BuilderRootInterface {
 	 *
 	 * @return UserSettingsCollectionBuilder The UserSettingsCollectionBuilder instance.
 	 */
-	public function before(callable $before): self {
+	public function before(callable $before): static {
 		$this->_update_meta('before', $before);
 		return $this;
 	}
@@ -208,7 +212,7 @@ class UserSettingsCollectionBuilder implements BuilderRootInterface {
 	 *
 	 * @return UserSettingsCollectionBuilder The UserSettingsCollectionBuilder instance.
 	 */
-	public function after(callable $after): self {
+	public function after(callable $after): static {
 		$this->_update_meta('after', $after);
 		return $this;
 	}
@@ -220,7 +224,7 @@ class UserSettingsCollectionBuilder implements BuilderRootInterface {
 	 *
 	 * @return self
 	 */
-	public function style(string|callable $style): self {
+	public function style(string|callable $style): static {
 		$normalized = $style === '' ? '' : $this->_resolve_style_arg($style);
 		$this->_update_meta('style', $normalized);
 		return $this;

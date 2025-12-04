@@ -342,7 +342,7 @@ class UserSettings implements FormsInterface {
 	 *
 	 * Enables chaining like end_collection()->end() to match AdminSettings API.
 	 */
-	public function end(): self {
+	public function end(): static {
 		return $this;
 	}
 

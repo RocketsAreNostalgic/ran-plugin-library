@@ -237,8 +237,10 @@ class AdminSettingsSectionBuilder extends SectionBuilder {
 
 	/**
 	 * End the current section and return to the parent page builder.
+	 *
+	 * @return AdminSettingsBuilderRootInterface
 	 */
-	public function end_section(): AdminSettingsPageBuilder {
+	public function end_section(): AdminSettingsBuilderRootInterface {
 		return $this->pageBuilder;
 	}
 

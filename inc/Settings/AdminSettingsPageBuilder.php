@@ -15,16 +15,16 @@ namespace Ran\PluginLib\Settings;
 
 use Ran\PluginLib\Settings\AdminSettingsSectionBuilder;
 use Ran\PluginLib\Settings\AdminSettingsMenuGroupBuilder;
+use Ran\PluginLib\Settings\AdminSettingsBuilderRootInterface;
 use Ran\PluginLib\Forms\Components\Elements\Button\Builder as ButtonBuilder;
 use Ran\PluginLib\Forms\Builders\SubmitControlsBuilder;
-use Ran\PluginLib\Forms\Builders\BuilderRootInterface;
 use Ran\PluginLib\Forms\Builders\BuilderImmediateUpdateTrait;
 
 /**
  * AdminSettingsPageBuilder: Fluent builder for Admin Settings pages.
  *
  */
-class AdminSettingsPageBuilder implements BuilderRootInterface {
+class AdminSettingsPageBuilder implements AdminSettingsBuilderRootInterface {
 	use BuilderImmediateUpdateTrait;
 
 	private const SUBMIT_CONTROLS_ZONE_ID = 'primary-controls';
@@ -65,7 +65,7 @@ class AdminSettingsPageBuilder implements BuilderRootInterface {
 	 *
 	 * @return AdminSettingsPageBuilder The AdminSettingsPageBuilder instance.
 	 */
-	public function heading(string $heading): self {
+	public function heading(string $heading): static {
 		$this->_update_meta('heading', $heading);
 
 		return $this;
@@ -78,7 +78,7 @@ class AdminSettingsPageBuilder implements BuilderRootInterface {
 	 *
 	 * @return AdminSettingsPageBuilder The AdminSettingsPageBuilder instance.
 	 */
-	public function description(string $description): self {
+	public function description(string $description): static {
 		$this->_update_meta('description', $description);
 
 		return $this;
@@ -91,10 +91,8 @@ class AdminSettingsPageBuilder implements BuilderRootInterface {
 	 *
 	 * @return AdminSettingsPageBuilder The AdminSettingsPageBuilder instance.
 	 */
-	public function menu_label(string $menu_title): self {
+	public function menu_label(string $menu_title): static {
 		$this->_update_meta('menu_title', $menu_title);
-
-
 
 		return $this;
 	}
@@ -107,10 +105,8 @@ class AdminSettingsPageBuilder implements BuilderRootInterface {
 	 *
 	 * @return AdminSettingsPageBuilder The AdminSettingsPageBuilder instance.
 	 */
-	public function capability(string $capability): self {
+	public function capability(string $capability): static {
 		$this->_update_meta('capability', $capability);
-
-
 
 		return $this;
 	}
@@ -122,11 +118,9 @@ class AdminSettingsPageBuilder implements BuilderRootInterface {
 	 *
 	 * @return AdminSettingsPageBuilder The AdminSettingsPageBuilder instance.
 	 */
-	public function order(?int $order): self {
+	public function order(?int $order): static {
 		$order = $order < 0 ? 0 : $order;
 		$this->_update_meta('order', $order);
-
-
 
 		return $this;
 	}
@@ -181,7 +175,7 @@ class AdminSettingsPageBuilder implements BuilderRootInterface {
 	 *
 	 * @return AdminSettingsPageBuilder The AdminSettingsPageBuilder instance.
 	 */
-	public function template(string|callable|null $template): self {
+	public function template(string|callable|null $template): static {
 		if ($template === null) {
 			($this->updateFn)('template_override', array(
 				'element_type' => 'root',
@@ -189,6 +183,7 @@ class AdminSettingsPageBuilder implements BuilderRootInterface {
 				'overrides'    => array(),
 				'callback'     => null,
 			));
+
 			return $this;
 		}
 
@@ -199,6 +194,7 @@ class AdminSettingsPageBuilder implements BuilderRootInterface {
 				'overrides'    => array(),
 				'callback'     => $template,
 			));
+
 			return $this;
 		}
 
@@ -221,7 +217,8 @@ class AdminSettingsPageBuilder implements BuilderRootInterface {
 	 *
 	 * @return AdminSettingsPageBuilder The AdminSettingsPageBuilder instance.
 	 */
-	public function before(callable $before): AdminSettingsPageBuilder {
+	public function before(callable $before): static {
+		$this->_update_meta('before', $before);
 		return $this;
 	}
 
@@ -230,7 +227,8 @@ class AdminSettingsPageBuilder implements BuilderRootInterface {
 	 *
 	 * @return AdminSettingsPageBuilder The AdminSettingsPageBuilder instance.
 	 */
-	public function after(callable $after): AdminSettingsPageBuilder {
+	public function after(callable $after): static {
+		$this->_update_meta('after', $after);
 		return $this;
 	}
 
@@ -241,7 +239,7 @@ class AdminSettingsPageBuilder implements BuilderRootInterface {
 	 *
 	 * @return self
 	 */
-	public function style(string|callable $style): self {
+	public function style(string|callable $style): static {
 		$normalized = $style === '' ? '' : $this->_resolve_style_arg($style);
 		$this->_update_meta('style', $normalized);
 		return $this;
