@@ -48,14 +48,6 @@ class AdminSettings implements FormsInterface {
 	use FormsBaseTrait;
 	use WPWrappersTrait;
 
-	protected ComponentLoader $views;
-	protected RegisterOptions $base_options;
-
-	/**
-	 * @var ConfigInterface|null Optional Config for namespace resolution and component registration.
-	 */
-	protected ?ConfigInterface $config = null;
-
 	/**
 	 * Base context and storage captured from the injected RegisterOptions instance.
 	 * Retained so subsequent renders and saves can derive storage defaults.
@@ -145,183 +137,9 @@ class AdminSettings implements FormsInterface {
 		$this->_start_form_session();
 
 		// AdminSettings only overrides root page templates, everything else uses system defaults
-		// fieldset-field-wrapper is used by fields inside fieldsets and must resolve to the base field wrapper
 		$this->form_session->set_form_defaults(array(
-			'root-wrapper'           => 'admin.root-wrapper',
-			'fieldset-field-wrapper' => 'layout.field.field-wrapper',
+			'root-wrapper' => 'admin.root-wrapper',
 		));
-	}
-
-	/**
-	 * Register a single external component.
-	 *
-	 * Delegates to ComponentLoader and triggers discovery in ComponentManifest.
-	 *
-	 * @param string $name Component name (e.g., 'color-picker')
-	 * @param array{path: string, prefix?: string} $options Component options
-	 * @return static For fluent chaining
-	 */
-	public function register_component(string $name, array $options): static {
-		if ($this->config === null) {
-			$this->logger->warning("Cannot register external component '$name' without Config");
-			return $this;
-		}
-
-		$this->views->register_component($name, $options, $this->config);
-
-		// Trigger discovery for the newly registered component
-		$alias = isset($options['prefix']) ? $options['prefix'] . '.' . $name : $name;
-		$this->components->discover_alias($alias);
-
-		return $this;
-	}
-
-	/**
-	 * Register a builder factory for a component.
-	 *
-	 * Use this for components that don't have a Builder.php file but need
-	 * to work with the field() fluent API.
-	 *
-	 * @param string $alias The component alias (e.g., 'ext.my-component')
-	 * @param string|callable $builder The builder class name or factory callable
-	 * @return static For fluent chaining
-	 */
-	public function register_builder(string $alias, string|callable $builder): static {
-		$this->components->register_builder($alias, $builder);
-		return $this;
-	}
-
-	/**
-	 * Register multiple external components from a directory.
-	 *
-	 * Delegates to ComponentLoader and triggers discovery for all new components.
-	 *
-	 * @param array{path: string, prefix?: string} $options Batch options
-	 * @return static For fluent chaining
-	 */
-	public function register_components(array $options): static {
-		if ($this->config === null) {
-			$this->logger->warning('Cannot register external components without Config');
-			return $this;
-		}
-
-		// Capture aliases before registration
-		$before = array_keys($this->views->aliases());
-
-		$this->views->register_components($options, $this->config);
-
-		// Discover all newly added aliases
-		$after = array_keys($this->views->aliases());
-		foreach (array_diff($after, $before) as $alias) {
-			$this->components->discover_alias($alias);
-		}
-
-		return $this;
-	}
-
-	/**
-	 * Boot admin: register settings, sections, fields, and menu pages.
-	 *
-	 * @return void
-	 */
-	public function boot(): void {
-		$hooks = array(
-			array(
-				'hook'     => 'admin_init',
-				'callback' => function () {
-					$this->_register_setting();
-					// Note: We don't register individual fields/sections with WordPress Settings API
-					// because we use custom template rendering instead of do_settings_fields()
-				},
-			),
-			array(
-				'hook'     => 'admin_menu',
-				'callback' => function () {
-					foreach ($this->menu_groups as $group_slug => $group) {
-						$meta  = $group['meta'];
-						$pages = $group['pages'];
-						if (empty($pages)) {
-							continue;
-						}
-
-						// Skip groups with incomplete meta (not properly committed)
-						if (!isset($meta['heading']) || !isset($meta['menu_title']) || !isset($meta['capability'])) {
-							$this->logger->warning('AdminSettings: Skipping group with incomplete meta', array(
-								'group_slug' => $group_slug,
-								'meta_keys'  => array_keys($meta),
-							));
-							continue;
-						}
-
-						$first_page_slug = array_key_first($pages);
-						$submenu_parent  = $meta['parent'] ?? null;
-						$skip_first      = false;
-
-						if ($submenu_parent === null) {
-							$this->_do_add_menu_page(
-								$meta['heading'],
-								$meta['menu_title'],
-								$meta['capability'],
-								$group_slug,
-								function () use ($first_page_slug) {
-									$this->render($first_page_slug);
-								},
-								$meta['icon'] ?? null,
-								$meta['position'] ?? null
-							);
-							$submenu_parent = $group_slug;
-							$skip_first     = true;
-						} elseif ($submenu_parent === 'options-general.php') {
-							$this->_do_add_options_page(
-								$meta['heading'],
-								$meta['menu_title'],
-								$meta['capability'],
-								$group_slug,
-								function () use ($first_page_slug) {
-									$this->render($first_page_slug);
-								},
-								$meta['position'] ?? null
-							);
-							$submenu_parent = 'options-general.php';
-							$skip_first     = true;
-						} else {
-							$this->_do_add_submenu_page(
-								$submenu_parent,
-								$meta['heading'],
-								$meta['menu_title'],
-								$meta['capability'],
-								$group_slug,
-								function () use ($first_page_slug) {
-									$this->render($first_page_slug);
-								}
-							);
-							$submenu_parent = $meta['parent'];
-							$skip_first     = true;
-						}
-
-						foreach ($pages as $page_slug => $page_meta) {
-							if ($skip_first && $page_slug === $first_page_slug) {
-								continue;
-							}
-							$page_ref  = $this->_resolve_page_reference($page_slug);
-							$page_meta = $page_ref['meta'];
-							$this->_do_add_submenu_page(
-								$submenu_parent,
-								$page_meta['heading'],
-								$page_meta['menu_title'],
-								$page_meta['capability'],
-								$page_slug,
-								function () use ($page_slug) {
-									$this->render($page_slug);
-								}
-							);
-						}
-					}
-				},
-			),
-		);
-
-		$this->_register_action_hooks($hooks);
 	}
 
 	/**
@@ -397,11 +215,140 @@ class AdminSettings implements FormsInterface {
 	}
 
 	/**
+	 * Boot admin: register settings, sections, fields, and menu pages.
+	 *
+	 * @return void
+	 */
+	public function boot(): void {
+		$hooks = array();
+
+		// 1. Settings API registration and file upload handling (admin_init)
+		$hooks[] = array(
+			'hook'     => 'admin_init',
+			'callback' => function () {
+				$this->_register_setting();
+				// Handle file uploads early - before options.php processes the form
+				// This injects uploaded file data into $_POST so it reaches the sanitize callback
+				$this->_handle_file_uploads();
+				// Note: We don't register individual fields/sections with WordPress Settings API
+				// because we use custom template rendering instead of do_settings_fields()
+			},
+		);
+
+		// 2. Menu registration (admin_menu)
+		$hooks[] = array(
+			'hook'     => 'admin_menu',
+			'callback' => function () {
+				$this->_register_menu_pages();
+			},
+		);
+
+		$this->_register_action_hooks($hooks);
+	}
+
+	/**
+	 * Register all menu pages and submenus for admin settings.
+	 *
+	 * @return void
+	 */
+	protected function _register_menu_pages(): void {
+		foreach ($this->menu_groups as $group_slug => $group) {
+			$meta  = $group['meta'];
+			$pages = $group['pages'];
+			if (empty($pages)) {
+				continue;
+			}
+
+			// Skip groups with incomplete meta (not properly committed)
+			if (!isset($meta['heading']) || !isset($meta['menu_title']) || !isset($meta['capability'])) {
+				$this->logger->warning('AdminSettings: Skipping group with incomplete meta', array(
+					'group_slug' => $group_slug,
+					'meta_keys'  => array_keys($meta),
+				));
+				continue;
+			}
+
+			$first_page_slug = array_key_first($pages);
+			$submenu_parent  = $meta['parent'] ?? null;
+			$skip_first      = false;
+
+			if ($submenu_parent === null) {
+				$this->_do_add_menu_page(
+					$meta['heading'],
+					$meta['menu_title'],
+					$meta['capability'],
+					$group_slug,
+					function () use ($first_page_slug) {
+						$this->render($first_page_slug);
+					},
+					$meta['icon']     ?? null,
+					$meta['position'] ?? null
+				);
+				$submenu_parent = $group_slug;
+				$skip_first     = true;
+			} elseif ($submenu_parent === 'options-general.php') {
+				$this->_do_add_options_page(
+					$meta['heading'],
+					$meta['menu_title'],
+					$meta['capability'],
+					$group_slug,
+					function () use ($first_page_slug) {
+						$this->render($first_page_slug);
+					},
+					$meta['position'] ?? null
+				);
+				$submenu_parent = 'options-general.php';
+				$skip_first     = true;
+			} else {
+				$this->_do_add_submenu_page(
+					$submenu_parent,
+					$meta['heading'],
+					$meta['menu_title'],
+					$meta['capability'],
+					$group_slug,
+					function () use ($first_page_slug) {
+						$this->render($first_page_slug);
+					}
+				);
+				$submenu_parent = $meta['parent'];
+				$skip_first     = true;
+			}
+
+			foreach ($pages as $page_slug => $page_meta) {
+				if ($skip_first && $page_slug === $first_page_slug) {
+					continue;
+				}
+				$page_ref  = $this->_resolve_page_reference($page_slug);
+				$page_meta = $page_ref['meta'];
+				$this->_do_add_submenu_page(
+					$submenu_parent,
+					$page_meta['heading'],
+					$page_meta['menu_title'],
+					$page_meta['capability'],
+					$page_slug,
+					function () use ($page_slug) {
+						$this->render($page_slug);
+					}
+				);
+			}
+		}
+	}
+
+	// Internal Private Protected
+
+	/**
 	 * Render a registered settings page using the template or a default form shell.
+	 *
+	 * @internal WordPress callback for rendering admin settings.
+	 *
+	 * @param string $id_slug The page id, defaults to 'profile'.
+	 * @param array|null $context Optional context.
+	 *
+	 * @return void
 	 */
 	public function render(string $id_slug, ?array $context = null): void {
 		if (!isset($this->pages[$id_slug])) {
-			echo '<div class="wrap"><h1>Settings</h1><p>Unknown settings page.</p></div>';
+			echo '<div class="notice notice-error"><h1>Settings</h1><p>Unknown settings page.</p></div>';
 			return;
 		}
 		$this->_start_form_session();
@@ -421,10 +368,23 @@ class AdminSettings implements FormsInterface {
 		// Get effective values from message handler (handles pending values)
 		$effective_values = $this->message_handler->get_effective_values($options);
 
+		// Render before/after callbacks for the page
+		$before_html = $this->_render_callback_output($meta['before'] ?? null, array(
+			'container_id' => $id_slug,
+			'values'       => $effective_values,
+		)) ?? '';
+		$after_html = $this->_render_callback_output($meta['after'] ?? null, array(
+			'container_id' => $id_slug,
+			'values'       => $effective_values,
+		)) ?? '';
+
 		$rendered_content = $this->_render_default_sections_wrapper($id_slug, $sections, $effective_values);
 		$submit_controls  = $this->_get_submit_controls_for_page($id_slug);
 
 		$page_style = isset($meta['style']) ? trim((string) $meta['style']) : '';
+
+		// Check if page has file upload fields
+		$has_files = $this->_container_has_file_uploads($ref['page']);
 
 		$payload = array(
 			...($context ?? array()),
@@ -441,6 +401,9 @@ class AdminSettings implements FormsInterface {
 			'submit_controls'   => $submit_controls,
 			'render_submit'     => fn (): string => $this->_render_default_submit_controls($id_slug, $submit_controls),
 			'messages_by_field' => $this->message_handler->get_all_messages(),
+			'has_files'         => $has_files,
+			'before'            => $before_html,
+			'after'             => $after_html,
 		);
 
 		$schemaSummary = array();
@@ -507,7 +470,6 @@ class AdminSettings implements FormsInterface {
 		$this->form_session->enqueue_assets();
 	}
 
-	// Protected
 	// WP Settings API hooks
 
 	/**
@@ -829,7 +791,7 @@ class AdminSettings implements FormsInterface {
 	 */
 	protected function _handle_context_update(string $type, array $data): void {
 		// Route AdminSettings-specific types to custom handler
-		if (in_array($type, ['menu_group', 'menu_group_commit'], true)) {
+		if (in_array($type, array('menu_group', 'menu_group_commit'), true)) {
 			$this->_handle_custom_update($type, $data);
 			return;
 		}
@@ -1052,5 +1014,42 @@ class AdminSettings implements FormsInterface {
 		));
 
 		return $this->_render_submit_zone($page_slug, $zone_id, $submit_controls, $controls);
+	}
+
+	/**
+	 * Handle file uploads early in the request lifecycle.
+	 *
+	 * WordPress Settings API doesn't natively support file uploads because options.php
+	 * only processes $_POST data through the sanitize callback. This method intercepts
+	 * file uploads, processes them, and injects the results into $_POST so they reach
+	 * the sanitize callback.
+	 *
+	 * @return void
+	 */
+	protected function _handle_file_uploads(): void {
+		// Only process on POST requests
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing
+		if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+			return;
+		}
+
+		// Check if this is our option being saved
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing
+		$option_page = $_POST['option_page'] ?? '';
+		if ($option_page !== $this->main_option . '_group') {
+			return;
+		}
+
+		// Process uploaded files using shared utility
+		$processed = $this->_process_uploaded_files();
+
+		// Inject results into $_POST so they reach the sanitize callback
+		foreach ($processed as $fieldKey => $result) {
+			// phpcs:ignore WordPress.Security.NonceVerification.Missing
+			if (!isset($_POST[$this->main_option])) {
+				$_POST[$this->main_option] = array();
+			}
+			$_POST[$this->main_option][$fieldKey] = $result;
+		}
 	}
 }

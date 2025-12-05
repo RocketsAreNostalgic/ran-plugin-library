@@ -49,14 +49,6 @@ class UserSettings implements FormsInterface {
 	use FormsBaseTrait;
 	use WPWrappersTrait;
 
-	protected ComponentLoader $views;
-	protected RegisterOptions $base_options;
-
-	/**
-	 * @var ConfigInterface|null Optional Config for namespace resolution and component registration.
-	 */
-	protected ?ConfigInterface $config = null;
-
 	/**
 	 * Base context, storage and global captured from the injected RegisterOptions instance.
 	 * Retained so subsequent renders and saves can derive user_id/storage defaults.
@@ -152,150 +144,6 @@ class UserSettings implements FormsInterface {
 	}
 
 	/**
-	 * Register a single external component.
-	 *
-	 * Delegates to ComponentLoader and triggers discovery in ComponentManifest.
-	 *
-	 * @param string $name Component name (e.g., 'color-picker')
-	 * @param array{path: string, prefix?: string} $options Component options
-	 * @return static For fluent chaining
-	 */
-	public function register_component(string $name, array $options): static {
-		if ($this->config === null) {
-			$this->logger->warning("Cannot register external component '$name' without Config");
-			return $this;
-		}
-
-		$this->views->register_component($name, $options, $this->config);
-
-		// Trigger discovery for the newly registered component
-		$alias = isset($options['prefix']) ? $options['prefix'] . '.' . $name : $name;
-		$this->components->discover_alias($alias);
-
-		return $this;
-	}
-
-	/**
-	 * Register a builder factory for a component.
-	 *
-	 * Use this for components that don't have a Builder.php file but need
-	 * to work with the field() fluent API.
-	 *
-	 * @param string $alias The component alias (e.g., 'ext.my-component')
-	 * @param string|callable $builder The builder class name or factory callable
-	 * @return static For fluent chaining
-	 */
-	public function register_builder(string $alias, string|callable $builder): static {
-		$this->components->register_builder($alias, $builder);
-		return $this;
-	}
-
-	/**
-	 * Register multiple external components from a directory.
-	 *
-	 * Delegates to ComponentLoader and triggers discovery for all new components.
-	 *
-	 * @param array{path: string, prefix?: string} $options Batch options
-	 * @return static For fluent chaining
-	 */
-	public function register_components(array $options): static {
-		if ($this->config === null) {
-			$this->logger->warning('Cannot register external components without Config');
-			return $this;
-		}
-
-		// Capture aliases before registration
-		$before = array_keys($this->views->aliases());
-
-		$this->views->register_components($options, $this->config);
-
-		// Discover all newly added aliases
-		$after = array_keys($this->views->aliases());
-		foreach (array_diff($after, $before) as $alias) {
-			$this->components->discover_alias($alias);
-		}
-
-		return $this;
-	}
-
-	/**
-	 * Boot user settings: register collections, sections, fields and save handlers.
-	 *
-	 * @return void
-	 */
-	public function boot(): void {
-		$hooks = array();
-
-		foreach ($this->collections as $id_slug => $meta) {
-			$order  = (int) ($meta['order'] ?? 10);
-			$order  = $order < 0 ? 0 : $order;
-			$render = function ($user) use ($id_slug) {
-				if (!($user instanceof \WP_User)) {
-					return;
-				}
-				$this->render($id_slug, array('user' => $user));
-			};
-
-			$hooks[] = array(
-				'hook'          => 'show_user_profile',
-				'callback'      => $render,
-				'priority'      => $order,
-				'accepted_args' => 1,
-			);
-			$hooks[] = array(
-				'hook'          => 'edit_user_profile',
-				'callback'      => $render,
-				'priority'      => $order,
-				'accepted_args' => 1,
-			);
-		}
-
-		$save = function ($user_id) {
-			$user_id = (int) $user_id;
-			if (!$this->_do_current_user_can('edit_user', $user_id)) {
-				return; // silent deny to match WP conventions
-			}
-			$payload = isset($_POST[$this->main_option]) && is_array($_POST[$this->main_option]) ? $_POST[$this->main_option] : array();
-			$this->save_settings($payload, array('user_id' => $user_id));
-		};
-
-		$hooks[] = array(
-			'hook'          => 'personal_options_update',
-			'callback'      => $save,
-			'priority'      => 10,
-			'accepted_args' => 1,
-		);
-		$hooks[] = array(
-			'hook'          => 'edit_user_profile_update',
-			'callback'      => $save,
-			'priority'      => 10,
-			'accepted_args' => 1,
-		);
-
-		// Enqueue UserSettings CSS on profile pages
-		$enqueue_styles = function (string $hook_suffix): void {
-			if (!in_array($hook_suffix, array('profile.php', 'user-edit.php'), true)) {
-				return;
-			}
-			$css_url = $this->_do_plugins_url('assets/user.fieldset.css', __FILE__);
-			$this->_do_wp_enqueue_style(
-				'ran-plugin-lib-user-settings',
-				$css_url,
-				array(),
-				'1.0.0'
-			);
-		};
-		$hooks[] = array(
-			'hook'          => 'admin_enqueue_scripts',
-			'callback'      => $enqueue_styles,
-			'priority'      => 10,
-			'accepted_args' => 1,
-		);
-
-		$this->_register_action_hooks($hooks);
-	}
-
-	/**
 	 * Add a profile collection (new group) onto the user profile page.
 	 *
 	 * The AdminSettings collerary is the page() method.
@@ -347,80 +195,101 @@ class UserSettings implements FormsInterface {
 	}
 
 	/**
-	 * Normalize and persist posted values for a user.
+	 * Boot user settings: register collections, sections, fields and save handlers.
 	 *
-	 * @param int $user_id
-	 * @param mixed $raw
+	 * @return void
 	 */
-	public function save_settings(array $payload, array $context): void {
-		$user_id = isset($context['user_id']) ? (int) $context['user_id'] : 0;
-		if ($user_id <= 0) {
-			return;
-		}
-		$storage = isset($context['storage']) ? strtolower((string) $context['storage']) : $this->base_storage;
-		$storage = $storage === 'option' ? 'option' : 'meta';
-		$global  = $storage === 'option' ? (bool) ($context['global'] ?? ($storage === $this->base_storage ? $this->base_global : false)) : false;
-		$opts    = $this->resolve_options(array(
-			'user_id' => $user_id,
-			'storage' => $storage,
-			'global'  => $global,
-		));
+	public function boot(): void {
+		$hooks = array();
 
-		$this->_prepare_validation_messages($payload);
+		// 1. Render hooks (show_user_profile, edit_user_profile)
+		foreach ($this->collections as $id_slug => $meta) {
+			$order  = (int) ($meta['order'] ?? 10);
+			$order  = $order < 0 ? 0 : $order;
+			$render = function ($user) use ($id_slug) {
+				if (!($user instanceof \WP_User)) {
+					return;
+				}
+				$this->render($id_slug, array('user' => $user));
+			};
 
-		$previous_options = $opts->get_options();
-
-		$bundle = $this->_resolve_schema_bundle($opts, array(
-			'intent'       => 'save',
-			'user_id'      => $user_id,
-			'storage_kind' => $storage,
-			'global'       => $global ? '1' : '0',
-		));
-
-		// Consolidate bundle sources into single registration call
-		$merged = $this->_merge_schema_bundle_sources($bundle);
-		if (!empty($merged['merged_schema'])) {
-			$opts->_register_internal_schema(
-				$merged['merged_schema'],
-				$merged['metadata'],
-				$merged['queued_validators'],
-				$merged['queued_sanitizers'],
-				$merged['defaults_for_seeding']
+			$hooks[] = array(
+				'hook'          => 'show_user_profile',
+				'callback'      => $render,
+				'priority'      => $order,
+				'accepted_args' => 1,
+			);
+			$hooks[] = array(
+				'hook'          => 'edit_user_profile',
+				'callback'      => $render,
+				'priority'      => $order,
+				'accepted_args' => 1,
 			);
 		}
 
-		// Seed defaults for missing keys (register_schema handles seeding + telemetry)
-		if (!empty($merged['defaults_for_seeding'])) {
-			$opts->register_schema($merged['defaults_for_seeding']);
-		}
+		// 2. Save hooks (personal_options_update, edit_user_profile_update)
+		$save = function ($user_id) {
+			$user_id = (int) $user_id;
+			if (!$this->_do_current_user_can('edit_user', $user_id)) {
+				return; // silent deny to match WP conventions
+			}
+			$payload = isset($_POST[$this->main_option]) && is_array($_POST[$this->main_option]) ? $_POST[$this->main_option] : array();
 
-		// Stage options and check for validation failures
-		$opts->stage_options($payload);
-		$messages = $this->_process_validation_messages($opts);
+			// Handle file uploads - WordPress profile form already has enctype="multipart/form-data"
+			$payload = $this->_process_file_uploads($payload);
 
-		if ($this->_has_validation_failures()) {
-			$this->_log_validation_failure(
-				'UserSettings::save_settings validation failed; aborting persistence.',
-				array(
-					'user_id'             => $user_id,
-					'validation_messages' => $messages,
-				)
+			$this->_save_settings($payload, array('user_id' => $user_id));
+		};
+
+		// User saving their own profile
+		$hooks[] = array(
+			'hook'          => 'personal_options_update',
+			'callback'      => $save,
+			'priority'      => 10,
+			'accepted_args' => 1,
+		);
+		// Admin saving another user's profile
+		$hooks[] = array(
+			'hook'          => 'edit_user_profile_update',
+			'callback'      => $save,
+			'priority'      => 10,
+			'accepted_args' => 1,
+		);
+
+		// 3. File upload enctype injection (admin_enqueue_scripts)
+		// This must happen in boot() because WordPress's #your-profile form needs
+		// the enctype attribute set before our fields render
+		$has_file_uploads = array_filter(
+			array_keys($this->collections),
+			fn(string $id): bool => $this->_container_has_file_uploads($id)
+		);
+		if ($has_file_uploads !== array()) {
+			$hooks[] = array(
+				'hook'     => 'admin_enqueue_scripts',
+				'callback' => function (string $hook_suffix): void {
+					if (!in_array($hook_suffix, array('profile.php', 'user-edit.php'), true)) {
+						return;
+					}
+					$this->_do_wp_add_inline_script(
+						'jquery',
+						'jQuery(function($){$("#your-profile").attr("enctype","multipart/form-data");});',
+						'after'
+					);
+				},
+				'priority'      => 10,
+				'accepted_args' => 1,
 			);
-
-			$opts->clear();
-			$opts->stage_options($previous_options);
-			return;
 		}
 
-		$opts->commit_merge();
-		// Note: commit_merge returns false when no changes were made (WordPress behavior).
-		// This is not a failure - the data is already correct in the database.
-		// We only need to clear pending validation state on success or no-change.
-		$this->_clear_pending_validation();
+		$this->_register_action_hooks($hooks);
 	}
+
+	// Internal Private Protected
 
 	/**
 	 * Render a profile collection.
+	 *
+	 * @internal WordPress callback for rendering user settings.
 	 *
 	 * @param string $id_slug The collection id, defaults to 'profile'.
 	 * @param array|null $context Optional context.
@@ -429,7 +298,8 @@ class UserSettings implements FormsInterface {
 	 */
 	public function render(string $id_slug = 'profile', ?array $context = null): void {
 		if (!isset($this->collections[$id_slug])) {
-			return; // Collection not registered
+			echo '<div class="notice notice-error"><p>Unknown settings collection.</p></div>';
+			return;
 		}
 		$this->_start_form_session();
 
@@ -461,6 +331,9 @@ class UserSettings implements FormsInterface {
 
 		$collection_style = isset($collection_meta['style']) ? trim((string) $collection_meta['style']) : '';
 
+		// Check if collection has file upload fields
+		$has_files = $this->_container_has_file_uploads($id_slug);
+
 		$payload = array(
 			...($context ?? array()),
 			'heading'     => $collection_meta['heading']     ?? '',
@@ -473,6 +346,7 @@ class UserSettings implements FormsInterface {
 				'values'            => $effective_values,
 				'inner_html'        => $this->_render_default_sections_wrapper($id_slug, $sections, $effective_values),
 				'messages_by_field' => $this->message_handler->get_all_messages(),
+				'has_files'         => $has_files,
 				'before'            => $before_html,
 				'after'             => $after_html,
 			),
@@ -540,7 +414,82 @@ class UserSettings implements FormsInterface {
 		$this->form_session->enqueue_assets();
 	}
 
-	// Protected
+	// WP hooks
+	/**
+	 * Normalize and persist posted values for a user.
+	 *
+	 * @internal WordPress callback for saving user settings.
+	 *
+	 * @param array<string,mixed> $payload The posted values.
+	 * @param array<string,mixed> $context The context for the save operation.
+	 */
+	public function _save_settings(array $payload, array $context): void {
+		$user_id = isset($context['user_id']) ? (int) $context['user_id'] : 0;
+		if ($user_id <= 0) {
+			return;
+		}
+		$storage = isset($context['storage']) ? strtolower((string) $context['storage']) : $this->base_storage;
+		$storage = $storage === 'option' ? 'option' : 'meta';
+		$global  = $storage === 'option' ? (bool) ($context['global'] ?? ($storage === $this->base_storage ? $this->base_global : false)) : false;
+		$opts    = $this->resolve_options(array(
+			'user_id' => $user_id,
+			'storage' => $storage,
+			'global'  => $global,
+		));
+
+		$this->_prepare_validation_messages($payload);
+
+		$previous_options = $opts->get_options();
+
+		$bundle = $this->_resolve_schema_bundle($opts, array(
+			'intent'       => 'save',
+			'user_id'      => $user_id,
+			'storage_kind' => $storage,
+			'global'       => $global ? '1' : '0',
+		));
+
+		// Consolidate bundle sources into single registration call
+		$merged = $this->_merge_schema_bundle_sources($bundle);
+		if (!empty($merged['merged_schema'])) {
+			$opts->_register_internal_schema(
+				$merged['merged_schema'],
+				$merged['metadata'],
+				$merged['queued_validators'],
+				$merged['queued_sanitizers'],
+				$merged['defaults_for_seeding']
+			);
+		}
+
+		// Seed defaults for missing keys (register_schema handles seeding + telemetry)
+		if (!empty($merged['defaults_for_seeding'])) {
+			$opts->register_schema($merged['defaults_for_seeding']);
+		}
+
+		// Stage options and check for validation failures
+		$opts->stage_options($payload);
+		$messages = $this->_process_validation_messages($opts);
+
+		if ($this->_has_validation_failures()) {
+			$this->_log_validation_failure(
+				'UserSettings::_save_settings validation failed; aborting persistence.',
+				array(
+					'user_id'             => $user_id,
+					'validation_messages' => $messages,
+				)
+			);
+
+			$opts->clear();
+			$opts->stage_options($previous_options);
+			return;
+		}
+
+		$opts->commit_merge();
+		// Note: commit_merge returns false when no changes were made (WordPress behavior).
+		// This is not a failure - the data is already correct in the database.
+		// We only need to clear pending validation state on success or no-change.
+		$this->_clear_pending_validation();
+	}
+
 	// Resolvers
 
 	/**
@@ -806,5 +755,19 @@ class UserSettings implements FormsInterface {
 		}
 
 		return $output;
+	}
+
+	/**
+	 * Process file uploads from $_FILES and merge into payload.
+	 *
+	 * WordPress profile form does NOT have enctype="multipart/form-data" by default,
+	 * so we add it via JavaScript when file upload fields are present.
+	 *
+	 * @param array<string,mixed> $payload The current payload from $_POST.
+	 * @return array<string,mixed> The payload with processed file data merged in.
+	 */
+	protected function _process_file_uploads(array $payload): array {
+		$processed = $this->_process_uploaded_files();
+		return array_merge($payload, $processed);
 	}
 }

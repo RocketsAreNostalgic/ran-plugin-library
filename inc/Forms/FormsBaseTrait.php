@@ -25,6 +25,8 @@ use Ran\PluginLib\Forms\FormsAssets;
 use Ran\PluginLib\Forms\Component\ComponentType;
 use Ran\PluginLib\Forms\Component\ComponentRenderResult;
 use Ran\PluginLib\Forms\Component\ComponentManifest;
+use Ran\PluginLib\Forms\Component\ComponentLoader;
+use Ran\PluginLib\Config\ConfigInterface;
 
 /**
  * Shared functionality for form-based classes.
@@ -53,6 +55,8 @@ trait FormsBaseTrait {
 	protected string $main_option;
 	protected ?array $pending_values = null;
 	protected ComponentManifest $components;
+	protected ComponentLoader $views;
+	protected ?ConfigInterface $config = null;
 	protected FormsService $form_service;
 	protected FormElementRenderer $field_renderer;
 	protected FormMessageHandler $message_handler;
@@ -245,6 +249,60 @@ trait FormsBaseTrait {
 	 */
 	public function get_form_session(): ?FormsServiceSession {
 		return $this->form_session;
+	}
+
+	// -- Component Registration --
+
+	/**
+	 * Register a single external component.
+	 *
+	 * Delegates to ComponentLoader and triggers discovery in ComponentManifest.
+	 *
+	 * @param string $name Component name (e.g., 'color-picker')
+	 * @param array{path: string, prefix?: string} $options Component options
+	 * @return static For fluent chaining
+	 */
+	public function register_component(string $name, array $options): static {
+		if ($this->config === null) {
+			$this->logger->warning("Cannot register external component '$name' without Config");
+			return $this;
+		}
+
+		$this->views->register_component($name, $options, $this->config);
+
+		// Trigger discovery for the newly registered component
+		$alias = isset($options['prefix']) ? $options['prefix'] . '.' . $name : $name;
+		$this->components->discover_alias($alias);
+
+		return $this;
+	}
+
+	/**
+	 * Register multiple external components from a directory.
+	 *
+	 * Delegates to ComponentLoader and triggers discovery for all new components.
+	 *
+	 * @param array{path: string, prefix?: string} $options Batch options
+	 * @return static For fluent chaining
+	 */
+	public function register_components(array $options): static {
+		if ($this->config === null) {
+			$this->logger->warning('Cannot register external components without Config');
+			return $this;
+		}
+
+		// Capture aliases before registration
+		$before = array_keys($this->views->aliases());
+
+		$this->views->register_components($options, $this->config);
+
+		// Discover all newly added aliases
+		$after = array_keys($this->views->aliases());
+		foreach (array_diff($after, $before) as $alias) {
+			$this->components->discover_alias($alias);
+		}
+
+		return $this;
 	}
 
 	// =========================================================================
@@ -2261,5 +2319,181 @@ trait FormsBaseTrait {
 		));
 
 		return array($bucketedSchema, $queuedForSchema);
+	}
+
+	// -- File Upload Utilities --
+
+	/**
+	 * Check if a container (page/collection) contains file upload fields.
+	 *
+	 * @param string $container_id The container ID to check.
+	 * @return bool True if the container has file upload fields.
+	 */
+	protected function _container_has_file_uploads(string $container_id): bool {
+		// Check fields registered for this container
+		$container_fields = $this->fields[$container_id] ?? array();
+		foreach ($container_fields as $section_id => $fields) {
+			foreach ($fields as $field) {
+				$component = $field['component'] ?? '';
+				if ($component === 'fields.file-upload') {
+					return true;
+				}
+			}
+		}
+
+		// Check groups registered for this container
+		$container_groups = $this->groups[$container_id] ?? array();
+		foreach ($container_groups as $section_id => $groups) {
+			foreach ($groups as $group_id => $group) {
+				$group_fields = $group['fields'] ?? array();
+				foreach ($group_fields as $field) {
+					$component = $field['component'] ?? '';
+					if ($component === 'fields.file-upload') {
+						return true;
+					}
+				}
+			}
+		}
+
+		return false;
+	}
+
+	/**
+	 * Process uploaded files from $_FILES for the main option.
+	 *
+	 * Iterates through uploaded files, validates them, and processes each one.
+	 * Returns an array of field_key => processed_file_data pairs.
+	 *
+	 * @return array<string, array<string,mixed>> Processed file data keyed by field.
+	 */
+	protected function _process_uploaded_files(): array {
+		$processed = array();
+
+		// Check if there are any files uploaded for our option
+		if (!isset($_FILES[$this->main_option]) || !is_array($_FILES[$this->main_option])) {
+			return $processed;
+		}
+
+		$optionFiles = $_FILES[$this->main_option];
+
+		// Process each file field
+		foreach ($optionFiles['name'] as $fieldKey => $fileName) {
+			// Skip if no file was uploaded for this field
+			if (empty($fileName) || $optionFiles['error'][$fieldKey] === UPLOAD_ERR_NO_FILE) {
+				continue;
+			}
+
+			// Skip if there was an upload error
+			if ($optionFiles['error'][$fieldKey] !== UPLOAD_ERR_OK) {
+				$this->logger->warning('FormsBaseTrait._process_uploaded_files: Upload error', array(
+					'field'      => $fieldKey,
+					'error_code' => $optionFiles['error'][$fieldKey],
+				));
+				continue;
+			}
+
+			// Reconstruct the file array for this specific field
+			$file = array(
+				'name'     => $optionFiles['name'][$fieldKey],
+				'type'     => $optionFiles['type'][$fieldKey],
+				'tmp_name' => $optionFiles['tmp_name'][$fieldKey],
+				'error'    => $optionFiles['error'][$fieldKey],
+				'size'     => $optionFiles['size'][$fieldKey],
+			);
+
+			// Process the upload using WordPress
+			$result = $this->_process_single_file_upload($file);
+
+			if ($result !== null) {
+				$processed[$fieldKey] = $result;
+				$this->logger->debug('FormsBaseTrait._process_uploaded_files: File processed', array(
+					'field'  => $fieldKey,
+					'result' => $result,
+				));
+			}
+		}
+
+		return $processed;
+	}
+
+	/**
+	 * Process a single file upload using WordPress functions.
+	 *
+	 * @param array<string,mixed> $file The file data from $_FILES.
+	 * @return array<string,mixed>|null The processed file data or null on failure.
+	 */
+	protected function _process_single_file_upload(array $file): ?array {
+		// Verify the file exists and is an uploaded file
+		if (empty($file['tmp_name']) || !is_uploaded_file($file['tmp_name'])) {
+			return null;
+		}
+
+		// Use WordPress upload handler
+		$overrides = array(
+			'test_form' => false, // We've already verified the form
+			'test_type' => true,  // Check MIME type
+		);
+
+		$result = wp_handle_upload($file, $overrides);
+
+		if (isset($result['error'])) {
+			$this->logger->warning('FormsBaseTrait._process_single_file_upload: Upload failed', array(
+				'error' => $result['error'],
+				'file'  => $file['name'],
+			));
+			return null;
+		}
+
+		// Build the file data array
+		$fileData = array(
+			'url'      => $result['url'],
+			'file'     => $result['file'],
+			'type'     => $result['type'],
+			'filename' => sanitize_file_name($file['name']),
+		);
+
+		// Optionally create a media library attachment
+		$attachmentId = $this->_create_media_attachment($result);
+		if ($attachmentId !== null) {
+			$fileData['attachment_id'] = $attachmentId;
+		}
+
+		return $fileData;
+	}
+
+	/**
+	 * Create a media library attachment for an uploaded file.
+	 *
+	 * @param array<string,mixed> $uploadResult The result from wp_handle_upload.
+	 * @return int|null The attachment ID or null on failure.
+	 */
+	protected function _create_media_attachment(array $uploadResult): ?int {
+		$filePath = $uploadResult['file'];
+		$fileUrl  = $uploadResult['url'];
+		$fileType = $uploadResult['type'];
+
+		$attachment = array(
+			'guid'           => $fileUrl,
+			'post_mime_type' => $fileType,
+			'post_title'     => preg_replace('/\.[^.]+$/', '', basename($filePath)),
+			'post_content'   => '',
+			'post_status'    => 'inherit',
+		);
+
+		$attachmentId = wp_insert_attachment($attachment, $filePath);
+
+		if (is_wp_error($attachmentId)) {
+			$this->logger->warning('FormsBaseTrait._create_media_attachment: Failed to create attachment', array(
+				'error' => $attachmentId->get_error_message(),
+			));
+			return null;
+		}
+
+		// Generate attachment metadata
+		require_once ABSPATH . 'wp-admin/includes/image.php';
+		$attachmentData = wp_generate_attachment_metadata($attachmentId, $filePath);
+		wp_update_attachment_metadata($attachmentId, $attachmentData);
+
+		return $attachmentId;
 	}
 }
