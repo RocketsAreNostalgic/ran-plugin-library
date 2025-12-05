@@ -341,6 +341,32 @@ class AdminSettings implements FormsInterface {
 			'fields' => $schemaSummary,
 		));
 
+		// Enqueue Forms base CSS JIT during render
+		/**
+		 * Filter the Forms base stylesheet URL.
+		 *
+		 * Return an empty string to disable the default stylesheet,
+		 * or a different URL to use a custom stylesheet.
+		 *
+		 * @param string $css_url The default stylesheet URL.
+		 * @param string $id_slug The page being rendered.
+		 * @param AdminSettings $instance The AdminSettings instance.
+		 */
+		$base_css_url = $this->_do_apply_filter(
+			'ran_plugin_lib_forms_base_stylesheet_url',
+			$this->_do_plugins_url('../Forms/assets/forms.base.css', __FILE__),
+			$id_slug,
+			$this
+		);
+		if ($base_css_url !== '') {
+			$this->_do_wp_enqueue_style(
+				'ran-plugin-lib-forms-base',
+				$base_css_url,
+				array(),
+				'1.0.0'
+			);
+		}
+
 		// Enqueue AdminSettings CSS JIT during render
 		/**
 		 * Filter the AdminSettings stylesheet URL.
@@ -362,7 +388,7 @@ class AdminSettings implements FormsInterface {
 			$this->_do_wp_enqueue_style(
 				'ran-plugin-lib-admin-settings',
 				$css_url,
-				array(),
+				array('ran-plugin-lib-forms-base'),
 				'1.0.0'
 			);
 		}

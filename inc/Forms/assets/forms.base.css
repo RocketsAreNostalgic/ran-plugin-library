@@ -1,0 +1,180 @@
+/**
+ * Kepler Forms Base CSS
+ *
+ * Shared styles for all form contexts (AdminSettings, UserSettings, FrontendForms).
+ * Context-specific styles should be in their respective CSS files.
+ *
+ * @package KeplerLib
+ */
+
+/* ==========================================================================
+   CSS Custom Properties (Variables)
+   ========================================================================== */
+
+:root {
+  --kplr-border-color: #c3c4c7;
+  --kplr-border-radius: 4px;
+  --kplr-spacing-xs: 0.25rem;
+  --kplr-spacing-sm: 0.5rem;
+  --kplr-spacing-md: 1rem;
+  --kplr-spacing-lg: 1.5rem;
+  --kplr-color-error: #d63638;
+  --kplr-color-warning: #dba617;
+  --kplr-color-success: #00a32a;
+  --kplr-color-info: #72aee6;
+}
+
+/* ==========================================================================
+   Form Container
+   ========================================================================== */
+
+.kplr-form {
+  box-sizing: border-box;
+}
+
+.kplr-form *,
+.kplr-form *::before,
+.kplr-form *::after {
+  box-sizing: inherit;
+}
+
+.kplr-form__title {
+  margin-top: 0;
+}
+
+.kplr-form__description {
+  margin-bottom: var(--kplr-spacing-md);
+}
+
+/* ==========================================================================
+   Section
+   ========================================================================== */
+
+.kplr-section__title {
+  margin: 0 0 var(--kplr-spacing-sm);
+}
+
+.kplr-section__description {
+  margin: 0 0 var(--kplr-spacing-sm);
+  color: #646970;
+}
+
+/* ==========================================================================
+   Group
+   ========================================================================== */
+
+.kplr-group__title {
+  margin: 0 0 var(--kplr-spacing-sm);
+  font-size: 1em;
+  font-weight: 600;
+}
+
+.kplr-group__description {
+  margin: 0 0 var(--kplr-spacing-sm);
+  color: #646970;
+}
+
+/* ==========================================================================
+   Fieldset
+   ========================================================================== */
+
+.kplr-fieldset {
+  margin: 0;
+  padding: 0;
+  border: none;
+}
+
+.kplr-fieldset__title {
+  margin: 0 0 var(--kplr-spacing-sm);
+  font-size: 1em;
+  font-weight: 600;
+}
+
+.kplr-fieldset__description {
+  margin: 0 0 var(--kplr-spacing-sm);
+  color: #646970;
+}
+
+/* ==========================================================================
+   Field
+   ========================================================================== */
+
+.kplr-field {
+  margin-bottom: var(--kplr-spacing-md);
+}
+
+.kplr-field:last-child {
+  margin-bottom: 0;
+}
+
+.kplr-field__label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: var(--kplr-spacing-xs);
+}
+
+.kplr-field__required {
+  color: var(--kplr-color-error);
+  margin-left: 0.25em;
+}
+
+.kplr-field__description {
+  margin-top: var(--kplr-spacing-xs);
+  color: #646970;
+  font-size: 0.9em;
+}
+
+/* ==========================================================================
+   Messages (Validation & Notices)
+   ========================================================================== */
+
+.kplr-messages {
+  margin-top: var(--kplr-spacing-sm);
+}
+
+.kplr-messages__item {
+  padding: var(--kplr-spacing-xs) var(--kplr-spacing-sm);
+  margin-bottom: var(--kplr-spacing-xs);
+  border-radius: var(--kplr-border-radius);
+  font-size: 0.9em;
+}
+
+.kplr-messages__item:last-child {
+  margin-bottom: 0;
+}
+
+.kplr-messages__item--warning {
+  background-color: #fcf0f1;
+  border-left: 4px solid var(--kplr-color-error);
+  color: var(--kplr-color-error);
+}
+
+.kplr-messages__item--notice {
+  background-color: #f0f6fc;
+  border-left: 4px solid var(--kplr-color-info);
+  color: #1d2327;
+}
+
+/* ==========================================================================
+   Debug/Test Styles
+   ========================================================================== */
+
+.kplr-form.test {
+  border: 1px solid red;
+}
+
+.kplr-form.test .kplr-section {
+  outline: 1px dashed blue;
+}
+
+.kplr-form.test .kplr-group {
+  outline: 1px dashed green;
+}
+
+.kplr-form.test .kplr-fieldset {
+  outline: 1px dashed orange;
+}
+
+.kplr-form.test .kplr-field {
+  outline: 1px dashed purple;
+}

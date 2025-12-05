@@ -136,10 +136,11 @@ class UserSettings implements FormsInterface {
 
 		// UserSettings overrides all template levels for profile-specific rendering
 		$this->form_session->set_form_defaults(array(
-			'root-wrapper'    => 'user.root-wrapper',
-			'section-wrapper' => 'user.section-wrapper',
-			'group-wrapper'   => 'user.group-wrapper',
-			'field-wrapper'   => 'user.field-wrapper',
+			'root-wrapper'           => 'user.root-wrapper',
+			'section-wrapper'        => 'user.section-wrapper',
+			'group-wrapper'          => 'user.group-wrapper',
+			'field-wrapper'          => 'user.field-wrapper',
+			'fieldset-field-wrapper' => 'user.field-wrapper',
 		));
 	}
 
@@ -374,6 +375,32 @@ class UserSettings implements FormsInterface {
 			'fields'     => $schemaSummary,
 		));
 
+		// Enqueue Forms base CSS JIT during render
+		/**
+		 * Filter the Forms base stylesheet URL.
+		 *
+		 * Return an empty string to disable the default stylesheet,
+		 * or a different URL to use a custom stylesheet.
+		 *
+		 * @param string $css_url The default stylesheet URL.
+		 * @param string $id_slug The collection being rendered.
+		 * @param UserSettings $instance The UserSettings instance.
+		 */
+		$base_css_url = $this->_do_apply_filter(
+			'ran_plugin_lib_forms_base_stylesheet_url',
+			$this->_do_plugins_url('../Forms/assets/forms.base.css', __FILE__),
+			$id_slug,
+			$this
+		);
+		if ($base_css_url !== '') {
+			$this->_do_wp_enqueue_style(
+				'ran-plugin-lib-forms-base',
+				$base_css_url,
+				array(),
+				'1.0.0'
+			);
+		}
+
 		// Enqueue UserSettings CSS JIT during render
 		/**
 		 * Filter the UserSettings stylesheet URL.
@@ -395,7 +422,7 @@ class UserSettings implements FormsInterface {
 			$this->_do_wp_enqueue_style(
 				'ran-plugin-lib-user-settings',
 				$css_url,
-				array(),
+				array('ran-plugin-lib-forms-base'),
 				'1.0.0'
 			);
 		}
