@@ -5,19 +5,19 @@
  *
  * @var array{
  *     input_attributes:string,
- *     label_text:string,
+ *     label:string,
  *     unchecked_value:?string,
  *     name:?string,
  *     id:?string
  * } $context
  */
-$id               = isset($context['id']) ? (string) $context['id'] : '';
-$inputAttributes  = isset($context['input_attributes']) ? trim((string) $context['input_attributes']) : '';
-$checkboxAttrs    = isset($context['checkbox_attributes']) ? trim((string) $context['checkbox_attributes']) : $inputAttributes;
-$hiddenAttrs      = isset($context['hidden_attributes']) ? trim((string) $context['hidden_attributes']) : '';
-$labelText        = isset($context['label_text']) ? (string) $context['label_text'] : '';
-$uncheckedValue   = isset($context['unchecked_value']) ? (string) $context['unchecked_value'] : null;
-$name             = isset($context['name']) ? (string) $context['name'] : null;
+$id              = isset($context['id']) ? (string) $context['id'] : '';
+$inputAttributes = isset($context['input_attributes']) ? trim((string) $context['input_attributes']) : '';
+$checkboxAttrs   = isset($context['checkbox_attributes']) ? trim((string) $context['checkbox_attributes']) : $inputAttributes;
+$hiddenAttrs     = isset($context['hidden_attributes']) ? trim((string) $context['hidden_attributes']) : '';
+$labelText       = isset($context['label']) ? (string) $context['label'] : '';
+$uncheckedValue  = isset($context['unchecked_value']) ? (string) $context['unchecked_value'] : null;
+$name            = isset($context['name']) ? (string) $context['name'] : null;
 
 ob_start();
 // Hidden input MUST come before checkbox so checkbox value overwrites it when checked
@@ -42,9 +42,9 @@ return new ComponentRenderResult(
 	repeatable: false,
 	context_schema: array(
 	    'required' => array('input_attributes'),
-	    'optional' => array('id', 'label_text', 'unchecked_value', 'name'),
+	    'optional' => array('id', 'label', 'unchecked_value', 'name'),
 	    'defaults' => array(
-	        'label_text'      => '',
+	        'label'           => '',
 	        'unchecked_value' => 'off',
 	        'name'            => null,
 	    ),

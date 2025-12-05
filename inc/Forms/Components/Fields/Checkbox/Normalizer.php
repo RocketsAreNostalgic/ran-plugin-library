@@ -22,9 +22,9 @@ final class Normalizer extends NormalizerBase {
 			$context['default_checked'] = $this->_sanitize_boolean($context['default_checked'], 'default checked');
 		}
 
-		// Normalize label text
-		if (isset($context['label_text'])) {
-			$context['label_text'] = $this->_sanitize_string($context['label_text'], 'label text');
+		// Normalize label
+		if (isset($context['label'])) {
+			$context['label'] = $this->_sanitize_string($context['label'], 'label');
 		}
 
 		// Build checkbox attributes
@@ -54,9 +54,9 @@ final class Normalizer extends NormalizerBase {
 		}
 
 		// Determine checked state: use stored value if present, otherwise use default_checked
-		$storedValue   = $context['value'] ?? null;
-		$checkedValue  = $context['checked_value'];
-		$isChecked     = false;
+		$storedValue  = $context['value'] ?? null;
+		$checkedValue = $context['checked_value'];
+		$isChecked    = false;
 
 		if ($storedValue !== null) {
 			// Compare stored value with checked_value to determine state

@@ -7,29 +7,18 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\Forms\Components\Fields\Checkbox;
 
-use Ran\PluginLib\Forms\Component\Build\ComponentBuilderBase;
+use Ran\PluginLib\Forms\Component\Build\ComponentBuilderInputBase;
 
-final class Builder extends ComponentBuilderBase {
+final class Builder extends ComponentBuilderInputBase {
 	private ?string $text           = null;
-	private ?string $name           = null;
 	private string $checkedValue    = 'on';
 	private ?string $uncheckedValue = 'off';
 	private bool $defaultChecked    = false;
 
-	public function __construct(string $id, string $label) {
-		parent::__construct($id, $label);
-	}
-
-	// description() method inherited from ComponentBuilderBase
+	// description(), disabled(), required(), name() methods inherited from ComponentBuilderInputBase
 
 	public function text(?string $text): static {
 		$this->text = $text;
-		return $this;
-	}
-
-	public function name(string $name): static {
-		$this->name               = trim($name);
-		$this->attributes['name'] = $this->name;
 		return $this;
 	}
 
@@ -44,30 +33,15 @@ final class Builder extends ComponentBuilderBase {
 		return $this;
 	}
 
-	public function attribute(string $key, string $value): static {
-		parent::attribute($key, $value);
-		if ($key === 'name') {
-			$this->name = trim($value);
-		}
-		return $this;
-	}
-
 	protected function _build_component_context(): array {
-		// Use field ID as default name if not explicitly set (consistent with other input builders)
-		$name = $this->name ?? $this->id;
-		if ($name === '') {
-			throw new \InvalidArgumentException(sprintf('CheckboxField "%s" requires a name before rendering.', $this->id));
-		}
+		// Start with input context (includes name, disabled, required, etc.)
+		$context = $this->_build_input_context();
 
-		// Start with base context (attributes, description)
-		$context = $this->_build_base_context();
-
-		// Add required properties
+		// Add checkbox-specific properties
 		$context['checked_value'] = $this->checkedValue;
-		$context['name']          = $name;
 
 		// Add optional properties using base class helpers
-		$this->_add_if_not_empty($context, 'label_text', $this->text);
+		$this->_add_if_not_empty($context, 'label', $this->text);
 		$this->_add_if_not_empty($context, 'unchecked_value', $this->uncheckedValue);
 		$this->_add_if_true($context, 'default_checked', $this->defaultChecked);
 

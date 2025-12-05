@@ -64,23 +64,27 @@ final class Normalizer extends NormalizerBase {
 			$this->session->appendAriaDescribedBy($attributes, $optionDescId);
 		}
 
-		$payload = $this->views->render_payload('fields.checkbox-option', array(
+		$result = $this->views->render_payload('fields.checkbox-option', array(
 			'input_attributes' => $this->session->formatAttributes($attributes),
 			'label'            => $this->_sanitize_string($option['label'] ?? '', 'option label'),
 			'description'      => $optionDesc,
 			'description_id'   => $optionDescId,
 		));
 
-		if (!is_array($payload) || !isset($payload['markup'])) {
-			$error = 'fields.checkbox-option must return component payload array.';
-			$this->logger->error('Template payload validation failed', array(
-				'template'     => 'fields.checkbox-option',
-				'payload_type' => gettype($payload),
-				'has_markup'   => is_array($payload) ? isset($payload['markup']) : false
-			));
-			throw new \UnexpectedValueException($error);
+		if ($result instanceof \Ran\PluginLib\Forms\Component\ComponentRenderResult) {
+			return $result->markup;
 		}
 
-		return $payload['markup'];
+		// Legacy array format support
+		if (is_array($result) && isset($result['markup'])) {
+			return $result['markup'];
+		}
+
+		$error = 'fields.checkbox-option must return ComponentRenderResult or array with markup.';
+		$this->logger->error('Template payload validation failed', array(
+			'template'     => 'fields.checkbox-option',
+			'payload_type' => gettype($result),
+		));
+		throw new \UnexpectedValueException($error);
 	}
 }
