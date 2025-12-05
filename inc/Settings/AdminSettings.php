@@ -246,6 +246,97 @@ class AdminSettings implements FormsInterface {
 		$this->_register_action_hooks($hooks);
 	}
 
+	// Internal Private Protected
+
+	/**
+	 * Render a registered settings page using the template or a default form shell.
+	 *
+	 * @internal WordPress callback for rendering admin settings.
+	 *
+	 * @param string $id_slug The page id, defaults to 'profile'.
+	 * @param array|null $context Optional context.
+	 *
+	 * @return void
+	 */
+	public function render(string $id_slug, ?array $context = null): void {
+		if (!isset($this->pages[$id_slug])) {
+			echo '<div class="notice notice-error"><h1>Settings</h1><p>Unknown settings page.</p></div>';
+			return;
+		}
+		$this->_start_form_session();
+
+		$ref  = $this->_resolve_page_reference($id_slug);
+		$meta = $ref['meta'];
+
+		$bundle = $this->_resolve_schema_bundle($this->base_options, array(
+			'intent'    => 'render',
+			'page_slug' => $id_slug,
+		));
+		$internalSchema = $bundle['schema'];
+		$group          = $this->main_option . '_group';
+		$options        = $this->_do_get_option($this->main_option, array());
+		$sections       = $this->sections[$ref['page']] ?? array();
+
+		// Get effective values from message handler (handles pending values)
+		$effective_values = $this->message_handler->get_effective_values($options);
+
+		// Render before/after callbacks for the page
+		$before_html = $this->_render_callback_output($meta['before'] ?? null, array(
+			'container_id' => $id_slug,
+			'values'       => $effective_values,
+		)) ?? '';
+		$after_html = $this->_render_callback_output($meta['after'] ?? null, array(
+			'container_id' => $id_slug,
+			'values'       => $effective_values,
+		)) ?? '';
+
+		$rendered_content = $this->_render_default_sections_wrapper($id_slug, $sections, $effective_values);
+		$submit_controls  = $this->_get_submit_controls_for_page($id_slug);
+
+		$page_style = isset($meta['style']) ? trim((string) $meta['style']) : '';
+
+		// Check if page has file upload fields
+		$has_files = $this->_container_has_file_uploads($ref['page']);
+
+		$payload = array(
+			...($context ?? array()),
+			'heading'           => $meta['heading']     ?? '',
+			'description'       => $meta['description'] ?? '',
+			'group'             => $group,
+			'page_slug'         => $id_slug,
+			'page_meta'         => $meta,
+			'style'             => $page_style,
+			'options'           => $options,
+			'section_meta'      => $sections,
+			'values'            => $effective_values,
+			'inner_html'        => $rendered_content,
+			'submit_controls'   => $submit_controls,
+			'render_submit'     => fn (): string => $this->_render_default_submit_controls($id_slug, $submit_controls),
+			'messages_by_field' => $this->message_handler->get_all_messages(),
+			'has_files'         => $has_files,
+			'before'            => $before_html,
+			'after'             => $after_html,
+		);
+
+		$schemaSummary = $this->_build_schema_summary($internalSchema);
+
+		$this->logger->debug('admin_settings.render.payload', array(
+			'page'     => $id_slug,
+			'heading'  => $payload['heading'],
+			'group'    => $group,
+			'has_meta' => array_keys($meta),
+			'callback' => $this->form_session->get_root_template_callback($id_slug) !== null,
+		));
+		$this->logger->debug('admin_settings.render.schema_trace', array(
+			'page'   => $id_slug,
+			'fields' => $schemaSummary,
+		));
+
+		$this->_finalize_render($id_slug, $payload, array('page_slug' => $id_slug));
+	}
+
+	// WP Settings API hooks
+
 	/**
 	 * Register all menu pages and submenus for admin settings.
 	 *
@@ -333,144 +424,6 @@ class AdminSettings implements FormsInterface {
 			}
 		}
 	}
-
-	// Internal Private Protected
-
-	/**
-	 * Render a registered settings page using the template or a default form shell.
-	 *
-	 * @internal WordPress callback for rendering admin settings.
-	 *
-	 * @param string $id_slug The page id, defaults to 'profile'.
-	 * @param array|null $context Optional context.
-	 *
-	 * @return void
-	 */
-	public function render(string $id_slug, ?array $context = null): void {
-		if (!isset($this->pages[$id_slug])) {
-			echo '<div class="notice notice-error"><h1>Settings</h1><p>Unknown settings page.</p></div>';
-			return;
-		}
-		$this->_start_form_session();
-
-		$ref  = $this->_resolve_page_reference($id_slug);
-		$meta = $ref['meta'];
-
-		$bundle = $this->_resolve_schema_bundle($this->base_options, array(
-			'intent'    => 'render',
-			'page_slug' => $id_slug,
-		));
-		$internalSchema = $bundle['schema'];
-		$group          = $this->main_option . '_group';
-		$options        = $this->_do_get_option($this->main_option, array());
-		$sections       = $this->sections[$ref['page']] ?? array();
-
-		// Get effective values from message handler (handles pending values)
-		$effective_values = $this->message_handler->get_effective_values($options);
-
-		// Render before/after callbacks for the page
-		$before_html = $this->_render_callback_output($meta['before'] ?? null, array(
-			'container_id' => $id_slug,
-			'values'       => $effective_values,
-		)) ?? '';
-		$after_html = $this->_render_callback_output($meta['after'] ?? null, array(
-			'container_id' => $id_slug,
-			'values'       => $effective_values,
-		)) ?? '';
-
-		$rendered_content = $this->_render_default_sections_wrapper($id_slug, $sections, $effective_values);
-		$submit_controls  = $this->_get_submit_controls_for_page($id_slug);
-
-		$page_style = isset($meta['style']) ? trim((string) $meta['style']) : '';
-
-		// Check if page has file upload fields
-		$has_files = $this->_container_has_file_uploads($ref['page']);
-
-		$payload = array(
-			...($context ?? array()),
-			'heading'           => $meta['heading']     ?? '',
-			'description'       => $meta['description'] ?? '',
-			'group'             => $group,
-			'page_slug'         => $id_slug,
-			'page_meta'         => $meta,
-			'style'             => $page_style,
-			'options'           => $options,
-			'section_meta'      => $sections,
-			'values'            => $effective_values,
-			'inner_html'        => $rendered_content,
-			'submit_controls'   => $submit_controls,
-			'render_submit'     => fn (): string => $this->_render_default_submit_controls($id_slug, $submit_controls),
-			'messages_by_field' => $this->message_handler->get_all_messages(),
-			'has_files'         => $has_files,
-			'before'            => $before_html,
-			'after'             => $after_html,
-		);
-
-		$schemaSummary = array();
-		foreach ($internalSchema as $key => $entry) {
-			if (!is_array($entry)) {
-				continue;
-			}
-			$sanitizeComponentCount = 0;
-			$sanitizeSchemaCount    = 0;
-			$validateComponentCount = 0;
-			$validateSchemaCount    = 0;
-			if (isset($entry['sanitize']) && is_array($entry['sanitize'])) {
-				$componentBucket = $entry['sanitize'][ValidatorPipelineService::BUCKET_COMPONENT] ?? null;
-				$schemaBucket    = $entry['sanitize'][ValidatorPipelineService::BUCKET_SCHEMA]    ?? null;
-				if (is_array($componentBucket)) {
-					$sanitizeComponentCount = count($componentBucket);
-				}
-				if (is_array($schemaBucket)) {
-					$sanitizeSchemaCount = count($schemaBucket);
-				}
-			}
-			if (isset($entry['validate']) && is_array($entry['validate'])) {
-				$componentBucket = $entry['validate'][ValidatorPipelineService::BUCKET_COMPONENT] ?? null;
-				$schemaBucket    = $entry['validate'][ValidatorPipelineService::BUCKET_SCHEMA]    ?? null;
-				if (is_array($componentBucket)) {
-					$validateComponentCount = count($componentBucket);
-				}
-				if (is_array($schemaBucket)) {
-					$validateSchemaCount = count($schemaBucket);
-				}
-			}
-			$schemaSummary[$key] = array(
-				'sanitize_component_count' => $sanitizeComponentCount,
-				'sanitize_schema_count'    => $sanitizeSchemaCount,
-				'validate_component_count' => $validateComponentCount,
-				'validate_schema_count'    => $validateSchemaCount,
-				'has_default'              => array_key_exists('default', $entry),
-			);
-		}
-
-		$this->logger->debug('admin_settings.render.payload', array(
-		    'page'     => $id_slug,
-		    'heading'  => $payload['heading'],
-		    'group'    => $group,
-		    'has_meta' => array_keys($meta),
-		    'callback' => $this->form_session->get_root_template_callback($id_slug) !== null,
-		));
-		$this->logger->debug('admin_settings.render.schema_trace', array(
-		    'page'   => $id_slug,
-		    'fields' => $schemaSummary,
-		));
-
-		$callback = $this->form_session->get_root_template_callback($id_slug);
-		if ($callback !== null) {
-			ob_start();
-			$callback($payload);
-			echo (string) ob_get_clean();
-		} else {
-			echo $this->form_session->render_element('root-wrapper', $payload, array(
-				'root_id'   => $id_slug,
-				'page_slug' => $id_slug,
-			));
-		}
-		$this->form_session->enqueue_assets();
-	}
-
-	// WP Settings API hooks
 
 	/**
 	 * Register the setting with WordPress Settings API and wire sanitize callback.

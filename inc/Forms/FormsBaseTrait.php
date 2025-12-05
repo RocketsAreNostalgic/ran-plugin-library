@@ -27,6 +27,7 @@ use Ran\PluginLib\Forms\Component\ComponentRenderResult;
 use Ran\PluginLib\Forms\Component\ComponentManifest;
 use Ran\PluginLib\Forms\Component\ComponentLoader;
 use Ran\PluginLib\Config\ConfigInterface;
+use Ran\PluginLib\Forms\Validation\ValidatorPipelineService;
 
 /**
  * Shared functionality for form-based classes.
@@ -308,6 +309,80 @@ trait FormsBaseTrait {
 	// =========================================================================
 	// PROTECTED METHODS
 	// =========================================================================
+
+	// -- Render Helpers --
+
+	/**
+	 * Build a schema summary for debug logging.
+	 *
+	 * Extracts sanitizer/validator counts and default presence from the internal schema.
+	 *
+	 * @param array<string,mixed> $internalSchema The resolved schema bundle.
+	 * @return array<string,array{sanitize_component_count:int,sanitize_schema_count:int,validate_component_count:int,validate_schema_count:int,has_default:bool}>
+	 */
+	protected function _build_schema_summary(array $internalSchema): array {
+		$summary = array();
+		foreach ($internalSchema as $key => $entry) {
+			if (!is_array($entry)) {
+				continue;
+			}
+			$sanitizeComponentCount = 0;
+			$sanitizeSchemaCount    = 0;
+			$validateComponentCount = 0;
+			$validateSchemaCount    = 0;
+			if (isset($entry['sanitize']) && is_array($entry['sanitize'])) {
+				$componentBucket = $entry['sanitize'][ValidatorPipelineService::BUCKET_COMPONENT] ?? null;
+				$schemaBucket    = $entry['sanitize'][ValidatorPipelineService::BUCKET_SCHEMA]    ?? null;
+				if (is_array($componentBucket)) {
+					$sanitizeComponentCount = count($componentBucket);
+				}
+				if (is_array($schemaBucket)) {
+					$sanitizeSchemaCount = count($schemaBucket);
+				}
+			}
+			if (isset($entry['validate']) && is_array($entry['validate'])) {
+				$componentBucket = $entry['validate'][ValidatorPipelineService::BUCKET_COMPONENT] ?? null;
+				$schemaBucket    = $entry['validate'][ValidatorPipelineService::BUCKET_SCHEMA]    ?? null;
+				if (is_array($componentBucket)) {
+					$validateComponentCount = count($componentBucket);
+				}
+				if (is_array($schemaBucket)) {
+					$validateSchemaCount = count($schemaBucket);
+				}
+			}
+			$summary[$key] = array(
+				'sanitize_component_count' => $sanitizeComponentCount,
+				'sanitize_schema_count'    => $sanitizeSchemaCount,
+				'validate_component_count' => $validateComponentCount,
+				'validate_schema_count'    => $validateSchemaCount,
+				'has_default'              => array_key_exists('default', $entry),
+			);
+		}
+		return $summary;
+	}
+
+	/**
+	 * Finalize render by invoking template callback or default element, then enqueue assets.
+	 *
+	 * @param string $container_id The container ID (page slug or collection ID).
+	 * @param array<string,mixed> $payload The render payload.
+	 * @param array<string,mixed> $element_context Additional context for default element rendering.
+	 * @return void
+	 */
+	protected function _finalize_render(string $container_id, array $payload, array $element_context = array()): void {
+		$callback = $this->form_session->get_root_template_callback($container_id);
+		if ($callback !== null) {
+			ob_start();
+			$callback($payload);
+			echo (string) ob_get_clean();
+		} else {
+			echo $this->form_session->render_element('root-wrapper', $payload, array(
+				'root_id' => $container_id,
+				...$element_context,
+			));
+		}
+		$this->form_session->enqueue_assets();
+	}
 
 	// -- Field/Group Utilities --
 

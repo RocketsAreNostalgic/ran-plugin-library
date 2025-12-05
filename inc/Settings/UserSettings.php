@@ -352,43 +352,8 @@ class UserSettings implements FormsInterface {
 			),
 		);
 
-		$schemaSummary = array();
-		foreach ($internalSchema as $key => $entry) {
-			if (!is_array($entry)) {
-				continue;
-			}
-			$sanitizeComponentCount = 0;
-			$sanitizeSchemaCount    = 0;
-			$validateComponentCount = 0;
-			$validateSchemaCount    = 0;
-			if (isset($entry['sanitize']) && is_array($entry['sanitize'])) {
-				$componentBucket = $entry['sanitize'][ValidatorPipelineService::BUCKET_COMPONENT] ?? null;
-				$schemaBucket    = $entry['sanitize'][ValidatorPipelineService::BUCKET_SCHEMA]    ?? null;
-				if (is_array($componentBucket)) {
-					$sanitizeComponentCount = count($componentBucket);
-				}
-				if (is_array($schemaBucket)) {
-					$sanitizeSchemaCount = count($schemaBucket);
-				}
-			}
-			if (isset($entry['validate']) && is_array($entry['validate'])) {
-				$componentBucket = $entry['validate'][ValidatorPipelineService::BUCKET_COMPONENT] ?? null;
-				$schemaBucket    = $entry['validate'][ValidatorPipelineService::BUCKET_SCHEMA]    ?? null;
-				if (is_array($componentBucket)) {
-					$validateComponentCount = count($componentBucket);
-				}
-				if (is_array($schemaBucket)) {
-					$validateSchemaCount = count($schemaBucket);
-				}
-			}
-			$schemaSummary[$key] = array(
-				'sanitize_component_count' => $sanitizeComponentCount,
-				'sanitize_schema_count'    => $sanitizeSchemaCount,
-				'validate_component_count' => $validateComponentCount,
-				'validate_schema_count'    => $validateSchemaCount,
-				'has_default'              => array_key_exists('default', $entry),
-			);
-		}
+		$schemaSummary = $this->_build_schema_summary($internalSchema);
+
 		$this->logger->debug('user_settings.render.payload', array(
 			'collection' => $id_slug,
 			'heading'    => $payload['heading'],
@@ -400,18 +365,7 @@ class UserSettings implements FormsInterface {
 			'fields'     => $schemaSummary,
 		));
 
-		$callback = $this->form_session->get_root_template_callback($id_slug);
-		if ($callback !== null) {
-			ob_start();
-			$callback($payload);
-			echo (string) ob_get_clean();
-		} else {
-			echo $this->form_session->render_element('root-wrapper', $payload, array(
-				'root_id' => $id_slug,
-			));
-		}
-
-		$this->form_session->enqueue_assets();
+		$this->_finalize_render($id_slug, $payload);
 	}
 
 	// WP hooks
