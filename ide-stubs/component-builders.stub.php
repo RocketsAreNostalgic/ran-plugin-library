@@ -230,30 +230,18 @@ namespace Ran\PluginLib\Forms\Components\Fields\CheckboxOption {
 
 namespace Ran\PluginLib\Forms\Components\Fields\FileUpload {
 	if (false) {
-		class Builder extends \Ran\PluginLib\Forms\Component\Build\ComponentBuilderBase {
-			public function name(string $name): self {
-				return $this;
-			}
+		class Builder extends \Ran\PluginLib\Forms\Component\Build\ComponentBuilderInputBase {
 			public function multiple(bool $multiple = true): self {
 				return $this;
 			}
-			public function required(bool $required = true): self {
-				return $this;
-			}
 			public function accept(string|array|null $accept): self {
-				return $this;
-			}
-			public function descriptionId(?string $descriptionId): self {
-				return $this;
-			}
-			public function inputId(?string $id): self {
 				return $this;
 			}
 			public function existing_files(array $files): self {
 				return $this;
 			}
 			protected function _get_component(): string {
-				return 'components.file-upload';
+				return 'file-upload';
 			}
 			protected function _build_component_context(): array {
 				return array();
