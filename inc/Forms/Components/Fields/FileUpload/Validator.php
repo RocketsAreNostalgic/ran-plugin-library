@@ -19,7 +19,7 @@ final class Validator extends ValidatorBase {
 		$multiple = Helpers::sanitizeBoolean($context['multiple'] ?? false, 'multiple_upload', $this->logger);
 
 		// Check if files are required when value is null/empty
-		if ($value === null || $value === '') {
+		if ($this->_is_empty_value($value)) {
 			$required = $context['required'] ?? false;
 			if ($required) {
 				$emitWarning($this->_translate('At least one file is required.'));
@@ -28,38 +28,71 @@ final class Validator extends ValidatorBase {
 			return true;
 		}
 
-		// Get WordPress allowed extensions as the base
-		$wordpressAllowed = $this->_do_get_allowed_mime_types();
-
-		// Get final allowed extensions (WordPress base, optionally restricted)
-		// Configuration validation is handled in Normalizer (fail-fast principle)
-		$allowedExtensions = $this->_get_allowed_extensions($context, $wordpressAllowed);
-
-		// Handle existing files array
-		if (isset($context['existing_files']) && Validate::basic()->is_array()($context['existing_files'])) {
-			foreach ($context['existing_files'] as $file) {
-				if (!$this->_validate_single_file($file, $allowedExtensions, $emitWarning)) {
-					return false;
-				}
+		// Handle the new array format from Sanitizer (with url, filename, etc.)
+		if (is_array($value)) {
+			// Single file array format: ['url' => '...', 'filename' => '...', ...]
+			if (isset($value['url'])) {
+				return $this->_validate_file_data($value, $emitWarning);
 			}
-		}
 
-		// Handle single file or multiple files in value
-		if (Validate::basic()->is_string()($value)) {
-			return $this->_validate_single_file($value, $allowedExtensions, $emitWarning);
-		}
+			// Multiple files: array of file data arrays
+			if (isset($value[0]) && is_array($value[0])) {
+				foreach ($value as $fileData) {
+					if (!$this->_validate_file_data($fileData, $emitWarning)) {
+						return false;
+					}
+				}
+				return true;
+			}
 
-		if (Validate::basic()->is_array()($value)) {
+			// Legacy: array of strings
 			foreach ($value as $file) {
-				if (!$this->_validate_single_file($file, $allowedExtensions, $emitWarning)) {
+				if (!$this->_validate_legacy_file($file, $context, $emitWarning)) {
 					return false;
 				}
 			}
 			return true;
 		}
 
-		$emitWarning($this->_translate('File value must be a string or array of strings.'));
+		// Legacy: single string value
+		if (is_string($value)) {
+			return $this->_validate_legacy_file($value, $context, $emitWarning);
+		}
+
+		$emitWarning($this->_translate('Invalid file upload value.'));
 		return false;
+	}
+
+	/**
+	 * Check if the value is considered empty.
+	 */
+	private function _is_empty_value(mixed $value): bool {
+		if ($value === null || $value === '') {
+			return true;
+		}
+		if (is_array($value) && empty($value)) {
+			return true;
+		}
+		return false;
+	}
+
+	/**
+	 * Validate file data in the new array format.
+	 */
+	private function _validate_file_data(array $fileData, callable $emitWarning): bool {
+		$url = $fileData['url'] ?? '';
+
+		if (empty($url)) {
+			return true; // Empty is handled at top level
+		}
+
+		// Validate URL format
+		if (!Validate::format()->url()($url)) {
+			$emitWarning($this->_translate('Invalid file URL.'));
+			return false;
+		}
+
+		return true;
 	}
 
 	protected function _allow_null(): bool {
@@ -68,9 +101,9 @@ final class Validator extends ValidatorBase {
 	}
 
 	/**
-	 * Validate a single file path or URL.
+	 * Validate a legacy file value (string path or URL).
 	 */
-	private function _validate_single_file(mixed $file, array $allowedExtensions, callable $emitWarning): bool {
+	private function _validate_legacy_file(mixed $file, array $context, callable $emitWarning): bool {
 		try {
 			$normalizedFile = Helpers::sanitizeString($file, 'file_reference', $this->logger);
 		} catch (\InvalidArgumentException $exception) {
@@ -92,6 +125,10 @@ final class Validator extends ValidatorBase {
 				return false;
 			}
 		}
+
+		// Get WordPress allowed extensions as the base
+		$wordpressAllowed  = $this->_do_get_allowed_mime_types();
+		$allowedExtensions = $this->_get_allowed_extensions($context, $wordpressAllowed);
 
 		// Use the file extension validator from ValidateFormatGroup
 		$isValidExtension = empty($allowedExtensions)

@@ -16,11 +16,12 @@ if (!defined('ABSPATH')) {
 }
 
 // Extract context variables
-$heading        = $context['heading']        ?? '';
-$description    = $context['description']    ?? '';
-$settings_group = $context['group'] ?? ($context['settings_group'] ?? '');
-$inner_html     = $context['inner_html']     ?? '';
+$heading        = $context['heading']     ?? '';
+$description    = $context['description'] ?? '';
+$settings_group = $context['group']       ?? ($context['settings_group'] ?? '');
+$inner_html     = $context['inner_html']  ?? '';
 $style          = trim((string) ($context['style'] ?? ''));
+$has_files      = !empty($context['has_files']);
 
 $root_classes = array('wrap', 'kplr-form', 'admin-settings');
 if ($style !== '') {
@@ -39,7 +40,7 @@ ob_start();
         <p class="kplr-form__description"><?php echo esc_html($description); ?></p>
     <?php endif; ?>
 
-    <form method="post" action="options.php">
+    <form method="post" action="options.php"<?php echo $has_files ? ' enctype="multipart/form-data"' : ''; ?>>
         <?php
         if (!empty($settings_group)) {
         	// Mock settings_fields for testing

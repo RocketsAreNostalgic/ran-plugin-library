@@ -27,7 +27,8 @@ $before        = (string) ($context['before'] ?? '');
 $after         = (string) ($context['after'] ?? '');
 $renderSubmit  = $context['render_submit'] ?? null;
 $form_messages = $context['form_messages'] ?? array();
-$group         = $context['group']      ?? '';  // WordPress Settings API group
+$group         = $context['group']         ?? '';  // WordPress Settings API group
+$has_files     = !empty($context['has_files']);    // Whether form contains file upload fields
 
 ob_start();
 ?>
@@ -52,13 +53,13 @@ ob_start();
 		</div>
 	<?php endif; ?>
 
-	<form method="post" action="options.php" class="kplr-form" data-kplr-form-id="<?php echo esc_attr($form_id); ?>">
+	<form method="post" action="options.php" class="kplr-form" data-kplr-form-id="<?php echo esc_attr($form_id); ?>"<?php echo $has_files ? ' enctype="multipart/form-data"' : ''; ?>>
 		<?php
 		// Output WordPress Settings API hidden fields (nonce, option_page, action)
 		if (!empty($group) && function_exists('settings_fields')) {
-			settings_fields($group);
+			\settings_fields($group);
 		}
-		?>
+?>
 
 		<div class="kplr-form__content">
 			<?php if ($before !== ''): ?>

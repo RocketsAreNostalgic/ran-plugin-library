@@ -15,6 +15,85 @@ final class Normalizer extends NormalizerBase {
 	use WPWrappersTrait;
 
 	/**
+	 * Warn if accept types may not be allowed by WordPress.
+	 *
+	 * The accept attribute is client-side only and easily bypassed. Real validation
+	 * happens in wp_handle_upload(). This warning helps developers catch misconfigurations
+	 * early during development.
+	 *
+	 * @param array<int,string> $acceptTypes Array of accept values (MIME types, extensions, wildcards)
+	 */
+	private function _warn_disallowed_accept_types(array $acceptTypes): void {
+		if (!defined('WP_DEBUG') || !WP_DEBUG) {
+			return;
+		}
+
+		$wpAllowedMimes = $this->_do_get_allowed_mime_types();
+		$wpExtensions   = array();
+		$wpMimeTypes    = array();
+
+		// Build lookup arrays from WP allowed MIME types (format: "ext|ext2" => "mime/type")
+		foreach ($wpAllowedMimes as $extPattern => $mimeType) {
+			$wpMimeTypes[] = $mimeType;
+			foreach (explode('|', $extPattern) as $ext) {
+				$wpExtensions[] = strtolower($ext);
+			}
+		}
+
+		$disallowed = array();
+
+		foreach ($acceptTypes as $acceptValue) {
+			$acceptValue = trim($acceptValue);
+			if ($acceptValue === '') {
+				continue;
+			}
+
+			// Skip wildcards like "image/*", "video/*" - these are valid HTML accept patterns
+			if (str_contains($acceptValue, '/*')) {
+				continue;
+			}
+
+			// Check extension format (.pdf, .jpg)
+			if (str_starts_with($acceptValue, '.')) {
+				$ext = strtolower(ltrim($acceptValue, '.'));
+				if (!in_array($ext, $wpExtensions, true)) {
+					$disallowed[] = $acceptValue;
+				}
+				continue;
+			}
+
+			// Check MIME type format (application/pdf, image/jpeg)
+			if (str_contains($acceptValue, '/')) {
+				if (!in_array($acceptValue, $wpMimeTypes, true)) {
+					$disallowed[] = $acceptValue;
+				}
+				continue;
+			}
+
+			// Plain extension without dot (pdf, jpg)
+			$ext = strtolower($acceptValue);
+			if (!in_array($ext, $wpExtensions, true)) {
+				$disallowed[] = $acceptValue;
+			}
+		}
+
+		if (!empty($disallowed)) {
+			$this->logger->warning(
+				sprintf(
+					'FileUpload accept attribute contains types not allowed by WordPress: %s. ' .
+					'These files will be rejected by wp_handle_upload(). ' .
+					'To allow additional MIME types, use the "upload_mimes" filter.',
+					implode(', ', $disallowed)
+				),
+				array(
+					'disallowed_types' => $disallowed,
+					'accept_values'    => $acceptTypes,
+				)
+			);
+		}
+	}
+
+	/**
 	 * Validate allowed_extensions configuration during normalization (fail-fast).
 	 *
 	 * @param array $context Component context
@@ -106,7 +185,11 @@ final class Normalizer extends NormalizerBase {
 			} else {
 				$accept                          = $this->_sanitize_string($accept, 'accept');
 				$context['attributes']['accept'] = $accept;
+				$accept                          = array($accept); // Normalize to array for validation
 			}
+
+			// Warn about accept values that may not be allowed by WordPress
+			$this->_warn_disallowed_accept_types($accept);
 		}
 
 		// Build template context
