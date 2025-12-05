@@ -215,6 +215,15 @@ class AdminSettings implements FormsInterface {
 	}
 
 	/**
+	 * Fluent alias returning the current settings instance.
+	 *
+	 * Enables chaining like end_group()->end() to match UserSettings API.
+	 */
+	public function end(): static {
+		return $this;
+	}
+
+	/**
 	 * Boot admin: register settings, sections, fields, and menu pages.
 	 *
 	 * @return void
