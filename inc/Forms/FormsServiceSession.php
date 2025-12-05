@@ -64,7 +64,7 @@ class FormsServiceSession {
 			$root_id = isset($context['root_id']) ? (string) $context['root_id'] : ($context['page_slug'] ?? ($context['id_slug'] ?? ''));
 			if ($root_id !== '' && isset($this->root_template_callbacks[$root_id])) {
 				$callback = $this->root_template_callbacks[$root_id];
-				return $this->execute_root_callback($callback, array_merge($element_config, $context));
+				return $this->_execute_root_callback($callback, array_merge($element_config, $context));
 			}
 		}
 
@@ -111,20 +111,6 @@ class FormsServiceSession {
 				esc_html($warning_text)
 			);
 		}
-	}
-
-	/**
-	 * Execute a root-level callback while capturing its output.
-	 *
-	 * @param callable $callback
-	 * @param array<string,mixed> $payload
-	 * @return string
-	 */
-	private function execute_root_callback(callable $callback, array $payload): string {
-		ob_start();
-		$callback($payload);
-		$output = (string) ob_get_clean();
-		return $output;
 	}
 
 	/**
@@ -309,45 +295,6 @@ class FormsServiceSession {
 	}
 
 	/**
-	 * Emit debug information summarizing the merge outcome.
-	 *
-	 * @param string               $alias
-	 * @param array<string,mixed>  $defaults
-	 * @param array<string,mixed>  $schema
-	 * @param array<string,mixed>  $merged
-	 * @return void
-	 */
-	private function _log_schema_merge(string $alias, array $defaults, array $schema, array $merged): void {
-		$defaultContext = isset($defaults['context']) && is_array($defaults['context']) ? $defaults['context'] : array();
-		$schemaContext  = isset($schema['context'])   && is_array($schema['context']) ? $schema['context'] : array();
-		$mergedContext  = isset($merged['context'])   && is_array($merged['context']) ? $merged['context'] : array();
-
-		$summary = static function (array $source): array {
-			return array(
-				'component' => isset($source['component']) && is_array($source['component']) ? count($source['component']) : 0,
-				'schema'    => isset($source['schema'])    && is_array($source['schema'])    ? count($source['schema'])    : 0,
-			);
-		};
-
-		$defaultsBuckets = $this->pipeline->normalize_schema_entry($defaults, $alias, 'FormsServiceSession', $this->logger);
-		$schemaBuckets   = $this->pipeline->normalize_schema_entry($schema, $alias, 'FormsServiceSession', $this->logger);
-		$mergedBuckets   = $this->pipeline->normalize_schema_entry($merged, $alias, 'FormsServiceSession', $this->logger);
-
-		$this->logger->debug('forms.schema.merge', array(
-			'alias'                   => $alias,
-			'default_sanitize_counts' => $summary($defaultsBuckets['sanitize']),
-			'default_validate_counts' => $summary($defaultsBuckets['validate']),
-			'schema_sanitize_counts'  => $summary($schemaBuckets['sanitize']),
-			'schema_validate_counts'  => $summary($schemaBuckets['validate']),
-			'merged_sanitize_counts'  => $summary($mergedBuckets['sanitize']),
-			'merged_validate_counts'  => $summary($mergedBuckets['validate']),
-			'manifest_context_keys'   => array_keys($defaultContext),
-			'schema_context_keys'     => array_keys($schemaContext),
-			'merged_context_keys'     => array_keys($mergedContext),
-		));
-	}
-
-	/**
 	 * Get the FormsAssets instance for direct access
 	 *
 	 * @internal
@@ -521,5 +468,58 @@ class FormsServiceSession {
 	 */
 	public function resolve_template(string $template_type, array $context = array()): string {
 		return $this->template_resolver->resolve_template($template_type, $context);
+	}
+
+	/**
+	 * Emit debug information summarizing the merge outcome.
+	 *
+	 * @param string               $alias
+	 * @param array<string,mixed>  $defaults
+	 * @param array<string,mixed>  $schema
+	 * @param array<string,mixed>  $merged
+	 * @return void
+	 */
+	private function _log_schema_merge(string $alias, array $defaults, array $schema, array $merged): void {
+		$defaultContext = isset($defaults['context']) && is_array($defaults['context']) ? $defaults['context'] : array();
+		$schemaContext  = isset($schema['context'])   && is_array($schema['context']) ? $schema['context'] : array();
+		$mergedContext  = isset($merged['context'])   && is_array($merged['context']) ? $merged['context'] : array();
+
+		$summary = static function (array $source): array {
+			return array(
+				'component' => isset($source['component']) && is_array($source['component']) ? count($source['component']) : 0,
+				'schema'    => isset($source['schema'])    && is_array($source['schema'])    ? count($source['schema'])    : 0,
+			);
+		};
+
+		$defaultsBuckets = $this->pipeline->normalize_schema_entry($defaults, $alias, 'FormsServiceSession', $this->logger);
+		$schemaBuckets   = $this->pipeline->normalize_schema_entry($schema, $alias, 'FormsServiceSession', $this->logger);
+		$mergedBuckets   = $this->pipeline->normalize_schema_entry($merged, $alias, 'FormsServiceSession', $this->logger);
+
+		$this->logger->debug('forms.schema.merge', array(
+			'alias'                   => $alias,
+			'default_sanitize_counts' => $summary($defaultsBuckets['sanitize']),
+			'default_validate_counts' => $summary($defaultsBuckets['validate']),
+			'schema_sanitize_counts'  => $summary($schemaBuckets['sanitize']),
+			'schema_validate_counts'  => $summary($schemaBuckets['validate']),
+			'merged_sanitize_counts'  => $summary($mergedBuckets['sanitize']),
+			'merged_validate_counts'  => $summary($mergedBuckets['validate']),
+			'manifest_context_keys'   => array_keys($defaultContext),
+			'schema_context_keys'     => array_keys($schemaContext),
+			'merged_context_keys'     => array_keys($mergedContext),
+		));
+	}
+
+	/**
+	 * Execute a root-level callback while capturing its output.
+	 *
+	 * @param callable $callback
+	 * @param array<string,mixed> $payload
+	 * @return string
+	 */
+	private function _execute_root_callback(callable $callback, array $payload): string {
+		ob_start();
+		$callback($payload);
+		$output = (string) ob_get_clean();
+		return $output;
 	}
 }

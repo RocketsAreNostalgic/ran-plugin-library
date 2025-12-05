@@ -175,6 +175,20 @@ class ComponentManifest {
 	}
 
 	/**
+	 * Render a component and return just the HTML markup string.
+	 *
+	 * Convenience method for debugging, testing, and cases where only
+	 * the markup is needed (e.g., AJAX responses, email templates).
+	 *
+	 * @param string $alias Component alias (e.g., 'fields.select')
+	 * @param array<string,mixed> $context Component context
+	 * @return string Rendered HTML markup
+	 */
+	public function render_to_string(string $alias, array $context = array()): string {
+		return $this->render($alias, $context)->markup;
+	}
+
+	/**
 	 * Returns any warnings generated during rendering.
 	 *
 	 * @return array<int,string>
