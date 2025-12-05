@@ -307,7 +307,7 @@ final class UserSettingsBehaviorTest extends PluginLibTestCase {
 		$user_settings->_save_settings(array('profile_age' => 10), array('user_id' => 123));
 
 		$this->captureOutput(function () use ($user_settings): void {
-			$user_settings->render('profile', array('user_id' => 123));
+			$user_settings->_render('profile', array('user_id' => 123));
 		});
 
 		self::assertIsArray($capturedPayload, 'Expected collection template callback to capture payload.');
@@ -445,7 +445,7 @@ final class UserSettingsBehaviorTest extends PluginLibTestCase {
 		self::assertNotEmpty($manifestValidateBeforeFailure, 'Expected manifest validator before failing schema validator.');
 
 		$this->captureOutput(function () use ($user_settings): void {
-			$user_settings->render('profile', array('user_id' => 123));
+			$user_settings->_render('profile', array('user_id' => 123));
 		});
 
 		self::assertIsArray($capturedContext);
@@ -476,7 +476,7 @@ final class UserSettingsBehaviorTest extends PluginLibTestCase {
 		$user_settings = $this->createUserSettings();
 
 		$output = $this->captureOutput(function () use ($user_settings): void {
-			$user_settings->render('unknown');
+			$user_settings->_render('unknown');
 		});
 
 		$this->assertStringContainsString('notice-error', $output);
@@ -495,7 +495,7 @@ final class UserSettingsBehaviorTest extends PluginLibTestCase {
 			->section('basic', 'Basic')->end_section();
 
 		$output = $this->captureOutput(function () use ($user_settings): void {
-			$user_settings->render('profile', array('user_id' => 123));
+			$user_settings->_render('profile', array('user_id' => 123));
 		});
 
 		$this->assertTrue($called);
@@ -558,7 +558,7 @@ final class UserSettingsBehaviorTest extends PluginLibTestCase {
 			->andReturn(true);
 
 		$output = $this->captureOutput(function () use ($user_settings): void {
-			$user_settings->render('profile', array('user_id' => 123));
+			$user_settings->_render('profile', array('user_id' => 123));
 		});
 
 		$session = $user_settings->get_form_session();

@@ -19,12 +19,14 @@ interface FormsInterface {
 	/**
 	 * Render a profile collection.
 	 *
+	 * @internal WordPress callback for rendering forms.
+	 *
 	 * @param string $id_or_slug The collection id, defaults to 'profile'.
 	 * @param array $context optional context.
 	 *
 	 * @return void
 	 */
-	public function render(string $id_slug, ?array $context = null): void;
+	public function _render(string $id_slug, ?array $context = null): void;
 
 	/**
 	 * Resolve the correctly scoped RegisterOptions instance for current context.

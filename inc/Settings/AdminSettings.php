@@ -258,7 +258,7 @@ class AdminSettings implements FormsInterface {
 	 *
 	 * @return void
 	 */
-	public function render(string $id_slug, ?array $context = null): void {
+	public function _render(string $id_slug, ?array $context = null): void {
 		if (!isset($this->pages[$id_slug])) {
 			echo '<div class="notice notice-error"><h1>Settings</h1><p>Unknown settings page.</p></div>';
 			return;
@@ -370,7 +370,7 @@ class AdminSettings implements FormsInterface {
 					$meta['capability'],
 					$group_slug,
 					function () use ($first_page_slug) {
-						$this->render($first_page_slug);
+						$this->_render($first_page_slug);
 					},
 					$meta['icon']     ?? null,
 					$meta['position'] ?? null
@@ -384,7 +384,7 @@ class AdminSettings implements FormsInterface {
 					$meta['capability'],
 					$group_slug,
 					function () use ($first_page_slug) {
-						$this->render($first_page_slug);
+						$this->_render($first_page_slug);
 					},
 					$meta['position'] ?? null
 				);
@@ -398,7 +398,7 @@ class AdminSettings implements FormsInterface {
 					$meta['capability'],
 					$group_slug,
 					function () use ($first_page_slug) {
-						$this->render($first_page_slug);
+						$this->_render($first_page_slug);
 					}
 				);
 				$submenu_parent = $meta['parent'];
@@ -418,7 +418,7 @@ class AdminSettings implements FormsInterface {
 					$page_meta['capability'],
 					$page_slug,
 					function () use ($page_slug) {
-						$this->render($page_slug);
+						$this->_render($page_slug);
 					}
 				);
 			}

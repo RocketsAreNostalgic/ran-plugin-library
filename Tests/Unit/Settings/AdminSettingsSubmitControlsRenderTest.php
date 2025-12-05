@@ -80,7 +80,7 @@ final class AdminSettingsSubmitControlsRenderTest extends TestCase {
 		$this->setOptionValues(array('example_field' => 'value'));
 
 		ob_start();
-		$settings->render('defaults-page');
+		$settings->_render('defaults-page');
 		$output = (string) ob_get_clean();
 
 		self::assertStringContainsString('class="ran-zone-wrapper ran-zone-wrapper--submit-controls"', $output, 'Default submit wrapper missing.');
@@ -135,7 +135,7 @@ final class AdminSettingsSubmitControlsRenderTest extends TestCase {
 		$this->setOptionValues(array('example_field' => 'value'));
 
 		ob_start();
-		$settings->render('custom-page');
+		$settings->_render('custom-page');
 		$output = (string) ob_get_clean();
 
 		self::assertStringContainsString('class="custom-submit-area"', $output, 'Custom submit wrapper not rendered.');
@@ -173,7 +173,7 @@ final class AdminSettingsSubmitControlsRenderTest extends TestCase {
 		self::assertSame(array(10, 20), array_column($controls, 'order'), 'Submit controls storage should retain declared order values.');
 
 		ob_start();
-		$settings->render('order-page');
+		$settings->_render('order-page');
 		$output = (string) ob_get_clean();
 
 		preg_match_all('/<button[^>]*>([^<]+)<\/button>/', $output, $matches);
@@ -201,7 +201,7 @@ final class AdminSettingsSubmitControlsRenderTest extends TestCase {
 		$before = $property->getValue($settings);
 
 		ob_start();
-		$settings->render('mutate-page');
+		$settings->_render('mutate-page');
 		ob_end_clean();
 
 		$after = $property->getValue($settings);
@@ -227,7 +227,7 @@ final class AdminSettingsSubmitControlsRenderTest extends TestCase {
 		$beforeCount = $this->countLogsForMessage('forms.submit_controls.controls.updated');
 
 		ob_start();
-		$settings->render('log-page');
+		$settings->_render('log-page');
 		ob_end_clean();
 
 		$afterCount = $this->countLogsForMessage('forms.submit_controls.controls.updated');
@@ -252,7 +252,7 @@ final class AdminSettingsSubmitControlsRenderTest extends TestCase {
 		$this->resetLogger();
 
 		ob_start();
-		$settings->render('missing-fallback-page');
+		$settings->_render('missing-fallback-page');
 		$output = (string) ob_get_clean();
 
 		self::assertStringContainsString('<button type="submit">Save Changes</button>', $output, 'Fallback should render default submit button.');
@@ -279,7 +279,7 @@ final class AdminSettingsSubmitControlsRenderTest extends TestCase {
 		$this->resetLogger();
 
 		ob_start();
-		$settings->render('empty-fallback-page');
+		$settings->_render('empty-fallback-page');
 		$output = (string) ob_get_clean();
 
 		self::assertStringContainsString('<button type="submit">Save Changes</button>', $output, 'Fallback should render default submit button when controls list is empty.');

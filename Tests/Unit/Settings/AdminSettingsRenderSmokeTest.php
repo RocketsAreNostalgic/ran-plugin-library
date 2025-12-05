@@ -187,7 +187,7 @@ final class AdminSettingsRenderSmokeTest extends PluginLibTestCase {
 		->end_menu_group();
 
 		$this->captureOutput(function (): void {
-			$this->settings->render('smoke-page');
+			$this->settings->_render('smoke-page');
 		});
 
 		// Verify the component was called
@@ -233,7 +233,7 @@ final class AdminSettingsRenderSmokeTest extends PluginLibTestCase {
 		->end_menu_group();
 
 		$this->captureOutput(function (): void {
-			$this->settings->render('attr-page');
+			$this->settings->_render('attr-page');
 		});
 
 		self::assertArrayHasKey('email', $this->capturedContexts);
@@ -273,7 +273,7 @@ final class AdminSettingsRenderSmokeTest extends PluginLibTestCase {
 		->end_menu_group();
 
 		$this->captureOutput(function (): void {
-			$this->settings->render('default-page');
+			$this->settings->_render('default-page');
 		});
 
 		self::assertArrayHasKey('theme', $this->capturedContexts);
@@ -314,7 +314,7 @@ final class AdminSettingsRenderSmokeTest extends PluginLibTestCase {
 		->end_menu_group();
 
 		$this->captureOutput(function (): void {
-			$this->settings->render('multi-page');
+			$this->settings->_render('multi-page');
 		});
 
 		// All three fields should have been rendered
@@ -353,7 +353,7 @@ final class AdminSettingsRenderSmokeTest extends PluginLibTestCase {
 		->end_menu_group();
 
 		$this->captureOutput(function (): void {
-			$this->settings->render('group-page');
+			$this->settings->_render('group-page');
 		});
 
 		self::assertArrayHasKey('grouped_field', $this->capturedContexts);
@@ -383,7 +383,7 @@ final class AdminSettingsRenderSmokeTest extends PluginLibTestCase {
 		->end_menu_group();
 
 		$this->captureOutput(function (): void {
-			$this->settings->render('fieldset-page');
+			$this->settings->_render('fieldset-page');
 		});
 
 		self::assertArrayHasKey('fieldset_field', $this->capturedContexts);
@@ -522,7 +522,7 @@ class Normalizer {
             "label" => $context["label"] ?? "",
         );
 
-        $result = $this->views->render($alias, $normalized);
+        $result = $this->views->_render($alias, $normalized);
 
         return array(
             "payload"  => $result,
@@ -566,7 +566,7 @@ class Normalizer {
 				->end_page()
 			->end_menu_group();
 
-			$output = $this->captureOutput(fn() => $settings->render('p1'));
+			$output = $this->captureOutput(fn() => $settings->_render('p1'));
 
 			self::assertStringContainsString('data-marker="view-only"', $output);
 			self::assertStringContainsString('value_from_db', $output);
@@ -610,7 +610,7 @@ class Normalizer {
 				->end_page()
 			->end_menu_group();
 
-			$output = $this->captureOutput(fn() => $settings->render('p2'));
+			$output = $this->captureOutput(fn() => $settings->_render('p2'));
 
 			self::assertStringContainsString('data-marker="view-validator"', $output);
 			self::assertStringContainsString('validated_value', $output);
@@ -653,7 +653,7 @@ class Normalizer {
 				->end_page()
 			->end_menu_group();
 
-			$output = $this->captureOutput(fn() => $settings->render('p3'));
+			$output = $this->captureOutput(fn() => $settings->_render('p3'));
 
 			self::assertStringContainsString('data-marker="view-normalizer"', $output);
 			self::assertStringContainsString('normalized_value', $output);
@@ -697,7 +697,7 @@ class Normalizer {
 				->end_page()
 			->end_menu_group();
 
-			$output = $this->captureOutput(fn() => $settings->render('p4'));
+			$output = $this->captureOutput(fn() => $settings->_render('p4'));
 
 			self::assertStringContainsString('data-marker="full-stack"', $output);
 			self::assertStringContainsString('full_stack_value', $output);
@@ -744,7 +744,7 @@ class Normalizer {
 				->end_page()
 			->end_menu_group();
 
-			$output = $this->captureOutput(fn() => $settings->render('p5'));
+			$output = $this->captureOutput(fn() => $settings->_render('p5'));
 
 			self::assertStringContainsString('data-marker="view-dev-schema"', $output);
 			self::assertStringContainsString('schema_value', $output);
@@ -792,7 +792,7 @@ class Normalizer {
 				->end_page()
 			->end_menu_group();
 
-			$output = $this->captureOutput(fn() => $settings->render('p6'));
+			$output = $this->captureOutput(fn() => $settings->_render('p6'));
 
 			self::assertStringContainsString('data-marker="validator-dev-schema"', $output);
 			self::assertStringContainsString('combined_value', $output);
@@ -840,7 +840,7 @@ class Normalizer {
 				->end_page()
 			->end_menu_group();
 
-			$output = $this->captureOutput(fn() => $settings->render('p7'));
+			$output = $this->captureOutput(fn() => $settings->_render('p7'));
 
 			self::assertStringContainsString('data-marker="normalizer-dev-schema"', $output);
 			self::assertStringContainsString('normalized_schema_value', $output);
@@ -890,7 +890,7 @@ class Normalizer {
 				->end_page()
 			->end_menu_group();
 
-			$output = $this->captureOutput(fn() => $settings->render('p8'));
+			$output = $this->captureOutput(fn() => $settings->_render('p8'));
 
 			self::assertStringContainsString('data-marker="full-stack-schema"', $output);
 			self::assertStringContainsString('ultimate_value', $output);
@@ -969,7 +969,7 @@ class Normalizer {
 				->end_page()
 			->end_menu_group();
 
-			$output = $this->captureOutput(fn() => $settings->render('batch-page'));
+			$output = $this->captureOutput(fn() => $settings->_render('batch-page'));
 
 			// All three components should render
 			self::assertStringContainsString('data-marker="batch-a"', $output, 'Component A should render');
@@ -1025,7 +1025,7 @@ class Normalizer {
 				->end_page()
 			->end_menu_group();
 
-			$output = $this->captureOutput(fn() => $settings->render('st-page'));
+			$output = $this->captureOutput(fn() => $settings->_render('st-page'));
 
 			// Stored value should appear in rendered output
 			self::assertStringContainsString('my_stored_value', $output, 'Stored value should be rendered');
@@ -1071,7 +1071,7 @@ class Normalizer {
 				->end_page()
 			->end_menu_group();
 
-			$output = $this->captureOutput(fn() => $settings->render('sch-page'));
+			$output = $this->captureOutput(fn() => $settings->_render('sch-page'));
 
 			// Should render without error
 			self::assertStringContainsString('data-marker="schema-test"', $output);
@@ -1114,7 +1114,7 @@ class Normalizer {
 				->end_page()
 			->end_menu_group();
 
-			$output = $this->captureOutput(fn() => $settings->render('mf-page'));
+			$output = $this->captureOutput(fn() => $settings->_render('mf-page'));
 
 			// Both fields should render with their respective values
 			self::assertStringContainsString('value_a', $output, 'Field A value should render');
@@ -1168,7 +1168,7 @@ class Normalizer {
 				->end_page()
 			->end_menu_group();
 
-			$output = $this->captureOutput(fn() => $settings->render('cx-page'));
+			$output = $this->captureOutput(fn() => $settings->_render('cx-page'));
 
 			// Should render without error
 			self::assertStringContainsString('data-marker="complex-schema"', $output);
@@ -1233,7 +1233,7 @@ class Normalizer {
 			->end_menu_group();
 
 			// Render first to register field metadata
-			$this->captureOutput(fn() => $settings->render('ss-page'));
+			$this->captureOutput(fn() => $settings->_render('ss-page'));
 
 			// Now call _sanitize
 			$result = $settings->_sanitize(array('san_field' => '  hello world  '));
@@ -1293,7 +1293,7 @@ class Normalizer {
 			->end_menu_group();
 
 			// Render first
-			$this->captureOutput(fn() => $settings->render('sv-page'));
+			$this->captureOutput(fn() => $settings->_render('sv-page'));
 
 			// Save with invalid value (too short)
 			$result = $settings->_sanitize(array('val_field' => 'abc'));
@@ -1346,7 +1346,7 @@ class Normalizer {
 				->end_page()
 			->end_menu_group();
 
-			$this->captureOutput(fn() => $settings->render('sa-page'));
+			$this->captureOutput(fn() => $settings->_render('sa-page'));
 
 			// Save with valid value
 			$result = $settings->_sanitize(array('acc_field' => 'valid_input'));
@@ -1411,7 +1411,7 @@ class Normalizer {
 				->end_page()
 			->end_menu_group();
 
-			$this->captureOutput(fn() => $settings->render('sm-page'));
+			$this->captureOutput(fn() => $settings->_render('sm-page'));
 
 			$result = $settings->_sanitize(array('multi_field' => '  hello world  '));
 
@@ -1487,7 +1487,7 @@ class Normalizer {
 				->end_page()
 			->end_menu_group();
 
-			$this->captureOutput(fn() => $settings->render('mg-page'));
+			$this->captureOutput(fn() => $settings->_render('mg-page'));
 
 			$result = $settings->_sanitize(array('merge_field' => '  hello  '));
 
@@ -1579,7 +1579,7 @@ PHP;
 			->end_menu_group();
 
 			// Render to register field metadata
-			$this->captureOutput(fn() => $settings->render('iv-page'));
+			$this->captureOutput(fn() => $settings->_render('iv-page'));
 
 			// Save with INVALID value (too short) - should trigger validator
 			$result = $settings->_sanitize(array('int_field' => 'ab'));
@@ -1653,7 +1653,7 @@ PHP;
 				->end_page()
 			->end_menu_group();
 
-			$this->captureOutput(fn() => $settings->render('iva-page'));
+			$this->captureOutput(fn() => $settings->_render('iva-page'));
 
 			// Save with VALID value
 			$result = $settings->_sanitize(array('acc_field' => 'valid_value'));
@@ -1750,7 +1750,7 @@ PHP;
 				->end_page()
 			->end_menu_group();
 
-			$this->captureOutput(fn() => $settings->render('is-page'));
+			$this->captureOutput(fn() => $settings->_render('is-page'));
 
 			$result = $settings->_sanitize(array('san_field' => '  hello world  '));
 

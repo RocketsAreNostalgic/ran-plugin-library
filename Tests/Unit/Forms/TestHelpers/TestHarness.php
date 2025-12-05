@@ -34,7 +34,7 @@ final class TestHarness {
 		// no-op for tests
 	}
 
-	public function render(string $id_slug, ?array $context = null): void {
+	public function _render(string $id_slug, ?array $context = null): void {
 		// no-op for tests
 	}
 

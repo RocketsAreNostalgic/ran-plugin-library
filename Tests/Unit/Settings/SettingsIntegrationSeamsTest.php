@@ -195,7 +195,7 @@ class SettingsIntegrationSeamsTest extends PluginLibTestCase {
 		->end_menu_group();
 
 		// Act: Render crosses Settings → Manifest → Loader boundary
-		$output = $this->captureOutput(fn() => $settings->render('test-page'));
+		$output = $this->captureOutput(fn() => $settings->_render('test-page'));
 
 		// Assert: Manifest component was used, value from RegisterOptions flowed through
 		self::assertStringContainsString('data-seam="manifest-to-render"', $output);
@@ -248,7 +248,7 @@ class SettingsIntegrationSeamsTest extends PluginLibTestCase {
 			->end_page()
 		->end_menu_group();
 
-		$this->captureOutput(fn() => $settings->render('sp'));
+		$this->captureOutput(fn() => $settings->_render('sp'));
 
 		// Act: _sanitize crosses Settings → RegisterOptions schema boundary
 		$result = $settings->_sanitize(array('schema_field' => '  hello  '));
@@ -330,7 +330,7 @@ class SettingsIntegrationSeamsTest extends PluginLibTestCase {
 		->end_collection();
 
 		// Act: Render crosses Settings → Manifest → Loader boundary
-		$output = $this->captureOutput(fn() => $settings->render('profile'));
+		$output = $this->captureOutput(fn() => $settings->_render('profile'));
 
 		// Assert: Manifest component was used, value from RegisterOptions flowed through
 		self::assertStringContainsString('data-seam="user-manifest-to-render"', $output);
@@ -381,7 +381,7 @@ class SettingsIntegrationSeamsTest extends PluginLibTestCase {
 			->end_section()
 		->end_collection();
 
-		$this->captureOutput(fn() => $settings->render('profile'));
+		$this->captureOutput(fn() => $settings->_render('profile'));
 
 		// Act: save_settings crosses Settings → RegisterOptions schema boundary
 		$settings->_save_settings(array('user_schema_field' => '  hello world  '), array('user_id' => 789));
@@ -449,7 +449,7 @@ return new ComponentRenderResult(
 				->end_page()
 			->end_menu_group();
 
-			$output = $this->captureOutput(fn() => $settings->render('ext-page'));
+			$output = $this->captureOutput(fn() => $settings->_render('ext-page'));
 
 			// Assert: External component was discovered and rendered with stored value
 			self::assertStringContainsString('data-seam="external-component-admin"', $output);
@@ -510,7 +510,7 @@ return new ComponentRenderResult(
 				->end_section()
 			->end_collection();
 
-			$output = $this->captureOutput(fn() => $settings->render('profile'));
+			$output = $this->captureOutput(fn() => $settings->_render('profile'));
 
 			// Assert: External component was discovered and rendered with stored value
 			self::assertStringContainsString('data-seam="external-component-user"', $output);
@@ -571,7 +571,7 @@ return new ComponentRenderResult(
 		->end_menu_group();
 
 		// Step 1: Initial render shows stored value (NOT sanitized - sanitizers run on save, not read)
-		$output1 = $this->captureOutput(fn() => $settings->render('rt-page'));
+		$output1 = $this->captureOutput(fn() => $settings->_render('rt-page'));
 		self::assertStringContainsString('value="initial_value"', $output1);
 
 		// Step 2: Sanitize new value
@@ -593,7 +593,7 @@ return new ComponentRenderResult(
 			->end_page()
 		->end_menu_group();
 
-		$output2 = $this->captureOutput(fn() => $settings2->render('rt-page'));
+		$output2 = $this->captureOutput(fn() => $settings2->_render('rt-page'));
 		self::assertStringContainsString('value="NEW_VALUE"', $output2);
 	}
 
@@ -643,7 +643,7 @@ return new ComponentRenderResult(
 		->end_collection();
 
 		// Step 1: Initial render shows stored value
-		$output1 = $this->captureOutput(fn() => $settings->render('profile'));
+		$output1 = $this->captureOutput(fn() => $settings->_render('profile'));
 		self::assertStringContainsString('value="user_initial_value"', $output1); // Already lowercase
 
 		// Step 2: Save new value (save_settings handles sanitization internally)
@@ -663,7 +663,7 @@ return new ComponentRenderResult(
 			->end_section()
 		->end_collection();
 
-		$output2 = $this->captureOutput(fn() => $settings2->render('profile'));
+		$output2 = $this->captureOutput(fn() => $settings2->_render('profile'));
 		self::assertStringContainsString('value="new_user_value"', $output2);
 	}
 
@@ -720,7 +720,7 @@ return new ComponentRenderResult(
 			->end_page()
 		->end_menu_group();
 
-		$this->captureOutput(fn() => $settings->render('vf-page'));
+		$this->captureOutput(fn() => $settings->_render('vf-page'));
 
 		// Act: Try to sanitize with invalid value
 		$result = $settings->_sanitize(array('validated_field' => 'ab'));
@@ -784,7 +784,7 @@ return new ComponentRenderResult(
 			->end_section()
 		->end_collection();
 
-		$this->captureOutput(fn() => $settings->render('profile'));
+		$this->captureOutput(fn() => $settings->_render('profile'));
 
 		// Act: Try to save with invalid value (too short)
 		$settings->_save_settings(array('user_validated_field' => 'ab'), array('user_id' => $userId));

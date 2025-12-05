@@ -210,7 +210,7 @@ class UserSettings implements FormsInterface {
 				if (!($user instanceof \WP_User)) {
 					return;
 				}
-				$this->render($id_slug, array('user' => $user));
+				$this->_render($id_slug, array('user' => $user));
 			};
 
 			$hooks[] = array(
@@ -296,7 +296,7 @@ class UserSettings implements FormsInterface {
 	 *
 	 * @return void
 	 */
-	public function render(string $id_slug = 'profile', ?array $context = null): void {
+	public function _render(string $id_slug = 'profile', ?array $context = null): void {
 		if (!isset($this->collections[$id_slug])) {
 			echo '<div class="notice notice-error"><p>Unknown settings collection.</p></div>';
 			return;

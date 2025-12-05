@@ -11,7 +11,7 @@ final class StubForms implements FormsInterface {
 	public function __construct(private ?FormsServiceSession $session = null) {
 	}
 
-	public function render(string $id_slug, ?array $context = null): void {
+	public function _render(string $id_slug, ?array $context = null): void {
 		// Not used in tests.
 	}
 

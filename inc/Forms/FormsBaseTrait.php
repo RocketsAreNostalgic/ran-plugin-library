@@ -114,7 +114,7 @@ trait FormsBaseTrait {
 	 * @param string $id_slug The root identifier
 	 * @param array|null $context Optional context
 	 */
-	abstract public function render(string $id_slug, ?array $context = null): void;
+	abstract public function _render(string $id_slug, ?array $context = null): void;
 
 	/**
 	 * Handle context update (eg AdminSettings page, UserSettings collection, etc) from builders.

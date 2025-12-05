@@ -76,8 +76,8 @@ final class Settings implements FormsInterface {
 		$this->inner->boot();
 	}
 
-	public function render(string $id_slug, ?array $context = null): void {
-		$this->inner->render($id_slug, $context);
+	public function _render(string $id_slug, ?array $context = null): void {
+		$this->inner->_render($id_slug, $context);
 	}
 
 	public function override_form_defaults(array $overrides): void {
