@@ -1,19 +1,22 @@
 <?php
 /**
- * Template for rendering a group/fieldset in UserSettings table-based layout.
+ * Template for rendering a group in UserSettings table-based layout.
  *
- * Groups and fieldsets are rendered as table rows to maintain WordPress profile page compatibility.
- * Order: Title → Description → Before → Content (fields) → After
+ * Mirrors the fieldset pattern: content is wrapped in a single row with an internal table,
+ * allowing before/after hooks to render outside the table structure for better layout control.
+ *
+ * Structure:
+ * - Optional title row (h4 heading)
+ * - Wrapper row containing: before → description → inner table (fields) → after
  *
  * @var array{
  *     group_id: string,
  *     title: string,
  *     description?: string,
- *     content: string,
+ *     inner_html: string,
  *     before?: string,
  *     after?: string,
- *     style?: string,
- *     type?: string
+ *     style?: string
  * } $context
  */
 
@@ -28,57 +31,48 @@ $style       = trim((string) ($context['style'] ?? ''));
 $before = (string) ($context['before'] ?? '');
 $after  = (string) ($context['after'] ?? '');
 
-$title_row_classes = array('kplr-group');
+$group_classes = array('kplr-group');
+if ($style !== '') {
+	$group_classes[] = 'kplr-group--' . $style;
+	$group_classes[] = $style;
+}
+
+$title_row_classes = array('kplr-group__title-row');
 if ($style !== '') {
 	$title_row_classes[] = $style;
 }
 
-$description_row_classes = array('kplr-group__description-row');
+$wrapper_row_classes = array('kplr-group__wrapper-row');
 if ($style !== '') {
-	$description_row_classes[] = $style;
-}
-
-$before_row_classes = array('kplr-group__before');
-if ($style !== '') {
-	$before_row_classes[] = $style;
-}
-
-$after_row_classes = array('kplr-group__after');
-if ($style !== '') {
-	$after_row_classes[] = $style;
+	$wrapper_row_classes[] = $style;
 }
 
 ob_start();
-
-// 1. Title row (if title exists)
-if ($title !== '') :
-	?>
-<tr class="<?php echo esc_attr(implode(' ', $title_row_classes)); ?>" data-kplr-group-id="<?php echo esc_attr($group_id); ?>">
-	<th class="kplr-group__header" colspan="2"><h4 class="kplr-group__title"><?php echo esc_html($title); ?></h4></th>
-</tr>
-<?php endif; ?>
-<?php if ($description !== '') : ?>
-<tr class="<?php echo esc_attr(implode(' ', $description_row_classes)); ?>">
-	<th colspan="2"><p class="kplr-group__description"><?php echo esc_html($description); ?></p></th>
-</tr>
-<?php endif; ?>
-<?php // 2. Before hook row (if before exists)
-if ($before !== '') : ?>
-<tr class="<?php echo esc_attr(implode(' ', $before_row_classes)); ?>">
-	<td colspan="2"><?php echo $before; ?></td>
-</tr>
-<?php endif; ?>
-<?php
-// 3. Inner HTML (fields - already formatted as table rows)
-echo $inner_html;
 ?>
-<?php // 4. After hook row (if after exists)
-if ($after !== '') : ?>
-<tr class="<?php echo esc_attr(implode(' ', $after_row_classes)); ?>">
-	<td colspan="2"><?php echo $after; ?></td>
+<?php if ($title !== '') : ?>
+<tr class="<?php echo esc_attr(implode(' ', $title_row_classes)); ?>" data-kplr-group-id="<?php echo esc_attr($group_id); ?>-heading">
+	<th scope="row" colspan="2">
+		<h4 class="kplr-group__title"><?php echo esc_html($title); ?></h4>
+	</th>
 </tr>
-<?php endif;
-
+<?php endif; ?>
+<tr class="<?php echo esc_attr(implode(' ', $wrapper_row_classes)); ?>" data-kplr-group-id="<?php echo esc_attr($group_id); ?>">
+	<td colspan="2">
+		<div class="<?php echo esc_attr(implode(' ', $group_classes)); ?>">
+			<?php echo $before; ?>
+			<?php if ($description !== '') : ?>
+				<p class="kplr-group__description"><?php echo esc_html($description); ?></p>
+			<?php endif; ?>
+			<table class="form-table" role="presentation">
+				<tbody>
+					<?php echo $inner_html; ?>
+				</tbody>
+			</table>
+			<?php echo $after; ?>
+		</div>
+	</td>
+</tr>
+<?php
 return new ComponentRenderResult(
 	markup: (string) ob_get_clean(),
 	component_type: 'layout_wrapper'

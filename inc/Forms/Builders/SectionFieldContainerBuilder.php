@@ -332,20 +332,28 @@ abstract class SectionFieldContainerBuilder implements SectionFieldContainerBuil
 			$description = '';
 		}
 
+		$group_data = array(
+			'id'          => $this->group_id,
+			'type'        => 'group', // Subclasses override (e.g., FieldsetBuilder sets 'fieldset')
+			'heading'     => $this->heading,
+			'description' => $description,
+			'order'       => $this->order,
+			'style'       => $this->style,
+		);
+
+		// Only include before/after if they're set (avoid overwriting with null)
+		if ($this->before !== null) {
+			$group_data['before'] = $this->before;
+		}
+		if ($this->after !== null) {
+			$group_data['after'] = $this->after;
+		}
+
 		return array(
 			'container_id' => $this->container_id,
 			'section_id'   => $this->section_id,
 			'group_id'     => $this->group_id,
-			'group_data'   => array(
-				'id'          => $this->group_id,
-				'type'        => 'group', // Subclasses override (e.g., FieldsetBuilder sets 'fieldset')
-				'heading'     => $this->heading,
-				'description' => $description,
-				'before'      => $this->before,
-				'after'       => $this->after,
-				'order'       => $this->order,
-				'style'       => $this->style,
-			),
+			'group_data'   => $group_data,
 		);
 	}
 

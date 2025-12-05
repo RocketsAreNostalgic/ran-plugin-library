@@ -17,6 +17,7 @@ use UnexpectedValueException;
 use Ran\PluginLib\Util\Logger;
 use Ran\PluginLib\Options\RegisterOptions;
 use Ran\PluginLib\Options\OptionScope;
+use Ran\PluginLib\Forms\Validation\ValidatorPipelineService;
 use Ran\PluginLib\Forms\Renderer\FormMessageHandler;
 use Ran\PluginLib\Forms\Renderer\FormElementRenderer;
 use Ran\PluginLib\Forms\FormsServiceSession;
@@ -27,7 +28,6 @@ use Ran\PluginLib\Forms\Component\ComponentRenderResult;
 use Ran\PluginLib\Forms\Component\ComponentManifest;
 use Ran\PluginLib\Forms\Component\ComponentLoader;
 use Ran\PluginLib\Config\ConfigInterface;
-use Ran\PluginLib\Forms\Validation\ValidatorPipelineService;
 
 /**
  * Shared functionality for form-based classes.
@@ -1201,6 +1201,8 @@ trait FormsBaseTrait {
 				'group_id' => $group_id,
 				'fields'   => array(),
 				'index'    => $this->__group_index++,
+				'before'   => null,
+				'after'    => null,
 			);
 		}
 
@@ -1215,12 +1217,17 @@ trait FormsBaseTrait {
 		// Update group metadata
 		$title = $group_data['heading'] ?? $group_data['title'] ?? '';
 
-		$this->groups[$container_id][$section_id][$group_id]['title']  = (string) $title;
-		$this->groups[$container_id][$section_id][$group_id]['before'] = $group_data['before'] ?? null;
-		$this->groups[$container_id][$section_id][$group_id]['after']  = $group_data['after']  ?? null;
-		$this->groups[$container_id][$section_id][$group_id]['order']  = (int) ($group_data['order'] ?? 0);
-		$this->groups[$container_id][$section_id][$group_id]['style']  = trim((string) ($group_data['style'] ?? ''));
-		$this->groups[$container_id][$section_id][$group_id]['type']   = (string) ($group_data['type'] ?? 'group');
+		$this->groups[$container_id][$section_id][$group_id]['title'] = (string) $title;
+		// Only update before/after if explicitly provided (preserve existing values)
+		if (array_key_exists('before', $group_data)) {
+			$this->groups[$container_id][$section_id][$group_id]['before'] = $group_data['before'];
+		}
+		if (array_key_exists('after', $group_data)) {
+			$this->groups[$container_id][$section_id][$group_id]['after'] = $group_data['after'];
+		}
+		$this->groups[$container_id][$section_id][$group_id]['order'] = (int) ($group_data['order'] ?? 0);
+		$this->groups[$container_id][$section_id][$group_id]['style'] = trim((string) ($group_data['style'] ?? ''));
+		$this->groups[$container_id][$section_id][$group_id]['type']  = (string) ($group_data['type'] ?? 'group');
 		// Fieldset-specific attributes
 		$this->groups[$container_id][$section_id][$group_id]['form']     = (string) ($group_data['form'] ?? '');
 		$this->groups[$container_id][$section_id][$group_id]['name']     = (string) ($group_data['name'] ?? '');
@@ -1507,6 +1514,7 @@ trait FormsBaseTrait {
 							'group_id'     => $group['group_id'] ?? '',
 							'values'       => $values,
 						)),
+						'group_type' => $group['type'] ?? 'group',
 					);
 					$group_fields_content .= $this->_render_default_field_wrapper($field_item, $values);
 				}
@@ -1770,14 +1778,19 @@ trait FormsBaseTrait {
 				$extras
 			);
 
+			// Determine wrapper template based on group type
+			// Fields inside fieldsets use fieldset-field-wrapper for proper table row rendering
+			$group_type  = $field_item['group_type'] ?? 'group';
+			$wrapper_key = $group_type === 'fieldset' ? 'fieldset-field-wrapper' : 'field-wrapper';
+
 			// Let FormElementRenderer handle both component rendering and wrapper application
 			return $this->field_renderer->render_field_with_wrapper(
 				$component,
 				$field_id,
 				$label,
 				$field_context,
-				'field-wrapper',
-				'field-wrapper',
+				$wrapper_key,
+				$wrapper_key,
 				$this->form_session
 			);
 		} catch (\Throwable $e) {
