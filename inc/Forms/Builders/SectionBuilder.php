@@ -97,11 +97,11 @@ class SectionBuilder implements SectionBuilderInterface {
 	/**
 	 * Set the section description.
 	 *
-	 * @param string $description The section description.
+	 * @param string|callable $description A string or callback returning the description.
 	 *
 	 * @return SectionBuilder The SectionBuilder instance.
 	 */
-	public function description(string $description): static {
+	public function description(string|callable $description): static {
 		$this->_update_meta('description', $description);
 		return $this;
 	}
@@ -159,12 +159,12 @@ class SectionBuilder implements SectionBuilderInterface {
 	 *
 	 * @param string              $section_id     The section ID.
 	 * @param string              $heading        The section heading (optional, can be set via heading()).
-	 * @param callable|null       $description_cb The section description callback.
+	 * @param string|callable|null $description_cb The section description (string or callback).
 	 * @param array<string,mixed> $args           Optional configuration (order, before/after callbacks, classes, etc.).
 	 *
 	 * @return SectionBuilder<TRoot> The SectionBuilder instance for the new section.
 	 */
-	public function section(string $section_id, string $heading = '', ?callable $description_cb = null, array $args = array()): SectionBuilder {
+	public function section(string $section_id, string $heading = '', string|callable|null $description_cb = null, array $args = array()): SectionBuilder {
 		return $this->collectionBuilder->section($section_id, $heading, $description_cb, $args);
 	}
 
@@ -173,12 +173,12 @@ class SectionBuilder implements SectionBuilderInterface {
 	 *
 	 * @param string              $group_id       The group identifier.
 	 * @param string              $heading        The human-readable group heading (optional, can be set via heading()).
-	 * @param callable|null       $description_cb The group description callback.
+	 * @param string|callable|null $description_cb The group description (string or callback).
 	 * @param array<string,mixed> $args           Optional configuration (order, before/after callbacks, layout metadata, etc.).
 	 *
 	 * @return GroupBuilder<TRoot, SectionBuilder<TRoot>> The fluent group builder instance.
 	 */
-	public function group(string $group_id, string $heading = '', ?callable $description_cb = null, ?array $args = null): GroupBuilder {
+	public function group(string $group_id, string $heading = '', string|callable|null $description_cb = null, ?array $args = null): GroupBuilder {
 		$args = $args ?? array();
 		return new GroupBuilder(
 			$this,
@@ -197,12 +197,12 @@ class SectionBuilder implements SectionBuilderInterface {
 	 *
 	 * @param string              $fieldset_id    The fieldset identifier.
 	 * @param string              $heading        The legend to display for the fieldset (optional, can be set via heading()).
-	 * @param callable|null       $description_cb The fieldset description callback.
+	 * @param string|callable|null $description_cb The fieldset description (string or callback).
 	 * @param array<string,mixed> $args           Optional configuration (order, before/after callbacks, style metadata, etc.).
 	 *
 	 * @return FieldsetBuilderInterface<TRoot, SectionBuilderInterface<TRoot>> The fluent fieldset builder instance.
 	 */
-	public function fieldset(string $fieldset_id, string $heading = '', ?callable $description_cb = null, ?array $args = null): FieldsetBuilderInterface {
+	public function fieldset(string $fieldset_id, string $heading = '', string|callable|null $description_cb = null, ?array $args = null): FieldsetBuilderInterface {
 		$args = $args ?? array();
 		return new FieldsetBuilder(
 			$this,

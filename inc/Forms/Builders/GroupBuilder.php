@@ -9,10 +9,10 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\Forms\Builders;
 
+use Ran\PluginLib\Forms\Component\Build\ComponentBuilderDefinitionInterface;
 use Ran\PluginLib\Forms\Builders\SectionFieldContainerBuilder;
 use Ran\PluginLib\Forms\Builders\SectionBuilder;
 use Ran\PluginLib\Forms\Builders\GroupBuilderInterface;
-use Ran\PluginLib\Forms\Component\Build\ComponentBuilderDefinitionInterface;
 
 class GroupBuilder extends SectionFieldContainerBuilder implements GroupBuilderInterface {
 	public function __construct(
@@ -21,7 +21,7 @@ class GroupBuilder extends SectionFieldContainerBuilder implements GroupBuilderI
 		string $section_id,
 		string $group_id,
 		string $heading,
-		?callable $description_cb,
+		string|callable|null $description_cb,
 		callable $updateFn,
 		array $args = array()
 	) {
@@ -66,12 +66,12 @@ class GroupBuilder extends SectionFieldContainerBuilder implements GroupBuilderI
 	 *
 	 * @param string $group_id
 	 * @param string $heading
-	 * @param callable|null $description_cb
+	 * @param string|callable|null $description_cb
 	 * @param array<string,mixed>|null $args
 	 *
 	 * @return GroupBuilderInterface
 	 */
-	public function group(string $group_id, string $heading, ?callable $description_cb = null, ?array $args = null): GroupBuilderInterface {
+	public function group(string $group_id, string $heading, string|callable|null $description_cb = null, ?array $args = null): GroupBuilderInterface {
 		return $this->section()->group($group_id, $heading, $description_cb, $args ?? array());
 	}
 

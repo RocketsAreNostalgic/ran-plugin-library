@@ -34,7 +34,7 @@ abstract class SectionFieldContainerBuilder implements SectionFieldContainerBuil
 	protected string $section_id;
 	protected string $group_id;
 	protected string $heading;
-	/** @var callable|null */
+	/** @var string|callable|null */
 	protected $description_cb;
 	/** @var callable */
 	protected $updateFn;
@@ -60,7 +60,7 @@ abstract class SectionFieldContainerBuilder implements SectionFieldContainerBuil
 		string $section_id,
 		string $group_id,
 		string $heading,
-		?callable $description_cb,
+		string|callable|null $description_cb,
 		callable $updateFn,
 		array $args = array()
 	) {
@@ -91,8 +91,8 @@ abstract class SectionFieldContainerBuilder implements SectionFieldContainerBuil
 		return $this;
 	}
 
-	public function description(callable $description_cb): static {
-		$this->_update_meta('description', $description_cb);
+	public function description(string|callable $description): static {
+		$this->_update_meta('description', $description);
 		return $this;
 	}
 

@@ -28,7 +28,7 @@ class FieldsetBuilder extends SectionFieldContainerBuilder implements FieldsetBu
 		string $section_id,
 		string $group_id,
 		string $heading = '',
-		?callable $description_cb = null,
+		string|callable|null $description_cb = null,
 		?callable $updateFn = null,
 		array $args = array()
 	) {
@@ -136,12 +136,12 @@ class FieldsetBuilder extends SectionFieldContainerBuilder implements FieldsetBu
 	 *
 	 * @param string $fieldset_id The fieldset ID.
 	 * @param string $heading The fieldset heading.
-	 * @param callable|null $description_cb The fieldset description callback.
+	 * @param string|callable|null $description_cb The fieldset description (string or callback).
 	 * @param array<string,mixed>|null $args Optional configuration (order, before/after callbacks, classes, etc.).
 	 *
 	 * @return FieldsetBuilderInterface The fieldset builder instance.
 	 */
-	public function fieldset(string $fieldset_id, string $heading = '', ?callable $description_cb = null, ?array $args = null): FieldsetBuilderInterface {
+	public function fieldset(string $fieldset_id, string $heading = '', string|callable|null $description_cb = null, ?array $args = null): FieldsetBuilderInterface {
 		return $this->section()->fieldset($fieldset_id, $heading, $description_cb, $args ?? array());
 	}
 
