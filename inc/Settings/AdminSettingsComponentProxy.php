@@ -2,38 +2,36 @@
 /**
  * AdminSettingsComponentProxy: Type-safe component builder proxy for AdminSettings fluent chains.
  *
- * This proxy extends ComponentBuilderProxy to provide accurate return types for IDE autocompletion
- * when building AdminSettings forms. It overrides navigation methods to return Admin-specific types.
+ * Uses composition with FieldProxyTrait instead of inheritance from ComponentBuilderProxy.
+ * This provides concrete return types for full IDE support.
  *
  * @package Ran\PluginLib\Settings
- *
- * @method AdminSettingsSectionBuilder end_fieldset() End field and fieldset, returning to the section builder.
- * @method AdminSettingsPageBuilder end_section() End field and section, returning to the page builder.
- * @method AdminSettingsMenuGroupBuilder end_page() End field, section, and page, returning to the menu group builder.
  */
 
 declare(strict_types=1);
 
 namespace Ran\PluginLib\Settings;
 
+use Ran\PluginLib\Forms\Component\Build\ComponentBuilderInterface;
 use Ran\PluginLib\Forms\Component\Build\ComponentBuilderBase;
-use Ran\PluginLib\Forms\Builders\SectionFieldContainerBuilder;
-use Ran\PluginLib\Forms\Builders\SectionBuilder;
-use Ran\PluginLib\Forms\Builders\ComponentBuilderProxy;
+use Ran\PluginLib\Forms\Builders\Traits\FieldProxyTrait;
+use Ran\PluginLib\Forms\Builders\FieldProxyInterface;
 
 /**
  * Type-safe proxy for AdminSettings field builder chains.
  *
- * Provides covariant return types for navigation methods, enabling proper IDE
- * autocompletion throughout fluent AdminSettings builder chains.
+ * Uses composition (trait) instead of inheritance for IDE-friendly concrete return types.
+ * Handles fields added directly to sections (not inside groups or fieldsets).
  */
-class AdminSettingsComponentProxy extends ComponentBuilderProxy {
+class AdminSettingsComponentProxy implements FieldProxyInterface, ComponentBuilderInterface {
+	use FieldProxyTrait;
+
 	/**
 	 * The parent builder with Admin-specific typing.
 	 *
 	 * @var AdminSettingsSectionBuilder|AdminSettingsGroupBuilder|AdminSettingsFieldsetBuilder
 	 */
-	private AdminSettingsSectionBuilder|AdminSettingsGroupBuilder|AdminSettingsFieldsetBuilder $adminParent;
+	private AdminSettingsSectionBuilder|AdminSettingsGroupBuilder|AdminSettingsFieldsetBuilder $parent;
 
 	/**
 	 * Constructor.
@@ -59,9 +57,9 @@ class AdminSettingsComponentProxy extends ComponentBuilderProxy {
 		?string $field_template = null,
 		array $pending_context = array()
 	) {
-		parent::__construct(
+		$this->parent = $parent;
+		$this->_init_proxy(
 			$builder,
-			$parent,
 			$updateFn,
 			$container_id,
 			$section_id,
@@ -70,22 +68,6 @@ class AdminSettingsComponentProxy extends ComponentBuilderProxy {
 			$field_template,
 			$pending_context
 		);
-		$this->adminParent = $parent;
-	}
-
-	/**
-	 * Start a sibling field from the current field's parent context.
-	 *
-	 * @param string $field_id The field identifier.
-	 * @param string $label The field label.
-	 * @param string $component The component alias.
-	 * @param array<string,mixed> $args Optional configuration.
-	 *
-	 * @return AdminSettingsComponentProxy
-	 */
-	public function field(string $field_id, string $label, string $component, array $args = array()): AdminSettingsComponentProxy {
-		$parent = $this->end_field();
-		return $parent->field($field_id, $label, $component, $args);
 	}
 
 	/**
@@ -94,28 +76,23 @@ class AdminSettingsComponentProxy extends ComponentBuilderProxy {
 	 * @return AdminSettingsSectionBuilder|AdminSettingsGroupBuilder|AdminSettingsFieldsetBuilder
 	 */
 	public function end_field(): AdminSettingsSectionBuilder|AdminSettingsGroupBuilder|AdminSettingsFieldsetBuilder {
-		return $this->adminParent;
+		return $this->parent;
 	}
 
 	/**
-	 * Start a sibling fieldset from the current field's section context.
+	 * End field and group, returning to the section builder.
 	 *
-	 * @param string $fieldset_id The fieldset identifier.
-	 * @param string $heading The fieldset heading (optional).
-	 * @param string|callable|null $description_cb Optional description (string or callback).
-	 * @param array<string,mixed>|null $args Optional configuration.
-	 *
-	 * @return AdminSettingsFieldsetBuilder
+	 * @return AdminSettingsSectionBuilder
 	 */
-	public function fieldset(string $fieldset_id, string $heading = '', string|callable|null $description_cb = null, ?array $args = null): AdminSettingsFieldsetBuilder {
+	public function end_group(): AdminSettingsSectionBuilder {
 		$parent = $this->end_field();
+		if ($parent instanceof AdminSettingsGroupBuilder) {
+			return $parent->end_group();
+		}
 		if ($parent instanceof AdminSettingsSectionBuilder) {
-			return $parent->fieldset($fieldset_id, $heading, $description_cb, $args);
+			return $parent;
 		}
-		if ($parent instanceof AdminSettingsFieldsetBuilder) {
-			return $parent->end_fieldset()->fieldset($fieldset_id, $heading, $description_cb, $args);
-		}
-		throw new \RuntimeException('Cannot start fieldset from group context.');
+		throw new \RuntimeException('Cannot call end_group() from fieldset context.');
 	}
 
 	/**
@@ -160,7 +137,7 @@ class AdminSettingsComponentProxy extends ComponentBuilderProxy {
 	}
 
 	/**
-	 * End the entire builder chain, returning to the AdminSettings instance.
+	 * Fluent shortcut: end all the way back to AdminSettings.
 	 *
 	 * @return AdminSettings
 	 */
@@ -190,18 +167,38 @@ class AdminSettingsComponentProxy extends ComponentBuilderProxy {
 	}
 
 	/**
-	 * End field and group, returning to the section builder.
+	 * Start a sibling fieldset from the current field's section context.
 	 *
-	 * @return AdminSettingsSectionBuilder
+	 * @param string $fieldset_id The fieldset identifier.
+	 * @param string $heading The fieldset heading (optional).
+	 * @param string|callable|null $description_cb Optional description (string or callback).
+	 * @param array<string,mixed>|null $args Optional configuration.
+	 *
+	 * @return AdminSettingsFieldsetBuilder
 	 */
-	public function end_group(): AdminSettingsSectionBuilder {
+	public function fieldset(string $fieldset_id, string $heading = '', string|callable|null $description_cb = null, ?array $args = null): AdminSettingsFieldsetBuilder {
 		$parent = $this->end_field();
-		if ($parent instanceof AdminSettingsGroupBuilder) {
-			return $parent->end_group();
-		}
 		if ($parent instanceof AdminSettingsSectionBuilder) {
-			return $parent;
+			return $parent->fieldset($fieldset_id, $heading, $description_cb, $args);
 		}
-		throw new \RuntimeException('Cannot call end_group() from fieldset context.');
+		if ($parent instanceof AdminSettingsFieldsetBuilder) {
+			return $parent->end_fieldset()->fieldset($fieldset_id, $heading, $description_cb, $args);
+		}
+		throw new \RuntimeException('Cannot start fieldset from group context.');
+	}
+
+	/**
+	 * Start a sibling field from the current field's parent context.
+	 *
+	 * @param string $field_id The field identifier.
+	 * @param string $label The field label.
+	 * @param string $component The component alias.
+	 * @param array<string,mixed> $args Optional configuration.
+	 *
+	 * @return AdminSettingsComponentProxy
+	 */
+	public function field(string $field_id, string $label, string $component, array $args = array()): AdminSettingsComponentProxy {
+		$parent = $this->end_field();
+		return $parent->field($field_id, $label, $component, $args);
 	}
 }

@@ -2,7 +2,8 @@
 /**
  * AdminSettingsFieldsetFieldProxy: Field proxy that returns AdminSettingsFieldsetBuilder from end_field().
  *
- * Extends FieldsetFieldProxy to provide AdminSettings-specific return types.
+ * Uses composition with FieldProxyTrait instead of inheritance from FieldsetFieldProxy.
+ * This provides concrete return types for full IDE support.
  *
  * @package Ran\PluginLib\Settings
  */
@@ -11,14 +12,23 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\Settings;
 
-use Ran\PluginLib\Forms\Builders\FieldsetFieldProxy;
+use Ran\PluginLib\Forms\Component\Build\ComponentBuilderInterface;
 use Ran\PluginLib\Forms\Component\Build\ComponentBuilderBase;
+use Ran\PluginLib\Forms\Builders\Traits\FieldProxyTrait;
+use Ran\PluginLib\Forms\Builders\FieldProxyInterface;
 
-class AdminSettingsFieldsetFieldProxy extends FieldsetFieldProxy {
+/**
+ * Field proxy for AdminSettings fieldsets.
+ *
+ * Uses composition (trait) instead of inheritance for IDE-friendly concrete return types.
+ */
+class AdminSettingsFieldsetFieldProxy implements FieldProxyInterface, ComponentBuilderInterface {
+	use FieldProxyTrait;
+
 	/**
-	 * @var AdminSettingsFieldsetBuilder
+	 * The parent fieldset builder - concrete type for IDE support.
 	 */
-	private AdminSettingsFieldsetBuilder $adminFieldsetParent;
+	private AdminSettingsFieldsetBuilder $parent;
 
 	/**
 	 * @param ComponentBuilderBase $builder The component builder.
@@ -42,10 +52,9 @@ class AdminSettingsFieldsetFieldProxy extends FieldsetFieldProxy {
 		?string $field_template = null,
 		array $pending_context = array()
 	) {
-		$this->adminFieldsetParent = $parent;
-		parent::__construct(
+		$this->parent = $parent;
+		$this->_init_proxy(
 			$builder,
-			$parent,
 			$updateFn,
 			$container_id,
 			$section_id,
@@ -57,36 +66,12 @@ class AdminSettingsFieldsetFieldProxy extends FieldsetFieldProxy {
 	}
 
 	/**
-	 * Set the before callback for this field.
-	 *
-	 * @param callable|null $before The before callback.
-	 *
-	 * @return $this
-	 */
-	public function before(?callable $before): static {
-		parent::before($before);
-		return $this;
-	}
-
-	/**
-	 * Set the after callback for this field.
-	 *
-	 * @param callable|null $after The after callback.
-	 *
-	 * @return $this
-	 */
-	public function after(?callable $after): static {
-		parent::after($after);
-		return $this;
-	}
-
-	/**
 	 * End field configuration and return to the AdminSettingsFieldsetBuilder.
 	 *
 	 * @return AdminSettingsFieldsetBuilder The parent fieldset builder for continued chaining.
 	 */
 	public function end_field(): AdminSettingsFieldsetBuilder {
-		return $this->adminFieldsetParent;
+		return $this->parent;
 	}
 
 	/**
@@ -95,7 +80,7 @@ class AdminSettingsFieldsetFieldProxy extends FieldsetFieldProxy {
 	 * @return AdminSettingsSectionBuilder
 	 */
 	public function end_fieldset(): AdminSettingsSectionBuilder {
-		return $this->adminFieldsetParent->end_fieldset();
+		return $this->parent->end_fieldset();
 	}
 
 	/**
@@ -104,6 +89,24 @@ class AdminSettingsFieldsetFieldProxy extends FieldsetFieldProxy {
 	 * @return AdminSettingsPageBuilder
 	 */
 	public function end_section(): AdminSettingsPageBuilder {
-		return $this->adminFieldsetParent->end_section();
+		return $this->parent->end_section();
+	}
+
+	/**
+	 * End field, fieldset, section, and page, returning to the menu group builder.
+	 *
+	 * @return AdminSettingsMenuGroupBuilder
+	 */
+	public function end_page(): AdminSettingsMenuGroupBuilder {
+		return $this->parent->end_page();
+	}
+
+	/**
+	 * Fluent shortcut: end all the way back to AdminSettings.
+	 *
+	 * @return AdminSettings
+	 */
+	public function end(): AdminSettings {
+		return $this->end_page()->end_menu_group();
 	}
 }

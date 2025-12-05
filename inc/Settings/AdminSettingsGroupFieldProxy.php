@@ -2,7 +2,8 @@
 /**
  * AdminSettingsGroupFieldProxy: Field proxy that returns AdminSettingsGroupBuilder from end_field().
  *
- * Extends GroupFieldProxy to provide AdminSettings-specific return types.
+ * Uses composition with FieldProxyTrait instead of inheritance from GroupFieldProxy.
+ * This provides concrete return types for full IDE support.
  *
  * @package Ran\PluginLib\Settings
  */
@@ -11,14 +12,23 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\Settings;
 
-use Ran\PluginLib\Forms\Builders\GroupFieldProxy;
+use Ran\PluginLib\Forms\Component\Build\ComponentBuilderInterface;
 use Ran\PluginLib\Forms\Component\Build\ComponentBuilderBase;
+use Ran\PluginLib\Forms\Builders\Traits\FieldProxyTrait;
+use Ran\PluginLib\Forms\Builders\FieldProxyInterface;
 
-class AdminSettingsGroupFieldProxy extends GroupFieldProxy {
+/**
+ * Field proxy for AdminSettings groups.
+ *
+ * Uses composition (trait) instead of inheritance for IDE-friendly concrete return types.
+ */
+class AdminSettingsGroupFieldProxy implements FieldProxyInterface, ComponentBuilderInterface {
+	use FieldProxyTrait;
+
 	/**
-	 * @var AdminSettingsGroupBuilder
+	 * The parent group builder - concrete type for IDE support.
 	 */
-	private AdminSettingsGroupBuilder $adminGroupParent;
+	private AdminSettingsGroupBuilder $parent;
 
 	/**
 	 * @param ComponentBuilderBase $builder The component builder.
@@ -42,10 +52,9 @@ class AdminSettingsGroupFieldProxy extends GroupFieldProxy {
 		?string $field_template = null,
 		array $pending_context = array()
 	) {
-		$this->adminGroupParent = $parent;
-		parent::__construct(
+		$this->parent = $parent;
+		$this->_init_proxy(
 			$builder,
-			$parent,
 			$updateFn,
 			$container_id,
 			$section_id,
@@ -57,36 +66,12 @@ class AdminSettingsGroupFieldProxy extends GroupFieldProxy {
 	}
 
 	/**
-	 * Set the before callback for this field.
-	 *
-	 * @param callable|null $before The before callback.
-	 *
-	 * @return $this
-	 */
-	public function before(?callable $before): static {
-		parent::before($before);
-		return $this;
-	}
-
-	/**
-	 * Set the after callback for this field.
-	 *
-	 * @param callable|null $after The after callback.
-	 *
-	 * @return $this
-	 */
-	public function after(?callable $after): static {
-		parent::after($after);
-		return $this;
-	}
-
-	/**
 	 * End field configuration and return to the AdminSettingsGroupBuilder.
 	 *
 	 * @return AdminSettingsGroupBuilder The parent group builder for continued chaining.
 	 */
 	public function end_field(): AdminSettingsGroupBuilder {
-		return $this->adminGroupParent;
+		return $this->parent;
 	}
 
 	/**
@@ -95,7 +80,7 @@ class AdminSettingsGroupFieldProxy extends GroupFieldProxy {
 	 * @return AdminSettingsSectionBuilder
 	 */
 	public function end_group(): AdminSettingsSectionBuilder {
-		return $this->adminGroupParent->end_group();
+		return $this->parent->end_group();
 	}
 
 	/**
@@ -104,6 +89,24 @@ class AdminSettingsGroupFieldProxy extends GroupFieldProxy {
 	 * @return AdminSettingsPageBuilder
 	 */
 	public function end_section(): AdminSettingsPageBuilder {
-		return $this->adminGroupParent->end_section();
+		return $this->parent->end_section();
+	}
+
+	/**
+	 * End field, group, section, and page, returning to the menu group builder.
+	 *
+	 * @return AdminSettingsMenuGroupBuilder
+	 */
+	public function end_page(): AdminSettingsMenuGroupBuilder {
+		return $this->parent->end_page();
+	}
+
+	/**
+	 * Fluent shortcut: end all the way back to AdminSettings.
+	 *
+	 * @return AdminSettings
+	 */
+	public function end(): AdminSettings {
+		return $this->end_page()->end_menu_group();
 	}
 }

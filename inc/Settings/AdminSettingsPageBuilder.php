@@ -154,7 +154,6 @@ class AdminSettingsPageBuilder implements AdminSettingsBuilderRootInterface {
 
 		$builder = new AdminSettingsSectionBuilder(
 			$this,
-			$this,
 			$this->container_id,
 			$section_id,
 			$title,

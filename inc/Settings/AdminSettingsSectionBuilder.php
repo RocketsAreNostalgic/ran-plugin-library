@@ -1,27 +1,51 @@
 <?php
 /**
- * AdminSettingsSectionBuilder: Section builder specialized for AdminSettings pages.
+ * AdminSettingsSectionBuilder: Fluent builder for admin settings sections with template override support.
  *
- * @extends SectionBuilder<AdminSettingsPageBuilder>
+ * Uses composition with SectionBuilderTrait instead of inheritance from SectionBuilder.
+ * This provides concrete return types for full IDE support.
+ *
+ * @package Ran\PluginLib\Settings
  */
 
 declare(strict_types=1);
 
 namespace Ran\PluginLib\Settings;
 
-use Ran\PluginLib\Settings\AdminSettingsPageBuilder;
-use Ran\PluginLib\Settings\AdminSettingsComponentProxy;
 use Ran\PluginLib\Forms\FormsInterface;
 use Ran\PluginLib\Forms\Component\Build\ComponentBuilderDefinitionInterface;
-use Ran\PluginLib\Forms\Builders\SectionBuilder;
-use Ran\PluginLib\Forms\Builders\BuilderRootInterface;
+use Ran\PluginLib\Forms\Builders\SectionBuilderInterface;
+use Ran\PluginLib\Forms\Builders\Traits\SectionBuilderTrait;
+use Ran\PluginLib\Forms\Builders\BuilderImmediateUpdateTrait;
 
-class AdminSettingsSectionBuilder extends SectionBuilder {
+/**
+ * Section builder for AdminSettings.
+ *
+ * Uses composition (traits) instead of inheritance for IDE-friendly concrete return types.
+ */
+class AdminSettingsSectionBuilder implements SectionBuilderInterface {
+	use SectionBuilderTrait;
+	use BuilderImmediateUpdateTrait;
+
+	/**
+	 * The parent page builder - concrete type for IDE support.
+	 */
 	private AdminSettingsPageBuilder $pageBuilder;
 
+	/**
+	 * Constructor.
+	 *
+	 * @param AdminSettingsPageBuilder $pageBuilder The page builder instance.
+	 * @param string $container_id The container ID.
+	 * @param string $section_id The section ID.
+	 * @param string $heading The section heading.
+	 * @param callable $updateFn The update function for immediate data flow.
+	 * @param callable|null $before Optional callback invoked before rendering the section.
+	 * @param callable|null $after Optional callback invoked after rendering the section.
+	 * @param int|null $order Optional section order.
+	 */
 	public function __construct(
 		AdminSettingsPageBuilder $pageBuilder,
-		BuilderRootInterface $collectionBuilder,
 		string $container_id,
 		string $section_id,
 		string $heading,
@@ -30,8 +54,10 @@ class AdminSettingsSectionBuilder extends SectionBuilder {
 		?callable $after = null,
 		?int $order = null
 	) {
-		parent::__construct(
-			$collectionBuilder,
+		$this->pageBuilder = $pageBuilder;
+
+		// Initialize section (from SectionBuilderTrait)
+		$this->_init_section(
 			$container_id,
 			$section_id,
 			$heading,
@@ -40,66 +66,48 @@ class AdminSettingsSectionBuilder extends SectionBuilder {
 			$after,
 			$order
 		);
-		$this->pageBuilder = $pageBuilder;
 	}
 
 	/**
-	 * Get the FormsInterface instance for the current page.
+	 * Get the AdminSettings instance from the page builder.
 	 *
 	 * @return FormsInterface
 	 */
-	public function get_forms(): FormsInterface {
+	public function get_settings(): FormsInterface {
 		return $this->pageBuilder->get_forms();
 	}
 
 	/**
-	 * Set the heading for this section.
+	 * Add a field with a component builder to this section.
 	 *
-	 * @return static
-	 */
-	public function heading(string $heading): static {
-		parent::heading($heading);
-		return $this;
-	}
-
-	/**
-	 * Set the before callback for this section.
+	 * @param string $field_id The field identifier.
+	 * @param string $label The field label.
+	 * @param string $component The component alias.
+	 * @param array<string,mixed> $args Optional arguments.
 	 *
-	 * @return static
+	 * @return AdminSettingsComponentProxy
 	 */
-	public function before(?callable $before): static {
-		parent::before($before);
-		return $this;
-	}
-
-	/**
-	 * Set the after callback for this section.
-	 *
-	 * @return static
-	 */
-	public function after(?callable $after): static {
-		parent::after($after);
-		return $this;
+	public function field(string $field_id, string $label, string $component, array $args = array()): AdminSettingsComponentProxy {
+		$proxy = $this->_add_section_field($field_id, $label, $component, $args);
+		if (!$proxy instanceof AdminSettingsComponentProxy) {
+			throw new \RuntimeException('Unexpected proxy type from _add_section_field()');
+		}
+		return $proxy;
 	}
 
 	/**
 	 * Set the field template for field wrapper customization.
-	 * Configures Tier 2 individual field template override via FormsServiceSession.
-	 * This controls field wrapper layout, labels, validation display, and help text
-	 * within the WordPress admin settings page constraints.
 	 *
 	 * @param string $template_key The template key to use for field wrappers.
 	 *
-	 * @return AdminSettingsSectionBuilder The AdminSettingsSectionBuilder instance.
+	 * @return static
 	 * @throws \InvalidArgumentException If template key is empty.
 	 */
-	public function field_template(string $template_key): AdminSettingsSectionBuilder {
+	public function field_template(string $template_key): static {
 		if (trim($template_key) === '') {
 			throw new \InvalidArgumentException('Template key cannot be empty');
 		}
 
-		// Use updateFn for consistent template override handling
-		// This sets a section-wide field template override that applies to all fields in this section
 		($this->updateFn)('template_override', array(
 			'element_type' => 'section',
 			'element_id'   => $this->section_id,
@@ -110,20 +118,93 @@ class AdminSettingsSectionBuilder extends SectionBuilder {
 	}
 
 	/**
+	 * No-op when called on the section builder directly.
+	 *
+	 * @return static
+	 */
+	public function end_field(): static {
+		return $this;
+	}
+
+	/**
+	 * Not valid in section context - throws exception.
+	 *
+	 * @return never
+	 * @throws \RuntimeException Always throws.
+	 */
+	public function end_fieldset(): never {
+		throw new \RuntimeException('Cannot call end_fieldset() from section context. You are not inside a fieldset.');
+	}
+
+	/**
+	 * Not valid in section context - throws exception.
+	 *
+	 * @return never
+	 * @throws \RuntimeException Always throws.
+	 */
+	public function end_group(): never {
+		throw new \RuntimeException('Cannot call end_group() from section context. You are not inside a group.');
+	}
+
+	/**
+	 * Begin configuring a semantic fieldset grouping within this section.
+	 *
+	 * @param string $fieldset_id The fieldset ID.
+	 * @param string $heading The fieldset heading.
+	 * @param string|callable|null $description_cb The description callback.
+	 * @param array<string,mixed>|null $args Optional configuration.
+	 *
+	 * @return AdminSettingsFieldsetBuilder
+	 */
+	public function fieldset(string $fieldset_id, string $heading = '', string|callable|null $description_cb = null, ?array $args = null): AdminSettingsFieldsetBuilder {
+		return new AdminSettingsFieldsetBuilder(
+			$this,
+			$this->container_id,
+			$this->section_id,
+			$fieldset_id,
+			$heading,
+			$description_cb,
+			$this->updateFn,
+			$args ?? array()
+		);
+	}
+
+	/**
+	 * Begin configuring a grouped set of fields within this section.
+	 *
+	 * @param string $group_id The group ID.
+	 * @param string $heading The group heading.
+	 * @param string|callable|null $description_cb The description callback.
+	 * @param array<string,mixed>|null $args Optional configuration.
+	 *
+	 * @return AdminSettingsGroupBuilder
+	 */
+	public function group(string $group_id, string $heading = '', string|callable|null $description_cb = null, ?array $args = null): AdminSettingsGroupBuilder {
+		return new AdminSettingsGroupBuilder(
+			$this,
+			$this->container_id,
+			$this->section_id,
+			$group_id,
+			$heading,
+			$description_cb,
+			$this->updateFn,
+			$args ?? array()
+		);
+	}
+
+	/**
 	 * Set the default group template for all groups in this section.
-	 * Configures Tier 2 individual group template override via FormsServiceSession.
 	 *
 	 * @param string $template_key The template key to use for group containers.
 	 *
-	 * @return AdminSettingsSectionBuilder The AdminSettingsSectionBuilder instance.
+	 * @return static
 	 * @throws \InvalidArgumentException If template key is empty.
 	 */
-	public function group_template(string $template_key): AdminSettingsSectionBuilder {
+	public function group_template(string $template_key): static {
 		if (trim($template_key) === '') {
 			throw new \InvalidArgumentException('Template key cannot be empty');
 		}
 
-		// Use updateFn for consistent template override handling
 		($this->updateFn)('template_override', array(
 			'element_type' => 'section',
 			'element_id'   => $this->section_id,
@@ -135,19 +216,17 @@ class AdminSettingsSectionBuilder extends SectionBuilder {
 
 	/**
 	 * Set the default fieldset template for all fieldsets in this section.
-	 * Configures Tier 2 individual fieldset template override via FormsServiceSession.
 	 *
 	 * @param string $template_key The template key to use for fieldset containers.
 	 *
-	 * @return AdminSettingsSectionBuilder The AdminSettingsSectionBuilder instance.
+	 * @return static
 	 * @throws \InvalidArgumentException If template key is empty.
 	 */
-	public function fieldset_template(string $template_key): AdminSettingsSectionBuilder {
+	public function fieldset_template(string $template_key): static {
 		if (trim($template_key) === '') {
 			throw new \InvalidArgumentException('Template key cannot be empty');
 		}
 
-		// Use updateFn for consistent template override handling
 		($this->updateFn)('template_override', array(
 			'element_type' => 'section',
 			'element_id'   => $this->section_id,
@@ -159,20 +238,17 @@ class AdminSettingsSectionBuilder extends SectionBuilder {
 
 	/**
 	 * Set the section template for section container customization.
-	 * Configures Tier 2 individual section template override via FormsServiceSession.
-	 * This controls the section container layout within the WordPress admin settings page constraints.
 	 *
 	 * @param string $template_key The template key to use for section container.
 	 *
-	 * @return AdminSettingsSectionBuilder The AdminSettingsSectionBuilder instance.
+	 * @return static
 	 * @throws \InvalidArgumentException If template key is empty.
 	 */
-	public function section_template(string $template_key): AdminSettingsSectionBuilder {
+	public function section_template(string $template_key): static {
 		if (trim($template_key) === '') {
 			throw new \InvalidArgumentException('Template key cannot be empty');
 		}
 
-		// Use updateFn for consistent template override handling
 		($this->updateFn)('template_override', array(
 			'element_type' => 'section',
 			'element_id'   => $this->section_id,
@@ -183,74 +259,106 @@ class AdminSettingsSectionBuilder extends SectionBuilder {
 	}
 
 	/**
-	 * Add a field with a component builder to this section.
-	 *
-	 * @return AdminSettingsComponentProxy
-	 */
-	public function field(string $field_id, string $label, string $component, array $args = array()): AdminSettingsComponentProxy {
-		$result = parent::field($field_id, $label, $component, $args);
-		if ($result instanceof AdminSettingsComponentProxy) {
-			return $result;
-		}
-		throw new \RuntimeException('Unexpected return type from parent::field()');
-	}
-
-	/**
-	 * Begin configuring a semantic fieldset grouping within this section.
-	 *
-	 * @return AdminSettingsFieldsetBuilder
-	 */
-	public function fieldset(string $fieldset_id, string $heading = '', string|callable|null $description_cb = null, ?array $args = null): AdminSettingsFieldsetBuilder {
-		$args = $args ?? array();
-
-		return new AdminSettingsFieldsetBuilder(
-			$this,
-			$this->container_id,
-			$this->section_id,
-			$fieldset_id,
-			$heading,
-			$description_cb,
-			$this->updateFn,
-			$args
-		);
-	}
-
-	/**
-	 * Begin configuring a grouped set of fields within this section.
-	 *
-	 * @return AdminSettingsGroupBuilder
-	 */
-	public function group(string $group_id, string $heading = '', string|callable|null $description_cb = null, ?array $args = null): AdminSettingsGroupBuilder {
-		$args = $args ?? array();
-
-		return new AdminSettingsGroupBuilder(
-			$this,
-			$this->container_id,
-			$this->section_id,
-			$group_id,
-			$heading,
-			$description_cb,
-			$this->updateFn,
-			$args
-		);
-	}
-
-	/**
 	 * End the current section and return to the parent page builder.
 	 *
-	 * @return AdminSettingsBuilderRootInterface
+	 * @return AdminSettingsPageBuilder
 	 */
-	public function end_section(): AdminSettingsBuilderRootInterface {
+	public function end_section(): AdminSettingsPageBuilder {
 		return $this->pageBuilder;
 	}
 
+	/**
+	 * End the section and page, returning to the menu group builder.
+	 *
+	 * @return AdminSettingsMenuGroupBuilder
+	 */
+	public function end_page(): AdminSettingsMenuGroupBuilder {
+		return $this->pageBuilder->end_page();
+	}
 
 	/**
-	 * Factory method to create AdminSettingsComponentProxy.
+	 * Fluent shortcut: end all the way back to AdminSettings.
+	 *
+	 * @return AdminSettings
+	 */
+	public function end(): AdminSettings {
+		return $this->end_page()->end_menu_group();
+	}
+
+	/**
+	 * Start a sibling section on the same page.
+	 *
+	 * @param string $section_id The section ID.
+	 * @param string $heading The section heading.
+	 *
+	 * @return AdminSettingsSectionBuilder
+	 */
+	public function section(string $section_id, string $heading = ''): AdminSettingsSectionBuilder {
+		return $this->pageBuilder->section($section_id, $heading);
+	}
+
+	// =========================================================================
+	// Abstract method implementations from traits
+	// =========================================================================
+
+	/**
+	 * Get the FormsInterface instance.
+	 *
+	 * @return FormsInterface
+	 */
+	public function get_forms(): FormsInterface {
+		return $this->pageBuilder->get_forms();
+	}
+
+	/**
+	 * Get the component builder factory for a given component alias.
+	 *
+	 * @param string $component The component alias.
+	 *
+	 * @return callable|null
+	 */
+	public function get_component_builder_factory(string $component): ?callable {
+		return $this->_get_section_component_builder_factory($component);
+	}
+
+	/**
+	 * Get the component builder factory for a given component alias.
+	 *
+	 * @param string $component The component alias.
+	 *
+	 * @return callable|null
+	 */
+	protected function _get_section_component_builder_factory(string $component): ?callable {
+		$component = trim($component);
+		if ($component === '') {
+			return null;
+		}
+
+		if ($this->componentBuilderFactories === null) {
+			$forms   = $this->pageBuilder->get_forms();
+			$session = $forms->get_form_session();
+			if ($session === null) {
+				$this->componentBuilderFactories = array();
+			} else {
+				$this->componentBuilderFactories = $session->manifest()->builder_factories();
+			}
+		}
+
+		return $this->componentBuilderFactories[$component] ?? null;
+	}
+
+	/**
+	 * Create a field proxy for the given component builder.
+	 *
+	 * @param ComponentBuilderDefinitionInterface $builder The component builder.
+	 * @param string $component_alias The component alias.
+	 * @param string|null $group_id The group ID (null for section-level fields).
+	 * @param string|null $field_template The field template override.
+	 * @param array<string,mixed> $component_context The component context.
 	 *
 	 * @return AdminSettingsComponentProxy
 	 */
-	protected function _create_component_proxy(
+	protected function _create_section_field_proxy(
 		ComponentBuilderDefinitionInterface $builder,
 		string $component_alias,
 		?string $group_id,
@@ -268,5 +376,49 @@ class AdminSettingsSectionBuilder extends SectionBuilder {
 			$field_template,
 			$component_context
 		);
+	}
+
+	// =========================================================================
+	// BuilderImmediateUpdateTrait abstract implementations
+	// =========================================================================
+
+	/**
+	 * Apply a meta update to local state.
+	 *
+	 * @param string $key The meta key.
+	 * @param mixed $value The new value.
+	 */
+	protected function _apply_meta_update(string $key, mixed $value): void {
+		$this->_apply_section_meta_update($key, $value);
+	}
+
+	/**
+	 * Get the update callback.
+	 *
+	 * @return callable
+	 */
+	protected function _get_update_callback(): callable {
+		return $this->updateFn;
+	}
+
+	/**
+	 * Get the update event name.
+	 *
+	 * @return string
+	 */
+	protected function _get_update_event_name(): string {
+		return 'section_metadata';
+	}
+
+	/**
+	 * Build the update payload.
+	 *
+	 * @param string $key The meta key.
+	 * @param mixed $value The new value.
+	 *
+	 * @return array<string,mixed>
+	 */
+	protected function _build_update_payload(string $key, mixed $value): array {
+		return $this->_build_section_payload();
 	}
 }
