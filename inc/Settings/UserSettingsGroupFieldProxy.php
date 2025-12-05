@@ -2,7 +2,8 @@
 /**
  * UserSettingsGroupFieldProxy: Field proxy that returns UserSettingsGroupBuilder from end_field().
  *
- * Extends GroupFieldProxy to provide UserSettings-specific return types.
+ * Uses composition with FieldProxyTrait instead of inheritance from GroupFieldProxy.
+ * This provides concrete return types for full IDE support.
  *
  * @package Ran\PluginLib\Settings
  */
@@ -11,14 +12,23 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\Settings;
 
+use Ran\PluginLib\Forms\Builders\FieldProxyInterface;
+use Ran\PluginLib\Forms\Builders\Traits\FieldProxyTrait;
+use Ran\PluginLib\Forms\Component\Build\ComponentBuilderInterface;
 use Ran\PluginLib\Forms\Component\Build\ComponentBuilderBase;
-use Ran\PluginLib\Forms\Builders\GroupFieldProxy;
 
-class UserSettingsGroupFieldProxy extends GroupFieldProxy {
+/**
+ * Field proxy for UserSettings groups.
+ *
+ * Uses composition (trait) instead of inheritance for IDE-friendly concrete return types.
+ */
+class UserSettingsGroupFieldProxy implements FieldProxyInterface, ComponentBuilderInterface {
+	use FieldProxyTrait;
+
 	/**
-	 * @var UserSettingsGroupBuilder
+	 * The parent group builder - concrete type for IDE support.
 	 */
-	private UserSettingsGroupBuilder $userGroupParent;
+	private UserSettingsGroupBuilder $parent;
 
 	/**
 	 * @param ComponentBuilderBase $builder The component builder.
@@ -42,10 +52,9 @@ class UserSettingsGroupFieldProxy extends GroupFieldProxy {
 		?string $field_template = null,
 		array $pending_context = array()
 	) {
-		$this->userGroupParent = $parent;
-		parent::__construct(
+		$this->parent = $parent;
+		$this->_init_proxy(
 			$builder,
-			$parent,
 			$updateFn,
 			$container_id,
 			$section_id,
@@ -57,36 +66,12 @@ class UserSettingsGroupFieldProxy extends GroupFieldProxy {
 	}
 
 	/**
-	 * Set the before callback for this field.
-	 *
-	 * @param callable|null $before The before callback.
-	 *
-	 * @return $this
-	 */
-	public function before(?callable $before): static {
-		parent::before($before);
-		return $this;
-	}
-
-	/**
-	 * Set the after callback for this field.
-	 *
-	 * @param callable|null $after The after callback.
-	 *
-	 * @return $this
-	 */
-	public function after(?callable $after): static {
-		parent::after($after);
-		return $this;
-	}
-
-	/**
 	 * End field configuration and return to the UserSettingsGroupBuilder.
 	 *
 	 * @return UserSettingsGroupBuilder The parent group builder for continued chaining.
 	 */
 	public function end_field(): UserSettingsGroupBuilder {
-		return $this->userGroupParent;
+		return $this->parent;
 	}
 
 	/**
@@ -95,7 +80,7 @@ class UserSettingsGroupFieldProxy extends GroupFieldProxy {
 	 * @return UserSettingsSectionBuilder
 	 */
 	public function end_group(): UserSettingsSectionBuilder {
-		return $this->userGroupParent->end_group();
+		return $this->parent->end_group();
 	}
 
 	/**
@@ -104,6 +89,24 @@ class UserSettingsGroupFieldProxy extends GroupFieldProxy {
 	 * @return UserSettingsCollectionBuilder
 	 */
 	public function end_section(): UserSettingsCollectionBuilder {
-		return $this->userGroupParent->end_section();
+		return $this->parent->end_section();
+	}
+
+	/**
+	 * End field, group, section, and collection, returning to UserSettings.
+	 *
+	 * @return UserSettings
+	 */
+	public function end_collection(): UserSettings {
+		return $this->parent->end_collection();
+	}
+
+	/**
+	 * Fluent shortcut: end all the way back to UserSettings.
+	 *
+	 * @return UserSettings
+	 */
+	public function end(): UserSettings {
+		return $this->end_collection();
 	}
 }

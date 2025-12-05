@@ -2,8 +2,8 @@
 /**
  * UserSettingsComponentProxy: Type-safe component builder proxy for UserSettings fluent chains.
  *
- * This proxy extends ComponentBuilderProxy to provide accurate return types for IDE autocompletion
- * when building UserSettings forms. It overrides navigation methods to return User-specific types.
+ * Uses composition with FieldProxyTrait instead of inheritance from ComponentBuilderProxy.
+ * This provides concrete return types for full IDE support.
  *
  * @package Ran\PluginLib\Settings
  */
@@ -12,24 +12,26 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\Settings;
 
-use Ran\PluginLib\Forms\Builders\ComponentBuilderProxy;
-use Ran\PluginLib\Forms\Builders\SectionBuilder;
-use Ran\PluginLib\Forms\Builders\SectionFieldContainerBuilder;
+use Ran\PluginLib\Forms\Component\Build\ComponentBuilderInterface;
 use Ran\PluginLib\Forms\Component\Build\ComponentBuilderBase;
+use Ran\PluginLib\Forms\Builders\Traits\FieldProxyTrait;
+use Ran\PluginLib\Forms\Builders\FieldProxyInterface;
 
 /**
  * Type-safe proxy for UserSettings field builder chains.
  *
- * Provides covariant return types for navigation methods, enabling proper IDE
- * autocompletion throughout fluent UserSettings builder chains.
+ * Uses composition (trait) instead of inheritance for IDE-friendly concrete return types.
+ * Handles fields added directly to sections (not inside groups or fieldsets).
  */
-class UserSettingsComponentProxy extends ComponentBuilderProxy {
+class UserSettingsComponentProxy implements FieldProxyInterface, ComponentBuilderInterface {
+	use FieldProxyTrait;
+
 	/**
 	 * The parent builder with User-specific typing.
 	 *
 	 * @var UserSettingsSectionBuilder|UserSettingsGroupBuilder|UserSettingsFieldsetBuilder
 	 */
-	private UserSettingsSectionBuilder|UserSettingsGroupBuilder|UserSettingsFieldsetBuilder $userParent;
+	private UserSettingsSectionBuilder|UserSettingsGroupBuilder|UserSettingsFieldsetBuilder $parent;
 
 	/**
 	 * Constructor.
@@ -55,9 +57,9 @@ class UserSettingsComponentProxy extends ComponentBuilderProxy {
 		?string $field_template = null,
 		array $pending_context = array()
 	) {
-		parent::__construct(
+		$this->parent = $parent;
+		$this->_init_proxy(
 			$builder,
-			$parent,
 			$updateFn,
 			$container_id,
 			$section_id,
@@ -66,7 +68,6 @@ class UserSettingsComponentProxy extends ComponentBuilderProxy {
 			$field_template,
 			$pending_context
 		);
-		$this->userParent = $parent;
 	}
 
 	/**
@@ -75,7 +76,7 @@ class UserSettingsComponentProxy extends ComponentBuilderProxy {
 	 * @return UserSettingsSectionBuilder|UserSettingsGroupBuilder|UserSettingsFieldsetBuilder
 	 */
 	public function end_field(): UserSettingsSectionBuilder|UserSettingsGroupBuilder|UserSettingsFieldsetBuilder {
-		return $this->userParent;
+		return $this->parent;
 	}
 
 	/**
