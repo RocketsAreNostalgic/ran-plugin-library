@@ -26,7 +26,7 @@ namespace Ran\PluginLib\Settings {
 			public function heading(string $heading): static {
 			}
 			/** @return static */
-			public function description(string $description): static {
+			public function description(string|callable $description): static {
 			}
 			/** @return static */
 			public function order(int $order): static {
@@ -48,7 +48,7 @@ namespace Ran\PluginLib\Settings {
 			 * Start a new section within this collection.
 			 * @return UserSettingsSectionBuilder
 			 */
-			public function section(string $section_id, string $title = '', ?callable $description_cb = null, ?array $args = null): UserSettingsSectionBuilder {
+			public function section(string $section_id, string $title = '', string|callable|null $description_cb = null, ?array $args = null): UserSettingsSectionBuilder {
 			}
 
 			/**
@@ -116,14 +116,14 @@ namespace Ran\PluginLib\Settings {
 			 * Start a fieldset within this section.
 			 * @return UserSettingsFieldsetBuilder
 			 */
-			public function fieldset(string $fieldset_id, string $heading = '', ?callable $description_cb = null, ?array $args = null): UserSettingsFieldsetBuilder {
+			public function fieldset(string $fieldset_id, string $heading = '', string|callable|null $description_cb = null, ?array $args = null): UserSettingsFieldsetBuilder {
 			}
 
 			/**
 			 * Start a group within this section.
 			 * @return UserSettingsGroupBuilder
 			 */
-			public function group(string $group_id, string $heading = '', ?callable $description_cb = null, ?array $args = null): UserSettingsGroupBuilder {
+			public function group(string $group_id, string $heading = '', string|callable|null $description_cb = null, ?array $args = null): UserSettingsGroupBuilder {
 			}
 
 			/**
@@ -149,7 +149,7 @@ namespace Ran\PluginLib\Settings {
 			public function heading(string $heading): static {
 			}
 			/** @return static */
-			public function description(callable $description_cb): static {
+			public function description(string|callable $description_cb): static {
 			}
 			/** @return static */
 			public function before(?callable $before): static {
@@ -213,7 +213,7 @@ namespace Ran\PluginLib\Settings {
 			public function heading(string $heading): static {
 			}
 			/** @return static */
-			public function description(callable $description_cb): static {
+			public function description(string|callable $description_cb): static {
 			}
 			/** @return static */
 			public function before(?callable $before): static {
@@ -457,7 +457,7 @@ namespace Ran\PluginLib\Settings {
 			public function heading(string $heading): static {
 			}
 			/** @return static */
-			public function description(string $description): static {
+			public function description(string|callable $description): static {
 			}
 			/** @return static */
 			public function menu_label(string $menu_title): static {
@@ -485,7 +485,7 @@ namespace Ran\PluginLib\Settings {
 			 * Start a new section within this page.
 			 * @return AdminSettingsSectionBuilder
 			 */
-			public function section(string $section_id, string $title = '', ?callable $description_cb = null, ?array $args = null): AdminSettingsSectionBuilder {
+			public function section(string $section_id, string $title = '', string|callable|null $description_cb = null, ?array $args = null): AdminSettingsSectionBuilder {
 			}
 
 			/**
@@ -567,14 +567,14 @@ namespace Ran\PluginLib\Settings {
 			 * Start a fieldset within this section.
 			 * @return AdminSettingsFieldsetBuilder
 			 */
-			public function fieldset(string $fieldset_id, string $heading = '', ?callable $description_cb = null, ?array $args = null): AdminSettingsFieldsetBuilder {
+			public function fieldset(string $fieldset_id, string $heading = '', string|callable|null $description_cb = null, ?array $args = null): AdminSettingsFieldsetBuilder {
 			}
 
 			/**
 			 * Start a group within this section.
 			 * @return AdminSettingsGroupBuilder
 			 */
-			public function group(string $group_id, string $heading = '', ?callable $description_cb = null, ?array $args = null): AdminSettingsGroupBuilder {
+			public function group(string $group_id, string $heading = '', string|callable|null $description_cb = null, ?array $args = null): AdminSettingsGroupBuilder {
 			}
 
 			/**
@@ -607,7 +607,7 @@ namespace Ran\PluginLib\Settings {
 			public function heading(string $heading): static {
 			}
 			/** @return static */
-			public function description(callable $description_cb): static {
+			public function description(string|callable $description_cb): static {
 			}
 			/** @return static */
 			public function before(?callable $before): static {
@@ -678,7 +678,7 @@ namespace Ran\PluginLib\Settings {
 			public function heading(string $heading): static {
 			}
 			/** @return static */
-			public function description(callable $description_cb): static {
+			public function description(string|callable $description_cb): static {
 			}
 			/** @return static */
 			public function before(?callable $before): static {
