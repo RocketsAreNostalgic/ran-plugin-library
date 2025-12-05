@@ -13,17 +13,8 @@ declare(strict_types=1);
 namespace Ran\PluginLib\Forms\Builders;
 
 interface FieldsetBuilderInterface extends SectionFieldContainerBuilderInterface {
-	/**
-	 * Add a field with a component builder.
-	 *
-	 * @param string $field_id The field identifier.
-	 * @param string $label The field label.
-	 * @param string $component The component alias.
-	 * @param array<string,mixed> $args Optional arguments.
-	 *
-	 * @return FieldsetFieldProxy The proxy with correct return type for end_field().
-	 */
-	public function field(string $field_id, string $label, string $component, array $args = array()): FieldsetFieldProxy;
+	// Note: field() is inherited from BuilderFieldContainerInterface with mixed return type.
+	// Implementations should return their specific proxy type.
 
 	/**
 	 * Define the visual style for the fieldset wrapper.

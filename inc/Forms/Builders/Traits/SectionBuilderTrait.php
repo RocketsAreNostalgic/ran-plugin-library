@@ -192,11 +192,11 @@ trait SectionBuilderTrait {
 	 * @param string $component The component alias.
 	 * @param array<string,mixed> $args Optional configuration.
 	 *
-	 * @return ComponentBuilderProxy The fluent proxy for field configuration.
+	 * @return ComponentBuilderProxy The fluent proxy for field configuration (concrete type in implementations).
 	 *
 	 * @throws \InvalidArgumentException If the component has no registered builder factory.
 	 */
-	protected function _add_section_field(string $field_id, string $label, string $component, array $args = array()): ComponentBuilderProxy {
+	protected function _add_section_field(string $field_id, string $label, string $component, array $args = array()): mixed {
 		$component_context = $args['context']        ?? $args['component_context'] ?? array();
 		$order             = $args['order']          ?? null;
 		$field_template    = $args['field_template'] ?? null;
@@ -357,7 +357,7 @@ trait SectionBuilderTrait {
 	 * @param string|null $field_template The field template override.
 	 * @param array<string,mixed> $component_context The component context.
 	 *
-	 * @return ComponentBuilderProxy The proxy instance.
+	 * @return ComponentBuilderProxy The proxy instance (concrete type in implementations).
 	 */
 	abstract protected function _create_section_field_proxy(
 		ComponentBuilderDefinitionInterface $builder,
@@ -365,7 +365,7 @@ trait SectionBuilderTrait {
 		?string $group_id,
 		?string $field_template,
 		array $component_context
-	): ComponentBuilderProxy;
+	): mixed;
 
 	/**
 	 * Update a meta value (from BuilderImmediateUpdateTrait pattern).

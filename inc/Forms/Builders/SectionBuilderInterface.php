@@ -19,6 +19,11 @@ use Ran\PluginLib\Forms\Builders\ComponentBuilderProxy;
 use Ran\PluginLib\Forms\Builders\BuilderRootInterface;
 use Ran\PluginLib\Forms\Builders\BuilderFieldContainerInterface;
 
+/**
+ * @template TGroup of GroupBuilderInterface
+ * @template TFieldset of FieldsetBuilderInterface
+ * @template TSection of SectionBuilderInterface
+ */
 interface SectionBuilderInterface extends BuilderChildInterface, BuilderFieldContainerInterface {
 	/**
 	 * Define a new field group within this section.
@@ -28,9 +33,9 @@ interface SectionBuilderInterface extends BuilderChildInterface, BuilderFieldCon
 	 * @param string|callable|null $description_cb Optional group description (string or callback).
 	 * @param array<string,mixed>|null $args Optional configuration (order, before/after callbacks, classes, etc.).
 	 *
-	 * @return GroupBuilder<TRoot, SectionBuilder<TRoot>> The GroupBuilder instance.
+	 * @return TGroup The GroupBuilder instance (concrete type in implementations).
 	 */
-	public function group(string $group_id, string $title, string|callable|null $description_cb = null, ?array $args = null): GroupBuilder;
+	public function group(string $group_id, string $title, string|callable|null $description_cb = null, ?array $args = null): mixed;
 
 	/**
 	 * Define a new fieldset group within this section.
@@ -40,38 +45,23 @@ interface SectionBuilderInterface extends BuilderChildInterface, BuilderFieldCon
 	 * @param string|callable|null $description_cb Optional description (string or callback).
 	 * @param array<string,mixed>|null $args Optional configuration (order, before/after callbacks, style metadata, etc.).
 	 *
-	 * @return FieldsetBuilderInterface<TRoot, SectionBuilderInterface<TRoot>> The fieldset builder instance.
+	 * @return TFieldset The fieldset builder instance (concrete type in implementations).
 	 */
-	public function fieldset(string $fieldset_id, string $title, string|callable|null $description_cb = null, ?array $args = null): FieldsetBuilderInterface;
+	public function fieldset(string $fieldset_id, string $title, string|callable|null $description_cb = null, ?array $args = null): mixed;
 
-	/**
-	 * Add a field with a component builder.
-	 *
-	 * Use this for components that have registered builder factories (e.g., fields.input,
-	 * fields.select). Throws if the component has no registered builder factory.
-	 *
-	 * @param string $field_id The field ID.
-	 * @param string $label The field label.
-	 * @param string $component The component alias (must have a registered builder factory).
-	 * @param array<string,mixed> $args Optional configuration (context, order, field_template).
-	 *
-	 * @return ComponentBuilderProxy The fluent proxy for field configuration.
-	 *
-	 * @throws \InvalidArgumentException If the component has no registered builder factory.
-	 */
-	public function field(string $field_id, string $label, string $component, array $args = array()): ComponentBuilderProxy;
+	// Note: field() is inherited from BuilderFieldContainerInterface with mixed return type.
 
 	/**
 	 * end_group() method returns this SectionBuilder instance.
 	 *
-	 * @return SectionBuilder<TRoot> The SectionBuilder instance.
+	 * @return TSection The SectionBuilder instance (concrete type in implementations).
 	 */
-	public function end_group(): SectionBuilder;
+	public function end_group(): mixed;
 
 	/**
 	 * end_section() method returns the original Settings instance.
 	 *
-	 * @return TRoot The root builder instance.
+	 * @return mixed The root builder instance.
 	 */
 	public function end_section(): mixed;
 }

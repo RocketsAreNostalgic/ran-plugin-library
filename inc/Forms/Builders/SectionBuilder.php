@@ -178,7 +178,7 @@ class SectionBuilder implements SectionBuilderInterface {
 	 *
 	 * @return GroupBuilder<TRoot, SectionBuilder<TRoot>> The fluent group builder instance.
 	 */
-	public function group(string $group_id, string $heading = '', string|callable|null $description_cb = null, ?array $args = null): GroupBuilder {
+	public function group(string $group_id, string $heading = '', string|callable|null $description_cb = null, ?array $args = null): mixed {
 		$args = $args ?? array();
 		return new GroupBuilder(
 			$this,
@@ -202,7 +202,7 @@ class SectionBuilder implements SectionBuilderInterface {
 	 *
 	 * @return FieldsetBuilderInterface<TRoot, SectionBuilderInterface<TRoot>> The fluent fieldset builder instance.
 	 */
-	public function fieldset(string $fieldset_id, string $heading = '', string|callable|null $description_cb = null, ?array $args = null): FieldsetBuilderInterface {
+	public function fieldset(string $fieldset_id, string $heading = '', string|callable|null $description_cb = null, ?array $args = null): mixed {
 		$args = $args ?? array();
 		return new FieldsetBuilder(
 			$this,
@@ -231,7 +231,7 @@ class SectionBuilder implements SectionBuilderInterface {
 	 *
 	 * @throws \InvalidArgumentException If the component has no registered builder factory.
 	 */
-	public function field(string $field_id, string $label, string $component, array $args = array()): ComponentBuilderProxy {
+	public function field(string $field_id, string $label, string $component, array $args = array()): mixed {
 		$component_context = $args['context']        ?? $args['component_context'] ?? array();
 		$order             = $args['order']          ?? null;
 		$field_template    = $args['field_template'] ?? null;
@@ -296,7 +296,7 @@ class SectionBuilder implements SectionBuilderInterface {
 	 * @param string|null $field_template The field template override.
 	 * @param array<string,mixed> $component_context The component context.
 	 *
-	 * @return ComponentBuilderProxy The proxy instance.
+	 * @return ComponentBuilderProxy The proxy instance (concrete type in subclasses).
 	 */
 	protected function _create_component_proxy(
 		ComponentBuilderDefinitionInterface $builder,
@@ -304,7 +304,7 @@ class SectionBuilder implements SectionBuilderInterface {
 		?string $group_id,
 		?string $field_template,
 		array $component_context
-	): ComponentBuilderProxy {
+	): mixed {
 		return new ComponentBuilderProxy(
 			$builder,
 			$this,
@@ -349,7 +349,7 @@ class SectionBuilder implements SectionBuilderInterface {
 	 *
 	 * @return $this The SectionBuilder instance.
 	 */
-	public function end_group(): SectionBuilder {
+	public function end_group(): mixed {
 		return $this;
 	}
 

@@ -20,6 +20,8 @@ use Ran\PluginLib\Forms\Builders\BuilderRootInterface;
  *
  * Provides consistent API for building structures with sections,
  * template overrides, and priority/ordering across different WordPress contexts.
+ *
+ * @template TFieldProxy of ComponentBuilderProxy
  */
 interface BuilderFieldContainerInterface {
 	/**
@@ -33,9 +35,9 @@ interface BuilderFieldContainerInterface {
 	 * @param string $component The component alias (must have a registered builder factory).
 	 * @param array<string,mixed> $args Optional arguments for the component.
 	 *
-	 * @return ComponentBuilderProxy The fluent proxy for field configuration.
+	 * @return TFieldProxy The fluent proxy for field configuration.
 	 *
 	 * @throws \InvalidArgumentException If the component has no registered builder factory.
 	 */
-	public function field(string $field_id, string $label, string $component, array $args = array()): ComponentBuilderProxy;
+	public function field(string $field_id, string $label, string $component, array $args = array()): mixed;
 }
