@@ -1,4 +1,10 @@
 <?php
+/**
+ * Tests for FileUpload Sanitizer.
+ *
+ * The Sanitizer now handles actual file uploads from $_FILES and creates
+ * media library attachments. These tests verify the new behavior.
+ */
 
 declare(strict_types=1);
 
@@ -41,39 +47,63 @@ final class SanitizerTest extends PluginLibTestCase {
 		})->byDefault();
 	}
 
-	public function test_single_file_with_allowed_extension_is_sanitized(): void {
-		$context = array('allowed_extensions' => array('jpg'));
+	public function test_no_file_upload_returns_empty(): void {
+		// When no file is in $_FILES, the sanitizer returns empty
+		$context = array('name' => 'test_file');
 
-		$result = $this->sanitizer->sanitize(' My Photo.JPG ', $context, $this->emitNotice);
+		$result = $this->sanitizer->sanitize('some-filename.jpg', $context, $this->emitNotice);
 
-		self::assertSame('my-photo.jpg', $result);
+		// Without $_FILES data, the sanitizer returns empty (no actual upload)
+		self::assertSame('', $result);
 		self::assertSame(array(), $this->notices);
 	}
 
-	public function test_disallowed_extension_is_removed_with_notice(): void {
-		$context = array('allowed_extensions' => array('jpg'));
+	public function test_preserves_existing_file_data_array(): void {
+		// When value is already a processed file array, it should be preserved
+		$existingFile = array(
+			'url'           => 'https://example.com/uploads/photo.jpg',
+			'file'          => '/var/www/uploads/photo.jpg',
+			'type'          => 'image/jpeg',
+			'filename'      => 'photo.jpg',
+			'attachment_id' => 123,
+		);
+		$context = array('name' => 'test_file');
 
-		$result = $this->sanitizer->sanitize('document.pdf', $context, $this->emitNotice);
+		$result = $this->sanitizer->sanitize($existingFile, $context, $this->emitNotice);
 
-		self::assertSame('', $result);
-		self::assertSame(array('File with disallowed extension was removed.'), $this->notices);
+		self::assertSame($existingFile, $result);
+		self::assertSame(array(), $this->notices);
 	}
 
-	public function test_multiple_files_filter_invalid_entries(): void {
-		$context = array(
-			'multiple'           => true,
-			'allowed_extensions' => array('jpg'),
+	public function test_preserves_multiple_existing_files(): void {
+		// When value is an array of processed file arrays, it should be preserved
+		$existingFiles = array(
+			array(
+				'url'      => 'https://example.com/uploads/photo1.jpg',
+				'filename' => 'photo1.jpg',
+			),
+			array(
+				'url'      => 'https://example.com/uploads/photo2.jpg',
+				'filename' => 'photo2.jpg',
+			),
 		);
+		$context = array('name' => 'test_file', 'multiple' => true);
 
-		$result = $this->sanitizer->sanitize(array('https://example.com/image.jpg?size=large', 'note.txt'), $context, $this->emitNotice);
+		$result = $this->sanitizer->sanitize($existingFiles, $context, $this->emitNotice);
 
-		self::assertSame(array('https://example.com/image.jpg?size=large'), $result);
-		self::assertSame(array('File with disallowed extension was removed.'), $this->notices);
+		self::assertSame($existingFiles, $result);
+		self::assertSame(array(), $this->notices);
 	}
 
 	public function test_empty_input_respects_multiple_flag(): void {
 		self::assertSame('', $this->sanitizer->sanitize('', array(), $this->emitNotice));
 		self::assertSame(array(), $this->sanitizer->sanitize('', array('multiple' => true), $this->emitNotice));
 		self::assertSame(array(), $this->notices);
+	}
+
+	public function test_null_input_returns_null(): void {
+		// Base class allows null and returns it as-is
+		self::assertNull($this->sanitizer->sanitize(null, array(), $this->emitNotice));
+		self::assertNull($this->sanitizer->sanitize(null, array('multiple' => true), $this->emitNotice));
 	}
 }

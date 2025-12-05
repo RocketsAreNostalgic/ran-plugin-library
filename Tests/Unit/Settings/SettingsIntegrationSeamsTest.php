@@ -17,17 +17,17 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\Tests\Unit\Settings;
 
-use Ran\PluginLib\Tests\Unit\PluginLibTestCase;
-use Ran\PluginLib\Config\ConfigInterface;
-use Ran\PluginLib\Options\RegisterOptions;
-use Ran\PluginLib\Options\Storage\StorageContext;
-use Ran\PluginLib\Options\OptionScope;
-use Ran\PluginLib\Forms\Component\ComponentLoader;
-use Ran\PluginLib\Forms\Component\ComponentManifest;
-use Ran\PluginLib\Forms\Component\ComponentRenderResult;
-use Ran\PluginLib\Settings\AdminSettings;
-use Ran\PluginLib\Settings\UserSettings;
 use Ran\PluginLib\Util\Logger;
+use Ran\PluginLib\Tests\Unit\PluginLibTestCase;
+use Ran\PluginLib\Settings\UserSettings;
+use Ran\PluginLib\Settings\AdminSettings;
+use Ran\PluginLib\Options\Storage\StorageContext;
+use Ran\PluginLib\Options\RegisterOptions;
+use Ran\PluginLib\Options\OptionScope;
+use Ran\PluginLib\Forms\Component\ComponentRenderResult;
+use Ran\PluginLib\Forms\Component\ComponentManifest;
+use Ran\PluginLib\Forms\Component\ComponentLoader;
+use Ran\PluginLib\Config\ConfigInterface;
 
 /**
  * Integration tests that cross layer boundaries.
@@ -384,7 +384,7 @@ class SettingsIntegrationSeamsTest extends PluginLibTestCase {
 		$this->captureOutput(fn() => $settings->render('profile'));
 
 		// Act: save_settings crosses Settings → RegisterOptions schema boundary
-		$settings->save_settings(array('user_schema_field' => '  hello world  '), array('user_id' => 789));
+		$settings->_save_settings(array('user_schema_field' => '  hello world  '), array('user_id' => 789));
 
 		// Assert: Schema sanitizer from RegisterOptions was invoked
 		self::assertTrue($sanitizerCalled, 'RegisterOptions schema sanitizer should be called');
@@ -647,7 +647,7 @@ return new ComponentRenderResult(
 		self::assertStringContainsString('value="user_initial_value"', $output1); // Already lowercase
 
 		// Step 2: Save new value (save_settings handles sanitization internally)
-		$settings->save_settings(array('user_roundtrip_field' => '  new_user_value  '), array('user_id' => $userId));
+		$settings->_save_settings(array('user_roundtrip_field' => '  new_user_value  '), array('user_id' => $userId));
 
 		// Step 3: Verify stored value was sanitized
 		$storedValue = $this->userMetaValues['roundtrip_user'][$userId]['user_roundtrip_field'] ?? null;
@@ -787,7 +787,7 @@ return new ComponentRenderResult(
 		$this->captureOutput(fn() => $settings->render('profile'));
 
 		// Act: Try to save with invalid value (too short)
-		$settings->save_settings(array('user_validated_field' => 'ab'), array('user_id' => $userId));
+		$settings->_save_settings(array('user_validated_field' => 'ab'), array('user_id' => $userId));
 
 		// Assert: Validator was called with the submitted value
 		self::assertTrue($validatorCalled, 'Validator should be called');

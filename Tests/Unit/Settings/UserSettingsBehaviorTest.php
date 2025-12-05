@@ -14,13 +14,13 @@ use Ran\PluginLib\Settings\UserSettings;
 use Ran\PluginLib\Options\Storage\StorageContext;
 use Ran\PluginLib\Options\RegisterOptions;
 use Ran\PluginLib\Forms\FormsServiceSession;
+use Ran\PluginLib\Forms\Components\Fields\Input\Builder as InputBuilder;
 use Ran\PluginLib\Forms\Component\Validate\ValidatorInterface;
 use Ran\PluginLib\Forms\Component\ComponentType;
 use Ran\PluginLib\Forms\Component\ComponentRenderResult;
 use Ran\PluginLib\Forms\Component\ComponentManifest;
 use Ran\PluginLib\Forms\Component\ComponentLoader;
 use Ran\PluginLib\EnqueueAccessory\ScriptDefinition;
-use Ran\PluginLib\Forms\Components\Fields\Input\Builder as InputBuilder;
 
 final class UserSettingsBehaviorTest_AutoValidator implements ValidatorInterface {
 	public static array $calls = array();
@@ -155,7 +155,7 @@ final class UserSettingsBehaviorTest extends PluginLibTestCase {
 
 		WP_Mock::userFunction('current_user_can')->with('edit_user', 456)->andReturn(false);
 
-		$user_settings->save_settings(array('profile_name' => 'John'), array('user_id' => 456));
+		$user_settings->_save_settings(array('profile_name' => 'John'), array('user_id' => 456));
 
 		self::assertSame(array(), $user_settings->take_messages());
 	}
@@ -168,7 +168,7 @@ final class UserSettingsBehaviorTest extends PluginLibTestCase {
 		WP_Mock::userFunction('get_option')->andReturn(array());
 		WP_Mock::userFunction('update_option')->andReturn(true);
 
-		$user_settings->save_settings(array('profile_name' => 'Jane', 'profile_age' => 30), array('user_id' => 123));
+		$user_settings->_save_settings(array('profile_name' => 'Jane', 'profile_age' => 30), array('user_id' => 123));
 
 		$messages = $user_settings->take_messages();
 		$this->assertSame(array(), $messages);
@@ -229,7 +229,7 @@ final class UserSettingsBehaviorTest extends PluginLibTestCase {
 		WP_Mock::userFunction('current_user_can')->withAnyArgs()->andReturn(true);
 		WP_Mock::userFunction('get_option')->andReturn(array('profile_name' => 'Jane', 'profile_age' => 30));
 
-		$user_settings->save_settings(array('profile_age' => 10), array('user_id' => 123));
+		$user_settings->_save_settings(array('profile_age' => 10), array('user_id' => 123));
 
 		$messages = $user_settings->take_messages();
 		$this->assertArrayHasKey('profile_age', $messages);
@@ -253,7 +253,7 @@ final class UserSettingsBehaviorTest extends PluginLibTestCase {
 		WP_Mock::userFunction('get_user_option')->andReturn(array());
 		WP_Mock::userFunction('update_user_option')->andReturn(true);
 
-		$user_settings->save_settings(array('auto_field' => 'invalid'), array('user_id' => 123));
+		$user_settings->_save_settings(array('auto_field' => 'invalid'), array('user_id' => 123));
 
 		$messages = $user_settings->take_messages();
 		self::assertArrayHasKey('auto_field', $messages);
@@ -304,7 +304,7 @@ final class UserSettingsBehaviorTest extends PluginLibTestCase {
 		WP_Mock::userFunction('get_user_meta')->andReturn(array());
 		WP_Mock::userFunction('get_user_option')->andReturn(array());
 
-		$user_settings->save_settings(array('profile_age' => 10), array('user_id' => 123));
+		$user_settings->_save_settings(array('profile_age' => 10), array('user_id' => 123));
 
 		$this->captureOutput(function () use ($user_settings): void {
 			$user_settings->render('profile', array('user_id' => 123));
@@ -414,7 +414,7 @@ final class UserSettingsBehaviorTest extends PluginLibTestCase {
 		WP_Mock::userFunction('get_user_meta')->andReturn(array());
 		WP_Mock::userFunction('get_user_option')->andReturn(array());
 
-		$user_settings->save_settings(array('merge_field_user' => '  example  '), array('user_id' => 123));
+		$user_settings->_save_settings(array('merge_field_user' => '  example  '), array('user_id' => 123));
 
 		self::assertNotEmpty($executionOrder, 'Expected sanitizers/validators to execute.');
 		$firstManifestSanitize = array_search('manifest_sanitize', $executionOrder, true);
@@ -472,14 +472,15 @@ final class UserSettingsBehaviorTest extends PluginLibTestCase {
 		);
 	}
 
-	public function test_render_outputs_default_template_when_collection_missing(): void {
+	public function test_render_outputs_error_when_collection_missing(): void {
 		$user_settings = $this->createUserSettings();
 
 		$output = $this->captureOutput(function () use ($user_settings): void {
 			$user_settings->render('unknown');
 		});
 
-		$this->assertSame('', $output);
+		$this->assertStringContainsString('notice-error', $output);
+		$this->assertStringContainsString('Unknown settings collection', $output);
 	}
 
 	public function test_render_uses_custom_collection_template(): void {
@@ -665,7 +666,7 @@ final class UserSettingsBehaviorTest extends PluginLibTestCase {
 		WP_Mock::userFunction('current_user_can')->withAnyArgs()->andReturn(true);
 		WP_Mock::userFunction('update_user_option')->andReturn(true);
 
-		$user_settings->save_settings(array('profile_toggle' => true), array('user_id' => 123, 'storage' => 'option', 'global' => true));
+		$user_settings->_save_settings(array('profile_toggle' => true), array('user_id' => 123, 'storage' => 'option', 'global' => true));
 
 		$baseApplyLogs = $this->logger->find_logs(static function (array $entry): bool {
 			return $entry['message']                 === 'wp_wrappers.apply_filters'
