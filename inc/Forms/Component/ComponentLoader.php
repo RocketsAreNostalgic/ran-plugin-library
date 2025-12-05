@@ -339,6 +339,16 @@ class ComponentLoader {
 			if (!$file->isFile() || $file->getExtension() !== 'php') {
 				continue;
 			}
+
+			$basename = $file->getBasename('.php');
+
+			// Skip companion classes (Builder, Normalizer, Sanitizer, Validator)
+			// These are resolved programmatically via resolve_*_class() methods
+			// Only View.php files or standalone templates should create aliases
+			if (in_array($basename, array('Builder', 'Normalizer', 'Sanitizer', 'Validator'), true)) {
+				continue;
+			}
+
 			$relative = substr($file->getPathname(), strlen($this->baseDir));
 			$relative = ltrim(str_replace('\\', '/', (string) $relative), '/');
 			if ($relative === '') {
