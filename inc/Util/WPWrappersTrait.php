@@ -1490,4 +1490,24 @@ trait WPWrappersTrait {
 		}
 		return false;
 	}
+
+	/**
+	 * Wrapper method for WordPress wp_add_inline_script function.
+	 *
+	 * Adds inline JavaScript to a registered script.
+	 *
+	 * Availability-guarded: Yes (function_exists check)
+	 *
+	 * @internal
+	 * @param string $handle Script handle the data will be attached to.
+	 * @param string $data   String containing the JavaScript to be added.
+	 * @param string $position Optional. Whether to add before or after the script. Default 'after'.
+	 * @return bool True on success, false on failure.
+	 */
+	protected function _do_wp_add_inline_script(string $handle, string $data, string $position = 'after'): bool {
+		if (\function_exists('wp_add_inline_script')) {
+			return (bool) \wp_add_inline_script($handle, $data, $position);
+		}
+		return false;
+	}
 }
