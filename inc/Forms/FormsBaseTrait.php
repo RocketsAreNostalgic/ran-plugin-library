@@ -1605,19 +1605,6 @@ trait FormsBaseTrait {
 	}
 
 	/**
-	 * Wrap group before/after hook content for the current context.
-	 *
-	 * Override this method in subclasses to wrap group hooks appropriately.
-	 * For example, UserSettings wraps in table rows for profile page compatibility.
-	 *
-	 * @param string $content The rendered hook content
-	 * @return string The wrapped content
-	 */
-	protected function _wrap_group_hook(string $content): string {
-		return $content;
-	}
-
-	/**
 	 * Render a group/fieldset using the group-wrapper template.
 	 *
 	 * @param array<string,mixed> $group Group metadata (group_id, title, style, etc.)

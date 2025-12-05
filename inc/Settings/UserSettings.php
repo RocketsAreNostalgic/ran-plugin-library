@@ -631,23 +631,9 @@ class UserSettings implements FormsInterface {
 	}
 
 	/**
-	 * Wrap group before/after hook content in table rows.
-	 *
-	 * WordPress profile pages use table-based layouts, so group hooks
-	 * must be wrapped in <tr><td> elements for valid HTML.
-	 *
-	 * @param string $content The rendered hook content
-	 * @return string The wrapped content
-	 */
-	protected function _wrap_group_hook(string $content): string {
-		if ($content === '') {
-			return '';
-		}
-		return '<tr><td colspan="2">' . $content . '</td></tr>';
-	}
-
-	/**
 	 * Render a group/fieldset using the appropriate user template.
+	 *
+	 * This overrides the default implementation in FormsBaseTrait.
 	 *
 	 * Groups use user.group-wrapper (table rows).
 	 * Fieldsets use user.fieldset-wrapper (semantic fieldset with nested table).
