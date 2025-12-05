@@ -56,8 +56,8 @@ final class Normalizer extends NormalizerBase {
 		$ungroupedKey = '__ungrouped__';
 		$grouped      = array();
 		foreach ($normalizedOptions as $option) {
-			$groupRaw = $option['group'] ?? '';
-			$group    = $groupRaw !== '' ? $this->_sanitize_string($groupRaw, 'option group') : $ungroupedKey;
+			$groupRaw          = $option['group'] ?? '';
+			$group             = $groupRaw !== '' ? $this->_sanitize_string($groupRaw, 'option group') : $ungroupedKey;
 			$grouped[$group][] = $this->_render_option_markup($option, $selectedValue);
 		}
 
