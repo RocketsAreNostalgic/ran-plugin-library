@@ -52,14 +52,16 @@ final class Builder extends ComponentBuilderBase {
 	}
 
 	protected function _build_component_context(): array {
-		if ($this->name === null || $this->name === '') {
+		// Use field ID as default name if not explicitly set (consistent with other input builders)
+		$name = $this->name ?? $this->id;
+		if ($name === '') {
 			throw new \InvalidArgumentException(sprintf('RadioGroup "%s" requires a name before rendering.', $this->id));
 		}
 
 		$options = array();
 		foreach ($this->options as $option) {
 			$optionContext         = $option;
-			$optionContext['name'] = $this->name;
+			$optionContext['name'] = $name;
 			if ($this->default !== null && $this->default === $option['value']) {
 				$optionContext['checked'] = true;
 			}
@@ -70,7 +72,7 @@ final class Builder extends ComponentBuilderBase {
 		$context = $this->_build_base_context();
 
 		// Add required properties
-		$context['name']    = $this->name;
+		$context['name']    = $name;
 		$context['legend']  = $this->legend ?? $this->label;
 		$context['options'] = $options;
 
