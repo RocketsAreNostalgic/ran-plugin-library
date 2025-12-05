@@ -269,7 +269,10 @@ class FormElementRenderer {
 		// attributes like 'attributes', 'placeholder', 'required', 'disabled', etc.
 		// Normalizers expect these at the top level, not nested.
 		foreach ($component_context as $key => $value) {
-			if (!array_key_exists($key, $context)) {
+			// For 'value', use context value as fallback when stored value is null
+			if ($key === 'value' && $context['value'] === null) {
+				$context['value'] = $value;
+			} elseif (!array_key_exists($key, $context)) {
 				$context[$key] = $value;
 			}
 		}

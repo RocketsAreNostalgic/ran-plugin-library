@@ -200,7 +200,9 @@ final class ValidateFormatGroup {
 	 * @return callable(mixed):bool|bool
 	 */
 	public function file_extension(mixed $value = null, ?array $allowedExtensions = null): callable|bool {
-		$fn = static function (mixed $v) use ($allowedExtensions): bool {
+		// Capture $this for use in closure (need instance method access)
+		$self = $this;
+		$fn   = function (mixed $v) use ($allowedExtensions, $self): bool {
 			if (!\is_string($v) || empty($v)) {
 				return false;
 			}
@@ -218,8 +220,8 @@ final class ValidateFormatGroup {
 			}
 
 			// Get WordPress allowed extensions using the trait wrapper
-			(array) $mimeTypes = WPWrappersTrait::_do_get_allowed_mime_types();
-			$wordpressAllowed  = array();
+			$mimeTypes        = $self->_do_get_allowed_mime_types();
+			$wordpressAllowed = array();
 
 			foreach ($mimeTypes as $exts => $mime) {
 				$extList = explode('|', $exts);
