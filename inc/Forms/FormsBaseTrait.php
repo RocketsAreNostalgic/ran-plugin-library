@@ -70,7 +70,7 @@ trait FormsBaseTrait {
 
 	/** @var array<string, array{meta:array, children:array, lookup?:array}> */
 	protected array $containers = array();
-	/** @var array<string, array<string, array{title:string, description_cb:?callable, before:?callable, after:?callable, order:int, index:int}>> */
+	/** @var array<string, array<string, array{title:string, description_cb:string|callable|null, before:?callable, after:?callable, order:int, index:int}>> */
 	protected array $sections = array();
 	/** @var array<string, array<string, array<int, array{id:string, label:string, component:string, component_context:array<string,mixed>, order:int, index:int, before:?callable, after:?callable}>>> */
 	protected array $fields = array();
@@ -1562,10 +1562,11 @@ trait FormsBaseTrait {
 			// Render section template with pre-rendered content
 			// Use form_session to respect context-specific template overrides (e.g., user.section-wrapper)
 			$section_style   = trim((string) ($meta['style'] ?? ''));
+			$description_cb  = $meta['description_cb'] ?? null;
 			$section_context = array(
 				'section_id'  => $section_id,
 				'title'       => (string) $meta['title'],
-				'description' => is_callable($meta['description_cb'] ?? null) ? (string) ($meta['description_cb'])() : '',
+				'description' => is_callable($description_cb) ? (string) ($description_cb)() : (string) ($description_cb ?? ''),
 				'inner_html'  => $section_content,
 				'before'      => $this->_render_callback_output($meta['before'] ?? null, array(
 					'container_id' => $id_slug,
