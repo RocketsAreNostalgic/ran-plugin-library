@@ -270,6 +270,15 @@ class UserSettings implements FormsInterface {
 					if (!in_array($hook_suffix, array('profile.php', 'user-edit.php'), true)) {
 						return;
 					}
+					/**
+					 * Filter whether to inject enctype="multipart/form-data" on the profile form.
+					 *
+					 * @param bool $inject Whether to inject the enctype attribute. Default true.
+					 * @param UserSettings $instance The UserSettings instance.
+					 */
+					if (!$this->_do_apply_filter('ran_plugin_lib_user_settings_inject_enctype', true, $this)) {
+						return;
+					}
 					$this->_do_wp_add_inline_script(
 						'jquery',
 						'jQuery(function($){$("#your-profile").attr("enctype","multipart/form-data");});',
@@ -366,13 +375,30 @@ class UserSettings implements FormsInterface {
 		));
 
 		// Enqueue UserSettings CSS JIT during render
-		$css_url = $this->_do_plugins_url('assets/user.fieldset.css', __FILE__);
-		$this->_do_wp_enqueue_style(
-			'ran-plugin-lib-user-settings',
-			$css_url,
-			array(),
-			'1.0.0'
+		/**
+		 * Filter the UserSettings stylesheet URL.
+		 *
+		 * Return an empty string to disable the default stylesheet,
+		 * or a different URL to use a custom stylesheet.
+		 *
+		 * @param string $css_url The default stylesheet URL.
+		 * @param string $id_slug The collection being rendered.
+		 * @param UserSettings $instance The UserSettings instance.
+		 */
+		$css_url = $this->_do_apply_filter(
+			'ran_plugin_lib_user_settings_stylesheet_url',
+			$this->_do_plugins_url('assets/user.fieldset.css', __FILE__),
+			$id_slug,
+			$this
 		);
+		if ($css_url !== '') {
+			$this->_do_wp_enqueue_style(
+				'ran-plugin-lib-user-settings',
+				$css_url,
+				array(),
+				'1.0.0'
+			);
+		}
 
 		$this->_finalize_render($id_slug, $payload);
 	}

@@ -333,13 +333,30 @@ class AdminSettings implements FormsInterface {
 		));
 
 		// Enqueue AdminSettings CSS JIT during render
-		$css_url = $this->_do_plugins_url('assets/admin.settings.css', __FILE__);
-		$this->_do_wp_enqueue_style(
-			'ran-plugin-lib-admin-settings',
-			$css_url,
-			array(),
-			'1.0.0'
+		/**
+		 * Filter the AdminSettings stylesheet URL.
+		 *
+		 * Return an empty string to disable the default stylesheet,
+		 * or a different URL to use a custom stylesheet.
+		 *
+		 * @param string $css_url The default stylesheet URL.
+		 * @param string $id_slug The page being rendered.
+		 * @param AdminSettings $instance The AdminSettings instance.
+		 */
+		$css_url = $this->_do_apply_filter(
+			'ran_plugin_lib_admin_settings_stylesheet_url',
+			$this->_do_plugins_url('assets/admin.settings.css', __FILE__),
+			$id_slug,
+			$this
 		);
+		if ($css_url !== '') {
+			$this->_do_wp_enqueue_style(
+				'ran-plugin-lib-admin-settings',
+				$css_url,
+				array(),
+				'1.0.0'
+			);
+		}
 
 		$this->_finalize_render($id_slug, $payload, array('page_slug' => $id_slug));
 	}
