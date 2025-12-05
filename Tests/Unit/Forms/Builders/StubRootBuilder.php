@@ -11,7 +11,7 @@ final class StubRootBuilder implements BuilderRootInterface {
 	public function __construct(private FormsInterface $forms) {
 	}
 
-	public function section(string $section_id, string $title, ?callable $description_cb = null, ?array $args = null): SectionBuilderInterface {
+	public function section(string $section_id, string $title, string|callable|null $description_cb = null, ?array $args = null): SectionBuilderInterface {
 		throw new \BadMethodCallException('StubRootBuilder::section() is not implemented for these tests.');
 	}
 
@@ -19,7 +19,7 @@ final class StubRootBuilder implements BuilderRootInterface {
 		return $this;
 	}
 
-	public function description(string $description): static {
+	public function description(string|callable $description): static {
 		return $this;
 	}
 
