@@ -365,6 +365,15 @@ class UserSettings implements FormsInterface {
 			'fields'     => $schemaSummary,
 		));
 
+		// Enqueue UserSettings CSS JIT during render
+		$css_url = $this->_do_plugins_url('assets/user.fieldset.css', __FILE__);
+		$this->_do_wp_enqueue_style(
+			'ran-plugin-lib-user-settings',
+			$css_url,
+			array(),
+			'1.0.0'
+		);
+
 		$this->_finalize_render($id_slug, $payload);
 	}
 

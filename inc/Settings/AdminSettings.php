@@ -332,6 +332,15 @@ class AdminSettings implements FormsInterface {
 			'fields' => $schemaSummary,
 		));
 
+		// Enqueue AdminSettings CSS JIT during render
+		$css_url = $this->_do_plugins_url('assets/admin.settings.css', __FILE__);
+		$this->_do_wp_enqueue_style(
+			'ran-plugin-lib-admin-settings',
+			$css_url,
+			array(),
+			'1.0.0'
+		);
+
 		$this->_finalize_render($id_slug, $payload, array('page_slug' => $id_slug));
 	}
 
