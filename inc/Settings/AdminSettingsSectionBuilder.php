@@ -200,7 +200,7 @@ class AdminSettingsSectionBuilder extends SectionBuilder {
 	 *
 	 * @return AdminSettingsFieldsetBuilder
 	 */
-	public function fieldset(string $fieldset_id, string $heading = '', ?callable $description_cb = null, ?array $args = null): AdminSettingsFieldsetBuilder {
+	public function fieldset(string $fieldset_id, string $heading = '', string|callable|null $description_cb = null, ?array $args = null): AdminSettingsFieldsetBuilder {
 		$args = $args ?? array();
 
 		return new AdminSettingsFieldsetBuilder(
@@ -220,7 +220,7 @@ class AdminSettingsSectionBuilder extends SectionBuilder {
 	 *
 	 * @return AdminSettingsGroupBuilder
 	 */
-	public function group(string $group_id, string $heading = '', ?callable $description_cb = null, ?array $args = null): AdminSettingsGroupBuilder {
+	public function group(string $group_id, string $heading = '', string|callable|null $description_cb = null, ?array $args = null): AdminSettingsGroupBuilder {
 		$args = $args ?? array();
 
 		return new AdminSettingsGroupBuilder(

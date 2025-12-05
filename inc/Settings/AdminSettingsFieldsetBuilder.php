@@ -20,7 +20,7 @@ final class AdminSettingsFieldsetBuilder extends FieldsetBuilder {
 		string $section_id,
 		string $group_id,
 		string $heading,
-		?callable $description_cb,
+		string|callable|null $description_cb,
 		callable $updateFn,
 		array $args = array()
 	) {

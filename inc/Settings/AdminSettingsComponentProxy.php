@@ -102,12 +102,12 @@ class AdminSettingsComponentProxy extends ComponentBuilderProxy {
 	 *
 	 * @param string $fieldset_id The fieldset identifier.
 	 * @param string $heading The fieldset heading (optional).
-	 * @param callable|null $description_cb Optional description callback.
+	 * @param string|callable|null $description_cb Optional description (string or callback).
 	 * @param array<string,mixed>|null $args Optional configuration.
 	 *
 	 * @return AdminSettingsFieldsetBuilder
 	 */
-	public function fieldset(string $fieldset_id, string $heading = '', ?callable $description_cb = null, ?array $args = null): AdminSettingsFieldsetBuilder {
+	public function fieldset(string $fieldset_id, string $heading = '', string|callable|null $description_cb = null, ?array $args = null): AdminSettingsFieldsetBuilder {
 		$parent = $this->end_field();
 		if ($parent instanceof AdminSettingsSectionBuilder) {
 			return $parent->fieldset($fieldset_id, $heading, $description_cb, $args);
@@ -173,12 +173,12 @@ class AdminSettingsComponentProxy extends ComponentBuilderProxy {
 	 *
 	 * @param string $group_id The group identifier.
 	 * @param string $heading The group heading (optional).
-	 * @param callable|null $description_cb Optional description callback.
+	 * @param string|callable|null $description_cb Optional description (string or callback).
 	 * @param array<string,mixed>|null $args Optional configuration.
 	 *
 	 * @return AdminSettingsGroupBuilder
 	 */
-	public function group(string $group_id, string $heading = '', ?callable $description_cb = null, ?array $args = null): AdminSettingsGroupBuilder {
+	public function group(string $group_id, string $heading = '', string|callable|null $description_cb = null, ?array $args = null): AdminSettingsGroupBuilder {
 		$parent = $this->end_field();
 		if ($parent instanceof AdminSettingsSectionBuilder) {
 			return $parent->group($group_id, $heading, $description_cb, $args);

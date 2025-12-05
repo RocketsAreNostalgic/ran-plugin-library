@@ -74,11 +74,11 @@ class AdminSettingsPageBuilder implements AdminSettingsBuilderRootInterface {
 	/**
 	 * Set the page description displayed atop the admin screen.
 	 *
-	 * @param string $description The page description text.
+	 * @param string|callable $description The page description (string or callback).
 	 *
 	 * @return AdminSettingsPageBuilder The AdminSettingsPageBuilder instance.
 	 */
-	public function description(string $description): static {
+	public function description(string|callable $description): static {
 		$this->_update_meta('description', $description);
 
 		return $this;
@@ -130,12 +130,12 @@ class AdminSettingsPageBuilder implements AdminSettingsBuilderRootInterface {
 	 *
 	 * @param string                   $section_id     The section ID.
 	 * @param string                   $title          The section title (optional, can be set via heading()).
-	 * @param callable|null            $description_cb The section description callback.
+	 * @param string|callable|null     $description_cb The section description (string or callback).
 	 * @param array<string,mixed>|null $args           Optional configuration (order, before/after callbacks, classes, etc.).
 	 *
 	 * @return AdminSettingsSectionBuilder The section builder instance.
 	 */
-	public function section(string $section_id, string $title = '', ?callable $description_cb = null, ?array $args = null): AdminSettingsSectionBuilder {
+	public function section(string $section_id, string $title = '', string|callable|null $description_cb = null, ?array $args = null): AdminSettingsSectionBuilder {
 		$args  = $args          ?? array();
 		$order = $args['order'] ?? null;
 
