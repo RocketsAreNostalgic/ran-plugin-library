@@ -11,21 +11,25 @@
  *     id:?string
  * } $context
  */
-$id              = isset($context['id']) ? (string) $context['id'] : '';
-$inputAttributes = isset($context['input_attributes']) ? trim((string) $context['input_attributes']) : '';
-$labelText       = isset($context['label_text']) ? (string) $context['label_text'] : '';
-$uncheckedValue  = isset($context['unchecked_value']) ? (string) $context['unchecked_value'] : null;
-$name            = isset($context['name']) ? (string) $context['name'] : null;
+$id               = isset($context['id']) ? (string) $context['id'] : '';
+$inputAttributes  = isset($context['input_attributes']) ? trim((string) $context['input_attributes']) : '';
+$checkboxAttrs    = isset($context['checkbox_attributes']) ? trim((string) $context['checkbox_attributes']) : $inputAttributes;
+$hiddenAttrs      = isset($context['hidden_attributes']) ? trim((string) $context['hidden_attributes']) : '';
+$labelText        = isset($context['label_text']) ? (string) $context['label_text'] : '';
+$uncheckedValue   = isset($context['unchecked_value']) ? (string) $context['unchecked_value'] : null;
+$name             = isset($context['name']) ? (string) $context['name'] : null;
 
 ob_start();
-?>
+// Hidden input MUST come before checkbox so checkbox value overwrites it when checked
+if ($hiddenAttrs !== '') : ?>
+<input<?php echo ' ' . $hiddenAttrs; ?>>
+<?php elseif ($uncheckedValue !== null && $name !== null) : ?>
+<input type="hidden" name="<?php echo esc_attr($name); ?>" value="<?php echo esc_attr($uncheckedValue); ?>">
+<?php endif; ?>
 <label for="<?php echo esc_attr($id); ?>">
-	<input type="checkbox"<?php echo $inputAttributes !== '' ? ' ' . $inputAttributes : ''; ?>>
+	<input type="checkbox"<?php echo $checkboxAttrs !== '' ? ' ' . $checkboxAttrs : ''; ?>>
 	<span><?php echo esc_html($labelText); ?></span>
 </label>
-<?php if ($uncheckedValue !== null && $name !== null) : ?>
-	<input type="hidden" name="<?php echo esc_attr($name); ?>" value="<?php echo esc_attr($uncheckedValue); ?>">
-<?php endif; ?>
 <?php
 
 use Ran\PluginLib\Forms\Component\ComponentRenderResult;

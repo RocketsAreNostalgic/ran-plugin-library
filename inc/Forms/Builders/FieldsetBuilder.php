@@ -58,8 +58,8 @@ class FieldsetBuilder extends SectionFieldContainerBuilder implements FieldsetBu
 		// Set fieldset-specific templates
 		$this->template('fieldset-wrapper');
 		// Fields inside fieldsets use a div-based wrapper (no <tr>)
-		// Resolved via form_defaults to 'layout.field.field-wrapper' (the base template)
-		$this->default_field_template = 'fieldset-field-wrapper';
+		// Use the actual component path directly to avoid resolution issues
+		$this->default_field_template = 'layout.field.field-wrapper';
 	}
 
 	/**

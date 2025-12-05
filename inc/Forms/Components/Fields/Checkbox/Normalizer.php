@@ -14,9 +14,8 @@ final class Normalizer extends NormalizerBase {
 		// Normalize checkbox values
 		$context['checked_value'] = $this->_sanitize_string($context['checked_value'] ?? 'on', 'checked value');
 
-		if (isset($context['unchecked_value'])) {
-			$context['unchecked_value'] = $this->_sanitize_string($context['unchecked_value'], 'unchecked value');
-		}
+		// Always set unchecked_value to ensure hidden input is rendered (defaults to empty string)
+		$context['unchecked_value'] = $this->_sanitize_string($context['unchecked_value'] ?? '', 'unchecked value');
 
 		// Normalize default checked state
 		if (isset($context['default_checked'])) {
@@ -31,10 +30,8 @@ final class Normalizer extends NormalizerBase {
 		// Build checkbox attributes
 		$context['checkbox_attributes'] = $this->_build_checkbox_attributes($context);
 
-		// Build hidden input attributes if unchecked value is set
-		if (isset($context['unchecked_value'])) {
-			$context['hidden_attributes'] = $this->_build_hidden_attributes($context);
-		}
+		// Always build hidden input attributes for proper checkbox handling
+		$context['hidden_attributes'] = $this->_build_hidden_attributes($context);
 
 		return $context;
 	}
@@ -56,8 +53,19 @@ final class Normalizer extends NormalizerBase {
 			$attributes['id'] = $this->_sanitize_string($context['id'], 'id');
 		}
 
-		// Use base class boolean sanitization for form states
-		if ($this->_sanitize_boolean($context['default_checked'] ?? false, 'default_checked')) {
+		// Determine checked state: use stored value if present, otherwise use default_checked
+		$storedValue   = $context['value'] ?? null;
+		$checkedValue  = $context['checked_value'];
+		$isChecked     = false;
+
+		if ($storedValue !== null) {
+			// Compare stored value with checked_value to determine state
+			$isChecked = ($storedValue === $checkedValue) || ($storedValue === true) || ($storedValue === '1') || ($storedValue === 'on');
+		} elseif ($this->_sanitize_boolean($context['default_checked'] ?? false, 'default_checked')) {
+			$isChecked = true;
+		}
+
+		if ($isChecked) {
 			$attributes['checked'] = true;
 		}
 

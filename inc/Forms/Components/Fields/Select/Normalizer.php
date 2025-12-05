@@ -39,25 +39,31 @@ final class Normalizer extends NormalizerBase {
 
 	/**
 	 * Build options HTML markup.
+	 *
+	 * Supports two formats:
+	 * 1. Simple key-value: ['value1' => 'Label 1', 'value2' => 'Label 2']
+	 * 2. Structured array: [['value' => 'value1', 'label' => 'Label 1', 'group' => 'Group'], ...]
 	 */
 	private function _build_options(mixed $options, ?string $selectedValue): array {
 		if (!is_array($options)) {
 			return array();
 		}
 
-		$grouped = array();
-		foreach ($options as $option) {
-			if (!is_array($option)) {
-				continue;
-			}
-			$groupRaw          = $option['group'] ?? '';
-			$group             = $groupRaw !== '' ? $this->_sanitize_string($groupRaw, 'option group') : null;
+		// Normalize options to structured format
+		$normalizedOptions = $this->_normalize_options_format($options);
+
+		// Use a sentinel key for ungrouped options to avoid PHP array key coercion issues
+		$ungroupedKey = '__ungrouped__';
+		$grouped      = array();
+		foreach ($normalizedOptions as $option) {
+			$groupRaw = $option['group'] ?? '';
+			$group    = $groupRaw !== '' ? $this->_sanitize_string($groupRaw, 'option group') : $ungroupedKey;
 			$grouped[$group][] = $this->_render_option_markup($option, $selectedValue);
 		}
 
 		$markup = array();
 		foreach ($grouped as $groupLabel => $optionMarkupList) {
-			if ($groupLabel === null) {
+			if ($groupLabel === $ungroupedKey) {
 				foreach ($optionMarkupList as $optionMarkup) {
 					$markup[] = $optionMarkup;
 				}
@@ -69,6 +75,33 @@ final class Normalizer extends NormalizerBase {
 		}
 
 		return $markup;
+	}
+
+	/**
+	 * Normalize options to structured array format.
+	 *
+	 * Converts simple key-value format to structured format.
+	 *
+	 * @param array $options Raw options array
+	 * @return array<int, array{value: string, label: string, group?: string}> Normalized options
+	 */
+	private function _normalize_options_format(array $options): array {
+		$normalized = array();
+
+		foreach ($options as $key => $value) {
+			if (is_array($value)) {
+				// Already structured format: ['value' => 'x', 'label' => 'X']
+				$normalized[] = $value;
+			} else {
+				// Simple key-value format: 'value' => 'Label'
+				$normalized[] = array(
+					'value' => (string) $key,
+					'label' => (string) $value,
+				);
+			}
+		}
+
+		return $normalized;
 	}
 
 	/**

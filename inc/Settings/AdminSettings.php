@@ -145,8 +145,10 @@ class AdminSettings implements FormsInterface {
 		$this->_start_form_session();
 
 		// AdminSettings only overrides root page templates, everything else uses system defaults
+		// fieldset-field-wrapper is used by fields inside fieldsets and must resolve to the base field wrapper
 		$this->form_session->set_form_defaults(array(
-			'root-wrapper' => 'admin.root-wrapper',
+			'root-wrapper'           => 'admin.root-wrapper',
+			'fieldset-field-wrapper' => 'layout.field.field-wrapper',
 		));
 	}
 
