@@ -27,11 +27,13 @@ interface SectionFieldContainerBuilderInterface extends BuilderFieldContainerInt
 	public function heading(string $heading): static;
 
 	/**
-	 * Set the optional container description callback.
+	 * Set the optional container description.
+	 *
+	 * @param string|callable $description A string or callback returning the description.
 	 *
 	 * @return static
 	 */
-	public function description(callable $description_cb): static;
+	public function description(string|callable $description): static;
 
 	/**
 	 * Configure a template override for the container wrapper.

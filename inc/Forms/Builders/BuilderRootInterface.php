@@ -31,12 +31,12 @@ interface BuilderRootInterface extends BuilderChildInterface {
 	 *
 	 * @param string $section_id The section ID.
 	 * @param string $title The section title.
-	 * @param callable|null $description_cb Optional section description callback, follows add_settings_section() pattern
+	 * @param string|callable|null $description_cb Optional section description (string or callback).
 	 * @param array<string,mixed>|null $args Optional configuration (order, before/after callbacks, classes, etc.).
 	 *
 	 * @return SectionBuilderInterface The section builder instance.
 	 */
-	public function section(string $section_id, string $title, ?callable $description_cb = null, ?array $args = null): SectionBuilderInterface;
+	public function section(string $section_id, string $title, string|callable|null $description_cb = null, ?array $args = null): SectionBuilderInterface;
 
 	/**
 	 * Complete the builder and return to the main form instance.

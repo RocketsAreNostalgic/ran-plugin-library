@@ -19,12 +19,12 @@ interface GroupBuilderInterface extends BuilderFieldContainerInterface {
 	 *
 	 * @param string $group_id The group ID.
 	 * @param string $title The group title.
-	 * @param callable|null $description_cb Optional group description callback, follows add_settings_section() pattern
+	 * @param string|callable|null $description_cb Optional group description (string or callback).
 	 * @param ?array<string,mixed> $args Optional configuration (order, before/after callbacks).
 	 *
 	 * @return GroupBuilderInterface The GroupBuilder instance.
 	 */
-	public function group(string $group_id, string $title, ?callable $description_cb = null, ?array $args = array()): GroupBuilderInterface;
+	public function group(string $group_id, string $title, string|callable|null $description_cb = null, ?array $args = array()): GroupBuilderInterface;
 
 	/**
 	 * end_group() method returns the SectionBuilder instance.

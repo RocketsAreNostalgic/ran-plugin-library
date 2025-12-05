@@ -59,10 +59,10 @@ interface FieldsetBuilderInterface extends SectionFieldContainerBuilderInterface
 	 *
 	 * @param string $fieldset_id    The fieldset identifier.
 	 * @param string $heading        The legend (optional, can be set via heading()).
-	 * @param callable|null $description_cb The fieldset description callback.
+	 * @param string|callable|null $description_cb The fieldset description (string or callback).
 	 * @param array<string,mixed>|null $args Optional configuration.
 	 *
 	 * @return FieldsetBuilderInterface<TRoot, TSection>
 	 */
-	public function fieldset(string $fieldset_id, string $heading = '', ?callable $description_cb = null, ?array $args = null): FieldsetBuilderInterface;
+	public function fieldset(string $fieldset_id, string $heading = '', string|callable|null $description_cb = null, ?array $args = null): FieldsetBuilderInterface;
 }

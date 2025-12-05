@@ -32,11 +32,11 @@ interface BuilderChildInterface {
 	/**
 	 * Set the description for the current container.
 	 *
-	 * @param string $description The description to use for the container.
+	 * @param string|callable $description A string or callback returning the description.
 	 *
 	 * @return self The builder instance for chaining.
 	 */
-	public function description(string $description): static;
+	public function description(string|callable $description): static;
 
 	/**
 	 * Set the template for this current container.

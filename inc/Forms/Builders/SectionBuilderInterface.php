@@ -25,24 +25,24 @@ interface SectionBuilderInterface extends BuilderChildInterface, BuilderFieldCon
 	 *
 	 * @param string $group_id The group ID.
 	 * @param string $title The group title.
-	 * @param callable|null $description_cb Optional group description callback, follows add_settings_section() pattern
+	 * @param string|callable|null $description_cb Optional group description (string or callback).
 	 * @param array<string,mixed>|null $args Optional configuration (order, before/after callbacks, classes, etc.).
 	 *
 	 * @return GroupBuilder<TRoot, SectionBuilder<TRoot>> The GroupBuilder instance.
 	 */
-	public function group(string $group_id, string $title, ?callable $description_cb = null, ?array $args = null): GroupBuilder;
+	public function group(string $group_id, string $title, string|callable|null $description_cb = null, ?array $args = null): GroupBuilder;
 
 	/**
 	 * Define a new fieldset group within this section.
 	 *
 	 * @param string $fieldset_id The fieldset ID.
 	 * @param string $title The fieldset legend/title.
-	 * @param callable|null $description_cb Optional description callback.
+	 * @param string|callable|null $description_cb Optional description (string or callback).
 	 * @param array<string,mixed>|null $args Optional configuration (order, before/after callbacks, style metadata, etc.).
 	 *
 	 * @return FieldsetBuilderInterface<TRoot, SectionBuilderInterface<TRoot>> The fieldset builder instance.
 	 */
-	public function fieldset(string $fieldset_id, string $title, ?callable $description_cb = null, ?array $args = null): FieldsetBuilderInterface;
+	public function fieldset(string $fieldset_id, string $title, string|callable|null $description_cb = null, ?array $args = null): FieldsetBuilderInterface;
 
 	/**
 	 * Add a field with a component builder.
