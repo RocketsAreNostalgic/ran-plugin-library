@@ -21,6 +21,18 @@ use Ran\PluginLib\Forms\Component\Build\ComponentBuilderBase;
  * Field proxy for UserSettings fieldsets.
  *
  * Uses composition (trait) instead of inheritance for IDE-friendly concrete return types.
+ *
+ * @method UserSettingsFieldsetFieldProxy before(?callable $before) Set before callback.
+ * @method UserSettingsFieldsetFieldProxy after(?callable $after) Set after callback.
+ * @method UserSettingsFieldsetFieldProxy order(?int $order) Set field order.
+ * @method UserSettingsFieldsetFieldProxy template(string $template) Set field template.
+ * @method UserSettingsFieldsetFieldProxy style(string|callable $style) Set field style.
+ * @method UserSettingsFieldsetFieldProxy id(string $id) Set field ID.
+ * @method UserSettingsFieldsetFieldProxy disabled(bool $disabled = true) Set disabled state.
+ * @method UserSettingsFieldsetFieldProxy required(bool $required = true) Set required state.
+ * @method UserSettingsFieldsetFieldProxy readonly(bool $readonly = true) Set readonly state.
+ * @method UserSettingsFieldsetFieldProxy attribute(string $key, string $value) Set an attribute.
+ * @method UserSettingsFieldsetFieldProxy description(string|callable|null $description_cb) Set description.
  */
 class UserSettingsFieldsetFieldProxy implements FieldProxyInterface, ComponentBuilderInterface {
 	use FieldProxyTrait;
@@ -29,6 +41,11 @@ class UserSettingsFieldsetFieldProxy implements FieldProxyInterface, ComponentBu
 	 * The parent fieldset builder - concrete type for IDE support.
 	 */
 	private UserSettingsFieldsetBuilder $parent;
+
+	/**
+	 * Cached navigation wrapper for cleaner IDE autocomplete.
+	 */
+	private ?UserSettingsFieldsetNavigation $navigation = null;
 
 	/**
 	 * @param ComponentBuilderBase $builder The component builder.
@@ -66,12 +83,18 @@ class UserSettingsFieldsetFieldProxy implements FieldProxyInterface, ComponentBu
 	}
 
 	/**
-	 * End field configuration and return to the UserSettingsFieldsetBuilder.
+	 * End field configuration and return to the fieldset navigation.
 	 *
-	 * @return UserSettingsFieldsetBuilder The parent fieldset builder for continued chaining.
+	 * Returns a navigation wrapper that only exposes methods useful after
+	 * ending a field (field, end_fieldset, end_section, end).
+	 *
+	 * @return UserSettingsFieldsetNavigation
 	 */
-	public function end_field(): UserSettingsFieldsetBuilder {
-		return $this->parent;
+	public function end_field(): UserSettingsFieldsetNavigation {
+		if ($this->navigation === null) {
+			$this->navigation = new UserSettingsFieldsetNavigation($this->parent);
+		}
+		return $this->navigation;
 	}
 
 	/**
@@ -80,7 +103,7 @@ class UserSettingsFieldsetFieldProxy implements FieldProxyInterface, ComponentBu
 	 * @return UserSettingsSectionBuilder
 	 */
 	public function end_fieldset(): UserSettingsSectionBuilder {
-		return $this->parent->end_fieldset();
+		return $this->end_field()->end_fieldset();
 	}
 
 	/**
@@ -89,7 +112,7 @@ class UserSettingsFieldsetFieldProxy implements FieldProxyInterface, ComponentBu
 	 * @return UserSettingsCollectionBuilder
 	 */
 	public function end_section(): UserSettingsCollectionBuilder {
-		return $this->parent->end_section();
+		return $this->end_field()->end_section();
 	}
 
 	/**
@@ -98,7 +121,7 @@ class UserSettingsFieldsetFieldProxy implements FieldProxyInterface, ComponentBu
 	 * @return UserSettings
 	 */
 	public function end_collection(): UserSettings {
-		return $this->parent->end_collection();
+		return $this->end_field()->end_collection();
 	}
 
 	/**
@@ -107,6 +130,20 @@ class UserSettingsFieldsetFieldProxy implements FieldProxyInterface, ComponentBu
 	 * @return UserSettings
 	 */
 	public function end(): UserSettings {
-		return $this->end_collection();
+		return $this->end_field()->end();
+	}
+
+	/**
+	 * Start a sibling field in the same fieldset.
+	 *
+	 * @param string $field_id The field identifier.
+	 * @param string $label The field label.
+	 * @param string $component The component alias.
+	 * @param array<string,mixed> $args Optional configuration.
+	 *
+	 * @return UserSettingsFieldsetFieldProxy
+	 */
+	public function field(string $field_id, string $label, string $component, array $args = array()): UserSettingsFieldsetFieldProxy {
+		return $this->end_field()->field($field_id, $label, $component, $args);
 	}
 }

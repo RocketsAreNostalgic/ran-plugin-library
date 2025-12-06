@@ -21,6 +21,18 @@ use Ran\PluginLib\Forms\Component\Build\ComponentBuilderBase;
  * Field proxy for UserSettings groups.
  *
  * Uses composition (trait) instead of inheritance for IDE-friendly concrete return types.
+ *
+ * @method UserSettingsGroupFieldProxy before(?callable $before) Set before callback.
+ * @method UserSettingsGroupFieldProxy after(?callable $after) Set after callback.
+ * @method UserSettingsGroupFieldProxy order(?int $order) Set field order.
+ * @method UserSettingsGroupFieldProxy template(string $template) Set field template.
+ * @method UserSettingsGroupFieldProxy style(string|callable $style) Set field style.
+ * @method UserSettingsGroupFieldProxy id(string $id) Set field ID.
+ * @method UserSettingsGroupFieldProxy disabled(bool $disabled = true) Set disabled state.
+ * @method UserSettingsGroupFieldProxy required(bool $required = true) Set required state.
+ * @method UserSettingsGroupFieldProxy readonly(bool $readonly = true) Set readonly state.
+ * @method UserSettingsGroupFieldProxy attribute(string $key, string $value) Set an attribute.
+ * @method UserSettingsGroupFieldProxy description(string|callable|null $description_cb) Set description.
  */
 class UserSettingsGroupFieldProxy implements FieldProxyInterface, ComponentBuilderInterface {
 	use FieldProxyTrait;
@@ -29,6 +41,11 @@ class UserSettingsGroupFieldProxy implements FieldProxyInterface, ComponentBuild
 	 * The parent group builder - concrete type for IDE support.
 	 */
 	private UserSettingsGroupBuilder $parent;
+
+	/**
+	 * Cached navigation wrapper for cleaner IDE autocomplete.
+	 */
+	private ?UserSettingsGroupNavigation $navigation = null;
 
 	/**
 	 * @param ComponentBuilderBase $builder The component builder.
@@ -66,12 +83,18 @@ class UserSettingsGroupFieldProxy implements FieldProxyInterface, ComponentBuild
 	}
 
 	/**
-	 * End field configuration and return to the UserSettingsGroupBuilder.
+	 * End field configuration and return to the group navigation.
 	 *
-	 * @return UserSettingsGroupBuilder The parent group builder for continued chaining.
+	 * Returns a navigation wrapper that only exposes methods useful after
+	 * ending a field (field, end_group, end_section, end).
+	 *
+	 * @return \Ran\PluginLib\Settings\UserSettingsGroupNavigation
 	 */
-	public function end_field(): UserSettingsGroupBuilder {
-		return $this->parent;
+	public function end_field(): UserSettingsGroupNavigation {
+		if ($this->navigation === null) {
+			$this->navigation = new UserSettingsGroupNavigation($this->parent);
+		}
+		return $this->navigation;
 	}
 
 	/**
@@ -80,7 +103,7 @@ class UserSettingsGroupFieldProxy implements FieldProxyInterface, ComponentBuild
 	 * @return UserSettingsSectionBuilder
 	 */
 	public function end_group(): UserSettingsSectionBuilder {
-		return $this->parent->end_group();
+		return $this->end_field()->end_group();
 	}
 
 	/**
@@ -89,7 +112,7 @@ class UserSettingsGroupFieldProxy implements FieldProxyInterface, ComponentBuild
 	 * @return UserSettingsCollectionBuilder
 	 */
 	public function end_section(): UserSettingsCollectionBuilder {
-		return $this->parent->end_section();
+		return $this->end_field()->end_section();
 	}
 
 	/**
@@ -98,7 +121,7 @@ class UserSettingsGroupFieldProxy implements FieldProxyInterface, ComponentBuild
 	 * @return UserSettings
 	 */
 	public function end_collection(): UserSettings {
-		return $this->parent->end_collection();
+		return $this->end_field()->end_collection();
 	}
 
 	/**
@@ -107,6 +130,20 @@ class UserSettingsGroupFieldProxy implements FieldProxyInterface, ComponentBuild
 	 * @return UserSettings
 	 */
 	public function end(): UserSettings {
-		return $this->end_collection();
+		return $this->end_field()->end();
+	}
+
+	/**
+	 * Start a sibling field in the same group.
+	 *
+	 * @param string $field_id The field identifier.
+	 * @param string $label The field label.
+	 * @param string $component The component alias.
+	 * @param array<string,mixed> $args Optional configuration.
+	 *
+	 * @return UserSettingsGroupFieldProxy
+	 */
+	public function field(string $field_id, string $label, string $component, array $args = array()): UserSettingsGroupFieldProxy {
+		return $this->end_field()->field($field_id, $label, $component, $args);
 	}
 }

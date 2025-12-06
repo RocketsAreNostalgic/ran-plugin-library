@@ -1,6 +1,11 @@
 <?php
 /**
  * IDE helper stubs for form component builders.
+ *
+ * These stubs provide explicit return type declarations to help IDEs like
+ * Intelephense properly infer types throughout the fluent builder chain.
+ *
+ * @package Ran\PluginLib\Forms\Component\Build
  */
 
 namespace Ran\PluginLib\Forms\Component\Build {
@@ -15,7 +20,7 @@ namespace Ran\PluginLib\Forms\Component\Build {
 			public function attribute(string $key, string $value): static {
 				return $this;
 			}
-			public function description(string|callable|null  $description_cb): static {
+			public function description(string|callable|null $description_cb): static {
 				return $this;
 			}
 			public function to_array(): array {
@@ -78,16 +83,16 @@ namespace Ran\PluginLib\Forms\Component\Build {
 namespace Ran\PluginLib\Forms\Components\Elements\Button {
 	if (false) {
 		class Builder extends \Ran\PluginLib\Forms\Component\Build\ComponentBuilderBase {
-			public function type(string $type): self {
+			public function type(string $type): static {
 				return $this;
 			}
-			public function disabled(bool $disabled = true): self {
+			public function disabled(bool $disabled = true): static {
 				return $this;
 			}
-			public function variant(string $variant): self {
+			public function variant(string $variant): static {
 				return $this;
 			}
-			public function icon_html(?string $html): self {
+			public function icon_html(?string $html): static {
 				return $this;
 			}
 			protected function _get_component(): string {
@@ -103,16 +108,16 @@ namespace Ran\PluginLib\Forms\Components\Elements\Button {
 namespace Ran\PluginLib\Forms\Components\Elements\ButtonLink {
 	if (false) {
 		class Builder extends \Ran\PluginLib\Forms\Component\Build\ComponentBuilderBase {
-			public function target(?string $target): self {
+			public function target(?string $target): static {
 				return $this;
 			}
-			public function rel(?string $rel): self {
+			public function rel(?string $rel): static {
 				return $this;
 			}
-			public function icon_html(?string $html): self {
+			public function icon_html(?string $html): static {
 				return $this;
 			}
-			public function url(string $url): self {
+			public function url(string $url): static {
 				return $this;
 			}
 			protected function _get_component(): string {
@@ -128,16 +133,16 @@ namespace Ran\PluginLib\Forms\Components\Elements\ButtonLink {
 namespace Ran\PluginLib\Forms\Components\Elements\InlineLink {
 	if (false) {
 		class Builder extends \Ran\PluginLib\Forms\Component\Build\ComponentBuilderBase {
-			public function target(?string $target): self {
+			public function target(?string $target): static {
 				return $this;
 			}
-			public function rel(?string $rel): self {
+			public function rel(?string $rel): static {
 				return $this;
 			}
-			public function icon_html(?string $html): self {
+			public function icon_html(?string $html): static {
 				return $this;
 			}
-			public function url(string $url): self {
+			public function url(string $url): static {
 				return $this;
 			}
 			protected function _get_component(): string {
@@ -152,20 +157,14 @@ namespace Ran\PluginLib\Forms\Components\Elements\InlineLink {
 
 namespace Ran\PluginLib\Forms\Components\Fields\Checkbox {
 	if (false) {
-		class Builder extends \Ran\PluginLib\Forms\Component\Build\ComponentBuilderBase {
-			public function text(?string $text): self {
+		class Builder extends \Ran\PluginLib\Forms\Component\Build\ComponentBuilderInputBase {
+			public function text(?string $text): static {
 				return $this;
 			}
-			public function name(string $name): self {
+			public function values(string $checkedValue, ?string $uncheckedValue = null): static {
 				return $this;
 			}
-			public function values(string $checkedValue, ?string $uncheckedValue = null): self {
-				return $this;
-			}
-			public function defaultChecked(bool $checked = true): self {
-				return $this;
-			}
-			public function attribute(string $key, string $value): self {
+			public function defaultChecked(bool $checked = true): static {
 				return $this;
 			}
 			protected function _get_component(): string {
@@ -181,16 +180,16 @@ namespace Ran\PluginLib\Forms\Components\Fields\Checkbox {
 namespace Ran\PluginLib\Forms\Components\Fields\CheckboxGroup {
 	if (false) {
 		class Builder extends \Ran\PluginLib\Forms\Component\Build\ComponentBuilderBase {
-			public function legend(?string $legend): self {
+			public function legend(?string $legend): static {
 				return $this;
 			}
-			public function defaults(array $values): self {
+			public function defaults(array $values): static {
 				return $this;
 			}
-			public function checkbox(string $value, string $label, ?string $description = null, array $attributes = array(), bool $defaultChecked = false): self {
+			public function checkbox(string $value, string $label, ?string $description = null, array $attributes = array(), bool $defaultChecked = false): static {
 				return $this;
 			}
-			public function option(\Ran\PluginLib\Forms\Components\Fields\CheckboxOption\Builder $option): self {
+			public function option(\Ran\PluginLib\Forms\Components\Fields\CheckboxOption\Builder $option): static {
 				return $this;
 			}
 			protected function _get_component(): string {
@@ -206,16 +205,13 @@ namespace Ran\PluginLib\Forms\Components\Fields\CheckboxGroup {
 namespace Ran\PluginLib\Forms\Components\Fields\CheckboxOption {
 	if (false) {
 		class Builder extends \Ran\PluginLib\Forms\Component\Build\ComponentBuilderBase {
-			public function value(string $value): self {
+			public function value(string $value): static {
 				return $this;
 			}
-			public function defaultChecked(bool $checked = true): self {
+			public function defaultChecked(bool $checked = true): static {
 				return $this;
 			}
-			public function disabled(bool $disabled = true): self {
-				return $this;
-			}
-			public function attribute(string $key, string $value): self {
+			public function disabled(bool $disabled = true): static {
 				return $this;
 			}
 			protected function _get_component(): string {
@@ -231,13 +227,13 @@ namespace Ran\PluginLib\Forms\Components\Fields\CheckboxOption {
 namespace Ran\PluginLib\Forms\Components\Fields\FileUpload {
 	if (false) {
 		class Builder extends \Ran\PluginLib\Forms\Component\Build\ComponentBuilderInputBase {
-			public function multiple(bool $multiple = true): self {
+			public function multiple(bool $multiple = true): static {
 				return $this;
 			}
-			public function accept(string|array|null $accept): self {
+			public function accept(string|array|null $accept): static {
 				return $this;
 			}
-			public function existing_files(array $files): self {
+			public function existing_files(array $files): static {
 				return $this;
 			}
 			protected function _get_component(): string {
@@ -253,7 +249,7 @@ namespace Ran\PluginLib\Forms\Components\Fields\FileUpload {
 namespace Ran\PluginLib\Forms\Components\Fields\Input {
 	if (false) {
 		class Builder extends \Ran\PluginLib\Forms\Component\Build\ComponentBuilderTextBase {
-			public function type(string $type): self {
+			public function type(string $type): static {
 				return $this;
 			}
 			protected function _get_component(): string {
@@ -269,43 +265,43 @@ namespace Ran\PluginLib\Forms\Components\Fields\Input {
 namespace Ran\PluginLib\Forms\Components\Fields\MediaPicker {
 	if (false) {
 		class Builder extends \Ran\PluginLib\Forms\Component\Build\ComponentBuilderBase {
-			public function data(array $data): self {
+			public function data(array $data): static {
 				return $this;
 			}
-			public function name(?string $name): self {
+			public function name(?string $name): static {
 				return $this;
 			}
-			public function inputId(?string $id): self {
+			public function inputId(?string $id): static {
 				return $this;
 			}
-			public function buttonId(?string $id): self {
+			public function buttonId(?string $id): static {
 				return $this;
 			}
-			public function removeId(?string $id): self {
+			public function removeId(?string $id): static {
 				return $this;
 			}
-			public function value(?string $value): self {
+			public function value(?string $value): static {
 				return $this;
 			}
-			public function descriptionId(?string $descriptionId): self {
+			public function descriptionId(?string $descriptionId): static {
 				return $this;
 			}
-			public function selectLabel(?string $label): self {
+			public function selectLabel(?string $label): static {
 				return $this;
 			}
-			public function replaceLabel(?string $label): self {
+			public function replaceLabel(?string $label): static {
 				return $this;
 			}
-			public function removeLabel(?string $label): self {
+			public function removeLabel(?string $label): static {
 				return $this;
 			}
-			public function previewHtml(?string $html): self {
+			public function previewHtml(?string $html): static {
 				return $this;
 			}
-			public function multiple(bool $multiple = true): self {
+			public function multiple(bool $multiple = true): static {
 				return $this;
 			}
-			public function hasSelection(?bool $hasSelection): self {
+			public function hasSelection(?bool $hasSelection): static {
 				return $this;
 			}
 			protected function _get_component(): string {
@@ -346,31 +342,31 @@ namespace Ran\PluginLib\Forms\Components\Fields\Number {
 namespace Ran\PluginLib\Forms\Components\Fields\MultiSelect {
 	if (false) {
 		class Builder extends \Ran\PluginLib\Forms\Component\Build\ComponentBuilderBase {
-			public function name(?string $name): self {
+			public function name(?string $name): static {
 				return $this;
 			}
-			public function elementId(?string $id): self {
+			public function elementId(?string $id): static {
 				return $this;
 			}
-			public function descriptionId(?string $descriptionId): self {
+			public function descriptionId(?string $descriptionId): static {
 				return $this;
 			}
-			public function values(array $values): self {
+			public function values(array $values): static {
 				return $this;
 			}
-			public function defaultValues(array $values): self {
+			public function defaultValues(array $values): static {
 				return $this;
 			}
-			public function disabled(bool $disabled = true): self {
+			public function disabled(bool $disabled = true): static {
 				return $this;
 			}
-			public function attribute(string $key, string $value): self {
+			public function attribute(string $key, string $value): static {
 				return $this;
 			}
-			public function option(string $value, string $label, ?string $group = null, array $attributes = array(), bool $selected = false, bool $disabled = false): self {
+			public function option(string $value, string $label, ?string $group = null, array $attributes = array(), bool $selected = false, bool $disabled = false): static {
 				return $this;
 			}
-			public function options(array $options): self {
+			public function options(array $options): static {
 				return $this;
 			}
 			protected function _get_component(): string {
@@ -386,16 +382,16 @@ namespace Ran\PluginLib\Forms\Components\Fields\MultiSelect {
 namespace Ran\PluginLib\Forms\Components\Fields\RadioGroup {
 	if (false) {
 		class Builder extends \Ran\PluginLib\Forms\Component\Build\ComponentBuilderBase {
-			public function legend(?string $legend): self {
+			public function legend(?string $legend): static {
 				return $this;
 			}
-			public function name(?string $name): self {
+			public function name(?string $name): static {
 				return $this;
 			}
-			public function default(string $value): self {
+			public function default(string $value): static {
 				return $this;
 			}
-			public function option(string $value, string $label, ?string $description = null, array $attributes = array(), array $labelAttributes = array(), bool $disabled = false): self {
+			public function option(string $value, string $label, ?string $description = null, array $attributes = array(), array $labelAttributes = array(), bool $disabled = false): static {
 				return $this;
 			}
 			protected function _get_component(): string {
@@ -411,16 +407,13 @@ namespace Ran\PluginLib\Forms\Components\Fields\RadioGroup {
 namespace Ran\PluginLib\Forms\Components\Fields\RadioOption {
 	if (false) {
 		class Builder extends \Ran\PluginLib\Forms\Component\Build\ComponentBuilderBase {
-			public function checked(bool $checked = true): self {
+			public function checked(bool $checked = true): static {
 				return $this;
 			}
-			public function disabled(bool $disabled = true): self {
+			public function disabled(bool $disabled = true): static {
 				return $this;
 			}
-			public function attribute(string $key, string $value): self {
-				return $this;
-			}
-			public function labelAttribute(string $key, string $value): self {
+			public function labelAttribute(string $key, string $value): static {
 				return $this;
 			}
 			protected function _get_component(): string {
@@ -436,34 +429,34 @@ namespace Ran\PluginLib\Forms\Components\Fields\RadioOption {
 namespace Ran\PluginLib\Forms\Components\Fields\Select {
 	if (false) {
 		class Builder extends \Ran\PluginLib\Forms\Component\Build\ComponentBuilderBase {
-			public function name(?string $name): self {
+			public function name(?string $name): static {
 				return $this;
 			}
-			public function elementId(?string $id): self {
+			public function elementId(?string $id): static {
 				return $this;
 			}
-			public function descriptionId(?string $descriptionId): self {
+			public function descriptionId(?string $descriptionId): static {
 				return $this;
 			}
-			public function value(?string $value): self {
+			public function value(?string $value): static {
 				return $this;
 			}
-			public function default(?string $default): self {
+			public function default(?string $default): static {
 				return $this;
 			}
-			public function disabled(bool $disabled = true): self {
+			public function disabled(bool $disabled = true): static {
 				return $this;
 			}
-			public function required(bool $required = true): self {
+			public function required(bool $required = true): static {
 				return $this;
 			}
-			public function attribute(string $key, string $value): self {
+			public function attribute(string $key, string $value): static {
 				return $this;
 			}
-			public function option(string $value, string $label, ?string $group = null, array $attributes = array(), bool $selected = false, bool $disabled = false): self {
+			public function option(string $value, string $label, ?string $group = null, array $attributes = array(), bool $selected = false, bool $disabled = false): static {
 				return $this;
 			}
-			public function options(array $options): self {
+			public function options(array $options): static {
 				return $this;
 			}
 			protected function _get_component(): string {
@@ -495,10 +488,10 @@ namespace Ran\PluginLib\Forms\Components\Fields\Text {
 namespace Ran\PluginLib\Forms\Components\Fields\Textarea {
 	if (false) {
 		class Builder extends \Ran\PluginLib\Forms\Component\Build\ComponentBuilderTextBase {
-			public function rows(?int $rows): self {
+			public function rows(?int $rows): static {
 				return $this;
 			}
-			public function cols(?int $cols): self {
+			public function cols(?int $cols): static {
 				return $this;
 			}
 			protected function _get_component(): string {

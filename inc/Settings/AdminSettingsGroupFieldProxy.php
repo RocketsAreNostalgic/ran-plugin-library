@@ -21,14 +21,24 @@ use Ran\PluginLib\Forms\Builders\FieldProxyInterface;
  * Field proxy for AdminSettings groups.
  *
  * Uses composition (trait) instead of inheritance for IDE-friendly concrete return types.
+ *
+ * @method AdminSettingsGroupFieldProxy before(?callable $before) Set before callback.
+ * @method AdminSettingsGroupFieldProxy after(?callable $after) Set after callback.
+ * @method AdminSettingsGroupFieldProxy order(?int $order) Set field order.
+ * @method AdminSettingsGroupFieldProxy template(string $template) Set field template.
+ * @method AdminSettingsGroupFieldProxy style(string|callable $style) Set field style.
+ * @method AdminSettingsGroupFieldProxy id(string $id) Set field ID.
+ * @method AdminSettingsGroupFieldProxy disabled(bool $disabled = true) Set disabled state.
+ * @method AdminSettingsGroupFieldProxy required(bool $required = true) Set required state.
+ * @method AdminSettingsGroupFieldProxy readonly(bool $readonly = true) Set readonly state.
+ * @method AdminSettingsGroupFieldProxy attribute(string $key, string $value) Set an attribute.
+ * @method AdminSettingsGroupFieldProxy description(string|callable|null $description_cb) Set description.
  */
 class AdminSettingsGroupFieldProxy implements FieldProxyInterface, ComponentBuilderInterface {
 	use FieldProxyTrait;
 
-	/**
-	 * The parent group builder - concrete type for IDE support.
-	 */
 	private AdminSettingsGroupBuilder $parent;
+	private ?AdminSettingsGroupNavigation $navigation = null;
 
 	/**
 	 * @param ComponentBuilderBase $builder The component builder.
@@ -65,48 +75,30 @@ class AdminSettingsGroupFieldProxy implements FieldProxyInterface, ComponentBuil
 		);
 	}
 
-	/**
-	 * End field configuration and return to the AdminSettingsGroupBuilder.
-	 *
-	 * @return AdminSettingsGroupBuilder The parent group builder for continued chaining.
-	 */
-	public function end_field(): AdminSettingsGroupBuilder {
-		return $this->parent;
+	public function end_field(): AdminSettingsGroupNavigation {
+		if ($this->navigation === null) {
+			$this->navigation = new AdminSettingsGroupNavigation($this->parent);
+		}
+		return $this->navigation;
 	}
 
-	/**
-	 * End field and group, returning to the section builder.
-	 *
-	 * @return AdminSettingsSectionBuilder
-	 */
 	public function end_group(): AdminSettingsSectionBuilder {
-		return $this->parent->end_group();
+		return $this->end_field()->end_group();
 	}
 
-	/**
-	 * End field, group, and section, returning to the page builder.
-	 *
-	 * @return AdminSettingsPageBuilder
-	 */
 	public function end_section(): AdminSettingsPageBuilder {
-		return $this->parent->end_section();
+		return $this->end_field()->end_section();
 	}
 
-	/**
-	 * End field, group, section, and page, returning to the menu group builder.
-	 *
-	 * @return AdminSettingsMenuGroupBuilder
-	 */
 	public function end_page(): AdminSettingsMenuGroupBuilder {
-		return $this->parent->end_page();
+		return $this->end_field()->end_page();
 	}
 
-	/**
-	 * Fluent shortcut: end all the way back to AdminSettings.
-	 *
-	 * @return AdminSettings
-	 */
 	public function end(): AdminSettings {
-		return $this->end_page()->end_menu_group();
+		return $this->end_field()->end();
+	}
+
+	public function field(string $field_id, string $label, string $component, array $args = array()): AdminSettingsGroupFieldProxy {
+		return $this->end_field()->field($field_id, $label, $component, $args);
 	}
 }

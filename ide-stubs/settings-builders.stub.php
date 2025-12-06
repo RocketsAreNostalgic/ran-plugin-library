@@ -261,6 +261,27 @@ namespace Ran\PluginLib\Settings {
 		}
 
 		/**
+		 * UserSettingsFieldsetNavigation - Navigation wrapper for fieldset builder.
+		 */
+		final class UserSettingsFieldsetNavigation {
+			/** @return UserSettingsFieldsetFieldProxy */
+			public function field(string $field_id, string $label, string $component, array $args = array()): UserSettingsFieldsetFieldProxy {
+			}
+			/** @return UserSettingsSectionBuilder */
+			public function end_fieldset(): UserSettingsSectionBuilder {
+			}
+			/** @return UserSettingsCollectionBuilder */
+			public function end_section(): UserSettingsCollectionBuilder {
+			}
+			/** @return UserSettings */
+			public function end_collection(): UserSettings {
+			}
+			/** @return UserSettings */
+			public function end(): UserSettings {
+			}
+		}
+
+		/**
 		 * UserSettingsFieldsetFieldProxy - Field proxy within a fieldset.
 		 */
 		class UserSettingsFieldsetFieldProxy {
@@ -284,10 +305,17 @@ namespace Ran\PluginLib\Settings {
 			}
 
 			/**
-			 * End field configuration and return to the fieldset builder.
-			 * @return UserSettingsFieldsetBuilder
+			 * End field configuration and return to the fieldset navigation.
+			 * @return UserSettingsFieldsetNavigation
 			 */
-			public function end_field(): UserSettingsFieldsetBuilder {
+			public function end_field(): UserSettingsFieldsetNavigation {
+			}
+
+			/**
+			 * Start a sibling field in the same fieldset.
+			 * @return UserSettingsFieldsetFieldProxy
+			 */
+			public function field(string $field_id, string $label, string $component, array $args = array()): UserSettingsFieldsetFieldProxy {
 			}
 
 			/**
@@ -309,6 +337,34 @@ namespace Ran\PluginLib\Settings {
 			 * @return UserSettings
 			 */
 			public function end_collection(): UserSettings {
+			}
+
+			/**
+			 * Shortcut: End all the way back to UserSettings.
+			 * @return UserSettings
+			 */
+			public function end(): UserSettings {
+			}
+		}
+
+		/**
+		 * UserSettingsGroupNavigation - Navigation wrapper for group builder.
+		 */
+		final class UserSettingsGroupNavigation {
+			/** @return UserSettingsGroupFieldProxy */
+			public function field(string $field_id, string $label, string $component, array $args = array()): UserSettingsGroupFieldProxy {
+			}
+			/** @return UserSettingsSectionBuilder */
+			public function end_group(): UserSettingsSectionBuilder {
+			}
+			/** @return UserSettingsCollectionBuilder */
+			public function end_section(): UserSettingsCollectionBuilder {
+			}
+			/** @return UserSettings */
+			public function end_collection(): UserSettings {
+			}
+			/** @return UserSettings */
+			public function end(): UserSettings {
 			}
 		}
 
@@ -336,10 +392,17 @@ namespace Ran\PluginLib\Settings {
 			}
 
 			/**
-			 * End field configuration and return to the group builder.
-			 * @return UserSettingsGroupBuilder
+			 * End field configuration and return to the group navigation.
+			 * @return UserSettingsGroupNavigation
 			 */
-			public function end_field(): UserSettingsGroupBuilder {
+			public function end_field(): UserSettingsGroupNavigation {
+			}
+
+			/**
+			 * Start a sibling field in the same group.
+			 * @return UserSettingsGroupFieldProxy
+			 */
+			public function field(string $field_id, string $label, string $component, array $args = array()): UserSettingsGroupFieldProxy {
 			}
 
 			/**
@@ -361,6 +424,40 @@ namespace Ran\PluginLib\Settings {
 			 * @return UserSettings
 			 */
 			public function end_collection(): UserSettings {
+			}
+
+			/**
+			 * Shortcut: End all the way back to UserSettings.
+			 * @return UserSettings
+			 */
+			public function end(): UserSettings {
+			}
+		}
+
+		/**
+		 * UserSettingsSectionNavigation - Navigation wrapper for section builder.
+		 */
+		final class UserSettingsSectionNavigation {
+			/** @return UserSettingsComponentProxy */
+			public function field(string $field_id, string $label, string $component, array $args = array()): UserSettingsComponentProxy {
+			}
+			/** @return UserSettingsGroupBuilder */
+			public function group(string $group_id, string $heading = '', string|callable|null $description_cb = null, ?array $args = null): UserSettingsGroupBuilder {
+			}
+			/** @return UserSettingsFieldsetBuilder */
+			public function fieldset(string $fieldset_id, string $heading = '', string|callable|null $description_cb = null, ?array $args = null): UserSettingsFieldsetBuilder {
+			}
+			/** @return UserSettingsCollectionBuilder */
+			public function end_section(): UserSettingsCollectionBuilder {
+			}
+			/** @return UserSettings */
+			public function end_collection(): UserSettings {
+			}
+			/** @return UserSettings */
+			public function end(): UserSettings {
+			}
+			/** @return UserSettingsSectionBuilder */
+			public function section(string $section_id, string $heading = ''): UserSettingsSectionBuilder {
 			}
 		}
 
@@ -388,10 +485,38 @@ namespace Ran\PluginLib\Settings {
 			}
 
 			/**
-			 * End field configuration and return to the section builder.
+			 * End field configuration and return to the section navigation.
+			 * @return UserSettingsSectionNavigation
+			 */
+			public function end_field(): UserSettingsSectionNavigation {
+			}
+
+			/**
+			 * Start a sibling field in the same section.
+			 * @return UserSettingsComponentProxy
+			 */
+			public function field(string $field_id, string $label, string $component, array $args = array()): UserSettingsComponentProxy {
+			}
+
+			/**
+			 * Start a sibling group in the same section.
+			 * @return UserSettingsGroupBuilder
+			 */
+			public function group(string $group_id, string $heading = '', string|callable|null $description_cb = null, ?array $args = null): UserSettingsGroupBuilder {
+			}
+
+			/**
+			 * Start a sibling fieldset in the same section.
+			 * @return UserSettingsFieldsetBuilder
+			 */
+			public function fieldset(string $fieldset_id, string $heading = '', string|callable|null $description_cb = null, ?array $args = null): UserSettingsFieldsetBuilder {
+			}
+
+			/**
+			 * Start a sibling section.
 			 * @return UserSettingsSectionBuilder
 			 */
-			public function end_field(): UserSettingsSectionBuilder {
+			public function section(string $section_id, string $heading = ''): UserSettingsSectionBuilder {
 			}
 
 			/**
@@ -406,6 +531,13 @@ namespace Ran\PluginLib\Settings {
 			 * @return UserSettings
 			 */
 			public function end_collection(): UserSettings {
+			}
+
+			/**
+			 * Shortcut: End all the way back to UserSettings.
+			 * @return UserSettings
+			 */
+			public function end(): UserSettings {
 			}
 		}
 
@@ -733,6 +865,27 @@ namespace Ran\PluginLib\Settings {
 		}
 
 		/**
+		 * AdminSettingsFieldsetNavigation - Navigation wrapper for fieldset builder.
+		 */
+		final class AdminSettingsFieldsetNavigation {
+			/** @return AdminSettingsFieldsetFieldProxy */
+			public function field(string $field_id, string $label, string $component, array $args = array()): AdminSettingsFieldsetFieldProxy {
+			}
+			/** @return AdminSettingsSectionBuilder */
+			public function end_fieldset(): AdminSettingsSectionBuilder {
+			}
+			/** @return AdminSettingsPageBuilder */
+			public function end_section(): AdminSettingsPageBuilder {
+			}
+			/** @return AdminSettingsMenuGroupBuilder */
+			public function end_page(): AdminSettingsMenuGroupBuilder {
+			}
+			/** @return AdminSettings */
+			public function end(): AdminSettings {
+			}
+		}
+
+		/**
 		 * AdminSettingsFieldsetFieldProxy - Field proxy within a fieldset.
 		 */
 		class AdminSettingsFieldsetFieldProxy {
@@ -756,10 +909,17 @@ namespace Ran\PluginLib\Settings {
 			}
 
 			/**
-			 * End field configuration and return to the fieldset builder.
-			 * @return AdminSettingsFieldsetBuilder
+			 * End field configuration and return to the fieldset navigation.
+			 * @return AdminSettingsFieldsetNavigation
 			 */
-			public function end_field(): AdminSettingsFieldsetBuilder {
+			public function end_field(): AdminSettingsFieldsetNavigation {
+			}
+
+			/**
+			 * Start a sibling field in the same fieldset.
+			 * @return AdminSettingsFieldsetFieldProxy
+			 */
+			public function field(string $field_id, string $label, string $component, array $args = array()): AdminSettingsFieldsetFieldProxy {
 			}
 
 			/**
@@ -784,9 +944,30 @@ namespace Ran\PluginLib\Settings {
 			}
 
 			/**
-			 * Shortcut: End field, fieldset, section, page, and menu group.
+			 * Shortcut: End all the way back to AdminSettings.
 			 * @return AdminSettings
 			 */
+			public function end(): AdminSettings {
+			}
+		}
+
+		/**
+		 * AdminSettingsGroupNavigation - Navigation wrapper for group builder.
+		 */
+		final class AdminSettingsGroupNavigation {
+			/** @return AdminSettingsGroupFieldProxy */
+			public function field(string $field_id, string $label, string $component, array $args = array()): AdminSettingsGroupFieldProxy {
+			}
+			/** @return AdminSettingsSectionBuilder */
+			public function end_group(): AdminSettingsSectionBuilder {
+			}
+			/** @return AdminSettingsPageBuilder */
+			public function end_section(): AdminSettingsPageBuilder {
+			}
+			/** @return AdminSettingsMenuGroupBuilder */
+			public function end_page(): AdminSettingsMenuGroupBuilder {
+			}
+			/** @return AdminSettings */
 			public function end(): AdminSettings {
 			}
 		}
@@ -815,10 +996,17 @@ namespace Ran\PluginLib\Settings {
 			}
 
 			/**
-			 * End field configuration and return to the group builder.
-			 * @return AdminSettingsGroupBuilder
+			 * End field configuration and return to the group navigation.
+			 * @return AdminSettingsGroupNavigation
 			 */
-			public function end_field(): AdminSettingsGroupBuilder {
+			public function end_field(): AdminSettingsGroupNavigation {
+			}
+
+			/**
+			 * Start a sibling field in the same group.
+			 * @return AdminSettingsGroupFieldProxy
+			 */
+			public function field(string $field_id, string $label, string $component, array $args = array()): AdminSettingsGroupFieldProxy {
 			}
 
 			/**
@@ -843,10 +1031,37 @@ namespace Ran\PluginLib\Settings {
 			}
 
 			/**
-			 * Shortcut: End field, group, section, page, and menu group.
+			 * Shortcut: End all the way back to AdminSettings.
 			 * @return AdminSettings
 			 */
 			public function end(): AdminSettings {
+			}
+		}
+
+		/**
+		 * AdminSettingsSectionNavigation - Navigation wrapper for section builder.
+		 */
+		final class AdminSettingsSectionNavigation {
+			/** @return AdminSettingsComponentProxy */
+			public function field(string $field_id, string $label, string $component, array $args = array()): AdminSettingsComponentProxy {
+			}
+			/** @return AdminSettingsGroupBuilder */
+			public function group(string $group_id, string $heading = '', string|callable|null $description_cb = null, ?array $args = null): AdminSettingsGroupBuilder {
+			}
+			/** @return AdminSettingsFieldsetBuilder */
+			public function fieldset(string $fieldset_id, string $heading = '', string|callable|null $description_cb = null, ?array $args = null): AdminSettingsFieldsetBuilder {
+			}
+			/** @return AdminSettingsPageBuilder */
+			public function end_section(): AdminSettingsPageBuilder {
+			}
+			/** @return AdminSettingsMenuGroupBuilder */
+			public function end_page(): AdminSettingsMenuGroupBuilder {
+			}
+			/** @return AdminSettings */
+			public function end(): AdminSettings {
+			}
+			/** @return AdminSettingsSectionBuilder */
+			public function section(string $section_id, string $heading = ''): AdminSettingsSectionBuilder {
 			}
 		}
 
@@ -874,10 +1089,38 @@ namespace Ran\PluginLib\Settings {
 			}
 
 			/**
-			 * End field configuration and return to the section builder.
+			 * End field configuration and return to the section navigation.
+			 * @return AdminSettingsSectionNavigation
+			 */
+			public function end_field(): AdminSettingsSectionNavigation {
+			}
+
+			/**
+			 * Start a sibling field in the same section.
+			 * @return AdminSettingsComponentProxy
+			 */
+			public function field(string $field_id, string $label, string $component, array $args = array()): AdminSettingsComponentProxy {
+			}
+
+			/**
+			 * Start a sibling group in the same section.
+			 * @return AdminSettingsGroupBuilder
+			 */
+			public function group(string $group_id, string $heading = '', string|callable|null $description_cb = null, ?array $args = null): AdminSettingsGroupBuilder {
+			}
+
+			/**
+			 * Start a sibling fieldset in the same section.
+			 * @return AdminSettingsFieldsetBuilder
+			 */
+			public function fieldset(string $fieldset_id, string $heading = '', string|callable|null $description_cb = null, ?array $args = null): AdminSettingsFieldsetBuilder {
+			}
+
+			/**
+			 * Start a sibling section.
 			 * @return AdminSettingsSectionBuilder
 			 */
-			public function end_field(): AdminSettingsSectionBuilder {
+			public function section(string $section_id, string $heading = ''): AdminSettingsSectionBuilder {
 			}
 
 			/**
@@ -895,7 +1138,7 @@ namespace Ran\PluginLib\Settings {
 			}
 
 			/**
-			 * Shortcut: End field, section, page, and menu group.
+			 * Shortcut: End all the way back to AdminSettings.
 			 * @return AdminSettings
 			 */
 			public function end(): AdminSettings {

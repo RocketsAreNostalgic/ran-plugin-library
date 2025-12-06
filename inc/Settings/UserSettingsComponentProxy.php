@@ -25,6 +25,18 @@ use Ran\PluginLib\Forms\Builders\FieldProxyInterface;
  *
  * For fields inside groups, use UserSettingsGroupFieldProxy.
  * For fields inside fieldsets, use UserSettingsFieldsetFieldProxy.
+ *
+ * @method UserSettingsComponentProxy before(?callable $before) Set before callback.
+ * @method UserSettingsComponentProxy after(?callable $after) Set after callback.
+ * @method UserSettingsComponentProxy order(?int $order) Set field order.
+ * @method UserSettingsComponentProxy template(string $template) Set field template.
+ * @method UserSettingsComponentProxy style(string|callable $style) Set field style.
+ * @method UserSettingsComponentProxy id(string $id) Set field ID.
+ * @method UserSettingsComponentProxy disabled(bool $disabled = true) Set disabled state.
+ * @method UserSettingsComponentProxy required(bool $required = true) Set required state.
+ * @method UserSettingsComponentProxy readonly(bool $readonly = true) Set readonly state.
+ * @method UserSettingsComponentProxy attribute(string $key, string $value) Set an attribute.
+ * @method UserSettingsComponentProxy description(string|callable|null $description_cb) Set description.
  */
 class UserSettingsComponentProxy implements FieldProxyInterface, ComponentBuilderInterface {
 	use FieldProxyTrait;
@@ -33,6 +45,11 @@ class UserSettingsComponentProxy implements FieldProxyInterface, ComponentBuilde
 	 * The parent section builder - concrete type for IDE support.
 	 */
 	private UserSettingsSectionBuilder $parent;
+
+	/**
+	 * Cached navigation wrapper for cleaner IDE autocomplete.
+	 */
+	private ?UserSettingsSectionNavigation $navigation = null;
 
 	/**
 	 * Constructor.
@@ -72,12 +89,19 @@ class UserSettingsComponentProxy implements FieldProxyInterface, ComponentBuilde
 	}
 
 	/**
-	 * End field configuration and return to the parent section builder.
+	 * End field configuration and return to the section navigation.
 	 *
-	 * @return UserSettingsSectionBuilder
+	 * Returns a navigation wrapper that only exposes methods useful after
+	 * ending a field (field, group, fieldset, end_section, end, section).
+	 * Use end_field()->configure() to access full section configuration.
+	 *
+	 * @return UserSettingsSectionNavigation
 	 */
-	public function end_field(): UserSettingsSectionBuilder {
-		return $this->parent;
+	public function end_field(): UserSettingsSectionNavigation {
+		if ($this->navigation === null) {
+			$this->navigation = new UserSettingsSectionNavigation($this->parent);
+		}
+		return $this->navigation;
 	}
 
 	/**
@@ -106,7 +130,7 @@ class UserSettingsComponentProxy implements FieldProxyInterface, ComponentBuilde
 	 * @return UserSettingsCollectionBuilder
 	 */
 	public function end_section(): UserSettingsCollectionBuilder {
-		return $this->parent->end_section();
+		return $this->end_field()->end_section();
 	}
 
 	/**
@@ -138,7 +162,7 @@ class UserSettingsComponentProxy implements FieldProxyInterface, ComponentBuilde
 	 * @return UserSettingsGroupBuilder
 	 */
 	public function group(string $group_id, string $heading = '', string|callable|null $description_cb = null, ?array $args = null): UserSettingsGroupBuilder {
-		return $this->parent->group($group_id, $heading, $description_cb, $args);
+		return $this->end_field()->group($group_id, $heading, $description_cb, $args);
 	}
 
 	/**
@@ -152,7 +176,7 @@ class UserSettingsComponentProxy implements FieldProxyInterface, ComponentBuilde
 	 * @return UserSettingsFieldsetBuilder
 	 */
 	public function fieldset(string $fieldset_id, string $heading = '', string|callable|null $description_cb = null, ?array $args = null): UserSettingsFieldsetBuilder {
-		return $this->parent->fieldset($fieldset_id, $heading, $description_cb, $args);
+		return $this->end_field()->fieldset($fieldset_id, $heading, $description_cb, $args);
 	}
 
 	/**
@@ -166,7 +190,7 @@ class UserSettingsComponentProxy implements FieldProxyInterface, ComponentBuilde
 	 * @return UserSettingsComponentProxy
 	 */
 	public function field(string $field_id, string $label, string $component, array $args = array()): UserSettingsComponentProxy {
-		return $this->parent->field($field_id, $label, $component, $args);
+		return $this->end_field()->field($field_id, $label, $component, $args);
 	}
 
 	/**
@@ -178,6 +202,6 @@ class UserSettingsComponentProxy implements FieldProxyInterface, ComponentBuilde
 	 * @return UserSettingsSectionBuilder
 	 */
 	public function section(string $section_id, string $heading = ''): UserSettingsSectionBuilder {
-		return $this->parent->section($section_id, $heading);
+		return $this->end_field()->section($section_id, $heading);
 	}
 }

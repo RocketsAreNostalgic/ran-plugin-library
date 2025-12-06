@@ -25,6 +25,18 @@ use Ran\PluginLib\Forms\Builders\FieldProxyInterface;
  *
  * For fields inside groups, use AdminSettingsGroupFieldProxy.
  * For fields inside fieldsets, use AdminSettingsFieldsetFieldProxy.
+ *
+ * @method AdminSettingsComponentProxy before(?callable $before) Set before callback.
+ * @method AdminSettingsComponentProxy after(?callable $after) Set after callback.
+ * @method AdminSettingsComponentProxy order(?int $order) Set field order.
+ * @method AdminSettingsComponentProxy template(string $template) Set field template.
+ * @method AdminSettingsComponentProxy style(string|callable $style) Set field style.
+ * @method AdminSettingsComponentProxy id(string $id) Set field ID.
+ * @method AdminSettingsComponentProxy disabled(bool $disabled = true) Set disabled state.
+ * @method AdminSettingsComponentProxy required(bool $required = true) Set required state.
+ * @method AdminSettingsComponentProxy readonly(bool $readonly = true) Set readonly state.
+ * @method AdminSettingsComponentProxy attribute(string $key, string $value) Set an attribute.
+ * @method AdminSettingsComponentProxy description(string|callable|null $description_cb) Set description.
  */
 class AdminSettingsComponentProxy implements FieldProxyInterface, ComponentBuilderInterface {
 	use FieldProxyTrait;
@@ -33,6 +45,11 @@ class AdminSettingsComponentProxy implements FieldProxyInterface, ComponentBuild
 	 * The parent section builder - concrete type for IDE support.
 	 */
 	private AdminSettingsSectionBuilder $parent;
+
+	/**
+	 * Cached navigation wrapper for cleaner IDE autocomplete.
+	 */
+	private ?AdminSettingsSectionNavigation $navigation = null;
 
 	/**
 	 * Constructor.
@@ -72,12 +89,19 @@ class AdminSettingsComponentProxy implements FieldProxyInterface, ComponentBuild
 	}
 
 	/**
-	 * End field configuration and return to the parent section builder.
+	 * End field configuration and return to the section navigation.
 	 *
-	 * @return AdminSettingsSectionBuilder
+	 * Returns a navigation wrapper that only exposes methods useful after
+	 * ending a field (field, group, fieldset, end_section, end_page, end, section).
+	 * Use end_field()->configure() to access full section configuration.
+	 *
+	 * @return AdminSettingsSectionNavigation
 	 */
-	public function end_field(): AdminSettingsSectionBuilder {
-		return $this->parent;
+	public function end_field(): AdminSettingsSectionNavigation {
+		if ($this->navigation === null) {
+			$this->navigation = new AdminSettingsSectionNavigation($this->parent);
+		}
+		return $this->navigation;
 	}
 
 	/**
@@ -106,7 +130,7 @@ class AdminSettingsComponentProxy implements FieldProxyInterface, ComponentBuild
 	 * @return AdminSettingsPageBuilder
 	 */
 	public function end_section(): AdminSettingsPageBuilder {
-		return $this->parent->end_section();
+		return $this->end_field()->end_section();
 	}
 
 	/**
@@ -115,7 +139,7 @@ class AdminSettingsComponentProxy implements FieldProxyInterface, ComponentBuild
 	 * @return AdminSettingsMenuGroupBuilder
 	 */
 	public function end_page(): AdminSettingsMenuGroupBuilder {
-		return $this->end_section()->end_page();
+		return $this->end_field()->end_page();
 	}
 
 	/**
@@ -138,7 +162,7 @@ class AdminSettingsComponentProxy implements FieldProxyInterface, ComponentBuild
 	 * @return AdminSettingsGroupBuilder
 	 */
 	public function group(string $group_id, string $heading = '', string|callable|null $description_cb = null, ?array $args = null): AdminSettingsGroupBuilder {
-		return $this->parent->group($group_id, $heading, $description_cb, $args);
+		return $this->end_field()->group($group_id, $heading, $description_cb, $args);
 	}
 
 	/**
@@ -152,7 +176,7 @@ class AdminSettingsComponentProxy implements FieldProxyInterface, ComponentBuild
 	 * @return AdminSettingsFieldsetBuilder
 	 */
 	public function fieldset(string $fieldset_id, string $heading = '', string|callable|null $description_cb = null, ?array $args = null): AdminSettingsFieldsetBuilder {
-		return $this->parent->fieldset($fieldset_id, $heading, $description_cb, $args);
+		return $this->end_field()->fieldset($fieldset_id, $heading, $description_cb, $args);
 	}
 
 	/**
@@ -166,7 +190,7 @@ class AdminSettingsComponentProxy implements FieldProxyInterface, ComponentBuild
 	 * @return AdminSettingsComponentProxy
 	 */
 	public function field(string $field_id, string $label, string $component, array $args = array()): AdminSettingsComponentProxy {
-		return $this->parent->field($field_id, $label, $component, $args);
+		return $this->end_field()->field($field_id, $label, $component, $args);
 	}
 
 	/**
@@ -178,6 +202,6 @@ class AdminSettingsComponentProxy implements FieldProxyInterface, ComponentBuild
 	 * @return AdminSettingsSectionBuilder
 	 */
 	public function section(string $section_id, string $heading = ''): AdminSettingsSectionBuilder {
-		return $this->parent->section($section_id, $heading);
+		return $this->end_field()->section($section_id, $heading);
 	}
 }
