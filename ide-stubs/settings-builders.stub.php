@@ -26,7 +26,7 @@ namespace Ran\PluginLib\Settings {
 			public function heading(string $heading): static {
 			}
 			/** @return static */
-			public function description(string|callable $description): static {
+			public function description(string|callable|null $description_cb): static {
 			}
 			/** @return static */
 			public function order(int $order): static {
@@ -149,7 +149,7 @@ namespace Ran\PluginLib\Settings {
 			public function heading(string $heading): static {
 			}
 			/** @return static */
-			public function description(string|callable $description_cb): static {
+			public function description(string|callable|null $description_cb): static {
 			}
 			/** @return static */
 			public function before(?callable $before): static {
@@ -213,7 +213,7 @@ namespace Ran\PluginLib\Settings {
 			public function heading(string $heading): static {
 			}
 			/** @return static */
-			public function description(string|callable $description_cb): static {
+			public function description(string|callable|null $description_cb): static {
 			}
 			/** @return static */
 			public function before(?callable $before): static {
@@ -457,7 +457,7 @@ namespace Ran\PluginLib\Settings {
 			public function heading(string $heading): static {
 			}
 			/** @return static */
-			public function description(string|callable $description): static {
+			public function description(string|callable|null $description_cb): static {
 			}
 			/** @return static */
 			public function menu_label(string $menu_title): static {
@@ -607,7 +607,7 @@ namespace Ran\PluginLib\Settings {
 			public function heading(string $heading): static {
 			}
 			/** @return static */
-			public function description(string|callable $description_cb): static {
+			public function description(string|callable|null $description_cb): static {
 			}
 			/** @return static */
 			public function before(?callable $before): static {
@@ -678,7 +678,7 @@ namespace Ran\PluginLib\Settings {
 			public function heading(string $heading): static {
 			}
 			/** @return static */
-			public function description(string|callable $description_cb): static {
+			public function description(string|callable|null $description_cb): static {
 			}
 			/** @return static */
 			public function before(?callable $before): static {

@@ -15,7 +15,7 @@ namespace Ran\PluginLib\Forms\Component\Build {
 			public function attribute(string $key, string $value): static {
 				return $this;
 			}
-			public function description(?string $description): static {
+			public function description(string|callable|null  $description_cb): static {
 				return $this;
 			}
 			public function to_array(): array {
