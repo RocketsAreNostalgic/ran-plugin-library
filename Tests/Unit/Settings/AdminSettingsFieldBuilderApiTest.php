@@ -43,7 +43,7 @@ final class AdminSettingsFieldBuilderApiTest extends TestCase {
 		\WP_Mock::tearDown();
 	}
 
-	public function test_field_builder_proxy_exposes_component_builder_base_methods(): void {
+	public function test_field_builder_proxy_exposes_explicit_methods(): void {
 		$admin = $this->createAdminSettings();
 
 		$admin->menu_group('base-menu')
@@ -51,7 +51,8 @@ final class AdminSettingsFieldBuilderApiTest extends TestCase {
 		        ->section('base-section', 'Base Section')
 		            ->field('base-input', 'Base Input', 'fields.input')
 		                ->order(42)
-		                ->attributes(array('data-test' => 'input-base', 'aria-label' => 'Base Input Label'))
+		                ->attribute('data-test', 'input-base')
+		                ->attribute('aria-label', 'Base Input Label')
 		                ->attribute('data-extra', 'extra')
 		                ->description('Base component description')
 		                ->template('custom-field-wrapper')
@@ -100,22 +101,17 @@ final class AdminSettingsFieldBuilderApiTest extends TestCase {
 		self::assertSame('custom-field-wrapper', $fieldOverrides['field-wrapper'] ?? null);
 	}
 
-	public function test_field_builder_proxy_exposes_component_specific_button_methods(): void {
+	public function test_field_builder_proxy_disabled_method(): void {
 		$admin = $this->createAdminSettings();
 
 		$admin->menu_group('button-menu')
 		    ->page('button-page')
 		        ->section('button-section', 'Button Section')
 		            ->field('cta-button', 'Call To Action', 'elements.button')
-		                ->type('submit')
-		                ->variant('secondary')
-		                ->icon_html('<span class="icon"></span>')
 		                ->disabled()
 		                ->order(7)
 		            ->end_field()
 		            ->field('cta-button-enabled', 'Call To Action', 'elements.button')
-		                ->variant('primary')
-		                ->icon_html(null)
 		                ->disabled(false)
 		            ->end_field()
 		        ->end_section()
@@ -134,9 +130,6 @@ final class AdminSettingsFieldBuilderApiTest extends TestCase {
 		$ctaContext = $ctaLog['context'];
 		self::assertSame(7, $ctaContext['order']);
 		self::assertSame('elements.button', $ctaContext['component']);
-		self::assertSame('submit', $ctaContext['component_context']['type'] ?? null);
-		self::assertSame('secondary', $ctaContext['component_context']['variant'] ?? null);
-		self::assertSame('<span class="icon"></span>', $ctaContext['component_context']['icon_html'] ?? null);
 		self::assertTrue($ctaContext['component_context']['disabled'] ?? false);
 
 		$ctaEnabledLog = $this->findLogByFieldId($buttonLogs, 'cta-button-enabled');
@@ -144,8 +137,6 @@ final class AdminSettingsFieldBuilderApiTest extends TestCase {
 		$ctaEnabledContext = $ctaEnabledLog['context'];
 		self::assertSame('elements.button', $ctaEnabledContext['component']);
 		self::assertSame('Call To Action', $ctaEnabledContext['label']);
-		self::assertFalse(array_key_exists('variant', $ctaEnabledContext['component_context'] ?? array()), 'Variant should rely on default primary.');
-		self::assertFalse(array_key_exists('icon_html', $ctaEnabledContext['component_context']));
 		self::assertFalse(array_key_exists('disabled', $ctaEnabledContext['component_context']));
 	}
 

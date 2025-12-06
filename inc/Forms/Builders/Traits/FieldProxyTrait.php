@@ -92,31 +92,6 @@ trait FieldProxyTrait {
 	}
 
 	/**
-	 * Proxy fluent builder methods to the underlying component builder.
-	 *
-	 * @param string $name Method name.
-	 * @param array<int,mixed> $arguments Method arguments.
-	 *
-	 * @return mixed
-	 *
-	 * @throws BadMethodCallException If method doesn't exist on builder.
-	 */
-	public function __call(string $name, array $arguments) {
-		if (method_exists($this->builder, $name)) {
-			$result = $this->builder->$name(...$arguments);
-			if ($result instanceof ComponentBuilderDefinitionInterface || $result === $this->builder) {
-				return $this;
-			}
-			return $result;
-		}
-
-		throw new BadMethodCallException(sprintf(
-			'Method "%s" is not available on field proxy. Call end_field() first to return to the parent builder.',
-			$name
-		));
-	}
-
-	/**
 	 * Set the template override for this field.
 	 *
 	 * @param string $template_key The template key.
@@ -475,5 +450,29 @@ trait FieldProxyTrait {
 			throw new \InvalidArgumentException('Field style callback must return a string.');
 		}
 		return trim($resolved);
+	}
+
+	/**
+	 * Magic method to forward calls to the underlying component builder.
+	 *
+	 * This enables IDE autocomplete via @method annotations on proxy classes.
+	 * Methods defined directly on the proxy or trait take precedence.
+	 *
+	 * @param string $name Method name.
+	 * @param array<int,mixed> $arguments Method arguments.
+	 *
+	 * @return static
+	 *
+	 * @throws BadMethodCallException If the method doesn't exist on the builder.
+	 */
+	public function __call(string $name, array $arguments): static {
+		if (method_exists($this->builder, $name)) {
+			$this->builder->$name(...$arguments);
+			$this->_emit_field_update();
+			return $this;
+		}
+		throw new BadMethodCallException(
+			sprintf('Method %s::%s does not exist.', static::class, $name)
+		);
 	}
 }

@@ -263,7 +263,7 @@ namespace Ran\PluginLib\Settings {
 		/**
 		 * UserSettingsFieldsetNavigation - Navigation wrapper for fieldset builder.
 		 */
-		final class UserSettingsFieldsetNavigation {
+		class UserSettingsFieldsetNavigation {
 			/** @return UserSettingsFieldsetFieldProxy */
 			public function field(string $field_id, string $label, string $component, array $args = array()): UserSettingsFieldsetFieldProxy {
 			}
@@ -350,7 +350,7 @@ namespace Ran\PluginLib\Settings {
 		/**
 		 * UserSettingsGroupNavigation - Navigation wrapper for group builder.
 		 */
-		final class UserSettingsGroupNavigation {
+		class UserSettingsGroupNavigation {
 			/** @return UserSettingsGroupFieldProxy */
 			public function field(string $field_id, string $label, string $component, array $args = array()): UserSettingsGroupFieldProxy {
 			}
@@ -437,7 +437,7 @@ namespace Ran\PluginLib\Settings {
 		/**
 		 * UserSettingsSectionNavigation - Navigation wrapper for section builder.
 		 */
-		final class UserSettingsSectionNavigation {
+		class UserSettingsSectionNavigation {
 			/** @return UserSettingsComponentProxy */
 			public function field(string $field_id, string $label, string $component, array $args = array()): UserSettingsComponentProxy {
 			}
@@ -867,7 +867,7 @@ namespace Ran\PluginLib\Settings {
 		/**
 		 * AdminSettingsFieldsetNavigation - Navigation wrapper for fieldset builder.
 		 */
-		final class AdminSettingsFieldsetNavigation {
+		class AdminSettingsFieldsetNavigation {
 			/** @return AdminSettingsFieldsetFieldProxy */
 			public function field(string $field_id, string $label, string $component, array $args = array()): AdminSettingsFieldsetFieldProxy {
 			}
@@ -954,7 +954,7 @@ namespace Ran\PluginLib\Settings {
 		/**
 		 * AdminSettingsGroupNavigation - Navigation wrapper for group builder.
 		 */
-		final class AdminSettingsGroupNavigation {
+		class AdminSettingsGroupNavigation {
 			/** @return AdminSettingsGroupFieldProxy */
 			public function field(string $field_id, string $label, string $component, array $args = array()): AdminSettingsGroupFieldProxy {
 			}
@@ -1041,7 +1041,7 @@ namespace Ran\PluginLib\Settings {
 		/**
 		 * AdminSettingsSectionNavigation - Navigation wrapper for section builder.
 		 */
-		final class AdminSettingsSectionNavigation {
+		class AdminSettingsSectionNavigation {
 			/** @return AdminSettingsComponentProxy */
 			public function field(string $field_id, string $label, string $component, array $args = array()): AdminSettingsComponentProxy {
 			}

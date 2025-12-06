@@ -12,27 +12,29 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\Settings;
 
-use Ran\PluginLib\Forms\Builders\FieldProxyInterface;
-use Ran\PluginLib\Forms\Builders\Traits\FieldProxyTrait;
 use Ran\PluginLib\Forms\Component\Build\ComponentBuilderInterface;
 use Ran\PluginLib\Forms\Component\Build\ComponentBuilderBase;
+use Ran\PluginLib\Forms\Builders\Traits\FieldProxyTrait;
+use Ran\PluginLib\Forms\Builders\FieldProxyInterface;
 
 /**
  * Field proxy for UserSettings groups.
  *
  * Uses composition (trait) instead of inheritance for IDE-friendly concrete return types.
  *
- * @method UserSettingsGroupFieldProxy before(?callable $before) Set before callback.
- * @method UserSettingsGroupFieldProxy after(?callable $after) Set after callback.
- * @method UserSettingsGroupFieldProxy order(?int $order) Set field order.
- * @method UserSettingsGroupFieldProxy template(string $template) Set field template.
- * @method UserSettingsGroupFieldProxy style(string|callable $style) Set field style.
- * @method UserSettingsGroupFieldProxy id(string $id) Set field ID.
- * @method UserSettingsGroupFieldProxy disabled(bool $disabled = true) Set disabled state.
- * @method UserSettingsGroupFieldProxy required(bool $required = true) Set required state.
- * @method UserSettingsGroupFieldProxy readonly(bool $readonly = true) Set readonly state.
- * @method UserSettingsGroupFieldProxy attribute(string $key, string $value) Set an attribute.
- * @method UserSettingsGroupFieldProxy description(string|callable|null $description_cb) Set description.
+ * @method UserSettingsGroupFieldProxy before(?callable $before)
+ * @method UserSettingsGroupFieldProxy after(?callable $after)
+ * @method UserSettingsGroupFieldProxy order(?int $order)
+ * @method UserSettingsGroupFieldProxy template(string $template)
+ * @method UserSettingsGroupFieldProxy style(string|callable $style)
+ * @method UserSettingsGroupFieldProxy id(string $id)
+ * @method UserSettingsGroupFieldProxy disabled(bool $disabled = true)
+ * @method UserSettingsGroupFieldProxy required(bool $required = true)
+ * @method UserSettingsGroupFieldProxy readonly(bool $readonly = true)
+ * @method UserSettingsGroupFieldProxy attribute(string $key, string $value)
+ * @method UserSettingsGroupFieldProxy description(string|callable|null $description_cb)
+ * @method UserSettingsGroupFieldProxy ariaLabel(string $ariaLabel)
+ * @method UserSettingsGroupFieldProxy ariaDescribedBy(string $ariaDescribedBy)
  */
 class UserSettingsGroupFieldProxy implements FieldProxyInterface, ComponentBuilderInterface {
 	use FieldProxyTrait;

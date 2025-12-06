@@ -22,17 +22,19 @@ use Ran\PluginLib\Forms\Builders\FieldProxyInterface;
  *
  * Uses composition (trait) instead of inheritance for IDE-friendly concrete return types.
  *
- * @method AdminSettingsGroupFieldProxy before(?callable $before) Set before callback.
- * @method AdminSettingsGroupFieldProxy after(?callable $after) Set after callback.
- * @method AdminSettingsGroupFieldProxy order(?int $order) Set field order.
- * @method AdminSettingsGroupFieldProxy template(string $template) Set field template.
- * @method AdminSettingsGroupFieldProxy style(string|callable $style) Set field style.
- * @method AdminSettingsGroupFieldProxy id(string $id) Set field ID.
- * @method AdminSettingsGroupFieldProxy disabled(bool $disabled = true) Set disabled state.
- * @method AdminSettingsGroupFieldProxy required(bool $required = true) Set required state.
- * @method AdminSettingsGroupFieldProxy readonly(bool $readonly = true) Set readonly state.
- * @method AdminSettingsGroupFieldProxy attribute(string $key, string $value) Set an attribute.
- * @method AdminSettingsGroupFieldProxy description(string|callable|null $description_cb) Set description.
+ * @method AdminSettingsGroupFieldProxy before(?callable $before)
+ * @method AdminSettingsGroupFieldProxy after(?callable $after)
+ * @method AdminSettingsGroupFieldProxy order(?int $order)
+ * @method AdminSettingsGroupFieldProxy template(string $template)
+ * @method AdminSettingsGroupFieldProxy style(string|callable $style)
+ * @method AdminSettingsGroupFieldProxy id(string $id)
+ * @method AdminSettingsGroupFieldProxy disabled(bool $disabled = true)
+ * @method AdminSettingsGroupFieldProxy required(bool $required = true)
+ * @method AdminSettingsGroupFieldProxy readonly(bool $readonly = true)
+ * @method AdminSettingsGroupFieldProxy attribute(string $key, string $value)
+ * @method AdminSettingsGroupFieldProxy description(string|callable|null $description_cb)
+ * @method AdminSettingsGroupFieldProxy ariaLabel(string $ariaLabel)
+ * @method AdminSettingsGroupFieldProxy ariaDescribedBy(string $ariaDescribedBy)
  */
 class AdminSettingsGroupFieldProxy implements FieldProxyInterface, ComponentBuilderInterface {
 	use FieldProxyTrait;

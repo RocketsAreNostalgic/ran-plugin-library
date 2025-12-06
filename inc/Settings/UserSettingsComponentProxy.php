@@ -26,17 +26,19 @@ use Ran\PluginLib\Forms\Builders\FieldProxyInterface;
  * For fields inside groups, use UserSettingsGroupFieldProxy.
  * For fields inside fieldsets, use UserSettingsFieldsetFieldProxy.
  *
- * @method UserSettingsComponentProxy before(?callable $before) Set before callback.
- * @method UserSettingsComponentProxy after(?callable $after) Set after callback.
- * @method UserSettingsComponentProxy order(?int $order) Set field order.
- * @method UserSettingsComponentProxy template(string $template) Set field template.
- * @method UserSettingsComponentProxy style(string|callable $style) Set field style.
- * @method UserSettingsComponentProxy id(string $id) Set field ID.
- * @method UserSettingsComponentProxy disabled(bool $disabled = true) Set disabled state.
- * @method UserSettingsComponentProxy required(bool $required = true) Set required state.
- * @method UserSettingsComponentProxy readonly(bool $readonly = true) Set readonly state.
- * @method UserSettingsComponentProxy attribute(string $key, string $value) Set an attribute.
- * @method UserSettingsComponentProxy description(string|callable|null $description_cb) Set description.
+ * @method UserSettingsComponentProxy before(?callable $before)
+ * @method UserSettingsComponentProxy after(?callable $after)
+ * @method UserSettingsComponentProxy order(?int $order)
+ * @method UserSettingsComponentProxy template(string $template)
+ * @method UserSettingsComponentProxy style(string|callable $style)
+ * @method UserSettingsComponentProxy id(string $id)
+ * @method UserSettingsComponentProxy disabled(bool $disabled = true)
+ * @method UserSettingsComponentProxy required(bool $required = true)
+ * @method UserSettingsComponentProxy readonly(bool $readonly = true)
+ * @method UserSettingsComponentProxy attribute(string $key, string $value)
+ * @method UserSettingsComponentProxy description(string|callable|null $description_cb)
+ * @method UserSettingsComponentProxy ariaLabel(string $ariaLabel)
+ * @method UserSettingsComponentProxy ariaDescribedBy(string $ariaDescribedBy)
  */
 class UserSettingsComponentProxy implements FieldProxyInterface, ComponentBuilderInterface {
 	use FieldProxyTrait;

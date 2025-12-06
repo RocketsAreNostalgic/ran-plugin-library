@@ -26,17 +26,19 @@ use Ran\PluginLib\Forms\Builders\FieldProxyInterface;
  * For fields inside groups, use AdminSettingsGroupFieldProxy.
  * For fields inside fieldsets, use AdminSettingsFieldsetFieldProxy.
  *
- * @method AdminSettingsComponentProxy before(?callable $before) Set before callback.
- * @method AdminSettingsComponentProxy after(?callable $after) Set after callback.
- * @method AdminSettingsComponentProxy order(?int $order) Set field order.
- * @method AdminSettingsComponentProxy template(string $template) Set field template.
- * @method AdminSettingsComponentProxy style(string|callable $style) Set field style.
- * @method AdminSettingsComponentProxy id(string $id) Set field ID.
- * @method AdminSettingsComponentProxy disabled(bool $disabled = true) Set disabled state.
- * @method AdminSettingsComponentProxy required(bool $required = true) Set required state.
- * @method AdminSettingsComponentProxy readonly(bool $readonly = true) Set readonly state.
- * @method AdminSettingsComponentProxy attribute(string $key, string $value) Set an attribute.
- * @method AdminSettingsComponentProxy description(string|callable|null $description_cb) Set description.
+ * @method AdminSettingsComponentProxy before(?callable $before)
+ * @method AdminSettingsComponentProxy after(?callable $after)
+ * @method AdminSettingsComponentProxy order(?int $order)
+ * @method AdminSettingsComponentProxy template(string $template)
+ * @method AdminSettingsComponentProxy style(string|callable $style)
+ * @method AdminSettingsComponentProxy id(string $id)
+ * @method AdminSettingsComponentProxy disabled(bool $disabled = true)
+ * @method AdminSettingsComponentProxy required(bool $required = true)
+ * @method AdminSettingsComponentProxy readonly(bool $readonly = true)
+ * @method AdminSettingsComponentProxy attribute(string $key, string $value)
+ * @method AdminSettingsComponentProxy description(string|callable|null $description_cb)
+ * @method AdminSettingsComponentProxy ariaLabel(string $ariaLabel)
+ * @method AdminSettingsComponentProxy ariaDescribedBy(string $ariaDescribedBy)
  */
 class AdminSettingsComponentProxy implements FieldProxyInterface, ComponentBuilderInterface {
 	use FieldProxyTrait;

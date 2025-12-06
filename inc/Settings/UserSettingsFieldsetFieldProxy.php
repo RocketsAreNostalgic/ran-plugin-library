@@ -22,17 +22,19 @@ use Ran\PluginLib\Forms\Component\Build\ComponentBuilderBase;
  *
  * Uses composition (trait) instead of inheritance for IDE-friendly concrete return types.
  *
- * @method UserSettingsFieldsetFieldProxy before(?callable $before) Set before callback.
- * @method UserSettingsFieldsetFieldProxy after(?callable $after) Set after callback.
- * @method UserSettingsFieldsetFieldProxy order(?int $order) Set field order.
- * @method UserSettingsFieldsetFieldProxy template(string $template) Set field template.
- * @method UserSettingsFieldsetFieldProxy style(string|callable $style) Set field style.
- * @method UserSettingsFieldsetFieldProxy id(string $id) Set field ID.
- * @method UserSettingsFieldsetFieldProxy disabled(bool $disabled = true) Set disabled state.
- * @method UserSettingsFieldsetFieldProxy required(bool $required = true) Set required state.
- * @method UserSettingsFieldsetFieldProxy readonly(bool $readonly = true) Set readonly state.
- * @method UserSettingsFieldsetFieldProxy attribute(string $key, string $value) Set an attribute.
- * @method UserSettingsFieldsetFieldProxy description(string|callable|null $description_cb) Set description.
+ * @method UserSettingsFieldsetFieldProxy before(?callable $before)
+ * @method UserSettingsFieldsetFieldProxy after(?callable $after)
+ * @method UserSettingsFieldsetFieldProxy order(?int $order)
+ * @method UserSettingsFieldsetFieldProxy template(string $template)
+ * @method UserSettingsFieldsetFieldProxy style(string|callable $style)
+ * @method UserSettingsFieldsetFieldProxy id(string $id)
+ * @method UserSettingsFieldsetFieldProxy disabled(bool $disabled = true)
+ * @method UserSettingsFieldsetFieldProxy required(bool $required = true)
+ * @method UserSettingsFieldsetFieldProxy readonly(bool $readonly = true)
+ * @method UserSettingsFieldsetFieldProxy attribute(string $key, string $value)
+ * @method UserSettingsFieldsetFieldProxy description(string|callable|null $description_cb)
+ * @method UserSettingsFieldsetFieldProxy ariaLabel(string $ariaLabel)
+ * @method UserSettingsFieldsetFieldProxy ariaDescribedBy(string $ariaDescribedBy)
  */
 class UserSettingsFieldsetFieldProxy implements FieldProxyInterface, ComponentBuilderInterface {
 	use FieldProxyTrait;

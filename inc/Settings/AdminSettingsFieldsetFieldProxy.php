@@ -22,17 +22,19 @@ use Ran\PluginLib\Forms\Builders\FieldProxyInterface;
  *
  * Uses composition (trait) instead of inheritance for IDE-friendly concrete return types.
  *
- * @method AdminSettingsFieldsetFieldProxy before(?callable $before) Set before callback.
- * @method AdminSettingsFieldsetFieldProxy after(?callable $after) Set after callback.
- * @method AdminSettingsFieldsetFieldProxy order(?int $order) Set field order.
- * @method AdminSettingsFieldsetFieldProxy template(string $template) Set field template.
- * @method AdminSettingsFieldsetFieldProxy style(string|callable $style) Set field style.
- * @method AdminSettingsFieldsetFieldProxy id(string $id) Set field ID.
- * @method AdminSettingsFieldsetFieldProxy disabled(bool $disabled = true) Set disabled state.
- * @method AdminSettingsFieldsetFieldProxy required(bool $required = true) Set required state.
- * @method AdminSettingsFieldsetFieldProxy readonly(bool $readonly = true) Set readonly state.
- * @method AdminSettingsFieldsetFieldProxy attribute(string $key, string $value) Set an attribute.
- * @method AdminSettingsFieldsetFieldProxy description(string|callable|null $description_cb) Set description.
+ * @method AdminSettingsFieldsetFieldProxy before(?callable $before)
+ * @method AdminSettingsFieldsetFieldProxy after(?callable $after)
+ * @method AdminSettingsFieldsetFieldProxy order(?int $order)
+ * @method AdminSettingsFieldsetFieldProxy template(string $template)
+ * @method AdminSettingsFieldsetFieldProxy style(string|callable $style)
+ * @method AdminSettingsFieldsetFieldProxy id(string $id)
+ * @method AdminSettingsFieldsetFieldProxy disabled(bool $disabled = true)
+ * @method AdminSettingsFieldsetFieldProxy required(bool $required = true)
+ * @method AdminSettingsFieldsetFieldProxy readonly(bool $readonly = true)
+ * @method AdminSettingsFieldsetFieldProxy attribute(string $key, string $value)
+ * @method AdminSettingsFieldsetFieldProxy description(string|callable|null $description_cb)
+ * @method AdminSettingsFieldsetFieldProxy ariaLabel(string $ariaLabel)
+ * @method AdminSettingsFieldsetFieldProxy ariaDescribedBy(string $ariaDescribedBy)
  */
 class AdminSettingsFieldsetFieldProxy implements FieldProxyInterface, ComponentBuilderInterface {
 	use FieldProxyTrait;
