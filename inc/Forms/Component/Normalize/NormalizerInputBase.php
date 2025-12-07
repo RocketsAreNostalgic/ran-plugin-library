@@ -85,7 +85,7 @@ abstract class NormalizerInputBase extends NormalizerBase {
 	 * @return array Context with input_attributes set
 	 */
 	protected function _build_input_attributes(array $context): array {
-		$context['input_attributes'] = $this->session->formatAttributes($context['attributes']);
+		$context['input_attributes'] = $this->session->format_attributes($context['attributes']);
 		return $context;
 	}
 

@@ -13,7 +13,7 @@ final class Builder extends ComponentBuilderInputBase {
 	private ?string $text           = null;
 	private string $checkedValue    = 'on';
 	private ?string $uncheckedValue = 'off';
-	private bool $defaultChecked    = false;
+	private bool $default_checked   = false;
 
 	// description(), disabled(), required(), name() methods inherited from ComponentBuilderInputBase
 
@@ -28,8 +28,8 @@ final class Builder extends ComponentBuilderInputBase {
 		return $this;
 	}
 
-	public function defaultChecked(bool $checked = true): static {
-		$this->defaultChecked = $checked;
+	public function default_checked(bool $checked = true): static {
+		$this->default_checked = $checked;
 		return $this;
 	}
 
@@ -43,7 +43,7 @@ final class Builder extends ComponentBuilderInputBase {
 		// Add optional properties using base class helpers
 		$this->_add_if_not_empty($context, 'label', $this->text);
 		$this->_add_if_not_empty($context, 'unchecked_value', $this->uncheckedValue);
-		$this->_add_if_true($context, 'default_checked', $this->defaultChecked);
+		$this->_add_if_true($context, 'default_checked', $this->default_checked);
 
 		return $context;
 	}

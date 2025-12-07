@@ -17,7 +17,7 @@ final class UserOptionStorageTest extends PluginLibTestCase {
 	public function test_meta_methods(): void {
 		$s = new UserOptionStorage(42, true);
 		$this->assertSame(OptionScope::User, $s->scope());
-		$this->assertNull($s->blogId());
+		$this->assertNull($s->blog_id());
 		$this->assertFalse($s->supports_autoload());
 	}
 
@@ -92,7 +92,7 @@ final class UserOptionStorageTest extends PluginLibTestCase {
 		$s       = new UserOptionStorage($user_id, $global);
 		// Verify via public API while restricting coverage to __construct
 		$this->assertSame(OptionScope::User, $s->scope());
-		$this->assertNull($s->blogId());
+		$this->assertNull($s->blog_id());
 		// Indirectly verify global flag by observing it flows to update/delete calls
 		WP_Mock::userFunction('update_user_option')
 		    ->once()

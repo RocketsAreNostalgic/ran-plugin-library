@@ -177,12 +177,12 @@ trait FieldProxyTrait {
 	/**
 	 * Set the aria label for this field.
 	 *
-	 * @param string $ariaLabel The aria label.
+	 * @param string $aria_label The aria label.
 	 *
 	 * @return static
 	 */
-	public function ariaLabel(string $ariaLabel): static {
-		$this->builder->ariaLabel($ariaLabel);
+	public function aria_label(string $aria_label): static {
+		$this->builder->aria_label($aria_label);
 		$this->_emit_field_update();
 		return $this;
 	}
@@ -190,12 +190,12 @@ trait FieldProxyTrait {
 	/**
 	 * Set the aria described by for this field.
 	 *
-	 * @param string $ariaDescribedBy The aria described by.
+	 * @param string $aria_described_by The aria described by.
 	 *
 	 * @return static
 	 */
-	public function ariaDescribedBy(string $ariaDescribedBy): static {
-		$this->builder->ariaDescribedBy($ariaDescribedBy);
+	public function aria_described_by(string $aria_described_by): static {
+		$this->builder->aria_described_by($aria_described_by);
 		$this->_emit_field_update();
 		return $this;
 	}

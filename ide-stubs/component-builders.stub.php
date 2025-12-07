@@ -141,7 +141,7 @@ namespace Ran\PluginLib\Forms\Components\Fields\Checkbox {
 			public function values(string $checkedValue, ?string $uncheckedValue = null): static {
 				return $this;
 			}
-			public function defaultChecked(bool $checked = true): static {
+			public function default_checked(bool $checked = true): static {
 				return $this;
 			}
 		}
@@ -157,7 +157,7 @@ namespace Ran\PluginLib\Forms\Components\Fields\CheckboxGroup {
 			public function defaults(array $values): static {
 				return $this;
 			}
-			public function checkbox(string $value, string $label, ?string $description = null, array $attributes = array(), bool $defaultChecked = false): static {
+			public function checkbox(string $value, string $label, ?string $description = null, array $attributes = array(), bool $default_checked = false): static {
 				return $this;
 			}
 			public function option(\Ran\PluginLib\Forms\Components\Fields\CheckboxOption\Builder $option): static {
@@ -173,7 +173,7 @@ namespace Ran\PluginLib\Forms\Components\Fields\CheckboxOption {
 			public function value(string $value): static {
 				return $this;
 			}
-			public function defaultChecked(bool $checked = true): static {
+			public function default_checked(bool $checked = true): static {
 				return $this;
 			}
 			public function disabled(bool $disabled = true): static {
@@ -289,7 +289,7 @@ namespace Ran\PluginLib\Forms\Components\Fields\MultiSelect {
 			public function values(array $values): static {
 				return $this;
 			}
-			public function defaultValues(array $values): static {
+			public function default_values(array $values): static {
 				return $this;
 			}
 			public function disabled(bool $disabled = true): static {
@@ -320,7 +320,7 @@ namespace Ran\PluginLib\Forms\Components\Fields\RadioGroup {
 			public function default(string $value): static {
 				return $this;
 			}
-			public function option(string $value, string $label, ?string $description = null, array $attributes = array(), array $labelAttributes = array(), bool $disabled = false): static {
+			public function option(string $value, string $label, ?string $description = null, array $attributes = array(), array $label_attributes = array(), bool $disabled = false): static {
 				return $this;
 			}
 		}
@@ -336,7 +336,7 @@ namespace Ran\PluginLib\Forms\Components\Fields\RadioOption {
 			public function disabled(bool $disabled = true): static {
 				return $this;
 			}
-			public function labelAttribute(string $key, string $value): static {
+			public function label_attribute(string $key, string $value): static {
 				return $this;
 			}
 		}

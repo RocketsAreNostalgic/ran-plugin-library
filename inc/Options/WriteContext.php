@@ -17,9 +17,9 @@ final class WriteContext {
 	/** @var string */
 	private string $scope; // 'site'|'network'|'blog'|'user'
 	/** @var int|null */
-	private ?int $blogId;
+	private ?int $blog_id;
 	/** @var int|null */
-	private ?int $userId;
+	private ?int $user_id;
 	/** @var string|null */
 	private ?string $user_storage; // 'meta'|'option' when scope=user
 	/** @var bool */
@@ -72,8 +72,8 @@ final class WriteContext {
 		$this->op            = $op;
 		$this->main_option   = $main_option;
 		$this->scope         = $scope;
-		$this->blogId        = $blogId;
-		$this->userId        = $userId;
+		$this->blog_id       = $blogId;
+		$this->user_id       = $userId;
 		$this->user_storage  = $user_storage;
 		$this->user_global   = $user_global;
 		$this->merge_from_db = $merge_from_db;
@@ -113,16 +113,16 @@ final class WriteContext {
 	 *
 	 * @return int|null Blog ID or null when not applicable.
 	 */
-	public function blogId(): ?int {
-		return $this->blogId;
+	public function blog_id(): ?int {
+		return $this->blog_id;
 	}
 	/**
 	 * Get the target user ID when scope is 'user'.
 	 *
 	 * @return int|null User ID or null when not applicable.
 	 */
-	public function userId(): ?int {
-		return $this->userId;
+	public function user_id(): ?int {
+		return $this->user_id;
 	}
 	/**
 	 * Get the user storage backend when scope is 'user'.

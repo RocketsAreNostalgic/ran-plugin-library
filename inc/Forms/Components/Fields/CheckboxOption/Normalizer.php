@@ -30,7 +30,7 @@ final class Normalizer extends NormalizerBase {
 		// Generate and set ID
 		$fieldId                     = $this->_extract_field_id($context);
 		$idSource                    = $context['attributes']['id'] ?? ($context['id'] ?? ($fieldId !== '' ? $fieldId : null));
-		$optionId                    = $this->session->reserveId(is_string($idSource) ? $idSource : null, 'checkbox_option');
+		$optionId                    = $this->session->reserve_id(is_string($idSource) ? $idSource : null, 'checkbox_option');
 		$context['attributes']['id'] = $optionId;
 
 		// Handle checked state using base class boolean sanitization
@@ -40,7 +40,7 @@ final class Normalizer extends NormalizerBase {
 		}
 
 		// Build template context
-		$context['input_attributes'] = $this->session->formatAttributes($context['attributes']);
+		$context['input_attributes'] = $this->session->format_attributes($context['attributes']);
 		$context['label']            = $this->_sanitize_string($context['label'] ?? '', 'label');
 
 		return $context;

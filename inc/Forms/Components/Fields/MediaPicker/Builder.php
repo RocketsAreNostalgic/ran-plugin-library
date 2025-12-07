@@ -11,19 +11,19 @@ use Ran\PluginLib\Forms\Component\Build\ComponentBuilderBase;
 
 final class Builder extends ComponentBuilderBase {
 	/** @var array<string,string> */
-	private array $data            = array();
-	private ?string $name          = null;
-	private ?string $inputId       = null;
-	private ?string $buttonId      = null;
-	private ?string $removeId      = null;
-	private ?string $value         = null;
-	private ?string $descriptionId = null;
-	private ?string $selectLabel   = null;
-	private ?string $replaceLabel  = null;
-	private ?string $removeLabel   = null;
-	private ?string $previewHtml   = null;
-	private bool $multiple         = false;
-	private ?bool $hasSelection    = null;
+	private array $data             = array();
+	private ?string $name           = null;
+	private ?string $input_id       = null;
+	private ?string $button_id      = null;
+	private ?string $remove_id      = null;
+	private ?string $value          = null;
+	private ?string $description_id = null;
+	private ?string $select_label   = null;
+	private ?string $replace_label  = null;
+	private ?string $remove_label   = null;
+	private ?string $preview_html   = null;
+	private bool $multiple          = false;
+	private ?bool $has_selection    = null;
 
 	public function __construct(string $id, string $label) {
 		parent::__construct($id, $label);
@@ -43,18 +43,18 @@ final class Builder extends ComponentBuilderBase {
 		return $this;
 	}
 
-	public function inputId(?string $id): static {
-		$this->inputId = $id;
+	public function input_id(?string $id): static {
+		$this->input_id = $id;
 		return $this;
 	}
 
-	public function buttonId(?string $id): static {
-		$this->buttonId = $id;
+	public function button_id(?string $id): static {
+		$this->button_id = $id;
 		return $this;
 	}
 
-	public function removeId(?string $id): static {
-		$this->removeId = $id;
+	public function remove_id(?string $id): static {
+		$this->remove_id = $id;
 		return $this;
 	}
 
@@ -65,28 +65,28 @@ final class Builder extends ComponentBuilderBase {
 
 	// description() method inherited from ComponentBuilderBase
 
-	public function descriptionId(?string $descriptionId): static {
-		$this->descriptionId = $descriptionId;
+	public function description_id(?string $description_id): static {
+		$this->description_id = $description_id;
 		return $this;
 	}
 
-	public function selectLabel(?string $label): static {
-		$this->selectLabel = $label;
+	public function select_label(?string $label): static {
+		$this->select_label = $label;
 		return $this;
 	}
 
-	public function replaceLabel(?string $label): static {
-		$this->replaceLabel = $label;
+	public function replace_label(?string $label): static {
+		$this->replace_label = $label;
 		return $this;
 	}
 
-	public function removeLabel(?string $label): static {
-		$this->removeLabel = $label;
+	public function remove_label(?string $label): static {
+		$this->remove_label = $label;
 		return $this;
 	}
 
-	public function previewHtml(?string $html): static {
-		$this->previewHtml = $html;
+	public function preview_html(?string $html): static {
+		$this->preview_html = $html;
 		return $this;
 	}
 
@@ -95,8 +95,8 @@ final class Builder extends ComponentBuilderBase {
 		return $this;
 	}
 
-	public function hasSelection(?bool $hasSelection): static {
-		$this->hasSelection = $hasSelection;
+	public function has_selection(?bool $has_selection): static {
+		$this->has_selection = $has_selection;
 		return $this;
 	}
 
@@ -110,22 +110,22 @@ final class Builder extends ComponentBuilderBase {
 
 		// Add all optional properties using base class helpers
 		$this->_add_if_not_empty($context, 'name', $this->name);
-		$this->_add_if_not_empty($context, 'id', $this->inputId);
-		$this->_add_if_not_empty($context, 'button_id', $this->buttonId);
-		$this->_add_if_not_empty($context, 'remove_id', $this->removeId);
+		$this->_add_if_not_empty($context, 'id', $this->input_id);
+		$this->_add_if_not_empty($context, 'button_id', $this->button_id);
+		$this->_add_if_not_empty($context, 'remove_id', $this->remove_id);
 		$this->_add_if_not_empty($context, 'value', $this->value);
-		$this->_add_if_not_empty($context, 'description_id', $this->descriptionId);
-		$this->_add_if_not_empty($context, 'select_label', $this->selectLabel);
-		$this->_add_if_not_empty($context, 'replace_label', $this->replaceLabel);
-		$this->_add_if_not_empty($context, 'remove_label', $this->removeLabel);
-		$this->_add_if_not_empty($context, 'preview_html', $this->previewHtml);
+		$this->_add_if_not_empty($context, 'description_id', $this->description_id);
+		$this->_add_if_not_empty($context, 'select_label', $this->select_label);
+		$this->_add_if_not_empty($context, 'replace_label', $this->replace_label);
+		$this->_add_if_not_empty($context, 'remove_label', $this->remove_label);
+		$this->_add_if_not_empty($context, 'preview_html', $this->preview_html);
 
 		// Add boolean properties
 		$this->_add_if_true($context, 'multiple', $this->multiple);
 
 		// Add nullable boolean
-		if ($this->hasSelection !== null) {
-			$context['has_selection'] = $this->hasSelection;
+		if ($this->has_selection !== null) {
+			$context['has_selection'] = $this->has_selection;
 		}
 
 		return $context;

@@ -22,8 +22,8 @@ use Ran\PluginLib\Util\Sanitize\SanitizeArrayGroup;
  *  use Ran\PluginLib\Util\Sanitize\Sanitize;
  *  $clean = (Sanitize::combine()->pipe(
  *    Sanitize::string()->trim(),
- *    Sanitize::string()->toLower(),
- *    Sanitize::string()->stripTags()
+ *    Sanitize::string()->to_lower(),
+ *    Sanitize::string()->strip_tags()
  *  ))($value);
  *
  * @method static SanitizeStringGroup string()
@@ -41,9 +41,9 @@ final class Sanitize {
 	 *
 	 * @return \Ran\PluginLib\Util\Sanitize\SanitizeStringGroup
 	 * @method callable(mixed):mixed trim()
-	 * @method callable(mixed):mixed toLower()
-	 * @method callable(mixed):mixed toUpper()
-	 * @method callable(mixed):mixed stripTags()
+	 * @method callable(mixed):mixed to_lower()
+	 * @method callable(mixed):mixed to_upper()
+	 * @method callable(mixed):mixed strip_tags()
 	 */
 	public static function string(): SanitizeStringGroup {
 		return new SanitizeStringGroup();
@@ -108,8 +108,8 @@ final class Sanitize {
 	 *
 	 * @example  $clean = (Sanitize::combine()->pipe(
 	 *   Sanitize::string()->trim(),
-	 *   Sanitize::string()->toLower(),
-	 *   Sanitize::string()->stripTags()
+	 *   Sanitize::string()->to_lower(),
+	 *   Sanitize::string()->strip_tags()
 	 * ))($value);
 	 *
 	 * @return \Ran\PluginLib\Util\Sanitize\SanitizeComposeGroup

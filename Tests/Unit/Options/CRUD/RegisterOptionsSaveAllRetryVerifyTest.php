@@ -43,7 +43,7 @@ final class RegisterOptionsSaveAllRetryVerifyTest extends PluginLibTestCase {
 					public function scope(): \Ran\PluginLib\Options\OptionScope {
 						return \Ran\PluginLib\Options\OptionScope::Site;
 					}
-					public function blogId(): ?int {
+					public function blog_id(): ?int {
 						return null;
 					}
 					public function supports_autoload(): bool {
@@ -129,7 +129,7 @@ final class RegisterOptionsSaveAllRetryVerifyTest extends PluginLibTestCase {
 					public function scope(): \Ran\PluginLib\Options\OptionScope {
 						return \Ran\PluginLib\Options\OptionScope::Site;
 					}
-					public function blogId(): ?int {
+					public function blog_id(): ?int {
 						return null;
 					}
 					public function supports_autoload(): bool {
@@ -203,7 +203,7 @@ final class RegisterOptionsSaveAllRetryVerifyTest extends PluginLibTestCase {
 					public function scope(): \Ran\PluginLib\Options\OptionScope {
 						return \Ran\PluginLib\Options\OptionScope::Site;
 					}
-					public function blogId(): ?int {
+					public function blog_id(): ?int {
 						return null;
 					}
 					public function supports_autoload(): bool {
@@ -283,7 +283,7 @@ final class RegisterOptionsSaveAllRetryVerifyTest extends PluginLibTestCase {
 					public function scope(): \Ran\PluginLib\Options\OptionScope {
 						return \Ran\PluginLib\Options\OptionScope::Site;
 					}
-					public function blogId(): ?int {
+					public function blog_id(): ?int {
 						return null;
 					}
 					public function supports_autoload(): bool {

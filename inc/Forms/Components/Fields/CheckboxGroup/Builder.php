@@ -36,7 +36,7 @@ final class Builder extends ComponentBuilderBase {
 
 	// attribute() method inherited from ComponentBuilderBase
 
-	public function checkbox(string $value, string $label, ?string $description = null, array $attributes = array(), bool $defaultChecked = false): static {
+	public function checkbox(string $value, string $label, ?string $description = null, array $attributes = array(), bool $default_checked = false): static {
 		$optionId = $this->id . '__option_' . (++$this->__option_index);
 		$name     = $this->resolveName($attributes);
 		$builder  = new CheckboxOptionBuilder($optionId, $label, $name);
@@ -44,12 +44,12 @@ final class Builder extends ComponentBuilderBase {
 		if ($description !== null) {
 			$builder->description($description);
 		}
-		$builder->defaultChecked($defaultChecked);
+		$builder->default_checked($default_checked);
 		foreach ($attributes as $key => $attrValue) {
 			$builder->attribute((string) $key, (string) $attrValue);
 		}
-		if (!$defaultChecked && !empty($attributes['checked'])) {
-			$builder->defaultChecked(true);
+		if (!$default_checked && !empty($attributes['checked'])) {
+			$builder->default_checked(true);
 		}
 		if (!empty($attributes['disabled'])) {
 			$builder->disabled(true);

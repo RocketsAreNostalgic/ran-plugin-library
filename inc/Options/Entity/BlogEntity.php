@@ -22,14 +22,14 @@ final class BlogEntity extends ScopeEntity {
 	public function __construct(public readonly ?int $id = null) {
 	}
 
-	public function getScope(): OptionScope {
+	public function get_scope(): OptionScope {
 		return OptionScope::Blog;
 	}
 
 	/**
 	 * Typed StorageContext helper (preferred over array args).
 	 */
-	public function toStorageContext(): StorageContext {
+	public function to_storage_context(): StorageContext {
 		$blogId = (int) ($this->id ?? 0);
 		if ($blogId <= 0) {
 			throw new \InvalidArgumentException('BlogEntity: blog_id must be a positive integer for typed context.');

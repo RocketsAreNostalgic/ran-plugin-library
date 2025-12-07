@@ -22,7 +22,7 @@ final class OptionStorageInterfaceTest extends TestCase {
 		$rc       = new ReflectionClass(OptionStorageInterface::class);
 		$expected = array(
 		    'scope',
-		    'blogId',
+		    'blog_id',
 		    'supports_autoload',
 		    'read',
 		    'update',

@@ -10,14 +10,14 @@ namespace Ran\PluginLib\Forms\Components\Fields\MultiSelect;
 use Ran\PluginLib\Forms\Component\Build\ComponentBuilderBase;
 
 final class Builder extends ComponentBuilderBase {
-	private ?string $name          = null;
-	private ?string $elementId     = null;
-	private ?string $descriptionId = null;
+	private ?string $name           = null;
+	private ?string $element_id     = null;
+	private ?string $description_id = null;
 	/** @var array<int,string> */
 	private array $values = array();
 	/** @var array<int,string> */
-	private array $defaultValues = array();
-	private bool $disabled       = false;
+	private array $default_values = array();
+	private bool $disabled        = false;
 	/** @var array<int,array<string,mixed>> */
 	private array $options = array();
 
@@ -37,22 +37,22 @@ final class Builder extends ComponentBuilderBase {
 		return $this;
 	}
 
-	public function elementId(?string $id): static {
+	public function element_id(?string $id): static {
 		if ($id === null) {
-			$this->elementId = null;
+			$this->element_id = null;
 			unset($this->attributes['id']);
 			return $this;
 		}
 		$trimmed                = trim($id);
-		$this->elementId        = $trimmed;
+		$this->element_id       = $trimmed;
 		$this->attributes['id'] = $trimmed;
 		return $this;
 	}
 
 	// description() method inherited from ComponentBuilderBase
 
-	public function descriptionId(?string $descriptionId): static {
-		$this->descriptionId = $descriptionId;
+	public function description_id(?string $description_id): static {
+		$this->description_id = $description_id;
 		return $this;
 	}
 
@@ -61,8 +61,8 @@ final class Builder extends ComponentBuilderBase {
 		return $this;
 	}
 
-	public function defaultValues(array $values): static {
-		$this->defaultValues = array_map('strval', $values);
+	public function default_values(array $values): static {
+		$this->default_values = array_map('strval', $values);
 		return $this;
 	}
 
@@ -77,7 +77,7 @@ final class Builder extends ComponentBuilderBase {
 			$this->name = trim($value);
 		}
 		if ($key === 'id') {
-			$this->elementId = trim($value);
+			$this->element_id = trim($value);
 		}
 		return $this;
 	}
@@ -131,10 +131,10 @@ final class Builder extends ComponentBuilderBase {
 
 		// Add optional properties using base class helpers
 		$this->_add_if_not_empty($context, 'name', $this->name);
-		$this->_add_if_not_empty($context, 'id', $this->elementId);
-		$this->_add_if_not_empty($context, 'description_id', $this->descriptionId);
+		$this->_add_if_not_empty($context, 'id', $this->element_id);
+		$this->_add_if_not_empty($context, 'description_id', $this->description_id);
 		$this->_add_if_not_empty($context, 'values', $this->values);
-		$this->_add_if_not_empty($context, 'default', $this->defaultValues);
+		$this->_add_if_not_empty($context, 'default', $this->default_values);
 		$this->_add_if_true($context, 'disabled', $this->disabled);
 
 		return $context;

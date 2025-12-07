@@ -8,7 +8,7 @@ interface ComponentBuilderInterface {
 	public function required(bool $required = true): static;
 	public function readonly(bool $readonly = true): static;
 	public function attribute(string $key, string $value): static;
-	public function ariaLabel(string $label): static;
-	public function ariaDescribedBy(string $id): static;
+	public function aria_label(string $label): static;
+	public function aria_described_by(string $id): static;
 	public function style(string|callable $style): static;
 }

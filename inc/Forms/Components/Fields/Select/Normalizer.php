@@ -31,7 +31,7 @@ final class Normalizer extends NormalizerBase {
 		$optionsMarkup = $this->_build_options($options, $value);
 
 		// Build template context
-		$context['select_attributes'] = $this->session->formatAttributes($context['attributes']);
+		$context['select_attributes'] = $this->session->format_attributes($context['attributes']);
 		$context['options_html']      = $optionsMarkup;
 
 		return $context;
@@ -121,7 +121,7 @@ final class Normalizer extends NormalizerBase {
 			$attributes['selected'] = 'selected';
 		}
 
-		$attrString = $this->session->formatAttributes($attributes);
+		$attrString = $this->session->format_attributes($attributes);
 		return sprintf('<option%s>%s</option>', $attrString !== '' ? ' ' . $attrString : '', esc_html($label));
 	}
 }

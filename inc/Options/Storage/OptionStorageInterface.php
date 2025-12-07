@@ -29,7 +29,7 @@ interface OptionStorageInterface {
 	/**
 	 * Get the blog ID associated with this storage (if applicable).
 	 */
-	public function blogId(): ?int;
+	public function blog_id(): ?int;
 
 	/**
 	 * Whether this storage supports autoload semantics.

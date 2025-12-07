@@ -18,7 +18,7 @@ final class Normalizer extends NormalizerBase {
 		$fieldsetId = '';
 		$idSource   = $context['attributes']['id'] ?? ($context['id'] ?? ($name !== '' ? $name : null));
 		if ($idSource !== null) {
-			$fieldsetId                  = $this->session->reserveId(is_string($idSource) ? $idSource : null, 'fieldset');
+			$fieldsetId                  = $this->session->reserve_id(is_string($idSource) ? $idSource : null, 'fieldset');
 			$context['attributes']['id'] = $fieldsetId;
 		}
 
@@ -36,7 +36,7 @@ final class Normalizer extends NormalizerBase {
 
 		// Build template context
 		$context['legend']       = $this->_sanitize_string($context['legend'] ?? '', 'legend');
-		$context['attributes']   = $this->session->formatAttributes($context['attributes']);
+		$context['attributes']   = $this->session->format_attributes($context['attributes']);
 		$context['options_html'] = $renderedOptions;
 
 		return $context;
@@ -58,9 +58,9 @@ final class Normalizer extends NormalizerBase {
 		// Generate option ID
 		$id = $this->_sanitize_string($option['id'] ?? '', 'option id');
 		if ($id === '' && $name !== '' && $value !== '') {
-			$id = $this->session->generateId($name, $value);
+			$id = $this->session->generate_id($name, $value);
 		}
-		$optionId         = $this->session->reserveId($attributes['id'] ?? $id, 'radio_option');
+		$optionId         = $this->session->reserve_id($attributes['id'] ?? $id, 'radio_option');
 		$attributes['id'] = $optionId;
 
 		// Handle states using base class boolean sanitization
@@ -75,19 +75,19 @@ final class Normalizer extends NormalizerBase {
 		$description   = $this->_sanitize_string($option['description'] ?? '', 'option description');
 		$descriptionId = '';
 		if ($description !== '') {
-			$descriptionId = $this->session->reserveId($optionId . '__desc', 'desc');
-			$this->session->appendAriaDescribedBy($attributes, $descriptionId);
+			$descriptionId = $this->session->reserve_id($optionId . '__desc', 'desc');
+			$this->session->append_aria_described_by($attributes, $descriptionId);
 		}
 
 		// Validate label attributes using base class array validation
-		$labelAttributes = $this->_validate_config_array($option['label_attributes'] ?? null, 'label_attributes') ?? array();
+		$label_attributes = $this->_validate_config_array($option['label_attributes'] ?? null, 'label_attributes') ?? array();
 
 		$result = $this->views->render_payload('fields.radio-option', array(
-			'input_attributes' => $this->session->formatAttributes($attributes),
+			'input_attributes' => $this->session->format_attributes($attributes),
 			'label'            => $this->_sanitize_string($option['label'] ?? '', 'option label'),
 			'description'      => $description,
 			'description_id'   => $descriptionId,
-			'label_attributes' => $this->session->formatAttributes($labelAttributes),
+			'label_attributes' => $this->session->format_attributes($label_attributes),
 		));
 
 		if ($result instanceof \Ran\PluginLib\Forms\Component\ComponentRenderResult) {

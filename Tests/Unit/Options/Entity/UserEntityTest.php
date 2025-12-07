@@ -12,12 +12,12 @@ use Ran\PluginLib\Options\Storage\StorageContext;
 final class UserEntityTest extends PluginLibTestCase {
 	public function test_getScope_returns_user(): void {
 		$e = new UserEntity(42);
-		$this->assertSame(OptionScope::User, $e->getScope());
+		$this->assertSame(OptionScope::User, $e->get_scope());
 	}
 
 	public function test_toStorageContext_defaults_meta_and_false_global(): void {
 		$e   = new UserEntity(42);
-		$ctx = $e->toStorageContext();
+		$ctx = $e->to_storage_context();
 		$this->assertSame(OptionScope::User, $ctx->scope);
 		$this->assertSame(42, $ctx->user_id);
 		$this->assertSame('meta', $ctx->user_storage);
@@ -26,7 +26,7 @@ final class UserEntityTest extends PluginLibTestCase {
 
 	public function test_toStorageContext_with_option_and_global_true(): void {
 		$e   = new UserEntity(7, true, 'option');
-		$ctx = $e->toStorageContext();
+		$ctx = $e->to_storage_context();
 		$this->assertSame(OptionScope::User, $ctx->scope);
 		$this->assertSame(7, $ctx->user_id);
 		$this->assertSame('option', $ctx->user_storage);

@@ -17,7 +17,7 @@ final class SiteOptionStorageTest extends PluginLibTestCase {
 	public function test_meta_methods(): void {
 		$s = new SiteOptionStorage();
 		$this->assertSame(OptionScope::Site, $s->scope());
-		$this->assertNull($s->blogId());
+		$this->assertNull($s->blog_id());
 		$this->assertTrue($s->supports_autoload());
 	}
 

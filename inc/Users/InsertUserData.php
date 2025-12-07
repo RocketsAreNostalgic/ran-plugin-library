@@ -36,7 +36,7 @@ final class InsertUserData extends InsertUserDataAbstract implements InsertUserD
 	 *
 	 * @param  array<string,mixed> $user_data
 	 */
-	public function insertUserData(array $user_data): bool|Exception {
+	public function insert_user_data(array $user_data): bool|Exception {
 		try {
 			$email = (string) ($user_data['email'] ?? '');
 			$first = (string) ($user_data['first_name'] ?? '');

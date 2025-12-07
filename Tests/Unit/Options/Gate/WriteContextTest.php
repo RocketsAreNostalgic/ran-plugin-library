@@ -63,7 +63,7 @@ final class WriteContextTest extends TestCase {
 		$wc = WriteContext::for_add_option('main', 'user', null, 7, 'meta', false, 'pref');
 		$this->assertSame('add_option', $wc->op());
 		$this->assertSame('user', $wc->scope());
-		$this->assertSame(7, $wc->userId());
+		$this->assertSame(7, $wc->user_id());
 		$this->assertSame('meta', $wc->user_storage());
 		$this->assertSame('pref', $wc->key());
 	}
@@ -72,7 +72,7 @@ final class WriteContextTest extends TestCase {
 		$wc = WriteContext::for_delete_option('main', 'blog', 99, null, 'meta', false, 'old');
 		$this->assertSame('delete_option', $wc->op());
 		$this->assertSame('blog', $wc->scope());
-		$this->assertSame(99, $wc->blogId());
+		$this->assertSame(99, $wc->blog_id());
 		$this->assertSame('old', $wc->key());
 	}
 
@@ -80,8 +80,8 @@ final class WriteContextTest extends TestCase {
 		$wc = WriteContext::for_clear('main', 'NETWORK', null, null, 'meta', false);
 		$this->assertSame('clear', $wc->op());
 		$this->assertSame('network', $wc->scope());
-		$this->assertNull($wc->blogId());
-		$this->assertNull($wc->userId());
+		$this->assertNull($wc->blog_id());
+		$this->assertNull($wc->user_id());
 		$this->assertNull($wc->user_storage());
 	}
 
@@ -106,8 +106,8 @@ final class WriteContextTest extends TestCase {
 		$this->assertSame('save_all', $wc->op());
 		$this->assertSame('main', $wc->main_option());
 		$this->assertSame('site', $wc->scope());
-		$this->assertNull($wc->blogId());
-		$this->assertNull($wc->userId());
+		$this->assertNull($wc->blog_id());
+		$this->assertNull($wc->user_id());
 		// For site scope, user_storage is normalized to null
 		$this->assertNull($wc->user_storage());
 		$this->assertTrue($wc->user_global());

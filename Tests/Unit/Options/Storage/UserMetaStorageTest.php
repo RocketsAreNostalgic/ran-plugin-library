@@ -17,7 +17,7 @@ final class UserMetaStorageTest extends PluginLibTestCase {
 	public function test_meta_methods(): void {
 		$s = new UserMetaStorage(42);
 		$this->assertSame(OptionScope::User, $s->scope());
-		$this->assertNull($s->blogId());
+		$this->assertNull($s->blog_id());
 		$this->assertFalse($s->supports_autoload());
 	}
 
@@ -68,6 +68,6 @@ final class UserMetaStorageTest extends PluginLibTestCase {
 		$s = new UserMetaStorage(99);
 		// Verify via public API while restricting coverage to __construct
 		$this->assertSame(OptionScope::User, $s->scope());
-		$this->assertNull($s->blogId());
+		$this->assertNull($s->blog_id());
 	}
 }

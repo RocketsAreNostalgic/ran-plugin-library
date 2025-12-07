@@ -37,15 +37,15 @@ final class Builder extends ComponentBuilderBase {
 
 	/**
 	 * @param array<string,string> $attributes
-	 * @param array<string,string> $labelAttributes
+	 * @param array<string,string> $label_attributes
 	 */
-	public function option(string $value, string $label, ?string $description = null, array $attributes = array(), array $labelAttributes = array(), bool $disabled = false): static {
+	public function option(string $value, string $label, ?string $description = null, array $attributes = array(), array $label_attributes = array(), bool $disabled = false): static {
 		$this->options[] = array(
 		    'value'            => $value,
 		    'label'            => $label,
 		    'description'      => $description,
 		    'attributes'       => array_map('strval', $attributes),
-		    'label_attributes' => array_map('strval', $labelAttributes),
+		    'label_attributes' => array_map('strval', $label_attributes),
 		    'disabled'         => $disabled,
 		);
 		return $this;

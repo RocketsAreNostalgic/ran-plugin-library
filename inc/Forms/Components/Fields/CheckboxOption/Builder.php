@@ -11,9 +11,9 @@ use Ran\PluginLib\Forms\Component\Build\ComponentBuilderBase;
 
 final class Builder extends ComponentBuilderBase {
 	private string $name;
-	private string $value        = 'on';
-	private bool $defaultChecked = false;
-	private bool $disabled       = false;
+	private string $value         = 'on';
+	private bool $default_checked = false;
+	private bool $disabled        = false;
 
 	public function __construct(string $id, string $label, string $name) {
 		parent::__construct($id, $label);
@@ -29,8 +29,8 @@ final class Builder extends ComponentBuilderBase {
 		return $this;
 	}
 
-	public function defaultChecked(bool $checked = true): static {
-		$this->defaultChecked = $checked;
+	public function default_checked(bool $checked = true): static {
+		$this->default_checked = $checked;
 		return $this;
 	}
 
@@ -73,7 +73,7 @@ final class Builder extends ComponentBuilderBase {
 		$context['value'] = $this->value;
 
 		// Add optional properties using base class helpers
-		$this->_add_if_true($context, 'default_checked', $this->defaultChecked);
+		$this->_add_if_true($context, 'default_checked', $this->default_checked);
 		$this->_add_if_true($context, 'disabled', $this->disabled);
 
 		return $context;

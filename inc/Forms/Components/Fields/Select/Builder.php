@@ -10,13 +10,13 @@ namespace Ran\PluginLib\Forms\Components\Fields\Select;
 use Ran\PluginLib\Forms\Component\Build\ComponentBuilderBase;
 
 final class Builder extends ComponentBuilderBase {
-	protected ?string $name          = null;
-	protected ?string $elementId     = null;
-	protected ?string $descriptionId = null;
-	protected ?string $value         = null;
-	protected ?string $default       = null;
-	protected bool $disabled         = false;
-	protected bool $required         = false;
+	protected ?string $name           = null;
+	protected ?string $element_id     = null;
+	protected ?string $description_id = null;
+	protected ?string $value          = null;
+	protected ?string $default        = null;
+	protected bool $disabled          = false;
+	protected bool $required          = false;
 	/** @var array<int,array<string,mixed>> */
 	protected array $options = array();
 
@@ -36,22 +36,22 @@ final class Builder extends ComponentBuilderBase {
 		return $this;
 	}
 
-	public function elementId(?string $id): static {
+	public function element_id(?string $id): static {
 		if ($id === null) {
-			$this->elementId = null;
+			$this->element_id = null;
 			unset($this->attributes['id']);
 			return $this;
 		}
 		$trimmed                = trim($id);
-		$this->elementId        = $trimmed;
+		$this->element_id       = $trimmed;
 		$this->attributes['id'] = $trimmed;
 		return $this;
 	}
 
 	// description() method inherited from ComponentBuilderBase
 
-	public function descriptionId(?string $descriptionId): static {
-		$this->descriptionId = $descriptionId;
+	public function description_id(?string $description_id): static {
+		$this->description_id = $description_id;
 		return $this;
 	}
 
@@ -81,7 +81,7 @@ final class Builder extends ComponentBuilderBase {
 			$this->name = trim($value);
 		}
 		if ($key === 'id') {
-			$this->elementId = trim($value);
+			$this->element_id = trim($value);
 		}
 		return $this;
 	}
@@ -132,8 +132,8 @@ final class Builder extends ComponentBuilderBase {
 
 		// Add optional properties using base class helpers
 		$this->_add_if_not_empty($context, 'name', $this->name);
-		$this->_add_if_not_empty($context, 'id', $this->elementId);
-		$this->_add_if_not_empty($context, 'description_id', $this->descriptionId);
+		$this->_add_if_not_empty($context, 'id', $this->element_id);
+		$this->_add_if_not_empty($context, 'description_id', $this->description_id);
 		$this->_add_if_not_empty($context, 'value', $this->value);
 		$this->_add_if_not_empty($context, 'default', $this->default);
 		$this->_add_if_true($context, 'disabled', $this->disabled);

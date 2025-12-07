@@ -30,11 +30,11 @@ class ComponentNormalizationContext {
 	 *
 	 * @param string $message Warning message
 	 */
-	public function addWarning(string $message): void {
+	public function add_warning(string $message): void {
 		$this->warnings[] = $message;
 	}
 
-	public function formatAttributes(array $attributes): string {
+	public function format_attributes(array $attributes): string {
 		$parts = array();
 		foreach ($attributes as $key => $value) {
 			if ($value === null || $value === '') {
@@ -45,7 +45,7 @@ class ComponentNormalizationContext {
 		return implode(' ', $parts);
 	}
 
-	public function appendAriaDescribedBy(array &$attributes, string $id): void {
+	public function append_aria_described_by(array &$attributes, string $id): void {
 		if ($id === '') {
 			return;
 		}
@@ -61,13 +61,13 @@ class ComponentNormalizationContext {
 	 *
 	 * @return string
 	 */
-	public function reserveId(?string $preferred, string $fallback): string {
+	public function reserve_id(?string $preferred, string $fallback): string {
 		$original           = $preferred;
-		$normalizedOriginal = $preferred !== null ? $this->normalizeId($preferred) : '';
+		$normalizedOriginal = $preferred !== null ? $this->normalize_id($preferred) : '';
 		$base               = $normalizedOriginal;
 
 		if ($base === '') {
-			$base = $this->normalizeId($fallback);
+			$base = $this->normalize_id($fallback);
 		}
 		if ($base === '') {
 			$base = 'field';
@@ -93,20 +93,20 @@ class ComponentNormalizationContext {
 		return $candidate;
 	}
 
-	public function normalizeId(string $value): string {
+	public function normalize_id(string $value): string {
 		$value = preg_replace('/[^a-zA-Z0-9_\-]/', '_', strtolower($value));
 		return trim((string) $value, '_-');
 	}
 
-	public function generateId(string $name, string $value): string {
-		return $this->normalizeId($name . '__' . $value);
+	public function generate_id(string $name, string $value): string {
+		return $this->normalize_id($name . '__' . $value);
 	}
 
-	public function resetState(string $component, string $fieldId): void {
+	public function reset_state(string $component, string $field_id): void {
 		$this->reservedIds = array();
 		$this->warnings    = array();
 		$this->component   = $component;
-		$this->fieldId     = $fieldId;
+		$this->fieldId     = $field_id;
 	}
 
 	/**

@@ -30,7 +30,7 @@ final class SubmitControlButtonProxy {
 	public function __call(string $name, array $arguments) {
 		if (method_exists($this->builder, $name)) {
 			$result = $this->builder->$name(...$arguments);
-			$this->parent->updateButton($this->builder);
+			$this->parent->update_button($this->builder);
 
 			if ($result instanceof ButtonBuilder || $result === $this->builder) {
 				return $this;
@@ -40,7 +40,7 @@ final class SubmitControlButtonProxy {
 		}
 
 		if (method_exists($this->parent, $name)) {
-			$this->parent->updateButton($this->builder);
+			$this->parent->update_button($this->builder);
 			return $this->parent->$name(...$arguments);
 		}
 
@@ -51,7 +51,7 @@ final class SubmitControlButtonProxy {
 	 * Explicit accessor to return to the parent submit controls builder.
 	 */
 	public function end_control(): SubmitControlsBuilder {
-		$this->parent->updateButton($this->builder);
+		$this->parent->update_button($this->builder);
 		return $this->parent;
 	}
 }

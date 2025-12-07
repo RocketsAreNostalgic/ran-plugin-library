@@ -37,7 +37,7 @@ final class Normalizer extends NormalizerBase {
 		}
 
 		// Build template context
-		$context['link_attributes'] = $this->session->formatAttributes($context['attributes']);
+		$context['link_attributes'] = $this->session->format_attributes($context['attributes']);
 		$context['label']           = $this->_sanitize_string($context['label'] ?? '', 'label');
 		$context['url']             = $url;
 		$context['target']          = $target;

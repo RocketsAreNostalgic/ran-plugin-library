@@ -107,14 +107,14 @@ final class TranslationServiceTest extends PluginLibTestCase {
 	public function test_get_hook_prefix_returns_configured_value(): void {
 		$service = new TranslationService('domain', 'custom/prefix');
 
-		$this->assertSame('custom/prefix', $service->getHookPrefix());
+		$this->assertSame('custom/prefix', $service->get_hook_prefix());
 	}
 
 	public function test_for_domain_constructs_service_with_valid_domain(): void {
 		$service = TranslationService::for_domain('Forms/Validator', 'client-domain');
 
 		$this->assertSame('client-domain', $service->get_effective_domain());
-		$this->assertSame('ran/plugin_lib/forms/validator', $service->getHookPrefix());
+		$this->assertSame('ran/plugin_lib/forms/validator', $service->get_hook_prefix());
 	}
 
 	/**
@@ -150,7 +150,7 @@ final class TranslationServiceTest extends PluginLibTestCase {
 	public function test_for_domain_trims_slashes_and_lowercases(): void {
 		$service = TranslationService::for_domain('/Forms/Validator/');
 
-		$this->assertSame('ran/plugin_lib/forms/validator', $service->getHookPrefix());
+		$this->assertSame('ran/plugin_lib/forms/validator', $service->get_hook_prefix());
 	}
 
 	/**

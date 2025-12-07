@@ -35,7 +35,7 @@ final class NormalizerTest extends PluginLibTestCase {
 
 		// Create a mock session (ComponentNormalizationContext) that returns formatted attributes
 		$this->session = Mockery::mock(ComponentNormalizationContext::class);
-		$this->session->shouldReceive('formatAttributes')->andReturnUsing(function (array $attrs): string {
+		$this->session->shouldReceive('format_attributes')->andReturnUsing(function (array $attrs): string {
 			$parts = array();
 			foreach ($attrs as $key => $value) {
 				if ($value === true) {
@@ -46,8 +46,8 @@ final class NormalizerTest extends PluginLibTestCase {
 			}
 			return implode(' ', $parts);
 		});
-		$this->session->shouldReceive('resetState')->andReturnNull();
-		$this->session->shouldReceive('reserveId')->andReturnUsing(function (?string $id): string {
+		$this->session->shouldReceive('reset_state')->andReturnNull();
+		$this->session->shouldReceive('reserve_id')->andReturnUsing(function (?string $id): string {
 			return $id ?? 'generated-id';
 		});
 		$this->session->shouldReceive('get_logger')->andReturn($this->logger_mock);

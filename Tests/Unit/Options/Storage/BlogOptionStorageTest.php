@@ -19,7 +19,7 @@ final class BlogOptionStorageTest extends PluginLibTestCase {
 		WP_Mock::userFunction('get_current_blog_id')->once()->andReturn(999);
 		$s = new BlogOptionStorage(123);
 		$this->assertSame(OptionScope::Blog, $s->scope());
-		$this->assertSame(123, $s->blogId());
+		$this->assertSame(123, $s->blog_id());
 		$this->assertFalse($s->supports_autoload());
 	}
 
@@ -79,6 +79,6 @@ final class BlogOptionStorageTest extends PluginLibTestCase {
 		$blog_id = 321;
 		$s       = new BlogOptionStorage($blog_id);
 		// Intentionally only asserting via public API while restricting coverage to __construct
-		$this->assertSame($blog_id, $s->blogId());
+		$this->assertSame($blog_id, $s->blog_id());
 	}
 }

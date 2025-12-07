@@ -37,7 +37,7 @@ final class UserEntity extends ScopeEntity {
 		}
 	}
 
-	public function getScope(): OptionScope {
+	public function get_scope(): OptionScope {
 		return OptionScope::User;
 	}
 
@@ -46,7 +46,7 @@ final class UserEntity extends ScopeEntity {
 	 *
 	 * @return StorageContext
 	 */
-	public function toStorageContext(): StorageContext {
+	public function to_storage_context(): StorageContext {
 		return StorageContext::forUser(
 			(int) $this->id,
 			strtolower((string) $this->storage),

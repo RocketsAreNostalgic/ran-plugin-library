@@ -17,7 +17,7 @@ final class NetworkOptionStorageTest extends PluginLibTestCase {
 	public function test_meta_methods(): void {
 		$s = new NetworkOptionStorage();
 		$this->assertSame(OptionScope::Network, $s->scope());
-		$this->assertNull($s->blogId());
+		$this->assertNull($s->blog_id());
 		$this->assertFalse($s->supports_autoload());
 	}
 

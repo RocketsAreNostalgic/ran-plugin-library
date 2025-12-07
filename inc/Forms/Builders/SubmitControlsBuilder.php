@@ -127,7 +127,7 @@ final class SubmitControlsBuilder {
 		$builder->type('submit');
 
 		$proxy = new SubmitControlButtonProxy($this, $builder);
-		$this->updateButton($builder);
+		$this->update_button($builder);
 		return $proxy;
 	}
 
@@ -211,7 +211,7 @@ final class SubmitControlsBuilder {
 		$this->emit_controls_update();
 	}
 
-	public function updateButton(ButtonBuilder $builder): void {
+	public function update_button(ButtonBuilder $builder): void {
 		$payload = $builder->to_array();
 		$this->registerControl(
 			$payload['id'],

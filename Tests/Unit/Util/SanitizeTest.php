@@ -20,15 +20,15 @@ final class SanitizeTest extends PluginLibTestCase {
 		$this->assertSame('abc', $trim('  abc  '));
 		$this->assertSame(123, $trim(123));
 
-		$lower = Sanitize::string()->toLower();
+		$lower = Sanitize::string()->to_lower();
 		$this->assertSame('abc', $lower('AbC'));
 		$this->assertSame(123, $lower(123));
 
-		$upper = Sanitize::string()->toUpper();
+		$upper = Sanitize::string()->to_upper();
 		$this->assertSame('ABC', $upper('AbC'));
 		$this->assertSame(123, $upper(123));
 
-		$strip = Sanitize::string()->stripTags();
+		$strip = Sanitize::string()->strip_tags();
 		$this->assertSame('hello', $strip('<b>hello</b>'));
 		$this->assertSame(array('x'), $strip(array('x')));
 	}
@@ -129,7 +129,7 @@ final class SanitizeTest extends PluginLibTestCase {
 	public function test_combine_pipe(): void {
 		$pipe = Sanitize::combine()->pipe(
 			Sanitize::string()->trim(),
-			Sanitize::string()->toLower()
+			Sanitize::string()->to_lower()
 		);
 		$this->assertSame('abc', $pipe('  ABC  '));
 		$this->assertSame(5, $pipe(5));
@@ -157,7 +157,7 @@ final class SanitizeTest extends PluginLibTestCase {
 	 * @covers \Ran\PluginLib\Util\Sanitize\SanitizeComposeGroup::unless
 	 */
 	public function test_compose_when_and_unless(): void {
-		$whenLower = Sanitize::combine()->when(static fn($v) => is_string($v), Sanitize::string()->toLower());
+		$whenLower = Sanitize::combine()->when(static fn($v) => is_string($v), Sanitize::string()->to_lower());
 		$this->assertSame('abc', $whenLower('ABC'));
 		$this->assertSame(10, $whenLower(10));
 

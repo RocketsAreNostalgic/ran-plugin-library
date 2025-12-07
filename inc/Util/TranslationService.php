@@ -108,7 +108,7 @@ class TranslationService {
 	 *
 	 * @return string The hook prefix.
 	 */
-	public function getHookPrefix(): string {
+	public function get_hook_prefix(): string {
 		return $this->hookPrefix;
 	}
 

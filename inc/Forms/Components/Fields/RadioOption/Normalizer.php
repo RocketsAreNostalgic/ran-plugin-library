@@ -24,9 +24,9 @@ final class Normalizer extends NormalizerBase {
 		// Generate ID if not provided
 		$id = $this->_sanitize_string($context['id'] ?? '', 'id');
 		if ($id === '' && $name !== '' && $value !== '') {
-			$id = $this->session->generateId($name, $value);
+			$id = $this->session->generate_id($name, $value);
 		}
-		$optionId                    = $this->session->reserveId($context['attributes']['id'] ?? $id, 'radio_option');
+		$optionId                    = $this->session->reserve_id($context['attributes']['id'] ?? $id, 'radio_option');
 		$context['attributes']['id'] = $optionId;
 
 		// Handle checked state using base class boolean sanitization
@@ -35,12 +35,12 @@ final class Normalizer extends NormalizerBase {
 		}
 
 		// Build template context
-		$context['input_attributes'] = $this->session->formatAttributes($context['attributes']);
+		$context['input_attributes'] = $this->session->format_attributes($context['attributes']);
 		$context['label']            = $this->_sanitize_string($context['label'] ?? '', 'label');
 
 		// Validate label attributes using base class array validation
-		$labelAttributes             = $this->_validate_config_array($context['label_attributes'] ?? null, 'label_attributes') ?? array();
-		$context['label_attributes'] = $this->session->formatAttributes($labelAttributes);
+		$label_attributes            = $this->_validate_config_array($context['label_attributes'] ?? null, 'label_attributes') ?? array();
+		$context['label_attributes'] = $this->session->format_attributes($label_attributes);
 
 		return $context;
 	}

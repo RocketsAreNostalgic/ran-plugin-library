@@ -81,7 +81,7 @@ final class Normalizer extends NormalizerBase {
 			$attributes['readonly'] = true;
 		}
 
-		return $this->session->formatAttributes($attributes);
+		return $this->session->format_attributes($attributes);
 	}
 
 	/**
@@ -97,6 +97,6 @@ final class Normalizer extends NormalizerBase {
 			$attributes['name'] = $this->_sanitize_string($context['name'], 'name');
 		}
 
-		return $this->session->formatAttributes($attributes);
+		return $this->session->format_attributes($attributes);
 	}
 }

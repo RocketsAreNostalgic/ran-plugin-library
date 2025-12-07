@@ -11,12 +11,12 @@ use Ran\PluginLib\Options\Storage\StorageContext;
 final class BlogEntityTest extends PluginLibTestCase {
 	public function test_getScope_returns_blog(): void {
 		$e = new BlogEntity(123);
-		$this->assertSame(OptionScope::Blog, $e->getScope());
+		$this->assertSame(OptionScope::Blog, $e->get_scope());
 	}
 
 	public function test_toStorageContext_with_id(): void {
 		$e   = new BlogEntity(5);
-		$ctx = $e->toStorageContext();
+		$ctx = $e->to_storage_context();
 		$this->assertSame(OptionScope::Blog, $ctx->scope);
 		$this->assertSame(5, $ctx->blog_id);
 	}
@@ -25,6 +25,6 @@ final class BlogEntityTest extends PluginLibTestCase {
 		$e = new BlogEntity(null);
 		$this->expectException(\InvalidArgumentException::class);
 		// Typed conversion should fail for null/invalid id
-		$e->toStorageContext();
+		$e->to_storage_context();
 	}
 }

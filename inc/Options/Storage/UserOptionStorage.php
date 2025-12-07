@@ -32,7 +32,7 @@ final class UserOptionStorage implements OptionStorageInterface {
 	}
 
 	/** {@inheritdoc} */
-	public function blogId(): ?int {
+	public function blog_id(): ?int {
 		return null;
 	}
 

@@ -36,7 +36,7 @@ abstract class AbstractWritePolicy implements WritePolicyInterface {
 
 	/** True when WriteContext userId matches the current user. */
 	protected function isSameUser(WriteContext $wc): bool {
-		$target  = (int) ($wc->userId() ?? 0);
+		$target  = (int) ($wc->user_id() ?? 0);
 		$current = (int) get_current_user_id();
 		return $target > 0 && $current > 0 && $target === $current;
 	}

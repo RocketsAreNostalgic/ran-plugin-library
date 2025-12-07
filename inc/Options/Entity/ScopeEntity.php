@@ -21,5 +21,5 @@ abstract class ScopeEntity {
 	/**
 	 * Return the OptionScope represented by this entity.
 	 */
-	abstract public function getScope(): OptionScope;
+	abstract public function get_scope(): OptionScope;
 }

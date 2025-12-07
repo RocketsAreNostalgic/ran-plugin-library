@@ -1312,8 +1312,8 @@ class RegisterOptions {
 			'op'           => $op,
 			'main_option'  => $wc->main_option(),
 			'scope'        => $wc->scope(),
-			'blog_id'      => $wc->blogId(),
-			'user_id'      => $wc->userId(),
+			'blog_id'      => $wc->blog_id(),
+			'user_id'      => $wc->user_id(),
 			'user_storage' => $wc->user_storage() ?? 'meta',
 			'user_global'  => (bool) $wc->user_global(),
 		);

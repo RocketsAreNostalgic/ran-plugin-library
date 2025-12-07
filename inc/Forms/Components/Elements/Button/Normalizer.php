@@ -34,7 +34,7 @@ final class Normalizer extends NormalizerBase {
 		$context['attributes']['class'] = $this->_sanitize_string($classList, 'class');
 
 		// Build button attributes string for template
-		$context['button_attributes'] = $this->session->formatAttributes($context['attributes']);
+		$context['button_attributes'] = $this->session->format_attributes($context['attributes']);
 		$context['type']              = $type;
 		$context['variant']           = $variant;
 		$context['label']             = $this->_sanitize_string($context['label'] ?? '', 'label');

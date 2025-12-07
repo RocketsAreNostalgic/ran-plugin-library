@@ -35,13 +35,13 @@ final class SanitizeStringGroup {
 	 * Lowercase strings; pass-through otherwise.
 	 * Dual-mode: no argument returns a callable; with value, applies immediately.
 	 *
-	 * @example $clean = (Sanitize::string()->toLower())($value);
-	 * @example $clean = Sanitize::string()->toLower($value);
+	 * @example $clean = (Sanitize::string()->to_lower())($value);
+	 * @example $clean = Sanitize::string()->to_lower($value);
 	 *
 	 * @param mixed $value
 	 * @return mixed
 	 */
-	public function toLower(mixed $value = null): mixed {
+	public function to_lower(mixed $value = null): mixed {
 		$fn = static function (mixed $v): mixed {
 			return \is_string($v) ? \mb_strtolower($v) : $v;
 		};
@@ -52,13 +52,13 @@ final class SanitizeStringGroup {
 	 * Uppercase strings; pass-through otherwise.
 	 * Dual-mode: no argument returns a callable; with value, applies immediately.
 	 *
-	 * @example $clean = (Sanitize::string()->toUpper())($value);
-	 * @example $clean = Sanitize::string()->toUpper($value);
+	 * @example $clean = (Sanitize::string()->to_upper())($value);
+	 * @example $clean = Sanitize::string()->to_upper($value);
 	 *
 	 * @param mixed $value
 	 * @return mixed
 	 */
-	public function toUpper(mixed $value = null): mixed {
+	public function to_upper(mixed $value = null): mixed {
 		$fn = static function (mixed $v): mixed {
 			return \is_string($v) ? \mb_strtoupper($v) : $v;
 		};
@@ -69,14 +69,14 @@ final class SanitizeStringGroup {
 	 * strip_tags on strings; pass-through otherwise.
 	 * Dual-mode: no argument returns a callable; with value, applies immediately.
 	 *
-	 * @example  $clean = (Sanitize::string()->stripTags(['<a>', '<b>']))($value);
-	 * @example  $clean = Sanitize::string()->stripTags($value, ['<a>', '<b>']);
+	 * @example  $clean = (Sanitize::string()->strip_tags(['<a>', '<b>']))($value);
+	 * @example  $clean = Sanitize::string()->strip_tags($value, ['<a>', '<b>']);
 	 *
 	 * @param array $allowed_tags Array of allowed tags
 	 * @param mixed $value
 	 * @return mixed
 	 */
-	public function stripTags(array $allowed_tags = array(), mixed $value = null): mixed {
+	public function strip_tags(array $allowed_tags = array(), mixed $value = null): mixed {
 		$fn = static function (mixed $v) use ($allowed_tags): mixed {
 			return \is_string($v) ? \strip_tags($v, $allowed_tags) : $v;
 		};

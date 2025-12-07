@@ -60,7 +60,7 @@ final class RegisterOptionsMakeStorageTest extends PluginLibTestCase {
 		$m->setAccessible(true);
 		$storage = $m->invoke($ro);
 		$this->assertInstanceOf(BlogOptionStorage::class, $storage);
-		$this->assertSame(123, $storage->blogId());
+		$this->assertSame(123, $storage->blog_id());
 	}
 
 	/**
@@ -73,7 +73,7 @@ final class RegisterOptionsMakeStorageTest extends PluginLibTestCase {
 		$m->setAccessible(true);
 		$storage = $m->invoke($ro);
 		$this->assertInstanceOf(BlogOptionStorage::class, $storage);
-		$this->assertSame(123, $storage->blogId());
+		$this->assertSame(123, $storage->blog_id());
 	}
 
 	/**

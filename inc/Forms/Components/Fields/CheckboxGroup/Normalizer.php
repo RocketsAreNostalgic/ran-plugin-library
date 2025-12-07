@@ -15,7 +15,7 @@ final class Normalizer extends NormalizerBase {
 		$fieldsetId = '';
 		$idSource   = $context['attributes']['id'] ?? ($context['id'] ?? null);
 		if ($idSource !== null) {
-			$fieldsetId                  = $this->session->reserveId(is_string($idSource) ? $idSource : null, 'checkbox_group');
+			$fieldsetId                  = $this->session->reserve_id(is_string($idSource) ? $idSource : null, 'checkbox_group');
 			$context['attributes']['id'] = $fieldsetId;
 		}
 
@@ -29,7 +29,7 @@ final class Normalizer extends NormalizerBase {
 		}
 
 		// Build template context
-		$context['attributes']   = $this->session->formatAttributes($context['attributes']);
+		$context['attributes']   = $this->session->format_attributes($context['attributes']);
 		$context['legend']       = $this->_sanitize_string($context['legend'] ?? '', 'legend');
 		$context['options_html'] = $renderedOptions;
 
@@ -53,19 +53,19 @@ final class Normalizer extends NormalizerBase {
 
 		// Generate option ID
 		$optionIdBase     = $attributes['id'] ?? ($fieldsetId !== '' ? $fieldsetId . '__option-' . ($index + 1) : null);
-		$optionId         = $this->session->reserveId(is_string($optionIdBase) ? $optionIdBase : null, 'checkbox_option');
+		$optionId         = $this->session->reserve_id(is_string($optionIdBase) ? $optionIdBase : null, 'checkbox_option');
 		$attributes['id'] = $optionId;
 
 		// Handle option description using base class string sanitization
 		$optionDesc   = $this->_sanitize_string($option['description'] ?? '', 'option description');
 		$optionDescId = '';
 		if ($optionDesc !== '') {
-			$optionDescId = $this->session->reserveId($optionId . '__desc', 'desc');
-			$this->session->appendAriaDescribedBy($attributes, $optionDescId);
+			$optionDescId = $this->session->reserve_id($optionId . '__desc', 'desc');
+			$this->session->append_aria_described_by($attributes, $optionDescId);
 		}
 
 		$result = $this->views->render_payload('fields.checkbox-option', array(
-			'input_attributes' => $this->session->formatAttributes($attributes),
+			'input_attributes' => $this->session->format_attributes($attributes),
 			'label'            => $this->_sanitize_string($option['label'] ?? '', 'option label'),
 			'description'      => $optionDesc,
 			'description_id'   => $optionDescId,

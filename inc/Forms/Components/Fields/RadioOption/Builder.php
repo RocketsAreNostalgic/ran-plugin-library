@@ -15,7 +15,7 @@ final class Builder extends ComponentBuilderBase {
 	private bool $checked  = false;
 	private bool $disabled = false;
 	/** @var array<string,string> */
-	private array $labelAttributes = array();
+	private array $label_attributes = array();
 
 	public function __construct(string $id, string $label, string $name, string $value) {
 		parent::__construct($id, $label);
@@ -46,8 +46,8 @@ final class Builder extends ComponentBuilderBase {
 		return $this;
 	}
 
-	public function labelAttribute(string $key, string $value): static {
-		$this->labelAttributes[$key] = (string) $value;
+	public function label_attribute(string $key, string $value): static {
+		$this->label_attributes[$key] = (string) $value;
 		return $this;
 	}
 
@@ -72,7 +72,7 @@ final class Builder extends ComponentBuilderBase {
 
 		// Add required properties
 		$context['label']            = $this->label;
-		$context['label_attributes'] = $this->labelAttributes;
+		$context['label_attributes'] = $this->label_attributes;
 
 		// Add optional properties using base class helpers
 		$this->_add_if_true($context, 'checked', $this->checked);

@@ -30,7 +30,7 @@ final class RestrictedDefaultWritePolicy extends AbstractWritePolicy implements 
 		if ($scope === 'network') {
 			return $this->canManageNetwork();
 		} elseif ($scope === 'user') {
-			$user_id = (int) ($ctx->userId() ?? 0);
+			$user_id = (int) ($ctx->user_id() ?? 0);
 			return $this->canEditUser($user_id);
 		} elseif ($scope === 'blog') {
 			return $this->canManageOptions();

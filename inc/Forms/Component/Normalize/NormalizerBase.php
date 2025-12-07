@@ -49,7 +49,7 @@ abstract class NormalizerBase implements NormalizeInterface {
 
 		// Initialize session state
 		$fieldId = $this->_extract_field_id($context);
-		$session->resetState($this->componentType, $fieldId);
+		$session->reset_state($this->componentType, $fieldId);
 
 		// Normalize the context data
 		$normalizedContext = $this->_normalize_context($context);
@@ -266,7 +266,7 @@ abstract class NormalizerBase implements NormalizeInterface {
 			$context['description_id'] = $descriptionId;
 
 			// Add aria-describedby
-			$this->session->appendAriaDescribedBy($context['attributes'], $descriptionId);
+			$this->session->append_aria_described_by($context['attributes'], $descriptionId);
 		}
 
 		return $context;
@@ -279,7 +279,7 @@ abstract class NormalizerBase implements NormalizeInterface {
 		$attributes = $context['attributes'];
 		$idSource   = $attributes['id'] ?? ($context['id'] ?? ($context['name'] ?? null));
 
-		$componentId = $this->session->reserveId(
+		$componentId = $this->session->reserve_id(
 			is_string($idSource) ? $idSource : null,
 			$fallbackType
 		);
@@ -296,7 +296,7 @@ abstract class NormalizerBase implements NormalizeInterface {
 			(string) $context['description_id'] :
 			$baseId . '__desc';
 
-		return $this->session->reserveId($descBase, 'desc');
+		return $this->session->reserve_id($descBase, 'desc');
 	}
 
 	/**

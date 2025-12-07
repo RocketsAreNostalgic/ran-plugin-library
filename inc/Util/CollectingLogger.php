@@ -106,7 +106,7 @@ class CollectingLogger extends Logger {
 	 *
 	 * @return string The path that was written.
 	 */
-	public function drainToFile(string $file_path): string {
+	public function drain_to_file(string $file_path): string {
 		$handle = @fopen($file_path, 'wb');
 		if ($handle === false) {
 			throw new \RuntimeException('Unable to open log dump file for writing: ' . $file_path);

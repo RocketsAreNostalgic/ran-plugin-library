@@ -49,12 +49,12 @@ final class Normalizer extends NormalizerBase {
 
 		// Generate button and remove IDs
 		$buttonIdBase = $this->_sanitize_string($context['button_id'] ?? $inputId . '__button', 'button_id');
-		$buttonId     = $this->session->reserveId($buttonIdBase, 'media_button');
+		$buttonId     = $this->session->reserve_id($buttonIdBase, 'media_button');
 		$removeIdBase = $this->_sanitize_string($context['remove_id'] ?? $inputId . '__remove', 'remove_id');
-		$removeId     = $this->session->reserveId($removeIdBase, 'media_remove');
+		$removeId     = $this->session->reserve_id($removeIdBase, 'media_remove');
 
 		// Build template context
-		$context['input_attributes'] = $this->session->formatAttributes($context['attributes']);
+		$context['input_attributes'] = $this->session->format_attributes($context['attributes']);
 		$context['select_label']     = $this->_sanitize_string($context['select_label'] ?? 'Select media', 'select_label');
 		$context['replace_label']    = $this->_sanitize_string($context['replace_label'] ?? 'Replace media', 'replace_label');
 		$context['remove_label']     = $this->_sanitize_string($context['remove_label'] ?? 'Remove', 'remove_label');
