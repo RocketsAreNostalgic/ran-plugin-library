@@ -4,12 +4,12 @@ declare(strict_types=1);
 namespace Ran\PluginLib\Tests\Unit\Forms\Builders;
 
 use PHPUnit\Framework\TestCase;
-use Ran\PluginLib\Forms\Builders\ComponentBuilderProxy;
+use Ran\PluginLib\Forms\Builders\GenericFieldBuilder;
 
 /**
- * @covers \Ran\PluginLib\Forms\Builders\ComponentBuilderProxy
+ * @covers \Ran\PluginLib\Forms\Builders\GenericFieldBuilder
  */
-final class ComponentBuilderProxyTest extends TestCase {
+final class GenericFieldBuilderTest extends TestCase {
 	/**
 	 * @var list<array{type:string,payload:array<string,mixed>}> $updates
 	 */
@@ -27,7 +27,7 @@ final class ComponentBuilderProxyTest extends TestCase {
 	public function test_constructor_emits_initial_field_update_and_template_override(): void {
 		$proxy = $this->createProxy(initialTemplate: 'custom.wrapper');
 
-		self::assertInstanceOf(ComponentBuilderProxy::class, $proxy);
+		self::assertInstanceOf(GenericFieldBuilder::class, $proxy);
 
 		$fieldUpdates = array_values(array_filter($this->updates, static fn(array $entry): bool => $entry['type'] === 'field'));
 		self::assertNotEmpty($fieldUpdates);
@@ -112,9 +112,9 @@ final class ComponentBuilderProxyTest extends TestCase {
 	}
 
 	/**
-	 * @return ComponentBuilderProxy
+	 * @return GenericFieldBuilder
 	 */
-	private function createProxy(?string $initialTemplate = null): ComponentBuilderProxy {
+	private function createProxy(?string $initialTemplate = null): GenericFieldBuilder {
 		$this->updates        = array();
 		$this->currentBuilder = null;
 		$this->currentSection = null;
@@ -132,7 +132,7 @@ final class ComponentBuilderProxyTest extends TestCase {
 		$this->currentBuilder = $builder;
 		$this->currentSection = $section;
 
-		return new ComponentBuilderProxy(
+		return new GenericFieldBuilder(
 			$builder,
 			$section,
 			$updateFn,

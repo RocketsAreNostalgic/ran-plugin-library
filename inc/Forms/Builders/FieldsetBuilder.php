@@ -120,11 +120,11 @@ class FieldsetBuilder extends SectionFieldContainerBuilder implements FieldsetBu
 	 * @param string $component The component alias.
 	 * @param array<string,mixed> $args Optional arguments.
 	 *
-	 * @return ComponentBuilderProxy<FieldsetBuilder> The proxy instance with correct return type for end_field().
+	 * @return GenericFieldBuilder<FieldsetBuilder> The proxy instance with correct return type for end_field().
 	 */
-	public function field(string $field_id, string $label, string $component, array $args = array()): ComponentBuilderProxy {
+	public function field(string $field_id, string $label, string $component, array $args = array()): GenericFieldBuilder {
 		$proxy = parent::field($field_id, $label, $component, $args);
-		if (!$proxy instanceof ComponentBuilderProxy) {
+		if (!$proxy instanceof GenericFieldBuilder) {
 			throw new \RuntimeException('Unexpected proxy type from parent::field()');
 		}
 		return $proxy;
@@ -227,15 +227,15 @@ class FieldsetBuilder extends SectionFieldContainerBuilder implements FieldsetBu
 	 * @param string|null $field_template The field template override.
 	 * @param array<string,mixed> $component_context The component context.
 	 *
-	 * @return ComponentBuilderProxy<FieldsetBuilder> The proxy instance.
+	 * @return GenericFieldBuilder<FieldsetBuilder> The proxy instance.
 	 */
 	protected function _create_component_proxy(
 		ComponentBuilderDefinitionInterface $builder,
 		string $component_alias,
 		?string $field_template,
 		array $component_context
-	): ComponentBuilderProxy {
-		return new ComponentBuilderProxy(
+	): GenericFieldBuilder {
+		return new GenericFieldBuilder(
 			$builder,
 			$this,
 			$this->updateFn,

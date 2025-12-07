@@ -18,6 +18,7 @@ use Ran\PluginLib\Forms\Builders\Traits\SectionFieldContainerTrait;
 use Ran\PluginLib\Forms\Builders\Traits\FieldsetBuilderTrait;
 use Ran\PluginLib\Forms\Builders\FieldsetBuilderInterface;
 use Ran\PluginLib\Forms\Builders\BuilderImmediateUpdateTrait;
+use Ran\PluginLib\Forms\Builders\GenericFieldBuilder;
 
 /**
  * Fieldset builder for AdminSettings.

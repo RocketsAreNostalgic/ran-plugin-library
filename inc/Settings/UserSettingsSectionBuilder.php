@@ -16,6 +16,7 @@ use Ran\PluginLib\Forms\FormsInterface;
 use Ran\PluginLib\Forms\Component\Build\ComponentBuilderDefinitionInterface;
 use Ran\PluginLib\Forms\Builders\Traits\SectionBuilderTrait;
 use Ran\PluginLib\Forms\Builders\SectionBuilderInterface;
+use Ran\PluginLib\Forms\Builders\GenericFieldBuilder;
 use Ran\PluginLib\Forms\Builders\BuilderImmediateUpdateTrait;
 
 /**

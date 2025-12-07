@@ -2,15 +2,19 @@
 /**
  * GenericFieldBuilder: Type-safe generic field builder using @template for parent type.
  *
- * Replaces context-specific proxy classes (UserSettingsComponentProxy, AdminSettingsComponentProxy, etc.)
- * with a single generic class that preserves parent type for IDE autocomplete via @template.
+ * Unified field builder that replaces all context-specific proxy classes with a single
+ * generic class that preserves parent type for IDE autocomplete via @template.
  *
- * @package Ran\PluginLib\Settings
+ * Used by:
+ * - Core Forms builders (SectionBuilder, GroupBuilder, FieldsetBuilder)
+ * - Settings wrappers (AdminSettings, UserSettings)
+ *
+ * @package Ran\PluginLib\Forms\Builders
  */
 
 declare(strict_types=1);
 
-namespace Ran\PluginLib\Settings;
+namespace Ran\PluginLib\Forms\Builders;
 
 use Ran\PluginLib\Forms\Component\Build\ComponentBuilderInterface;
 use Ran\PluginLib\Forms\Component\Build\ComponentBuilderBase;

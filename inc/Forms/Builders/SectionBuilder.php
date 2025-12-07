@@ -309,11 +309,11 @@ class SectionBuilder implements SectionBuilderInterface {
 	 * @param string $component The component alias (must have a registered builder factory).
 	 * @param array<string,mixed> $args Optional configuration (context, order, field_template).
 	 *
-	 * @return ComponentBuilderProxy The fluent proxy for field configuration.
+	 * @return GenericFieldBuilder<SectionBuilder> The fluent proxy for field configuration.
 	 *
 	 * @throws \InvalidArgumentException If the component has no registered builder factory.
 	 */
-	public function field(string $field_id, string $label, string $component, array $args = array()): mixed {
+	public function field(string $field_id, string $label, string $component, array $args = array()): GenericFieldBuilder {
 		$component_context = $args['context']        ?? $args['component_context'] ?? array();
 		$order             = $args['order']          ?? null;
 		$field_template    = $args['field_template'] ?? null;
@@ -378,7 +378,7 @@ class SectionBuilder implements SectionBuilderInterface {
 	 * @param string|null $field_template The field template override.
 	 * @param array<string,mixed> $component_context The component context.
 	 *
-	 * @return ComponentBuilderProxy The proxy instance (concrete type in subclasses).
+	 * @return GenericFieldBuilder<SectionBuilder> The proxy instance.
 	 */
 	protected function _create_component_proxy(
 		ComponentBuilderDefinitionInterface $builder,
@@ -386,8 +386,8 @@ class SectionBuilder implements SectionBuilderInterface {
 		?string $group_id,
 		?string $field_template,
 		array $component_context
-	): mixed {
-		return new ComponentBuilderProxy(
+	): GenericFieldBuilder {
+		return new GenericFieldBuilder(
 			$builder,
 			$this,
 			$this->updateFn,

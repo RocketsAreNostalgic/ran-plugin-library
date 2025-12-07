@@ -5,7 +5,7 @@ namespace Ran\PluginLib\Tests\Unit\Forms\Builders;
 
 use Ran\PluginLib\Forms\Builders\SectionBuilder;
 use Ran\PluginLib\Forms\Builders\GroupBuilder;
-use Ran\PluginLib\Forms\Builders\ComponentBuilderProxy;
+use Ran\PluginLib\Forms\Builders\GenericFieldBuilder;
 use Ran\PluginLib\Forms\Builders\BuilderRootInterface;
 use PHPUnit\Framework\TestCase;
 
@@ -54,7 +54,7 @@ final class GroupBuilderTest extends TestCase {
 			'field_template' => 'custom.wrapper',
 		));
 
-		self::assertInstanceOf(ComponentBuilderProxy::class, $result);
+		self::assertInstanceOf(GenericFieldBuilder::class, $result);
 
 		$groupFieldUpdates = array_values(array_filter($this->updates, static fn(array $entry): bool => $entry['type'] === 'group_field'));
 		self::assertNotEmpty($groupFieldUpdates, 'Expected group_field update to be emitted.');

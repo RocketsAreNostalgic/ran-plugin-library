@@ -140,11 +140,11 @@ abstract class SectionFieldContainerBuilder implements FieldContainerBuilderInte
 	 * @param string $component The component alias (must have a registered builder factory).
 	 * @param array<string,mixed> $args Optional arguments for the component.
 	 *
-	 * @return ComponentBuilderProxy The fluent proxy for field configuration.
+	 * @return GenericFieldBuilder The fluent proxy for field configuration.
 	 *
 	 * @throws \InvalidArgumentException If the component has no registered builder factory.
 	 */
-	public function field(string $field_id, string $label, string $component, array $args = array()): ComponentBuilderProxy {
+	public function field(string $field_id, string $label, string $component, array $args = array()): GenericFieldBuilder {
 		$component_context = $args['context']        ?? $args['component_context'] ?? array();
 		$order             = $args['order']          ?? null;
 		$field_template    = $args['field_template'] ?? $this->default_field_template;
@@ -203,7 +203,7 @@ abstract class SectionFieldContainerBuilder implements FieldContainerBuilderInte
 	}
 
 	/**
-	 * Factory method to create a ComponentBuilderProxy.
+	 * Factory method to create a GenericFieldBuilder.
 	 * Override in subclasses to return context-specific proxy types.
 	 *
 	 * @param ComponentBuilderDefinitionInterface $builder The component builder.
@@ -211,15 +211,15 @@ abstract class SectionFieldContainerBuilder implements FieldContainerBuilderInte
 	 * @param string|null $field_template The field template override.
 	 * @param array<string,mixed> $component_context The component context.
 	 *
-	 * @return ComponentBuilderProxy The proxy instance.
+	 * @return GenericFieldBuilder The proxy instance.
 	 */
 	protected function _create_component_proxy(
 		ComponentBuilderDefinitionInterface $builder,
 		string $component_alias,
 		?string $field_template,
 		array $component_context
-	): ComponentBuilderProxy {
-		return new ComponentBuilderProxy(
+	): GenericFieldBuilder {
+		return new GenericFieldBuilder(
 			$builder,
 			$this,
 			$this->updateFn,

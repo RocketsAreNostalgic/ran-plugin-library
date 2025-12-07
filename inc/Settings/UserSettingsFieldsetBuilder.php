@@ -17,7 +17,7 @@ use Ran\PluginLib\Forms\Component\Build\ComponentBuilderDefinitionInterface;
 use Ran\PluginLib\Forms\Builders\Traits\SectionFieldContainerTrait;
 use Ran\PluginLib\Forms\Builders\Traits\FieldsetBuilderTrait;
 use Ran\PluginLib\Forms\Builders\FieldsetBuilderInterface;
-use Ran\PluginLib\Forms\Builders\ComponentBuilderProxy;
+use Ran\PluginLib\Forms\Builders\GenericFieldBuilder;
 use Ran\PluginLib\Forms\Builders\BuilderImmediateUpdateTrait;
 
 /**

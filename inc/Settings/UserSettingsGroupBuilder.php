@@ -18,6 +18,7 @@ use Ran\PluginLib\Forms\Builders\Traits\SectionFieldContainerTrait;
 use Ran\PluginLib\Forms\Builders\Traits\GroupBuilderTrait;
 use Ran\PluginLib\Forms\Builders\GroupBuilderInterface;
 use Ran\PluginLib\Forms\Builders\BuilderImmediateUpdateTrait;
+use Ran\PluginLib\Forms\Builders\GenericFieldBuilder;
 
 /**
  * Group builder for UserSettings.

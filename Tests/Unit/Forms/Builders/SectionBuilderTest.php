@@ -8,8 +8,7 @@ use Ran\PluginLib\Forms\Builders\BuilderRootInterface;
 use Ran\PluginLib\Forms\Builders\FieldsetBuilder;
 use Ran\PluginLib\Forms\Builders\GroupBuilder;
 use Ran\PluginLib\Forms\Builders\SectionBuilder;
-use Ran\PluginLib\Forms\Builders\ComponentBuilderProxy;
-use Ran\PluginLib\Forms\Builders\SectionFieldProxy;
+use Ran\PluginLib\Forms\Builders\GenericFieldBuilder;
 
 /**
  * @covers \Ran\PluginLib\Forms\Builders\SectionBuilder
@@ -50,7 +49,7 @@ final class SectionBuilderTest extends TestCase {
 			'field_template' => 'custom.wrapper',
 		));
 
-		self::assertInstanceOf(ComponentBuilderProxy::class, $result);
+		self::assertInstanceOf(GenericFieldBuilder::class, $result);
 
 		$fieldUpdates = array_values(array_filter($this->updates, static fn(array $entry): bool => $entry['type'] === 'field'));
 		self::assertNotEmpty($fieldUpdates, 'Expected at least one field update to be emitted.');
@@ -75,7 +74,7 @@ final class SectionBuilderTest extends TestCase {
 		$result = $builder->field('api_key', 'API Key', 'fields.input');
 
 		// field() returns ComponentBuilderProxy when builder factory exists
-		self::assertInstanceOf(ComponentBuilderProxy::class, $result);
+		self::assertInstanceOf(GenericFieldBuilder::class, $result);
 
 		// Trigger field emission by calling end_field()
 		$result->end_field();
