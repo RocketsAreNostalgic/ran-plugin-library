@@ -1066,4 +1066,30 @@ class AdminSettings implements FormsInterface {
 			$_POST[$this->main_option][$fieldKey] = $result;
 		}
 	}
+
+	/**
+	 * Extract page slugs from the current builder state for error fallback pages.
+	 *
+	 * @return array<string> List of page slugs that were being registered.
+	 */
+	protected function _extract_page_slugs_from_session(): array {
+		$slugs = array();
+
+		// Extract from menu_groups (includes settings_page which creates a group)
+		foreach ($this->menu_groups as $group_id => $group) {
+			$slugs[] = $group_id;
+			if (!empty($group['pages'])) {
+				foreach (array_keys($group['pages']) as $page_id) {
+					$slugs[] = $page_id;
+				}
+			}
+		}
+
+		// Also include from pages reverse lookup
+		foreach (array_keys($this->pages) as $page_id) {
+			$slugs[] = $page_id;
+		}
+
+		return array_unique($slugs);
+	}
 }

@@ -147,6 +147,40 @@ trait FormsBaseTrait {
 	// PUBLIC API
 	// =========================================================================
 
+	// -- Safe Execution --
+
+	/**
+	 * Execute a builder callback with error protection.
+	 *
+	 * Wraps the callback in a try-catch to prevent builder errors from crashing the site.
+	 * On error, logs the exception and displays an admin notice in dev mode.
+	 * Automatically calls boot() after the callback completes successfully.
+	 *
+	 * Usage:
+	 * ```php
+	 * $settings->safe_boot(function($s) {
+	 *     $s->settings_page('my-page')
+	 *         ->section('my-section', 'My Section')
+	 *             ->field('my_field', 'My Field', 'fields.input')
+	 *             ->end_field()
+	 *         ->end_section()
+	 *         ->end_page()
+	 *         ->end_menu();
+	 * });
+	 * ```
+	 *
+	 * @param callable $callback The builder callback, receives $this as argument.
+	 * @return void
+	 */
+	public function safe_boot(callable $callback): void {
+		try {
+			$callback($this);
+			$this->boot();
+		} catch (\Throwable $e) {
+			$this->_handle_builder_error($e, 'safe_boot');
+		}
+	}
+
 	// -- Form Defaults --
 
 	/**
@@ -598,6 +632,161 @@ trait FormsBaseTrait {
 			$accepted_args = isset($definition['accepted_args']) ? (int) $definition['accepted_args'] : 1;
 			$this->_do_add_action($definition['hook'], $definition['callback'], $priority, $accepted_args);
 		}
+	}
+
+	/**
+	 * Handle builder errors gracefully - log and display admin notice in dev mode.
+	 *
+	 * @param \Throwable $e The caught exception or error.
+	 * @param string $hook The WordPress hook or context where the error occurred.
+	 * @return void
+	 */
+	public function _handle_builder_error(\Throwable $e, string $hook): void {
+		$context = array(
+			'hook'  => $hook,
+			'class' => static::class,
+			'file'  => $e->getFile(),
+			'line'  => $e->getLine(),
+			'trace' => $e->getTraceAsString(),
+		);
+
+		// Always log the error
+		$this->logger->error(
+			sprintf('Settings builder error on %s hook: %s', $hook, $e->getMessage()),
+			$context
+		);
+
+		// Only proceed if in admin and user can manage options
+		if (!\is_admin() || !\current_user_can('manage_options')) {
+			return;
+		}
+
+		$is_dev = $this->_is_dev_environment();
+
+		// Show admin notice in dev mode
+		if ($is_dev) {
+			\add_action('admin_notices', function () use ($e, $hook) {
+				$this->_render_builder_error_notice($e, $hook);
+			});
+		}
+
+		// Always register fallback error pages so routes are valid
+		$this->_register_error_fallback_pages($e, $hook, $is_dev);
+	}
+
+	/**
+	 * Register fallback admin pages that display the error for pages that failed to build.
+	 *
+	 * This ensures users see the error on the page they were trying to access,
+	 * rather than getting "Sorry, you are not allowed to access this page."
+	 *
+	 * @param \Throwable $e The caught exception or error.
+	 * @param string $hook The WordPress hook or context where the error occurred.
+	 * @param bool $is_dev Whether we're in development mode (show full details).
+	 * @return void
+	 */
+	protected function _register_error_fallback_pages(\Throwable $e, string $hook, bool $is_dev): void {
+		// Extract page slugs from the session data that was being built
+		$page_slugs = $this->_extract_page_slugs_from_session();
+
+		if (empty($page_slugs)) {
+			return;
+		}
+
+		// Get the first slug as the main menu, rest as subpages
+		$main_slug = array_shift($page_slugs);
+
+		$register_pages = function () use ($main_slug, $page_slugs, $is_dev) {
+			// Brief page content - full error details shown in admin_notices
+			$render_error = function () use ($is_dev) {
+				echo '<div class="wrap">';
+				if ($is_dev) {
+					echo '<h1>Settings Builder Errors</h1>';
+				} else {
+					echo '<h1>Settings Unavailable</h1>';
+					echo '<p>This settings page is temporarily unavailable. ';
+					echo 'Please contact the site administrator if this problem persists.</p>';
+				}
+				echo '</div>';
+			};
+
+			// Register main menu page
+			$this->_do_add_menu_page(
+				$is_dev ? 'Settings Error' : 'Settings',
+				$is_dev ? 'Settings Error' : 'Settings',
+				'manage_options',
+				$main_slug,
+				$render_error,
+				$is_dev ? 'dashicons-warning' : 'dashicons-admin-generic',
+				999
+			);
+
+			// Register subpages under the main menu
+			foreach ($page_slugs as $slug) {
+				$this->_do_add_submenu_page(
+					$main_slug,
+					$is_dev ? 'Settings Error' : 'Settings',
+					$is_dev ? 'Settings Error' : 'Settings',
+					'manage_options',
+					$slug,
+					$render_error
+				);
+			}
+		};
+
+		// Check if admin_menu has already fired
+		if ($this->_do_did_action('admin_menu')) {
+			$register_pages();
+		} else {
+			\add_action('admin_menu', $register_pages, 999);
+		}
+	}
+
+	/**
+	 * Extract page slugs from the current builder state.
+	 *
+	 * This method should be overridden by AdminSettings/UserSettings to access
+	 * their specific data structures.
+	 *
+	 * @return array<string> List of page slugs that were being registered.
+	 */
+	protected function _extract_page_slugs_from_session(): array {
+		return array();
+	}
+
+	/**
+	 * Render an admin notice for builder errors (dev mode only).
+	 *
+	 * @param \Throwable $e The caught exception or error.
+	 * @param string $hook The WordPress hook where the error occurred.
+	 * @return void
+	 */
+	protected function _render_builder_error_notice(\Throwable $e, string $hook): void {
+		$message = esc_html($e->getMessage());
+		$file    = esc_html($e->getFile());
+		$line    = (int) $e->getLine();
+		$trace   = esc_html($e->getTraceAsString());
+
+		echo '<div class="notice notice-error">';
+		echo '<p><strong>Settings Builder Error</strong> (on <code>' . esc_html($hook) . '</code> hook)</p>';
+		echo '<p>' . $message . '</p>';
+		echo '<p><small>' . $file . ':' . $line . '</small></p>';
+		echo '<details><summary>Stack Trace</summary><pre style="overflow:auto;max-height:300px;font-size:11px;">' . $trace . '</pre></details>';
+		echo '</div>';
+	}
+
+	/**
+	 * Check if we're in a development environment.
+	 *
+	 * Uses Config if available, falls back to WP_DEBUG.
+	 *
+	 * @return bool
+	 */
+	protected function _is_dev_environment(): bool {
+		if ($this->config !== null && method_exists($this->config, 'is_dev_environment')) {
+			return $this->config->is_dev_environment();
+		}
+		return \defined('WP_DEBUG') && \WP_DEBUG;
 	}
 
 	// -- Builder Update Handlers --
@@ -2510,7 +2699,7 @@ trait FormsBaseTrait {
 			'test_type' => true,  // Check MIME type
 		);
 
-		$result = wp_handle_upload($file, $overrides);
+		$result = $this->_do_wp_handle_upload($file, $overrides);
 
 		if (isset($result['error'])) {
 			$this->logger->warning('FormsBaseTrait._process_single_file_upload: Upload failed', array(
@@ -2525,7 +2714,7 @@ trait FormsBaseTrait {
 			'url'      => $result['url'],
 			'file'     => $result['file'],
 			'type'     => $result['type'],
-			'filename' => sanitize_file_name($file['name']),
+			'filename' => $this->_do_sanitize_file_name($file['name']),
 		);
 
 		// Optionally create a media library attachment
@@ -2556,9 +2745,9 @@ trait FormsBaseTrait {
 			'post_status'    => 'inherit',
 		);
 
-		$attachmentId = wp_insert_attachment($attachment, $filePath);
+		$attachmentId = $this->_do_wp_insert_attachment($attachment, $filePath);
 
-		if (is_wp_error($attachmentId)) {
+		if ($this->_do_is_wp_error($attachmentId)) {
 			$this->logger->warning('FormsBaseTrait._create_media_attachment: Failed to create attachment', array(
 				'error' => $attachmentId->get_error_message(),
 			));
@@ -2567,8 +2756,8 @@ trait FormsBaseTrait {
 
 		// Generate attachment metadata
 		require_once ABSPATH . 'wp-admin/includes/image.php';
-		$attachmentData = wp_generate_attachment_metadata($attachmentId, $filePath);
-		wp_update_attachment_metadata($attachmentId, $attachmentData);
+		$attachmentData = $this->_do_wp_generate_attachment_metadata($attachmentId, $filePath);
+		$this->_do_wp_update_attachment_metadata($attachmentId, $attachmentData);
 
 		return $attachmentId;
 	}

@@ -103,6 +103,38 @@ final class Settings implements FormsInterface {
 	}
 
 	/**
+	 * Bootstrap the settings by registering all WordPress hooks.
+	 *
+	 * This finalizes the builder configuration and registers the necessary
+	 * WordPress hooks for rendering and saving:
+	 * - For AdminSettings: registers admin menu pages, settings sections, and save handlers
+	 * - For UserSettings: registers profile render and save hooks
+	 *
+	 * Must be called after all builder methods (settings_page, collection, section,
+	 * field, etc.) have been invoked. If using `safe_boot()`, this is called
+	 * automatically after the callback completes successfully.
+	 *
+	 * @return void
+	 */
+	public function boot(): void {
+		$this->inner->boot();
+	}
+
+	/**
+	 * Execute a builder callback with error protection.
+	 *
+	 * Wraps the callback in a try-catch to prevent builder errors from crashing the site.
+	 * On error, logs the exception and displays an admin notice in dev mode.
+	 * Automatically calls boot() after the callback completes successfully.
+	 *
+	 * @param callable $callback The builder callback, receives $this as argument.
+	 * @return void
+	 */
+	public function safe_boot(callable $callback): void {
+		$this->inner->safe_boot($callback);
+	}
+
+	/**
 	 * Register multiple external components from a directory.
 	 *
 	 * Requires Config to be provided at construction time for namespace resolution.

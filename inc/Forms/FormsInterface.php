@@ -46,6 +46,18 @@ interface FormsInterface {
 	public function boot(): void;
 
 	/**
+	 * Execute a builder callback with error protection.
+	 *
+	 * Wraps the callback in a try-catch to prevent builder errors from crashing the site.
+	 * On error, logs the exception and displays an admin notice in dev mode.
+	 * Automatically calls boot() after the callback completes successfully.
+	 *
+	 * @param callable $callback The builder callback, receives $this as argument.
+	 * @return void
+	 */
+	public function safe_boot(callable $callback): void;
+
+	/**
 	 * Override specific form-wide defaults for AdminForms context.
 	 * Allows developers to customize specific templates without replacing all defaults.
 	 *

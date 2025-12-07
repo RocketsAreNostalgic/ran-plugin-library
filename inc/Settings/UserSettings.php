@@ -772,4 +772,40 @@ class UserSettings implements FormsInterface {
 		$processed = $this->_process_uploaded_files();
 		return array_merge($payload, $processed);
 	}
+
+	/**
+	 * Extract collection IDs from the current builder state for error fallback.
+	 *
+	 * @return array<string> List of collection IDs that were being registered.
+	 */
+	protected function _extract_page_slugs_from_session(): array {
+		return array_keys($this->collections);
+	}
+
+	/**
+	 * Register fallback error display for UserSettings.
+	 *
+	 * Shows a brief inline notice in the profile page where collections would render.
+	 * The full error details are shown via admin_notices (handled by base trait).
+	 *
+	 * @param \Throwable $e The caught exception or error.
+	 * @param string $hook The WordPress hook or context where the error occurred.
+	 * @param bool $is_dev Whether we're in development mode (show full details).
+	 * @return void
+	 */
+	protected function _register_error_fallback_pages(\Throwable $e, string $hook, bool $is_dev): void {
+		$render_error = function () use ($is_dev) {
+			echo '<div class="user-settings-error" style="margin: 20px 0; padding: 12px 15px; background: #fff; border-left: 4px solid #dc3232;">';
+			if ($is_dev) {
+				echo '<strong>User Settings Error</strong> — See admin notice above for details.';
+			} else {
+				echo '<strong>Settings Unavailable</strong> — Please contact the site administrator.';
+			}
+			echo '</div>';
+		};
+
+		// Register on profile hooks so placeholder shows where collections would be
+		$this->_do_add_action('show_user_profile', $render_error, 10, 1);
+		$this->_do_add_action('edit_user_profile', $render_error, 10, 1);
+	}
 }
