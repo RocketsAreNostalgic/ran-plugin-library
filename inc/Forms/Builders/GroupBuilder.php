@@ -59,33 +59,33 @@ class GroupBuilder extends SectionFieldContainerBuilder implements GroupBuilderI
 	 * @param string $component The component alias.
 	 * @param array<string,mixed> $args Optional arguments.
 	 *
-	 * @return GroupFieldProxy The proxy instance with correct return type for end_field().
+	 * @return ComponentBuilderProxy<GroupBuilder> The proxy instance with correct return type for end_field().
 	 */
-	public function field(string $field_id, string $label, string $component, array $args = array()): GroupFieldProxy {
+	public function field(string $field_id, string $label, string $component, array $args = array()): ComponentBuilderProxy {
 		$proxy = parent::field($field_id, $label, $component, $args);
-		if (!$proxy instanceof GroupFieldProxy) {
+		if (!$proxy instanceof ComponentBuilderProxy) {
 			throw new \RuntimeException('Unexpected proxy type from parent::field()');
 		}
 		return $proxy;
 	}
 
 	/**
-	 * Factory method to create a GroupFieldProxy.
+	 * Factory method to create a ComponentBuilderProxy.
 	 *
 	 * @param ComponentBuilderDefinitionInterface $builder The component builder.
 	 * @param string $component_alias The component alias.
 	 * @param string|null $field_template The field template override.
 	 * @param array<string,mixed> $component_context The component context.
 	 *
-	 * @return GroupFieldProxy The proxy instance.
+	 * @return ComponentBuilderProxy<GroupBuilder> The proxy instance.
 	 */
 	protected function _create_component_proxy(
 		ComponentBuilderDefinitionInterface $builder,
 		string $component_alias,
 		?string $field_template,
 		array $component_context
-	): GroupFieldProxy {
-		return new GroupFieldProxy(
+	): ComponentBuilderProxy {
+		return new ComponentBuilderProxy(
 			$builder,
 			$this,
 			$this->updateFn,
