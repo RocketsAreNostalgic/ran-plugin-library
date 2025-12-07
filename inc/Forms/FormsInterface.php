@@ -30,11 +30,20 @@ interface FormsInterface {
 
 	/**
 	 * Resolve the correctly scoped RegisterOptions instance for current context.
-	 * Callers can chain fluent API on the returned object.
 	 *
-	 * @param ?array $context optional context.
+	 * Returns the underlying RegisterOptions instance, optionally cloned with
+	 * context-specific overrides (e.g., user_id for per-user storage). This is
+	 * primarily used internally by save handlers and validation pipelines to
+	 * access storage and schema information.
 	 *
-	 * @return RegisterOptions The RegisterOptions instance.
+	 * Most developers should use the fluent builder API (settings_page, collection,
+	 * section, field, etc.) rather than calling this directly.
+	 *
+	 * @internal Advanced API for custom save handlers and storage access.
+	 *
+	 * @param ?array $context Optional context overrides (e.g., ['user_id' => 123]).
+	 *
+	 * @return RegisterOptions The scoped RegisterOptions instance.
 	 */
 	public function resolve_options(?array $context = null): RegisterOptions;
 

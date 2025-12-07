@@ -155,7 +155,7 @@ final class AdminSettingsFieldsetBuilder implements FieldsetBuilderInterface {
 	 * @return FormsInterface
 	 */
 	public function get_settings(): FormsInterface {
-		return $this->sectionBuilder->get_forms();
+		return $this->sectionBuilder->_get_forms();
 	}
 
 	// =========================================================================
@@ -179,7 +179,7 @@ final class AdminSettingsFieldsetBuilder implements FieldsetBuilderInterface {
 	 * @return callable|null
 	 */
 	protected function _get_component_builder_factory(string $component): ?callable {
-		return $this->sectionBuilder->get_component_builder_factory($component);
+		return $this->sectionBuilder->_get_component_builder_factory($component);
 	}
 
 	/**

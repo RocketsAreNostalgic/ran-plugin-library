@@ -260,7 +260,14 @@ class UserSettingsCollectionBuilder implements UserSettingsBuilderRootInterface 
 		return $this->settings;
 	}
 
-	public function get_forms(): FormsInterface {
+	/**
+	 * Expose the root FormsInterface to child builders.
+	 *
+	 * @internal
+	 *
+	 * @return FormsInterface
+	 */
+	public function _get_forms(): FormsInterface {
 		return $this->settings;
 	}
 

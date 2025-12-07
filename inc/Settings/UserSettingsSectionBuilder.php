@@ -306,7 +306,7 @@ class UserSettingsSectionBuilder implements SectionBuilderInterface {
 	 *
 	 * @return FormsInterface
 	 */
-	public function get_forms(): FormsInterface {
+	public function _get_forms(): FormsInterface {
 		return $this->collectionBuilder->get_settings();
 	}
 
@@ -317,12 +317,14 @@ class UserSettingsSectionBuilder implements SectionBuilderInterface {
 	 *
 	 * @return callable|null
 	 */
-	public function get_component_builder_factory(string $component): ?callable {
+	public function _get_component_builder_factory(string $component): ?callable {
 		return $this->_get_section_component_builder_factory($component);
 	}
 
 	/**
 	 * Get the component builder factory for a given component alias.
+	 *
+	 * @internal
 	 *
 	 * @param string $component The component alias.
 	 *

@@ -69,7 +69,7 @@ class SectionBuilder implements SectionBuilderInterface {
 			throw new \InvalidArgumentException('updateFn is required');
 		}
 		$this->collectionBuilder = $collectionBuilder;
-		$this->forms             = $collectionBuilder->get_forms();
+		$this->forms             = $collectionBuilder->_get_forms();
 		$this->container_id      = $container_id;
 		$this->section_id        = $section_id;
 		$this->heading           = $heading;
@@ -246,7 +246,7 @@ class SectionBuilder implements SectionBuilderInterface {
 			throw new \InvalidArgumentException(sprintf('Field "%s" must provide an array component_context.', $field_id));
 		}
 
-		$factory = $this->get_component_builder_factory($component);
+		$factory = $this->_get_component_builder_factory($component);
 		if (!($factory instanceof \Closure || is_callable($factory))) {
 			throw new \InvalidArgumentException(sprintf(
 				'Field "%s" uses component "%s" which has no registered builder factory.',
@@ -379,24 +379,26 @@ class SectionBuilder implements SectionBuilderInterface {
 	 *
 	 * @return FormsInterface
 	 */
-	public function get_forms(): FormsInterface {
+	public function _get_forms(): FormsInterface {
 		return $this->forms;
 	}
 
 	/**
 	 * Get the component builder factory for the given component.
 	 *
+	 * @internal
+	 *
 	 * @param string $component The component alias.
 	 *
 	 * @return callable|null The component builder factory.
 	 */
-	public function get_component_builder_factory(string $component): ?callable {
+	public function _get_component_builder_factory(string $component): ?callable {
 		if ($component === '') {
 			return null;
 		}
 
 		if ($this->componentBuilderFactories === null) {
-			$forms   = $this->get_forms();
+			$forms   = $this->_get_forms();
 			$session = $forms->get_form_session();
 			if ($session === null) {
 				$this->componentBuilderFactories = array();

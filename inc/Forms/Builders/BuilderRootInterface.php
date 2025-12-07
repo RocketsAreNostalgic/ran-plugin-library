@@ -51,7 +51,7 @@ interface BuilderRootInterface extends BuilderChildInterface {
 	 *
 	 * @return FormsInterface
 	 */
-	public function get_forms(): FormsInterface;
+	public function _get_forms(): FormsInterface;
 
 	/**
 	 * Alias for backward compatibility with existing builder APIs.

@@ -335,7 +335,7 @@ trait SectionBuilderTrait {
 	 *
 	 * @return FormsInterface
 	 */
-	abstract public function get_forms(): FormsInterface;
+	abstract public function _get_forms(): FormsInterface;
 
 	/**
 	 * Get the component builder factory for a given component alias.
