@@ -152,20 +152,31 @@ trait FormsBaseTrait {
 	/**
 	 * Execute a builder callback with error protection.
 	 *
+	 * !! Important: Type-hint the callback parameter for IDE autocomplete:
+	 * `function(AdminSettings $s)` or `function(UserSettings $s)`
+	 *
 	 * Wraps the callback in a try-catch to prevent builder errors from crashing the site.
 	 * On error, logs the exception and displays an admin notice in dev mode.
 	 * Automatically calls boot() after the callback completes successfully.
 	 *
 	 * Usage:
 	 * ```php
-	 * $settings->safe_boot(function($s) {
+	 * // AdminSettings example:
+	 * $settings->safe_boot(function(AdminSettings $s) {
 	 *     $s->settings_page('my-page')
 	 *         ->section('my-section', 'My Section')
 	 *             ->field('my_field', 'My Field', 'fields.input')
-	 *             ->end_field()
 	 *         ->end_section()
-	 *         ->end_page()
-	 *         ->end_menu();
+	 *     ->end_page();
+	 * });
+	 *
+	 * // UserSettings example:
+	 * $settings->safe_boot(function(UserSettings $s) {
+	 *     $s->collection('profile')
+	 *         ->section('my-section', 'My Section')
+	 *             ->field('my_field', 'My Field', 'fields.input')
+	 *         ->end_section()
+	 *     ->end_collection();
 	 * });
 	 * ```
 	 *
@@ -174,7 +185,7 @@ trait FormsBaseTrait {
 	 */
 	public function safe_boot(callable $callback): void {
 		try {
-			$callback($this);
+			$callback($this); // Type-hint the callback parameter for IDE autocomplete.
 			$this->boot();
 		} catch (\Throwable $e) {
 			$this->_handle_builder_error($e, 'safe_boot');
