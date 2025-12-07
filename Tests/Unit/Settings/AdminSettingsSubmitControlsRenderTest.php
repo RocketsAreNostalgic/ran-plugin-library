@@ -75,7 +75,7 @@ final class AdminSettingsSubmitControlsRenderTest extends TestCase {
 		    ->page('defaults-page')
 		        ->heading('Default Submit Page')
 		    ->end_page()
-		->end_menu_group();
+		->end_menu();
 
 		$this->setOptionValues(array('example_field' => 'value'));
 
@@ -161,7 +161,7 @@ final class AdminSettingsSubmitControlsRenderTest extends TestCase {
 		            ->button('sooner', 'First Button')->order(10)
 		        ->end_submit_controls()
 		    ->end_page()
-		->end_menu_group();
+		->end_menu();
 
 		$this->setOptionValues(array('example_field' => 'value'));
 
@@ -192,7 +192,7 @@ final class AdminSettingsSubmitControlsRenderTest extends TestCase {
 		            ->button('beta', 'Beta')->order(15)
 		        ->end_submit_controls()
 		    ->end_page()
-		->end_menu_group();
+		->end_menu();
 
 		$this->setOptionValues(array('example_field' => 'value'));
 
@@ -221,7 +221,7 @@ final class AdminSettingsSubmitControlsRenderTest extends TestCase {
 		            ->button('second', 'Second')->order(2)
 		        ->end_submit_controls()
 		    ->end_page()
-		->end_menu_group();
+		->end_menu();
 
 		$this->setOptionValues(array('example_field' => 'value'));
 		$beforeCount = $this->countLogsForMessage('forms.submit_controls.controls.updated');
@@ -241,7 +241,7 @@ final class AdminSettingsSubmitControlsRenderTest extends TestCase {
 		    ->page('missing-fallback-page')
 		        ->heading('Fallback Page')
 		    ->end_page()
-		->end_menu_group();
+		->end_menu();
 
 		// Simulate missing canonical definition.
 		$property = new ReflectionProperty($settings, 'submit_controls');
@@ -273,7 +273,7 @@ final class AdminSettingsSubmitControlsRenderTest extends TestCase {
 		$pageBuilder = $menuBuilder->page('empty-fallback-page')->heading('Empty Controls Page');
 		$pageBuilder->submit_controls()->end_submit_controls();
 		$pageBuilder->end_page();
-		$menuBuilder->end_menu_group();
+		$menuBuilder->end_menu();
 
 		$this->setOptionValues(array('example_field' => 'value'));
 		$this->resetLogger();

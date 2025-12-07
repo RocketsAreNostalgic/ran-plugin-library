@@ -67,7 +67,7 @@ final class SettingsEntryPointFluentBuilderTest extends TestCase {
 
 		$this->assertInstanceOf(AdminSettingsPageBuilder::class, $page_builder);
 
-		$this->assertInstanceOf(AdminSettings::class, $page_builder->end_page()->end_menu_group());
+		$this->assertInstanceOf(AdminSettings::class, $page_builder->end_page()->end_menu());
 	}
 
 	/**

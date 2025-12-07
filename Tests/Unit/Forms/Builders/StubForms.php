@@ -23,6 +23,10 @@ final class StubForms implements FormsInterface {
 		// Not used in tests.
 	}
 
+	public function safe_boot(callable $callback): void {
+		// No-op for tests.
+	}
+
 	public function override_form_defaults(array $overrides): void {
 		// No-op for tests.
 	}

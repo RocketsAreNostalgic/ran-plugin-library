@@ -192,7 +192,7 @@ class SettingsIntegrationSeamsTest extends PluginLibTestCase {
 					->field('test_field', 'Test Field', 'test.input')
 				->end_section()
 			->end_page()
-		->end_menu_group();
+		->end_menu();
 
 		// Act: Render crosses Settings → Manifest → Loader boundary
 		$output = $this->captureOutput(fn() => $settings->_render('test-page'));
@@ -246,7 +246,7 @@ class SettingsIntegrationSeamsTest extends PluginLibTestCase {
 					->field('schema_field', 'Schema Field', 'fields.input')
 				->end_section()
 			->end_page()
-		->end_menu_group();
+		->end_menu();
 
 		$this->captureOutput(fn() => $settings->_render('sp'));
 
@@ -447,7 +447,7 @@ return new ComponentRenderResult(
 						->field('ext_field', 'External Field', 'ext.seam-component')
 					->end_section()
 				->end_page()
-			->end_menu_group();
+			->end_menu();
 
 			$output = $this->captureOutput(fn() => $settings->_render('ext-page'));
 
@@ -568,7 +568,7 @@ return new ComponentRenderResult(
 					->field('roundtrip_field', 'Roundtrip Field', 'fields.input')
 				->end_section()
 			->end_page()
-		->end_menu_group();
+		->end_menu();
 
 		// Step 1: Initial render shows stored value (NOT sanitized - sanitizers run on save, not read)
 		$output1 = $this->captureOutput(fn() => $settings->_render('rt-page'));
@@ -591,7 +591,7 @@ return new ComponentRenderResult(
 					->field('roundtrip_field', 'Roundtrip Field', 'fields.input')
 				->end_section()
 			->end_page()
-		->end_menu_group();
+		->end_menu();
 
 		$output2 = $this->captureOutput(fn() => $settings2->_render('rt-page'));
 		self::assertStringContainsString('value="NEW_VALUE"', $output2);
@@ -718,7 +718,7 @@ return new ComponentRenderResult(
 					->field('validated_field', 'Validated Field', 'fields.input')
 				->end_section()
 			->end_page()
-		->end_menu_group();
+		->end_menu();
 
 		$this->captureOutput(fn() => $settings->_render('vf-page'));
 

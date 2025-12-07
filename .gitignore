@@ -52,3 +52,4 @@ coverage/
 .taskmaster/
 tasks.json
 tasks/
+Tests/Unit/mock-plugin-file.php

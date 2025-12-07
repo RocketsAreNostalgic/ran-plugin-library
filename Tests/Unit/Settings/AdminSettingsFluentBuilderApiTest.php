@@ -156,7 +156,7 @@ class AdminSettingsFluentBuilderApiTest extends TestCase {
 					->end_fieldset()
 				->end_section()
 			->end_page()
-		->end_menu_group();
+		->end_menu();
 
 		$fieldsetMetadataLogs = $this->logger_mock->find_logs(static function (array $entry): bool {
 			return $entry['message']                           === 'settings.builder.group.metadata'
@@ -221,7 +221,7 @@ class AdminSettingsFluentBuilderApiTest extends TestCase {
 					->field('submit', 'Save Settings', 'fields.input')->end_field()
 				->end_section()
 			->end_page()
-		->end_menu_group();
+		->end_menu();
 
 		$pageLogs = $this->logger_mock->find_logs(static function (array $entry): bool {
 			return $entry['message']                        === 'settings.builder.page.updated'
@@ -359,7 +359,7 @@ class AdminSettingsFluentBuilderApiTest extends TestCase {
 					->field('advanced_field', 'Advanced Field', 'fields.input')->end_field()
 				->end_section()
 			->end_page()
-		->end_menu_group();
+		->end_menu();
 
 		$pageLogs = $this->logger_mock->find_logs(static function (array $entry): bool {
 			return $entry['message']                       === 'settings.builder.page.updated'
@@ -400,7 +400,7 @@ class AdminSettingsFluentBuilderApiTest extends TestCase {
 					->end_group()
 				->end_section()
 			->end_page()
-		->end_menu_group();
+		->end_menu();
 
 		$groupMetadataLogs = $this->logger_mock->find_logs(static function (array $entry): bool {
 			return $entry['message']                           === 'settings.builder.group.metadata'
@@ -456,7 +456,7 @@ class AdminSettingsFluentBuilderApiTest extends TestCase {
 					->end_group()
 				->end_section()
 			->end_page()
-		->end_menu_group();
+		->end_menu();
 
 		$fieldLogs = $this->logger_mock->find_logs(static function (array $entry): bool {
 			return $entry['message']                           === 'settings.builder.field.updated'
@@ -522,7 +522,7 @@ class AdminSettingsFluentBuilderApiTest extends TestCase {
 		$groupBuilder   = $sectionBuilder->group('implicit-group', 'Implicit Group');
 		$groupBuilder->field('group_field', 'Implicit Field', 'fields.input')->end_field();
 
-		$groupBuilder->end_group()->end_section()->end_page()->end_menu_group();
+		$groupBuilder->end_group()->end_section()->end_page()->end_menu();
 
 		$reflection = new \ReflectionClass($admin);
 		$groupsProp = $reflection->getProperty('groups');
@@ -553,7 +553,7 @@ class AdminSettingsFluentBuilderApiTest extends TestCase {
 		$fieldsetBuilder = $sectionBuilder->fieldset('implicit-fieldset', 'Implicit Fieldset');
 		$fieldsetBuilder->field('contact_email', 'Implicit Field', 'fields.input');
 
-		$fieldsetBuilder->end_fieldset()->end_section()->end_page()->end_menu_group();
+		$fieldsetBuilder->end_fieldset()->end_section()->end_page()->end_menu();
 
 		$reflection = new \ReflectionClass($admin);
 		$groupsProp = $reflection->getProperty('groups');

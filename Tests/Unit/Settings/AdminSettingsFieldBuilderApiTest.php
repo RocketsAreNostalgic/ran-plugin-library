@@ -59,7 +59,7 @@ final class AdminSettingsFieldBuilderApiTest extends TestCase {
 		            ->end_field()
 		        ->end_section()
 		    ->end_page()
-		->end_menu_group();
+		->end_menu();
 
 		$fieldLogs = $this->logger_mock->find_logs(static function (array $entry): bool {
 			return $entry['message']                           === 'settings.builder.field.updated'
@@ -116,7 +116,7 @@ final class AdminSettingsFieldBuilderApiTest extends TestCase {
 		            ->end_field()
 		        ->end_section()
 		    ->end_page()
-		->end_menu_group();
+		->end_menu();
 
 		$buttonLogs = $this->logger_mock->find_logs(static function (array $entry): bool {
 			return $entry['message']                           === 'settings.builder.field.updated'

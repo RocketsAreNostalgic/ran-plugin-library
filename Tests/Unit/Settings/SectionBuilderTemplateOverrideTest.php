@@ -139,7 +139,7 @@ class SectionBuilderTemplateOverrideTest extends TestCase {
 					->field('test_field', 'Test Field', 'fields.input')
 				->end_section()
 			->end_page()
-		->end_menu_group();
+		->end_menu();
 
 		$logs = $this->findTemplateOverrideLogs('template-section', 'field-wrapper');
 		self::assertNotEmpty($logs, 'Expected template_override log for field-wrapper.');
@@ -163,7 +163,7 @@ class SectionBuilderTemplateOverrideTest extends TestCase {
 					->field('test_field', 'Test Field', 'fields.input')
 				->end_section()
 			->end_page()
-		->end_menu_group();
+		->end_menu();
 
 		$logs = $this->findTemplateOverrideLogs('template-section', 'group-wrapper');
 		self::assertNotEmpty($logs, 'Expected template_override log for group-wrapper.');
@@ -187,7 +187,7 @@ class SectionBuilderTemplateOverrideTest extends TestCase {
 					->field('test_field', 'Test Field', 'fields.input')
 				->end_section()
 			->end_page()
-		->end_menu_group();
+		->end_menu();
 
 		$logs = $this->findTemplateOverrideLogs('template-section', 'section-wrapper');
 		self::assertNotEmpty($logs, 'Expected template_override log for section-wrapper.');
@@ -211,7 +211,7 @@ class SectionBuilderTemplateOverrideTest extends TestCase {
 					->field('test_field', 'Test Field', 'fields.input')
 				->end_section()
 			->end_page()
-		->end_menu_group();
+		->end_menu();
 
 		$logs = $this->findTemplateOverrideLogs('template-section', 'fieldset-wrapper');
 		self::assertNotEmpty($logs, 'Expected template_override log for fieldset-wrapper.');
@@ -321,7 +321,7 @@ class SectionBuilderTemplateOverrideTest extends TestCase {
 					->field('test_field', 'Test Field', 'fields.input')
 				->end_section()
 			->end_page()
-		->end_menu_group();
+		->end_menu();
 
 		$fieldLogs    = $this->findTemplateOverrideLogs('multi-override-section', 'field-wrapper');
 		$groupLogs    = $this->findTemplateOverrideLogs('multi-override-section', 'group-wrapper');

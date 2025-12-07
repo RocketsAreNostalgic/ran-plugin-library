@@ -31,11 +31,11 @@ use Ran\PluginLib\Settings\UserSettings;
 use Ran\PluginLib\Settings\AdminSettings;
 use Ran\PluginLib\Options\Storage\StorageContext;
 use Ran\PluginLib\Options\RegisterOptions;
+use Ran\PluginLib\Forms\Components\Fields\Input\Builder as InputBuilder;
 use Ran\PluginLib\Forms\Component\ComponentRenderResult;
 use Ran\PluginLib\Forms\Component\ComponentManifest;
 use Ran\PluginLib\Forms\Component\ComponentLoader;
 use Ran\PluginLib\Config\ConfigInterface;
-use Ran\PluginLib\Forms\Components\Fields\Input\Builder as InputBuilder;
 
 /**
  * @covers \Ran\PluginLib\Settings\UserSettings
@@ -237,7 +237,7 @@ final class BeforeAfterHooksSequenceTest extends PluginLibTestCase {
 					->end_field()
 				->end_section()
 			->end_page()
-		->end_menu_group();
+		->end_menu();
 
 		$output = $this->captureOutput(fn() => $settings->_render('admin-page'));
 
@@ -275,7 +275,7 @@ final class BeforeAfterHooksSequenceTest extends PluginLibTestCase {
 					->end_field()
 				->end_section()
 			->end_page()
-		->end_menu_group();
+		->end_menu();
 
 		$output = $this->captureOutput(fn() => $settings->_render('admin-order-page'));
 
@@ -340,7 +340,7 @@ final class BeforeAfterHooksSequenceTest extends PluginLibTestCase {
 					->end_field()
 				->end_section()
 			->end_page()
-		->end_menu_group();
+		->end_menu();
 
 		$adminOutput = $this->captureOutput(fn() => $adminSettings->_render('parity-page'));
 

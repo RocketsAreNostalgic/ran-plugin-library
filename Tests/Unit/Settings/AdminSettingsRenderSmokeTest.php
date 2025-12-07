@@ -184,7 +184,7 @@ final class AdminSettingsRenderSmokeTest extends PluginLibTestCase {
 					->field('username', 'Username', 'fields.smoke-input')
 				->end_section()
 			->end_page()
-		->end_menu_group();
+		->end_menu();
 
 		$this->captureOutput(function (): void {
 			$this->settings->_render('smoke-page');
@@ -230,7 +230,7 @@ final class AdminSettingsRenderSmokeTest extends PluginLibTestCase {
 					))
 				->end_section()
 			->end_page()
-		->end_menu_group();
+		->end_menu();
 
 		$this->captureOutput(function (): void {
 			$this->settings->_render('attr-page');
@@ -270,7 +270,7 @@ final class AdminSettingsRenderSmokeTest extends PluginLibTestCase {
 					->field('theme', 'Theme', 'fields.smoke-input')
 				->end_section()
 			->end_page()
-		->end_menu_group();
+		->end_menu();
 
 		$this->captureOutput(function (): void {
 			$this->settings->_render('default-page');
@@ -311,7 +311,7 @@ final class AdminSettingsRenderSmokeTest extends PluginLibTestCase {
 					->field('age', 'Age', 'fields.smoke-input')
 				->end_section()
 			->end_page()
-		->end_menu_group();
+		->end_menu();
 
 		$this->captureOutput(function (): void {
 			$this->settings->_render('multi-page');
@@ -350,7 +350,7 @@ final class AdminSettingsRenderSmokeTest extends PluginLibTestCase {
 					->end_group()
 				->end_section()
 			->end_page()
-		->end_menu_group();
+		->end_menu();
 
 		$this->captureOutput(function (): void {
 			$this->settings->_render('group-page');
@@ -380,7 +380,7 @@ final class AdminSettingsRenderSmokeTest extends PluginLibTestCase {
 					->end_fieldset()
 				->end_section()
 			->end_page()
-		->end_menu_group();
+		->end_menu();
 
 		$this->captureOutput(function (): void {
 			$this->settings->_render('fieldset-page');
@@ -564,7 +564,7 @@ class Normalizer {
 						->field('field_1', 'Label 1', 'ext.view-only')
 					->end_section()
 				->end_page()
-			->end_menu_group();
+			->end_menu();
 
 			$output = $this->captureOutput(fn() => $settings->_render('p1'));
 
@@ -608,7 +608,7 @@ class Normalizer {
 						->field('field_2', 'Label 2', 'ext.with-validator')
 					->end_section()
 				->end_page()
-			->end_menu_group();
+			->end_menu();
 
 			$output = $this->captureOutput(fn() => $settings->_render('p2'));
 
@@ -651,7 +651,7 @@ class Normalizer {
 						->field('field_3', 'Label 3', 'ext.with-normalizer')
 					->end_section()
 				->end_page()
-			->end_menu_group();
+			->end_menu();
 
 			$output = $this->captureOutput(fn() => $settings->_render('p3'));
 
@@ -695,7 +695,7 @@ class Normalizer {
 						->field('field_4', 'Label 4', 'ext.full-stack')
 					->end_section()
 				->end_page()
-			->end_menu_group();
+			->end_menu();
 
 			$output = $this->captureOutput(fn() => $settings->_render('p4'));
 
@@ -742,7 +742,7 @@ class Normalizer {
 						))
 					->end_section()
 				->end_page()
-			->end_menu_group();
+			->end_menu();
 
 			$output = $this->captureOutput(fn() => $settings->_render('p5'));
 
@@ -790,7 +790,7 @@ class Normalizer {
 						))
 					->end_section()
 				->end_page()
-			->end_menu_group();
+			->end_menu();
 
 			$output = $this->captureOutput(fn() => $settings->_render('p6'));
 
@@ -838,7 +838,7 @@ class Normalizer {
 						))
 					->end_section()
 				->end_page()
-			->end_menu_group();
+			->end_menu();
 
 			$output = $this->captureOutput(fn() => $settings->_render('p7'));
 
@@ -888,7 +888,7 @@ class Normalizer {
 						))
 					->end_section()
 				->end_page()
-			->end_menu_group();
+			->end_menu();
 
 			$output = $this->captureOutput(fn() => $settings->_render('p8'));
 
@@ -967,7 +967,7 @@ class Normalizer {
 						->field('field_c', 'Field C', 'batch.component-c')
 					->end_section()
 				->end_page()
-			->end_menu_group();
+			->end_menu();
 
 			$output = $this->captureOutput(fn() => $settings->_render('batch-page'));
 
@@ -1023,7 +1023,7 @@ class Normalizer {
 						))
 					->end_section()
 				->end_page()
-			->end_menu_group();
+			->end_menu();
 
 			$output = $this->captureOutput(fn() => $settings->_render('st-page'));
 
@@ -1069,7 +1069,7 @@ class Normalizer {
 						))
 					->end_section()
 				->end_page()
-			->end_menu_group();
+			->end_menu();
 
 			$output = $this->captureOutput(fn() => $settings->_render('sch-page'));
 
@@ -1112,7 +1112,7 @@ class Normalizer {
 						->field('field_b', 'Field B', 'ext.multi-field')
 					->end_section()
 				->end_page()
-			->end_menu_group();
+			->end_menu();
 
 			$output = $this->captureOutput(fn() => $settings->_render('mf-page'));
 
@@ -1166,7 +1166,7 @@ class Normalizer {
 						))
 					->end_section()
 				->end_page()
-			->end_menu_group();
+			->end_menu();
 
 			$output = $this->captureOutput(fn() => $settings->_render('cx-page'));
 
@@ -1230,7 +1230,7 @@ class Normalizer {
 						->field('san_field', 'Sanitize Field', 'ext.sanitize-comp')
 					->end_section()
 				->end_page()
-			->end_menu_group();
+			->end_menu();
 
 			// Render first to register field metadata
 			$this->captureOutput(fn() => $settings->_render('ss-page'));
@@ -1290,7 +1290,7 @@ class Normalizer {
 						->field('val_field', 'Validate Field', 'ext.validate-comp')
 					->end_section()
 				->end_page()
-			->end_menu_group();
+			->end_menu();
 
 			// Render first
 			$this->captureOutput(fn() => $settings->_render('sv-page'));
@@ -1344,7 +1344,7 @@ class Normalizer {
 						->field('acc_field', 'Accept Field', 'ext.accept-comp')
 					->end_section()
 				->end_page()
-			->end_menu_group();
+			->end_menu();
 
 			$this->captureOutput(fn() => $settings->_render('sa-page'));
 
@@ -1409,7 +1409,7 @@ class Normalizer {
 						->field('multi_field', 'Multi Field', 'ext.multi-san-comp')
 					->end_section()
 				->end_page()
-			->end_menu_group();
+			->end_menu();
 
 			$this->captureOutput(fn() => $settings->_render('sm-page'));
 
@@ -1485,7 +1485,7 @@ class Normalizer {
 						->field('merge_field', 'Merge Field', 'ext.merge-comp')
 					->end_section()
 				->end_page()
-			->end_menu_group();
+			->end_menu();
 
 			$this->captureOutput(fn() => $settings->_render('mg-page'));
 
@@ -1576,7 +1576,7 @@ PHP;
 						->field('int_field', 'Integration Field', 'ext.integration-validator')
 					->end_section()
 				->end_page()
-			->end_menu_group();
+			->end_menu();
 
 			// Render to register field metadata
 			$this->captureOutput(fn() => $settings->_render('iv-page'));
@@ -1651,7 +1651,7 @@ PHP;
 						->field('acc_field', 'Accept Field', 'ext.integration-validator-accept')
 					->end_section()
 				->end_page()
-			->end_menu_group();
+			->end_menu();
 
 			$this->captureOutput(fn() => $settings->_render('iva-page'));
 
@@ -1748,7 +1748,7 @@ PHP;
 						->field('san_field', 'Sanitize Field', 'ext.integration-sanitizer')
 					->end_section()
 				->end_page()
-			->end_menu_group();
+			->end_menu();
 
 			$this->captureOutput(fn() => $settings->_render('is-page'));
 

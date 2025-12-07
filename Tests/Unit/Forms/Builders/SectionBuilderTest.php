@@ -160,7 +160,7 @@ final class SectionBuilderTest extends TestCase {
 				parent::__construct($root, $container, $section, $heading, $updateFn);
 			}
 
-			public function get_component_builder_factory(string $component): ?callable {
+			public function _get_component_builder_factory(string $component): ?callable {
 				return $this->factories[$component] ?? null;
 			}
 		};

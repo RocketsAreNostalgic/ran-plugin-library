@@ -43,7 +43,7 @@ final class StubRootBuilder implements BuilderRootInterface {
 		return $this->forms;
 	}
 
-	public function get_forms(): FormsInterface {
+	public function _get_forms(): FormsInterface {
 		return $this->forms;
 	}
 

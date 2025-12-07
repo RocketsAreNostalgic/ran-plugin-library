@@ -16,13 +16,13 @@ use Ran\PluginLib\Options\RegisterOptions;
 use Ran\PluginLib\Forms\Renderer\FormElementRenderer;
 use Ran\PluginLib\Forms\FormsServiceSession;
 use Ran\PluginLib\Forms\FormsService;
+use Ran\PluginLib\Forms\Components\Fields\Input\Builder as InputBuilder;
 use Ran\PluginLib\Forms\Component\Validate\ValidatorInterface;
 use Ran\PluginLib\Forms\Component\ComponentType;
 use Ran\PluginLib\Forms\Component\ComponentRenderResult;
 use Ran\PluginLib\Forms\Component\ComponentManifest;
 use Ran\PluginLib\Forms\Component\ComponentLoader;
 use Ran\PluginLib\EnqueueAccessory\ScriptDefinition;
-use Ran\PluginLib\Forms\Components\Fields\Input\Builder as InputBuilder;
 use Mockery;
 use InvalidArgumentException;
 
@@ -200,7 +200,7 @@ final class AdminSettingsBehaviorTest extends PluginLibTestCase {
 					->field('reference_field', 'Reference Field', 'fields.input')
 				->end_section()
 			->end_page()
-		->end_menu_group();
+		->end_menu();
 
 		$reflection = new \ReflectionClass($this->settings);
 		$pagesProp  = $reflection->getProperty('pages');
@@ -266,7 +266,7 @@ final class AdminSettingsBehaviorTest extends PluginLibTestCase {
 		            ->field('auto_field', 'Auto Field', $alias)
 		        ->end_section()
 		    ->end_page()
-		->end_menu_group();
+		->end_menu();
 
 		$this->setOptionValues(array(
 			'valid_field'   => '',
@@ -325,7 +325,7 @@ final class AdminSettingsBehaviorTest extends PluginLibTestCase {
 		            ->field('valid_field', 'Valid Field', 'fields.input')
 		        ->end_section()
 		    ->end_page()
-		->end_menu_group();
+		->end_menu();
 
 		$this->setOptionValues(array('valid_field' => 'value'));
 
@@ -360,7 +360,7 @@ final class AdminSettingsBehaviorTest extends PluginLibTestCase {
 		            ->end_group()
 		        ->end_section()
 		    ->end_page()
-		->end_menu_group();
+		->end_menu();
 
 		$this->setOptionValues(array(
 			'valid_field'   => 'value-one',
@@ -394,7 +394,7 @@ final class AdminSettingsBehaviorTest extends PluginLibTestCase {
 		        ->heading('Behavior Page')
 		        ->template($renderOverride)
 		    ->end_page()
-		->end_menu_group();
+		->end_menu();
 
 		$this->expectOptionReturn(array());
 
@@ -542,7 +542,7 @@ final class AdminSettingsBehaviorTest extends PluginLibTestCase {
 		            ->field('merge_field', 'Merge Field', 'fields.merge')
 		        ->end_section()
 		    ->end_page()
-		->end_menu_group();
+		->end_menu();
 
 		$this->setOptionValues(array('merge_field' => 'previous'));
 
@@ -654,7 +654,7 @@ final class AdminSettingsBehaviorTest extends PluginLibTestCase {
 		            ->field('trace_field', 'Trace Field', $alias)
 		        ->end_section()
 		    ->end_page()
-		->end_menu_group();
+		->end_menu();
 
 		$this->setOptionValues(array(
 			'valid_field'   => 'existing',
@@ -909,7 +909,7 @@ final class AdminSettingsBehaviorTest extends PluginLibTestCase {
 		            ->field('valid_field', 'Valid Field', 'fields.input')
 		        ->end_section()
 		    ->end_page()
-		->end_menu_group();
+		->end_menu();
 
 		$this->expectOptionReturn(array('valid_field' => 'seed'));
 
@@ -956,7 +956,7 @@ final class AdminSettingsBehaviorTest extends PluginLibTestCase {
 		            ->field('valid_field', 'Valid Field', 'fields.input')
 		        ->end_section()
 		    ->end_page()
-		->end_menu_group();
+		->end_menu();
 
 		$this->setOptionValues(array(
 			'valid_field'   => 'existing value',
@@ -1025,7 +1025,7 @@ final class AdminSettingsBehaviorTest extends PluginLibTestCase {
 			->end_submit_controls();
 
 		$pageBuilder->end_page();
-		$menuBuilder->end_menu_group();
+		$menuBuilder->end_menu();
 
 		$this->expectOptionReturn(array('asset_field' => 'value'));
 
