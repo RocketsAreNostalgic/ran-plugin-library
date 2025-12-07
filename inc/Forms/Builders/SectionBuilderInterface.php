@@ -26,16 +26,25 @@ use Ran\PluginLib\Forms\Builders\BuilderFieldContainerInterface;
  */
 interface SectionBuilderInterface extends BuilderChildInterface, BuilderFieldContainerInterface {
 	/**
-	 * Define a new field group within this section.
+	 * Add a field with a component builder to this section.
 	 *
-	 * @param string $group_id The group ID.
-	 * @param string $title The group title.
-	 * @param string|callable|null $description_cb Optional group description (string or callback).
-	 * @param array<string,mixed>|null $args Optional configuration (order, before/after callbacks, classes, etc.).
+	 * @param  string $field_id
+	 * @param  string $label
+	 * @param  string $component
+	 * @param  array  $args
 	 *
-	 * @return TGroup The GroupBuilder instance (concrete type in implementations).
+	 * @return mixed
 	 */
-	public function group(string $group_id, string $title, string|callable|null $description_cb = null, ?array $args = null): mixed;
+	public function field(string $field_id, string $label, string $component, array $args = array()): mixed;
+
+	/**
+	 * Set the field template for field wrapper customization.
+	 *
+	 * @param string $template_key The template key to use for field wrappers.
+	 *
+	 * @return static
+	 */
+	public function field_template(string $template_key): static;
 
 	/**
 	 * Define a new fieldset group within this section.
@@ -49,14 +58,44 @@ interface SectionBuilderInterface extends BuilderChildInterface, BuilderFieldCon
 	 */
 	public function fieldset(string $fieldset_id, string $title, string|callable|null $description_cb = null, ?array $args = null): mixed;
 
-	// Note: field() is inherited from BuilderFieldContainerInterface with mixed return type.
+	/**
+	 * Set the default fieldset template for all fieldsets in this section.
+	 *
+	 * @param string $template_key The template key to use for fieldset containers.
+	 *
+	 * @return static
+	 */
+	public function fieldset_template(string $template_key): static;
 
 	/**
-	 * end_group() method returns this SectionBuilder instance.
+	 * Define a new field group within this section.
 	 *
-	 * @return TSection The SectionBuilder instance (concrete type in implementations).
+	 * @param string $group_id The group ID.
+	 * @param string $title The group title.
+	 * @param string|callable|null $description_cb Optional group description (string or callback).
+	 * @param array<string,mixed>|null $args Optional configuration (order, before/after callbacks, classes, etc.).
+	 *
+	 * @return TGroup The GroupBuilder instance (concrete type in implementations).
 	 */
-	public function end_group(): mixed;
+	public function group(string $group_id, string $title, string|callable|null $description_cb = null, ?array $args = null): mixed;
+
+	/**
+	 * Set the default group template for all groups in this section.
+	 *
+	 * @param string $template_key The template key to use for group containers.
+	 *
+	 * @return static
+	 */
+	public function group_template(string $template_key): static;
+
+	/**
+	 * Set the section template for section container customization.
+	 *
+	 * @param string $template_key The template key to use for section container.
+	 *
+	 * @return static
+	 */
+	public function section_template(string $template_key): static;
 
 	/**
 	 * end_section() method returns the original Settings instance.

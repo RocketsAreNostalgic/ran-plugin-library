@@ -129,6 +129,88 @@ class SectionBuilder implements SectionBuilderInterface {
 	}
 
 	/**
+	 * Set the section template for section container customization.
+	 * Alias for template() to match SectionBuilderInterface.
+	 *
+	 * @param string $template_key The template key to use for section container.
+	 *
+	 * @return static
+	 * @throws \InvalidArgumentException If template key is empty.
+	 */
+	public function section_template(string $template_key): static {
+		return $this->template($template_key);
+	}
+
+	/**
+	 * Set the default field template for all fields in this section.
+	 *
+	 * @param string $template_key The template key to use for field wrappers.
+	 *
+	 * @return static
+	 * @throws \InvalidArgumentException If template key is empty.
+	 */
+	public function field_template(string $template_key): static {
+		$template_key = trim($template_key);
+		if ($template_key === '') {
+			throw new \InvalidArgumentException('Template key cannot be empty');
+		}
+
+		($this->updateFn)('template_override', array(
+			'element_type' => 'section',
+			'element_id'   => $this->section_id,
+			'overrides'    => array('field-wrapper' => $template_key)
+		));
+
+		return $this;
+	}
+
+	/**
+	 * Set the default fieldset template for all fieldsets in this section.
+	 *
+	 * @param string $template_key The template key to use for fieldset containers.
+	 *
+	 * @return static
+	 * @throws \InvalidArgumentException If template key is empty.
+	 */
+	public function fieldset_template(string $template_key): static {
+		$template_key = trim($template_key);
+		if ($template_key === '') {
+			throw new \InvalidArgumentException('Template key cannot be empty');
+		}
+
+		($this->updateFn)('template_override', array(
+			'element_type' => 'section',
+			'element_id'   => $this->section_id,
+			'overrides'    => array('fieldset-wrapper' => $template_key)
+		));
+
+		return $this;
+	}
+
+	/**
+	 * Set the default group template for all groups in this section.
+	 *
+	 * @param string $template_key The template key to use for group containers.
+	 *
+	 * @return static
+	 * @throws \InvalidArgumentException If template key is empty.
+	 */
+	public function group_template(string $template_key): static {
+		$template_key = trim($template_key);
+		if ($template_key === '') {
+			throw new \InvalidArgumentException('Template key cannot be empty');
+		}
+
+		($this->updateFn)('template_override', array(
+			'element_type' => 'section',
+			'element_id'   => $this->section_id,
+			'overrides'    => array('group-wrapper' => $template_key)
+		));
+
+		return $this;
+	}
+
+	/**
 	 * Set the order.
 	 *
 	 * @param int|null $order The order.
