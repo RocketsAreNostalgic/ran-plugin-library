@@ -14,16 +14,12 @@ namespace Ran\PluginLib\Forms\Builders;
 
 use Ran\PluginLib\Forms\FormsInterface;
 use Ran\PluginLib\Forms\Component\Build\ComponentBuilderDefinitionInterface;
-use Ran\PluginLib\Forms\Builders\ComponentBuilderProxy;
-use Ran\PluginLib\Forms\Builders\BuilderRootInterface;
 use Ran\PluginLib\Forms\Builders\BuilderImmediateUpdateTrait;
 
 /**
  * @internal Shared implementation for containers that live directly under a SectionBuilder.
- *
- * @template-extends FieldContainerBuilderInterface<TRoot, TSection>
  */
-abstract class SectionFieldContainerBuilder implements FieldContainerBuilderInterface {
+abstract class SectionFieldContainerBuilder {
 	use BuilderImmediateUpdateTrait;
 
 	/**

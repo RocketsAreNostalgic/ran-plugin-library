@@ -13,15 +13,66 @@
 
 namespace Ran\PluginLib\Forms\Builders;
 
-use Ran\PluginLib\Forms\Builders\FieldContainerBuilderInterface;
-use Ran\PluginLib\Forms\Builders\BuilderChildInterface;
-
 /**
  * @template TGroup of GroupBuilderInterface
  * @template TFieldset of FieldsetBuilderInterface
  * @template TSection of SectionBuilderInterface
  */
-interface SectionBuilderInterface extends BuilderChildInterface, FieldContainerBuilderInterface {
+interface SectionBuilderInterface {
+	/**
+	 * Set the heading for the current section.
+	 *
+	 * @param string $heading The heading to use for the section.
+	 *
+	 * @return static
+	 */
+	public function heading(string $heading): static;
+
+	/**
+	 * Set the description for the current section.
+	 *
+	 * @param string|callable $description A string or callback returning the description.
+	 *
+	 * @return static
+	 */
+	public function description(string|callable $description): static;
+
+	/**
+	 * Set the template for this section container.
+	 *
+	 * @param string $template_key The template key to use for the wrapper.
+	 *
+	 * @return static
+	 * @throws \InvalidArgumentException If template key is empty.
+	 */
+	public function template(string $template_key): static;
+
+	/**
+	 * Set the order for this section.
+	 *
+	 * @param int $order The order value.
+	 *
+	 * @return static
+	 */
+	public function order(int $order): static;
+
+	/**
+	 * Register a callback to run before rendering the section.
+	 *
+	 * @param callable $before The before callback.
+	 *
+	 * @return static
+	 */
+	public function before(callable $before): static;
+
+	/**
+	 * Register a callback to run after rendering the section.
+	 *
+	 * @param callable $after The after callback.
+	 *
+	 * @return static
+	 */
+	public function after(callable $after): static;
 	/**
 	 * Add a field with a component builder to this section.
 	 *

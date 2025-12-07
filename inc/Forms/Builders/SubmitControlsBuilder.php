@@ -10,7 +10,7 @@ namespace Ran\PluginLib\Forms\Builders;
 use Ran\PluginLib\Forms\Components\Elements\Button\Builder as ButtonBuilder;
 use InvalidArgumentException;
 
-final class SubmitControlsBuilder implements SubmitControlsBuilderInterface {
+final class SubmitControlsBuilder {
 	private const DEFAULT_ZONE_ID = 'primary-controls';
 
 	private BuilderRootInterface $rootBuilder;

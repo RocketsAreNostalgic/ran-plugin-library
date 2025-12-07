@@ -19,7 +19,6 @@ namespace Ran\PluginLib\Forms\Builders;
 use Ran\PluginLib\Forms\Component\Build\ComponentBuilderInterface;
 use Ran\PluginLib\Forms\Component\Build\ComponentBuilderBase;
 use Ran\PluginLib\Forms\Builders\Traits\FieldProxyTrait;
-use Ran\PluginLib\Forms\Builders\FieldProxyInterface;
 
 /**
  * Generic field builder that preserves parent type for IDE autocomplete.
@@ -29,7 +28,7 @@ use Ran\PluginLib\Forms\Builders\FieldProxyInterface;
  *
  * @template TParent of object
  */
-class GenericFieldBuilder implements FieldProxyInterface, ComponentBuilderInterface {
+class GenericFieldBuilder implements ComponentBuilderInterface {
 	use FieldProxyTrait;
 
 	/**

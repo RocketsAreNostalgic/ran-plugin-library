@@ -16,7 +16,6 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\Forms\Builders;
 
-use Ran\PluginLib\Forms\Builders\BuilderChildInterface;
 use Ran\PluginLib\Forms\FormsInterface;
 
 /**
@@ -25,7 +24,62 @@ use Ran\PluginLib\Forms\FormsInterface;
  * Provides consistent API for building structures with sections,
  * template overrides, and priority/ordering across different WordPress contexts.
  */
-interface BuilderRootInterface extends BuilderChildInterface {
+interface BuilderRootInterface {
+	/**
+	 * Set the heading for the current container.
+	 *
+	 * @param string $heading The heading to use for the container.
+	 *
+	 * @return static
+	 */
+	public function heading(string $heading): static;
+
+	/**
+	 * Set the description for the current container.
+	 *
+	 * @param string|callable $description A string or callback returning the description.
+	 *
+	 * @return static
+	 */
+	public function description(string|callable $description): static;
+
+	/**
+	 * Set the template for this current container.
+	 *
+	 * @param string $template_key The template key to use for the wrapper.
+	 *
+	 * @return static
+	 * @throws \InvalidArgumentException If template key is empty.
+	 */
+	public function template(string $template_key): static;
+
+	/**
+	 * Set the order for this container.
+	 *
+	 * @param int $order The order value.
+	 *
+	 * @return static
+	 */
+	public function order(int $order): static;
+
+	/**
+	 * Register a callback to run before rendering the container.
+	 *
+	 * @param callable $before The before callback.
+	 *
+	 * @return static
+	 */
+	public function before(callable $before): static;
+
+	/**
+	 * Register a callback to run after rendering the container.
+	 *
+	 * @param callable $after The after callback.
+	 *
+	 * @return static
+	 */
+	public function after(callable $after): static;
+
 	/**
 	 * Define a new section within this settings container.
 	 *
