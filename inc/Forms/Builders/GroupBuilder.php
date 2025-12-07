@@ -52,30 +52,6 @@ class GroupBuilder extends SectionFieldContainerBuilder implements GroupBuilderI
 	}
 
 	/**
-	 * Not valid in group context - throws exception.
-	 *
-	 * @return never
-	 * @throws \RuntimeException Always throws - use end_group() instead.
-	 */
-	public function end_fieldset(): mixed {
-		throw new \RuntimeException('Cannot call end_fieldset() from group context. Use end_group() instead.');
-	}
-
-	/**
-	 * Start a sibling group on the same section and return its GroupBuilder.
-	 *
-	 * @param string $group_id
-	 * @param string $heading
-	 * @param string|callable|null $description_cb
-	 * @param array<string,mixed>|null $args
-	 *
-	 * @return GroupBuilderInterface
-	 */
-	public function group(string $group_id, string $heading, string|callable|null $description_cb = null, ?array $args = null): GroupBuilderInterface {
-		return $this->section()->group($group_id, $heading, $description_cb, $args ?? array());
-	}
-
-	/**
 	 * Add a field with a component builder to this group.
 	 *
 	 * @param string $field_id The field identifier.

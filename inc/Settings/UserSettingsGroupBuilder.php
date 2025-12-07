@@ -14,9 +14,9 @@ namespace Ran\PluginLib\Settings;
 
 use Ran\PluginLib\Forms\FormsInterface;
 use Ran\PluginLib\Forms\Component\Build\ComponentBuilderDefinitionInterface;
-use Ran\PluginLib\Forms\Builders\GroupBuilderInterface;
 use Ran\PluginLib\Forms\Builders\Traits\SectionFieldContainerTrait;
 use Ran\PluginLib\Forms\Builders\Traits\GroupBuilderTrait;
+use Ran\PluginLib\Forms\Builders\GroupBuilderInterface;
 use Ran\PluginLib\Forms\Builders\BuilderImmediateUpdateTrait;
 
 /**
@@ -94,57 +94,6 @@ class UserSettingsGroupBuilder implements GroupBuilderInterface {
 	public function end_group(): UserSettingsSectionBuilder {
 		$this->_finalize_group();
 		return $this->sectionBuilder;
-	}
-
-	/**
-	 * Not valid in group context - throws exception.
-	 *
-	 * @return never
-	 * @throws \RuntimeException Always throws - cannot end fieldset from group context.
-	 */
-	public function end_fieldset(): never {
-		throw new \RuntimeException('Cannot call end_fieldset() from group context. Use end_group() instead.');
-	}
-
-	/**
-	 * End the group and section, returning to the collection builder.
-	 *
-	 * @return UserSettingsCollectionBuilder
-	 */
-	public function end_section(): UserSettingsCollectionBuilder {
-		return $this->sectionBuilder->end_section();
-	}
-
-	/**
-	 * End the group, section, and collection, returning to UserSettings.
-	 *
-	 * @return UserSettings
-	 */
-	public function end_collection(): UserSettings {
-		return $this->sectionBuilder->end_collection();
-	}
-
-	/**
-	 * Fluent shortcut: end all the way back to UserSettings.
-	 *
-	 * @return UserSettings
-	 */
-	public function end(): UserSettings {
-		return $this->end_collection();
-	}
-
-	/**
-	 * Start a sibling group on the same section.
-	 *
-	 * @param string $group_id The group ID.
-	 * @param string $heading The group heading.
-	 * @param string|callable|null $description_cb The description callback.
-	 * @param array<string,mixed>|null $args Optional configuration.
-	 *
-	 * @return UserSettingsGroupBuilder
-	 */
-	public function group(string $group_id, string $heading = '', string|callable|null $description_cb = null, ?array $args = null): UserSettingsGroupBuilder {
-		return $this->sectionBuilder->group($group_id, $heading, $description_cb, $args ?? array());
 	}
 
 	/**

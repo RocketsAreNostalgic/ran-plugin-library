@@ -21,9 +21,9 @@ use Ran\PluginLib\Forms\Builders\BuilderImmediateUpdateTrait;
 /**
  * @internal Shared implementation for containers that live directly under a SectionBuilder.
  *
- * @template-extends SectionFieldContainerBuilderInterface<TRoot, TSection>
+ * @template-extends FieldContainerBuilderInterface<TRoot, TSection>
  */
-abstract class SectionFieldContainerBuilder implements SectionFieldContainerBuilderInterface {
+abstract class SectionFieldContainerBuilder implements FieldContainerBuilderInterface {
 	use BuilderImmediateUpdateTrait;
 
 	/**

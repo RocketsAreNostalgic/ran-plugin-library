@@ -97,57 +97,6 @@ class AdminSettingsGroupBuilder implements GroupBuilderInterface {
 	}
 
 	/**
-	 * Not valid in group context - throws exception.
-	 *
-	 * @return never
-	 * @throws \RuntimeException Always throws - cannot end fieldset from group context.
-	 */
-	public function end_fieldset(): never {
-		throw new \RuntimeException('Cannot call end_fieldset() from group context. Use end_group() instead.');
-	}
-
-	/**
-	 * End the group and section, returning to the page builder.
-	 *
-	 * @return AdminSettingsPageBuilder
-	 */
-	public function end_section(): AdminSettingsPageBuilder {
-		return $this->sectionBuilder->end_section();
-	}
-
-	/**
-	 * End the group, section, and page, returning to the menu group builder.
-	 *
-	 * @return AdminSettingsMenuGroupBuilder
-	 */
-	public function end_page(): AdminSettingsMenuGroupBuilder {
-		return $this->sectionBuilder->end_page();
-	}
-
-	/**
-	 * Fluent shortcut: end all the way back to AdminSettings.
-	 *
-	 * @return AdminSettings
-	 */
-	public function end(): AdminSettings {
-		return $this->end_page()->end_menu();
-	}
-
-	/**
-	 * Start a sibling group on the same section.
-	 *
-	 * @param string $group_id The group ID.
-	 * @param string $heading The group heading.
-	 * @param string|callable|null $description_cb The description callback.
-	 * @param array<string,mixed>|null $args Optional configuration.
-	 *
-	 * @return AdminSettingsGroupBuilder
-	 */
-	public function group(string $group_id, string $heading = '', string|callable|null $description_cb = null, ?array $args = null): AdminSettingsGroupBuilder {
-		return $this->sectionBuilder->group($group_id, $heading, $description_cb, $args ?? array());
-	}
-
-	/**
 	 * Get the FormsInterface instance.
 	 *
 	 * @return FormsInterface

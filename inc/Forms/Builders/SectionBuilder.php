@@ -408,7 +408,7 @@ class SectionBuilder implements SectionBuilderInterface {
 	 *
 	 * @return self The builder instance for chaining.
 	 */
-	public function before(?callable $before): static {
+	public function before(callable $before): static {
 		$this->_update_meta('before', $before);
 		return $this;
 	}
@@ -417,7 +417,7 @@ class SectionBuilder implements SectionBuilderInterface {
 	 * Set the after section for this section.
 	 * Controls the after section template (page layout or collection wrapper).
 	 *
-	 * @param callable $after The after callback.
+	 * @param callable|null $after The after callback (null to clear).
 	 *
 	 * @return self The builder instance for chaining.
 	 */

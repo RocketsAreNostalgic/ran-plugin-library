@@ -14,10 +14,10 @@ namespace Ran\PluginLib\Settings;
 
 use Ran\PluginLib\Forms\FormsInterface;
 use Ran\PluginLib\Forms\Component\Build\ComponentBuilderDefinitionInterface;
-use Ran\PluginLib\Forms\Builders\FieldsetBuilderInterface;
-use Ran\PluginLib\Forms\Builders\ComponentBuilderProxy;
 use Ran\PluginLib\Forms\Builders\Traits\SectionFieldContainerTrait;
 use Ran\PluginLib\Forms\Builders\Traits\FieldsetBuilderTrait;
+use Ran\PluginLib\Forms\Builders\FieldsetBuilderInterface;
+use Ran\PluginLib\Forms\Builders\ComponentBuilderProxy;
 use Ran\PluginLib\Forms\Builders\BuilderImmediateUpdateTrait;
 
 /**
@@ -97,43 +97,6 @@ final class UserSettingsFieldsetBuilder implements FieldsetBuilderInterface {
 	 */
 	public function end_fieldset(): UserSettingsSectionBuilder {
 		return $this->sectionBuilder;
-	}
-
-	/**
-	 * Not valid in fieldset context - throws exception.
-	 *
-	 * @return never
-	 * @throws \RuntimeException Always throws - cannot end group from fieldset context.
-	 */
-	public function end_group(): never {
-		throw new \RuntimeException('Cannot call end_group() from fieldset context. Use end_fieldset() instead.');
-	}
-
-	/**
-	 * End the fieldset and section, returning to the collection builder.
-	 *
-	 * @return UserSettingsCollectionBuilder
-	 */
-	public function end_section(): UserSettingsCollectionBuilder {
-		return $this->sectionBuilder->end_section();
-	}
-
-	/**
-	 * End the fieldset, section, and collection, returning to UserSettings.
-	 *
-	 * @return UserSettings
-	 */
-	public function end_collection(): UserSettings {
-		return $this->sectionBuilder->end_collection();
-	}
-
-	/**
-	 * Fluent shortcut: end all the way back to UserSettings.
-	 *
-	 * @return UserSettings
-	 */
-	public function end(): UserSettings {
-		return $this->end_collection();
 	}
 
 	/**

@@ -14,8 +14,8 @@ namespace Ran\PluginLib\Settings;
 
 use Ran\PluginLib\Forms\FormsInterface;
 use Ran\PluginLib\Forms\Component\Build\ComponentBuilderDefinitionInterface;
-use Ran\PluginLib\Forms\Builders\SectionBuilderInterface;
 use Ran\PluginLib\Forms\Builders\Traits\SectionBuilderTrait;
+use Ran\PluginLib\Forms\Builders\SectionBuilderInterface;
 use Ran\PluginLib\Forms\Builders\BuilderImmediateUpdateTrait;
 
 /**
@@ -118,35 +118,6 @@ class UserSettingsSectionBuilder implements SectionBuilderInterface {
 	}
 
 	/**
-	 * No-op when called on the section builder directly.
-	 *
-	 * @return static
-	 */
-	public function end_field(): static {
-		return $this;
-	}
-
-	/**
-	 * Not valid in section context - throws exception.
-	 *
-	 * @return never
-	 * @throws \RuntimeException Always throws.
-	 */
-	public function end_fieldset(): never {
-		throw new \RuntimeException('Cannot call end_fieldset() from section context. You are not inside a fieldset.');
-	}
-
-	/**
-	 * Not valid in section context - throws exception.
-	 *
-	 * @return never
-	 * @throws \RuntimeException Always throws.
-	 */
-	public function end_group(): never {
-		throw new \RuntimeException('Cannot call end_group() from section context. You are not inside a group.');
-	}
-
-	/**
 	 * Begin configuring a semantic fieldset grouping within this section.
 	 *
 	 * @param string $fieldset_id The fieldset ID.
@@ -167,6 +138,28 @@ class UserSettingsSectionBuilder implements SectionBuilderInterface {
 			$this->updateFn,
 			$args ?? array()
 		);
+	}
+
+	/**
+	 * Set the default fieldset template for all fieldsets in this section.
+	 *
+	 * @param string $template_key The template key to use for fieldset containers.
+	 *
+	 * @return static
+	 * @throws \InvalidArgumentException If template key is empty.
+	 */
+	public function fieldset_template(string $template_key): static {
+		if (trim($template_key) === '') {
+			throw new \InvalidArgumentException('Template key cannot be empty');
+		}
+
+		($this->updateFn)('template_override', array(
+			'element_type' => 'section',
+			'element_id'   => $this->section_id,
+			'overrides'    => array('fieldset-wrapper' => $template_key)
+		));
+
+		return $this;
 	}
 
 	/**
@@ -215,28 +208,6 @@ class UserSettingsSectionBuilder implements SectionBuilderInterface {
 	}
 
 	/**
-	 * Set the default fieldset template for all fieldsets in this section.
-	 *
-	 * @param string $template_key The template key to use for fieldset containers.
-	 *
-	 * @return static
-	 * @throws \InvalidArgumentException If template key is empty.
-	 */
-	public function fieldset_template(string $template_key): static {
-		if (trim($template_key) === '') {
-			throw new \InvalidArgumentException('Template key cannot be empty');
-		}
-
-		($this->updateFn)('template_override', array(
-			'element_type' => 'section',
-			'element_id'   => $this->section_id,
-			'overrides'    => array('fieldset-wrapper' => $template_key)
-		));
-
-		return $this;
-	}
-
-	/**
 	 * Set the section template for section container customization.
 	 *
 	 * @param string $template_key The template key to use for section container.
@@ -265,36 +236,6 @@ class UserSettingsSectionBuilder implements SectionBuilderInterface {
 	 */
 	public function end_section(): UserSettingsCollectionBuilder {
 		return $this->collectionBuilder;
-	}
-
-	/**
-	 * End the section and collection, returning to UserSettings.
-	 *
-	 * @return UserSettings
-	 */
-	public function end_collection(): UserSettings {
-		return $this->collectionBuilder->end_collection();
-	}
-
-	/**
-	 * Fluent shortcut: end all the way back to UserSettings.
-	 *
-	 * @return UserSettings
-	 */
-	public function end(): UserSettings {
-		return $this->end_collection();
-	}
-
-	/**
-	 * Start a sibling section on the same collection.
-	 *
-	 * @param string $section_id The section ID.
-	 * @param string $heading The section heading.
-	 *
-	 * @return UserSettingsSectionBuilder
-	 */
-	public function section(string $section_id, string $heading = ''): UserSettingsSectionBuilder {
-		return $this->collectionBuilder->section($section_id, $heading);
 	}
 
 	// =========================================================================

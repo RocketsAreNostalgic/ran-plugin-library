@@ -113,22 +113,21 @@ class FieldsetBuilder extends SectionFieldContainerBuilder implements FieldsetBu
 	}
 
 	/**
-	 * Commit buffered data and return to the section builder.
+	 * Add a field with a component builder to this fieldset.
 	 *
-	 * @return TSection
-	 */
-	public function end_fieldset(): mixed {
-		return $this->section();
-	}
-
-	/**
-	 * Not valid in fieldset context - throws exception.
+	 * @param string $field_id The field identifier.
+	 * @param string $label The field label.
+	 * @param string $component The component alias.
+	 * @param array<string,mixed> $args Optional arguments.
 	 *
-	 * @return SectionBuilderInterface
-	 * @throws \RuntimeException Always throws - use end_fieldset() instead.
+	 * @return FieldsetFieldProxy The proxy instance with correct return type for end_field().
 	 */
-	public function end_group(): SectionBuilderInterface {
-		throw new \RuntimeException('Cannot call end_group() from fieldset context. Use end_fieldset() instead.');
+	public function field(string $field_id, string $label, string $component, array $args = array()): FieldsetFieldProxy {
+		$proxy = parent::field($field_id, $label, $component, $args);
+		if (!$proxy instanceof FieldsetFieldProxy) {
+			throw new \RuntimeException('Unexpected proxy type from parent::field()');
+		}
+		return $proxy;
 	}
 
 	/**
@@ -143,6 +142,15 @@ class FieldsetBuilder extends SectionFieldContainerBuilder implements FieldsetBu
 	 */
 	public function fieldset(string $fieldset_id, string $heading = '', string|callable|null $description_cb = null, ?array $args = null): FieldsetBuilderInterface {
 		return $this->section()->fieldset($fieldset_id, $heading, $description_cb, $args ?? array());
+	}
+
+	/**
+	 * Commit buffered data and return to the section builder.
+	 *
+	 * @return TSection
+	 */
+	public function end_fieldset(): mixed {
+		return $this->section();
 	}
 
 	/**
@@ -209,24 +217,6 @@ class FieldsetBuilder extends SectionFieldContainerBuilder implements FieldsetBu
 		}
 
 		return trim($style);
-	}
-
-	/**
-	 * Add a field with a component builder to this fieldset.
-	 *
-	 * @param string $field_id The field identifier.
-	 * @param string $label The field label.
-	 * @param string $component The component alias.
-	 * @param array<string,mixed> $args Optional arguments.
-	 *
-	 * @return FieldsetFieldProxy The proxy instance with correct return type for end_field().
-	 */
-	public function field(string $field_id, string $label, string $component, array $args = array()): FieldsetFieldProxy {
-		$proxy = parent::field($field_id, $label, $component, $args);
-		if (!$proxy instanceof FieldsetFieldProxy) {
-			throw new \RuntimeException('Unexpected proxy type from parent::field()');
-		}
-		return $proxy;
 	}
 
 	/**

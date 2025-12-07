@@ -13,18 +13,15 @@
 
 namespace Ran\PluginLib\Forms\Builders;
 
-use Ran\PluginLib\Forms\Builders\SectionBuilder;
-use Ran\PluginLib\Forms\Builders\GroupBuilder;
-use Ran\PluginLib\Forms\Builders\ComponentBuilderProxy;
-use Ran\PluginLib\Forms\Builders\BuilderRootInterface;
-use Ran\PluginLib\Forms\Builders\BuilderFieldContainerInterface;
+use Ran\PluginLib\Forms\Builders\FieldContainerBuilderInterface;
+use Ran\PluginLib\Forms\Builders\BuilderChildInterface;
 
 /**
  * @template TGroup of GroupBuilderInterface
  * @template TFieldset of FieldsetBuilderInterface
  * @template TSection of SectionBuilderInterface
  */
-interface SectionBuilderInterface extends BuilderChildInterface, BuilderFieldContainerInterface {
+interface SectionBuilderInterface extends BuilderChildInterface, FieldContainerBuilderInterface {
 	/**
 	 * Add a field with a component builder to this section.
 	 *

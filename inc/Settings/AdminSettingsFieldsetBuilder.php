@@ -98,42 +98,6 @@ final class AdminSettingsFieldsetBuilder implements FieldsetBuilderInterface {
 		return $this->sectionBuilder;
 	}
 
-	/**
-	 * Not valid in fieldset context - throws exception.
-	 *
-	 * @return never
-	 * @throws \RuntimeException Always throws - cannot end group from fieldset context.
-	 */
-	public function end_group(): never {
-		throw new \RuntimeException('Cannot call end_group() from fieldset context. Use end_fieldset() instead.');
-	}
-
-	/**
-	 * End the fieldset and section, returning to the page builder.
-	 *
-	 * @return AdminSettingsPageBuilder
-	 */
-	public function end_section(): AdminSettingsPageBuilder {
-		return $this->sectionBuilder->end_section();
-	}
-
-	/**
-	 * End the fieldset, section, and page, returning to the menu group builder.
-	 *
-	 * @return AdminSettingsMenuGroupBuilder
-	 */
-	public function end_page(): AdminSettingsMenuGroupBuilder {
-		return $this->sectionBuilder->end_page();
-	}
-
-	/**
-	 * Fluent shortcut: end all the way back to AdminSettings.
-	 *
-	 * @return AdminSettings
-	 */
-	public function end(): AdminSettings {
-		return $this->end_page()->end_menu_group();
-	}
 
 	/**
 	 * Define a sibling fieldset within this section.

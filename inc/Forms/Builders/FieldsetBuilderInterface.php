@@ -12,10 +12,10 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\Forms\Builders;
 
-interface FieldsetBuilderInterface extends SectionFieldContainerBuilderInterface {
-	// Note: field() is inherited from BuilderFieldContainerInterface with mixed return type.
-	// Implementations should return their specific proxy type.
-
+/**
+ * @template TSection of SectionBuilderInterface
+ */
+interface FieldsetBuilderInterface extends FieldContainerBuilderInterface {
 	/**
 	 * Define the visual style for the fieldset wrapper.
 	 */
@@ -39,13 +39,6 @@ interface FieldsetBuilderInterface extends SectionFieldContainerBuilderInterface
 	public function disabled(bool $disabled = true): static;
 
 	/**
-	 * Commit buffered data and return to the section builder.
-	 *
-	 * @return TSection
-	 */
-	public function end_fieldset(): mixed;
-
-	/**
 	 * Open a sibling fieldset on the same section.
 	 *
 	 * @param string $fieldset_id    The fieldset identifier.
@@ -56,4 +49,11 @@ interface FieldsetBuilderInterface extends SectionFieldContainerBuilderInterface
 	 * @return FieldsetBuilderInterface<TRoot, TSection>
 	 */
 	public function fieldset(string $fieldset_id, string $heading = '', string|callable|null $description_cb = null, ?array $args = null): FieldsetBuilderInterface;
+
+	/**
+	 * Commit buffered data and return to the section builder.
+	 *
+	 * @return TSection
+	 */
+	public function end_fieldset(): mixed;
 }

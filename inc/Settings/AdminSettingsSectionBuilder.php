@@ -14,8 +14,8 @@ namespace Ran\PluginLib\Settings;
 
 use Ran\PluginLib\Forms\FormsInterface;
 use Ran\PluginLib\Forms\Component\Build\ComponentBuilderDefinitionInterface;
-use Ran\PluginLib\Forms\Builders\SectionBuilderInterface;
 use Ran\PluginLib\Forms\Builders\Traits\SectionBuilderTrait;
+use Ran\PluginLib\Forms\Builders\SectionBuilderInterface;
 use Ran\PluginLib\Forms\Builders\BuilderImmediateUpdateTrait;
 
 /**
@@ -74,7 +74,7 @@ class AdminSettingsSectionBuilder implements SectionBuilderInterface {
 	 * @return FormsInterface
 	 */
 	public function get_settings(): FormsInterface {
-		return $this->pageBuilder->get_forms();
+		return $this->pageBuilder->_get_forms();
 	}
 
 	/**
@@ -118,35 +118,6 @@ class AdminSettingsSectionBuilder implements SectionBuilderInterface {
 	}
 
 	/**
-	 * No-op when called on the section builder directly.
-	 *
-	 * @return static
-	 */
-	public function end_field(): static {
-		return $this;
-	}
-
-	/**
-	 * Not valid in section context - throws exception.
-	 *
-	 * @return never
-	 * @throws \RuntimeException Always throws.
-	 */
-	public function end_fieldset(): never {
-		throw new \RuntimeException('Cannot call end_fieldset() from section context. You are not inside a fieldset.');
-	}
-
-	/**
-	 * Not valid in section context - throws exception.
-	 *
-	 * @return never
-	 * @throws \RuntimeException Always throws.
-	 */
-	public function end_group(): never {
-		throw new \RuntimeException('Cannot call end_group() from section context. You are not inside a group.');
-	}
-
-	/**
 	 * Begin configuring a semantic fieldset grouping within this section.
 	 *
 	 * @param string $fieldset_id The fieldset ID.
@@ -167,6 +138,28 @@ class AdminSettingsSectionBuilder implements SectionBuilderInterface {
 			$this->updateFn,
 			$args ?? array()
 		);
+	}
+
+	/**
+	 * Set the default fieldset template for all fieldsets in this section.
+	 *
+	 * @param string $template_key The template key to use for fieldset containers.
+	 *
+	 * @return static
+	 * @throws \InvalidArgumentException If template key is empty.
+	 */
+	public function fieldset_template(string $template_key): static {
+		if (trim($template_key) === '') {
+			throw new \InvalidArgumentException('Template key cannot be empty');
+		}
+
+		($this->updateFn)('template_override', array(
+			'element_type' => 'section',
+			'element_id'   => $this->section_id,
+			'overrides'    => array('fieldset-wrapper' => $template_key)
+		));
+
+		return $this;
 	}
 
 	/**
@@ -215,28 +208,6 @@ class AdminSettingsSectionBuilder implements SectionBuilderInterface {
 	}
 
 	/**
-	 * Set the default fieldset template for all fieldsets in this section.
-	 *
-	 * @param string $template_key The template key to use for fieldset containers.
-	 *
-	 * @return static
-	 * @throws \InvalidArgumentException If template key is empty.
-	 */
-	public function fieldset_template(string $template_key): static {
-		if (trim($template_key) === '') {
-			throw new \InvalidArgumentException('Template key cannot be empty');
-		}
-
-		($this->updateFn)('template_override', array(
-			'element_type' => 'section',
-			'element_id'   => $this->section_id,
-			'overrides'    => array('fieldset-wrapper' => $template_key)
-		));
-
-		return $this;
-	}
-
-	/**
 	 * Set the section template for section container customization.
 	 *
 	 * @param string $template_key The template key to use for section container.
@@ -267,36 +238,6 @@ class AdminSettingsSectionBuilder implements SectionBuilderInterface {
 		return $this->pageBuilder;
 	}
 
-	/**
-	 * End the section and page, returning to the menu group builder.
-	 *
-	 * @return AdminSettingsMenuGroupBuilder
-	 */
-	public function end_page(): AdminSettingsMenuGroupBuilder {
-		return $this->pageBuilder->end_page();
-	}
-
-	/**
-	 * Fluent shortcut: end all the way back to AdminSettings.
-	 *
-	 * @return AdminSettings
-	 */
-	public function end(): AdminSettings {
-		return $this->end_page()->end_menu_group();
-	}
-
-	/**
-	 * Start a sibling section on the same page.
-	 *
-	 * @param string $section_id The section ID.
-	 * @param string $heading The section heading.
-	 *
-	 * @return AdminSettingsSectionBuilder
-	 */
-	public function section(string $section_id, string $heading = ''): AdminSettingsSectionBuilder {
-		return $this->pageBuilder->section($section_id, $heading);
-	}
-
 	// =========================================================================
 	// Abstract method implementations from traits
 	// =========================================================================
@@ -304,20 +245,24 @@ class AdminSettingsSectionBuilder implements SectionBuilderInterface {
 	/**
 	 * Get the FormsInterface instance.
 	 *
+	 * @internal
+	 *
 	 * @return FormsInterface
 	 */
-	public function get_forms(): FormsInterface {
-		return $this->pageBuilder->get_forms();
+	public function _get_forms(): FormsInterface {
+		return $this->pageBuilder->_get_forms();
 	}
 
 	/**
 	 * Get the component builder factory for a given component alias.
 	 *
+	 * @internal
+	 *
 	 * @param string $component The component alias.
 	 *
 	 * @return callable|null
 	 */
-	public function get_component_builder_factory(string $component): ?callable {
+	public function _get_component_builder_factory(string $component): ?callable {
 		return $this->_get_section_component_builder_factory($component);
 	}
 
@@ -335,7 +280,7 @@ class AdminSettingsSectionBuilder implements SectionBuilderInterface {
 		}
 
 		if ($this->componentBuilderFactories === null) {
-			$forms   = $this->pageBuilder->get_forms();
+			$forms   = $this->pageBuilder->_get_forms();
 			$session = $forms->get_form_session();
 			if ($session === null) {
 				$this->componentBuilderFactories = array();
