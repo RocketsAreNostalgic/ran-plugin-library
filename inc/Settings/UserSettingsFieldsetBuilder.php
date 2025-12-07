@@ -80,11 +80,11 @@ final class UserSettingsFieldsetBuilder implements FieldsetBuilderInterface {
 	 * @param string $component The component alias.
 	 * @param array<string,mixed> $args Optional arguments.
 	 *
-	 * @return UserSettingsFieldsetFieldProxy
+	 * @return GenericFieldBuilder<UserSettingsFieldsetBuilder>
 	 */
-	public function field(string $field_id, string $label, string $component, array $args = array()): UserSettingsFieldsetFieldProxy {
+	public function field(string $field_id, string $label, string $component, array $args = array()): GenericFieldBuilder {
 		$proxy = $this->_add_field($field_id, $label, $component, $args);
-		if (!$proxy instanceof UserSettingsFieldsetFieldProxy) {
+		if (!$proxy instanceof GenericFieldBuilder) {
 			throw new \RuntimeException('Unexpected proxy type from _add_field()');
 		}
 		return $proxy;
@@ -154,15 +154,15 @@ final class UserSettingsFieldsetBuilder implements FieldsetBuilderInterface {
 	 * @param string|null $field_template The field template override.
 	 * @param array<string,mixed> $component_context The component context.
 	 *
-	 * @return UserSettingsFieldsetFieldProxy
+	 * @return GenericFieldBuilder<UserSettingsFieldsetBuilder>
 	 */
 	protected function _create_field_proxy(
 		ComponentBuilderDefinitionInterface $builder,
 		string $component_alias,
 		?string $field_template,
 		array $component_context
-	): UserSettingsFieldsetFieldProxy {
-		return new UserSettingsFieldsetFieldProxy(
+	): GenericFieldBuilder {
+		return new GenericFieldBuilder(
 			$builder,
 			$this,
 			$this->updateFn,

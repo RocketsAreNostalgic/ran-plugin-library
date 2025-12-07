@@ -244,7 +244,7 @@ final class UserSettingsBehaviorTest extends PluginLibTestCase {
 		$user_settings->collection('profile')
 			->section('auto', 'Auto Section')
 				->field('auto_field', 'Auto Field', $alias)
-			->end_section()
+			->end_field()->end_section()
 		->end_collection();
 
 		WP_Mock::userFunction('current_user_can')->withAnyArgs()->andReturn(true);
@@ -295,7 +295,7 @@ final class UserSettingsBehaviorTest extends PluginLibTestCase {
 		$collection->template($callback);
 		$collection->section('basic', 'Basic Info')
 			->field('profile_name', 'Profile Name', 'fields.input')
-		->end_section();
+		->end_field()->end_section();
 		$collection->end_collection();
 
 		// Ensure existing values are returned when render resolves stored options.
@@ -406,7 +406,7 @@ final class UserSettingsBehaviorTest extends PluginLibTestCase {
 		$user_settings->collection('profile')
 			->section('merge', 'Merge Section')
 				->field('merge_field_user', 'Merge Field', 'fields.merge-user')
-			->end_section()
+			->end_field()->end_section()
 		->end_collection();
 
 		WP_Mock::userFunction('current_user_can')->withAnyArgs()->andReturn(true);
@@ -539,7 +539,7 @@ final class UserSettingsBehaviorTest extends PluginLibTestCase {
 		$user_settings = $this->createUserSettings();
 		$user_settings->collection('profile')->section('basic', 'Basic Info')
 			->field('profile_asset', 'Profile Asset', 'fields.profile-asset')
-		->end_section();
+		->end_field()->end_section();
 
 		WP_Mock::userFunction('current_user_can')->withAnyArgs()->andReturn(true);
 		WP_Mock::userFunction('get_user_meta')->andReturn(array());

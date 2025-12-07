@@ -85,11 +85,11 @@ class AdminSettingsSectionBuilder implements SectionBuilderInterface {
 	 * @param string $component The component alias.
 	 * @param array<string,mixed> $args Optional arguments.
 	 *
-	 * @return AdminSettingsComponentProxy
+	 * @return GenericFieldBuilder<AdminSettingsSectionBuilder>
 	 */
-	public function field(string $field_id, string $label, string $component, array $args = array()): AdminSettingsComponentProxy {
+	public function field(string $field_id, string $label, string $component, array $args = array()): GenericFieldBuilder {
 		$proxy = $this->_add_section_field($field_id, $label, $component, $args);
-		if (!$proxy instanceof AdminSettingsComponentProxy) {
+		if (!$proxy instanceof GenericFieldBuilder) {
 			throw new \RuntimeException('Unexpected proxy type from _add_section_field()');
 		}
 		return $proxy;
@@ -301,7 +301,7 @@ class AdminSettingsSectionBuilder implements SectionBuilderInterface {
 	 * @param string|null $field_template The field template override.
 	 * @param array<string,mixed> $component_context The component context.
 	 *
-	 * @return AdminSettingsComponentProxy
+	 * @return GenericFieldBuilder<AdminSettingsSectionBuilder>
 	 */
 	protected function _create_section_field_proxy(
 		ComponentBuilderDefinitionInterface $builder,
@@ -309,8 +309,8 @@ class AdminSettingsSectionBuilder implements SectionBuilderInterface {
 		?string $group_id,
 		?string $field_template,
 		array $component_context
-	): AdminSettingsComponentProxy {
-		return new AdminSettingsComponentProxy(
+	): GenericFieldBuilder {
+		return new GenericFieldBuilder(
 			$builder,
 			$this,
 			$this->updateFn,

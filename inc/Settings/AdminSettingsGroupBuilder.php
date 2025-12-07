@@ -76,11 +76,11 @@ class AdminSettingsGroupBuilder implements GroupBuilderInterface {
 	 * @param string $component The component alias.
 	 * @param array<string,mixed> $args Optional arguments.
 	 *
-	 * @return AdminSettingsGroupFieldProxy
+	 * @return GenericFieldBuilder<AdminSettingsGroupBuilder>
 	 */
-	public function field(string $field_id, string $label, string $component, array $args = array()): AdminSettingsGroupFieldProxy {
+	public function field(string $field_id, string $label, string $component, array $args = array()): GenericFieldBuilder {
 		$proxy = $this->_add_field($field_id, $label, $component, $args);
-		if (!$proxy instanceof AdminSettingsGroupFieldProxy) {
+		if (!$proxy instanceof GenericFieldBuilder) {
 			throw new \RuntimeException('Unexpected proxy type from _add_field()');
 		}
 		return $proxy;
@@ -137,15 +137,15 @@ class AdminSettingsGroupBuilder implements GroupBuilderInterface {
 	 * @param string|null $field_template The field template override.
 	 * @param array<string,mixed> $component_context The component context.
 	 *
-	 * @return AdminSettingsGroupFieldProxy
+	 * @return GenericFieldBuilder<AdminSettingsGroupBuilder>
 	 */
 	protected function _create_field_proxy(
 		ComponentBuilderDefinitionInterface $builder,
 		string $component_alias,
 		?string $field_template,
 		array $component_context
-	): AdminSettingsGroupFieldProxy {
-		return new AdminSettingsGroupFieldProxy(
+	): GenericFieldBuilder {
+		return new GenericFieldBuilder(
 			$builder,
 			$this,
 			$this->updateFn,

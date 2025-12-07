@@ -198,7 +198,7 @@ final class AdminSettingsBehaviorTest extends PluginLibTestCase {
 			))
 				->section('reference-section', 'Reference Section')
 					->field('reference_field', 'Reference Field', 'fields.input')
-				->end_section()
+				->end_field()->end_section()
 			->end_page()
 		->end_menu();
 
@@ -264,7 +264,7 @@ final class AdminSettingsBehaviorTest extends PluginLibTestCase {
 		    ->page('auto-page')
 		        ->section('auto-section', 'Auto Section')
 		            ->field('auto_field', 'Auto Field', $alias)
-		        ->end_section()
+		        ->end_field()->end_section()
 		    ->end_page()
 		->end_menu();
 
@@ -323,7 +323,7 @@ final class AdminSettingsBehaviorTest extends PluginLibTestCase {
 		        ->heading('Behavior Page')
 		        ->section('behavior-section', 'Behavior Section')
 		            ->field('valid_field', 'Valid Field', 'fields.input')
-		        ->end_section()
+		        ->end_field()->end_section()
 		    ->end_page()
 		->end_menu();
 
@@ -356,7 +356,7 @@ final class AdminSettingsBehaviorTest extends PluginLibTestCase {
 		                ->field('integer_field', 'Group Field', 'fields.input', array(
 		                    'before' => static fn (): string => '<span class="group-field-before">group-field-before</span>',
 		                    'after'  => static fn (): string => '<span class="group-field-after">group-field-after</span>',
-		                ))
+		                ))->end_field()
 		            ->end_group()
 		        ->end_section()
 		    ->end_page()
@@ -540,7 +540,7 @@ final class AdminSettingsBehaviorTest extends PluginLibTestCase {
 		    ->page('merge-page')
 		        ->section('merge-section', 'Merge Section')
 		            ->field('merge_field', 'Merge Field', 'fields.merge')
-		        ->end_section()
+		        ->end_field()->end_section()
 		    ->end_page()
 		->end_menu();
 
@@ -652,7 +652,7 @@ final class AdminSettingsBehaviorTest extends PluginLibTestCase {
 		    ->page('trace-page')
 		        ->section('trace-section', 'Trace Section')
 		            ->field('trace_field', 'Trace Field', $alias)
-		        ->end_section()
+		        ->end_field()->end_section()
 		    ->end_page()
 		->end_menu();
 
@@ -907,7 +907,7 @@ final class AdminSettingsBehaviorTest extends PluginLibTestCase {
 		        ->heading('Submit Page')
 		        ->section('submit-section', 'Submit Section')
 		            ->field('valid_field', 'Valid Field', 'fields.input')
-		        ->end_section()
+		        ->end_field()->end_section()
 		    ->end_page()
 		->end_menu();
 
@@ -926,7 +926,7 @@ final class AdminSettingsBehaviorTest extends PluginLibTestCase {
 			->page('custom-submit-page')
 				->section('custom-submit-section', 'Custom Submit Section')
 					->field('valid_field', 'Valid Field', 'fields.input')
-				->end_section()
+				->end_field()->end_section()
 				->submit_controls()
 					->button('primary', 'Publish Settings');
 
@@ -954,7 +954,7 @@ final class AdminSettingsBehaviorTest extends PluginLibTestCase {
 		        ->template($renderOverride)
 		        ->section('messages-section', 'Messages Section')
 		            ->field('valid_field', 'Valid Field', 'fields.input')
-		        ->end_section()
+		        ->end_field()->end_section()
 		    ->end_page()
 		->end_menu();
 
@@ -1017,7 +1017,7 @@ final class AdminSettingsBehaviorTest extends PluginLibTestCase {
 		$pageBuilder
 			->section('asset-section', 'Asset Section')
 				->field('asset_field', 'Asset Field', 'fields.asset-field')
-			->end_section();
+			->end_field()->end_section();
 
 		$pageBuilder
 			->submit_controls()

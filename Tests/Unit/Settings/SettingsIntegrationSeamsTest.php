@@ -190,7 +190,7 @@ class SettingsIntegrationSeamsTest extends PluginLibTestCase {
 			->page('test-page')
 				->section('s1', 'Test Section')
 					->field('test_field', 'Test Field', 'test.input')
-				->end_section()
+				->end_field()->end_section()
 			->end_page()
 		->end_menu();
 
@@ -244,7 +244,7 @@ class SettingsIntegrationSeamsTest extends PluginLibTestCase {
 			->page('sp')
 				->section('ss', 'Section')
 					->field('schema_field', 'Schema Field', 'fields.input')
-				->end_section()
+				->end_field()->end_section()
 			->end_page()
 		->end_menu();
 
@@ -326,7 +326,7 @@ class SettingsIntegrationSeamsTest extends PluginLibTestCase {
 		$settings->collection('profile')
 			->section('s1', 'Profile Section')
 				->field('profile_field', 'Profile Field', 'profile.input')
-			->end_section()
+			->end_field()->end_section()
 		->end_collection();
 
 		// Act: Render crosses Settings → Manifest → Loader boundary
@@ -378,7 +378,7 @@ class SettingsIntegrationSeamsTest extends PluginLibTestCase {
 		$settings->collection('profile')
 			->section('ss', 'Section')
 				->field('user_schema_field', 'User Schema Field', 'fields.input')
-			->end_section()
+			->end_field()->end_section()
 		->end_collection();
 
 		$this->captureOutput(fn() => $settings->_render('profile'));
@@ -445,7 +445,7 @@ return new ComponentRenderResult(
 				->page('ext-page')
 					->section('ext-section', 'External Section')
 						->field('ext_field', 'External Field', 'ext.seam-component')
-					->end_section()
+					->end_field()->end_section()
 				->end_page()
 			->end_menu();
 
@@ -507,7 +507,7 @@ return new ComponentRenderResult(
 			$settings->collection('profile')
 				->section('ext-section', 'External Section')
 					->field('user_ext_field', 'User External Field', 'ext.user-seam-component')
-				->end_section()
+				->end_field()->end_section()
 			->end_collection();
 
 			$output = $this->captureOutput(fn() => $settings->_render('profile'));
@@ -566,7 +566,7 @@ return new ComponentRenderResult(
 			->page('rt-page')
 				->section('rt-section', 'Roundtrip Section')
 					->field('roundtrip_field', 'Roundtrip Field', 'fields.input')
-				->end_section()
+				->end_field()->end_section()
 			->end_page()
 		->end_menu();
 
@@ -589,7 +589,7 @@ return new ComponentRenderResult(
 			->page('rt-page')
 				->section('rt-section', 'Roundtrip Section')
 					->field('roundtrip_field', 'Roundtrip Field', 'fields.input')
-				->end_section()
+				->end_field()->end_section()
 			->end_page()
 		->end_menu();
 
@@ -639,7 +639,7 @@ return new ComponentRenderResult(
 		$settings->collection('profile')
 			->section('rt-section', 'Roundtrip Section')
 				->field('user_roundtrip_field', 'User Roundtrip Field', 'fields.input')
-			->end_section()
+			->end_field()->end_section()
 		->end_collection();
 
 		// Step 1: Initial render shows stored value
@@ -660,7 +660,7 @@ return new ComponentRenderResult(
 		$settings2->collection('profile')
 			->section('rt-section', 'Roundtrip Section')
 				->field('user_roundtrip_field', 'User Roundtrip Field', 'fields.input')
-			->end_section()
+			->end_field()->end_section()
 		->end_collection();
 
 		$output2 = $this->captureOutput(fn() => $settings2->_render('profile'));
@@ -716,7 +716,7 @@ return new ComponentRenderResult(
 			->page('vf-page')
 				->section('vf-section', 'Validation Section')
 					->field('validated_field', 'Validated Field', 'fields.input')
-				->end_section()
+				->end_field()->end_section()
 			->end_page()
 		->end_menu();
 
@@ -781,7 +781,7 @@ return new ComponentRenderResult(
 		$settings->collection('profile')
 			->section('vf-section', 'Validation Section')
 				->field('user_validated_field', 'User Validated Field', 'fields.input')
-			->end_section()
+			->end_field()->end_section()
 		->end_collection();
 
 		$this->captureOutput(fn() => $settings->_render('profile'));
