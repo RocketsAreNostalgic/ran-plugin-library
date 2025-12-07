@@ -34,6 +34,7 @@ use Ran\PluginLib\Options\WriteContext;
 use Ran\PluginLib\Options\Policy\RestrictedDefaultWritePolicy;
 use Ran\PluginLib\Settings\Settings;
 use Ran\PluginLib\Forms\FormsInterface;
+use Ran\PluginLib\Config\ConfigInterface;
 use Ran\PluginLib\Forms\Validation\Helpers;
 
 /**
@@ -344,9 +345,12 @@ class RegisterOptions {
 
 	/**
 	 * Instantiate a scope-aware Settings facade for this RegisterOptions instance.
+	 *
+	 * @param ConfigInterface|null $config Optional Config for namespace resolution and component registration.
+	 * @return FormsInterface
 	 */
-	public function settings(?Logger $logger = null): FormsInterface {
-		return new Settings($this, $logger);
+	public function settings(?ConfigInterface $config = null): FormsInterface {
+		return new Settings($this, $config);
 	}
 
 	/**
