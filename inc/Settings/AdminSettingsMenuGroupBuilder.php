@@ -180,11 +180,11 @@ final class AdminSettingsMenuGroupBuilder {
 	}
 
 	/**
-	 * Called by AdminSettings to finalize this group definition.
+	 * Called by AdminSettings to finalize this menu group definition.
 	 *
 	 * @return AdminSettings The settings object.
 	 */
-	public function end_group(): AdminSettings {
+	public function end_menu(): AdminSettings {
 		if (!$this->committed) {
 			if (!array_key_exists('parent', $this->meta)) {
 				$this->meta['parent'] = 'options-general.php';
@@ -209,15 +209,6 @@ final class AdminSettingsMenuGroupBuilder {
 		}
 
 		return $this->settings;
-	}
-
-	/**
-	 * End the menu group.
-	 *
-	 * @return AdminSettings The settings object.
-	 */
-	public function end_menu_group(): AdminSettings {
-		return $this->end_group();
 	}
 
 	/**

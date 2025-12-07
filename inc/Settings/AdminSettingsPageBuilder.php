@@ -296,7 +296,7 @@ class AdminSettingsPageBuilder implements AdminSettingsBuilderRootInterface {
 	 * @return FormsInterface The FormsInterface instance.
 	 */
 	public function end(): AdminSettings {
-		return $this->end_page()->end_group();
+		return $this->end_page()->end_menu();
 	}
 
 	/**
@@ -313,7 +313,7 @@ class AdminSettingsPageBuilder implements AdminSettingsBuilderRootInterface {
 	 *
 	 * @return AdminSettings
 	 */
-	public function get_forms(): AdminSettings {
+	public function _get_forms(): AdminSettings {
 		return $this->get_settings();
 	}
 

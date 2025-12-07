@@ -150,7 +150,7 @@ class AdminSettingsComponentProxy implements FieldProxyInterface, ComponentBuild
 	 * @return AdminSettings
 	 */
 	public function end(): AdminSettings {
-		return $this->end_page()->end_menu_group();
+		return $this->end_page()->end_menu();
 	}
 
 	/**
