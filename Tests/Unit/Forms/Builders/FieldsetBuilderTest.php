@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace Ran\PluginLib\Tests\Unit\Forms\Builders;
 
 use Ran\PluginLib\Forms\Builders\FieldsetBuilder;
+use Ran\PluginLib\Forms\Builders\GenericBuilderContext;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -114,16 +115,16 @@ final class FieldsetBuilderTest extends TestCase {
 			$this->updates[] = array('type' => $type, 'payload' => $payload);
 		};
 
-		$this->currentSection = new StubSectionBuilder($root, 'container', 'section', 'Heading', $updateFn);
+		$context              = new GenericBuilderContext($forms, 'container', $updateFn);
+		$this->currentSection = new StubSectionBuilder($root, $context, 'section', 'Heading');
 
 		return new FieldsetBuilder(
 			$this->currentSection,
-			'container',
+			$context,
 			'section',
 			'fieldset',
 			'Legend',
 			null,
-			$updateFn,
 			$args
 		);
 	}

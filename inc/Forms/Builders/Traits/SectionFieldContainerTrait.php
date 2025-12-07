@@ -359,9 +359,22 @@ trait SectionFieldContainerTrait {
 
 	/**
 	 * Emit container metadata using the update callback.
+	 *
+	 * Subclasses can override _build_metadata_payload() to extend the payload.
 	 */
 	protected function _emit_container_metadata(): void {
-		($this->updateFn)('group_metadata', $this->_build_container_payload());
+		($this->updateFn)('group_metadata', $this->_build_metadata_payload());
+	}
+
+	/**
+	 * Build the metadata payload for emission.
+	 *
+	 * Override this in subclasses to extend the payload with additional data.
+	 *
+	 * @return array<string,mixed>
+	 */
+	protected function _build_metadata_payload(): array {
+		return $this->_build_container_payload();
 	}
 
 	// =========================================================================

@@ -6,6 +6,8 @@ namespace Ran\PluginLib\Tests\Unit\Forms\Builders;
 use Ran\PluginLib\Forms\Builders\SectionBuilder;
 use Ran\PluginLib\Forms\Builders\GroupBuilder;
 use Ran\PluginLib\Forms\Builders\GenericFieldBuilder;
+use Ran\PluginLib\Forms\Builders\GenericBuilderContext;
+use Ran\PluginLib\Forms\Builders\BuilderContextInterface;
 use Ran\PluginLib\Forms\Builders\BuilderRootInterface;
 use PHPUnit\Framework\TestCase;
 
@@ -114,44 +116,63 @@ final class GroupBuilderTest extends TestCase {
 			$this->updates[] = array('type' => $type, 'payload' => $payload);
 		};
 
-		$this->currentRoot    = new StubRootBuilder(new StubForms());
+		$forms                = new StubForms();
+		$this->currentRoot    = new StubRootBuilder($forms);
+		$context              = new StubBuilderContextForGroupTest($forms, 'container', $updateFn, $factories);
 		$this->currentSection = new StubSectionBuilderForGroupTest(
 			$this->currentRoot,
-			'container',
+			$context,
 			'section',
-			'Heading',
-			$updateFn,
-			$factories
+			'Heading'
 		);
 
 		return new GroupBuilder(
 			$this->currentSection,
-			'container',
+			$context,
 			'section',
 			'integration-group',
 			'Integration Group',
-			null,
-			$updateFn
+			null
 		);
 	}
 }
 
-final class StubSectionBuilderForGroupTest extends SectionBuilder {
+final class StubBuilderContextForGroupTest implements BuilderContextInterface {
 	/**
 	 * @param array<string, callable(string,string):StubComponentBuilder> $factories
 	 */
 	public function __construct(
-		BuilderRootInterface $root,
-		string $container,
-		string $section,
-		string $heading,
-		callable $updateFn,
-		private array $factories
+		private StubForms $forms,
+		private string $containerId,
+		private $updateFn,
+		private array $factories = array()
 	) {
-		parent::__construct($root, $container, $section, $heading, $updateFn);
 	}
 
-	public function _get_component_builder_factory(string $component): ?callable {
+	public function get_forms(): \Ran\PluginLib\Forms\FormsInterface {
+		return $this->forms;
+	}
+
+	public function get_component_builder_factory(string $component): ?callable {
 		return $this->factories[$component] ?? null;
+	}
+
+	public function get_update_callback(): callable {
+		return $this->updateFn;
+	}
+
+	public function get_container_id(): string {
+		return $this->containerId;
+	}
+}
+
+final class StubSectionBuilderForGroupTest extends SectionBuilder {
+	public function __construct(
+		BuilderRootInterface $root,
+		BuilderContextInterface $context,
+		string $section,
+		string $heading
+	) {
+		parent::__construct($root, $context, $section, $heading);
 	}
 }

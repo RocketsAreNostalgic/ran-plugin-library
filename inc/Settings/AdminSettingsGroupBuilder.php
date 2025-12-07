@@ -2,8 +2,7 @@
 /**
  * AdminSettingsGroupBuilder: Context-aware group builder for admin settings sections.
  *
- * Uses composition with traits instead of inheritance from GroupBuilder.
- * This provides concrete return types for full IDE support.
+ * Thin wrapper around GroupBuilderBase providing concrete return types for IDE support.
  *
  * @package Ran\PluginLib\Settings
  */
@@ -12,59 +11,43 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\Settings;
 
-use Ran\PluginLib\Forms\FormsInterface;
-use Ran\PluginLib\Forms\Component\Build\ComponentBuilderDefinitionInterface;
-use Ran\PluginLib\Forms\Builders\Traits\SectionFieldContainerTrait;
-use Ran\PluginLib\Forms\Builders\Traits\GroupBuilderTrait;
-use Ran\PluginLib\Forms\Builders\GroupBuilderInterface;
-use Ran\PluginLib\Forms\Builders\BuilderImmediateUpdateTrait;
+use Ran\PluginLib\Forms\Builders\GroupBuilderBase;
+use Ran\PluginLib\Forms\Builders\BuilderContextInterface;
 use Ran\PluginLib\Forms\Builders\GenericFieldBuilder;
 
 /**
  * Group builder for AdminSettings.
  *
- * Uses composition (traits) instead of inheritance for IDE-friendly concrete return types.
+ * Extends GroupBuilderBase to provide concrete return types for IDE autocomplete.
+ *
+ * @extends GroupBuilderBase<AdminSettingsSectionBuilder>
  */
-class AdminSettingsGroupBuilder implements GroupBuilderInterface {
-	use SectionFieldContainerTrait;
-	use GroupBuilderTrait;
-	use BuilderImmediateUpdateTrait;
-
-	/**
-	 * The parent section builder - concrete type for IDE support.
-	 */
-	private AdminSettingsSectionBuilder $sectionBuilder;
-
+final class AdminSettingsGroupBuilder extends GroupBuilderBase {
 	/**
 	 * @param AdminSettingsSectionBuilder $sectionBuilder The parent section builder.
-	 * @param string $container_id The container ID.
+	 * @param BuilderContextInterface $context The builder context.
 	 * @param string $section_id The section ID.
 	 * @param string $group_id The group ID.
 	 * @param string $heading The group heading.
 	 * @param string|callable|null $description_cb The description callback.
-	 * @param callable $updateFn The update callback.
 	 * @param array<string,mixed> $args Optional arguments.
 	 */
 	public function __construct(
 		AdminSettingsSectionBuilder $sectionBuilder,
-		string $container_id,
+		BuilderContextInterface $context,
 		string $section_id,
 		string $group_id,
 		string $heading,
-		string|callable|null $description_cb,
-		callable $updateFn,
+		string|callable|null $description_cb = null,
 		array $args = array()
 	) {
-		$this->sectionBuilder = $sectionBuilder;
-
-		// Initialize container (from SectionFieldContainerTrait)
-		$this->_init_container(
-			$container_id,
+		parent::__construct(
+			$sectionBuilder,
+			$context,
 			$section_id,
 			$group_id,
 			$heading,
 			$description_cb,
-			$updateFn,
 			$args
 		);
 	}
@@ -80,11 +63,7 @@ class AdminSettingsGroupBuilder implements GroupBuilderInterface {
 	 * @return GenericFieldBuilder<AdminSettingsGroupBuilder>
 	 */
 	public function field(string $field_id, string $label, string $component, array $args = array()): GenericFieldBuilder {
-		$proxy = $this->_add_field($field_id, $label, $component, $args);
-		if (!$proxy instanceof GenericFieldBuilder) {
-			throw new \RuntimeException('Unexpected proxy type from _add_field()');
-		}
-		return $proxy;
+		return parent::field($field_id, $label, $component, $args);
 	}
 
 	/**
@@ -95,111 +74,5 @@ class AdminSettingsGroupBuilder implements GroupBuilderInterface {
 	public function end_group(): AdminSettingsSectionBuilder {
 		$this->_finalize_group();
 		return $this->sectionBuilder;
-	}
-
-	/**
-	 * Get the FormsInterface instance.
-	 *
-	 * @return FormsInterface
-	 */
-	public function get_settings(): FormsInterface {
-		return $this->sectionBuilder->_get_forms();
-	}
-
-	// =========================================================================
-	// Abstract method implementations from traits
-	// =========================================================================
-
-	/**
-	 * Get the container type.
-	 *
-	 * @return string
-	 */
-	protected function _get_container_type(): string {
-		return 'group';
-	}
-
-	/**
-	 * Get the component builder factory for a given component alias.
-	 *
-	 * @param string $component The component alias.
-	 *
-	 * @return callable|null
-	 */
-	protected function _get_component_builder_factory(string $component): ?callable {
-		return $this->sectionBuilder->_get_component_builder_factory($component);
-	}
-
-	/**
-	 * Create a field proxy for the given component builder.
-	 *
-	 * @param ComponentBuilderDefinitionInterface $builder The component builder.
-	 * @param string $component_alias The component alias.
-	 * @param string|null $field_template The field template override.
-	 * @param array<string,mixed> $component_context The component context.
-	 *
-	 * @return GenericFieldBuilder<AdminSettingsGroupBuilder>
-	 */
-	protected function _create_field_proxy(
-		ComponentBuilderDefinitionInterface $builder,
-		string $component_alias,
-		?string $field_template,
-		array $component_context
-	): GenericFieldBuilder {
-		return new GenericFieldBuilder(
-			$builder,
-			$this,
-			$this->updateFn,
-			$this->container_id,
-			$this->section_id,
-			$component_alias,
-			$this->group_id,
-			$field_template,
-			$component_context
-		);
-	}
-
-	// =========================================================================
-	// BuilderImmediateUpdateTrait abstract implementations
-	// =========================================================================
-
-	/**
-	 * Apply a meta update to local state.
-	 *
-	 * @param string $key The meta key.
-	 * @param mixed $value The new value.
-	 */
-	protected function _apply_meta_update(string $key, mixed $value): void {
-		$this->_apply_container_meta_update($key, $value);
-	}
-
-	/**
-	 * Get the update callback.
-	 *
-	 * @return callable
-	 */
-	protected function _get_update_callback(): callable {
-		return $this->updateFn;
-	}
-
-	/**
-	 * Get the update event name.
-	 *
-	 * @return string
-	 */
-	protected function _get_update_event_name(): string {
-		return 'group_metadata';
-	}
-
-	/**
-	 * Build the update payload.
-	 *
-	 * @param string $key The meta key.
-	 * @param mixed $value The new value.
-	 *
-	 * @return array<string,mixed>
-	 */
-	protected function _build_update_payload(string $key, mixed $value): array {
-		return $this->_build_container_payload();
 	}
 }

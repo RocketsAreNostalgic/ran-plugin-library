@@ -5,6 +5,7 @@ namespace Ran\PluginLib\Tests\Unit\Forms\Builders;
 
 use PHPUnit\Framework\TestCase;
 use Ran\PluginLib\Forms\Builders\GenericFieldBuilder;
+use Ran\PluginLib\Forms\Builders\GenericBuilderContext;
 
 /**
  * @covers \Ran\PluginLib\Forms\Builders\GenericFieldBuilder
@@ -119,15 +120,14 @@ final class GenericFieldBuilderTest extends TestCase {
 		$this->currentBuilder = null;
 		$this->currentSection = null;
 
-		$forms   = new StubForms();
-		$root    = new StubRootBuilder($forms);
-		$section = new StubSectionBuilder($root, 'container', 'section', 'Heading', function (string $type, array $payload): void {
-			$this->updates[] = array('type' => $type, 'payload' => $payload);
-		});
-		$builder  = new StubComponentBuilder('field-proxy', 'Field Proxy', 'fields.input');
+		$forms    = new StubForms();
+		$root     = new StubRootBuilder($forms);
 		$updateFn = function (string $type, array $payload): void {
 			$this->updates[] = array('type' => $type, 'payload' => $payload);
 		};
+		$context = new GenericBuilderContext($forms, 'container', $updateFn);
+		$section = new StubSectionBuilder($root, $context, 'section', 'Heading');
+		$builder = new StubComponentBuilder('field-proxy', 'Field Proxy', 'fields.input');
 
 		$this->currentBuilder = $builder;
 		$this->currentSection = $section;

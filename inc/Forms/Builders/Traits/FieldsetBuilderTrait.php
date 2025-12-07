@@ -41,10 +41,15 @@ trait FieldsetBuilderTrait {
 		$this->name     = isset($args['name']) ? (string) $args['name'] : '';
 		$this->disabled = (bool) ($args['disabled'] ?? false);
 
-		// Set fieldset-specific templates
-		$this->template('fieldset-wrapper');
 		// Fields inside fieldsets use a div-based wrapper (no <tr>)
 		$this->default_field_template = 'layout.field.field-wrapper';
+
+		// Re-emit metadata now that fieldset properties are set
+		// This ensures the payload includes form, name, disabled
+		$this->_emit_container_metadata();
+
+		// Set fieldset-specific template (emits template_override)
+		$this->template('fieldset-wrapper');
 	}
 
 	/**

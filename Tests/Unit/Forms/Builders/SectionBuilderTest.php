@@ -4,11 +4,13 @@ declare(strict_types=1);
 namespace Ran\PluginLib\Tests\Unit\Forms\Builders;
 
 use PHPUnit\Framework\TestCase;
+use Ran\PluginLib\Forms\Builders\BuilderContextInterface;
 use Ran\PluginLib\Forms\Builders\BuilderRootInterface;
 use Ran\PluginLib\Forms\Builders\FieldsetBuilder;
 use Ran\PluginLib\Forms\Builders\GroupBuilder;
 use Ran\PluginLib\Forms\Builders\SectionBuilder;
 use Ran\PluginLib\Forms\Builders\GenericFieldBuilder;
+use Ran\PluginLib\Forms\FormsInterface;
 
 /**
  * @covers \Ran\PluginLib\Forms\Builders\SectionBuilder
@@ -144,24 +146,37 @@ final class SectionBuilderTest extends TestCase {
 			$this->updates[] = array('type' => $type, 'payload' => $payload);
 		};
 
-		return new class($rootBuilder, 'container', 'section', 'Heading', $updateFn, $factories) extends SectionBuilder {
-			/**
-			 * @param array<string, callable(string,string):StubComponentBuilder> $factories
-			 */
-			public function __construct(
-				BuilderRootInterface $root,
-				string $container,
-				string $section,
-				string $heading,
-				callable $updateFn,
-				private array $factories
-			) {
-				parent::__construct($root, $container, $section, $heading, $updateFn);
-			}
+		$context = new StubBuilderContextForSectionTest($forms, 'container', $updateFn, $factories);
 
-			public function _get_component_builder_factory(string $component): ?callable {
-				return $this->factories[$component] ?? null;
-			}
-		};
+		return new SectionBuilder($rootBuilder, $context, 'section', 'Heading');
+	}
+}
+
+final class StubBuilderContextForSectionTest implements BuilderContextInterface {
+	/**
+	 * @param array<string, callable(string,string):StubComponentBuilder> $factories
+	 */
+	public function __construct(
+		private StubForms $forms,
+		private string $containerId,
+		private $updateFn,
+		private array $factories = array()
+	) {
+	}
+
+	public function get_forms(): FormsInterface {
+		return $this->forms;
+	}
+
+	public function get_component_builder_factory(string $component): ?callable {
+		return $this->factories[$component] ?? null;
+	}
+
+	public function get_update_callback(): callable {
+		return $this->updateFn;
+	}
+
+	public function get_container_id(): string {
+		return $this->containerId;
 	}
 }

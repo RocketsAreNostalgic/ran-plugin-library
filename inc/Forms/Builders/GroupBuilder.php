@@ -2,6 +2,9 @@
 /**
  * GroupBuilder: Fluent builder for grouped fields within a section.
  *
+ * Standalone/generic group builder for use outside Settings contexts.
+ * Extends GroupBuilderBase with GenericBuilderContext for DI consistency.
+ *
  * @package Ran\PluginLib\Forms\Builders
  */
 
@@ -9,46 +12,42 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\Forms\Builders;
 
-use Ran\PluginLib\Forms\Component\Build\ComponentBuilderDefinitionInterface;
-use Ran\PluginLib\Forms\Builders\SectionFieldContainerBuilder;
-use Ran\PluginLib\Forms\Builders\SectionBuilder;
-use Ran\PluginLib\Forms\Builders\GroupBuilderInterface;
-
-class GroupBuilder extends SectionFieldContainerBuilder implements GroupBuilderInterface {
+/**
+ * Standalone group builder for generic/frontend forms.
+ *
+ * Extends GroupBuilderBase to provide concrete return types for IDE autocomplete.
+ * Uses GenericBuilderContext for dependency injection.
+ *
+ * @extends GroupBuilderBase<SectionBuilder>
+ */
+class GroupBuilder extends GroupBuilderBase {
+	/**
+	 * @param SectionBuilder $sectionBuilder The parent section builder.
+	 * @param BuilderContextInterface $context The builder context.
+	 * @param string $section_id The section ID.
+	 * @param string $group_id The group ID.
+	 * @param string $heading The group heading.
+	 * @param string|callable|null $description_cb The description callback.
+	 * @param array<string,mixed> $args Optional arguments.
+	 */
 	public function __construct(
 		SectionBuilder $sectionBuilder,
-		string $container_id,
+		BuilderContextInterface $context,
 		string $section_id,
 		string $group_id,
 		string $heading,
-		string|callable|null $description_cb,
-		callable $updateFn,
+		string|callable|null $description_cb = null,
 		array $args = array()
 	) {
 		parent::__construct(
 			$sectionBuilder,
-			$container_id,
+			$context,
 			$section_id,
 			$group_id,
 			$heading,
 			$description_cb,
-			$updateFn,
 			$args
 		);
-	}
-
-	/**
-	 * Commit buffered data and return to the section builder.
-	 *
-	 * Emits a final group_metadata event to ensure any fields added
-	 * after before()/after() calls are reflected in the metadata.
-	 *
-	 * @return SectionBuilderInterface
-	 */
-	public function end_group(): SectionBuilderInterface {
-		// Emit final group metadata to capture any fields added after before()/after()
-		$this->emit_group_metadata();
-		return $this->section();
 	}
 
 	/**
@@ -59,42 +58,18 @@ class GroupBuilder extends SectionFieldContainerBuilder implements GroupBuilderI
 	 * @param string $component The component alias.
 	 * @param array<string,mixed> $args Optional arguments.
 	 *
-	 * @return GenericFieldBuilder<GroupBuilder> The proxy instance with correct return type for end_field().
+	 * @return GenericFieldBuilder<GroupBuilder>
 	 */
 	public function field(string $field_id, string $label, string $component, array $args = array()): GenericFieldBuilder {
-		$proxy = parent::field($field_id, $label, $component, $args);
-		if (!$proxy instanceof GenericFieldBuilder) {
-			throw new \RuntimeException('Unexpected proxy type from parent::field()');
-		}
-		return $proxy;
+		return parent::field($field_id, $label, $component, $args);
 	}
 
 	/**
-	 * Factory method to create a ComponentBuilderProxy.
+	 * End the group and return to the parent section builder.
 	 *
-	 * @param ComponentBuilderDefinitionInterface $builder The component builder.
-	 * @param string $component_alias The component alias.
-	 * @param string|null $field_template The field template override.
-	 * @param array<string,mixed> $component_context The component context.
-	 *
-	 * @return GenericFieldBuilder<GroupBuilder> The proxy instance.
+	 * @return SectionBuilder
 	 */
-	protected function _create_component_proxy(
-		ComponentBuilderDefinitionInterface $builder,
-		string $component_alias,
-		?string $field_template,
-		array $component_context
-	): GenericFieldBuilder {
-		return new GenericFieldBuilder(
-			$builder,
-			$this,
-			$this->updateFn,
-			$this->container_id,
-			$this->section_id,
-			$component_alias,
-			$this->group_id,
-			$field_template,
-			$component_context
-		);
+	public function end_group(): SectionBuilder {
+		return $this->sectionBuilder;
 	}
 }

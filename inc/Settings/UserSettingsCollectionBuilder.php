@@ -19,6 +19,7 @@ use Ran\PluginLib\Forms\FormsInterface;
 use Ran\PluginLib\Forms\Builders\SectionBuilderInterface;
 use Ran\PluginLib\Forms\Builders\SectionBuilder;
 use Ran\PluginLib\Forms\Builders\BuilderImmediateUpdateTrait;
+use Ran\PluginLib\Forms\Builders\BuilderContextInterface;
 
 /**
  * UserSettingsCollectionBuilder: Fluent builder for user settings collections.
@@ -39,6 +40,9 @@ class UserSettingsCollectionBuilder implements UserSettingsBuilderRootInterface 
 
 	/** @var array<string, SectionBuilder> */
 	private array $active_sections = array();
+
+	/** @var BuilderContextInterface|null */
+	private ?BuilderContextInterface $context = null;
 
 	/**
 	 * Constructor.
@@ -133,10 +137,9 @@ class UserSettingsCollectionBuilder implements UserSettingsBuilderRootInterface 
 
 		$builder = new UserSettingsSectionBuilder(
 			$this,
-			$this->container_id,
+			$this->_get_context(),
 			$section_id,
 			$title,
-			$this->updateFn,
 			null,
 			null,
 			$order
@@ -269,6 +272,22 @@ class UserSettingsCollectionBuilder implements UserSettingsBuilderRootInterface 
 	 */
 	public function _get_forms(): FormsInterface {
 		return $this->settings;
+	}
+
+	/**
+	 * Get or create the builder context for child builders.
+	 *
+	 * @return BuilderContextInterface
+	 */
+	protected function _get_context(): BuilderContextInterface {
+		if ($this->context === null) {
+			$this->context = new SettingsBuilderContext(
+				$this->settings,
+				$this->container_id,
+				$this->updateFn
+			);
+		}
+		return $this->context;
 	}
 
 	/**

@@ -19,6 +19,7 @@ use Ran\PluginLib\Settings\AdminSettingsBuilderRootInterface;
 use Ran\PluginLib\Forms\Components\Elements\Button\Builder as ButtonBuilder;
 use Ran\PluginLib\Forms\Builders\SubmitControlsBuilder;
 use Ran\PluginLib\Forms\Builders\BuilderImmediateUpdateTrait;
+use Ran\PluginLib\Forms\Builders\BuilderContextInterface;
 
 /**
  * AdminSettingsPageBuilder: Fluent builder for Admin Settings pages.
@@ -40,6 +41,9 @@ class AdminSettingsPageBuilder implements AdminSettingsBuilderRootInterface {
 	/** @var array<string, AdminSettingsSectionBuilder> */
 	private array $active_sections    = array();
 	private bool $submit_zone_emitted = false;
+
+	/** @var BuilderContextInterface|null */
+	private ?BuilderContextInterface $context = null;
 
 	/**
 	 * Constructor.
@@ -154,10 +158,9 @@ class AdminSettingsPageBuilder implements AdminSettingsBuilderRootInterface {
 
 		$builder = new AdminSettingsSectionBuilder(
 			$this,
-			$this->container_id,
+			$this->_get_context(),
 			$section_id,
 			$title,
-			$this->updateFn,
 			$args['before'] ?? null,
 			$args['after']  ?? null,
 			$order instanceof \Closure || is_callable($order) ? null : ($order === null ? null : (int) $order)
@@ -315,6 +318,22 @@ class AdminSettingsPageBuilder implements AdminSettingsBuilderRootInterface {
 	 */
 	public function _get_forms(): AdminSettings {
 		return $this->get_settings();
+	}
+
+	/**
+	 * Get or create the builder context for child builders.
+	 *
+	 * @return BuilderContextInterface
+	 */
+	protected function _get_context(): BuilderContextInterface {
+		if ($this->context === null) {
+			$this->context = new SettingsBuilderContext(
+				$this->get_settings(),
+				$this->container_id,
+				$this->updateFn
+			);
+		}
+		return $this->context;
 	}
 
 	/**
