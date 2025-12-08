@@ -15,11 +15,12 @@ final class Builder extends ComponentBuilderBase {
 	private ?string $description_id = null;
 	/** @var array<int,string> */
 	private array $values = array();
-	/** @var array<int,string> */
-	private array $default_values = array();
-	private bool $disabled        = false;
-	/** @var array<int,array<string,mixed>> */
-	private array $options = array();
+	/** @var array<int,string>|callable */
+	private mixed $default_values = array();
+	/** @var bool|callable */
+	private mixed $disabled = false;
+	/** @var array<int,array<string,mixed>>|callable */
+	private mixed $options = array();
 
 	public function __construct(string $id, string $label) {
 		parent::__construct($id, $label);
@@ -61,12 +62,22 @@ final class Builder extends ComponentBuilderBase {
 		return $this;
 	}
 
-	public function default_values(array $values): static {
-		$this->default_values = array_map('strval', $values);
+	/**
+	 * Set default values.
+	 *
+	 * @param array|callable $values Array of values or callable that returns array.
+	 */
+	public function default_values(array|callable $values): static {
+		$this->default_values = $values;
 		return $this;
 	}
 
-	public function disabled(bool $disabled = true): static {
+	/**
+	 * Set the disabled state.
+	 *
+	 * @param bool|callable $disabled Boolean or callable that returns bool.
+	 */
+	public function disabled(bool|callable $disabled = true): static {
 		$this->disabled = $disabled;
 		return $this;
 	}
@@ -101,21 +112,13 @@ final class Builder extends ComponentBuilderBase {
 		return $this;
 	}
 
-	public function options(array $options): static {
-		$this->options = array();
-		foreach ($options as $option) {
-			if (!is_array($option)) {
-				continue;
-			}
-			$this->options[] = array(
-			    'value'      => isset($option['value']) ? (string) $option['value'] : '',
-			    'label'      => isset($option['label']) ? (string) $option['label'] : (isset($option['value']) ? (string) $option['value'] : ''),
-			    'group'      => isset($option['group']) ? (string) $option['group'] : null,
-			    'attributes' => isset($option['attributes']) && is_array($option['attributes']) ? array_map('strval', $option['attributes']) : array(),
-			    'selected'   => !empty($option['selected']),
-			    'disabled'   => !empty($option['disabled']),
-			);
-		}
+	/**
+	 * Set options for the multi-select field.
+	 *
+	 * @param array|callable $options Array of options or callable that returns array.
+	 */
+	public function options(array|callable $options): static {
+		$this->options = $options;
 		return $this;
 	}
 
@@ -126,16 +129,16 @@ final class Builder extends ComponentBuilderBase {
 		// Add multiple attribute
 		$context['attributes']['multiple'] = 'multiple';
 
-		// Add required properties
-		$context['options'] = $this->normalizeOptions();
+		// Add required properties (resolve callable if needed)
+		$context['options'] = $this->_resolve_options();
 
 		// Add optional properties using base class helpers
 		$this->_add_if_not_empty($context, 'name', $this->name);
 		$this->_add_if_not_empty($context, 'id', $this->element_id);
 		$this->_add_if_not_empty($context, 'description_id', $this->description_id);
 		$this->_add_if_not_empty($context, 'values', $this->values);
-		$this->_add_if_not_empty($context, 'default', $this->default_values);
-		$this->_add_if_true($context, 'disabled', $this->disabled);
+		$this->_add_if_not_empty($context, 'default', $this->_resolve_default_values());
+		$this->_add_if_true($context, 'disabled', $this->_resolve_bool_callable($this->disabled));
 
 		return $context;
 	}
@@ -145,27 +148,63 @@ final class Builder extends ComponentBuilderBase {
 	}
 
 	/**
+	 * Resolve options, handling callable if set.
+	 *
 	 * @return array<int,array<string,mixed>>
 	 */
-	private function normalizeOptions(): array {
+	private function _resolve_options(): array {
+		$options = is_callable($this->options) ? ($this->options)() : $this->options;
+		return $this->_normalize_options($options);
+	}
+
+	/**
+	 * Resolve default values, handling callable if set.
+	 *
+	 * @return array<int,string>
+	 */
+	private function _resolve_default_values(): array {
+		$values = is_callable($this->default_values) ? ($this->default_values)() : $this->default_values;
+		return array_map('strval', $values);
+	}
+
+	/**
+	 * Normalize options array to consistent format.
+	 *
+	 * @param array $options Raw options array.
+	 * @return array<int,array<string,mixed>>
+	 */
+	private function _normalize_options(array $options): array {
 		$normalized = array();
-		foreach ($this->options as $option) {
+		foreach ($options as $option) {
+			if (!is_array($option)) {
+				continue;
+			}
 			$item = array(
-			    'value'      => $option['value'],
-			    'label'      => $option['label'],
-			    'attributes' => $option['attributes'],
-		);
-			if ($option['group'] !== null && $option['group'] !== '') {
+			    'value'      => isset($option['value']) ? (string) $option['value'] : '',
+			    'label'      => isset($option['label']) ? (string) $option['label'] : (isset($option['value']) ? (string) $option['value'] : ''),
+			    'attributes' => isset($option['attributes']) && is_array($option['attributes']) ? array_map('strval', $option['attributes']) : array(),
+			);
+			if (isset($option['group']) && $option['group'] !== null && $option['group'] !== '') {
 				$item['group'] = (string) $option['group'];
 			}
-			if ($option['selected']) {
+			if (!empty($option['selected'])) {
 				$item['selected'] = true;
 			}
-			if ($option['disabled']) {
+			if (!empty($option['disabled'])) {
 				$item['disabled'] = true;
 			}
 			$normalized[] = $item;
 		}
 		return $normalized;
+	}
+
+	/**
+	 * Resolve a bool|callable to a bool value.
+	 */
+	private function _resolve_bool_callable(mixed $value): bool {
+		if (is_callable($value)) {
+			return (bool) $value();
+		}
+		return (bool) $value;
 	}
 }

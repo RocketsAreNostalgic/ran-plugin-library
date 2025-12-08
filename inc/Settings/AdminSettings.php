@@ -500,7 +500,7 @@ class AdminSettings implements FormsInterface {
 	public function __register_setting(): void {
 		$group = $this->base_options->get_main_option_name() . '_group';
 		$this->_do_register_setting($group, $this->base_options->get_main_option_name(), array(
-			'sanitize_callback' => array($this, '_sanitize'),
+			'sanitize_callback' => array($this, '__sanitize'),
 		));
 		$this->logger->debug('admin_settings.register_setting', array(
 			'group'  => $group,

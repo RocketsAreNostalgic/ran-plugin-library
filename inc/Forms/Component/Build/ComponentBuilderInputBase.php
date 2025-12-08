@@ -11,13 +11,17 @@ namespace Ran\PluginLib\Forms\Component\Build;
 
 abstract class ComponentBuilderInputBase extends ComponentBuilderBase {
 	protected ?string $placeholder = null;
-	protected ?string $default     = null;
-	protected bool $disabled       = false;
-	protected bool $readonly       = false;
-	protected bool $required       = false;
-	protected bool $autofocus      = false;
-	protected ?string $name        = null;
-	protected string $style        = '';
+	/** @var string|callable|null */
+	protected mixed $default = null;
+	/** @var bool|callable */
+	protected mixed $disabled = false;
+	/** @var bool|callable */
+	protected mixed $readonly = false;
+	/** @var bool|callable */
+	protected mixed $required = false;
+	protected bool $autofocus = false;
+	protected ?string $name   = null;
+	protected string $style   = '';
 	/** @var array<string,mixed> */
 	private array $base_metadata;
 
@@ -43,10 +47,10 @@ abstract class ComponentBuilderInputBase extends ComponentBuilderBase {
 	/**
 	 * Sets a default value for the input element.
 	 *
-	 * @param string|null $value
+	 * @param string|callable|null $value A string value or callable that returns a string.
 	 * @return static
 	 */
-	public function default(?string $value): static {
+	public function default(string|callable|null $value): static {
 		$this->default = $value;
 		return $this;
 	}
@@ -66,10 +70,10 @@ abstract class ComponentBuilderInputBase extends ComponentBuilderBase {
 	/**
 	 * Marks the input as disabled.
 	 *
-	 * @param bool $disabled
+	 * @param bool|callable $disabled Boolean or callable that returns bool.
 	 * @return static
 	 */
-	public function disabled(bool $disabled = true): static {
+	public function disabled(bool|callable $disabled = true): static {
 		$this->disabled = $disabled;
 		return $this;
 	}
@@ -77,10 +81,10 @@ abstract class ComponentBuilderInputBase extends ComponentBuilderBase {
 	/**
 	 * Marks the input as readonly.
 	 *
-	 * @param bool $readonly
+	 * @param bool|callable $readonly Boolean or callable that returns bool.
 	 * @return static
 	 */
-	public function readonly(bool $readonly = true): static {
+	public function readonly(bool|callable $readonly = true): static {
 		$this->readonly = $readonly;
 		return $this;
 	}
@@ -88,10 +92,10 @@ abstract class ComponentBuilderInputBase extends ComponentBuilderBase {
 	/**
 	 * Marks the input as required.
 	 *
-	 * @param bool $required
+	 * @param bool|callable $required Boolean or callable that returns bool.
 	 * @return static
 	 */
-	public function required(bool $required = true): static {
+	public function required(bool|callable $required = true): static {
 		$this->required = $required;
 		return $this;
 	}
@@ -148,16 +152,42 @@ abstract class ComponentBuilderInputBase extends ComponentBuilderBase {
 
 		// Add input-specific properties
 		$this->_add_if_not_empty($context, 'placeholder', $this->placeholder);
-		$this->_add_if_not_empty($context, 'default', $this->default);
+		$this->_add_if_not_empty($context, 'default', $this->_resolve_callable($this->default));
 		$this->_add_if_not_empty($context, 'name', $this->name ?? $this->id);
 
-		// Add boolean flags
-		$this->_add_if_true($context, 'disabled', $this->disabled);
-		$this->_add_if_true($context, 'readonly', $this->readonly);
-		$this->_add_if_true($context, 'required', $this->required);
+		// Add boolean flags (resolve callables)
+		$this->_add_if_true($context, 'disabled', $this->_resolve_bool_callable($this->disabled));
+		$this->_add_if_true($context, 'readonly', $this->_resolve_bool_callable($this->readonly));
+		$this->_add_if_true($context, 'required', $this->_resolve_bool_callable($this->required));
 		$this->_add_if_true($context, 'autofocus', $this->autofocus);
 
 		return $context;
+	}
+
+	/**
+	 * Resolve a bool|callable to a bool value.
+	 *
+	 * @param bool|callable $value
+	 * @return bool
+	 */
+	protected function _resolve_bool_callable(mixed $value): bool {
+		if (is_callable($value)) {
+			return (bool) $value();
+		}
+		return (bool) $value;
+	}
+
+	/**
+	 * Resolve a callable to its value, or return the value as-is.
+	 *
+	 * @param mixed $value
+	 * @return mixed
+	 */
+	protected function _resolve_callable(mixed $value): mixed {
+		if (is_callable($value)) {
+			return $value();
+		}
+		return $value;
 	}
 
 	/**
@@ -170,12 +200,13 @@ abstract class ComponentBuilderInputBase extends ComponentBuilderBase {
 	}
 
 	/**
-	 * Get the default value.
+	 * Get the default value (resolves callable if set).
 	 *
 	 * @return string|null
 	 */
 	public function get_default(): ?string {
-		return $this->default;
+		$resolved = $this->_resolve_callable($this->default);
+		return $resolved !== null ? (string) $resolved : null;
 	}
 
 	/**
@@ -188,30 +219,30 @@ abstract class ComponentBuilderInputBase extends ComponentBuilderBase {
 	}
 
 	/**
-	 * Check if the input is required.
+	 * Check if the input is required (resolves callable if set).
 	 *
 	 * @return bool
 	 */
 	public function is_required(): bool {
-		return $this->required;
+		return $this->_resolve_bool_callable($this->required);
 	}
 
 	/**
-	 * Check if the input is disabled.
+	 * Check if the input is disabled (resolves callable if set).
 	 *
 	 * @return bool
 	 */
 	public function is_disabled(): bool {
-		return $this->disabled;
+		return $this->_resolve_bool_callable($this->disabled);
 	}
 
 	/**
-	 * Check if the input is readonly.
+	 * Check if the input is readonly (resolves callable if set).
 	 *
 	 * @return bool
 	 */
 	public function is_readonly(): bool {
-		return $this->readonly;
+		return $this->_resolve_bool_callable($this->readonly);
 	}
 
 	/**

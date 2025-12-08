@@ -124,11 +124,11 @@ trait FieldProxyTrait {
 	/**
 	 * Set the disabled state for this field.
 	 *
-	 * @param bool $disabled The disabled state.
+	 * @param bool|callable $disabled Boolean or callable that returns bool.
 	 *
 	 * @return static
 	 */
-	public function disabled(bool $disabled = true): static {
+	public function disabled(bool|callable $disabled = true): static {
 		$this->builder->disabled($disabled);
 		$this->_emit_field_update();
 		return $this;
@@ -137,11 +137,11 @@ trait FieldProxyTrait {
 	/**
 	 * Set the required state for this field.
 	 *
-	 * @param bool $required The required state.
+	 * @param bool|callable $required Boolean or callable that returns bool.
 	 *
 	 * @return static
 	 */
-	public function required(bool $required = true): static {
+	public function required(bool|callable $required = true): static {
 		$this->builder->required($required);
 		$this->_emit_field_update();
 		return $this;
@@ -150,11 +150,11 @@ trait FieldProxyTrait {
 	/**
 	 * Set the readonly state for this field.
 	 *
-	 * @param bool $readonly The readonly state.
+	 * @param bool|callable $readonly Boolean or callable that returns bool.
 	 *
 	 * @return static
 	 */
-	public function readonly(bool $readonly = true): static {
+	public function readonly(bool|callable $readonly = true): static {
 		$this->builder->readonly($readonly);
 		$this->_emit_field_update();
 		return $this;
