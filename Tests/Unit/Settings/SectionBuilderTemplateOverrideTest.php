@@ -2,7 +2,7 @@
 /**
  * Section Builder Template Override Tests
  *
- * Tests the template override methods (field_template, group_template, section_template)
+ * Tests the template override methods (field_templates, group_template, section_template)
  * for both AdminSettingsSectionBuilder and UserSettingsSectionBuilder.
  *
  * These tests ensure that template override functionality is not lost during refactoring
@@ -29,12 +29,12 @@ use Ran\PluginLib\Forms\Component\ComponentLoader;
 /**
  * Tests for template override methods on section builders.
  *
- * @covers \Ran\PluginLib\Settings\AdminSettingsSectionBuilder::field_template
- * @covers \Ran\PluginLib\Settings\AdminSettingsSectionBuilder::group_template
- * @covers \Ran\PluginLib\Settings\AdminSettingsSectionBuilder::section_template
- * @covers \Ran\PluginLib\Settings\UserSettingsSectionBuilder::field_template
- * @covers \Ran\PluginLib\Settings\UserSettingsSectionBuilder::group_template
- * @covers \Ran\PluginLib\Settings\UserSettingsSectionBuilder::section_template
+ * @covers \Ran\PluginLib\Settings\AdminSettingsSectionBuilder::field_templates
+ * @covers \Ran\PluginLib\Settings\AdminSettingsSectionBuilder::group_templates
+ * @covers \Ran\PluginLib\Settings\AdminSettingsSectionBuilder::template
+ * @covers \Ran\PluginLib\Settings\UserSettingsSectionBuilder::field_templates
+ * @covers \Ran\PluginLib\Settings\UserSettingsSectionBuilder::group_templates
+ * @covers \Ran\PluginLib\Settings\UserSettingsSectionBuilder::template
  */
 class SectionBuilderTemplateOverrideTest extends TestCase {
 	use ExpectLogTrait;
@@ -135,7 +135,7 @@ class SectionBuilderTemplateOverrideTest extends TestCase {
 		$admin->menu_group('test-menu')
 			->page('test-page')
 				->section('template-section', 'Template Section')
-					->field_template('custom-field-wrapper')
+					->field_templates('custom-field-wrapper')
 					->field('test_field', 'Test Field', 'fields.input')
 				->end_field()->end_section()
 			->end_page()
@@ -159,7 +159,7 @@ class SectionBuilderTemplateOverrideTest extends TestCase {
 		$admin->menu_group('test-menu')
 			->page('test-page')
 				->section('template-section', 'Template Section')
-					->group_template('custom-group-wrapper')
+					->group_templates('custom-group-wrapper')
 					->field('test_field', 'Test Field', 'fields.input')
 				->end_field()->end_section()
 			->end_page()
@@ -183,7 +183,7 @@ class SectionBuilderTemplateOverrideTest extends TestCase {
 		$admin->menu_group('test-menu')
 			->page('test-page')
 				->section('template-section', 'Template Section')
-					->section_template('custom-section-wrapper')
+					->template('custom-section-wrapper')
 					->field('test_field', 'Test Field', 'fields.input')
 				->end_field()->end_section()
 			->end_page()
@@ -207,7 +207,7 @@ class SectionBuilderTemplateOverrideTest extends TestCase {
 		$admin->menu_group('test-menu')
 			->page('test-page')
 				->section('template-section', 'Template Section')
-					->fieldset_template('custom-fieldset-wrapper')
+					->fieldset_templates('custom-fieldset-wrapper')
 					->field('test_field', 'Test Field', 'fields.input')
 				->end_field()->end_section()
 			->end_page()
@@ -234,7 +234,7 @@ class SectionBuilderTemplateOverrideTest extends TestCase {
 		$admin->menu_group('test-menu')
 			->page('test-page')
 				->section('template-section', 'Template Section')
-					->field_template('');
+					->field_templates('');
 	}
 
 	/**
@@ -249,7 +249,7 @@ class SectionBuilderTemplateOverrideTest extends TestCase {
 		$admin->menu_group('test-menu')
 			->page('test-page')
 				->section('template-section', 'Template Section')
-					->group_template('   ');
+					->group_templates('   ');
 	}
 
 	/**
@@ -264,7 +264,7 @@ class SectionBuilderTemplateOverrideTest extends TestCase {
 		$admin->menu_group('test-menu')
 			->page('test-page')
 				->section('template-section', 'Template Section')
-					->fieldset_template('');
+					->fieldset_templates('');
 	}
 
 	/**
@@ -279,7 +279,7 @@ class SectionBuilderTemplateOverrideTest extends TestCase {
 		$admin->menu_group('test-menu')
 			->page('test-page')
 				->section('template-section', 'Template Section')
-					->section_template('');
+					->template('');
 	}
 
 	/**
@@ -292,16 +292,16 @@ class SectionBuilderTemplateOverrideTest extends TestCase {
 			->page('test-page')
 				->section('template-section', 'Template Section');
 
-		$result1 = $section->field_template('custom-field');
+		$result1 = $section->field_templates('custom-field');
 		self::assertInstanceOf(AdminSettingsSectionBuilder::class, $result1);
 
-		$result2 = $result1->group_template('custom-group');
+		$result2 = $result1->group_templates('custom-group');
 		self::assertInstanceOf(AdminSettingsSectionBuilder::class, $result2);
 
-		$result3 = $result2->fieldset_template('custom-fieldset');
+		$result3 = $result2->fieldset_templates('custom-fieldset');
 		self::assertInstanceOf(AdminSettingsSectionBuilder::class, $result3);
 
-		$result4 = $result3->section_template('custom-section');
+		$result4 = $result3->template('custom-section');
 		self::assertInstanceOf(AdminSettingsSectionBuilder::class, $result4);
 	}
 
@@ -314,10 +314,10 @@ class SectionBuilderTemplateOverrideTest extends TestCase {
 		$admin->menu_group('test-menu')
 			->page('test-page')
 				->section('multi-override-section', 'Multi Override Section')
-					->field_template('custom-field-wrapper')
-					->group_template('custom-group-wrapper')
-					->fieldset_template('custom-fieldset-wrapper')
-					->section_template('custom-section-wrapper')
+					->field_templates('custom-field-wrapper')
+					->group_templates('custom-group-wrapper')
+					->fieldset_templates('custom-fieldset-wrapper')
+					->template('custom-section-wrapper')
 					->field('test_field', 'Test Field', 'fields.input')
 				->end_field()->end_section()
 			->end_page()
@@ -346,7 +346,7 @@ class SectionBuilderTemplateOverrideTest extends TestCase {
 
 		$user->collection('profile')
 			->section('template-section', 'Template Section')
-				->field_template('custom-field-wrapper')
+				->field_templates('custom-field-wrapper')
 				->field('test_field', 'Test Field', 'fields.input')
 			->end_field()->end_section()
 		->end_collection();
@@ -368,7 +368,7 @@ class SectionBuilderTemplateOverrideTest extends TestCase {
 
 		$user->collection('profile')
 			->section('template-section', 'Template Section')
-				->group_template('custom-group-wrapper')
+				->group_templates('custom-group-wrapper')
 				->field('test_field', 'Test Field', 'fields.input')
 			->end_field()->end_section()
 		->end_collection();
@@ -390,7 +390,7 @@ class SectionBuilderTemplateOverrideTest extends TestCase {
 
 		$user->collection('profile')
 			->section('template-section', 'Template Section')
-				->section_template('custom-section-wrapper')
+				->template('custom-section-wrapper')
 				->field('test_field', 'Test Field', 'fields.input')
 			->end_field()->end_section()
 		->end_collection();
@@ -412,7 +412,7 @@ class SectionBuilderTemplateOverrideTest extends TestCase {
 
 		$user->collection('profile')
 			->section('template-section', 'Template Section')
-				->fieldset_template('custom-fieldset-wrapper')
+				->fieldset_templates('custom-fieldset-wrapper')
 				->field('test_field', 'Test Field', 'fields.input')
 			->end_field()->end_section()
 		->end_collection();
@@ -437,7 +437,7 @@ class SectionBuilderTemplateOverrideTest extends TestCase {
 
 		$user->collection('profile')
 			->section('template-section', 'Template Section')
-				->field_template('');
+				->field_templates('');
 	}
 
 	/**
@@ -451,7 +451,7 @@ class SectionBuilderTemplateOverrideTest extends TestCase {
 
 		$user->collection('profile')
 			->section('template-section', 'Template Section')
-				->group_template('   ');
+				->group_templates('   ');
 	}
 
 	/**
@@ -465,7 +465,7 @@ class SectionBuilderTemplateOverrideTest extends TestCase {
 
 		$user->collection('profile')
 			->section('template-section', 'Template Section')
-				->fieldset_template('');
+				->fieldset_templates('');
 	}
 
 	/**
@@ -479,7 +479,7 @@ class SectionBuilderTemplateOverrideTest extends TestCase {
 
 		$user->collection('profile')
 			->section('template-section', 'Template Section')
-				->section_template('');
+				->template('');
 	}
 
 	/**
@@ -491,16 +491,16 @@ class SectionBuilderTemplateOverrideTest extends TestCase {
 		$section = $user->collection('profile')
 			->section('template-section', 'Template Section');
 
-		$result1 = $section->field_template('custom-field');
+		$result1 = $section->field_templates('custom-field');
 		self::assertInstanceOf(UserSettingsSectionBuilder::class, $result1);
 
-		$result2 = $result1->group_template('custom-group');
+		$result2 = $result1->group_templates('custom-group');
 		self::assertInstanceOf(UserSettingsSectionBuilder::class, $result2);
 
-		$result3 = $result2->fieldset_template('custom-fieldset');
+		$result3 = $result2->fieldset_templates('custom-fieldset');
 		self::assertInstanceOf(UserSettingsSectionBuilder::class, $result3);
 
-		$result4 = $result3->section_template('custom-section');
+		$result4 = $result3->template('custom-section');
 		self::assertInstanceOf(UserSettingsSectionBuilder::class, $result4);
 	}
 
@@ -512,10 +512,10 @@ class SectionBuilderTemplateOverrideTest extends TestCase {
 
 		$user->collection('profile')
 			->section('multi-override-section', 'Multi Override Section')
-				->field_template('custom-field-wrapper')
-				->group_template('custom-group-wrapper')
-				->fieldset_template('custom-fieldset-wrapper')
-				->section_template('custom-section-wrapper')
+				->field_templates('custom-field-wrapper')
+				->group_templates('custom-group-wrapper')
+				->fieldset_templates('custom-fieldset-wrapper')
+				->template('custom-section-wrapper')
 				->field('test_field', 'Test Field', 'fields.input')
 			->end_field()->end_section()
 		->end_collection();
@@ -543,14 +543,14 @@ class SectionBuilderTemplateOverrideTest extends TestCase {
 		$adminMethods = get_class_methods(AdminSettingsSectionBuilder::class);
 		$userMethods  = get_class_methods(UserSettingsSectionBuilder::class);
 
-		self::assertContains('field_template', $adminMethods, 'AdminSettingsSectionBuilder must have field_template method.');
-		self::assertContains('group_template', $adminMethods, 'AdminSettingsSectionBuilder must have group_template method.');
-		self::assertContains('fieldset_template', $adminMethods, 'AdminSettingsSectionBuilder must have fieldset_template method.');
-		self::assertContains('section_template', $adminMethods, 'AdminSettingsSectionBuilder must have section_template method.');
+		self::assertContains('field_templates', $adminMethods, 'AdminSettingsSectionBuilder must have field_template method.');
+		self::assertContains('group_templates', $adminMethods, 'AdminSettingsSectionBuilder must have group_template method.');
+		self::assertContains('fieldset_templates', $adminMethods, 'AdminSettingsSectionBuilder must have fieldset_template method.');
+		self::assertContains('template', $adminMethods, 'AdminSettingsSectionBuilder must have section_template method.');
 
-		self::assertContains('field_template', $userMethods, 'UserSettingsSectionBuilder must have field_template method.');
-		self::assertContains('group_template', $userMethods, 'UserSettingsSectionBuilder must have group_template method.');
-		self::assertContains('fieldset_template', $userMethods, 'UserSettingsSectionBuilder must have fieldset_template method.');
-		self::assertContains('section_template', $userMethods, 'UserSettingsSectionBuilder must have section_template method.');
+		self::assertContains('field_templates', $userMethods, 'UserSettingsSectionBuilder must have field_template method.');
+		self::assertContains('group_templates', $userMethods, 'UserSettingsSectionBuilder must have group_template method.');
+		self::assertContains('fieldset_templates', $userMethods, 'UserSettingsSectionBuilder must have fieldset_template method.');
+		self::assertContains('template', $userMethods, 'UserSettingsSectionBuilder must have section_template method.');
 	}
 }

@@ -86,13 +86,13 @@ interface SectionBuilderInterface {
 	public function field(string $field_id, string $label, string $component, array $args = array()): mixed;
 
 	/**
-	 * Set the field template for field wrapper customization.
+	 * Set the default template for all fields in this section.
 	 *
 	 * @param string $template_key The template key to use for field wrappers.
 	 *
 	 * @return static
 	 */
-	public function field_template(string $template_key): static;
+	public function field_templates(string $template_key): static;
 
 	/**
 	 * Define a new fieldset group within this section.
@@ -107,13 +107,13 @@ interface SectionBuilderInterface {
 	public function fieldset(string $fieldset_id, string $title, string|callable|null $description_cb = null, ?array $args = null): mixed;
 
 	/**
-	 * Set the default fieldset template for all fieldsets in this section.
+	 * Set the default template for all fieldsets in this section.
 	 *
 	 * @param string $template_key The template key to use for fieldset containers.
 	 *
 	 * @return static
 	 */
-	public function fieldset_template(string $template_key): static;
+	public function fieldset_templates(string $template_key): static;
 
 	/**
 	 * Define a new field group within this section.
@@ -128,22 +128,13 @@ interface SectionBuilderInterface {
 	public function group(string $group_id, string $title, string|callable|null $description_cb = null, ?array $args = null): mixed;
 
 	/**
-	 * Set the default group template for all groups in this section.
+	 * Set the default template for all groups in this section.
 	 *
 	 * @param string $template_key The template key to use for group containers.
 	 *
 	 * @return static
 	 */
-	public function group_template(string $template_key): static;
-
-	/**
-	 * Set the section template for section container customization.
-	 *
-	 * @param string $template_key The template key to use for section container.
-	 *
-	 * @return static
-	 */
-	public function section_template(string $template_key): static;
+	public function group_templates(string $template_key): static;
 
 	/**
 	 * end_section() method returns the original Settings instance.
