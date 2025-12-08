@@ -316,7 +316,7 @@ class AdminSettingsPageBuilder implements AdminSettingsBuilderRootInterface {
 	 *
 	 * @return AdminSettings
 	 */
-	public function _get_forms(): AdminSettings {
+	public function __get_forms(): AdminSettings {
 		return $this->get_settings();
 	}
 

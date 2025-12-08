@@ -597,7 +597,7 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 		WP_Mock::userFunction('wp_enqueue_script')->never()->with('asset-deferred', Mockery::any());
 
 		// Act: Simulate the WordPress action firing for priority 10.
-		$this->instance->_enqueue_deferred_scripts($hook_name, 10);
+		$this->instance->__enqueue_deferred_scripts($hook_name, 10);
 		// Assert: Check logs for correct processing messages.
 		$this->expectLog('debug', array('_enqueue_deferred_', 'Entered hook: "' . $hook_name . '" with priority: 10'), 1);
 		$this->expectLog('debug', array('_enqueue_deferred_', "Processing deferred asset 'asset-deferred'"), 1);
@@ -613,7 +613,7 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 
 	/**
 	 * @test
-	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::_enqueue_deferred_scripts
+	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::__enqueue_deferred_scripts
 	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_enqueue_deferred_assets
 	 */
 	public function test_enqueue_deferred_scripts_skips_if_hook_is_empty(): void {
@@ -631,7 +631,7 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 		$this->assertArrayHasKey($hook_name, $assets['deferred'], 'The hook should be in the deferred assets.');
 
 		// Act: Call the public method that would be triggered by the WordPress hook.
-		$this->instance->_enqueue_deferred_scripts($hook_name, 10);
+		$this->instance->__enqueue_deferred_scripts($hook_name, 10);
 
 		// Assert: Check the log message was triggered
 		$this->expectLog('debug', array('Entered hook'), 1);
@@ -647,7 +647,7 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 
 	/**
 	 * @test
-	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::_enqueue_deferred_scripts
+	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::__enqueue_deferred_scripts
 	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_enqueue_deferred_assets
 	 */
 	public function test_enqueue_deferred_scripts_processes_assets_for_correct_priority(): void {
@@ -690,7 +690,7 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 		WP_Mock::userFunction('wp_enqueue_script')->never()->with('asset-prio-20', Mockery::any());
 
 		// Act: Simulate the WordPress action firing for priority 10.
-		$this->instance->_enqueue_deferred_scripts($hook_name, 10);
+		$this->instance->__enqueue_deferred_scripts($hook_name, 10);
 		// Assert: Check logs for correct processing messages.
 		$this->expectLog('debug', array('_enqueue_deferred_', 'Entered hook: "' . $hook_name . '" with priority: 10'), 1);
 		$this->expectLog('debug', array('_enqueue_deferred_', "Processing deferred asset 'asset-prio-10'"), 1);
@@ -874,7 +874,7 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 
 	/**
 	 * @test
-	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::_enqueue_external_inline_scripts
+	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::__enqueue_external_inline_scripts
 	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_enqueue_external_inline_assets
 	 */
 	public function test_enqueue_external_inline_scripts_executes_base_method(): void {
@@ -907,7 +907,7 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 			->andReturn(null);
 
 		// Call the method under test
-		$this->instance->_enqueue_external_inline_scripts();
+		$this->instance->__enqueue_external_inline_scripts();
 
 		// Note: In the new implementation, the _process_external_inline_assets method removes individual
 		// entries from the $external_inline_assets array, not the entire hook entry.
@@ -1541,7 +1541,7 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 	 * Tests the complete lifecycle of deferred inline scripts.
 	 *
 	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::add
-	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::_enqueue_deferred_scripts
+	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::__enqueue_deferred_scripts
 	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_process_inline_assets
 	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_process_deferred_inline_assets
 	 */
@@ -1608,7 +1608,7 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 
 		// Process the deferred asset by calling _enqueue_deferred_scripts with the required arguments
 		$reflection = new \ReflectionClass($instance);
-		$method     = $reflection->getMethod('_enqueue_deferred_scripts');
+		$method     = $reflection->getMethod('__enqueue_deferred_scripts');
 		$method->setAccessible(true);
 		$method->invoke($instance, $hook, $priority);
 
@@ -1625,7 +1625,7 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 	 * Tests the complete lifecycle of external inline scripts.
 	 *
 	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::add_inline
-	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::_enqueue_external_inline_scripts
+	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::__enqueue_external_inline_scripts
 	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_process_inline_assets
 	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_process_external_inline_assets
 	 */
@@ -1671,7 +1671,7 @@ class ScriptsEnqueueTraitTest extends EnqueueTraitTestCase {
 		$this->assertArrayHasKey($handle, $external_inline_assets[$hook]);
 
 		// Process the external inline scripts
-		$method = $reflection->getMethod('_enqueue_external_inline_scripts');
+		$method = $reflection->getMethod('__enqueue_external_inline_scripts');
 		$method->setAccessible(true);
 		$method->invoke($instance);
 

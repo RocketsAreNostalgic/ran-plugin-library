@@ -274,7 +274,7 @@ class BlockRegistrar extends AssetEnqueueBaseAbstract {
 		// Enhance external block registrations with our asset system via HooksManager
 		$this->_get_hooks_manager()->register_filter(
 			'register_block_type_args',
-			array($this, '_integrate_block_assets'),
+			array($this, '__integrate_block_assets'),
 			10,
 			2,
 			array('context' => 'block_registrar')
@@ -535,7 +535,7 @@ class BlockRegistrar extends AssetEnqueueBaseAbstract {
 	 * @internal This is an internal method called by WordPress as an action callback and should not be called directly.
 	 * @return self Returns the instance for method chaining.
 	 */
-	public function _enqueue_editor_assets(): self {
+	public function __enqueue_editor_assets(): self {
 		$logger  = $this->get_logger();
 		$context = get_class($this) . '::' . __FUNCTION__;
 
@@ -573,7 +573,7 @@ class BlockRegistrar extends AssetEnqueueBaseAbstract {
 	 * @param string $block_name Block name being registered.
 	 * @return array Modified block registration arguments.
 	 */
-	public function _integrate_block_assets(array $args, string $block_name): array {
+	public function __integrate_block_assets(array $args, string $block_name): array {
 		if (!isset($this->block_assets[$block_name])) {
 			return $args;
 		}
@@ -624,7 +624,7 @@ class BlockRegistrar extends AssetEnqueueBaseAbstract {
 	 * @param array  $block         The block data.
 	 * @return string The unmodified block content.
 	 */
-	public function _maybe_enqueue_dynamic_assets(string $block_content, array $block): string {
+	public function __maybe_enqueue_dynamic_assets(string $block_content, array $block): string {
 		$block_name = $block['blockName'] ?? '';
 
 		if ($block_name && isset($this->block_assets[$block_name])) {
@@ -780,10 +780,10 @@ class BlockRegistrar extends AssetEnqueueBaseAbstract {
 		$this->_get_hooks_manager()->register_action('wp_enqueue_scripts', array($this, 'stage'), 10, 1, array('context' => 'block_registrar'));
 
 		// Editor-specific assets
-		$this->_get_hooks_manager()->register_action('enqueue_block_editor_assets', array($this, '_enqueue_editor_assets'), 10, 1, array('context' => 'block_registrar'));
+		$this->_get_hooks_manager()->register_action('enqueue_block_editor_assets', array($this, '__enqueue_editor_assets'), 10, 1, array('context' => 'block_registrar'));
 
 		// Dynamic block integration
-		$this->_get_hooks_manager()->register_filter('render_block', array($this, '_maybe_enqueue_dynamic_assets'), 10, 2, array('context' => 'block_registrar'));
+		$this->_get_hooks_manager()->register_filter('render_block', array($this, '__maybe_enqueue_dynamic_assets'), 10, 2, array('context' => 'block_registrar'));
 	}
 
 	/**

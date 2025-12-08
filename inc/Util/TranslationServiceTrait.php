@@ -32,7 +32,7 @@ trait TranslationServiceTrait {
 	 * @param \Ran\PluginLib\Util\TranslationService $translator Translation service instance
 	 * @return string Translated text
 	 */
-	public function _do__service(string $text, TranslationService $translator): string {
+	public function __do__service(string $text, TranslationService $translator): string {
 		return $this->_do___($text, $translator->get_effective_domain());
 	}
 
@@ -45,7 +45,7 @@ trait TranslationServiceTrait {
 	 * @param \Ran\PluginLib\Util\TranslationService $translator Translation service instance
 	 * @return string Translated text
 	 */
-	public function _do_x_service(string $text, string $context, TranslationService $translator): string {
+	public function __do_x_service(string $text, string $context, TranslationService $translator): string {
 		return $this->_do_x($text, $context, $translator->get_effective_domain());
 	}
 
@@ -57,7 +57,7 @@ trait TranslationServiceTrait {
 	 * @param \Ran\PluginLib\Util\TranslationService $translator Translation service instance
 	 * @return string Escaped and translated text
 	 */
-	public function _do_esc_html__service(string $text, TranslationService $translator): string {
+	public function __do_esc_html__service(string $text, TranslationService $translator): string {
 		return $this->_do_esc_html__($text, $translator->get_effective_domain());
 	}
 
@@ -70,7 +70,7 @@ trait TranslationServiceTrait {
 	 * @param \Ran\PluginLib\Util\TranslationService $translator Translation service instance
 	 * @return string Escaped and translated text
 	 */
-	public function _do_esc_html_x_service(string $text, string $context, TranslationService $translator): string {
+	public function __do_esc_html_x_service(string $text, string $context, TranslationService $translator): string {
 		return $this->_do_esc_html_x($text, $context, $translator->get_effective_domain());
 	}
 
@@ -82,7 +82,7 @@ trait TranslationServiceTrait {
 	 * @param \Ran\PluginLib\Util\TranslationService $translator Translation service instance
 	 * @return string Escaped and translated text
 	 */
-	public function _do_esc_attr__service(string $text, TranslationService $translator): string {
+	public function __do_esc_attr__service(string $text, TranslationService $translator): string {
 		return $this->_do_esc_attr__($text, $translator->get_effective_domain());
 	}
 
@@ -95,7 +95,7 @@ trait TranslationServiceTrait {
 	 * @param \Ran\PluginLib\Util\TranslationService $translator Translation service instance
 	 * @return string Escaped and translated text
 	 */
-	public function _do_esc_attr_x_service(string $text, string $context, TranslationService $translator): string {
+	public function __do_esc_attr_x_service(string $text, string $context, TranslationService $translator): string {
 		return $this->_do_esc_attr_x($text, $context, $translator->get_effective_domain());
 	}
 
@@ -107,7 +107,7 @@ trait TranslationServiceTrait {
 	 * @param \Ran\PluginLib\Util\TranslationService $translator Translation service instance
 	 * @return void
 	 */
-	public function _do_e_service(string $text, TranslationService $translator): void {
+	public function __do_e_service(string $text, TranslationService $translator): void {
 		$this->_do_e($text, $translator->get_effective_domain());
 	}
 
@@ -119,7 +119,7 @@ trait TranslationServiceTrait {
 	 * @param \Ran\PluginLib\Util\TranslationService $translator Translation service instance
 	 * @return void
 	 */
-	public function _do_esc_html_e_service(string $text, TranslationService $translator): void {
+	public function __do_esc_html_e_service(string $text, TranslationService $translator): void {
 		$this->_do_esc_html_e($text, $translator->get_effective_domain());
 	}
 
@@ -131,7 +131,7 @@ trait TranslationServiceTrait {
 	 * @param \Ran\PluginLib\Util\TranslationService $translator Translation service instance
 	 * @return void
 	 */
-	public function _do_esc_attr_e_service(string $text, TranslationService $translator): void {
+	public function __do_esc_attr_e_service(string $text, TranslationService $translator): void {
 		$this->_do_esc_attr_e($text, $translator->get_effective_domain());
 	}
 
@@ -145,7 +145,7 @@ trait TranslationServiceTrait {
 	 * @param \Ran\PluginLib\Util\TranslationService $translator Translation service instance
 	 * @return string Translated text
 	 */
-	public function _do_translate_plural_service(string $single, string $plural, int $number, TranslationService $translator): string {
+	public function __do_translate_plural_service(string $single, string $plural, int $number, TranslationService $translator): string {
 		return $this->_do_n($single, $plural, $number, $translator->get_effective_domain());
 	}
 
@@ -160,7 +160,7 @@ trait TranslationServiceTrait {
 	 * @param \Ran\PluginLib\Util\TranslationService $translator Translation service instance
 	 * @return string Translated text
 	 */
-	public function _do_nx_service(string $single, string $plural, int $number, string $context, TranslationService $translator): string {
+	public function __do_nx_service(string $single, string $plural, int $number, string $context, TranslationService $translator): string {
 		return $this->_do_nx($single, $plural, $number, $context, $translator->get_effective_domain());
 	}
 }

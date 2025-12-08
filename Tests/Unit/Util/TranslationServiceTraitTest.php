@@ -59,61 +59,61 @@ final class TranslationServiceTraitTest extends PluginLibTestCase {
 	}
 
 	/**
-	 * @covers ::_do__service
+	 * @covers ::__do__service
 	 */
 	public function test_do_service_falls_back_when_translation_function_missing(): void {
 		$translator = $this->createTranslatorStub();
 		$subject    = $this->createSubjectWithoutTranslations();
 
-		$this->assertSame('Hello', $subject->_do__service('Hello', $translator));
+		$this->assertSame('Hello', $subject->__do__service('Hello', $translator));
 	}
 
 	/**
-	 * @covers ::_do__service
+	 * @covers ::__do__service
 	 */
 	public function test_do_service_returns_translated_text_when_function_available(): void {
 		$this->loadTranslationFunctionStubs();
 		$translator = $this->createTranslatorStub();
 		$subject    = $this->createSubject();
 
-		$this->assertSame('__(custom-domain) Hello', $subject->_do__service('Hello', $translator));
+		$this->assertSame('__(custom-domain) Hello', $subject->__do__service('Hello', $translator));
 	}
 
 	/**
-	 * @covers ::_do_x_service
+	 * @covers ::__do_x_service
 	 */
 	public function test_do_x_service_with_context(): void {
 		$this->loadTranslationFunctionStubs();
 		$translator = $this->createTranslatorStub();
 		$subject    = $this->createSubject();
 
-		$this->assertSame('_x(custom-domain|context) Hello', $subject->_do_x_service('Hello', 'context', $translator));
+		$this->assertSame('_x(custom-domain|context) Hello', $subject->__do_x_service('Hello', 'context', $translator));
 	}
 
 	/**
-	 * @covers ::_do_esc_html__service
+	 * @covers ::__do_esc_html__service
 	 */
 	public function test_do_esc_html__service(): void {
 		$this->loadTranslationFunctionStubs();
 		$translator = $this->createTranslatorStub();
 		$subject    = $this->createSubject();
 
-		$this->assertSame('esc_html__(custom-domain) Hello', $subject->_do_esc_html__service('Hello', $translator));
+		$this->assertSame('esc_html__(custom-domain) Hello', $subject->__do_esc_html__service('Hello', $translator));
 	}
 
 	/**
-	 * @covers ::_do_esc_html_x_service
+	 * @covers ::__do_esc_html_x_service
 	 */
 	public function test_do_esc_html_x_service(): void {
 		$this->loadTranslationFunctionStubs();
 		$translator = $this->createTranslatorStub();
 		$subject    = $this->createSubject();
 
-		$this->assertSame('esc_html_x(custom-domain|ctx) Hello', $subject->_do_esc_html_x_service('Hello', 'ctx', $translator));
+		$this->assertSame('esc_html_x(custom-domain|ctx) Hello', $subject->__do_esc_html_x_service('Hello', 'ctx', $translator));
 	}
 
 	/**
-	 * @covers ::_do_esc_attr__service
+	 * @covers ::__do_esc_attr__service
 	 */
 	public function test_do_esc_attr__service(): void {
 		$this->loadTranslationFunctionStubs();
@@ -122,22 +122,22 @@ final class TranslationServiceTraitTest extends PluginLibTestCase {
 		$this->assertTrue(function_exists('esc_attr__'));
 		$this->assertSame('esc_attr__(custom-domain) Hello', esc_attr__('Hello', 'custom-domain'));
 
-		$this->assertSame('esc_attr__(custom-domain) Hello', $subject->_do_esc_attr__service('Hello', $translator));
+		$this->assertSame('esc_attr__(custom-domain) Hello', $subject->__do_esc_attr__service('Hello', $translator));
 	}
 
 	/**
-	 * @covers ::_do_esc_attr_x_service
+	 * @covers ::__do_esc_attr_x_service
 	 */
 	public function test_do_esc_attr_x_service(): void {
 		$this->loadTranslationFunctionStubs();
 		$translator = $this->createTranslatorStub();
 		$subject    = $this->createSubject();
 
-		$this->assertSame('esc_attr_x(custom-domain|ctx) Hello', $subject->_do_esc_attr_x_service('Hello', 'ctx', $translator));
+		$this->assertSame('esc_attr_x(custom-domain|ctx) Hello', $subject->__do_esc_attr_x_service('Hello', 'ctx', $translator));
 	}
 
 	/**
-	 * @covers ::_do_e_service
+	 * @covers ::__do_e_service
 	 */
 	public function test_do_e_service_echoes_translation(): void {
 		$this->loadTranslationFunctionStubs();
@@ -145,14 +145,14 @@ final class TranslationServiceTraitTest extends PluginLibTestCase {
 		$subject    = $this->createSubject();
 
 		ob_start();
-		$subject->_do_e_service('Echoed', $translator);
+		$subject->__do_e_service('Echoed', $translator);
 		$output = ob_get_clean();
 
 		$this->assertSame('_e(custom-domain) Echoed', $output);
 	}
 
 	/**
-	 * @covers ::_do_esc_html_e_service
+	 * @covers ::__do_esc_html_e_service
 	 */
 	public function test_do_esc_html_e_service_echoes(): void {
 		$this->loadTranslationFunctionStubs();
@@ -160,14 +160,14 @@ final class TranslationServiceTraitTest extends PluginLibTestCase {
 		$subject    = $this->createSubject();
 
 		ob_start();
-		$subject->_do_esc_html_e_service('Echoed', $translator);
+		$subject->__do_esc_html_e_service('Echoed', $translator);
 		$output = ob_get_clean();
 
 		$this->assertSame('esc_html_e(custom-domain) Echoed', $output);
 	}
 
 	/**
-	 * @covers ::_do_esc_attr_e_service
+	 * @covers ::__do_esc_attr_e_service
 	 */
 	public function test_do_esc_attr_e_service_echoes(): void {
 		$this->loadTranslationFunctionStubs();
@@ -175,31 +175,31 @@ final class TranslationServiceTraitTest extends PluginLibTestCase {
 		$subject    = $this->createSubject();
 
 		ob_start();
-		$subject->_do_esc_attr_e_service('Echoed', $translator);
+		$subject->__do_esc_attr_e_service('Echoed', $translator);
 		$output = ob_get_clean();
 
 		$this->assertSame('esc_attr_e(custom-domain) Echoed', $output);
 	}
 
 	/**
-	 * @covers ::_do_translate_plural_service
+	 * @covers ::__do_translate_plural_service
 	 */
 	public function test_do_translate_plural_service(): void {
 		$this->loadTranslationFunctionStubs();
 		$translator = $this->createTranslatorStub();
 		$subject    = $this->createSubject();
 
-		$this->assertSame('_n(custom-domain|5) %d Many', $subject->_do_translate_plural_service('One', '%d Many', 5, $translator));
+		$this->assertSame('_n(custom-domain|5) %d Many', $subject->__do_translate_plural_service('One', '%d Many', 5, $translator));
 	}
 
 	/**
-	 * @covers ::_do_nx_service
+	 * @covers ::__do_nx_service
 	 */
 	public function test_do_nx_service_with_context(): void {
 		$this->loadTranslationFunctionStubs();
 		$translator = $this->createTranslatorStub();
 		$subject    = $this->createSubject();
 
-		$this->assertSame('_nx(custom-domain|3|ctx) %d Many', $subject->_do_nx_service('One', '%d Many', 3, 'ctx', $translator));
+		$this->assertSame('_nx(custom-domain|3|ctx) %d Many', $subject->__do_nx_service('One', '%d Many', 3, 'ctx', $translator));
 	}
 }

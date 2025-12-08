@@ -31,7 +31,7 @@ final class StubSectionBuilder extends SectionBuilder {
 		string $heading,
 		callable $updateFn
 	): self {
-		$forms   = $root->_get_forms();
+		$forms   = $root->__get_forms();
 		$context = new GenericBuilderContext($forms, $container, $updateFn);
 		return new self($root, $context, $section, $heading);
 	}

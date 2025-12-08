@@ -207,8 +207,8 @@ final class Settings implements FormsInterface {
 	 *
 	 * @return void
 	 */
-	public function _render(string $id_slug, ?array $context = null): void {
-		$this->inner->_render($id_slug, $context);
+	public function __render(string $id_slug, ?array $context = null): void {
+		$this->inner->__render($id_slug, $context);
 	}
 
 	/**

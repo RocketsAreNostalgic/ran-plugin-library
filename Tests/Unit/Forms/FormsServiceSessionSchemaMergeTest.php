@@ -246,7 +246,7 @@ final class FormsServiceSessionSchemaMergeTest extends PluginLibTestCase {
 				return true;
 			}
 		});
-		$options->_register_internal_schema(array('field' => $merged));
+		$options->__register_internal_schema(array('field' => $merged));
 		$options->register_schema(array(
 			'field' => array(
 				'sanitize' => $schemaSanitize,

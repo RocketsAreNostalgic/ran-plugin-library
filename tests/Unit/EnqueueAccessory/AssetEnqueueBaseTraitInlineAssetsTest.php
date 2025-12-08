@@ -240,7 +240,7 @@ class AssetEnqueueBaseTraitInlineAssetsTest extends EnqueueTraitTestCase {
 	/**
 	 * @test
 	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_enqueue_external_inline_assets
-	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::_enqueue_external_inline_scripts
+	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait::__enqueue_external_inline_scripts
 	 */
 	public function test_enqueue_external_inline_assets_handles_empty_assets(): void {
 		// Mock current_action to return a specific hook name
@@ -260,7 +260,7 @@ class AssetEnqueueBaseTraitInlineAssetsTest extends EnqueueTraitTestCase {
 		$external_inline_assets_property->setValue($this->instance, $test_data);
 
 		// Test through public interface - call the public method that internally calls _enqueue_external_inline_assets
-		$this->instance->_enqueue_external_inline_scripts();
+		$this->instance->__enqueue_external_inline_scripts();
 
 		// Verify expected log messages for empty case
 		$this->expectLog('debug', 'enqueue_external_inline_scripts - Fired on hook \'wp_enqueue_scripts\'.');

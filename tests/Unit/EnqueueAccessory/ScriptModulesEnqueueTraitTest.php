@@ -809,7 +809,7 @@ class ScriptModulesEnqueueTraitTest extends EnqueueTraitTestCase {
 
 	/**
 	 * @test
-	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptModulesEnqueueTrait::_enqueue_deferred_modules
+	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptModulesEnqueueTrait::__enqueue_deferred_modules
 	 */
 	public function test_enqueue_deferred_modules_processes_deferred_assets(): void {
 		// Arrange
@@ -839,7 +839,7 @@ class ScriptModulesEnqueueTraitTest extends EnqueueTraitTestCase {
 			->once();
 
 		// Act
-		$this->instance->_enqueue_deferred_modules($hook_name, $priority);
+		$this->instance->__enqueue_deferred_modules($hook_name, $priority);
 
 		// Assert - verify the deferred asset was processed
 		$remaining_deferred = $this->_get_protected_property_value($this->instance, 'deferred_assets');
@@ -848,7 +848,7 @@ class ScriptModulesEnqueueTraitTest extends EnqueueTraitTestCase {
 
 	/**
 	 * @test
-	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptModulesEnqueueTrait::_enqueue_deferred_modules
+	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptModulesEnqueueTrait::__enqueue_deferred_modules
 	 */
 	public function test_enqueue_deferred_modules_with_no_matching_assets(): void {
 		// Arrange
@@ -859,7 +859,7 @@ class ScriptModulesEnqueueTraitTest extends EnqueueTraitTestCase {
 		$this->_set_protected_property_value($this->instance, 'deferred_assets', array());
 
 		// Act - should not throw any errors
-		$this->instance->_enqueue_deferred_modules($hook_name, $priority);
+		$this->instance->__enqueue_deferred_modules($hook_name, $priority);
 
 		// Assert - verify no WordPress functions were called
 		WP_Mock::userFunction('wp_register_script_module')->never();
@@ -872,7 +872,7 @@ class ScriptModulesEnqueueTraitTest extends EnqueueTraitTestCase {
 
 	/**
 	 * @test
-	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptModulesEnqueueTrait::_enqueue_deferred_modules
+	 * @covers \Ran\PluginLib\EnqueueAccessory\ScriptModulesEnqueueTrait::__enqueue_deferred_modules
 	 */
 	public function test_enqueue_deferred_modules_with_multiple_assets_same_priority(): void {
 		// Arrange
@@ -914,7 +914,7 @@ class ScriptModulesEnqueueTraitTest extends EnqueueTraitTestCase {
 			->once();
 
 		// Act
-		$this->instance->_enqueue_deferred_modules($hook_name, $priority);
+		$this->instance->__enqueue_deferred_modules($hook_name, $priority);
 
 		// Assert - verify both assets were processed
 		$remaining_deferred = $this->_get_protected_property_value($this->instance, 'deferred_assets');

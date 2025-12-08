@@ -235,7 +235,7 @@ class AdminSettings implements FormsInterface {
 		$hooks[] = array(
 			'hook'     => 'admin_init',
 			'callback' => function () {
-				$this->_register_setting();
+				$this->__register_setting();
 				// Handle file uploads early - before options.php processes the form
 				// This injects uploaded file data into $_POST so it reaches the sanitize callback
 				$this->_handle_file_uploads();
@@ -267,7 +267,7 @@ class AdminSettings implements FormsInterface {
 	 *
 	 * @return void
 	 */
-	public function _render(string $id_slug, ?array $context = null): void {
+	public function __render(string $id_slug, ?array $context = null): void {
 		if (!isset($this->pages[$id_slug])) {
 			echo '<div class="notice notice-error"><h1>Settings</h1><p>Unknown settings page.</p></div>';
 			return;
@@ -431,7 +431,7 @@ class AdminSettings implements FormsInterface {
 					$meta['capability'],
 					$group_slug,
 					function () use ($first_page_slug) {
-						$this->_render($first_page_slug);
+						$this->__render($first_page_slug);
 					},
 					$meta['icon']     ?? null,
 					$meta['position'] ?? null
@@ -445,7 +445,7 @@ class AdminSettings implements FormsInterface {
 					$meta['capability'],
 					$group_slug,
 					function () use ($first_page_slug) {
-						$this->_render($first_page_slug);
+						$this->__render($first_page_slug);
 					},
 					$meta['position'] ?? null
 				);
@@ -459,7 +459,7 @@ class AdminSettings implements FormsInterface {
 					$meta['capability'],
 					$group_slug,
 					function () use ($first_page_slug) {
-						$this->_render($first_page_slug);
+						$this->__render($first_page_slug);
 					}
 				);
 				$submenu_parent = $meta['parent'];
@@ -479,7 +479,7 @@ class AdminSettings implements FormsInterface {
 					$page_meta['capability'],
 					$page_slug,
 					function () use ($page_slug) {
-						$this->_render($page_slug);
+						$this->__render($page_slug);
 					}
 				);
 			}
@@ -497,7 +497,7 @@ class AdminSettings implements FormsInterface {
 	 *
 	 * @internal
 	 */
-	public function _register_setting(): void {
+	public function __register_setting(): void {
 		$group = $this->base_options->get_main_option_name() . '_group';
 		$this->_do_register_setting($group, $this->base_options->get_main_option_name(), array(
 			'sanitize_callback' => array($this, '_sanitize'),
@@ -538,7 +538,7 @@ class AdminSettings implements FormsInterface {
 	 * @param mixed $raw Incoming value for the grouped main option (expected array)
 	 * @return array<string, mixed>
 	 */
-	public function _sanitize($raw): array {
+	public function __sanitize($raw): array {
 		$payload  = is_array($raw) ? $raw : array();
 		$previous = $this->_do_get_option($this->main_option, array());
 		$previous = is_array($previous) ? $previous : array();
@@ -557,7 +557,7 @@ class AdminSettings implements FormsInterface {
 		// Consolidate bundle sources into single registration call
 		$merged = $this->_merge_schema_bundle_sources($bundle);
 		if (!empty($merged['merged_schema'])) {
-			$tmp->_register_internal_schema(
+			$tmp->__register_internal_schema(
 				$merged['merged_schema'],
 				$merged['metadata'],
 				$merged['queued_validators'],

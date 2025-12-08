@@ -123,7 +123,7 @@ class ComponentManifestSharedInstanceTest extends PluginLibTestCase {
 
 		// Verify fluent API methods exist
 		$this->assertTrue(method_exists($userSettings, 'collection'));
-		$this->assertTrue(method_exists($userSettings, '_render'));
+		$this->assertTrue(method_exists($userSettings, '__render'));
 	}
 
 	/**

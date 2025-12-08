@@ -133,7 +133,7 @@ trait ScriptsEnqueueTrait {
 	 * @param int    $priority  The priority of the action that triggered this callback.
 	 * @return void
 	 */
-	public function _enqueue_deferred_scripts( string $hook_name, int $priority ): void {
+	public function __enqueue_deferred_scripts( string $hook_name, int $priority ): void {
 		$this->_enqueue_deferred_assets($this->_get_asset_type(), $hook_name, $priority);
 	}
 
@@ -254,7 +254,7 @@ trait ScriptsEnqueueTrait {
 	 * @internal This is an internal method called by WordPress as an action callback and should not be called directly.
 	 * @return void
 	 */
-	public function _enqueue_external_inline_scripts(): void {
+	public function __enqueue_external_inline_scripts(): void {
 		$this->_enqueue_external_inline_assets($this->_get_asset_type());
 	}
 

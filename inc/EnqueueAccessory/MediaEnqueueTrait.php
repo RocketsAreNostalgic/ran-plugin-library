@@ -138,7 +138,7 @@ trait MediaEnqueueTrait {
 	 * @param string $hook_name The WordPress hook name that triggered this method (optional).
 	 * @return void
 	 */
-	public function _enqueue_deferred_media_tools( string $hook_name = '' ): void {
+	public function __enqueue_deferred_media_tools( string $hook_name = '' ): void {
 		$logger = $this->get_logger();
 
 		$context             = __TRAIT__ . '::' . __FUNCTION__;

@@ -211,7 +211,7 @@ class UserSettings implements FormsInterface {
 				if (!($user instanceof \WP_User)) {
 					return;
 				}
-				$this->_render($id_slug, array('user' => $user));
+				$this->__render($id_slug, array('user' => $user));
 			};
 
 			$hooks[] = array(
@@ -239,7 +239,7 @@ class UserSettings implements FormsInterface {
 			// Handle file uploads - WordPress profile form already has enctype="multipart/form-data"
 			$payload = $this->_process_file_uploads($payload);
 
-			$this->_save_settings($payload, array('user_id' => $user_id));
+			$this->__save_settings($payload, array('user_id' => $user_id));
 		};
 
 		// User saving their own profile
@@ -306,7 +306,7 @@ class UserSettings implements FormsInterface {
 	 *
 	 * @return void
 	 */
-	public function _render(string $id_slug = 'profile', ?array $context = null): void {
+	public function __render(string $id_slug = 'profile', ?array $context = null): void {
 		if (!isset($this->collections[$id_slug])) {
 			echo '<div class="notice notice-error"><p>Unknown settings collection.</p></div>';
 			return;
@@ -439,7 +439,7 @@ class UserSettings implements FormsInterface {
 	 * @param array<string,mixed> $payload The posted values.
 	 * @param array<string,mixed> $context The context for the save operation.
 	 */
-	public function _save_settings(array $payload, array $context): void {
+	public function __save_settings(array $payload, array $context): void {
 		$user_id = isset($context['user_id']) ? (int) $context['user_id'] : 0;
 		if ($user_id <= 0) {
 			return;
@@ -467,7 +467,7 @@ class UserSettings implements FormsInterface {
 		// Consolidate bundle sources into single registration call
 		$merged = $this->_merge_schema_bundle_sources($bundle);
 		if (!empty($merged['merged_schema'])) {
-			$opts->_register_internal_schema(
+			$opts->__register_internal_schema(
 				$merged['merged_schema'],
 				$merged['metadata'],
 				$merged['queued_validators'],

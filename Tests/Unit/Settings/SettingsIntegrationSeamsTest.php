@@ -195,7 +195,7 @@ class SettingsIntegrationSeamsTest extends PluginLibTestCase {
 		->end_menu();
 
 		// Act: Render crosses Settings → Manifest → Loader boundary
-		$output = $this->captureOutput(fn() => $settings->_render('test-page'));
+		$output = $this->captureOutput(fn() => $settings->__render('test-page'));
 
 		// Assert: Manifest component was used, value from RegisterOptions flowed through
 		self::assertStringContainsString('data-seam="manifest-to-render"', $output);
@@ -248,10 +248,10 @@ class SettingsIntegrationSeamsTest extends PluginLibTestCase {
 			->end_page()
 		->end_menu();
 
-		$this->captureOutput(fn() => $settings->_render('sp'));
+		$this->captureOutput(fn() => $settings->__render('sp'));
 
 		// Act: _sanitize crosses Settings → RegisterOptions schema boundary
-		$result = $settings->_sanitize(array('schema_field' => '  hello  '));
+		$result = $settings->__sanitize(array('schema_field' => '  hello  '));
 
 		// Assert: Schema sanitizer from RegisterOptions was invoked
 		self::assertTrue($sanitizerCalled, 'RegisterOptions schema sanitizer should be called');
@@ -330,7 +330,7 @@ class SettingsIntegrationSeamsTest extends PluginLibTestCase {
 		->end_collection();
 
 		// Act: Render crosses Settings → Manifest → Loader boundary
-		$output = $this->captureOutput(fn() => $settings->_render('profile'));
+		$output = $this->captureOutput(fn() => $settings->__render('profile'));
 
 		// Assert: Manifest component was used, value from RegisterOptions flowed through
 		self::assertStringContainsString('data-seam="user-manifest-to-render"', $output);
@@ -381,10 +381,10 @@ class SettingsIntegrationSeamsTest extends PluginLibTestCase {
 			->end_field()->end_section()
 		->end_collection();
 
-		$this->captureOutput(fn() => $settings->_render('profile'));
+		$this->captureOutput(fn() => $settings->__render('profile'));
 
 		// Act: save_settings crosses Settings → RegisterOptions schema boundary
-		$settings->_save_settings(array('user_schema_field' => '  hello world  '), array('user_id' => 789));
+		$settings->__save_settings(array('user_schema_field' => '  hello world  '), array('user_id' => 789));
 
 		// Assert: Schema sanitizer from RegisterOptions was invoked
 		self::assertTrue($sanitizerCalled, 'RegisterOptions schema sanitizer should be called');
@@ -449,7 +449,7 @@ return new ComponentRenderResult(
 				->end_page()
 			->end_menu();
 
-			$output = $this->captureOutput(fn() => $settings->_render('ext-page'));
+			$output = $this->captureOutput(fn() => $settings->__render('ext-page'));
 
 			// Assert: External component was discovered and rendered with stored value
 			self::assertStringContainsString('data-seam="external-component-admin"', $output);
@@ -510,7 +510,7 @@ return new ComponentRenderResult(
 				->end_field()->end_section()
 			->end_collection();
 
-			$output = $this->captureOutput(fn() => $settings->_render('profile'));
+			$output = $this->captureOutput(fn() => $settings->__render('profile'));
 
 			// Assert: External component was discovered and rendered with stored value
 			self::assertStringContainsString('data-seam="external-component-user"', $output);
@@ -571,11 +571,11 @@ return new ComponentRenderResult(
 		->end_menu();
 
 		// Step 1: Initial render shows stored value (NOT sanitized - sanitizers run on save, not read)
-		$output1 = $this->captureOutput(fn() => $settings->_render('rt-page'));
+		$output1 = $this->captureOutput(fn() => $settings->__render('rt-page'));
 		self::assertStringContainsString('value="initial_value"', $output1);
 
 		// Step 2: Sanitize new value
-		$sanitized = $settings->_sanitize(array('roundtrip_field' => '  new_value  '));
+		$sanitized = $settings->__sanitize(array('roundtrip_field' => '  new_value  '));
 		self::assertSame('NEW_VALUE', $sanitized['roundtrip_field']);
 
 		// Step 3: Simulate WordPress saving the sanitized value
@@ -593,7 +593,7 @@ return new ComponentRenderResult(
 			->end_page()
 		->end_menu();
 
-		$output2 = $this->captureOutput(fn() => $settings2->_render('rt-page'));
+		$output2 = $this->captureOutput(fn() => $settings2->__render('rt-page'));
 		self::assertStringContainsString('value="NEW_VALUE"', $output2);
 	}
 
@@ -643,11 +643,11 @@ return new ComponentRenderResult(
 		->end_collection();
 
 		// Step 1: Initial render shows stored value
-		$output1 = $this->captureOutput(fn() => $settings->_render('profile'));
+		$output1 = $this->captureOutput(fn() => $settings->__render('profile'));
 		self::assertStringContainsString('value="user_initial_value"', $output1); // Already lowercase
 
 		// Step 2: Save new value (save_settings handles sanitization internally)
-		$settings->_save_settings(array('user_roundtrip_field' => '  new_user_value  '), array('user_id' => $userId));
+		$settings->__save_settings(array('user_roundtrip_field' => '  new_user_value  '), array('user_id' => $userId));
 
 		// Step 3: Verify stored value was sanitized
 		$storedValue = $this->userMetaValues['roundtrip_user'][$userId]['user_roundtrip_field'] ?? null;
@@ -663,7 +663,7 @@ return new ComponentRenderResult(
 			->end_field()->end_section()
 		->end_collection();
 
-		$output2 = $this->captureOutput(fn() => $settings2->_render('profile'));
+		$output2 = $this->captureOutput(fn() => $settings2->__render('profile'));
 		self::assertStringContainsString('value="new_user_value"', $output2);
 	}
 
@@ -720,10 +720,10 @@ return new ComponentRenderResult(
 			->end_page()
 		->end_menu();
 
-		$this->captureOutput(fn() => $settings->_render('vf-page'));
+		$this->captureOutput(fn() => $settings->__render('vf-page'));
 
 		// Act: Try to sanitize with invalid value
-		$result = $settings->_sanitize(array('validated_field' => 'ab'));
+		$result = $settings->__sanitize(array('validated_field' => 'ab'));
 
 		// Assert: Validator was called, original value preserved
 		self::assertTrue($validatorCalled, 'Validator should be called');
@@ -784,10 +784,10 @@ return new ComponentRenderResult(
 			->end_field()->end_section()
 		->end_collection();
 
-		$this->captureOutput(fn() => $settings->_render('profile'));
+		$this->captureOutput(fn() => $settings->__render('profile'));
 
 		// Act: Try to save with invalid value (too short)
-		$settings->_save_settings(array('user_validated_field' => 'ab'), array('user_id' => $userId));
+		$settings->__save_settings(array('user_validated_field' => 'ab'), array('user_id' => $userId));
 
 		// Assert: Validator was called with the submitted value
 		self::assertTrue($validatorCalled, 'Validator should be called');

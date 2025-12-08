@@ -107,7 +107,7 @@ abstract class FieldsetBuilderBase implements FieldsetBuilderInterface {
 	 *
 	 * @return callable|null
 	 */
-	protected function _get_component_builder_factory(string $component): ?callable {
+	public function __get_component_builder_factory(string $component): ?callable {
 		return $this->context->get_component_builder_factory($component);
 	}
 

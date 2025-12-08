@@ -185,7 +185,7 @@ final class RegisterOptionsCoercionOptimizationTest extends PluginLibTestCase {
 			),
 		);
 
-		$this->opts->_register_internal_schema($schema);
+		$this->opts->__register_internal_schema($schema);
 
 		$internalSchema = $this->getPrivateProperty($this->opts, 'schema');
 
@@ -204,7 +204,7 @@ final class RegisterOptionsCoercionOptimizationTest extends PluginLibTestCase {
 				'default'  => 'first',
 			),
 		);
-		$this->opts->_register_internal_schema($schema1);
+		$this->opts->__register_internal_schema($schema1);
 
 		// Second registration should merge
 		$schema2 = array(
@@ -214,7 +214,7 @@ final class RegisterOptionsCoercionOptimizationTest extends PluginLibTestCase {
 				'default'  => 'second',
 			),
 		);
-		$this->opts->_register_internal_schema($schema2);
+		$this->opts->__register_internal_schema($schema2);
 
 		$internalSchema = $this->getPrivateProperty($this->opts, 'schema');
 
@@ -238,7 +238,7 @@ final class RegisterOptionsCoercionOptimizationTest extends PluginLibTestCase {
 			'queued_key' => array('is_string', 'strlen'),
 		);
 
-		$this->opts->_register_internal_schema($schema, array(), $queuedValidators);
+		$this->opts->__register_internal_schema($schema, array(), $queuedValidators);
 
 		$internalSchema = $this->getPrivateProperty($this->opts, 'schema');
 
@@ -263,7 +263,7 @@ final class RegisterOptionsCoercionOptimizationTest extends PluginLibTestCase {
 			),
 		);
 
-		$this->opts->_register_internal_schema($bucketedSchema);
+		$this->opts->__register_internal_schema($bucketedSchema);
 
 		$internalSchema = $this->getPrivateProperty($this->opts, 'schema');
 
@@ -284,7 +284,7 @@ final class RegisterOptionsCoercionOptimizationTest extends PluginLibTestCase {
 					'validate' => array(),
 				),
 			);
-			$this->opts->_register_internal_schema($schema);
+			$this->opts->__register_internal_schema($schema);
 		}
 
 		$internalSchema = $this->getPrivateProperty($this->opts, 'schema');

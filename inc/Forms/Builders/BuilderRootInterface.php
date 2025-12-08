@@ -105,7 +105,7 @@ interface BuilderRootInterface {
 	 *
 	 * @return FormsInterface
 	 */
-	public function _get_forms(): FormsInterface;
+	public function __get_forms(): FormsInterface;
 
 	/**
 	 * Alias for backward compatibility with existing builder APIs.

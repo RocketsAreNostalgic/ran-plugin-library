@@ -89,7 +89,7 @@ abstract class SectionBuilderBase implements SectionBuilderInterface {
 	 *
 	 * @return FormsInterface
 	 */
-	public function _get_forms(): FormsInterface {
+	public function __get_forms(): FormsInterface {
 		return $this->context->get_forms();
 	}
 
@@ -98,7 +98,7 @@ abstract class SectionBuilderBase implements SectionBuilderInterface {
 	 *
 	 * @return BuilderContextInterface
 	 */
-	public function _get_context(): BuilderContextInterface {
+	public function __get_context(): BuilderContextInterface {
 		return $this->context;
 	}
 
@@ -115,7 +115,7 @@ abstract class SectionBuilderBase implements SectionBuilderInterface {
 	 *
 	 * @return callable|null
 	 */
-	public function _get_component_builder_factory(string $component): ?callable {
+	public function __get_component_builder_factory(string $component): ?callable {
 		return $this->_get_section_component_builder_factory($component);
 	}
 

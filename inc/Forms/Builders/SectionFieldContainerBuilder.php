@@ -155,7 +155,7 @@ abstract class SectionFieldContainerBuilder {
 			throw new \InvalidArgumentException(sprintf('Field "%s" must provide an array component_context.', $field_id));
 		}
 
-		$factory = $this->sectionBuilder->_get_component_builder_factory($component);
+		$factory = $this->sectionBuilder->__get_component_builder_factory($component);
 		if (!($factory instanceof \Closure || is_callable($factory))) {
 			throw new \InvalidArgumentException(sprintf(
 				'Field "%s" uses component "%s" which has no registered builder factory.',
@@ -277,7 +277,7 @@ abstract class SectionFieldContainerBuilder {
 
 	public function get_group_settings(): FormsInterface {
 		if ($this->sectionBuilder instanceof SectionBuilder) {
-			return $this->sectionBuilder->_get_forms();
+			return $this->sectionBuilder->__get_forms();
 		}
 
 		throw new \RuntimeException('SectionBuilder can only access settings when used with FormsInterface');

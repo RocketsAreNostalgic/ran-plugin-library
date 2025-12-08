@@ -137,7 +137,7 @@ final class BeforeAfterHooksSequenceTest extends PluginLibTestCase {
 			->end_collection()
 		->boot();
 
-		$output = $this->captureOutput(fn() => $settings->_render('test-collection'));
+		$output = $this->captureOutput(fn() => $settings->__render('test-collection'));
 
 		// Verify collection hooks are present
 		self::assertStringContainsString('<!-- COLLECTION_BEFORE -->', $output, 'Collection before hook should be present');
@@ -192,7 +192,7 @@ final class BeforeAfterHooksSequenceTest extends PluginLibTestCase {
 			->end_collection()
 		->boot();
 
-		$output = $this->captureOutput(fn() => $settings->_render('order-collection'));
+		$output = $this->captureOutput(fn() => $settings->__render('order-collection'));
 
 		// Field content marker should appear between before and after
 		$beforePos = strpos($output, '<!-- BEFORE_FIELD_CONTENT -->');
@@ -239,7 +239,7 @@ final class BeforeAfterHooksSequenceTest extends PluginLibTestCase {
 			->end_page()
 		->end_menu();
 
-		$output = $this->captureOutput(fn() => $settings->_render('admin-page'));
+		$output = $this->captureOutput(fn() => $settings->__render('admin-page'));
 
 		// Verify field hooks are present
 		self::assertStringContainsString('<!-- ADMIN_FIELD_BEFORE -->', $output, 'Field before hook should be present');
@@ -277,7 +277,7 @@ final class BeforeAfterHooksSequenceTest extends PluginLibTestCase {
 			->end_page()
 		->end_menu();
 
-		$output = $this->captureOutput(fn() => $settings->_render('admin-order-page'));
+		$output = $this->captureOutput(fn() => $settings->__render('admin-order-page'));
 
 		$beforePos = strpos($output, '<!-- ADMIN_BEFORE_FIELD -->');
 		$afterPos  = strpos($output, '<!-- ADMIN_AFTER_FIELD -->');
@@ -321,7 +321,7 @@ final class BeforeAfterHooksSequenceTest extends PluginLibTestCase {
 			->end_collection()
 		->boot();
 
-		$userOutput = $this->captureOutput(fn() => $userSettings->_render('parity-collection'));
+		$userOutput = $this->captureOutput(fn() => $userSettings->__render('parity-collection'));
 
 		// Set up AdminSettings
 		$this->optionValues['parity_admin'] = array('parity_field' => 'admin_value');
@@ -342,7 +342,7 @@ final class BeforeAfterHooksSequenceTest extends PluginLibTestCase {
 			->end_page()
 		->end_menu();
 
-		$adminOutput = $this->captureOutput(fn() => $adminSettings->_render('parity-page'));
+		$adminOutput = $this->captureOutput(fn() => $adminSettings->__render('parity-page'));
 
 		// Both should have the same field hook sequence (use field name as marker)
 		$userExpected = array(
@@ -384,7 +384,7 @@ final class BeforeAfterHooksSequenceTest extends PluginLibTestCase {
 			->end_collection()
 		->boot();
 
-		$output = $this->captureOutput(fn() => $settings->_render('hook-collection'));
+		$output = $this->captureOutput(fn() => $settings->__render('hook-collection'));
 
 		// Verify collection hooks are present
 		self::assertStringContainsString('<!-- COLLECTION_BEFORE -->', $output, 'Collection before hook should be present');

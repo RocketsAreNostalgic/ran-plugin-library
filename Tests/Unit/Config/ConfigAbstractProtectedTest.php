@@ -93,11 +93,11 @@ final class ConfigAbstractProbe extends ConfigAbstract {
 	}
 
 	public function callGetStandardPluginHeaders(string $file): array {
-		return $this->_get_standard_plugin_headers($file);
+		return $this->__get_standard_plugin_headers($file);
 	}
 
 	public function callGetStandardThemeHeaders(string $dir): array {
-		return $this->_get_standard_theme_headers($dir);
+		return $this->__get_standard_theme_headers($dir);
 	}
 
 	public function get_config(): array {
@@ -346,8 +346,8 @@ final class ConfigAbstractProtectedTest extends RanTestCase {
 	}
 
 	/**
-	 * @covers ::_get_standard_plugin_headers
-	 * @covers ::_get_standard_theme_headers
+	 * @covers ::__get_standard_plugin_headers
+	 * @covers ::__get_standard_theme_headers
 	 */
 	public function test_get_standard_headers_return_empty_without_wp(): void {
 		$p = new ConfigAbstractProbe();
@@ -358,9 +358,9 @@ final class ConfigAbstractProtectedTest extends RanTestCase {
 	/**
 		* Explicitly covers early return when get_plugin_data() is absent.
 		*
-		* @covers ::_get_standard_plugin_headers
+		* @covers ::__get_standard_plugin_headers
 		*/
-	public function test_get_standard_plugin_headers_returns_empty_when_function_absent(): void {
+	public function test__get_standard_plugin_headers_returns_empty_when_function_absent(): void {
 		$p = new ConfigAbstractProbe();
 		// No WP_Mock::userFunction('get_plugin_data') defined here
 		$this->assertSame(array(), $p->callGetStandardPluginHeaders(__FILE__));
@@ -369,18 +369,18 @@ final class ConfigAbstractProtectedTest extends RanTestCase {
 	/**
 		* Explicitly covers early return when wp_get_theme() is absent.
 		*
-		* @covers ::_get_standard_theme_headers
+		* @covers ::__get_standard_theme_headers
 		*/
-	public function test_get_standard_theme_headers_returns_empty_when_function_absent(): void {
+	public function test__get_standard_theme_headers_returns_empty_when_function_absent(): void {
 		$p = new ConfigAbstractProbe();
 		// No WP_Mock::userFunction('wp_get_theme') defined here
 		$this->assertSame(array(), $p->callGetStandardThemeHeaders(sys_get_temp_dir()));
 	}
 
 	/**
-		* @covers ::_get_standard_plugin_headers
+		* @covers ::__get_standard_plugin_headers
 		*/
-	public function test_get_standard_plugin_headers_filters_empty(): void {
+	public function test__get_standard_plugin_headers_filters_empty(): void {
 		$p = new ConfigAbstractProbe();
 		\WP_Mock::setUp();
 		\WP_Mock::userFunction('get_plugin_data')->with(__FILE__, false, false)->andReturn(array(
@@ -392,9 +392,9 @@ final class ConfigAbstractProtectedTest extends RanTestCase {
 	}
 
 	/**
-	 * @covers ::_get_standard_theme_headers
+	 * @covers ::__get_standard_theme_headers
 	 */
-	public function test_get_standard_theme_headers_collects_and_normalizes(): void {
+	public function test__get_standard_theme_headers_collects_and_normalizes(): void {
 		$p = new ConfigAbstractProbe();
 		\WP_Mock::setUp();
 		$theme = new class {

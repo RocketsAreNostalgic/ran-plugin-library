@@ -314,7 +314,7 @@ class BlockRegistrarExtendedTest extends TestCase {
 	 * Test editor asset enqueuing through public interface.
 	 * Tests _enqueue_editor_assets method indirectly via WordPress hooks.
 	 *
-	 * @covers \Ran\PluginLib\EnqueueAccessory\BlockRegistrar::_enqueue_editor_assets
+	 * @covers \Ran\PluginLib\EnqueueAccessory\BlockRegistrar::__enqueue_editor_assets
 	 *
 	 * @return void
 	 */
@@ -343,21 +343,21 @@ class BlockRegistrarExtendedTest extends TestCase {
 		// Simulate WordPress calling the editor assets hook
 		// This should trigger _enqueue_editor_assets method
 		$reflection     = new ReflectionClass($this->block_registrar);
-		$enqueue_method = $reflection->getMethod('_enqueue_editor_assets');
+		$enqueue_method = $reflection->getMethod('__enqueue_editor_assets');
 		$enqueue_method->setAccessible(true);
 
 		// Call the method to achieve coverage (acceptable for coverage testing)
 		$enqueue_method->invoke($this->block_registrar);
 
 		// Verify logging occurred (observable behavior)
-		$this->expectLog('debug', array('BlockRegistrar::_enqueue_editor_assets', 'Processing editor assets for registered blocks.'));
+		$this->expectLog('debug', array('BlockRegistrar::__enqueue_editor_assets', 'Processing editor assets for registered blocks.'));
 	}
 
 	/**
 	 * Test block asset integration through public interface.
 	 * Tests _integrate_block_assets method indirectly.
 	 *
-	 * @covers \Ran\PluginLib\EnqueueAccessory\BlockRegistrar::_integrate_block_assets
+	 * @covers \Ran\PluginLib\EnqueueAccessory\BlockRegistrar::__integrate_block_assets
 	 *
 	 * @return void
 	 */
@@ -378,7 +378,7 @@ class BlockRegistrarExtendedTest extends TestCase {
 
 		// Trigger asset integration method with correct signature
 		$reflection       = new ReflectionClass($this->block_registrar);
-		$integrate_method = $reflection->getMethod('_integrate_block_assets');
+		$integrate_method = $reflection->getMethod('__integrate_block_assets');
 		$integrate_method->setAccessible(true);
 
 		// Call with correct signature: (array $args, string $block_name)
@@ -390,7 +390,7 @@ class BlockRegistrarExtendedTest extends TestCase {
 	 * Test dynamic asset enqueuing through public interface.
 	 * Tests _maybe_enqueue_dynamic_assets method indirectly.
 	 *	 *
-	 * @covers \Ran\PluginLib\EnqueueAccessory\BlockRegistrar::_maybe_enqueue_dynamic_assets
+	 * @covers \Ran\PluginLib\EnqueueAccessory\BlockRegistrar::__maybe_enqueue_dynamic_assets
 	 *
 	 * @return void
 	 */
@@ -432,7 +432,7 @@ class BlockRegistrarExtendedTest extends TestCase {
 		$block_content = '<div>Test block content</div>';
 		$block         = array('blockName' => 'test/dynamic-assets');
 
-		$result = $this->block_registrar->_maybe_enqueue_dynamic_assets($block_content, $block);
+		$result = $this->block_registrar->__maybe_enqueue_dynamic_assets($block_content, $block);
 		$this->assertSame($block_content, $result);
 		$this->expectLog('debug', array('BlockRegistrar::_enqueue_dynamic_block_assets', "Enqueuing dynamic assets for block 'test/dynamic-assets'."));
 	}
@@ -628,7 +628,7 @@ class BlockRegistrarExtendedTest extends TestCase {
 	 * Test _enqueue_editor_assets method coverage.
 	 * Targets uncovered lines by testing the method exists and can be called.
 	 *
-	 * @covers \Ran\PluginLib\EnqueueAccessory\BlockRegistrar::_enqueue_editor_assets
+	 * @covers \Ran\PluginLib\EnqueueAccessory\BlockRegistrar::__enqueue_editor_assets
 	 *
 	 * @return void
 	 */
@@ -639,11 +639,11 @@ class BlockRegistrarExtendedTest extends TestCase {
 
 		// Call _enqueue_editor_assets in non-admin context (should return early)
 		$reflection     = new ReflectionClass($this->block_registrar);
-		$enqueue_method = $reflection->getMethod('_enqueue_editor_assets');
+		$enqueue_method = $reflection->getMethod('__enqueue_editor_assets');
 		$enqueue_method->setAccessible(true);
 		$enqueue_method->invoke($this->block_registrar);
 
-		$this->expectLog('debug', array('BlockRegistrar::_enqueue_editor_assets', 'Processing editor assets for registered blocks.'));
+		$this->expectLog('debug', array('BlockRegistrar::__enqueue_editor_assets', 'Processing editor assets for registered blocks.'));
 	}
 
 	/**
@@ -697,7 +697,7 @@ class BlockRegistrarExtendedTest extends TestCase {
 	 * Test _integrate_block_assets with comprehensive asset mapping.
 	 * Targets uncovered lines 389-415 in asset mapping logic.
 	 *
-	 * @covers \Ran\PluginLib\EnqueueAccessory\BlockRegistrar::_integrate_block_assets
+	 * @covers \Ran\PluginLib\EnqueueAccessory\BlockRegistrar::__integrate_block_assets
 	 *
 	 * @return void
 	 */
@@ -716,7 +716,7 @@ class BlockRegistrarExtendedTest extends TestCase {
 		));
 
 		// Call _integrate_block_assets with comprehensive args
-		$integrate_method = $reflection->getMethod('_integrate_block_assets');
+		$integrate_method = $reflection->getMethod('__integrate_block_assets');
 		$integrate_method->setAccessible(true);
 
 		$args   = array('title' => 'Test Block');
@@ -733,14 +733,14 @@ class BlockRegistrarExtendedTest extends TestCase {
 		$this->assertEquals('test-frontend-style', $result['style']);
 
 		// Verify logging occurred
-		$this->expectLog('debug', array('BlockRegistrar::_integrate_block_assets', "Integrating assets for block 'test/comprehensive-assets'"));
+		$this->expectLog('debug', array('BlockRegistrar::__integrate_block_assets', "Integrating assets for block 'test/comprehensive-assets'"));
 	}
 
 	/**
 	 * Test _maybe_enqueue_dynamic_assets with block assets present.
 	 * Targets uncovered line 435 in dynamic asset condition.
 	 *
-	 * @covers \Ran\PluginLib\EnqueueAccessory\BlockRegistrar::_maybe_enqueue_dynamic_assets
+	 * @covers \Ran\PluginLib\EnqueueAccessory\BlockRegistrar::__maybe_enqueue_dynamic_assets
 	 *
 	 * @return void
 	 */
@@ -770,7 +770,7 @@ class BlockRegistrarExtendedTest extends TestCase {
 		));
 
 		// Call _maybe_enqueue_dynamic_assets to hit line 435
-		$dynamic_method = $reflection->getMethod('_maybe_enqueue_dynamic_assets');
+		$dynamic_method = $reflection->getMethod('__maybe_enqueue_dynamic_assets');
 		$dynamic_method->setAccessible(true);
 
 		$block_content = '<div>Test content</div>';
@@ -911,7 +911,7 @@ class BlockRegistrarExtendedTest extends TestCase {
 	 * @covers \Ran\PluginLib\EnqueueAccessory\BlockRegistrar::_map_assets_to_wordpress_config
 	 * @covers \Ran\PluginLib\EnqueueAccessory\BlockRegistrar::_enqueue_dynamic_block_assets
 	 * @covers \Ran\PluginLib\EnqueueAccessory\BlockRegistrar::_register_block_for_preloading
-	 * @covers \Ran\PluginLib\EnqueueAccessory\BlockRegistrar::_maybe_enqueue_dynamic_assets
+	 * @covers \Ran\PluginLib\EnqueueAccessory\BlockRegistrar::__maybe_enqueue_dynamic_assets
 	 *
 	 * @return void
 	 */
@@ -992,7 +992,7 @@ class BlockRegistrarExtendedTest extends TestCase {
 
 		// Call the render filter to trigger dynamic asset enqueuing
 		$reflection           = new ReflectionClass($this->block_registrar);
-		$maybe_enqueue_method = $reflection->getMethod('_maybe_enqueue_dynamic_assets');
+		$maybe_enqueue_method = $reflection->getMethod('__maybe_enqueue_dynamic_assets');
 		$maybe_enqueue_method->setAccessible(true);
 		$result = $maybe_enqueue_method->invoke($this->block_registrar, $block_content, $block);
 
@@ -1008,7 +1008,7 @@ class BlockRegistrarExtendedTest extends TestCase {
 	 * This test specifically targets the _enqueue_dynamic_block_assets method.
 	 *
 	 * @covers \Ran\PluginLib\EnqueueAccessory\BlockRegistrar::_enqueue_dynamic_block_assets
-	 * @covers \Ran\PluginLib\EnqueueAccessory\BlockRegistrar::_maybe_enqueue_dynamic_assets
+	 * @covers \Ran\PluginLib\EnqueueAccessory\BlockRegistrar::__maybe_enqueue_dynamic_assets
 	 *
 	 * @return void
 	 */
@@ -1033,7 +1033,7 @@ class BlockRegistrarExtendedTest extends TestCase {
 		);
 
 		// Call _maybe_enqueue_dynamic_assets to trigger the dynamic enqueuing
-		$maybe_enqueue_method = $reflection->getMethod('_maybe_enqueue_dynamic_assets');
+		$maybe_enqueue_method = $reflection->getMethod('__maybe_enqueue_dynamic_assets');
 		$maybe_enqueue_method->setAccessible(true);
 		$result = $maybe_enqueue_method->invoke($this->block_registrar, $block_content, $block);
 
@@ -1170,7 +1170,7 @@ class BlockRegistrarExtendedTest extends TestCase {
 	 * This test specifically targets _enqueue_dynamic_block_assets through proper setup.
 	 *
 	 * @covers \Ran\PluginLib\EnqueueAccessory\BlockRegistrar::_enqueue_dynamic_block_assets
-	 * @covers \Ran\PluginLib\EnqueueAccessory\BlockRegistrar::_maybe_enqueue_dynamic_assets
+	 * @covers \Ran\PluginLib\EnqueueAccessory\BlockRegistrar::__maybe_enqueue_dynamic_assets
 	 *
 	 * @return void
 	 */
@@ -1227,7 +1227,7 @@ class BlockRegistrarExtendedTest extends TestCase {
 		);
 
 		$this->block_registrar->stage();
-		$result = $this->block_registrar->_maybe_enqueue_dynamic_assets($block_content, $block);
+		$result = $this->block_registrar->__maybe_enqueue_dynamic_assets($block_content, $block);
 		$this->assertSame($block_content, $result);
 		$this->expectLog('debug', array('BlockRegistrar::_enqueue_dynamic_block_assets', "Enqueuing dynamic assets for block 'test/dynamic-assets'."));
 	}
@@ -1397,7 +1397,7 @@ class BlockRegistrarExtendedTest extends TestCase {
 	 * Test _enqueue_editor_assets method for comprehensive coverage.
 	 * This method enqueues editor scripts and styles for all registered blocks.
 	 *
-	 * @covers \Ran\PluginLib\EnqueueAccessory\BlockRegistrar::_enqueue_editor_assets
+	 * @covers \Ran\PluginLib\EnqueueAccessory\BlockRegistrar::__enqueue_editor_assets
 	 *
 	 * @return void
 	 */
@@ -1434,7 +1434,7 @@ class BlockRegistrarExtendedTest extends TestCase {
 		$styles_handler_property->setValue($this->block_registrar, $styles_handler);
 
 		// Use reflection to call the method directly for coverage
-		$method = $reflection->getMethod('_enqueue_editor_assets');
+		$method = $reflection->getMethod('__enqueue_editor_assets');
 		$method->setAccessible(true);
 
 		// This should now work without errors
@@ -1623,7 +1623,7 @@ class BlockRegistrarExtendedTest extends TestCase {
 	 * Test to achieve 100% coverage of _enqueue_editor_assets conditional blocks.
 	 * Targets uncovered lines 356-357 and 360-361.
 	 *
-	 * @covers \Ran\PluginLib\EnqueueAccessory\BlockRegistrar::_enqueue_editor_assets
+	 * @covers \Ran\PluginLib\EnqueueAccessory\BlockRegistrar::__enqueue_editor_assets
 	 *
 	 * @return void
 	 */
@@ -1658,8 +1658,8 @@ class BlockRegistrarExtendedTest extends TestCase {
 		$scripts_property->setValue($this->block_registrar, $scripts_handler);
 		$styles_property->setValue($this->block_registrar, $styles_handler);
 
-		$this->block_registrar->_enqueue_editor_assets();
-		$this->expectLog('debug', array('Ran\PluginLib\EnqueueAccessory\BlockRegistrar::_enqueue_editor_assets', 'Processing editor assets for registered blocks.'));
+		$this->block_registrar->__enqueue_editor_assets();
+		$this->expectLog('debug', array('Ran\PluginLib\EnqueueAccessory\BlockRegistrar::__enqueue_editor_assets', 'Processing editor assets for registered blocks.'));
 	}
 
 	/**
@@ -1700,7 +1700,7 @@ class BlockRegistrarExtendedTest extends TestCase {
 
 		$block_content = '<div>Dynamic block</div>';
 		$block         = array('blockName' => 'test/dynamic-block');
-		$this->block_registrar->_maybe_enqueue_dynamic_assets($block_content, $block);
+		$this->block_registrar->__maybe_enqueue_dynamic_assets($block_content, $block);
 		$this->expectLog('debug', array('Ran\PluginLib\EnqueueAccessory\BlockRegistrar::_enqueue_dynamic_block_assets', "Enqueuing dynamic assets for block 'test/dynamic-block'"));
 	}
 

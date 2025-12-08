@@ -235,7 +235,7 @@ class ComponentManifestCachingTest extends PluginLibTestCase {
 		$sanitizerFactories['test.component']();
 
 		// Clear caches
-		$manifest->_clear_instance_cache();
+		$manifest->__clear_instance_cache();
 
 		// After clearing, factory maps should be rebuilt
 		$newValidatorFactories = $manifest->validator_factories();

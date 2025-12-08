@@ -36,7 +36,7 @@ namespace Ran\PluginLib\Tests\Unit\Config {
 			$cfg      = $this->createMock(ConfigAbstract::class);
 			$expected = array('Name' => 'Mock');
 			$cfg->expects($this->once())
-			    ->method('_get_standard_plugin_headers')
+			    ->method('__get_standard_plugin_headers')
 			    ->with($this->pluginFile)
 			    ->willReturn($expected);
 

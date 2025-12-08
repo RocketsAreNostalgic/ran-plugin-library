@@ -26,7 +26,7 @@ interface FormsInterface {
 	 *
 	 * @return void
 	 */
-	public function _render(string $id_slug, ?array $context = null): void;
+	public function __render(string $id_slug, ?array $context = null): void;
 
 	/**
 	 * Resolve the correctly scoped RegisterOptions instance for current context.

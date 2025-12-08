@@ -872,7 +872,7 @@ abstract class ConfigAbstract implements ConfigInterface {
 	 * @param string $plugin_file
 	 * @return array<string,mixed>
 	 */
-	public function _get_standard_plugin_headers(string $plugin_file): array {
+	public function __get_standard_plugin_headers(string $plugin_file): array {
 		$data = (array) $this->_do_get_plugin_data($plugin_file, false, false);
 		return array_filter($data, static fn($v) => $v !== '');
 	}
@@ -885,7 +885,7 @@ abstract class ConfigAbstract implements ConfigInterface {
 	 * @param string $stylesheet_dir
 	 * @return array<string,mixed>
 	 */
-	public function _get_standard_theme_headers(string $stylesheet_dir): array {
+	public function __get_standard_theme_headers(string $stylesheet_dir): array {
 		if (!$this->_function_exists('wp_get_theme')) {
 			//@codeCoverageIgnoreStart
 			return array();

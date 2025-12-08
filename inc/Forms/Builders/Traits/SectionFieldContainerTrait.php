@@ -227,7 +227,7 @@ trait SectionFieldContainerTrait {
 			throw new \InvalidArgumentException(sprintf('Field "%s" must provide an array component_context.', $field_id));
 		}
 
-		$factory = $this->_get_component_builder_factory($component);
+		$factory = $this->__get_component_builder_factory($component);
 		if (!($factory instanceof \Closure || is_callable($factory))) {
 			throw new \InvalidArgumentException(sprintf(
 				'Field "%s" uses component "%s" which has no registered builder factory.',
@@ -395,7 +395,7 @@ trait SectionFieldContainerTrait {
 	 *
 	 * @return callable|null The factory or null if not found.
 	 */
-	abstract protected function _get_component_builder_factory(string $component): ?callable;
+	abstract public function __get_component_builder_factory(string $component): ?callable;
 
 	/**
 	 * Create a field proxy for the given component builder.

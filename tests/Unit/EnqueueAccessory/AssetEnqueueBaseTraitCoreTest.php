@@ -187,7 +187,7 @@ class AssetEnqueueBaseTraitCoreTest extends EnqueueTraitTestCase {
 			->andReturn(true);
 
 		// Act - Call the public method that internally calls _enqueue_deferred_assets
-		$this->instance->_enqueue_deferred_scripts($hook_name, $priority);
+		$this->instance->__enqueue_deferred_scripts($hook_name, $priority);
 
 		// Assert - Get the deferred assets after processing
 		$deferred_assets = $this->_get_protected_property_value($this->instance, 'deferred_assets');
@@ -236,7 +236,7 @@ class AssetEnqueueBaseTraitCoreTest extends EnqueueTraitTestCase {
 		);
 
 		// Act - Call the public method with the missing priority
-		$instance->_enqueue_deferred_scripts($hook_name, $priority_missing);
+		$instance->__enqueue_deferred_scripts($hook_name, $priority_missing);
 
 		// Assert - Get the deferred assets after processing
 		$deferred_assets = $this->_get_protected_property_value($instance, 'deferred_assets');
@@ -256,7 +256,7 @@ class AssetEnqueueBaseTraitCoreTest extends EnqueueTraitTestCase {
 		);
 
 		// Act - Call the public method again
-		$instance->_enqueue_deferred_scripts($hook_name, $priority_missing);
+		$instance->__enqueue_deferred_scripts($hook_name, $priority_missing);
 
 		// Get the deferred assets after processing
 		$deferred_assets = $this->_get_protected_property_value($instance, 'deferred_assets');

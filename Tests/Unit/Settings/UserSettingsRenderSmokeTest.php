@@ -91,7 +91,7 @@ class UserSettingsRenderSmokeTest extends PluginLibTestCase {
 				->section('s1', 'Section')->field('field_1', 'Label 1', 'ext.view-only')->end_field()->end_section()
 			->end_collection();
 
-			$output = $this->captureOutput(fn() => $settings->_render('profile'));
+			$output = $this->captureOutput(fn() => $settings->__render('profile'));
 			self::assertStringContainsString('data-marker="view-only"', $output);
 			self::assertStringContainsString('stored_value_1', $output);
 		} finally {
@@ -117,7 +117,7 @@ class UserSettingsRenderSmokeTest extends PluginLibTestCase {
 				->section('s2', 'Section')->field('field_2', 'Label 2', 'ext.view-validator')->end_field()->end_section()
 			->end_collection();
 
-			$output = $this->captureOutput(fn() => $settings->_render('profile'));
+			$output = $this->captureOutput(fn() => $settings->__render('profile'));
 			self::assertStringContainsString('data-marker="view-validator"', $output);
 		} finally {
 			$this->cleanupDirectory($externalDir);
@@ -142,7 +142,7 @@ class UserSettingsRenderSmokeTest extends PluginLibTestCase {
 				->section('s3', 'Section')->field('field_3', 'Label 3', 'ext.view-normalizer')->end_field()->end_section()
 			->end_collection();
 
-			$output = $this->captureOutput(fn() => $settings->_render('profile'));
+			$output = $this->captureOutput(fn() => $settings->__render('profile'));
 			self::assertStringContainsString('data-marker="view-normalizer"', $output);
 		} finally {
 			$this->cleanupDirectory($externalDir);
@@ -168,7 +168,7 @@ class UserSettingsRenderSmokeTest extends PluginLibTestCase {
 				->section('s4', 'Section')->field('field_4', 'Label 4', 'ext.full-stack')->end_field()->end_section()
 			->end_collection();
 
-			$output = $this->captureOutput(fn() => $settings->_render('profile'));
+			$output = $this->captureOutput(fn() => $settings->__render('profile'));
 			self::assertStringContainsString('data-marker="full-stack"', $output);
 		} finally {
 			$this->cleanupDirectory($externalDir);
@@ -196,7 +196,7 @@ class UserSettingsRenderSmokeTest extends PluginLibTestCase {
 				->end_field()->end_section()
 			->end_collection();
 
-			$output = $this->captureOutput(fn() => $settings->_render('profile'));
+			$output = $this->captureOutput(fn() => $settings->__render('profile'));
 			self::assertStringContainsString('data-marker="view-dev-schema"', $output);
 		} finally {
 			$this->cleanupDirectory($externalDir);
@@ -225,7 +225,7 @@ class UserSettingsRenderSmokeTest extends PluginLibTestCase {
 				->end_field()->end_section()
 			->end_collection();
 
-			$output = $this->captureOutput(fn() => $settings->_render('profile'));
+			$output = $this->captureOutput(fn() => $settings->__render('profile'));
 			self::assertStringContainsString('data-marker="validator-dev-schema"', $output);
 		} finally {
 			$this->cleanupDirectory($externalDir);
@@ -254,7 +254,7 @@ class UserSettingsRenderSmokeTest extends PluginLibTestCase {
 				->end_field()->end_section()
 			->end_collection();
 
-			$output = $this->captureOutput(fn() => $settings->_render('profile'));
+			$output = $this->captureOutput(fn() => $settings->__render('profile'));
 			self::assertStringContainsString('data-marker="normalizer-dev-schema"', $output);
 		} finally {
 			$this->cleanupDirectory($externalDir);
@@ -284,7 +284,7 @@ class UserSettingsRenderSmokeTest extends PluginLibTestCase {
 				->end_field()->end_section()
 			->end_collection();
 
-			$output = $this->captureOutput(fn() => $settings->_render('profile'));
+			$output = $this->captureOutput(fn() => $settings->__render('profile'));
 			self::assertStringContainsString('data-marker="full-stack-schema"', $output);
 		} finally {
 			$this->cleanupDirectory($externalDir);

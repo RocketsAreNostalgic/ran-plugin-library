@@ -422,7 +422,7 @@ class ComponentManifest {
 	 * @internal For testing only. Validators and sanitizers are stateless,
 	 * so instance caching is safe for production use.
 	 */
-	public function _clear_instance_cache(): void {
+	public function __clear_instance_cache(): void {
 		$this->validatorInstances      = array();
 		$this->sanitizerInstances      = array();
 		$this->validatorFactoriesCache = null;

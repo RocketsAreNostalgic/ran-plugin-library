@@ -21,7 +21,7 @@ final class PluginHeaderProvider implements HeaderProviderInterface {
 	}
 
 	public function get_standard_headers(): array {
-		return $this->cfg->_get_standard_plugin_headers($this->plugin_file);
+		return $this->cfg->__get_standard_plugin_headers($this->plugin_file);
 	}
 
 	public function get_base_identifiers(): array {

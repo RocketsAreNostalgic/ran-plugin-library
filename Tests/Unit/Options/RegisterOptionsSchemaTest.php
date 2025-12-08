@@ -58,7 +58,7 @@ final class RegisterOptionsSchemaTest extends PluginLibTestCase {
 		// Should return a boolean (true if changes made, false if no changes)
 		$this->assertIsBool($result);
 
-		$registeredSchema = $opts->_get_schema_internal();
+		$registeredSchema = $opts->__get_schema_internal();
 		$this->assertArrayHasKey('test_key', $registeredSchema);
 		$this->assertSame(array(), $registeredSchema['test_key']['sanitize']['component']);
 		$this->assertCount(1, $registeredSchema['test_key']['sanitize']['schema']);
@@ -110,7 +110,7 @@ final class RegisterOptionsSchemaTest extends PluginLibTestCase {
 		);
 
 		$opts->register_schema($initialSchema);
-		$initialMap = $opts->_get_schema_internal();
+		$initialMap = $opts->__get_schema_internal();
 		$this->assertSame(array(), $initialMap['existing_key']['sanitize']['component']);
 		$this->assertCount(1, $initialMap['existing_key']['sanitize']['schema']);
 		$this->assertSame(array(), $initialMap['existing_key']['validate']['component']);
@@ -132,7 +132,7 @@ final class RegisterOptionsSchemaTest extends PluginLibTestCase {
 
 		// Verify the schema merging worked (default remains from first registration) and buckets intact
 		$this->assertEquals('initial_default', $opts->get_option('existing_key'));
-		$mergedMap = $opts->_get_schema_internal();
+		$mergedMap = $opts->__get_schema_internal();
 		$this->assertSame(array(), $mergedMap['existing_key']['sanitize']['component']);
 		$this->assertCount(1, $mergedMap['existing_key']['sanitize']['schema']);
 		$this->assertSame(array(), $mergedMap['existing_key']['validate']['component']);
@@ -277,7 +277,7 @@ final class RegisterOptionsSchemaTest extends PluginLibTestCase {
 		$this->assertSame('Hello', $opts->get_option('normalize_me'));
 		$this->assertSame(5, $opts->get_option('num'));
 
-		$normalizedMap = $opts->_get_schema_internal();
+		$normalizedMap = $opts->__get_schema_internal();
 		$this->assertSame(array(), $normalizedMap['normalize_me']['sanitize']['component']);
 		$this->assertCount(1, $normalizedMap['normalize_me']['sanitize']['schema']);
 		$this->assertSame(array(), $normalizedMap['normalize_me']['validate']['component']);

@@ -21,7 +21,7 @@ final class ThemeHeaderProvider implements HeaderProviderInterface {
 	}
 
 	public function get_standard_headers(): array {
-		return $this->cfg->_get_standard_theme_headers($this->stylesheet_dir);
+		return $this->cfg->__get_standard_theme_headers($this->stylesheet_dir);
 	}
 
 	public function get_base_identifiers(): array {

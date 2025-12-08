@@ -166,7 +166,7 @@ class MediaEnqueueTraitTest extends PluginLibTestCase {
 
 	/**
 	 * @test
-	 * @covers \Ran\PluginLib\EnqueueAccessory\MediaEnqueueTrait::_enqueue_deferred_media_tools
+	 * @covers \Ran\PluginLib\EnqueueAccessory\MediaEnqueueTrait::__enqueue_deferred_media_tools
 	 */
 	public function test_enqueue_deferred_media_tools_calls_wp_enqueue_media(): void {
 		// Arrange
@@ -196,7 +196,7 @@ class MediaEnqueueTraitTest extends PluginLibTestCase {
 			->once();
 
 		// Act
-		$this->instance->_enqueue_deferred_media_tools('admin_enqueue_scripts');
+		$this->instance->__enqueue_deferred_media_tools('admin_enqueue_scripts');
 
 		// Assert: WP_Mock will verify the expectations
 		$this->assertTrue(true); // Prevents risky test warning
@@ -204,7 +204,7 @@ class MediaEnqueueTraitTest extends PluginLibTestCase {
 
 	/**
 	 * @test
-	 * @covers \Ran\PluginLib\EnqueueAccessory\MediaEnqueueTrait::_enqueue_deferred_media_tools
+	 * @covers \Ran\PluginLib\EnqueueAccessory\MediaEnqueueTrait::__enqueue_deferred_media_tools
 	 */
 	public function test_enqueue_deferred_media_tools_handles_missing_hook(): void {
 		// Arrange - no media configs staged
@@ -213,7 +213,7 @@ class MediaEnqueueTraitTest extends PluginLibTestCase {
 		WP_Mock::userFunction('wp_enqueue_media')->never();
 
 		// Act
-		$this->instance->_enqueue_deferred_media_tools('nonexistent_hook');
+		$this->instance->__enqueue_deferred_media_tools('nonexistent_hook');
 
 		// Assert: WP_Mock will verify the expectations
 		$this->assertTrue(true); // Prevents risky test warning

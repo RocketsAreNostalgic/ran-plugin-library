@@ -154,7 +154,7 @@ final class AdminSettingsBehaviorTest extends PluginLibTestCase {
 	public function test_register_setting_uses_settings_api(): void {
 		$logStart = \count($this->logger->collected_logs);
 
-		$this->settings->_register_setting();
+		$this->settings->__register_setting();
 
 		$logEntries   = \array_slice($this->logger->collected_logs, $logStart);
 		$registerLogs = \array_values(\array_filter($logEntries, static function (array $entry): bool {
@@ -169,7 +169,7 @@ final class AdminSettingsBehaviorTest extends PluginLibTestCase {
 	public function test_sanitize_returns_previous_payload_on_validation_failure(): void {
 		$this->setOptionValues(array('valid_field' => 'existing', 'integer_field' => 0));
 
-		$result = $this->settings->_sanitize(array('valid_field' => array('not a string')));
+		$result = $this->settings->__sanitize(array('valid_field' => array('not a string')));
 
 		$this->assertSame(array('valid_field' => 'existing', 'integer_field' => 0), $result);
 		$messages = $this->settings->take_messages();
@@ -180,7 +180,7 @@ final class AdminSettingsBehaviorTest extends PluginLibTestCase {
 	public function test_sanitize_returns_sanitized_payload_on_success(): void {
 		$this->setOptionValues(array());
 
-		$result = $this->settings->_sanitize(array('integer_field' => '5'));
+		$result = $this->settings->__sanitize(array('integer_field' => '5'));
 
 		$this->assertSame(array('valid_field' => '', 'integer_field' => 5), $result);
 		$messages = $this->settings->take_messages();
@@ -274,7 +274,7 @@ final class AdminSettingsBehaviorTest extends PluginLibTestCase {
 			'auto_field'    => 'previous-value',
 		));
 
-		$result = $this->settings->_sanitize(array('auto_field' => 'invalid'));
+		$result = $this->settings->__sanitize(array('auto_field' => 'invalid'));
 
 		self::assertArrayHasKey('auto_field', $result);
 		self::assertSame('previous-value', $result['auto_field']);
@@ -310,7 +310,7 @@ final class AdminSettingsBehaviorTest extends PluginLibTestCase {
 
 	public function test_render_unknown_page_falls_back_to_notice(): void {
 		$output = $this->captureOutput(function (): void {
-			$this->settings->_render('missing-page');
+			$this->settings->__render('missing-page');
 		});
 
 		$this->assertStringContainsString('Unknown settings page', $output);
@@ -330,7 +330,7 @@ final class AdminSettingsBehaviorTest extends PluginLibTestCase {
 		$this->setOptionValues(array('valid_field' => 'value'));
 
 		$output = $this->captureOutput(function (): void {
-			$this->settings->_render('behavior-page');
+			$this->settings->__render('behavior-page');
 		});
 
 		$this->assertStringContainsString('<section', $output);
@@ -368,7 +368,7 @@ final class AdminSettingsBehaviorTest extends PluginLibTestCase {
 		));
 
 		$output = $this->captureOutput(function (): void {
-			$this->settings->_render('hooks-page');
+			$this->settings->__render('hooks-page');
 		});
 
 		self::assertStringContainsString('<div class="section-before">section-before</div>', $output);
@@ -399,7 +399,7 @@ final class AdminSettingsBehaviorTest extends PluginLibTestCase {
 		$this->expectOptionReturn(array());
 
 		$output = $this->captureOutput(function (): void {
-			$this->settings->_render('behavior-page');
+			$this->settings->__render('behavior-page');
 		});
 
 		$this->assertStringContainsString('custom-template', $output);
@@ -417,7 +417,7 @@ final class AdminSettingsBehaviorTest extends PluginLibTestCase {
 		$this->expectOptionReturn(array());
 
 		$output = $this->captureOutput(function (): void {
-			$this->settings->_render('tools-page');
+			$this->settings->__render('tools-page');
 		});
 
 		$this->assertStringContainsString('Tools Heading', $output);
@@ -431,7 +431,7 @@ final class AdminSettingsBehaviorTest extends PluginLibTestCase {
 		    ->with('behavior_admin_options', array())
 		    ->andReturn(array('valid_field' => '', 'integer_field' => 0));
 
-		$result = $this->settings->_sanitize(array('integer_field' => '10'));
+		$result = $this->settings->__sanitize(array('integer_field' => '10'));
 
 		$this->assertSame(array('valid_field' => '', 'integer_field' => 10), $result);
 	}
@@ -546,7 +546,7 @@ final class AdminSettingsBehaviorTest extends PluginLibTestCase {
 
 		$this->setOptionValues(array('merge_field' => 'previous'));
 
-		$result = $this->settings->_sanitize(array('merge_field' => ' test '));
+		$result = $this->settings->__sanitize(array('merge_field' => ' test '));
 
 		self::assertSame('previous', $result['merge_field']);
 
@@ -589,7 +589,7 @@ final class AdminSettingsBehaviorTest extends PluginLibTestCase {
 		self::assertNotEmpty($manifestValidateBeforeFailure, 'Expected manifest validator to run before failing schema validator.');
 
 		$this->captureOutput(function () use (&$capturedComponent): void {
-			$this->settings->_render('merge-page');
+			$this->settings->__render('merge-page');
 		});
 
 		self::assertIsArray($capturedComponent);
@@ -665,10 +665,10 @@ final class AdminSettingsBehaviorTest extends PluginLibTestCase {
 		$this->logger->collected_logs = array();
 
 		$this->captureOutput(function (): void {
-			$this->settings->_render('trace-page');
+			$this->settings->__render('trace-page');
 		});
 
-		$result = $this->settings->_sanitize(array(
+		$result = $this->settings->__sanitize(array(
 			'valid_field'   => 'updated value',
 			'integer_field' => '11',
 			'trace_field'   => '  updated  ',
@@ -914,7 +914,7 @@ final class AdminSettingsBehaviorTest extends PluginLibTestCase {
 		$this->expectOptionReturn(array('valid_field' => 'seed'));
 
 		$output = $this->captureOutput(function (): void {
-			$this->settings->_render('submit-page');
+			$this->settings->__render('submit-page');
 		});
 
 		self::assertStringContainsString('submit-wrapper', $output, 'Expected submit controls wrapper.');
@@ -933,7 +933,7 @@ final class AdminSettingsBehaviorTest extends PluginLibTestCase {
 		$this->expectOptionReturn(array('valid_field' => 'value'));
 
 		$output = $this->captureOutput(function (): void {
-			$this->settings->_render('custom-submit-page');
+			$this->settings->__render('custom-submit-page');
 		});
 
 		self::assertStringContainsString('submit-wrapper', $output, 'Expected submit controls wrapper.');
@@ -977,7 +977,7 @@ final class AdminSettingsBehaviorTest extends PluginLibTestCase {
 		));
 
 		$this->captureOutput(function (): void {
-			$this->settings->_render('messages-page');
+			$this->settings->__render('messages-page');
 		});
 
 		self::assertIsArray($capturedPayload, 'Expected root template callback to capture payload.');
@@ -1042,7 +1042,7 @@ final class AdminSettingsBehaviorTest extends PluginLibTestCase {
 			->andReturn(true);
 
 		$this->captureOutput(function (): void {
-			$this->settings->_render('asset-page');
+			$this->settings->__render('asset-page');
 		});
 
 		$logs       = $this->logger->get_logs();

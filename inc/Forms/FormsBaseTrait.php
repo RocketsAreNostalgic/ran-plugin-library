@@ -114,7 +114,7 @@ trait FormsBaseTrait {
 	 * @param string $id_slug The root identifier
 	 * @param array|null $context Optional context
 	 */
-	abstract public function _render(string $id_slug, ?array $context = null): void;
+	abstract public function __render(string $id_slug, ?array $context = null): void;
 
 	/**
 	 * Handle context update (eg AdminSettings page, UserSettings collection, etc) from builders.
@@ -188,7 +188,7 @@ trait FormsBaseTrait {
 			$callback($this); // Type-hint the callback parameter for IDE autocomplete.
 			$this->boot();
 		} catch (\Throwable $e) {
-			$this->_handle_builder_error($e, 'safe_boot');
+			$this->__handle_builder_error($e, 'safe_boot');
 		}
 	}
 
@@ -652,7 +652,7 @@ trait FormsBaseTrait {
 	 * @param string $hook The WordPress hook or context where the error occurred.
 	 * @return void
 	 */
-	public function _handle_builder_error(\Throwable $e, string $hook): void {
+	public function __handle_builder_error(\Throwable $e, string $hook): void {
 		$context = array(
 			'hook'  => $hook,
 			'class' => static::class,
@@ -2183,7 +2183,7 @@ trait FormsBaseTrait {
 			return $this->__schema_bundle_cache[$cacheKey];
 		}
 
-		$schemaInternal = $options->_get_schema_internal();
+		$schemaInternal = $options->__get_schema_internal();
 		$defaults       = array();
 		foreach ($schemaInternal as $normalizedKey => $entry) {
 			if (is_array($entry) && array_key_exists('default', $entry)) {
@@ -2404,7 +2404,7 @@ trait FormsBaseTrait {
 			));
 		}
 		$manifestCatalogue = $this->__catalogue_cache;
-		$internalSchema    = $this->base_options->_get_schema_internal();
+		$internalSchema    = $this->base_options->__get_schema_internal();
 
 		foreach ($this->_get_registered_field_metadata() as $entry) {
 			$field     = $entry['field'] ?? array();

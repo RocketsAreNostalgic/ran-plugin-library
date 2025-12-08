@@ -69,7 +69,7 @@ final class RegisterOptionsUtilityTest extends PluginLibTestCase {
 		$opts = RegisterOptions::site('no_schema_example', true, $this->logger_mock);
 
 		self::assertSame(array(), $opts->get_schema());
-		self::assertSame(array(), $opts->_get_schema_internal());
+		self::assertSame(array(), $opts->__get_schema_internal());
 	}
 
 	/**
@@ -203,7 +203,7 @@ final class RegisterOptionsUtilityTest extends PluginLibTestCase {
 		self::assertStringStartsWith(ValidatorPipelineService::CLOSURE_PLACEHOLDER_PREFIX, $exported['summary']['validate'][0]);
 		self::assertSame('is_string', $exported['summary']['validate'][1]);
 
-		$internal = $opts->_get_schema_internal();
+		$internal = $opts->__get_schema_internal();
 
 		self::assertArrayHasKey('headline', $internal);
 		$headlineSanitizeBucket = $internal['headline']['sanitize'][ValidatorPipelineService::BUCKET_SCHEMA] ?? array();
@@ -230,7 +230,7 @@ final class RegisterOptionsUtilityTest extends PluginLibTestCase {
 	public function test_get_schema_omits_component_callables(): void {
 		$opts = RegisterOptions::site('component_visibility_example', true, $this->logger_mock);
 
-		$opts->_register_internal_schema(array(
+		$opts->__register_internal_schema(array(
 			'field_alpha' => array(
 				'sanitize' => array(
 					ValidatorPipelineService::BUCKET_COMPONENT => array('strtoupper'),
@@ -248,7 +248,7 @@ final class RegisterOptionsUtilityTest extends PluginLibTestCase {
 		self::assertSame(array('trim'), $exported['field_alpha']['sanitize']);
 		self::assertSame(array('is_string'), $exported['field_alpha']['validate']);
 
-		$internal = $opts->_get_schema_internal();
+		$internal = $opts->__get_schema_internal();
 		self::assertArrayHasKey('field_alpha', $internal);
 		self::assertSame(
 			array('strtoupper'),
@@ -308,8 +308,8 @@ final class RegisterOptionsUtilityTest extends PluginLibTestCase {
 			'Round-tripped schema should match the exported schema'
 		);
 
-		$originalInternal = $original->_get_schema_internal();
-		$cloneInternal    = $clone->_get_schema_internal();
+		$originalInternal = $original->__get_schema_internal();
+		$cloneInternal    = $clone->__get_schema_internal();
 		self::assertArrayHasKey('title', $cloneInternal);
 		self::assertArrayHasKey('flag', $cloneInternal);
 		self::assertIsCallable($cloneInternal['title']['sanitize'][ValidatorPipelineService::BUCKET_SCHEMA][0]);
@@ -376,7 +376,7 @@ final class RegisterOptionsUtilityTest extends PluginLibTestCase {
 			),
 		));
 
-		$internal = $opts->_get_schema_internal();
+		$internal = $opts->__get_schema_internal();
 
 		self::assertArrayHasKey('title', $internal);
 		self::assertArrayHasKey(ValidatorPipelineService::BUCKET_SCHEMA, $internal['title']['sanitize']);
@@ -884,7 +884,7 @@ final class RegisterOptionsUtilityTest extends PluginLibTestCase {
 		$this->assertNotSame($base, $clone);
 		$this->assertSame('context_example', $clone->get_main_option_name());
 		$this->assertSame(OptionScope::Network, $clone->get_storage_context()->scope);
-		$this->assertEquals($base->_get_schema_internal(), $clone->_get_schema_internal());
+		$this->assertEquals($base->__get_schema_internal(), $clone->__get_schema_internal());
 		$this->assertSame($policy, $clone->get_write_policy());
 		$this->assertSame($logger, $clone->get_logger());
 	}

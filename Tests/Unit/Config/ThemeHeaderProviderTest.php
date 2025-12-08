@@ -44,7 +44,7 @@ final class ThemeHeaderProviderTest extends RanTestCase {
 		$cfg      = $this->createMock(ConfigAbstract::class);
 		$expected = array('Name' => 'Mock Theme');
 		$cfg->expects($this->once())
-		    ->method('_get_standard_theme_headers')
+		    ->method('__get_standard_theme_headers')
 		    ->with($this->stylesheetDir)
 		    ->willReturn($expected);
 

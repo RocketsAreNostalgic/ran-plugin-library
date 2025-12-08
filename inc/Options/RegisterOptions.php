@@ -329,7 +329,7 @@ class RegisterOptions {
 
 		// Share the validator pipeline with the cloned instance
 		if ($this->validator_pipeline instanceof ValidatorPipelineService) {
-			$new->_set_validator_pipeline($this->validator_pipeline);
+			$new->__set_validator_pipeline($this->validator_pipeline);
 		}
 
 		if ($this->write_policy instanceof WritePolicyInterface) {
@@ -337,7 +337,7 @@ class RegisterOptions {
 		}
 
 		if (!empty($this->schema)) {
-			$new->_register_internal_schema($this->schema);
+			$new->__register_internal_schema($this->schema);
 		}
 
 		return $new;
@@ -461,7 +461,7 @@ class RegisterOptions {
 		$defaultMissingOptions = array();
 
 		try {
-			$this->_register_internal_schema($normalized);
+			$this->__register_internal_schema($normalized);
 
 			foreach ($normalized as $key => $rules) {
 				if (!array_key_exists('default', $rules)) {
@@ -545,7 +545,7 @@ class RegisterOptions {
 			// Note: defaults currently always flow through sanitize/validate even when unchanged.
 			// If telemetry shows costly defaults, consider memoising canonical default signatures here
 			// so unchanged keys can skip the resolution path without breaking seed semantics.
-			$this->_register_internal_schema(
+			$this->__register_internal_schema(
 				array(),
 				array(),
 				array(),
@@ -1000,7 +1000,7 @@ class RegisterOptions {
 	 *
 	 * @return array<string,array{sanitize:array{component:array<callable>,schema:array<callable>}, validate:array{component:array<callable>,schema:array<callable>}, default?:mixed}>
 	 */
-	public function _get_schema_internal(): array {
+	public function __get_schema_internal(): array {
 		return $this->schema;
 	}
 
@@ -1031,7 +1031,7 @@ class RegisterOptions {
 	 * @param array<string,array<int,callable>> $queuedSanitizers Component sanitizers queued prior to schema merge.
  	 * @return void
  	 */
-	public function _register_internal_schema(array $schema, array $metadata = array(), array $queuedValidators = array(), array $queuedSanitizers = array(), ?array $defaultsTelemetry = null): void {
+	public function __register_internal_schema(array $schema, array $metadata = array(), array $queuedValidators = array(), array $queuedSanitizers = array(), ?array $defaultsTelemetry = null): void {
 		if (empty($schema)) {
 			if ($defaultsTelemetry !== null) {
 				$this->_log_schema_defaults_summary($defaultsTelemetry);
@@ -1783,7 +1783,7 @@ class RegisterOptions {
 	 * @param ValidatorPipelineService $pipeline The pipeline instance to use.
 	 * @return void
 	 */
-	public function _set_validator_pipeline(ValidatorPipelineService $pipeline): void {
+	public function __set_validator_pipeline(ValidatorPipelineService $pipeline): void {
 		$this->validator_pipeline = $pipeline;
 	}
 
