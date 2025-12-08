@@ -229,18 +229,30 @@ class AdminSettings implements FormsInterface {
 	 * @return void
 	 */
 	public function boot(): void {
+		$this->logger->debug('admin_settings.boot.entry', array(
+			'main_option'    => $this->main_option,
+			'request_method' => $_SERVER['REQUEST_METHOD'] ?? 'unknown',
+		));
+
+		// Register setting immediately - MUST happen before options.php processes the form
+		// WordPress's options.php calls update_option() which triggers the sanitize callback
+		// BEFORE admin_init fires, so we cannot defer this registration.
+		$this->__register_setting();
+
 		$hooks = array();
 
-		// 1. Settings API registration and file upload handling (admin_init)
+		// 1. File upload handling and validation message restoration (admin_init)
 		$hooks[] = array(
 			'hook'     => 'admin_init',
 			'callback' => function () {
-				$this->__register_setting();
 				// Handle file uploads early - before options.php processes the form
 				// This injects uploaded file data into $_POST so it reaches the sanitize callback
 				$this->_handle_file_uploads();
-				// Note: We don't register individual fields/sections with WordPress Settings API
-				// because we use custom template rendering instead of do_settings_fields()
+
+				// Restore validation messages from our transient (persisted during POST).
+				// Must happen on admin_init AFTER the redirect from options.php completes.
+				// This feeds them into our message_handler for field-level display.
+				$this->_restore_form_messages();
 			},
 		);
 
@@ -498,13 +510,24 @@ class AdminSettings implements FormsInterface {
 	 * @internal
 	 */
 	public function __register_setting(): void {
-		$group = $this->base_options->get_main_option_name() . '_group';
-		$this->_do_register_setting($group, $this->base_options->get_main_option_name(), array(
+		$group       = $this->base_options->get_main_option_name() . '_group';
+		$option_name = $this->base_options->get_main_option_name();
+
+		// Log before registration
+		$this->logger->debug('admin_settings.register_setting.before', array(
+			'group'          => $group,
+			'option'         => $option_name,
+			'request_method' => $_SERVER['REQUEST_METHOD'] ?? 'unknown',
+			'is_post'        => ($_SERVER['REQUEST_METHOD'] ?? '') === 'POST',
+		));
+
+		$this->_do_register_setting($group, $option_name, array(
 			'sanitize_callback' => array($this, '__sanitize'),
 		));
-		$this->logger->debug('admin_settings.register_setting', array(
+
+		$this->logger->debug('admin_settings.register_setting.after', array(
 			'group'  => $group,
-			'option' => $this->base_options->get_main_option_name(),
+			'option' => $option_name,
 		));
 	}
 
@@ -539,6 +562,11 @@ class AdminSettings implements FormsInterface {
 	 * @return array<string, mixed>
 	 */
 	public function __sanitize($raw): array {
+		$this->logger->debug('admin_settings.__sanitize.entry', array(
+			'main_option'  => $this->main_option,
+			'payload_keys' => is_array($raw) ? array_keys($raw) : 'not_array',
+		));
+
 		$payload  = is_array($raw) ? $raw : array();
 		$previous = $this->_do_get_option($this->main_option, array());
 		$previous = is_array($previous) ? $previous : array();
@@ -587,6 +615,11 @@ class AdminSettings implements FormsInterface {
 					'validation_messages' => $messages,
 				)
 			);
+
+			// Persist messages for display after redirect using our own transient mechanism.
+			// This is more reliable than WordPress's settings_errors which has timing issues.
+			$this->_persist_form_messages($messages);
+
 			return $previous;
 		}
 
@@ -1041,6 +1074,11 @@ class AdminSettings implements FormsInterface {
 	 * @return void
 	 */
 	protected function _handle_file_uploads(): void {
+		$this->logger->debug('admin_settings._handle_file_uploads.entry', array(
+			'request_method' => $_SERVER['REQUEST_METHOD'] ?? 'unknown',
+			'main_option'    => $this->main_option,
+		));
+
 		// Only process on POST requests
 		// phpcs:ignore WordPress.Security.NonceVerification.Missing
 		if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -1050,6 +1088,11 @@ class AdminSettings implements FormsInterface {
 		// Check if this is our option being saved
 		// phpcs:ignore WordPress.Security.NonceVerification.Missing
 		$option_page = $_POST['option_page'] ?? '';
+		$this->logger->debug('admin_settings._handle_file_uploads.option_page_check', array(
+			'option_page'    => $option_page,
+			'expected_group' => $this->main_option . '_group',
+			'match'          => $option_page === $this->main_option . '_group',
+		));
 		if ($option_page !== $this->main_option . '_group') {
 			return;
 		}

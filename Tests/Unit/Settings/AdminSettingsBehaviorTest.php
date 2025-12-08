@@ -158,7 +158,7 @@ final class AdminSettingsBehaviorTest extends PluginLibTestCase {
 
 		$logEntries   = \array_slice($this->logger->collected_logs, $logStart);
 		$registerLogs = \array_values(\array_filter($logEntries, static function (array $entry): bool {
-			return $entry['message'] === 'admin_settings.register_setting';
+			return $entry['message'] === 'admin_settings.register_setting.after';
 		}));
 		self::assertNotEmpty($registerLogs);
 		$log = \array_pop($registerLogs);

@@ -1510,4 +1510,45 @@ trait WPWrappersTrait {
 		}
 		return false;
 	}
+
+	/**
+	 * Wrapper method for WordPress add_settings_error function.
+	 *
+	 * Registers a settings error to be displayed to the user. WordPress stores these
+	 * in a transient so they persist across the POST/redirect/GET cycle.
+	 *
+	 * Availability-guarded: Yes (function_exists check)
+	 *
+	 * @internal
+	 * @param string $setting Slug title of the setting to which this error applies.
+	 * @param string $code    Slug-name to identify the error. Used as part of 'id' attribute in HTML output.
+	 * @param string $message The formatted message text to display to the user.
+	 * @param string $type    Optional. Message type, controls HTML class. Accepts 'error', 'success', 'warning', 'info'. Default 'error'.
+	 * @return void
+	 */
+	protected function _do_add_settings_error(string $setting, string $code, string $message, string $type = 'error'): void {
+		if (\function_exists('add_settings_error')) {
+			\add_settings_error($setting, $code, $message, $type);
+		}
+	}
+
+	/**
+	 * Wrapper method for WordPress get_settings_errors function.
+	 *
+	 * Retrieves settings errors registered by add_settings_error(). WordPress stores
+	 * these in a transient so they persist across the POST/redirect/GET cycle.
+	 *
+	 * Availability-guarded: Yes (function_exists check)
+	 *
+	 * @internal
+	 * @param string $setting        Optional. Slug title of a specific setting to retrieve errors for.
+	 * @param bool   $sanitize       Optional. Whether to re-sanitize the setting value before returning errors.
+	 * @return array<int, array{setting: string, code: string, message: string, type: string}> Array of settings errors.
+	 */
+	protected function _do_get_settings_errors(string $setting = '', bool $sanitize = false): array {
+		if (\function_exists('get_settings_errors')) {
+			return (array) \get_settings_errors($setting, $sanitize);
+		}
+		return array();
+	}
 }

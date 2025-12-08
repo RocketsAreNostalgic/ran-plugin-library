@@ -185,9 +185,27 @@ trait FormsBaseTrait {
 	 */
 	public function safe_boot(callable $callback): void {
 		try {
+			$this->logger->debug('forms_base.safe_boot.entry', array(
+				'class'          => static::class,
+				'request_method' => $_SERVER['REQUEST_METHOD'] ?? 'unknown',
+			));
 			$callback($this); // Type-hint the callback parameter for IDE autocomplete.
+			$this->logger->debug('forms_base.safe_boot.callback_complete', array(
+				'class'          => static::class,
+				'request_method' => $_SERVER['REQUEST_METHOD'] ?? 'unknown',
+			));
 			$this->boot();
+			$this->logger->debug('forms_base.safe_boot.boot_complete', array(
+				'class'          => static::class,
+				'request_method' => $_SERVER['REQUEST_METHOD'] ?? 'unknown',
+			));
 		} catch (\Throwable $e) {
+			$this->logger->error('forms_base.safe_boot.error', array(
+				'class'   => static::class,
+				'message' => $e->getMessage(),
+				'file'    => $e->getFile(),
+				'line'    => $e->getLine(),
+			));
 			$this->__handle_builder_error($e, 'safe_boot');
 		}
 	}
@@ -626,6 +644,103 @@ trait FormsBaseTrait {
 		}
 	}
 
+	// -- Form Message Persistence --
+
+	/**
+	 * Get the transient key for persisting form messages across redirects.
+	 *
+	 * Uses a namespaced key to avoid collision with WordPress's settings_errors
+	 * or other plugins. Includes user_id for user-scoped isolation.
+	 *
+	 * @param int|null $user_id Optional user ID. Defaults to current user.
+	 * @return string Transient key in format: ran_form_messages_{main_option}_{user_id}
+	 */
+	protected function _get_form_messages_transient_key(?int $user_id = null): string {
+		if ($user_id === null) {
+			$user_id = $this->_do_get_current_user_id();
+		}
+		// Include form type to prevent different form classes from consuming each other's messages
+		$form_type = $this->_get_form_type_suffix();
+		return 'ran_form_messages_' . $form_type . '_' . $this->main_option . '_' . $user_id;
+	}
+
+	/**
+	 * Get the form type suffix for transient key namespacing.
+	 *
+	 * Override in subclasses to provide a unique suffix for each form type.
+	 * This prevents AdminSettings, UserSettings, and FrontendForms from
+	 * accidentally consuming each other's persisted messages.
+	 *
+	 * @return string Form type identifier (e.g., 'admin', 'user', 'frontend')
+	 */
+	protected function _get_form_type_suffix(): string {
+		$class = static::class;
+		if (str_contains($class, 'UserSettings')) {
+			return 'user';
+		}
+		if (str_contains($class, 'FrontendForms') || str_contains($class, 'Frontend')) {
+			return 'frontend';
+		}
+		return 'admin';
+	}
+
+	/**
+	 * Persist form validation messages to a transient for display after redirect.
+	 *
+	 * This provides a reliable, WordPress-independent mechanism for persisting
+	 * validation messages across the POST/redirect/GET cycle. Works consistently
+	 * for AdminSettings, UserSettings, and future FrontendForms.
+	 *
+	 * @param array<string, array{warnings: array<int, string>, notices: array<int, string>}> $messages
+	 * @param int|null $user_id Optional user ID for the transient key. Defaults to current user.
+	 * @return void
+	 */
+	protected function _persist_form_messages(array $messages, ?int $user_id = null): void {
+		if (empty($messages)) {
+			return;
+		}
+
+		$key = $this->_get_form_messages_transient_key($user_id);
+		$this->_do_set_transient($key, $messages, 30); // 30 second TTL
+
+		$this->logger->debug('forms.messages_persisted', array(
+			'transient_key' => $key,
+			'field_count'   => count($messages),
+		));
+	}
+
+	/**
+	 * Restore form validation messages from transient into message_handler.
+	 *
+	 * Reads messages persisted by _persist_form_messages() and feeds them
+	 * into the FormMessageHandler for field-level display. Deletes the
+	 * transient after reading for one-time display.
+	 *
+	 * @param int|null $user_id Optional user ID for the transient key. Defaults to current user.
+	 * @return bool True if messages were restored, false if none found.
+	 */
+	protected function _restore_form_messages(?int $user_id = null): bool {
+		$key      = $this->_get_form_messages_transient_key($user_id);
+		$messages = $this->_do_get_transient($key);
+
+		if (empty($messages) || !is_array($messages)) {
+			return false;
+		}
+
+		// Delete transient after reading (one-time display)
+		$this->_do_delete_transient($key);
+
+		// Feed messages into our message handler
+		$this->message_handler->set_messages($messages);
+
+		$this->logger->debug('forms.messages_restored', array(
+			'transient_key' => $key,
+			'field_count'   => count($messages),
+		));
+
+		return true;
+	}
+
 	// -- Session & Hook Management --
 
 	/**
@@ -668,7 +783,7 @@ trait FormsBaseTrait {
 		);
 
 		// Only proceed if in admin and user can manage options
-		if (!\is_admin() || !\current_user_can('manage_options')) {
+		if (!$this->_do_is_admin() || !$this->_do_current_user_can('manage_options')) {
 			return;
 		}
 
@@ -676,7 +791,7 @@ trait FormsBaseTrait {
 
 		// Show admin notice in dev mode
 		if ($is_dev) {
-			\add_action('admin_notices', function () use ($e, $hook) {
+			$this->_do_add_action('admin_notices', function () use ($e, $hook) {
 				$this->_render_builder_error_notice($e, $hook);
 			});
 		}

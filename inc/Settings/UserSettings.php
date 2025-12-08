@@ -313,6 +313,14 @@ class UserSettings implements FormsInterface {
 		}
 		$this->_start_form_session();
 
+		// Resolve user_id early - needed for message restoration and options resolution
+		$user_id = $this->_resolve_user_id($context ?? array());
+
+		// Restore validation messages from previous POST (if any).
+		// This enables field-level inline messages after the POST/redirect/GET cycle.
+		// Pass user_id since we're viewing a specific user's profile (not necessarily current user).
+		$this->_restore_form_messages($user_id);
+
 		$collection_meta = $this->collections[$id_slug];
 		$sections        = $this->sections[$id_slug] ?? array();
 		$resolvedOptions = $this->resolve_options($context);
@@ -320,7 +328,7 @@ class UserSettings implements FormsInterface {
 		$bundle          = $this->_resolve_schema_bundle($resolvedOptions, array(
 			'intent'       => 'render',
 			'collection'   => $id_slug,
-			'user_id'      => isset($context['user_id']) ? (int) $context['user_id'] : 0,
+			'user_id'      => $user_id,
 			'storage_kind' => $resolvedOptions->get_storage_context()->user_storage ?? '',
 			'global'       => ($resolvedOptions->get_storage_context()->user_global ?? false) ? '1' : '0',
 		));
@@ -493,6 +501,11 @@ class UserSettings implements FormsInterface {
 					'validation_messages' => $messages,
 				)
 			);
+
+			// Persist messages for display after redirect using our own transient mechanism.
+			// This is more reliable than WordPress's settings_errors which has timing issues.
+			// Pass user_id since we're editing a specific user's profile (not necessarily current user).
+			$this->_persist_form_messages($messages, $user_id);
 
 			$opts->clear();
 			$opts->stage_options($previous_options);
