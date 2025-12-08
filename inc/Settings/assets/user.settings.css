@@ -13,9 +13,11 @@
 }
 
 /* Remove left padding from wrapper cells to align with table edge */
-.kplr-form.user-settings .kplr-fieldset__wrapper-row > td,
-.kplr-form.user-settings .kplr-group__wrapper-row > td {
+.kplr-form.user-settings .kplr-section__wrapper-row > td,
+.kplr-form.user-settings .kplr-group__wrapper-row > td,
+.kplr-form.user-settings .kplr-fieldset__wrapper-row > td {
   padding-left: 0;
+  padding-right: 0;
 }
 
 /* Table-based field rows need outline instead of border for visibility */

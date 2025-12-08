@@ -161,20 +161,25 @@
 
 .kplr-form.test {
   border: 1px solid red;
-}
-
-.kplr-form.test .kplr-section {
-  outline: 1px dashed blue;
-}
-
-.kplr-form.test .kplr-group {
-  outline: 1px dashed green;
-}
-
-.kplr-form.test .kplr-fieldset {
-  outline: 1px dashed orange;
-}
-
-.kplr-form.test .kplr-field {
-  outline: 1px dashed purple;
+  padding: 5px !important;
+  .kplr-section {
+    outline: 1px dashed blue;
+    padding: 5px !important;
+  }
+  .kplr-group {
+    outline: 1px dashed green;
+    padding: 5px !important;
+  }
+  .kplr-fieldset {
+    outline: 1px dashed orange;
+    padding: 5px !important;
+  }
+  .kplr-field {
+    outline: 1px dashed purple;
+    padding: 5px !important;
+  }
+  .kplr-field__input-cell {
+    outline: 1px dashed teal;
+    padding: 5px !important;
+  }
 }

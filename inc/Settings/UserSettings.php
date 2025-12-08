@@ -414,7 +414,7 @@ class UserSettings implements FormsInterface {
 		 */
 		$css_url = $this->_do_apply_filter(
 			'ran_plugin_lib_user_settings_stylesheet_url',
-			$this->_do_plugins_url('assets/user.fieldset.css', __FILE__),
+			$this->_do_plugins_url('assets/user.settings.css', __FILE__),
 			$id_slug,
 			$this
 		);

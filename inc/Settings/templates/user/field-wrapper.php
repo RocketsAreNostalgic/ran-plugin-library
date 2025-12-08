@@ -54,31 +54,33 @@ ob_start();
 			<label class="kplr-field__label"<?php echo $field_id !== '' ? ' for="' . esc_attr($field_id) . '"' : ''; ?>><?php echo esc_html($label); ?><?php echo $required ? '<span class="kplr-field__required">*</span>' : ''; ?></label>
 		<?php endif; ?>
 	</th>
-	<td class="kplr-field__input-cell">
-		<?php echo $before; ?>
-		<?php echo $inner_html; ?>
-		<?php echo $after; ?>
-		<?php if ($description !== '') : ?>
-			<p class="kplr-field__description"><?php echo esc_html($description); ?></p>
-		<?php endif; ?>
-		<?php if (!empty($validation_warnings) || !empty($display_notices)) : ?>
-			<div class="kplr-messages">
-				<?php if (!empty($validation_warnings)) : ?>
-					<div class="kplr-messages__warnings" role="alert">
-						<?php foreach ($validation_warnings as $warning) : ?>
-							<div class="kplr-messages__item kplr-messages__item--warning"><?php echo esc_html($warning); ?></div>
-						<?php endforeach; ?>
-					</div>
-				<?php endif; ?>
-				<?php if (!empty($display_notices)) : ?>
-					<div class="kplr-messages__notices">
-						<?php foreach ($display_notices as $notice) : ?>
-							<div class="kplr-messages__item kplr-messages__item--notice"><?php echo esc_html($notice); ?></div>
-						<?php endforeach; ?>
-					</div>
-				<?php endif; ?>
-			</div>
-		<?php endif; ?>
+	<td>
+		<div class="kplr-field__input-cell">
+			<?php echo $before; ?>
+			<?php echo $inner_html; ?>
+			<?php echo $after; ?>
+			<?php if ($description !== '') : ?>
+				<p class="kplr-field__description"><?php echo esc_html($description); ?></p>
+			<?php endif; ?>
+			<?php if (!empty($validation_warnings) || !empty($display_notices)) : ?>
+				<div class="kplr-messages">
+					<?php if (!empty($validation_warnings)) : ?>
+						<div class="kplr-messages__warnings" role="alert">
+							<?php foreach ($validation_warnings as $warning) : ?>
+								<div class="kplr-messages__item kplr-messages__item--warning"><?php echo esc_html($warning); ?></div>
+							<?php endforeach; ?>
+						</div>
+					<?php endif; ?>
+					<?php if (!empty($display_notices)) : ?>
+						<div class="kplr-messages__notices">
+							<?php foreach ($display_notices as $notice) : ?>
+								<div class="kplr-messages__item kplr-messages__item--notice"><?php echo esc_html($notice); ?></div>
+							<?php endforeach; ?>
+						</div>
+					<?php endif; ?>
+				</div>
+			<?php endif; ?>
+		</div>
 	</td>
 </tr>
 <?php
