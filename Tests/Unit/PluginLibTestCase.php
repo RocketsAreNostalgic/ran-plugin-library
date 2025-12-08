@@ -196,7 +196,7 @@ abstract class PluginLibTestCase extends RanTestCase {
 
 		// Clear BlockFactory shared instance to prevent test pollution
 		if (class_exists('Ran\\PluginLib\\EnqueueAccessory\\BlockFactory')) {
-			\Ran\PluginLib\EnqueueAccessory\BlockFactory::enableTestingMode();
+			\Ran\PluginLib\EnqueueAccessory\BlockFactory::enable_testing_mode();
 		}
 
 		Mockery::close();

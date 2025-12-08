@@ -578,8 +578,8 @@ class UserSettings implements FormsInterface {
 		$context = $context ?? array();
 
 		$userId = $this->_resolve_user_id($context);
-		$scope  = SettingsScopeHelper::parseScope($context) ?? OptionScope::User;
-		$scope  = SettingsScopeHelper::requireAllowed($scope, OptionScope::User);
+		$scope  = SettingsScopeHelper::parse_scope($context) ?? OptionScope::User;
+		$scope  = SettingsScopeHelper::require_allowed($scope, OptionScope::User);
 
 		$storage = $this->_resolve_storage_kind($context);
 		$global  = $this->_resolve_global_flag($context, $storage);

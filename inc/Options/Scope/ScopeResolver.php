@@ -37,7 +37,7 @@ final class ScopeResolver {
 	 * @param ScopeEntity|null $entity
 	 * @return StorageContext
 	 */
-	public static function resolveToContext(OptionScope|string|null $scope, ?ScopeEntity $entity): StorageContext {
+	public static function resolve_to_context(OptionScope|string|null $scope, ?ScopeEntity $entity): StorageContext {
 		// Normalize scope name (null/empty => 'site')
 		if ($scope instanceof OptionScope) {
 			$scopeName = strtolower($scope->name);

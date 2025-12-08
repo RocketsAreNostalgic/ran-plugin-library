@@ -76,8 +76,8 @@ class BlockTest extends TestCase {
 	 */
 	protected function tearDown(): void {
 		// Reset BlockFactory shared instance for clean test state
-		BlockFactory::enableTestingMode();
-		BlockFactory::disableTestingMode();
+		BlockFactory::enable_testing_mode();
+		BlockFactory::disable_testing_mode();
 		Mockery::close();
 		parent::tearDown();
 	}
@@ -144,8 +144,8 @@ class BlockTest extends TestCase {
 	 */
 	public function test_constructor_without_manager_no_shared_instance(): void {
 		// Ensure no shared instance exists
-		BlockFactory::enableTestingMode();
-		BlockFactory::disableTestingMode();
+		BlockFactory::enable_testing_mode();
+		BlockFactory::disable_testing_mode();
 
 		$this->expectException(\RuntimeException::class);
 		$this->expectExceptionMessage('No shared BlockFactory instance available. Create a BlockFactory instance first.');

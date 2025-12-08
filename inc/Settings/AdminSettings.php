@@ -617,7 +617,7 @@ class AdminSettings implements FormsInterface {
 	 */
 	protected function _resolve_scope(array $context): OptionScope {
 		$baseContext = $this->base_options->get_storage_context();
-		$scope       = SettingsScopeHelper::parseScope($context);
+		$scope       = SettingsScopeHelper::parse_scope($context);
 
 		// Default scope resolution based on admin context
 		if (!$scope instanceof OptionScope) {
@@ -625,7 +625,7 @@ class AdminSettings implements FormsInterface {
 		}
 
 		// Validate scope is allowed for AdminSettings (Site and Network only)
-		$scope = SettingsScopeHelper::requireAllowed($scope, OptionScope::Site, OptionScope::Network);
+		$scope = SettingsScopeHelper::require_allowed($scope, OptionScope::Site, OptionScope::Network);
 
 		return $scope;
 	}

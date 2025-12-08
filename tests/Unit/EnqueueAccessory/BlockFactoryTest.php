@@ -51,7 +51,7 @@ class BlockFactoryTest extends TestCase {
 		parent::setUp();
 
 		// Enable testing mode for isolated instances
-		BlockFactory::enableTestingMode();
+		BlockFactory::enable_testing_mode();
 
 		$this->config = Mockery::mock(ConfigInterface::class);
 		$this->logger = new CollectingLogger();
@@ -66,7 +66,7 @@ class BlockFactoryTest extends TestCase {
 	 */
 	protected function tearDown(): void {
 		// Reset testing mode
-		BlockFactory::disableTestingMode();
+		BlockFactory::disable_testing_mode();
 
 		Mockery::close();
 		parent::tearDown();
@@ -81,15 +81,15 @@ class BlockFactoryTest extends TestCase {
 	 */
 	public function test_testing_mode_management(): void {
 		// Initially enabled from setUp
-		$this->assertTrue(BlockFactory::isTestingMode());
+		$this->assertTrue(BlockFactory::is_testing_mode());
 
 		// Disable testing mode
-		BlockFactory::disableTestingMode();
-		$this->assertFalse(BlockFactory::isTestingMode());
+		BlockFactory::disable_testing_mode();
+		$this->assertFalse(BlockFactory::is_testing_mode());
 
 		// Re-enable testing mode
-		BlockFactory::enableTestingMode();
-		$this->assertTrue(BlockFactory::isTestingMode());
+		BlockFactory::enable_testing_mode();
+		$this->assertTrue(BlockFactory::is_testing_mode());
 	}
 
 	/**
@@ -110,40 +110,40 @@ class BlockFactoryTest extends TestCase {
 	}
 
 	/**
-	 * Test getShared() when no shared instance exists.
+	 * Test get_shared() when no shared instance exists.
 	 *
-	 * @covers Ran\PluginLib\EnqueueAccessory\BlockFactory::getShared
+	 * @covers Ran\PluginLib\EnqueueAccessory\BlockFactory::get_shared
 	 */
 	public function test_get_shared_no_instance(): void {
 		// Ensure no shared instance exists
-		BlockFactory::enableTestingMode();
-		BlockFactory::disableTestingMode();
+		BlockFactory::enable_testing_mode();
+		BlockFactory::disable_testing_mode();
 
 		$this->expectException(\RuntimeException::class);
 		$this->expectExceptionMessage('No shared BlockFactory instance available. Create a BlockFactory instance first.');
 
-		BlockFactory::getShared();
+		BlockFactory::get_shared();
 	}
 
 	/**
-	 * Test getShared() when shared instance exists.
+	 * Test get_shared() when shared instance exists.
 	 *
-	 * @covers Ran\PluginLib\EnqueueAccessory\BlockFactory::getShared
+	 * @covers Ran\PluginLib\EnqueueAccessory\BlockFactory::get_shared
 	 */
 	public function test_get_shared_with_instance(): void {
 		// Disable testing mode to enable shared instance behavior
-		BlockFactory::disableTestingMode();
+		BlockFactory::disable_testing_mode();
 
 		// Create a shared instance
 		$manager = new BlockFactory($this->config);
 		$manager->add_block('test/shared-block');
 
-		// getShared() should return the same instance
-		$sharedManager = BlockFactory::getShared();
+		// get_shared() should return the same instance
+		$sharedManager = BlockFactory::get_shared();
 		$this->assertTrue($sharedManager->has_block('test/shared-block'));
 
 		// Re-enable testing mode for cleanup
-		BlockFactory::enableTestingMode();
+		BlockFactory::enable_testing_mode();
 	}
 
 	/**
@@ -153,7 +153,7 @@ class BlockFactoryTest extends TestCase {
 	 */
 	public function test_production_mode_provides_shared_instances(): void {
 		// Disable testing mode to simulate production
-		BlockFactory::disableTestingMode();
+		BlockFactory::disable_testing_mode();
 
 		// Create first instance and add a block
 		$manager1 = new BlockFactory($this->config);
@@ -166,7 +166,7 @@ class BlockFactoryTest extends TestCase {
 		$this->assertTrue($manager2->has_block('test/shared-block'));
 
 		// Re-enable testing mode for cleanup
-		BlockFactory::enableTestingMode();
+		BlockFactory::enable_testing_mode();
 	}
 
 	// === CONSTRUCTOR TESTS ===

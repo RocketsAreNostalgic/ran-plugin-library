@@ -20,7 +20,7 @@ final class SettingsScopeHelper {
 	 *
 	 * @param array<string,mixed>|null $context
 	 */
-	public static function parseScope(?array $context): ?OptionScope {
+	public static function parse_scope(?array $context): ?OptionScope {
 		if (!is_array($context) || !array_key_exists('scope', $context)) {
 			return null;
 		}
@@ -40,7 +40,7 @@ final class SettingsScopeHelper {
 		}
 	}
 
-	public static function requireAllowed(OptionScope $scope, OptionScope ...$allowed): OptionScope {
+	public static function require_allowed(OptionScope $scope, OptionScope ...$allowed): OptionScope {
 		foreach ($allowed as $allowedScope) {
 			if ($scope === $allowedScope) {
 				return $scope;

@@ -99,7 +99,7 @@ class GenericComponentBuilder extends ComponentBuilderBase {
 	 * @param string $alias The component alias.
 	 * @param callable|null $renderFactory Optional render factory. If null, a simple passthrough is used.
 	 */
-	public static function registerOn(ComponentManifest $manifest, string $alias, ?callable $renderFactory = null): void {
+	public static function register_on(ComponentManifest $manifest, string $alias, ?callable $renderFactory = null): void {
 		$manifest->register_builder($alias, self::factory($alias));
 
 		if ($renderFactory !== null) {
