@@ -82,6 +82,8 @@ class GenericFieldBuilder implements ComponentBuilderInterface {
 	 * bound when the GenericFieldBuilder was created.
 	 *
 	 * @return TParent The parent builder for continued chaining.
+	 * @phpstan-return TParent
+	 * @psalm-return TParent
 	 */
 	public function end_field(): object {
 		return $this->parent;

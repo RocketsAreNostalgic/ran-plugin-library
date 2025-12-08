@@ -16,11 +16,13 @@ namespace Ran\PluginLib\Forms\Builders\Traits;
 
 use Ran\PluginLib\Forms\FormsInterface;
 use Ran\PluginLib\Forms\Component\Build\ComponentBuilderDefinitionInterface;
+use Ran\PluginLib\Forms\Component\Build\ComponentBuilderBase;
 use Ran\PluginLib\Forms\Builders\ComponentBuilderProxy;
 use Ran\PluginLib\Forms\Builders\GroupBuilder;
 use Ran\PluginLib\Forms\Builders\FieldsetBuilder;
 use Ran\PluginLib\Forms\Builders\FieldsetBuilderInterface;
 use Ran\PluginLib\Forms\Builders\GroupBuilderInterface;
+use Ran\PluginLib\Forms\Builders\GenericElementBuilder;
 
 /**
  * Shared implementation for section builders.
@@ -239,6 +241,108 @@ trait SectionBuilderTrait {
 
 		if ($field_template !== null) {
 			$proxy->template($field_template);
+		}
+
+		if (is_callable($before)) {
+			$proxy->before($before);
+		}
+		if (is_callable($after)) {
+			$proxy->after($after);
+		}
+
+		return $proxy;
+	}
+
+	/**
+	 * Add raw HTML content to the section.
+	 *
+	 * This is an escape hatch for injecting arbitrary markup into the form.
+	 * The content is rendered inline in declaration order, without any wrapper.
+	 *
+	 * @param string|callable $content HTML string or callable that returns HTML.
+	 *                                 Callable receives array with 'container_id', 'section_id', 'values'.
+	 * @return static
+	 */
+	protected function _add_section_html(string|callable $content): static {
+		// Generate a unique ID for this HTML block
+		$html_id = '_html_' . uniqid();
+
+		// Emit as a special field entry with _raw_html component marker
+		($this->updateFn)('field', array(
+			'container_id' => $this->container_id,
+			'section_id'   => $this->section_id,
+			'field_data'   => array(
+				'id'                => $html_id,
+				'label'             => '',
+				'component'         => '_raw_html',
+				'component_context' => array(
+					'content' => $content,
+				),
+				'order' => null,
+			),
+		));
+
+		return $this;
+	}
+
+	/**
+	 * Add a non-input element to the section.
+	 *
+	 * @param string $element_id The element identifier.
+	 * @param string $label The element label/text.
+	 * @param string $component The component alias.
+	 * @param array<string,mixed> $args Optional arguments.
+	 *
+	 * @return GenericElementBuilder The element builder for configuration.
+	 *
+	 * @throws \InvalidArgumentException If the component has no registered builder factory.
+	 */
+	protected function _add_section_element(string $element_id, string $label, string $component, array $args = array()): GenericElementBuilder {
+		$component_context = $args['context']          ?? $args['component_context'] ?? array();
+		$element_template  = $args['element_template'] ?? null;
+		$before            = $args['before']           ?? null;
+		$after             = $args['after']            ?? null;
+
+		$component = trim($component);
+		if ($component === '') {
+			throw new \InvalidArgumentException(sprintf('Element "%s" requires a component alias.', $element_id));
+		}
+		if (!is_array($component_context)) {
+			throw new \InvalidArgumentException(sprintf('Element "%s" must provide an array component_context.', $element_id));
+		}
+
+		$factory = $this->_get_section_component_builder_factory($component);
+		if (!($factory instanceof \Closure || is_callable($factory))) {
+			throw new \InvalidArgumentException(sprintf(
+				'Element "%s" uses component "%s" which has no registered builder factory.',
+				$element_id,
+				$component
+			));
+		}
+
+		$builder = $factory($element_id, $label);
+		if (!$builder instanceof ComponentBuilderBase) {
+			throw new \UnexpectedValueException(sprintf('Builder factory for "%s" must return ComponentBuilderBase.', $component));
+		}
+
+		$proxy = new GenericElementBuilder(
+			$builder,
+			$this,
+			$this->updateFn,
+			$this->container_id,
+			$this->section_id,
+			$component,
+			null, // No group_id for section-level
+			$element_template,
+			$component_context
+		);
+
+		if (!empty($component_context)) {
+			$proxy->apply_context($component_context);
+		}
+
+		if ($element_template !== null) {
+			$proxy->template($element_template);
 		}
 
 		if (is_callable($before)) {

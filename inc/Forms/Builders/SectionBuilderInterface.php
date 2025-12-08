@@ -86,6 +86,42 @@ interface SectionBuilderInterface {
 	public function field(string $field_id, string $label, string $component, array $args = array()): mixed;
 
 	/**
+	 * Add raw HTML content to the section.
+	 *
+	 * This is an escape hatch for injecting arbitrary markup into the form.
+	 * The content is rendered inline in declaration order, without any wrapper.
+	 *
+	 * @param string|callable $content HTML string or callable that returns HTML.
+	 *                                 Callable receives array with 'container_id', 'section_id', 'values'.
+	 * @return static
+	 */
+	public function html(string|callable $content): static;
+
+	/**
+	 * Add a horizontal rule to the section.
+	 *
+	 * Returns a fluent builder for configuring the hr element.
+	 *
+	 * @return HrBuilder<static> The hr builder for configuration.
+	 */
+	public function hr(): HrBuilder;
+
+	/**
+	 * Add a non-input element (button, link, etc.) to the section.
+	 *
+	 * Unlike field(), element() is for components that don't submit form data.
+	 * The returned builder provides styling methods but not input-specific ones.
+	 *
+	 * @param string $element_id The element identifier.
+	 * @param string $label The element label/text.
+	 * @param string $component The component alias (e.g., 'elements.button', 'elements.button-link').
+	 * @param array<string,mixed> $args Optional arguments including 'context' for component-specific config.
+	 *
+	 * @return GenericElementBuilder<static> The element builder for configuration.
+	 */
+	public function element(string $element_id, string $label, string $component, array $args = array()): GenericElementBuilder;
+
+	/**
 	 * Set the default template for all fields in this section.
 	 *
 	 * @param string $template_key The template key to use for field wrappers.

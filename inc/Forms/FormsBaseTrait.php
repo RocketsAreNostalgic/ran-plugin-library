@@ -783,7 +783,9 @@ trait FormsBaseTrait {
 		);
 
 		// Only proceed if in admin and user can manage options
-		if (!$this->_do_is_admin() || !$this->_do_current_user_can('manage_options')) {
+		// Note: Using raw WP functions here since this trait is used by classes
+		// that may not have WPWrappersTrait (e.g., AdminSettings)
+		if (!\is_admin() || !\current_user_can('manage_options')) {
 			return;
 		}
 
@@ -791,7 +793,7 @@ trait FormsBaseTrait {
 
 		// Show admin notice in dev mode
 		if ($is_dev) {
-			$this->_do_add_action('admin_notices', function () use ($e, $hook) {
+			\add_action('admin_notices', function () use ($e, $hook) {
 				$this->_render_builder_error_notice($e, $hook);
 			});
 		}
@@ -1259,8 +1261,11 @@ trait FormsBaseTrait {
 
 		if (!$updated) {
 			// Inject component validators and sanitizers automatically for new fields only
-			$this->_inject_component_validators($field_id, $component, $context);
-			$this->_inject_component_sanitizers($field_id, $component, $context);
+			// Skip for _raw_html and _hr which are just escape hatches for arbitrary markup
+			if ($component !== '_raw_html' && $component !== '_hr') {
+				$this->_inject_component_validators($field_id, $component, $context);
+				$this->_inject_component_sanitizers($field_id, $component, $context);
+			}
 
 			$field_entry['index'] = $this->__field_index++;
 			$fields[]             = $field_entry;
@@ -1457,7 +1462,10 @@ trait FormsBaseTrait {
 
 		if (!$updated) {
 			// Inject component validators automatically for new group fields only
-			$this->_inject_component_validators($field_id, $component);
+			// Skip for _raw_html and _hr which are just escape hatches for arbitrary markup
+			if ($component !== '_raw_html' && $component !== '_hr') {
+				$this->_inject_component_validators($field_id, $component);
+			}
 
 			$fields[] = array(
 				'id'                => $field_id,
@@ -1813,6 +1821,28 @@ trait FormsBaseTrait {
 				// Render group fields content
 				$group_fields_content = '';
 				foreach ($group_fields as $group_field) {
+					// Handle raw HTML injection (escape hatch)
+					if (($group_field['component'] ?? '') === '_raw_html') {
+						$group_fields_content .= $this->_render_raw_html_content($group_field, array(
+							'container_id' => $id_slug,
+							'section_id'   => $section_id,
+							'group_id'     => $group['group_id'] ?? '',
+							'values'       => $values,
+						));
+						continue;
+					}
+
+					// Handle horizontal rule
+					if (($group_field['component'] ?? '') === '_hr') {
+						$group_fields_content .= $this->_render_hr_content($group_field, array(
+							'container_id' => $id_slug,
+							'section_id'   => $section_id,
+							'group_id'     => $group['group_id'] ?? '',
+							'values'       => $values,
+						));
+						continue;
+					}
+
 					$field_item = array(
 						'field'  => $group_field,
 						'before' => $this->_render_callback_output($group_field['before'] ?? null, array(
@@ -1856,6 +1886,26 @@ trait FormsBaseTrait {
 
 			// Render standalone fields
 			foreach ($fields as $field) {
+				// Handle raw HTML injection (escape hatch)
+				if (($field['component'] ?? '') === '_raw_html') {
+					$section_content .= $this->_render_raw_html_content($field, array(
+						'container_id' => $id_slug,
+						'section_id'   => $section_id,
+						'values'       => $values,
+					));
+					continue;
+				}
+
+				// Handle horizontal rule
+				if (($field['component'] ?? '') === '_hr') {
+					$section_content .= $this->_render_hr_content($field, array(
+						'container_id' => $id_slug,
+						'section_id'   => $section_id,
+						'values'       => $values,
+					));
+					continue;
+				}
+
 				$field_item = array(
 					'field'  => $field,
 					'before' => $this->_render_callback_output($field['before'] ?? null, array(
@@ -2120,6 +2170,57 @@ trait FormsBaseTrait {
 			// @TODO will this break table based layouts?
 			return $this->_render_default_field_wrapper_warning($e->getMessage());
 		}
+	}
+
+	/**
+	 * Render raw HTML content from html() builder method.
+	 *
+	 * This is an escape hatch for injecting arbitrary markup into forms.
+	 * Content is rendered directly without any wrapper.
+	 *
+	 * @param array<string,mixed> $field The field data with _raw_html component.
+	 * @param array<string,mixed> $context Context for callable content (container_id, section_id, values, etc.).
+	 * @return string The raw HTML content.
+	 */
+	protected function _render_raw_html_content(array $field, array $context): string {
+		$content = $field['component_context']['content'] ?? '';
+
+		if (is_callable($content)) {
+			return (string) $content($context);
+		}
+
+		return (string) $content;
+	}
+
+	/**
+	 * Render horizontal rule from hr() builder method.
+	 *
+	 * @param array<string,mixed> $field The field data with _hr component.
+	 * @param array<string,mixed> $context Context for before/after callbacks.
+	 * @return string The rendered hr HTML.
+	 */
+	protected function _render_hr_content(array $field, array $context): string {
+		$component_context = $field['component_context'] ?? array();
+		$style_classes     = trim($component_context['style'] ?? '');
+
+		// Render before callback
+		$before = '';
+		if (isset($field['before']) && is_callable($field['before'])) {
+			$before = (string) ($field['before'])($context);
+		}
+
+		// Render after callback
+		$after = '';
+		if (isset($field['after']) && is_callable($field['after'])) {
+			$after = (string) ($field['after'])($context);
+		}
+
+		// Build hr element - style() provides CSS classes per builder convention
+		$class_attr = 'kplr-hr' . ($style_classes !== '' ? ' ' . $style_classes : '');
+
+		$hr = '<hr class="' . esc_attr($class_attr) . '">';
+
+		return $before . $hr . $after;
 	}
 
 	/**

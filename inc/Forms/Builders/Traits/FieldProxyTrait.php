@@ -175,6 +175,21 @@ trait FieldProxyTrait {
 	}
 
 	/**
+	 * Set multiple attributes for this field.
+	 *
+	 * @param array<string,string> $attributes Key-value pairs of attributes.
+	 *
+	 * @return static
+	 */
+	public function attributes(array $attributes): static {
+		if (method_exists($this->builder, 'attributes')) {
+			call_user_func(array($this->builder, 'attributes'), $attributes);
+			$this->_emit_field_update();
+		}
+		return $this;
+	}
+
+	/**
 	 * Set the aria label for this field.
 	 *
 	 * @param string $aria_label The aria label.
@@ -197,6 +212,23 @@ trait FieldProxyTrait {
 	public function aria_described_by(string $aria_described_by): static {
 		$this->builder->aria_described_by($aria_described_by);
 		$this->_emit_field_update();
+		return $this;
+	}
+
+	/**
+	 * Set the input type for this field (e.g., 'email', 'tel', 'url').
+	 *
+	 * Delegates to the underlying component builder if it supports type().
+	 *
+	 * @param string $type The input type.
+	 *
+	 * @return static
+	 */
+	public function type(string $type): static {
+		if (method_exists($this->builder, 'type')) {
+			call_user_func(array($this->builder, 'type'), $type);
+			$this->_emit_field_update();
+		}
 		return $this;
 	}
 

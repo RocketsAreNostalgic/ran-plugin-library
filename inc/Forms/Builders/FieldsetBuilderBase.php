@@ -228,6 +228,117 @@ abstract class FieldsetBuilderBase implements FieldsetBuilderInterface {
 	}
 
 	/**
+	 * Add raw HTML content to the fieldset.
+	 *
+	 * This is an escape hatch for injecting arbitrary markup into the form.
+	 * The content is rendered inline in declaration order, without any wrapper.
+	 *
+	 * @param string|callable $content HTML string or callable that returns HTML.
+	 *                                 Callable receives array with 'container_id', 'section_id', 'fieldset_id', 'values'.
+	 * @return static
+	 */
+	public function html(string|callable $content): static {
+		// Generate a unique ID for this HTML block
+		$html_id = '_html_' . uniqid();
+
+		// Emit as a special field entry with _raw_html component marker
+		($this->updateFn)('group_field', array(
+			'container_id' => $this->container_id,
+			'section_id'   => $this->section_id,
+			'group_id'     => $this->group_id,
+			'field_data'   => array(
+				'id'                => $html_id,
+				'label'             => '',
+				'component'         => '_raw_html',
+				'component_context' => array(
+					'content' => $content,
+				),
+				'order' => null,
+			),
+		));
+
+		return $this;
+	}
+
+	/**
+	 * Add a horizontal rule to the fieldset.
+	 *
+	 * Returns a fluent builder for configuring the hr element.
+	 *
+	 * @return HrBuilder<static> The hr builder for configuration.
+	 */
+	public function hr(): HrBuilder {
+		return new HrBuilder(
+			$this,
+			$this->updateFn,
+			$this->container_id,
+			$this->section_id,
+			$this->group_id
+		);
+	}
+
+	/**
+	 * Add a non-input element (button, link, etc.) to the fieldset.
+	 *
+	 * Unlike field(), element() is for components that don't submit form data.
+	 * The returned builder provides styling methods but not input-specific ones.
+	 *
+	 * @param string $element_id The element identifier.
+	 * @param string $label The element label/text.
+	 * @param string $component The component alias (e.g., 'elements.button', 'elements.button-link').
+	 * @param array<string,mixed> $args Optional arguments including 'context' for component-specific config.
+	 *
+	 * @return GenericElementBuilder<static> The element builder for configuration.
+	 */
+	public function element(string $element_id, string $label, string $component, array $args = array()): GenericElementBuilder {
+		$component_context = $args['context']          ?? $args['component_context'] ?? array();
+		$element_template  = $args['element_template'] ?? null;
+		$before            = $args['before']           ?? null;
+		$after             = $args['after']            ?? null;
+
+		$component = trim($component);
+		if ($component === '') {
+			throw new \InvalidArgumentException(sprintf('Element "%s" requires a component alias.', $element_id));
+		}
+
+		$factory = $this->context->get_component_builder_factory($component);
+		if (!($factory instanceof \Closure || is_callable($factory))) {
+			throw new \InvalidArgumentException(sprintf(
+				'Element "%s" uses component "%s" which has no registered builder factory.',
+				$element_id,
+				$component
+			));
+		}
+
+		$builder = $factory($element_id, $label);
+
+		$proxy = new GenericElementBuilder(
+			$builder,
+			$this,
+			$this->updateFn,
+			$this->container_id,
+			$this->section_id,
+			$component,
+			$this->group_id,
+			$element_template,
+			$component_context
+		);
+
+		if (!empty($component_context)) {
+			$proxy->apply_context($component_context);
+		}
+
+		if (is_callable($before)) {
+			$proxy->before($before);
+		}
+		if (is_callable($after)) {
+			$proxy->after($after);
+		}
+
+		return $proxy;
+	}
+
+	/**
 	 * End the fieldset and return to the parent section builder.
 	 *
 	 * Subclasses must override to return the concrete parent type.

@@ -300,6 +300,54 @@ abstract class SectionBuilderBase implements SectionBuilderInterface {
 	}
 
 	/**
+	 * Add raw HTML content to the section.
+	 *
+	 * This is an escape hatch for injecting arbitrary markup into the form.
+	 * The content is rendered inline in declaration order, without any wrapper.
+	 *
+	 * @param string|callable $content HTML string or callable that returns HTML.
+	 *                                 Callable receives array with 'container_id', 'section_id', 'values'.
+	 * @return static
+	 */
+	public function html(string|callable $content): static {
+		return $this->_add_section_html($content);
+	}
+
+	/**
+	 * Add a horizontal rule to the section.
+	 *
+	 * Returns a fluent builder for configuring the hr element.
+	 *
+	 * @return HrBuilder<static> The hr builder for configuration.
+	 */
+	public function hr(): HrBuilder {
+		return new HrBuilder(
+			$this,
+			$this->updateFn,
+			$this->container_id,
+			$this->section_id,
+			null // No group_id for section-level
+		);
+	}
+
+	/**
+	 * Add a non-input element (button, link, etc.) to the section.
+	 *
+	 * Unlike field(), element() is for components that don't submit form data.
+	 * The returned builder provides styling methods but not input-specific ones.
+	 *
+	 * @param string $element_id The element identifier.
+	 * @param string $label The element label/text.
+	 * @param string $component The component alias (e.g., 'elements.button', 'elements.button-link').
+	 * @param array<string,mixed> $args Optional arguments including 'context' for component-specific config.
+	 *
+	 * @return GenericElementBuilder<static> The element builder for configuration.
+	 */
+	public function element(string $element_id, string $label, string $component, array $args = array()): GenericElementBuilder {
+		return $this->_add_section_element($element_id, $label, $component, $args);
+	}
+
+	/**
 	 * End the section and return to the parent root builder.
 	 *
 	 * Subclasses must override to return the concrete parent type.
