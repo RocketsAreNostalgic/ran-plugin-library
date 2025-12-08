@@ -9,10 +9,10 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\Tests\Unit\Forms;
 
+use WP_Mock;
+use Ran\PluginLib\Util\CollectingLogger;
 use Ran\PluginLib\Tests\Unit\PluginLibTestCase;
 use Ran\PluginLib\Forms\Component\Cache\ComponentCacheService;
-use Ran\PluginLib\Util\CollectingLogger;
-use WP_Mock;
 
 class ComponentCacheServiceTest extends PluginLibTestCase {
 	private CollectingLogger $logger;
