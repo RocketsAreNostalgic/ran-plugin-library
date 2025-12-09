@@ -1,4 +1,4 @@
-# PRD: Batteries-Included Config + Options Integration
+# PRD-002: Batteries-Included Config + Options Integration
 
 - Area: `plugin-lib/inc/Config/*`, `plugin-lib/inc/Options/*`
 - Related: `ConfigInterface`, `Config`, `RegisterOptions`
@@ -27,34 +27,37 @@ We have a unified, environment-agnostic Config that hydrates from plugins or the
 
   - Normalized `get_config()` with environment-neutral keys.
   - Namespaced custom headers (e.g., `RAN.AppOption`).
-  - `get_options()` returns the full option payload for the app’s option key (or default if missing).
+  - `get_options_key()` returns the computed options key based on `RAN.AppOption` or `Slug` for plugins/themes in WP options.
   - `get_logger()`, `is_dev_environment()` implemented.
 
 - Options (`RegisterOptions`)
-  - Manages a single WP option (array/object), with helpers to read/write/merge/flush.
+  - Manages a single WP option (array/object), with helpers to read/write/merge/commit.
 
 ## Proposed Additions
 
-### 1) App option key helper
+### 1) Option key helper
 
 Add to Config:
 
 ```php
-public function get_app_option_key(): string;
+public function get_options_key(): string;
 ```
 
 - Returns `RAN.AppOption` if present; otherwise returns `Slug`.
 - No I/O, just a deterministic key to be used with Options.
 
-### 2) First-class Options accessor
+### 2) First-class Options accessor (typed StorageContext)
 
 Add to Config:
 
 ```php
-public function options(): \Ran\PluginLib\Options\RegisterOptions;
+use Ran\PluginLib\Options\Storage\StorageContext;
+
+public function options(StorageContext $context = null, bool $autoload = true): \Ran\PluginLib\Options\RegisterOptions;
 ```
 
 - Returns a `RegisterOptions` instance pre-wired to the app’s option key.
+- `StorageContext` determines scope (site/network/blog/user); when `null`, defaults to site.
 - No implicit writes; just the manager instance.
 
 ### 3) Options convenience constructors
@@ -62,10 +65,12 @@ public function options(): \Ran\PluginLib\Options\RegisterOptions;
 Add to `RegisterOptions`:
 
 ```php
-public static function fromConfig(\Ran\PluginLib\Config\ConfigInterface $cfg): self;
+use Ran\PluginLib\Options\Storage\StorageContext;
+
+public static function from_config(\Ran\PluginLib\Config\ConfigInterface $cfg, StorageContext $context = null, bool $autoload = true): self;
 ```
 
-- Initializes a `RegisterOptions` bound to `$cfg->get_app_option_key()`.
+- Initializes a `RegisterOptions` bound to `$cfg->get_options_key()` with typed `StorageContext`.
 
 ### 4) Seeding helper (activation-time)
 
@@ -78,7 +83,7 @@ public function seed_if_missing(array $defaults): self;
 - On activation, creates the option row if it does not exist, with `$defaults`.
 - Idempotent: no write if the option already exists.
 
-### 5) Migration hook (optional)
+### 5) Migration hook
 
 Add to `RegisterOptions`:
 
@@ -88,6 +93,97 @@ public function migrate(callable $migration): self;
 
 - Executes user-provided migration logic to transform stored data (e.g., on version bump).
 - Caller is responsible for version checks and idempotency.
+
+### 6) Options Parameters (typed, no arrays)
+
+`Config::options()` accepts a typed `StorageContext` and an `autoload` flag (no implicit writes).
+
+```php
+use Ran\PluginLib\Options\Storage\StorageContext;
+
+public function options(StorageContext $context = null, bool $autoload = true): \Ran\PluginLib\Options\RegisterOptions;
+```
+
+- `StorageContext` selects scope: `forSite()`, `forNetwork()`, `forBlog(int)`, `forUser(int, string $storage, bool $global)`.
+- `autoload` is a policy hint used at new-row creation; does not write by itself.
+
+Notes:
+
+- **No implicit writes** occur in `Config::options()`.
+- Operational helpers (e.g., flipping autoload, schema registration, defaults, flushing) are performed on the returned `RegisterOptions` instance via its fluent API.
+
+Autoload implementation details:
+
+- WordPress option APIs expect autoload as strings `'yes'` or `'no'` (not booleans). The library adheres to this when calling `set_option()` and `stage_option()`.
+- Initial creation respects the configured autoload policy: when constructing `RegisterOptions` with `$main_option_autoload = false` and persisting (via defaults/initials + flush), the stored row is created with autoload `'no'`.
+
+### Examples
+
+Keep defaults (no writes):
+
+```php
+use Ran\PluginLib\Options\Storage\StorageContext;
+
+$opts = $config->options();                       // site, autoload=true
+$opts = $config->options(StorageContext::forSite());
+```
+
+Set autoload policy for new row only (no writes):
+
+```php
+use Ran\PluginLib\Options\Storage\StorageContext;
+
+$opts = $config->options(StorageContext::forSite(), false);
+```
+
+Flip autoload on the returned manager (guarded delete + add):
+
+```php
+$opts = $config->options();
+$opts->set_main_autoload(false); // guarded; may write if row exists and differs
+```
+
+### Schema & Migration
+
+```php
+$opts = $config->options();
+$opts->with_schema([
+    'enabled' => ['default' => true],
+    'timeout' => ['default' => 30, 'validate' => 'is_numeric']
+]);
+
+$opts->migrate(function($current, $manager) {
+    if (version_compare($current['version'] ?? '0.0.0', '2.0.0', '<')) {
+        $current['new_field'] = 'default_value';
+    }
+    return $current;
+});
+$opts->commit_replace();
+```
+
+Network scope (multisite):
+
+```php
+use Ran\PluginLib\Options\Storage\StorageContext;
+
+$opts = $config->options(StorageContext::forNetwork());
+```
+
+Blog scope:
+
+```php
+use Ran\PluginLib\Options\Storage\StorageContext;
+
+$opts = $config->options(StorageContext::forBlog(123));
+```
+
+User scope:
+
+```php
+use Ran\PluginLib\Options\Storage\StorageContext;
+
+$opts = $config->options(StorageContext::forUser(123, 'option', true));
+```
 
 ## Usage Examples
 
@@ -111,7 +207,7 @@ register_activation_hook(__FILE__, function () use ($opts, $config) {
 });
 
 // Runtime
-$current = $opts->get_option($config->get_app_option_key(), []);
+$current = $opts->get_options();
 ```
 
 ### Theme
@@ -119,8 +215,20 @@ $current = $opts->get_option($config->get_app_option_key(), []);
 ```php
 $config = Config::fromThemeDir(get_stylesheet_directory());
 $opts   = $config->options();
-$slug   = $config->get_app_option_key();
-$current = $opts->get_option($slug, []);
+$slug   = $config->get_options_key();
+$current = $opts->get_options();
+```
+
+### Reading values and a single field
+
+```php
+$opts = $config->options();
+
+// Full values array (recommended to read all current values)
+$values = $opts->get_options();
+
+// Read a single field with a default
+$enabled = $opts->get_option('enabled', false);
 ```
 
 ## Design Notes
@@ -134,17 +242,21 @@ $current = $opts->get_option($slug, []);
 
 - Risk: Tighter coupling perceived between Config and Options.
   - Mitigation: Accessor only; Options remains independently usable.
-- Risk: Confusion between `get_options()` (payload) and `options()` (manager).
-  - Mitigation: Document clearly; `get_options()` returns the stored value, `options()` returns the manager.
 
 ## Acceptance Criteria
 
-- Config exposes `get_app_option_key()` and `options()`.
-- `RegisterOptions` exposes `fromConfig()`, `seed_if_missing()`, and `migrate()`.
+- Config exposes `get_options_key()` and `options()`.
+- `RegisterOptions` exposes `from_config()`, `seed_if_missing()`, and `migrate()`.
 - README updated with examples for plugins and themes.
 - No implicit DB writes during hydration; all writes occur via Options helpers.
 
-## Open Questions
+## Feature Development (Target 0.1.3)
 
-- Should `options()` accept optional arguments (e.g., autoload strategy) for immediate configuration?
-- Do we want a small `get_option_field(string $key, mixed $default = null)` convenience on Config that reads from the stored payload?
+Non-breaking expansion to add explicit option scope support. See PRD-003: [PRD-003-Options-Scope-and-Multisite.md](./PRD-003-Options-Scope-and-Multisite.md).
+
+- Extend `Config::options(array $args = [])` to accept `scope` (default `'site'`) and optional `blog_id` (required for `'blog'`).
+
+- Provide `new RegisterOptions(\Ran\PluginLib\Config\ConfigInterface $cfg->get_options_key(), array $args = [])`.
+- Implement internal adapters mapping to `get_option` / `get_site_option` / `get_blog_option`.
+- Documentation: add an “Option Scope” section (scopes, permissions, autoload limits). Explicitly discourage implicit detection; optionally allow header default (`RAN.OptionScope`) as opt-in.
+- Migration: document a WP-CLI recipe for site→network migration (dry-run, progress, rollback notes).

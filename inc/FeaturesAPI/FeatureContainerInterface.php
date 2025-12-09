@@ -29,17 +29,16 @@ interface FeatureContainerInterface {
 	 *
 	 * @var string
 	 *
-	 * * public readonly ?string $slug;
+	 * * public readonly string $slug;
 	 */
 
 	/**
-	 * An object of named dependancies required by the feature.
-	 * Each key name should represent a public object parameter already declared on the FeatureController,
-	 * as PHP 8.2.0 deprecated dynamic property assignments.
+	 * An array of named dependencies required by the feature.
+	 * Each inner array should contain a single key that matches a declared property on the FeatureController.
 	 *
-	 * @var \stdClass
+	 * @var array<int, array<string, mixed>>
 	 *
-	 * private readonly \stdClass $deps;
+	 * public readonly array $deps;
 	 */
 
 
@@ -52,16 +51,16 @@ interface FeatureContainerInterface {
 	 */
 
 	/**
-	 * Store the current instance of the registered feature as a WeakReference.
+	 * Store the current instance of the registered feature if it has not already been set.
 	 *
 	 * @param  RegistrableFeatureInterface $instance The stored instance must be Registrable.
 	 *
-	 * @return bool
+	 * @return RegistrableFeatureInterface|false Returns the instance on success, or false if already set.
 	 */
 	public function set_instance( RegistrableFeatureInterface $instance ): RegistrableFeatureInterface|false;
 
 	/**
-	 * Get the instance associated with a slug identifier string
+	 * Get the stored feature instance, or null if it has not been initialized.
 	 */
 	public function get_instance(): RegistrableFeatureInterface|null;
 }

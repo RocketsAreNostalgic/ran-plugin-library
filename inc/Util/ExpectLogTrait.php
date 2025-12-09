@@ -3,7 +3,7 @@
  * ExpectLogTrait.php
  *
  * @package Ran\PluginLib\Util
- * @author  Ran Plugin Lib <support@ran.org>
+ * @author  Ran Plugin Lib <bnjmnrsh@gmail.com>
  * @license GPL-2.0+ <http://www.gnu.org/licenses/gpl-2.0.txt>
  * @link    https://github.com/RocketsAreNostalgic
  * @since   0.1.0
@@ -14,13 +14,7 @@ declare(strict_types = 1);
 namespace Ran\PluginLib\Util;
 
 /**
- * ExpectLogTrait.php
- *
- * @package Ran\PluginLib\Util
- * @author  Ran Plugin Lib <support@ran.org>
- * @license GPL-2.0+ <http://www.gnu.org/licenses/gpl-2.0.txt>
- * @link    https://github.com/RocketsAreNostalgic
- * @since   0.1.0
+ * A trait containing a helper method for verifying log messages in tests.
  */
 trait ExpectLogTrait {
 	/**
@@ -52,8 +46,8 @@ trait ExpectLogTrait {
 		}
 
 		if ($verbose) {
-			fprintf(STDERR, "\n\n[EXPECTLOG] START ----------------------\n");
-			fprintf(STDERR, "[EXPECTLOG] Expecting %d message(s) of level '%s' containing: '%s'.\n", $times, $level, implode("', '", $message_contains));
+			$this->expectLogOutput("\n\n[EXPECTLOG] START ----------------------\n");
+			$this->expectLogOutput("[EXPECTLOG] Expecting %d message(s) of level '%s' containing: '%s'.\n", $times, $level, implode("', '", $message_contains));
 		}
 
 		$all_logs    = $this->logger_mock->get_logs();
@@ -93,33 +87,55 @@ trait ExpectLogTrait {
 		);
 
 		if ($verbose) {
-			fprintf(STDERR, "[EXPECTLOG] EXPECTATION FAILED \n");
-			fprintf(STDERR, "[EXPECTLOG] Expected parts: '%s'\n", implode("', '", $message_contains));
-			fprintf(STDERR, "[EXPECTLOG] Expected times: %d\n", $times);
+			$this->expectLogOutput("[EXPECTLOG] EXPECTATION FAILED \n");
+			$this->expectLogOutput("[EXPECTLOG] Expected parts: '%s'\n", implode("', '", $message_contains));
+			$this->expectLogOutput("[EXPECTLOG] Expected times: %d\n", $times);
 
 			$relevant_logs = array_filter($all_logs, fn($log) => $log['level'] === $level);
 
 			if (empty($relevant_logs)) {
-				fprintf(STDERR, "[EXPECTLOG] Received: No logs for level '%s' were recorded.\n", $level);
+				$this->expectLogOutput("[EXPECTLOG] Received: No logs for level '%s' were recorded.\n", $level);
 			} else {
-				fprintf(STDERR, "[EXPECTLOG] Received logs for level '%s':\n", $level);
+				$this->expectLogOutput("[EXPECTLOG] Received logs for level '%s':\n", $level);
 				foreach ($relevant_logs as $log_entry) {
-					fprintf(STDERR, "[EXPECTLOG]  - %s\n", $log_entry['message']);
+					$this->expectLogOutput("[EXPECTLOG]  - %s\n", $log_entry['message']);
 				}
 			}
 		}
 
 		if ($verbose && $debug) {
-			fprintf(STDERR, "\n\n[EXPECTLOG DEBUG] All logging messages:\n");
+			$this->expectLogOutput("\n\n[EXPECTLOG DEBUG] All logging messages:\n");
 			foreach ($all_logs as $log_entry) {
-				fprintf(STDERR, "[EXPECTLOG DEBUG] LEVEL: '%s', MESSAGE: '%s'", $log_entry['level'], $log_entry['message']);
+				$this->expectLogOutput("[EXPECTLOG DEBUG] LEVEL: '%s', MESSAGE: '%s'", $log_entry['level'], $log_entry['message']);
 			}
 		}
 
 		if ( $verbose ) {
-			fprintf(STDERR, "\n[expectLog] END ----------------------\n\n");
+			$this->expectLogOutput("\n[expectLog] END ----------------------\n\n");
 		}
 
 		$this->fail($failure_message);
+	}
+
+	/**
+	 * Writes ExpectLog diagnostic output when the host test enables console logging.
+	 */
+	private function expectLogOutput(string $format, ...$args): void {
+		$stream = null;
+		if (property_exists($this, 'expect_log_output_stream') && is_resource($this->expect_log_output_stream)) {
+			$stream = $this->expect_log_output_stream;
+		}
+
+		$console_enabled = property_exists($this, 'enable_console_logging') && true === $this->enable_console_logging;
+		if (!$console_enabled && $stream === null) {
+			return;
+		}
+
+		$output = empty($args) ? $format : vsprintf($format, $args);
+		$target = $stream ?: STDERR;
+		fwrite($target, $output);
+		if ($stream) {
+			fflush($stream);
+		}
 	}
 }

@@ -138,7 +138,7 @@ function example_asset_preloading($block_registrar) {
 	    // WordPress can't generate preload tags
 	    'preload' => function() {
 	    	// Preload on homepage and landing pages for better Core Web Vitals
-	    	return is_front_page() || is_page_template('page-landing.php');
+	    	return is_front_page() || is_root_tempate('page-landing.php');
 	    },
 	    'assets' => array(
 	        'view_scripts' => array(

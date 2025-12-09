@@ -9,9 +9,10 @@ declare(strict_types = 1);
 
 namespace Ran\PluginLib\Config;
 
-use Exception;
+use Ran\PluginLib\Util\WPWrappersTrait;
 use Ran\PluginLib\Util\Logger;
 use Ran\PluginLib\Config\ConfigInterface;
+use Exception;
 
 /**
  * Abstract base class for plugin/theme configuration management.
@@ -61,12 +62,21 @@ use Ran\PluginLib\Config\ConfigInterface;
  * @throws \Exception If an attempt is made to define a standard WordPress header using the `@RAN:` prefix (e.g., `@RAN: Version: ...`).
  */
 abstract class ConfigAbstract implements ConfigInterface {
+	use WPWrappersTrait;
+
 	/**
 	 * Holds the logger instance.
 	 *
 	 * @var ?Logger The logger instance.
 	 */
 	private ?Logger $_logger = null;
+
+	/**
+	 * Flag to track if hydration is in progress (prevents Logger chicken-and-egg).
+	 *
+	 * @var bool
+	 */
+	private bool $_hydrating = false;
 
 	/**
 	 * Unified normalized config cache (theme or plugin).
@@ -125,6 +135,11 @@ abstract class ConfigAbstract implements ConfigInterface {
 	public function get_logger(): Logger {
 		if ( $this->_logger instanceof Logger ) {
 			return $this->_logger;
+		}
+		// During hydration, return a temporary no-op logger to avoid chicken-and-egg.
+		// The real logger will be created after hydration completes.
+		if ( $this->_hydrating ) {
+			return new Logger( array() );
 		}
 		$cfg           = $this->get_config();
 		$const         = (string)(($cfg['RAN']['LogConstantName'] ?? null) ?: 'RAN_LOG');
@@ -251,7 +266,7 @@ abstract class ConfigAbstract implements ConfigInterface {
 		$text_domain          = (string) ( $p['TextDomain'] ?? '' );
 		$name                 = (string) ( $p['Name'] ?? '' );
 		$slug_src             = $text_domain !== '' ? $text_domain : $name;
-		$slug                 = function_exists( 'sanitize_key' ) ? sanitize_key( $slug_src ) : strtolower( preg_replace( '/[^a-z0-9_\-]/i', '_', $slug_src ) );
+		$slug                 = $this->_do_sanitize_key( $slug_src );
 		$logger_default_name  = 'RAN_LOG';
 		$logger_default_req   = 'ran_log';
 		$this->_unified_cache = array(
@@ -355,15 +370,52 @@ abstract class ConfigAbstract implements ConfigInterface {
 	}
 
 	/**
-	 * Returns the WordPress option value for the plugin or theme.
-	 * If no option is set, the default name is derived from the plugin or theme slug.
+	 * Returns the PSR-4 root namespace for this plugin/theme.
 	 *
-	 * @param mixed $default Default setting value if option is not set. Value does not persist.
-	 * @return mixed
+	 * Resolution order:
+	 * 1. Explicit `@RAN: Namespace` header value
+	 * 2. PascalCase conversion of the plugin/theme Name
+	 *
+	 * @return string The namespace (e.g., "MyPlugin" or "Acme\MyPlugin")
 	 */
-	public function get_options(mixed $default = false): mixed {
-		$key = $this->get_options_key();
-		return function_exists('get_option') ? get_option( $key, $default ) : $default;
+	public function get_namespace(): string {
+		$cfg = $this->get_config();
+
+		// Check for explicit override via @RAN: Namespace header
+		if (isset($cfg['RAN']['Namespace']) && $cfg['RAN']['Namespace'] !== '') {
+			return (string) $cfg['RAN']['Namespace'];
+		}
+
+		// Fallback: PascalCase of plugin/theme Name
+		$name = (string) ($cfg['Name'] ?? '');
+		return $this->_to_pascal_case($name);
+	}
+
+	/**
+	 * Converts a string to PascalCase for namespace derivation.
+	 *
+	 * Examples:
+	 * - "My Plugin Name" -> "MyPluginName"
+	 * - "ran-starter-plugin" -> "RanStarterPlugin"
+	 * - "Acme's Cool Plugin!" -> "AcmesCoolPlugin"
+	 *
+	 * @param string $name The input string.
+	 * @return string The PascalCase result.
+	 */
+	protected function _to_pascal_case(string $name): string {
+		// Remove non-alphanumeric characters except spaces, hyphens, underscores
+		$name = preg_replace('/[^a-zA-Z0-9\s\-_]/', '', $name);
+
+		// Replace hyphens and underscores with spaces for word splitting
+		$name = str_replace(array('-', '_'), ' ', $name);
+
+		// Split on whitespace, capitalize each word, join
+		$words = preg_split('/\s+/', trim($name));
+		if ($words === false || $words === array('')) {
+			return '';
+		}
+
+		return implode('', array_map('ucfirst', array_map('strtolower', $words)));
 	}
 
 	/**
@@ -373,26 +425,31 @@ abstract class ConfigAbstract implements ConfigInterface {
 	 * @return void
 	 */
 	protected function _hydrateFromPlugin( string $plugin_file ): void {
-		$logger  = $this->get_logger();
-		$context = get_class($this) . '::_hydrateFromPlugin';
-		if ( $logger->is_active() ) {
-			$logger->debug("{$context} - Entered.", array(
-				'type' => 'plugin',
-				'file' => $plugin_file,
-			));
-		}
-		// Fail fast with a clear error if the provided plugin file is not usable
-		if ($plugin_file === '' || !is_file($plugin_file) || !is_readable($plugin_file)) {
+		$this->_hydrating = true;
+		try {
+			$logger  = $this->get_logger();
+			$context = get_class($this) . '::_hydrateFromPlugin';
 			if ( $logger->is_active() ) {
-				$logger->warning("{$context} - Invalid or unreadable plugin file.", array(
+				$logger->debug("{$context} - Entered.", array(
 					'type' => 'plugin',
 					'file' => $plugin_file,
 				));
 			}
-			throw new \RuntimeException('Config::fromPlugin requires a valid, readable plugin root file.');
+			// Fail fast with a clear error if the provided plugin file is not usable
+			if ($plugin_file === '' || !is_file($plugin_file) || !is_readable($plugin_file)) {
+				if ( $logger->is_active() ) {
+					$logger->warning("{$context} - Invalid or unreadable plugin file.", array(
+						'type' => 'plugin',
+						'file' => $plugin_file,
+					));
+				}
+				throw new \RuntimeException('Config::fromPlugin requires a valid, readable plugin root file.');
+			}
+			$provider = new PluginHeaderProvider($plugin_file, $this);
+			$this->_hydrate_generic($provider);
+		} finally {
+			$this->_hydrating = false;
 		}
-		$provider = new PluginHeaderProvider($plugin_file, $this);
-		$this->_hydrate_generic($provider);
 	}
 
 	/**
@@ -402,20 +459,25 @@ abstract class ConfigAbstract implements ConfigInterface {
 	 * @return void
 	 */
 	protected function _hydrateFromTheme( string $stylesheet_dir ): void {
-		$logger  = $this->get_logger();
-		$context = get_class($this) . '::_hydrateFromTheme';
-		$dir     = $stylesheet_dir ?: (function_exists('get_stylesheet_directory') ? get_stylesheet_directory() : '');
-		if ($dir === '') {
-			if ( $logger->is_active() ) {
-				$logger->warning("{$context} - Missing stylesheet directory or unavailable WordPress runtime.", array(
-					'type' => 'theme',
-					'dir'  => $stylesheet_dir,
-				));
+		$this->_hydrating = true;
+		try {
+			$logger  = $this->get_logger();
+			$context = get_class($this) . '::_hydrateFromTheme';
+			$dir     = $stylesheet_dir ?: ($this->_do_get_stylesheet_directory());
+			if ($dir === '') {
+				if ( $logger->is_active() ) {
+					$logger->warning("{$context} - Missing stylesheet directory or unavailable WordPress runtime.", array(
+						'type' => 'theme',
+						'dir'  => $stylesheet_dir,
+					));
+				}
+				throw new \RuntimeException('Config::fromThemeDir requires a stylesheet directory or WordPress runtime.');
 			}
-			throw new \RuntimeException('Config::fromThemeDir requires a stylesheet directory or WordPress runtime.');
+			$provider = new ThemeHeaderProvider($dir, $this);
+			$this->_hydrate_generic($provider);
+		} finally {
+			$this->_hydrating = false;
 		}
-		$provider = new ThemeHeaderProvider($dir, $this);
-		$this->_hydrate_generic($provider);
 	}
 
 	/**
@@ -518,12 +580,12 @@ abstract class ConfigAbstract implements ConfigInterface {
 		// Namespace remaining generic extras to avoid polluting top-level
 		if (!empty($filtered_extra)) {
 			$normalized['ExtraHeaders'] = $filtered_extra;
-			if ( $logger->is_active() ) {
-				$logger->debug("{$context} - Extra headers kept.", array(
-					'type'  => $provider->get_type()->value,
-					'count' => count($filtered_extra),
-				));
-			}
+			// if ( $logger->is_active() ) {
+			$logger->debug("{$context} - Extra headers kept.", array(
+				'type'  => $provider->get_type()->value,
+				'count' => count($filtered_extra),
+			));
+			// }
 		}
 
 		// Add each namespace directly at the top level
@@ -532,35 +594,39 @@ abstract class ConfigAbstract implements ConfigInterface {
 		}
 
 		// Allow final adjustments via WordPress filter
-		if (function_exists('apply_filters')) {
+		if ( $logger->is_active() ) {
+			$logger->debug("{$context} - Applying filter 'ran/plugin_lib/config'.", array(
+				'type' => $provider->get_type()->value,
+			));
+		}
+		$filter_context = array(
+			'environment'      => $provider->get_type()->value,
+			'standard_headers' => $standard_headers,
+			'namespaces'       => $namespaced_headers,
+			'extra_headers'    => $filtered_extra,
+			'base_path'        => $base_path,
+			'base_url'         => $base_url,
+			'base_name'        => $base_name,
+			'comment_source'   => $comment_source_path,
+		);
+
+		/**
+		 * Filter: ran/plugin_lib/config
+		 *
+		 * Gives theme/plugin authors a final opportunity to adjust the
+		 * normalized configuration. Return the full normalized array.
+		 *
+		 * @param array $normalized Final normalized config array
+		 * @param array $context    Context details (environment, sources)
+		 */
+		$normalized = $this->_do_apply_filter('ran/plugin_lib/config', $normalized, $filter_context);
+		if (!is_array($normalized)) {
 			if ( $logger->is_active() ) {
-				$logger->debug("{$context} - Applying filter 'ran/plugin_lib/config'.", array(
+				$logger->debug("{$context} - Filter returned non-array, casting.", array(
 					'type' => $provider->get_type()->value,
 				));
 			}
-			$filter_context = array(
-			    'environment'      => $provider->get_type()->value,
-			    'standard_headers' => $standard_headers,
-			    'namespaces'       => $namespaced_headers,
-			    'extra_headers'    => $filtered_extra,
-			    'base_path'        => $base_path,
-			    'base_url'         => $base_url,
-			    'base_name'        => $base_name,
-			    'comment_source'   => $comment_source_path,
-			);
-			/**
-			 * Filter: ran/plugin_lib/config
-			 *
-			 * Gives theme/plugin authors a final opportunity to adjust the
-			 * normalized configuration. Return the full normalized array.
-			 *
-			 * @param array $normalized Final normalized config array
-			 * @param array $context    Context details (environment, sources)
-			 */
-			$normalized = apply_filters('ran/plugin_lib/config', $normalized, $filter_context);
-			if (!is_array($normalized)) {
-				$normalized = (array) $normalized;
-			}
+			$normalized = (array) $normalized;
 		}
 
 		// 6) Validate & set to unified_cache
@@ -753,7 +819,7 @@ abstract class ConfigAbstract implements ConfigInterface {
 	 */
 	protected function _derive_slug(string $name, string $text_domain): string {
 		$src = $text_domain !== '' ? $text_domain : $name;
-		return function_exists('sanitize_key') ? sanitize_key($src) : strtolower(preg_replace('/[^a-z0-9_\-]/i', '_', $src));
+		return $this->_do_sanitize_key($src);
 	}
 
 	/**
@@ -828,13 +894,8 @@ abstract class ConfigAbstract implements ConfigInterface {
 	 * @param string $plugin_file
 	 * @return array<string,mixed>
 	 */
-	public function _get_standard_plugin_headers(string $plugin_file): array {
-		if (!$this->_function_exists('get_plugin_data')) {
-			//@codeCoverageIgnoreStart
-			return array();
-			//@codeCoverageIgnoreEnd
-		}
-		$data = (array) \get_plugin_data($plugin_file, false, false);
+	public function __get_standard_plugin_headers(string $plugin_file): array {
+		$data = (array) $this->_do_get_plugin_data($plugin_file, false, false);
 		return array_filter($data, static fn($v) => $v !== '');
 	}
 
@@ -846,14 +907,14 @@ abstract class ConfigAbstract implements ConfigInterface {
 	 * @param string $stylesheet_dir
 	 * @return array<string,mixed>
 	 */
-	public function _get_standard_theme_headers(string $stylesheet_dir): array {
+	public function __get_standard_theme_headers(string $stylesheet_dir): array {
 		if (!$this->_function_exists('wp_get_theme')) {
 			//@codeCoverageIgnoreStart
 			return array();
 			//@codeCoverageIgnoreEnd
 		}
 		$slug_guess   = basename($stylesheet_dir);
-		$theme_object = $slug_guess ? wp_get_theme($slug_guess) : wp_get_theme();
+		$theme_object = $slug_guess ? $this->_do_wp_get_theme($slug_guess) : $this->_do_wp_get_theme();
 		if (!$theme_object) {
 			return array();
 		}
@@ -903,3 +964,4 @@ abstract class ConfigAbstract implements ConfigInterface {
 	}
 	//@codeCoverageIgnoreEnd
 }
+

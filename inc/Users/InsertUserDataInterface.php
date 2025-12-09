@@ -20,5 +20,5 @@ interface InsertUserDataInterface extends RegistrableFeatureInterface {
 	 *
 	 * @param  array<string, mixed> $user_data An array of user data.
 	 */
-	public function insertUserData( array $user_data ): bool|Exception;
+	public function insert_user_data( array $user_data ): bool|Exception;
 }

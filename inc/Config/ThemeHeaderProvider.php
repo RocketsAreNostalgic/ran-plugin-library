@@ -4,7 +4,11 @@ declare(strict_types = 1);
 
 namespace Ran\PluginLib\Config;
 
+use Ran\PluginLib\Util\WPWrappersTrait;
+
 final class ThemeHeaderProvider implements HeaderProviderInterface {
+	use WPWrappersTrait;
+
 	public function __construct(private string $stylesheet_dir, private ConfigAbstract $cfg) {
 	}
 
@@ -17,11 +21,11 @@ final class ThemeHeaderProvider implements HeaderProviderInterface {
 	}
 
 	public function get_standard_headers(): array {
-		return $this->cfg->_get_standard_theme_headers($this->stylesheet_dir);
+		return $this->cfg->__get_standard_theme_headers($this->stylesheet_dir);
 	}
 
 	public function get_base_identifiers(): array {
-		$base_url  = function_exists('get_stylesheet_directory_uri') ? get_stylesheet_directory_uri() : '';
+		$base_url  = $this->_do_get_stylesheet_directory_uri();
 		$dir       = $this->stylesheet_dir;
 		$base_path = $dir;
 		$base_name = basename($dir);

@@ -191,7 +191,6 @@ class LoggerTest extends PluginLibTestCase {
 
 		$this->assertTrue($logger->is_active(), 'Logger should be active with a valid level string constant.');
 		$this->assertSame(Logger::LOG_LEVELS_MAP[LogLevel::WARNING], $logger->get_log_level(), 'Log level should be WARNING for "WARNING" string constant.');
-		$this->assertSame('constant', $this->_get_protected_property_value($logger, 'activation_mode'), 'Activation mode should be "constant".');
 	}
 
 	/**
@@ -209,11 +208,38 @@ class LoggerTest extends PluginLibTestCase {
 		$this->assertTrue($logger->is_active(), 'Logger should be active when URL parameter is set to a valid level.');
 		$this->assertSame(Logger::LOG_LEVELS_MAP[$level_name], $logger->get_log_level(), 'Logger effective log level should match the URL parameter.');
 
-		// Assert activation mode
-		$activation_mode = $this->_get_protected_property_value($logger, 'activation_mode');
-		$this->assertSame('url', $activation_mode, 'Activation mode should be set to "url".');
-
 		// Clean up the GET parameter
+		unset($_GET[$param_name]);
+	}
+
+	/**
+	 * Tests that providing a numeric log level activates the corresponding severity.
+	 */
+	public function test_url_parameter_numeric_level_activates_correct_level(): void {
+		$param_name        = self::DEFAULT_CONFIG['debug_request_param'];
+		$numeric_level     = (string) Logger::LOG_LEVELS_MAP[LogLevel::WARNING];
+		$_GET[$param_name] = $numeric_level;
+
+		$logger = new Logger(self::DEFAULT_CONFIG);
+
+		$this->assertTrue($logger->is_active(), 'Logger should activate for numeric level input.');
+		$this->assertSame(Logger::LOG_LEVELS_MAP[LogLevel::WARNING], $logger->get_log_level(), 'Numeric level should resolve to corresponding severity.');
+
+		unset($_GET[$param_name]);
+	}
+
+	/**
+	 * Tests that providing a boolean true value activates DEBUG level.
+	 */
+	public function test_url_parameter_true_value_activates_debug_level(): void {
+		$param_name        = self::DEFAULT_CONFIG['debug_request_param'];
+		$_GET[$param_name] = 'true';
+
+		$logger = new Logger(self::DEFAULT_CONFIG);
+
+		$this->assertTrue($logger->is_active(), 'Logger should activate for true-valued input.');
+		$this->assertSame(Logger::LOG_LEVELS_MAP[LogLevel::DEBUG], $logger->get_log_level(), 'True value should normalize to DEBUG severity.');
+
 		unset($_GET[$param_name]);
 	}
 
@@ -231,10 +257,6 @@ class LoggerTest extends PluginLibTestCase {
 
 		$this->assertFalse($logger->is_active(), 'Logger should not be active when URL parameter is set to an invalid level.');
 		$this->assertSame(0, $logger->get_log_level(), 'Logger effective log level should be 0 for an invalid URL parameter.');
-
-		// Assert activation mode is an empty string
-		$activation_mode = $this->_get_protected_property_value($logger, 'activation_mode');
-		$this->assertSame('', $activation_mode, 'Activation mode should be an empty string for an invalid URL parameter.');
 
 		// Clean up the GET parameter
 		unset($_GET[$param_name]);
@@ -285,6 +307,28 @@ class LoggerTest extends PluginLibTestCase {
 	}
 
 	/**
+	 * Tests that the notice() method logs a message when the logger is active and the level allows it.
+	 */
+	public function test_notice_method_logs_when_active_and_level_allows(): void {
+		$constant_name = 'TEST_NOTICE_LOG_METHOD';
+		$this->define_test_constant($constant_name, LogLevel::NOTICE);
+
+		$config = array(
+		    'custom_debug_constant_name' => $constant_name,
+		    'error_log_handler'          => array($this, 'mock_error_log_handler'),
+		);
+		$logger = new Logger($config);
+
+		$test_message         = 'This is a notice test message.';
+		$expected_log_message = '[NOTICE] ' . $test_message;
+
+		$logger->notice($test_message);
+
+		$this->assertCount(1, $this->logged_messages, 'Expected one message to be logged.');
+		$this->assertSame($expected_log_message, $this->logged_messages[0], 'Logged message content does not match.');
+	}
+
+	/**
 	 * Tests that the warning() method logs a message when the logger is active and the level allows it.
 	 */
 	public function test_warning_method_logs_when_active_and_level_allows(): void {
@@ -323,6 +367,72 @@ class LoggerTest extends PluginLibTestCase {
 		$expected_log_message = '[ERROR] ' . $test_message;
 
 		$logger->error($test_message);
+
+		$this->assertCount(1, $this->logged_messages, 'Expected one message to be logged.');
+		$this->assertSame($expected_log_message, $this->logged_messages[0], 'Logged message content does not match.');
+	}
+
+	/**
+	 * Tests that the critical() method logs when the logger is active and the level allows it.
+	 */
+	public function test_critical_method_logs_when_active_and_level_allows(): void {
+		$constant_name = 'TEST_CRITICAL_LOG_METHOD';
+		$this->define_test_constant($constant_name, LogLevel::CRITICAL);
+
+		$config = array(
+		    'custom_debug_constant_name' => $constant_name,
+		    'error_log_handler'          => array($this, 'mock_error_log_handler'),
+		);
+		$logger = new Logger($config);
+
+		$test_message         = 'This is a critical test message.';
+		$expected_log_message = '[CRITICAL] ' . $test_message;
+
+		$logger->critical($test_message);
+
+		$this->assertCount(1, $this->logged_messages, 'Expected one message to be logged.');
+		$this->assertSame($expected_log_message, $this->logged_messages[0], 'Logged message content does not match.');
+	}
+
+	/**
+	 * Tests that the alert() method logs when the logger is active and the level allows it.
+	 */
+	public function test_alert_method_logs_when_active_and_level_allows(): void {
+		$constant_name = 'TEST_ALERT_LOG_METHOD';
+		$this->define_test_constant($constant_name, LogLevel::ALERT);
+
+		$config = array(
+		    'custom_debug_constant_name' => $constant_name,
+		    'error_log_handler'          => array($this, 'mock_error_log_handler'),
+		);
+		$logger = new Logger($config);
+
+		$test_message         = 'This is an alert test message.';
+		$expected_log_message = '[ALERT] ' . $test_message;
+
+		$logger->alert($test_message);
+
+		$this->assertCount(1, $this->logged_messages, 'Expected one message to be logged.');
+		$this->assertSame($expected_log_message, $this->logged_messages[0], 'Logged message content does not match.');
+	}
+
+	/**
+	 * Tests that the emergency() method logs when the logger is active and the level allows it.
+	 */
+	public function test_emergency_method_logs_when_active_and_level_allows(): void {
+		$constant_name = 'TEST_EMERGENCY_LOG_METHOD';
+		$this->define_test_constant($constant_name, LogLevel::EMERGENCY);
+
+		$config = array(
+		    'custom_debug_constant_name' => $constant_name,
+		    'error_log_handler'          => array($this, 'mock_error_log_handler'),
+		);
+		$logger = new Logger($config);
+
+		$test_message         = 'This is an emergency test message.';
+		$expected_log_message = '[EMERGENCY] ' . $test_message;
+
+		$logger->emergency($test_message);
 
 		$this->assertCount(1, $this->logged_messages, 'Expected one message to be logged.');
 		$this->assertSame($expected_log_message, $this->logged_messages[0], 'Logged message content does not match.');
@@ -414,8 +524,6 @@ class LoggerTest extends PluginLibTestCase {
 
 		$this->assertTrue($logger->is_active(), 'Logger should be active via constant.');
 		$this->assertSame(Logger::LOG_LEVELS_MAP[LogLevel::INFO], $logger->get_log_level(), 'Logger effective log level should be INFO.');
-		$activation_mode = $this->_get_protected_property_value($logger, 'activation_mode');
-		$this->assertSame('constant', $activation_mode, 'Activation mode should be constant.');
 
 		// Log a message to ensure it works
 		$logger->info('Test message for constant activation with invalid URL param.');

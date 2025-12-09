@@ -87,7 +87,7 @@ $blocks = new BlockFactory($config); // singleton instance
 
 // Create and configure blocks with fluent interface
 $hero_block = $blocks->block('my-plugin/hero-block')
-    ->title('Hero Block')
+    ->heading('Hero Block')
     ->description('A customizable hero section')
     ->category('layout')
     ->icon('admin-post')
@@ -236,7 +236,7 @@ class Block {
 $blocks = new BlockFactory($config);
 
 $blocks->block('my-plugin/simple-block')
-    ->title('Simple Block')
+    ->heading('Simple Block')
     ->render_callback([$this, 'render_simple'])
     ->register();
 ```
@@ -245,7 +245,7 @@ $blocks->block('my-plugin/simple-block')
 
 ```php
 $blocks->block('my-plugin/complex-block')
-    ->title('Complex Interactive Block')
+    ->heading('Complex Interactive Block')
     ->description('A feature-rich block with multiple assets')
     ->category('widgets')
     ->icon('admin-tools')
@@ -333,7 +333,7 @@ $block_registrar->add([
 
 // BlockFactory/Block fluent approach
 $blocks->block('my-plugin/test')
-    ->title('Test Block')
+    ->heading('Test Block')
     ->render_callback('render_test')
     ->add_script(['handle' => 'test-js', 'src' => 'test.js'])
     ->register();
@@ -353,7 +353,7 @@ The fluent API design enables easy addition of new features:
 ```php
 // Future features can be added as new fluent methods
 $blocks->block('my-plugin/future-block')
-    ->title('Future Block')
+    ->heading('Future Block')
     ->bindings(['user-profile' => $binding_config])      // Future: Block Bindings API
     ->interactivity(['namespace' => 'my-plugin'])        // Future: Interactivity API
     ->variations(['cta' => $variation_config])           // Future: Block Variations

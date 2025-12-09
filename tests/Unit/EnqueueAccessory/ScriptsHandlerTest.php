@@ -5,11 +5,11 @@ namespace Ran\PluginLib\Tests\Unit\EnqueueAccessory;
 
 use Mockery;
 use WP_Mock;
+use Ran\PluginLib\Util\CollectingLogger;
 use Ran\PluginLib\Config\ConfigInterface;
+use Ran\PluginLib\EnqueueAccessory\AssetType;
 use Ran\PluginLib\Tests\Unit\PluginLibTestCase;
 use Ran\PluginLib\EnqueueAccessory\ScriptsHandler;
-use Ran\PluginLib\Util\CollectingLogger;
-use Ran\PluginLib\EnqueueAccessory\AssetType;
 
 /**
  * Class ScriptsHandlerTest
@@ -61,7 +61,6 @@ class ScriptsHandlerTest extends PluginLibTestCase {
 	 */
 	public function tearDown(): void {
 		parent::tearDown();
-		Mockery::close();
 	}
 
 	/**

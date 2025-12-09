@@ -4,10 +4,10 @@ declare(strict_types=1);
 namespace Ran\PluginLib\Tests\Unit\EnqueueAccessory;
 
 use Mockery;
+use Ran\PluginLib\Util\CollectingLogger;
 use Ran\PluginLib\Config\ConfigInterface;
 use Ran\PluginLib\Tests\Unit\PluginLibTestCase;
 use Ran\PluginLib\EnqueueAccessory\MediaHandler;
-use Ran\PluginLib\Util\CollectingLogger;
 
 /**
  * Class MediaHandlerTest
@@ -42,7 +42,6 @@ class MediaHandlerTest extends PluginLibTestCase {
 	 */
 	public function tearDown(): void {
 		parent::tearDown();
-		Mockery::close();
 	}
 
 	/**
@@ -73,6 +72,6 @@ class MediaHandlerTest extends PluginLibTestCase {
 		// Assert - check that trait methods are available
 		$this->assertTrue(method_exists($this->instance, 'add'));
 		$this->assertTrue(method_exists($this->instance, 'get_info'));
-		$this->assertTrue(method_exists($this->instance, 'stage_media'));
+		$this->assertTrue(method_exists($this->instance, 'stage'));
 	}
 }

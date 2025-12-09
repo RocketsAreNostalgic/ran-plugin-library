@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\Tests\Unit\Config;
 
-use RanTestCase; // Declared in test_bootstrap.php
-
 use Ran\PluginLib\Config\ConfigType;
+
 use Ran\PluginLib\Config\ConfigAbstract;
+use RanTestCase; // Declared in test_bootstrap.php
 
 /**
  * Probe subclass to expose protected utilities for testing.
@@ -93,11 +93,11 @@ final class ConfigAbstractProbe extends ConfigAbstract {
 	}
 
 	public function callGetStandardPluginHeaders(string $file): array {
-		return $this->_get_standard_plugin_headers($file);
+		return $this->__get_standard_plugin_headers($file);
 	}
 
 	public function callGetStandardThemeHeaders(string $dir): array {
-		return $this->_get_standard_theme_headers($dir);
+		return $this->__get_standard_theme_headers($dir);
 	}
 
 	public function get_config(): array {
@@ -121,6 +121,13 @@ final class ConfigAbstractProbe extends ConfigAbstract {
 		        'LogRequestParam' => 'ran_log',
 		    ),
 		);
+	}
+
+	/**
+	 * Provide options accessor required by ConfigInterface for this probe (typed-first).
+	 */
+	public function options(?\Ran\PluginLib\Options\Storage\StorageContext $context = null, bool $autoload = true): \Ran\PluginLib\Options\RegisterOptions {
+		return new \Ran\PluginLib\Options\RegisterOptions($this->get_options_key(), $context, $autoload);
 	}
 }
 
@@ -216,12 +223,46 @@ final class ConfigAbstractProtectedTest extends RanTestCase {
 	public function test_parse_namespaced_headers_skips_incomplete_entries(): void {
 		$p        = new ConfigAbstractProbe();
 		$reserved = $p->callReservedPlugin();
-		$block    = "@Acme: Feature: on\n@Acme: EmptyVal:    \n@Foo:   : value\n@Bar: NameOnly:\n"; // lines with empty value/name should be skipped
+		$block    = "@Acme: Feature: on\n@Acme: EmptyVal:    \n@Foo:   : value\n@Bar: NameOnly:\n@ : MissingNs: value\n"; // lines with empty value/name/namespace should be skipped
 		$parsed   = $p->callParseNamespacedHeaders($block, $reserved);
 		$this->assertSame('on', $parsed['Acme']['Feature'] ?? null);
 		$this->assertTrue(!isset($parsed['Acme']['EmptyVal']));
 		$this->assertTrue(!isset($parsed['Foo']));
 		$this->assertTrue(!isset($parsed['Bar']['NameOnly']));
+		$this->assertTrue(!isset($parsed['']));
+	}
+
+	/**
+	 * @covers ::_parse_namespaced_headers
+	 */
+	public function test_parse_namespaced_headers_skips_when_namespace_empty_only(): void {
+		$p        = new ConfigAbstractProbe();
+		$reserved = $p->callReservedPlugin();
+		$block    = "@ : Name: value\n"; // empty namespace
+		$parsed   = $p->callParseNamespacedHeaders($block, $reserved);
+		$this->assertSame(array(), $parsed);
+	}
+
+	/**
+	 * @covers ::_parse_namespaced_headers
+	 */
+	public function test_parse_namespaced_headers_skips_when_name_empty_only(): void {
+		$p        = new ConfigAbstractProbe();
+		$reserved = $p->callReservedPlugin();
+		$block    = "@Acme:   : value\n"; // empty name
+		$parsed   = $p->callParseNamespacedHeaders($block, $reserved);
+		$this->assertSame(array(), $parsed);
+	}
+
+	/**
+	 * @covers ::_parse_namespaced_headers
+	 */
+	public function test_parse_namespaced_headers_skips_when_value_empty_only(): void {
+		$p        = new ConfigAbstractProbe();
+		$reserved = $p->callReservedPlugin();
+		$block    = "@Acme: Feature:    \n"; // empty value
+		$parsed   = $p->callParseNamespacedHeaders($block, $reserved);
+		$this->assertSame(array(), $parsed);
 	}
 
 	// _parse_ran_headers removed with namespaced headers refactor. No tests needed.
@@ -305,8 +346,8 @@ final class ConfigAbstractProtectedTest extends RanTestCase {
 	}
 
 	/**
-	 * @covers ::_get_standard_plugin_headers
-	 * @covers ::_get_standard_theme_headers
+	 * @covers ::__get_standard_plugin_headers
+	 * @covers ::__get_standard_theme_headers
 	 */
 	public function test_get_standard_headers_return_empty_without_wp(): void {
 		$p = new ConfigAbstractProbe();
@@ -317,9 +358,9 @@ final class ConfigAbstractProtectedTest extends RanTestCase {
 	/**
 		* Explicitly covers early return when get_plugin_data() is absent.
 		*
-		* @covers ::_get_standard_plugin_headers
+		* @covers ::__get_standard_plugin_headers
 		*/
-	public function test_get_standard_plugin_headers_returns_empty_when_function_absent(): void {
+	public function test__get_standard_plugin_headers_returns_empty_when_function_absent(): void {
 		$p = new ConfigAbstractProbe();
 		// No WP_Mock::userFunction('get_plugin_data') defined here
 		$this->assertSame(array(), $p->callGetStandardPluginHeaders(__FILE__));
@@ -328,18 +369,18 @@ final class ConfigAbstractProtectedTest extends RanTestCase {
 	/**
 		* Explicitly covers early return when wp_get_theme() is absent.
 		*
-		* @covers ::_get_standard_theme_headers
+		* @covers ::__get_standard_theme_headers
 		*/
-	public function test_get_standard_theme_headers_returns_empty_when_function_absent(): void {
+	public function test__get_standard_theme_headers_returns_empty_when_function_absent(): void {
 		$p = new ConfigAbstractProbe();
 		// No WP_Mock::userFunction('wp_get_theme') defined here
 		$this->assertSame(array(), $p->callGetStandardThemeHeaders(sys_get_temp_dir()));
 	}
 
 	/**
-		* @covers ::_get_standard_plugin_headers
+		* @covers ::__get_standard_plugin_headers
 		*/
-	public function test_get_standard_plugin_headers_filters_empty(): void {
+	public function test__get_standard_plugin_headers_filters_empty(): void {
 		$p = new ConfigAbstractProbe();
 		\WP_Mock::setUp();
 		\WP_Mock::userFunction('get_plugin_data')->with(__FILE__, false, false)->andReturn(array(
@@ -351,9 +392,9 @@ final class ConfigAbstractProtectedTest extends RanTestCase {
 	}
 
 	/**
-	 * @covers ::_get_standard_theme_headers
+	 * @covers ::__get_standard_theme_headers
 	 */
-	public function test_get_standard_theme_headers_collects_and_normalizes(): void {
+	public function test__get_standard_theme_headers_collects_and_normalizes(): void {
 		$p = new ConfigAbstractProbe();
 		\WP_Mock::setUp();
 		$theme = new class {

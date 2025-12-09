@@ -1,7 +1,7 @@
 {
   "name": "ran/plugin-lib",
   "description": "RocketsAreNostalgic: A shared library of plugin classes to interact with WordPress",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "type": "library",
   "license": "MIT",
   "authors": [
@@ -25,12 +25,22 @@
   "autoload": {
     "psr-4": {
       "Ran\\PluginLib\\": "inc/"
-    }
+    },
+    "exclude-from-classmap": [
+      "inc/docs-to-review/",
+      "**/docs/",
+      "**/hold/",
+      "**/Example/",
+      "**/Examples/"
+    ]
   },
   "autoload-dev": {
     "psr-4": {
       "Ran\\PluginLib\\Tests\\": "Tests/"
-    }
+    },
+    "exclude-from-classmap": [
+      "Tests/"
+    ]
   },
   "require-dev": {
     "php": ">=8.1",
@@ -38,7 +48,7 @@
     "wp-coding-standards/wpcs": "^3.0",
     "dealerdirect/phpcodesniffer-composer-installer": "^1.0",
     "slevomat/coding-standard": "^8.14",
-    "friendsofphp/php-cs-fixer": "^3.0",
+    "friendsofphp/php-cs-fixer": "^3.88",
     "yoast/phpunit-polyfills": "^2.0",
     "phpunit/phpunit": "^9.6",
     "10up/wp_mock": "^1.0",
@@ -75,10 +85,12 @@
     "qa:ci": [
       "@cs:check",
       "@standards:full",
-      "@test:coverage"
+      "@test:coverage-ci"
     ],
     "hooks:install": "bash ./scripts/install-git-hooks.sh",
-    "test": "phpdbg -qrr vendor/bin/phpunit",
-    "test:coverage": "phpdbg -qrr vendor/bin/phpunit --coverage-text"
+    "test": "vendor/bin/phpunit --no-coverage",
+    "test:coverage": "/opt/homebrew/opt/php@8.3/bin/php -d pcov.enabled=1 -d memory_limit=512M vendor/bin/phpunit",
+    "test:coverage-ci": "vendor/bin/phpunit",
+    "test:integration": "vendor/bin/phpunit --no-coverage --group integration"
   }
 }

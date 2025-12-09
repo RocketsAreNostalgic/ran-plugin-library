@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace Ran\PluginLib\Tests\Unit\Config;
 
 use WP_Mock;
-use RanTestCase; // Declared in test_bootstrap.php
 use Ran\PluginLib\Config\ConfigType;
 use Ran\PluginLib\Config\ConfigAbstract;
 use Ran\PluginLib\Config\ThemeHeaderProvider;
+use RanTestCase; // Declared in test_bootstrap.php
 
 /**
  * @covers \Ran\PluginLib\Config\ThemeHeaderProvider
@@ -44,7 +44,7 @@ final class ThemeHeaderProviderTest extends RanTestCase {
 		$cfg      = $this->createMock(ConfigAbstract::class);
 		$expected = array('Name' => 'Mock Theme');
 		$cfg->expects($this->once())
-		    ->method('_get_standard_theme_headers')
+		    ->method('__get_standard_theme_headers')
 		    ->with($this->stylesheetDir)
 		    ->willReturn($expected);
 
@@ -53,12 +53,16 @@ final class ThemeHeaderProviderTest extends RanTestCase {
 	}
 
 	public function test_get_base_identifiers_uses_wp_functions_when_available(): void {
-		WP_Mock::userFunction('get_stylesheet_directory_uri')
-		    ->with()
-		    ->andReturn('https://example.com/wp-content/themes/mock-theme');
+		$dir = $this->stylesheetDir;
 
-		$cfg                 = $this->createMock(ConfigAbstract::class);
-		$provider            = new ThemeHeaderProvider($this->stylesheetDir, $cfg);
+		// Mock WordPress function that the provider now calls directly via WPWrappersTrait
+		WP_Mock::userFunction('get_stylesheet_directory_uri')
+			->once()
+			->andReturn('https://example.com/wp-content/themes/mock-theme');
+
+		$cfg      = $this->createMock(ConfigAbstract::class);
+		$provider = new ThemeHeaderProvider($dir, $cfg);
+
 		[$path, $url, $name] = $provider->get_base_identifiers();
 
 		$this->assertSame($this->stylesheetDir, $path);

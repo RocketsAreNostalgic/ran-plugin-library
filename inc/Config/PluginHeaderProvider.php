@@ -4,7 +4,11 @@ declare(strict_types = 1);
 
 namespace Ran\PluginLib\Config;
 
+use Ran\PluginLib\Util\WPWrappersTrait;
+
 final class PluginHeaderProvider implements HeaderProviderInterface {
+	use WPWrappersTrait;
+
 	public function __construct(private string $plugin_file, private ConfigAbstract $cfg) {
 	}
 
@@ -17,13 +21,13 @@ final class PluginHeaderProvider implements HeaderProviderInterface {
 	}
 
 	public function get_standard_headers(): array {
-		return $this->cfg->_get_standard_plugin_headers($this->plugin_file);
+		return $this->cfg->__get_standard_plugin_headers($this->plugin_file);
 	}
 
 	public function get_base_identifiers(): array {
-		$base_url  = \function_exists('plugin_dir_url')  ? \plugin_dir_url($this->plugin_file)  : '';
-		$base_path = \function_exists('plugin_dir_path') ? \plugin_dir_path($this->plugin_file) : '';
-		$base_name = \function_exists('plugin_basename') ? \plugin_basename($this->plugin_file) : basename($this->plugin_file);
+		$base_url  = $this->_do_plugin_dir_url($this->plugin_file);
+		$base_path = $this->_do_plugin_dir_path($this->plugin_file);
+		$base_name = $this->_do_plugin_basename($this->plugin_file);
 		return array($base_path, $base_url, $base_name);
 	}
 

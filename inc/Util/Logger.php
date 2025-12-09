@@ -2,11 +2,10 @@
 /**
  * Logger class for WordPress plugins.
  *
- *
  * @package Ran\PluginLib\Util
- * @author  Ran Plugin Lib <support@ran.org>
+ * @author  Ran Plugin Lib <bnjmnrsh@gmail.com>
  * @license GPL-2.0+ <http://www.gnu.org/licenses/gpl-2.0.txt>
-* @link    https://github.com/RocketsAreNostalgic
+ * @link    https://github.com/RocketsAreNostalgic
  * @since   0.1.0
  */
 
@@ -160,13 +159,6 @@ class Logger implements LoggerInterface {
 	private string $debug_request_param;
 
 	/**
-	 * Indicates how the logger was activated (e.g., 'url', 'constant').
-	 *
-	 * @var string|null $activation_mode Null if not activated by a specific mode or logger inactive.
-	 */
-	private string $activation_mode = '';
-
-	/**
 	 * Optional custom error log handler.
 	 *
 	 * @var callable|null
@@ -218,7 +210,6 @@ class Logger implements LoggerInterface {
 	private function _determine_effective_log_level(): void {
 		$this->is_active                    = false;
 		$this->effective_log_level_severity = self::LOG_LEVELS_MAP[LogLevel::EMERGENCY] + 100; // Default to higher than any level.
-		$this->activation_mode              = '';
 
 		$sources_values = array();
 		// phpcs:disable Squiz.Commenting.InlineComment.InvalidEndChar -- Reading a debug param, not processing form data.
@@ -247,7 +238,6 @@ class Logger implements LoggerInterface {
 
 			if (null !== $parsed_level) {
 				$determined_level_text = $parsed_level;
-				$this->activation_mode = $source_type;
 				break;
 			}
 		} // end foreach source_type
@@ -454,7 +444,11 @@ class Logger implements LoggerInterface {
 		);
 
 		if ( ! empty( $context ) ) {
-			$json = function_exists('wp_json_encode') ? \wp_json_encode( $context ) : \json_encode( $context );
+			$sanitized_context = $this->sanitize_context( $context );
+			$json              = function_exists('wp_json_encode') ? \wp_json_encode( $sanitized_context ) : \json_encode( $sanitized_context );
+			if ($json === false) {
+				$json = '"[context encoding failed]"';
+			}
 			$formatted_message .= ' Context: ' . $json;
 		}
 
@@ -465,5 +459,153 @@ class Logger implements LoggerInterface {
 			error_log($formatted_message);
 			// @codeCoverageIgnoreEnd
 		}
+	}
+
+	/**
+	 * Recursively sanitize context values to avoid retaining unsupported types.
+	 *
+	 * @param array<string|int,mixed> $context
+	 * @return array<string|int,mixed>
+	 */
+	protected function sanitize_context(array $context, int $depth = 0): array {
+		if ($depth > 8) {
+			return array('[depth_limit]' => true);
+		}
+
+		$sanitized = array();
+		foreach ($context as $key => $value) {
+			$sanitized[$key] = $this->sanitize_value($value, $depth + 1, (string) $key);
+		}
+
+		return $sanitized;
+	}
+
+	/**
+	 * @param mixed $value
+	 * @return mixed
+	 */
+	protected function sanitize_value(mixed $value, int $depth, string $key = '') {
+		if ($depth > 8) {
+			return '[depth_limit]';
+		}
+
+		if (is_array($value)) {
+			return $this->sanitize_summary_if_applicable($key, $this->sanitize_context($value, $depth + 1));
+		}
+
+		if ($value instanceof \Closure) {
+			return $this->describe_closure($value);
+		}
+
+		if (is_object($value)) {
+			return 'object(' . get_class($value) . ')';
+		}
+
+		if (is_resource($value)) {
+			return 'resource(' . get_resource_type($value) . ')';
+		}
+
+		if (is_scalar($value) || $value === null) {
+			return $value;
+		}
+
+		return '[unsupported]';
+	}
+
+	/**
+	 * @param array<string|int,mixed> $value
+	 * @return array<string|int,mixed>
+	 */
+	protected function sanitize_summary_if_applicable(string $key, array $value): array {
+		if ($key === 'sanitize_summary' || $key === 'validate_summary') {
+			return $this->summarize_bucket_map($value);
+		}
+
+		if ($key === 'default_summary') {
+			return $this->summarize_default($value);
+		}
+
+		return $value;
+	}
+
+	/**
+	 * @param array<string|int,mixed> $value
+	 * @return array<string|int,mixed>
+	 */
+	protected function summarize_bucket_map(array $value): array {
+		$summary = array(
+			'component'  => array('count' => 0, 'descriptors' => array()),
+			'schema'     => array('count' => 0, 'descriptors' => array()),
+			'other_keys' => array(),
+		);
+
+		foreach ($value as $bucket => $data) {
+			if ($bucket === 'component' || $bucket === 'schema') {
+				$descriptors = array();
+				if (is_array($data)) {
+					$descriptors = $this->normalize_descriptors_array($data['descriptors'] ?? array());
+					$count       = isset($data['count']) ? (int) $data['count'] : count($descriptors);
+				} else {
+					$count = 0;
+				}
+				$summary[$bucket] = array(
+					'count'       => $count,
+					'descriptors' => $descriptors,
+				);
+				continue;
+			}
+
+			$summary['other_keys'][$bucket] = $data;
+		}
+
+		return $summary;
+	}
+
+	/**
+	 * @param array<string|int,mixed> $value
+	 * @return array<string|int,mixed>
+	 */
+	protected function summarize_default(array $value): array {
+		return array(
+			'has_default' => (bool) ($value['has_default'] ?? false),
+			'type'        => $value['type'] ?? null,
+			'value'       => $this->summarize_default_value($value['value'] ?? null),
+		);
+	}
+
+	protected function summarize_default_value(mixed $value): mixed {
+		if (is_scalar($value) || $value === null) {
+			return $value;
+		}
+
+		if (is_array($value)) {
+			return array('count' => count($value));
+		}
+
+		return is_object($value) ? 'object(' . get_class($value) . ')' : '[unsupported]';
+	}
+
+	/**
+	 * @param mixed $descriptors
+	 * @return array<int,string>
+	 */
+	protected function normalize_descriptors_array(mixed $descriptors): array {
+		if (!is_array($descriptors)) {
+			return array();
+		}
+
+		return array_values(array_map(static fn($item): string => is_string($item) ? $item : '[invalid]', $descriptors));
+	}
+
+	protected function describe_closure(\Closure $closure): string {
+		if (function_exists('spl_object_id')) {
+			return 'Closure#' . spl_object_id($closure);
+		}
+
+		if (function_exists('spl_object_hash')) {
+			return 'Closure#' . spl_object_hash($closure);
+		}
+
+		return 'Closure';
 	}
 }

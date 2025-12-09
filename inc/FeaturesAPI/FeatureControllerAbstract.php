@@ -14,7 +14,8 @@ namespace Ran\PluginLib\FeaturesAPI;
 use Ran\PluginLib\Config\ConfigInterface;
 
 /**
- * Feature controllers must implement a RegistrableFeatureInterface, with a register() method in order to be activated by the RegisterService class.
+ * Feature controllers must implement RegistrableFeatureInterface and provide an init() method.
+ * Instances are created and initialized by the FeaturesManager.
  *
  * @since 0.1.0
  */

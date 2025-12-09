@@ -503,7 +503,7 @@ $block_registrar->add([
 $block_registrar->add([
     'block_name' => 'my-plugin/cta-block',
     'preload' => function() {
-        return is_front_page() || is_page_template('page-landing.php');
+        return is_front_page() || is_root_tempate('page-landing.php');
     },
     'assets' => [
         'scripts' => [['handle' => 'cta-script', 'src' => 'cta.js']]
@@ -635,7 +635,7 @@ add_action('wp_loaded', function() use ($block_registrar) {
 
     if ($hero_block instanceof WP_Block_Type) {
         // Access block metadata
-        $title = $hero_block->title;
+        $title = $hero_block->heading;
         $description = $hero_block->description;
         $category = $hero_block->category;
         $attributes = $hero_block->attributes ?? [];
@@ -846,7 +846,7 @@ if (defined('WP_DEBUG') && WP_DEBUG) {
         foreach ($all_blocks as $block_name => $wp_block_type) {
             $debug_info = [
                 'name' => $wp_block_type->name,
-                'title' => $wp_block_type->title ?? 'No title',
+                'title' => $wp_block_type->heading ?? 'No title',
                 'has_attributes' => !empty($wp_block_type->attributes),
                 'has_render_callback' => is_callable($wp_block_type->render_callback),
                 'supports' => $wp_block_type->supports ?? [],

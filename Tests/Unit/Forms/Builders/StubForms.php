@@ -1,0 +1,47 @@
+<?php
+declare(strict_types=1);
+
+namespace Ran\PluginLib\Tests\Unit\Forms\Builders;
+
+use Ran\PluginLib\Forms\FormsInterface;
+use Ran\PluginLib\Forms\FormsServiceSession;
+use Ran\PluginLib\Options\RegisterOptions;
+
+final class StubForms implements FormsInterface {
+	public function __construct(private ?FormsServiceSession $session = null) {
+	}
+
+	public function __render(string $id_slug, ?array $context = null): void {
+		// Not used in tests.
+	}
+
+	public function resolve_options(?array $context = null): RegisterOptions {
+		throw new \BadMethodCallException('StubForms::resolve_options() should not be called during these tests.');
+	}
+
+	public function boot(bool $eager = false): void {
+		// Not used in tests.
+	}
+
+	public function safe_boot(callable $callback, bool $eager = false): void {
+		// No-op for tests.
+	}
+
+	public function override_form_defaults(array $overrides): void {
+		// No-op for tests.
+	}
+
+	public function get_form_session(): ?FormsServiceSession {
+		return $this->session;
+	}
+
+	public function register_component(string $name, array $options): static {
+		// No-op for tests.
+		return $this;
+	}
+
+	public function register_components(array $options): static {
+		// No-op for tests.
+		return $this;
+	}
+}

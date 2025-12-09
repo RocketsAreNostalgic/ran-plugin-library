@@ -10,6 +10,8 @@ declare(strict_types = 1);
 namespace Ran\PluginLib\Tests\Unit\TestClasses;
 
 use Ran\PluginLib\Config\ConfigAbstract;
+use Ran\PluginLib\Options\RegisterOptions;
+use Ran\PluginLib\Options\Storage\StorageContext;
 
 /**
 	* TestableConfig class for testing ConfigAbstract methods.
@@ -212,12 +214,18 @@ class TestableConfig extends ConfigAbstract {
 	}
 
 	/**
-		* Override init to return the current instance without requiring a plugin file.
-		*
-		* @param string $plugin_file Ignored in this implementation.
-		* @return self The current instance.
+		* (Removed) Legacy static init() method was deleted as part of eliminating
+		* singleton-style access in tests. Construct instances directly or use
+		* factory methods on concrete Config implementations where applicable.
 		*/
-	public static function init(string $plugin_file = ''): self {
-		return self::get_instance();
+
+	/**
+    	 * Provide options accessor required by ConfigInterface for this test class (typed-first).
+    	 */
+	public function options(?StorageContext $context = null, bool $autoload = true): RegisterOptions {
+		$opts = new RegisterOptions($this->get_options_key(), $context, $autoload, $this->get_logger());
+		// Align with tests expecting two reads during initial access
+		$opts->refresh_options();
+		return $opts;
 	}
 }

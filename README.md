@@ -2,13 +2,14 @@
 
 RAN PluginLib is a (work in progress) library designed to accelerate WordPress plugin development by providing a robust foundation for common plugin tasks, including configuration management, asset enqueuing, and feature organization.
 
-**BETA - THIS IS A CONCEPTUAL AND IS NOT INTENDED FOR PRODUCTION USE.**
+**BETA - THIS IS CONCEPTUAL AND NOT INTENDED FOR PRODUCTION USE.**
 
 An example implementation is available at <https://github.com/RocketsAreNostalgic/ran-starter-plugin>
 
 ## Features
 
 - **Configuration Management:** Easily load plugin metadata and custom configuration from your main plugin file's docblock.
+- **Options Management:** A system to register plugin 'options', with comprehensive schema management, and dynamic default seeding.
 - **Asset Enqueuing Accessory:** A flexible system for adding and managing CSS and JavaScript files for both admin and public-facing pages, with support for conditions, dependencies, inline scripts, and deferred loading.
 
 - **Hooks Accessory:** A system to organize plugin filter and action hooks.
@@ -18,9 +19,6 @@ An example implementation is available at <https://github.com/RocketsAreNostalgi
 ## Utilities
 
 - **Logging:** Built-in PSR-3 compatible logger, configurable via plugin headers or constants, to aid in development and debugging.
-- **Options Management:** A system to register plugin 'options', with comprehensive schema management, and dynamic default seeding.
-
-- **WordPress Coding Standards Compliant:** Developed with WordPress coding standards in mind.
 
 ## Getting Started
 
@@ -83,17 +81,17 @@ if ( file_exists( __DIR__ . '/vendor/autoload.php' ) ) {
     require_once __DIR__ . '/vendor/autoload.php';
 }
 
-// 1. Initialize PluginLib Config
+// 1. Initialize PluginLib Config (factory-based)
 // Replace `MyAwesomePlugin\Base\Config` with your plugin's class that extends `Ran\PluginLib\Config\ConfigAbstract`
-$plugin_config = MyAwesomePlugin\Base\Config::init( __FILE__ );
+$plugin_config = MyAwesomePlugin\Base\Config::fromPluginFile( __FILE__ );
 
 // 2. Bootstrap your plugin
 // `MyAwesomePlugin\Base\Bootstrap` would implement `Ran\PluginLib\BootstrapInterface`
 add_action(
     'plugins_loaded', // Or another appropriate hook
-    function (): void {
-        // Pass the singleton Config instance to your Bootstrap class
-        $bootstrap = new MyAwesomePlugin\Base\Bootstrap( MyAwesomePlugin\Base\Config::get_instance() );
+    function () use ( $plugin_config ): void {
+        // Pass the Config instance to your Bootstrap class
+        $bootstrap = new MyAwesomePlugin\Base\Bootstrap( $plugin_config );
         $bootstrap->init();
     },
     0 // Adjust priority as needed
@@ -103,12 +101,14 @@ add_action(
 register_activation_hook( __FILE__, __NAMESPACE__ . '\activate_plugin' );
 register_deactivation_hook( __FILE__, __NAMESPACE__ . '\deactivate_plugin' );
 
-function activate_plugin(): void {
-    // MyAwesomePlugin\Base\Activate::activate( MyAwesomePlugin\Base\Config::get_instance() );
+function activate_plugin() : void {
+    // $config = MyAwesomePlugin\Base\Config::fromPluginFile( __FILE__ );
+    // MyAwesomePlugin\Base\Activate::activate( $config );
 }
 
-function deactivate_plugin(): void {
-    // MyAwesomePlugin\Base\Deactivate::deactivate( MyAwesomePlugin\Base\Config::get_instance() );
+function deactivate_plugin() : void {
+    // $config = MyAwesomePlugin\Base\Config::fromPluginFile( __FILE__ );
+    // MyAwesomePlugin\Base\Deactivate::deactivate( $config );
 }
 ```
 
@@ -135,18 +135,17 @@ final class Config extends ConfigAbstract implements ConfigInterface {
 
 **Accessing Configuration:**
 
-Once `MyAwesomePlugin\Base\Config::init(__FILE__)` is called, you can access the configuration:
+Once you’ve constructed a `Config` instance (e.g., via `fromPluginFile(__FILE__)`), access it through the object you already hold:
 
 ```php
-// In your Bootstrap or other classes, after injecting/retrieving the Config instance:
-$config_instance = MyAwesomePlugin\Base\Config::get_instance();
-$plugin_data = $config_instance->get_plugin_config();
+// In your Bootstrap or other classes, after receiving the Config instance via DI:
+$plugin_data = $this->config->get_plugin_config();
 
-$plugin_name = $plugin_data['Name']; // "My Awesome Plugin"
+$plugin_name    = $plugin_data['Name']; // "My Awesome Plugin"
 $custom_setting = $plugin_data['CustomConfigValue']; // "Some setting specific to my plugin"
 
 // Accessing the logger
-$logger = $config_instance->get_logger();
+$logger = $this->config->get_logger();
 $logger->info('Plugin initialized.');
 ```
 
@@ -257,21 +256,21 @@ The `EnqueueAbstract` class and its children (`EnqueuePublic`, `EnqueueAdmin`) p
 - **`EnqueuePublic`:** Use for assets loaded on the public-facing side of your site. Hooks into `wp_enqueue_scripts`.
 - **`EnqueueAdmin`:** Use for assets loaded in the WordPress admin area. Hooks into `admin_stage_scripts`.
 
-#### Key Methods
+##### Key Methods
 
-##### `add_scripts(array $scripts_to_add)`
+- `add_scripts(array $scripts_to_add)`
 
 Adds one or more script definitions to the enqueuer instance's internal list. Each script definition is an associative array detailing the script's properties (e.g., handle, source URL, dependencies, version, and whether to load in the footer).
 
-##### `add_styles(array $styles_to_add)`
+- `add_styles(array $styles_to_add)`
 
 Adds one or more style definitions to the enqueuer instance's internal list. Each style definition is an associative array detailing the style's properties (e.g., handle, source URL, dependencies, version, and media type).
 
-##### `add_inline_scripts(array $inline_scripts_to_add)`
+- `add_inline_scripts(array $inline_scripts_to_add)`
 
 Adds one or more inline script definitions to the enqueuer instance's internal list. This is useful for adding small JavaScript snippets or localizing data for a registered script. Each inline script definition is an associative array.
 
-##### `load()`
+- `load()`
 
 This is a crucial method that finalizes the asset registration process. It iterates through all script, style, and inline script definitions that have been added to the enqueuer instance and registers the appropriate WordPress action hooks (e.g., `wp_enqueue_scripts` for public assets or `admin_stage_scripts` for admin assets). These hooks ensure that WordPress enqueues the assets at the correct time during page load.
 
@@ -302,9 +301,9 @@ $public_assets->add_scripts([
 ]);
 ```
 
-## Advanced Usage
+##### Advanced Usage
 
-### Deferred Script Loading
+##### Deferred Script Loading
 
 You can defer loading of non-critical scripts until a specific action hook fires.
 When adding a script, include the `'hook'` key:
@@ -322,7 +321,7 @@ $public_assets->add_scripts([
 
 The `EnqueueAbstract::load()` method will automatically set up the necessary `add_action` calls.
 
-### Inline Scripts & Data (`wp_localize_script` alternative)
+##### Inline Scripts & Data (`wp_localize_script` alternative)
 
 Use `add_inline_scripts()` to add JavaScript data directly or to attach data to an existing script handle (similar to `wp_localize_script` but more flexible).
 
@@ -346,6 +345,83 @@ $public_assets->add_inline_scripts([
     ]
 ]);
 ```
+
+### 4. Options Management (Quick Start)
+
+Use `Config::options(StorageContext $context = null, bool $autoload = true)` to access your plugin’s registered options. Defaults to site scope.
+
+```php
+// Assume you already have a Config instance (e.g., from your bootstrap):
+// $config = MyAwesomePlugin\Base\Config::fromPluginFile( __FILE__ );
+
+use Ran\PluginLib\Options\Storage\StorageContext;
+
+// Default (site) scope
+$opts = $config->options(); // same as StorageContext::forSite()
+
+// Read values
+$values  = $opts->get_options();                // values-only array
+$enabled = $opts->get_option('enabled', false); // single field with default
+
+```
+
+Scopes (typed StorageContext):
+
+```php
+use Ran\PluginLib\Options\Storage\StorageContext;
+
+// Network-wide options
+$networkOpts = $config->options(StorageContext::forNetwork());
+
+// Specific blog/site options (multisite)
+$blogOpts = $config->options(StorageContext::forBlog(123));
+
+// Specific user options
+$userOpts = $config->options(StorageContext::forUser(456, 'meta', false));
+```
+
+Notes:
+
+- Autoload applies to the site scope only.
+- Flipping autoload outside site scope is a no-op (with notice).
+- See detailed design and examples in:
+  - inc/Config/docs/PRD-002-Config-Options-Integration.md
+  - inc/Config/docs/PRD-003-Options-Scope-and-Multisite.md
+
+#### Performance notes
+
+- Schema rules (`sanitize`/`validate`) can run multiple times by design:
+  - During `register_schema()` for default seeding and normalization
+  - Again on subsequent `set_option()` / `stage_options()` calls
+- Use pure, idempotent sanitizers and strict-boolean validators to keep passes cheap and deterministic. See `inc/Options/docs/TFS-006-Schema-Validation-and-Sanitization.md` for guidance.
+
+#### Config::options() semantics (no-write accessor)
+
+- Recognized args (all optional):
+  - `autoload` (bool, default: true) — default autoload policy for future writes.
+  - `scope` ('site'|'network'|'blog'|'user' or OptionScope enum), default: 'site'.
+  - `entity` (typed entity: `BlogEntity` or `UserEntity` | null) — required when scope is 'blog' or 'user'.
+- For scopes 'blog' and 'user', a typed entity is required.
+- This accessor performs no writes, seeding, or flushes.
+- Unknown args are ignored and a warning is logged via the Config’s logger.
+
+Recommended pattern & persisting changes:
+
+```php
+$opts = $config->options(['autoload' => true]);
+$opts->stage_options(['enabled' => true]);
+$opts->commit_replace(); // explicit write
+
+// or seed schema defaults and persist immediately (use fluent API on RegisterOptions)
+$opts->register_schema(['enabled' => ['default' => true]], seed_defaults: true, flush: true);
+
+> Note: For construction-only scenarios, `new RegisterOptions($config->get_options_key(), ['autoload' => ..., 'scope' => ..., 'entity' => ...])` is available. Prefer `Config::options()`. Both use typed entities for scope handling. Customization can be applied via fluent methods (schema/defaults/policy). These accessors perform no writes.
+```
+
+Examples:
+
+- Plugin options (basic writes): `inc/Config/docs/examples/plugin-options-basic.php`
+- Theme options (basic writes): `inc/Config/docs/examples/theme-options-basic.php`
 
 ## Work in Progress (WIP)
 
@@ -372,11 +448,13 @@ Basic testing infrastructure is in place, but comprehensive test coverage is an 
 
 Below is a brief overview of some core components. Documentation and functionality for these are still being refined.
 
+- **`Config` (`inc/Config/`)**: This component provides a structured way to manage configuration options for your plugin or theme. It includes a `Config` class that handles the registration and management of configuration options, as well as a `ConfigManager` class that provides a way to access and modify configuration options.
+- **`Options` (`inc/Options/`)**: This component provides a structured way to manage options for your plugin or theme. It includes a `Options` class that handles the registration and management of options, as well as a `OptionsManager` class that provides a way to access and modify options.
 - **`AccessoryAPI` (`inc/AccessoryAPI/`)**: This API aims to simplify interactions with complex or boilerplate-heavy WordPress functionalities. "Features" (see `FeaturesAPI` below) can opt-in to use an "Accessory" by implementing its corresponding interface. The system then automatically handles much of the setup. For example, an accessory might make it easier to register custom post types or manage admin notices.
 - **`FeaturesAPI` (`inc/FeaturesAPI/`)**: This is a foundational part of the library designed to help organize your plugin's code into modular, manageable "Features." Each distinct piece of functionality (like a shortcode, an admin settings page, or a custom REST endpoint) can be encapsulated in its own `FeatureController` class. The `FeaturesManager` handles registering these features, injecting dependencies, and loading them at the appropriate time. It also integrates with the `AccessoryAPI`.
 - **`HooksAccessory` (`inc/HooksAccessory/`)**: This is an example of an "Accessory" built on the `AccessoryAPI`. It provides a comprehensive hook management system that supports both declarative and dynamic hook registration patterns. The system includes specialized registrars (`ActionHooksRegistrar`, `FilterHooksRegistrar`) and an advanced `HooksManager` for complex hook scenarios including conditional registration, deduplication, and comprehensive logging.
-- **`Util` (`inc/Util/`)**: Core utility components used throughout the library. This includes the `Logger` class for PSR-3 compatible logging, `WPWrappersTrait` for wrapping WordPress functions to enable easier testing and potential future modifications, and other shared utilities that provide common functionality across different library components.
 - **`Users` (`inc/Users/`)**: This component provides utility functions related to WordPress user management. For instance, it includes methods for inserting new users and adding user metadata, with a focus on robust error handling (e.g., throwing exceptions instead of WordPress's typical `WP_Error` returns, which can sometimes be missed).
+- **`Util` (`inc/Util/`)**: Core utility components used throughout the library. This includes the `Logger` class for PSR-3 compatible logging, `WPWrappersTrait` for wrapping WordPress functions to enable easier testing and potential future modifications, and other shared utilities that provide common functionality across different library components.
 
 Further details on these and other components will be added as the library matures.
 

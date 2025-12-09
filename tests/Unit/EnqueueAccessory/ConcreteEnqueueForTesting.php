@@ -6,6 +6,8 @@ namespace Ran\PluginLib\Tests\Unit\EnqueueAccessory;
 use Ran\PluginLib\Util\Logger;
 use Ran\PluginLib\Config\ConfigInterface;
 use Ran\PluginLib\EnqueueAccessory\AssetType;
+use Ran\PluginLib\EnqueueAccessory\StyleDefinition;
+use Ran\PluginLib\EnqueueAccessory\ScriptDefinition;
 use Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseAbstract;
 
 /**

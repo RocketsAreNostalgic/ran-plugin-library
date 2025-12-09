@@ -24,9 +24,6 @@ $config = Config::fromPluginFile(__FILE__);
 $cfg = $config->get_config();
 // $cfg['Name'], $cfg['Version'], $cfg['PATH'], $cfg['URL'], $cfg['Slug'], $cfg['Type'] === 'plugin'
 
-// Options from WordPress database (entire payload for the app's option key)
-$options = $config->get_options();
-
 // Logger (uses RAN.LogConstantName / RAN.LogRequestParam or sane defaults)
 $logger  = $config->get_logger();
 
@@ -132,9 +129,6 @@ Notes:
 ## Options API
 
 ```php
-// Read the full options payload for the app's option key
-$value = $config->get_options([]); // Returns [] if the option row is missing
-
 // Resolve the app's main option key (prefers RAN.AppOption; else Slug)
 $key = $config->get_options_key();
 ```
@@ -143,6 +137,28 @@ App option key resolution:
 
 - Prefer `RAN.AppOption` if present.
 - Otherwise default to `Slug`.
+
+### Options accessor (no‑write)
+
+```php
+// Pre‑wired options manager for this app
+$opts = $config->options([
+  // recognized optional args — all staged in‑memory only
+  'autoload' => true,                    // policy hint for future writes
+  'initial'  => ['enabled' => true],     // values merged on the instance
+  'schema'   => ['enabled' => ['default' => false]],
+]);
+
+// No writes occur until you call explicit persistence methods
+$opts->stage_options(['enabled' => true]);
+$opts->commit_replace();
+```
+
+- Recognized args: `autoload` (bool, default `true`), `initial` (array<string,mixed>, default `[]`), `schema` (array<string,mixed>, default `[]`).
+- This accessor performs no DB writes, seeding, or commits by itself.
+- Unknown args are ignored and a warning is emitted via the configured logger.
+
+See the root `README.md` “Options Management” section for a detailed overview and persistence patterns.
 
 ## Logger & environment
 
@@ -258,7 +274,7 @@ $cfg['RAN']['AppOption'];       // my_plugin
 $cfg['RAN']['LogConstantName']; // MY_DEBUG
 $cfg['Acme']['ApiBase'];        // https://api.example.com
 
-$options = $config->get_options();
+$options_key = $config->get_options_key();
 $logger  = $config->get_logger();
 ```
 

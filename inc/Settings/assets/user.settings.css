@@ -1,0 +1,30 @@
+/**
+ * Kepler UserSettings CSS
+ *
+ * Context-specific styles for UserSettings (table-based profile pages).
+ * Base styles are in Forms/assets/forms.base.css.
+ *
+ * @package KeplerLib
+ */
+
+.kplr-form.user-settings {
+  border-radius: var(--kplr-border-radius);
+  margin-bottom: var(--kplr-spacing-md);
+}
+
+/* Remove left padding from wrapper cells to align with table edge */
+.kplr-form.user-settings .kplr-section__wrapper-row > td,
+.kplr-form.user-settings .kplr-group__wrapper-row > td,
+.kplr-form.user-settings .kplr-fieldset__wrapper-row > td {
+  padding-left: 0;
+  padding-right: 0;
+}
+
+/* Table-based field rows need outline instead of border for visibility */
+.kplr-form.user-settings.test .kplr-field {
+  outline: 1px dashed purple;
+}
+
+.kplr-form.user-settings.test .kplr-section {
+  outline: 1px dashed blue;
+}

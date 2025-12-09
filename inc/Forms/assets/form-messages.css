@@ -1,0 +1,16 @@
+/* Form Messages CSS for testing */
+.form-message-warning {
+  color: #d63638;
+  background: #fcf0f1;
+  border: 1px solid #d63638;
+  padding: 8px 12px;
+  border-radius: 4px;
+}
+
+.form-message-notice {
+  color: #135e96;
+  background: #f0f6fc;
+  border: 1px solid #135e96;
+  padding: 8px 12px;
+  border-radius: 4px;
+}

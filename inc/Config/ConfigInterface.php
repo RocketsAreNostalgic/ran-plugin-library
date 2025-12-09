@@ -10,41 +10,60 @@ declare(strict_types=1);
 namespace Ran\PluginLib\Config;
 
 use Ran\PluginLib\Util\Logger;
+use Ran\PluginLib\Options\RegisterOptions;
 
 /**
-	* Public contract for configuration objects exposed to library consumers.
+ * Public contract for configuration objects exposed to library consumers.
  *
-	* The config object MUST return a normalized array that uses neutral keys
-	* across environments (plugin or theme). See PRD for normalized keys.
+ * The config object MUST return a normalized array that uses neutral keys
+ * across environments (plugin or theme). See PRD for normalized keys.
  */
 interface ConfigInterface {
 	/**
-		* Get the normalized configuration array.
-		*
-		* @return array<string,mixed>
-		*/
+	 * Get the normalized configuration array.
+	 *
+	 * @return array<string,mixed>
+	 */
 	public function get_config(): array;
 
 	/**
-		* Get the full WordPress option payload for this app (stored under the app option key).
-		*
-		* @param mixed $default Default to return when the option is not set.
-		* @return mixed
-		*/
-	public function get_options(mixed $default = false): mixed;
+	 * Get the generic WordPress options key for this app.
+	 * Prefer the namespaced RAN.AppOption header if present; otherwise, fallback to the normalized Slug.
+	 */
+	public function get_options_key(): string;
 
 	/**
-	* Get a logger instance configured for this app.
-	*/
+	 * Get a logger instance configured for this app.
+	 */
 	public function get_logger(): Logger;
 
 	/**
-	* Whether the current environment should be treated as development.
-	*/
+	 * Accessor: get a pre-wired RegisterOptions instance for this app's options key.
+	 *
+	 * @param \Ran\PluginLib\Options\Storage\StorageContext|null $context  Typed storage context; when null defaults to site scope.
+	 * @param bool                                                   $autoload Whether to autoload on create (site/blog storages only).
+	 * @return \Ran\PluginLib\Options\RegisterOptions
+	 */
+	public function options(?\Ran\PluginLib\Options\Storage\StorageContext $context = null, bool $autoload = true): RegisterOptions;
+
+	/**
+	 * Whether the current environment should be treated as development.
+	 */
 	public function is_dev_environment(): bool;
 
 	/**
-	* The environment type backing this configuration (plugin or theme).
-	*/
+	 * The environment type backing this configuration (plugin or theme).
+	 */
 	public function get_type(): ConfigType;
+
+	/**
+	 * Get the PSR-4 root namespace for this plugin/theme.
+	 *
+	 * Resolution order:
+	 * 1. Explicit `@RAN: Namespace` header value
+	 * 2. PascalCase conversion of the plugin/theme Name
+	 *
+	 * @return string The namespace (e.g., "MyPlugin" or "Acme\MyPlugin")
+	 */
+	public function get_namespace(): string;
 }

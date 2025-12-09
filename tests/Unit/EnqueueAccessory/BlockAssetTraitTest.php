@@ -103,7 +103,6 @@ class BlockAssetTraitTest extends EnqueueTraitTestCase {
 	 */
 	public function tearDown(): void {
 		parent::tearDown();
-		Mockery::close();
 	}
 
 	// ------------------------------------------------------------------------
@@ -181,7 +180,7 @@ class BlockAssetTraitTest extends EnqueueTraitTestCase {
 
 	/**
 	 * @test
-	 * @covers \Ran\PluginLib\EnqueueAccessory\BlockAssetTrait::_detect_block_presence
+	 * @covers \Ran\PluginLib\EnqueueAccessory\BlockAssetTrait::__detect_block_presence
 	 */
 	public function test__detect_block_presence_uses_caching(): void {
 		// Arrange - Mock global $post
@@ -199,8 +198,8 @@ class BlockAssetTraitTest extends EnqueueTraitTestCase {
 			));
 
 		// Act - Call twice to test caching
-		$result1 = $this->instance->_detect_block_presence();
-		$result2 = $this->instance->_detect_block_presence();
+		$result1 = $this->instance->__detect_block_presence();
+		$result2 = $this->instance->__detect_block_presence();
 
 		// Assert
 		$this->assertEquals(array('core/paragraph'), $result1);

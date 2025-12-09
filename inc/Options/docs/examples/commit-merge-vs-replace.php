@@ -1,0 +1,39 @@
+<?php
+declare(strict_types=1);
+
+use Ran\PluginLib\Config\Config;
+use Ran\PluginLib\Options\Storage\StorageContext;
+
+// Bootstrap a Config (plugin example)
+$config = Config::fromPluginFile(__FILE__);
+$opts   = $config->options(StorageContext::forSite());
+
+// Assume a nested structure stored under 'complex_map'
+// Current DB value (for illustration):
+// [ 'level1' => [ 'existing' => 'a', 'keep' => 'z' ] ]
+
+// Patch to apply
+$patch = array( 'level1' => array( 'existing' => 'b', 'added' => 'x' ) );
+
+// 1) Replace without merge (deep replace via set_option or staged + commit_replace())
+//    - Overwrites entire value for 'complex_map' with $patch merged into current in-memory value
+$current = $opts->get_option('complex_map', array());
+$merged  = array_replace_recursive(is_array($current) ? $current : array(), $patch);
+$opts->stage_option('complex_map', $merged)
+	->commit_replace();
+
+// 2) Shallow, top-level merge from DB (keeps unrelated DB keys)
+//    - Stage multiple additions, then persist once with commit_merge()
+$opts
+  ->stage_options(array(
+    'feature_flag' => true,
+    'timeout'      => 30,
+  ))
+  ->commit_merge(); // shallow merge at top-level keys only
+
+/*
+Notes:
+- commit_merge() merges top-level keys from DB and in-memory; nested structures are not deep-merged.
+- For precise nested semantics, prefer read–modify–write on individual keys, then rely on
+  stage_option() + commit_replace() for immediate persistence.
+*/

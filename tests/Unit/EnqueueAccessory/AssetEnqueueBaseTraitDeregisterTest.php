@@ -25,7 +25,7 @@ class ConcreteEnqueueForBaseTraitDeregisterTesting extends ConcreteEnqueueForTes
  *
  * @covers \Ran\PluginLib\EnqueueAccessory\ScriptsEnqueueTrait
  */
-class AssetEnqueueTraitBaseTraitDeregisterTest extends EnqueueTraitTestCase {
+class AssetEnqueueBaseTraitDeregisterTest extends EnqueueTraitTestCase {
 	use ExpectLogTrait;
 
 	/**
@@ -68,7 +68,6 @@ class AssetEnqueueTraitBaseTraitDeregisterTest extends EnqueueTraitTestCase {
 	 */
 	public function tearDown(): void {
 		parent::tearDown();
-		Mockery::close();
 	}
 
 	// ------------------------------------------------------------------------

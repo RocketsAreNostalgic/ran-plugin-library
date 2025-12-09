@@ -27,7 +27,7 @@ This document provides an overview of the RAN PluginLib architecture.
 
 **Key Components**:
 
-- `ConfigAbstract.php` - Base configuration class with singleton pattern
+- `ConfigAbstract.php` - Base configuration class which should be treated as a plugin/theme specific singleton.
 - `ConfigInterface.php` - Configuration contract
 - `Config.php` - Concrete implementation
 
@@ -114,7 +114,7 @@ This document provides an overview of the RAN PluginLib architecture.
 
 ## Component Dependencies
 
-```
+```txt
 ┌─────────────────┐
 │   Util/         │ ← Core utilities (Logger, WPWrappersTrait)
 └─────────────────┘

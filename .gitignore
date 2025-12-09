@@ -39,8 +39,6 @@ dev-debug.log
 !.vscode/launch.json
 !.vscode/extensions.json
 !.vscode/settings.json
-.windsurf/
-.cursor/
 
 # Test/analysis
 .phpcs-runner.xml
@@ -54,3 +52,4 @@ coverage/
 .taskmaster/
 tasks.json
 tasks/
+Tests/Unit/mock-plugin-file.php

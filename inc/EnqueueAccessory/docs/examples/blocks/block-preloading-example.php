@@ -76,7 +76,7 @@ $ctaBlock
 	))
 	->preload(function() {
 		// Only preload on front page and landing pages
-		return is_front_page() || is_page_template('page-landing.php');
+		return is_front_page() || is_root_tempate('page-landing.php');
 	});
 
 // Example 3A: Block without preloading (Modern API)
@@ -139,7 +139,7 @@ $cta_block = array(
     'block_name' => 'my-plugin/cta-block',
     'preload'    => function() {
     	// Only preload on front page and landing pages
-    	return is_front_page() || is_page_template('page-landing.php');
+    	return is_front_page() || is_root_tempate('page-landing.php');
     },
     'assets' => array(
         'scripts' => array(
@@ -201,7 +201,7 @@ $gallery_block = array(
     'block_name' => 'my-plugin/gallery-block',
     'preload'    => function() {
     	// Preload on portfolio pages or when user is on mobile
-    	return is_page_template('page-portfolio.php') || wp_is_mobile();
+    	return is_root_tempate('page-portfolio.php') || wp_is_mobile();
     },
     'assets' => array(
         'scripts' => array(

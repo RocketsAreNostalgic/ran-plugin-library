@@ -28,7 +28,8 @@ class EnqueuePublic implements EnqueueInterface {
 	private ScriptsHandler $scripts_handler;
 	private ScriptModulesHandler $script_modules_handler;
 	private StylesHandler $styles_handler;
-	private MediaHandler $media_handler;
+	private ?MediaHandler $media_handler = null;
+	private bool $owns_media_handler     = false;
 	private Logger $logger;
 
 	public function __construct(
@@ -55,25 +56,54 @@ class EnqueuePublic implements EnqueueInterface {
 		$this->scripts_handler        = $scripts_handler        ?? new ScriptsHandler($config);
 		$this->script_modules_handler = $script_modules_handler ?? new ScriptModulesHandler($config);
 		$this->styles_handler         = $styles_handler         ?? new StylesHandler($config);
-		// $this->media_handler   = $media_handler   ?? new MediaHandler($config);
+		if ($media_handler !== null) {
+			$this->media_handler = $media_handler;
+		} else {
+			$this->media_handler      = new MediaHandler($config);
+			$this->owns_media_handler = true;
+			$this->register_media_picker_assets($config);
+		}
 	}
 
+	/**
+	 * Returns the ScriptsHandler instance.
+	 *
+	 * @return ScriptsHandler
+	 */
 	public function scripts(): ScriptsHandler {
 		return $this->scripts_handler;
 	}
 
+	/**
+	 * Returns the ScriptModulesHandler instance.
+	 *
+	 * @return ScriptModulesHandler
+	 */
 	public function script_modules(): ScriptModulesHandler {
 		return $this->script_modules_handler;
 	}
 
+	/**
+	 * Returns the StylesHandler instance.
+	 *
+	 * @return StylesHandler
+	 */
 	public function styles(): StylesHandler {
 		return $this->styles_handler;
 	}
 
-	// public function media(): MediaHandler {
-	// return $this->media_handler;
-	// }
+	/**
+	 * Returns the MediaHandler instance.
+	 *
+	 * @return MediaHandler
+	 */
+	public function media(): MediaHandler {
+		return $this->media_handler;
+	}
 
+	/**
+	 * Hooks the stage() method to wp_enqueue_scripts.
+	 */
 	public function load(): void {
 		$context = __CLASS__ . '::' . __METHOD__;
 
@@ -83,6 +113,9 @@ class EnqueuePublic implements EnqueueInterface {
 		$this->_do_add_action('wp_enqueue_scripts', array($this, 'stage'));
 	}
 
+	/**
+	 * Enqueues all registered scripts, styles, and media assets.
+	 */
 	public function stage(): void {
 		$context = __CLASS__ . '::' . __METHOD__;
 		if ($this->logger->is_active()) {
@@ -91,7 +124,47 @@ class EnqueuePublic implements EnqueueInterface {
 		$this->scripts_handler->stage();
 		$this->script_modules_handler->stage();
 		$this->styles_handler->stage();
-		// MediaHandler uses stage_media() instead of stage()
-		// $this->media_handler->stage_media($this->media_handler->get_info()['assets'] ?? []);
+		if ($this->owns_media_handler && $this->media_handler !== null) {
+			$mediaAssets = $this->media_handler->get_info()['assets'] ?? array();
+			$this->media_handler->stage($mediaAssets);
+		}
+	}
+
+	/**
+	 * Registers media picker assets.
+	 *
+	 * @param ConfigInterface $config The plugin configuration.
+	 */
+	private function register_media_picker_assets(ConfigInterface $config): void {
+		if ($this->media_handler === null) {
+			return;
+		}
+
+		$this->media_handler->add(array(
+		    array(
+		        'args' => array(),
+		        'hook' => 'wp_enqueue_scripts',
+		    ),
+		));
+
+		$cfg     = $config->get_config();
+		$baseUrl = isset($cfg['URL']) ? rtrim((string) $cfg['URL'], '/\\') : '';
+		if ($baseUrl === '') {
+			return;
+		}
+
+		$version   = isset($cfg['Version']) ? (string) $cfg['Version'] : false;
+		$assetUrl  = $baseUrl . '/inc/Forms/assets/media-picker.js';
+		$assetArgs = array(
+		    'handle' => 'ran-forms-media-picker',
+		    'src'    => $assetUrl,
+		    'deps'   => array('media-editor', 'media-views'),
+		    'hook'   => 'wp_enqueue_scripts',
+		);
+		if ($version !== false) {
+			$assetArgs['version'] = $version;
+		}
+
+		$this->scripts_handler->add(array($assetArgs));
 	}
 }

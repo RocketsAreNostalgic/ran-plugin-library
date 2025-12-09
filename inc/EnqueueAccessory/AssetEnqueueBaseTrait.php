@@ -28,6 +28,9 @@ use Ran\PluginLib\Util\Logger;
 use Ran\PluginLib\Util\WPWrappersTrait;
 use Ran\PluginLib\HooksAccessory\HooksManagementTrait;
 use Ran\PluginLib\EnqueueAccessory\AssetType;
+use Ran\PluginLib\EnqueueAccessory\AssetEnqueueDefinition;
+use Ran\PluginLib\EnqueueAccessory\ScriptDefinition;
+use Ran\PluginLib\EnqueueAccessory\StyleDefinition;
 
 /**
  * Trait AssetEnqueueBaseTrait
@@ -52,7 +55,7 @@ trait AssetEnqueueBaseTrait {
 	 * (those without a 'hook' property) that were successfully registered. All
 	 * deferred assets are moved to the $deferred_assets array.
 	 *
-	@var array<int, array<string, mixed>>
+	 * @var array<int, array<string, mixed>>
 	 */
 	protected array $assets = array();
 
@@ -73,7 +76,7 @@ trait AssetEnqueueBaseTrait {
 	 * These are for attaching inline code to assets registered by WordPress core, other plugins, or themes.
 	 * Organized by hook to control when they're processed in the WordPress lifecycle.
 	 *
-	@var array<string, array<string, array<int, array<string, mixed>>>>
+	 * @var array<string, array<string, array<int, array<string, mixed>>>>
 	 */
 	protected array $external_inline_assets = array();
 
@@ -293,9 +296,9 @@ trait AssetEnqueueBaseTrait {
 			$logger->debug( "{$context} - Adding " . count( $assets_to_add ) . " {$asset_type->value} definition(s). Current total: " . count( $this->assets ) );
 		}
 
-		// Append new assets to the existing list.
+		// Append new assets to the existing list, normalizing through value objects when available.
 		foreach ( $assets_to_add as $asset_definition ) {
-			$this->assets[] = $asset_definition;
+			$this->assets[] = $this->normalize_asset_definition_via_value_object( $asset_definition, $asset_type );
 		}
 		if ( $logger->is_active() ) {
 			$new_total = count( $this->assets );
@@ -2135,5 +2138,27 @@ trait AssetEnqueueBaseTrait {
 		}
 
 		return $processed_count;
+	}
+
+	/**
+	 * Normalize asset definitions through the appropriate value object.
+	 *
+	 * @param array<string, mixed>|AssetEnqueueDefinition $asset_definition
+	 * @return array<string, mixed>
+	 */
+	protected function normalize_asset_definition_via_value_object(array|AssetEnqueueDefinition $asset_definition, AssetType $asset_type): array {
+		if ($asset_definition instanceof AssetEnqueueDefinition) {
+			return $asset_definition->to_array();
+		}
+
+		try {
+			return match ($asset_type) {
+				AssetType::Script => ScriptDefinition::from_array($asset_definition)->to_array(),
+				AssetType::Style  => StyleDefinition::from_array($asset_definition)->to_array(),
+				default           => $asset_definition,
+			};
+		} catch (\InvalidArgumentException $exception) {
+			throw $exception;
+		}
 	}
 }

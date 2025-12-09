@@ -60,7 +60,7 @@ class Block {
 	 */
 	public function __construct(string $block_name, ?BlockFactory $manager = null) {
 		$this->block_name = $block_name;
-		$this->manager    = $manager ?? BlockFactory::getShared();
+		$this->manager    = $manager ?? BlockFactory::get_shared();
 
 		// Initialize config from manager (single source of truth)
 		$this->_sync_from_manager();

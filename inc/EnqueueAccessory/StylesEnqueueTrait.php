@@ -52,6 +52,7 @@ trait StylesEnqueueTrait {
 	 * `stage()` is called. This method is chainable.
 	 *
 	 * @param array<string, mixed>|array<int, array<string, mixed>> $styles_to_add A single style definition array or an array of style definition arrays.
+	 *     Arrays are normalized via `StyleDefinition::from_array()` before storage; you may also pass `StyleDefinition` instances directly.
 	 *     Each style definition array can include the following keys:
 	 *     - 'handle'     (string, required): The unique name of the stylesheet.
 	 *     - 'src'        (string, required): The URL of the stylesheet resource.
@@ -130,7 +131,7 @@ trait StylesEnqueueTrait {
 	 * @param int    $priority  The priority of the action that triggered this callback.
 	 * @return void
 	 */
-	public function _enqueue_deferred_styles( string $hook_name, int $priority ): void {
+	public function __enqueue_deferred_styles( string $hook_name, int $priority ): void {
 		$this->_enqueue_deferred_assets( $this->_get_asset_type(), $hook_name, $priority );
 	}
 
@@ -251,7 +252,7 @@ trait StylesEnqueueTrait {
 	 * @internal This is an internal method called by WordPress as an action callback and should not be called directly.
 	 * @return void
 	 */
-	public function _enqueue_external_inline_styles(): void {
+	public function __enqueue_external_inline_styles(): void {
 		$this->_enqueue_external_inline_assets( $this->_get_asset_type() );
 	}
 

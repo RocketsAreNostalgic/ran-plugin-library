@@ -111,11 +111,6 @@ abstract class EnqueueTraitTestCase extends PluginLibTestCase {
 				return htmlspecialchars((string) $text, ENT_QUOTES, 'UTF-8');
 			},
 		))->byDefault();
-		WP_Mock::userFunction('esc_html', array(
-			'return' => static function($text) {
-				return htmlspecialchars((string) $text, ENT_QUOTES, 'UTF-8');
-			},
-		))->byDefault();
 	}
 
 	/**

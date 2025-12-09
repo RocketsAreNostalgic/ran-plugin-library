@@ -100,7 +100,7 @@ class BlockFactory {
 	 *
 	 * @return void
 	 */
-	public static function enableTestingMode(): void {
+	public static function enable_testing_mode(): void {
 		self::$testing_mode    = true;
 		self::$shared_instance = null;  // Clear shared instance
 	}
@@ -110,7 +110,7 @@ class BlockFactory {
 	 *
 	 * @return void
 	 */
-	public static function disableTestingMode(): void {
+	public static function disable_testing_mode(): void {
 		self::$testing_mode    = false;
 		self::$shared_instance = null;  // Clear for clean slate
 	}
@@ -120,7 +120,7 @@ class BlockFactory {
 	 *
 	 * @return bool
 	 */
-	public static function isTestingMode(): bool {
+	public static function is_testing_mode(): bool {
 		return self::$testing_mode;
 	}
 
@@ -130,7 +130,7 @@ class BlockFactory {
 	 * @return self
 	 * @throws \RuntimeException If no shared instance exists.
 	 */
-	public static function getShared(): self {
+	public static function get_shared(): self {
 		if (self::$shared_instance === null) {
 			throw new \RuntimeException('No shared BlockFactory instance available. Create a BlockFactory instance first.');
 		}

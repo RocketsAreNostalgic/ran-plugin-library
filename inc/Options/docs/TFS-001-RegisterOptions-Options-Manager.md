@@ -30,15 +30,14 @@ WordPress plugins frequently scatter settings across multiple `wp_options` rows,
 Adopt a single-row, schema-aware options manager (`RegisterOptions`) that:
 
 - Groups all sub-options under one main option name.
-- Wraps each sub-option as `{ value, autoload_hint }` for metadata introspection.
+- Stores values directly as an associative array: `key => value`.
 - Supports callable defaults, sanitization, and validation per key.
-- Avoids no-op writes and supports batch updates with an explicit `flush()`.
-- Provides an explicit `set_main_autoload()` escape hatch to flip autoload safely.
+- Avoids no-op writes and supports batch updates with explicit commit helpers (`commit_merge()` / `commit_replace()`).
 - Keeps the API surface tight while allowing advanced patterns (deep merges, post-construction schema registration).
 
 ### Core Architecture
 
-- One main `wp_options` row stores an associative array: `key => { value, autoload_hint }`.
+- One main `wp_options` row stores an associative array: `key => value`.
 - In-memory cache refreshed via `refresh_options()`; persisted via `_save_all_options()`.
 - Schema map enables per-key lifecycle: default seeding, sanitization, and validation.
 - Logging via `Logger` with concise debug messages.
@@ -50,6 +49,14 @@ Adopt a single-row, schema-aware options manager (`RegisterOptions`) that:
 - Keep coupling low; DI `ConfigInterface` for option name and `Logger` resolution, with a guarded fallback.
 - Document WordPress-specific semantics (autoload creation-time behavior).
 
+### Schema Key Principles
+
+- **No implicit writes**: Registering a schema does not write to the DB by itself.
+- **Separation of concerns**: `Config::options()` returns a pre-wired manager; persistence is always explicit on `RegisterOptions`.
+- **Single source of truth**: Autoload policy and option key come from `Config` unless you intentionally construct options directly.
+
+See also: `inc/Options/docs/TFS-002-Using-Schemas.md` for detailed schema usage guidance.
+
 ## Implementation Strategy
 
 ### Core Components
@@ -59,7 +66,7 @@ Adopt a single-row, schema-aware options manager (`RegisterOptions`) that:
 
 ### Integration Points
 
-- WordPress Options API: `get_option`, `update_option`, `add_option`, `delete_option`.
+- WordPress Options API: `get_option`, `set_option`, `add_option`, `delete_option`.
 - `ConfigInterface#get_config()['RAN']['AppOption']` to derive the main option name.
 
 ### Data Flow
@@ -67,71 +74,79 @@ Adopt a single-row, schema-aware options manager (`RegisterOptions`) that:
 1. Construct instance (from config or directly).
 2. Load existing grouped options from DB.
 3. Normalize schema; seed defaults for missing keys if provided.
-4. Callers read via `get_option()`/`get_values()` and write via `set_option()` for single writes or `add_option(s)` + `flush()` for batching.
-5. Persist explicitly via `flush()` (or implicitly via `set_option`).
+4. Callers read via `get_option()`/`get_options()` and write via `set_option()` for single writes or `add_option(s)` + `commit_merge()`/`commit_replace()` for batching.
+5. Persist explicitly via `commit_merge()`/`commit_replace()` (or implicitly via `set_option`).
 
 ## API Design
 
 ### Public Interface
 
 ```php
-__construct(
+// Construction is via named/static factories; constructor is protected.
+
+// Protected constructor (internal)
+protected function __construct(
   string $main_wp_option_name,
-  array $initial_options = [],
   bool $main_option_autoload = true,
-  ?Logger $logger = null,
   ?ConfigInterface $config = null,
-  array $schema = []
+  ?Logger $logger = null
 )
 
-static from_config(
-  ConfigInterface $config,
-  array $initial = [],
-  bool $autoload = true,
-  ?Logger $logger = null,
-  array $schema = []
-): self
+// Named factories
+public static function site(string $option_name, bool $autoload_on_create = true, ?Logger $logger = null): static
+public static function network(string $option_name, ?Logger $logger = null): static
+public static function blog(string $option_name, int $blog_id, ?bool $autoload_on_create = null, ?Logger $logger = null): static
+public static function user(string $option_name, int $user_id, bool $global = false, ?Logger $logger = null): static
 
+// Factory from Config (scope and storage args optional)
+public static function from_config(
+  ConfigInterface $config,
+  bool $autoload = true,
+  OptionScope|string|null $scope = null,
+  array $storage_args = []
+): static
+
+// Reads
 public function get_option(string $option_name, mixed $default = false): mixed
-public function get_options(): array // values with metadata
-public function get_values(): array  // values only
+public function get_options(): array
 public function has_option(string $option_name): bool
-public function set_option(string $option_name, mixed $value, ?bool $autoload_hint = null): bool
-public function add_option(string $option_name, mixed $value, ?bool $autoload_hint = null): self
-public function add_options(array $keyToValue): self
-public function update_option(string $option_name, mixed $value, ?bool $autoload_hint = null): bool
+
+// Writes
+public function set_option(string $option_name, mixed $value): bool
+public function stage_option(string $option_name, mixed $value): self
+public function stage_options(array $keyToValue): self
+public function set_option(string $option_name, mixed $value): bool
 public function delete_option(string $option_name): bool
 public function clear(): bool
-public function flush(): bool
+public function commit_merge(): bool
+public function commit_replace(): bool
 public function refresh_options(): void
-public function get_autoload_hint(string $key): ?bool
-public function set_main_autoload(bool $autoload): bool
-public function register_schema(array $schema, bool $seedDefaults = false, bool $flush = false): bool
-public function with_schema(array $schema, bool $seedDefaults = false, bool $flush = false): self
-public static function sanitize_option_key(string $key): string
+
+// Schema (Option A)
+public function register_schema(array $schema): bool
+public function with_schema(array $schema): self
 ```
 
 ### Usage Examples
 
 - Basic usage: `plugin-lib/inc/Options/docs/examples/basic-usage.php`
 - Constructor schema + default seeding: `plugin-lib/inc/Options/docs/examples/schema-defaults.php`
-- Sanitization and validation: `plugin-lib/inc/Options/docs/examples/sanitize-validate.php`
-- Batch and flush: `plugin-lib/inc/Options/docs/examples/batch-and-flush.php`
+- Sanitization and validation: `plugin-lib/inc/Options/docs/examples/schema-sanitize-validate.php`
+- Batch and commit: `plugin-lib/inc/Options/docs/examples/batch-and-flush.php`
 - Deep merge pattern (caller-defined): `plugin-lib/inc/Options/docs/examples/deep-merge-pattern.php`
-- Flip autoload safely: `plugin-lib/inc/Options/docs/examples/autoload-flip.php`
+- Flip autoload safely: `plugin-lib/inc/Options/docs/examples/autoload-flip-example.php`
 
 ### Configuration Options
 
 - Main option name derived from `ConfigInterface` via `RAN.AppOption`, with a fallback to `Slug`.
 - `main_option_autoload` controls grouped row autoload on creation.
-- Per-key `autoload_hint` is metadata only (does not affect WP autoload), useful for audits/migrations.
 
 ## Technical Constraints
 
 ### Performance Requirements
 
 - No-op guard in `set_option()` avoids unnecessary DB writes.
-- Batch updates via `set_options()` + `flush()` minimize write frequency.
+- Batch updates via `add_option(s)` + `commit_merge()`/`commit_replace()` minimize write frequency.
 
 ### Compatibility Requirements
 
@@ -152,11 +167,10 @@ public static function sanitize_option_key(string $key): string
 ### Phase 2: Schema & Ergonomics
 
 - Add schema normalization, default seeding, sanitization/validation.
-- Add batching (`set_options`, `flush`) and no-op guards.
+- Add batching (`set_options`, `commit_merge()`/`commit_replace()`) and no-op guards.
 
 ### Phase 3: Escape Hatches & Docs
 
-- Implement `set_main_autoload()` and `get_autoload_hint()`.
 - Provide examples and developer documentation.
 
 ## Alternatives Considered
@@ -192,14 +206,14 @@ public static function sanitize_option_key(string $key): string
 
 - Getter/setter correctness, including `has_option`, `get_values`.
 - No-op write guard: unchanged values skip persistence.
-- Batch via `add_option(s)` and `flush()`.
+- Batch via `add_option(s)` and `commit_merge()`/`commit_replace()`.
 - Schema default seeding; callable defaults; sanitize/validate flows.
-- `set_main_autoload` preserves data and flips autoload.
+
 - Error messages include truncated value and callable descriptor.
 
 ### Integration Tests
 
-- Interaction with WordPress Options API (creation vs. update semantics for autoload).
+- Interaction with WordPress Options API.
 - Concurrent write scenarios simulated to confirm batching patterns.
 
 ### Performance Tests
@@ -224,7 +238,7 @@ public static function sanitize_option_key(string $key): string
 
 ### From Previous Implementation
 
-- When migrating from scattered keys, map each previous key to a grouped sub-key, optionally recording `autoload_hint` to support future splits.
+- When migrating from scattered keys, map each previous key to a grouped sub-key.
 
 ### Backward Compatibility
 
@@ -251,9 +265,6 @@ public static function sanitize_option_key(string $key): string
 
 ### Common Pitfalls
 
-- Expecting per-key `autoload_hint` to affect WordPress autoload behavior.
-- Forgetting delete+add when flipping autoload for the grouped row.
-
 ### Troubleshooting
 
 - Use `refresh_options()` if external processes might have changed the row during long operations.
@@ -268,4 +279,52 @@ public static function sanitize_option_key(string $key): string
 ### References
 
 - Template: `plugin-lib/docs/Templates/TFS-Template.md`
-- WordPress Options API (`get_option`, `update_option`, `add_option`, `delete_option`)
+- WordPress Options API (`get_option`, `set_option`, `add_option`, `delete_option`)
+
+## Logger binding: DI vs `with_logger()`
+
+`RegisterOptions` supports two ways to bind a logger:
+
+- Constructor/factory DI (earliest binding)
+
+  - Factories accept an optional `Logger` instance.
+    - `RegisterOptions::site($option, $autoload = true, ?Logger $logger = null)`
+    - `RegisterOptions::network($option, ?Logger $logger = null)`
+    - `RegisterOptions::blog($option, $blogId, ?bool $autoloadOnCreate = null, ?Logger $logger = null)`
+    - `RegisterOptions::user($option, $userId, $global = false, ?Logger $logger = null)`
+  - `from_config()` binds logger via `ConfigInterface::get_logger()` when provided.
+  - Benefits: constructor-time reads/logs are captured by your logger.
+
+- Post‑construction fluent: `with_logger(Logger $logger): static`
+  - Rebinds the logger on an already constructed instance.
+  - Useful for runtime overrides (e.g., temporarily attach a `CollectingLogger` during a diagnostic flow) or when the creation site cannot be changed to pass DI.
+  - Note: constructor-time logs are not captured if you rebind later.
+
+Preferred usage:
+
+- Use factory/constructor DI whenever possible to ensure earliest logging and consistent test capture.
+- Use `with_logger()` when you need to swap/override the logger mid‑lifecycle or when testing the fluent itself (e.g., chaining semantics).
+
+### Examples: Logger DI
+
+```php
+use Ran\PluginLib\Options\RegisterOptions;
+use Ran\PluginLib\Util\Logger;
+
+// 1) Factory DI — ensure earliest logging
+$logger = new Logger([ /* config */ ]);
+$opts   = RegisterOptions::site('my_option', true, $logger);
+
+// 2) From Config — provide get_logger() on your Config
+$configWithGetLogger = new class($logger) implements \Ran\PluginLib\Config\ConfigInterface {
+    public function __construct(private Logger $logger) {}
+    public function get_logger(): Logger { return $this->logger; }
+    public function get_options_key(): string { return 'my_option'; }
+    // ...other required ConfigInterface methods...
+};
+
+$optsFromConfig = new RegisterOptions($configWithGetLogger->get_options_key(), [
+    'autoload' => true,
+    'scope'    => 'site',
+]);
+```

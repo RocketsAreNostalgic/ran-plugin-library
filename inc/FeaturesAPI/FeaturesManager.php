@@ -1,6 +1,10 @@
 <?php
 /**
- * Abstract implementation of Plugin class.
+ * Concrete Features Manager class.
+ *
+ * This final class provides the default implementation by extending
+ * `FeaturesManagerAbstract`. See the abstract class for lifecycle
+ * details (registration, dependency injection, accessories, init()).
  *
  * @package  RanPluginLib
  */
@@ -10,7 +14,7 @@ declare(strict_types = 1);
 namespace Ran\PluginLib\FeaturesAPI;
 
 /**
- * Manages Features Objects by registering them with the Plugin class, and loading them.
+ * Concrete manager for registering and loading feature objects.
  */
 final class FeaturesManager extends FeaturesManagerAbstract {
 	// Go extend your own.

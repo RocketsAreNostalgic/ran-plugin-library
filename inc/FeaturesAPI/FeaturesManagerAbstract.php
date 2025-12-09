@@ -1,14 +1,12 @@
 <?php
 /**
- * Abstract implementation of Plugin class.
+ * Abstract Features Manager for registering and loading feature controllers.
  *
- * TODO: it is an open question as to if Accessory interfaces should be called before or after the FeatureController's init method is called.
- * Currently in we:
- *  *  create a new FeatureController object
- *  *  inject any dependencies that have been declared
- *  *  trigger any Accessories found on the FeatureController
- *  *  and then return the new FeatureController.
- *  *  We leave it to the Bootstrap method to call the init method.
+ * Order of operations:
+ *  * create a new FeatureController instance
+ *  * inject declared dependencies
+ *  * enable any Accessory managers found on the instance
+ *  * call init() from _load_feature_container()
  *
  * @package  RanPluginLib
  */
@@ -24,7 +22,7 @@ use Ran\PluginLib\FeaturesAPI\FeatureContainer;
 use Ran\PluginLib\FeaturesAPI\RegistrableFeatureInterface;
 
 /**
- * Manages Features Objects by registering them with the Plugin class, and loading them.
+ * Manages feature objects by registering them and loading them.
  */
 abstract class FeaturesManagerAbstract {
 	/**
@@ -42,17 +40,16 @@ abstract class FeaturesManagerAbstract {
 	private FeatureRegistry $registery;
 
 	/**
-	 * Reference to the current Plugin object.
+	 * Reference to the current configuration object.
 	 *
-	 * @var ConfigInterface Reference to the plugin configuration object.
+	 * @var ConfigInterface Reference to the application configuration object.
 	 */
 	protected ConfigInterface $plugin;
 
 	/**
-	 * Constructor creates a new FeatureContainer object
-	 * and assigns our Plugin object reference.
+	 * Constructor assigns the configuration reference and creates a new FeatureRegistry.
 	 *
-	 * @param  ConfigInterface $plugin The Plugin instance.
+	 * @param  ConfigInterface $plugin The configuration instance.
 	 */
 	public function __construct( ConfigInterface $plugin ) {
 		$this->plugin    = $plugin;
@@ -60,11 +57,11 @@ abstract class FeaturesManagerAbstract {
 	}
 
 	/**
-	 * Does some sanitization, of the $slug_id, and then sets  incoming feature values to a FeatureContainer and registers it to the FeatureRegistry.
+	 * Does some sanitization of the $slug_id, then sets incoming feature values to a FeatureContainer and registers it to the FeatureRegistry.
 	 *
 	 * @param  string               $slug_id Required. A url safe slug for the feature page in the admin.
 	 * @param  string               $qualified_classname Required. The string representation of a fully qualified feature class.
-	 * @param  array<string, mixed> $deps Optional. An array of dependancies that the feature container may need. NOTE the array is cast to an object in the registered FeatureContainer for DX.
+	 * @param  array<string, mixed> $deps Optional. A nested array of dependency values to inject into the FeatureController at instantiation. Each dependency key must match a declared property on the controller (public, or private/protected with a corresponding public set_<property>() setter).
 	 *
 	 * @throws Exception Throws if the slug_id is not unique.
 	 */
@@ -82,7 +79,7 @@ abstract class FeaturesManagerAbstract {
 		$feature = new FeatureContainer(
 			$qualified_classname,
 			$slug_id,
-			$deps, // Cast the incoming array to an object.
+			$deps,
 		);
 
 		// Add the FeatureContainer to the FeatureRegistry.
@@ -90,11 +87,13 @@ abstract class FeaturesManagerAbstract {
 	}
 
 	/**
-	 * Loop through all registered Feature classes.
+	 * Iterates over all registered features and loads each one by delegating to _load_feature_container().
 	 *
-	 * Here we inspect each interface that the Feature class implements.
-	 * * If the interface implements the InterfacesAPIInterface then we check if there is a manager class.
-	 * * If the
+	 * For each feature, we:
+	 * - create the FeatureController instance
+	 * - inject declared dependencies
+	 * - enable Accessory managers for any implemented Accessory interfaces
+	 * - call init() on the instance
 	 */
 	public function load_all(): void {
 		$features = $this->registery->get_registery();
@@ -136,7 +135,7 @@ abstract class FeaturesManagerAbstract {
 	/**
 	 * Create new feature class and sets dependencies, provided it is a child of FeatureControllerAbstract and implements the RegistrableFeatureInterface.
 	 *
-	 * @param  ConfigInterface      $plugin The current Plugin instance.
+	 * @param  ConfigInterface      $plugin The current configuration instance.
 	 * @param  string               $class The fully qualified class name.
 	 * @param  array<string, mixed> $deps An array of dependencies to set on the new instance.
 	 *
@@ -173,9 +172,9 @@ abstract class FeaturesManagerAbstract {
 		return $instance;
 	}
 	/**
-	 * This methods injects soft dependencies onto our FeatureController instances.
+	 * This method injects soft dependencies onto our FeatureController instances.
 	 *
-	 * If the FeatureController
+	 * If the FeatureController:
 	 * * has a public property with the same name as the array key of the dependency it will set it directly (type checking would be wise).
 	 * * has a private or protected property with the same name as the array key of the dependency it will look for a public setter method named set_{property_name}().
 	 * * has a public method named set_{property_name}() it will call that method with the dependency value.
@@ -183,7 +182,7 @@ abstract class FeaturesManagerAbstract {
 	 * @param  RegistrableFeatureInterface $instance The FeatureController instance.
 	 * @param  array<string, mixed>        $deps An array of dependencies to set on the instance.
 	 *
-	 * @throws \Exception Will throw if the property is not present, public, or if the property is protected|private and a sett_*() method has not been defined.
+	 * @throws \Exception Will throw if the property is not present, public, or if the property is protected|private and a set_*() method has not been defined.
 	 */
 	protected function _set_instance_dependencies( RegistrableFeatureInterface $instance, array $deps ): void {
 		$reflected_instance = new \ReflectionClass( $instance );
@@ -219,8 +218,8 @@ abstract class FeaturesManagerAbstract {
 	}
 
 	/**
-	 * This methods iterates over the interfaces implemented by the current FeatureController instance and looks to see if any
-	 * extend AccessoryBaseInterface. If one does, it will then load the adjacent <Accessory>Manager and call its init() method.
+	 * This method iterates over the interfaces implemented by the current FeatureController instance and checks
+	 * for any that extend AccessoryBaseInterface. For each match, it loads the adjacent <Accessory>Manager and calls its init() method.
 	 *
 	 * @param  RegistrableFeatureInterface $instance The FeatureController instance.
 	 *
@@ -257,9 +256,9 @@ abstract class FeaturesManagerAbstract {
 	}
 
 	/**
-	 * Returns the array of registered FeaturesControllers.
+	 * Returns the array of registered FeatureContainers.
 	 *
-	 * @return array<string, FeatureContainer> Array of FeatureContainer objects indexed by slug.
+	 * @return array<string, FeatureContainerInterface> Array of FeatureContainerInterface objects indexed by slug.
 	 */
 	public function get_registry(): array {
 		return $this->registery->get_registery();

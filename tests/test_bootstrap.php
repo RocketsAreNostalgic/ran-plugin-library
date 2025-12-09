@@ -7,12 +7,14 @@
 
 declare(strict_types = 1);
 
-use WP_Mock\Tools\TestCase;
 use \Ran\PluginLib\Util\ExpectLogTrait;
 use \Ran\PluginLib\Util\CollectingLogger;
+use WP_Mock\Tools\TestCase;
 
 // Bootstrap WP_Mock to initialize built-in features.
 WP_Mock::bootstrap();
+
+// WordPress functions will be mocked by individual tests as needed
 
 // Diagnostic: Check if add_action is shimmed
 if (function_exists('add_action')) {
@@ -24,6 +26,19 @@ if (function_exists('add_action')) {
 	}
 } else {
 	fwrite(STDERR, "DIAGNOSTIC: add_action() does NOT exist after WP_Mock::bootstrap().\n");
+}
+
+if (!function_exists('sanitize_html_class')) {
+	function sanitize_html_class($class, $fallback = ''): string {
+		$class     = is_string($class) ? $class : (string) $class;
+		$sanitized = preg_replace('/[^A-Za-z0-9_-]/', '', $class);
+		$sanitized = is_string($sanitized) ? $sanitized : '';
+		if ($sanitized === '' && $fallback !== '') {
+			$fallback_value = preg_replace('/[^A-Za-z0-9_-]/', '', (string) $fallback);
+			return is_string($fallback_value) ? $fallback_value : '';
+		}
+		return $sanitized;
+	}
 }
 
 /**
@@ -72,7 +87,6 @@ abstract class RanTestCase extends TestCase {
 	 * @throws \Exception If tearDown fails.
 	 */
 	public function tearDown(): void {
-		\Mockery::close();
 		parent::tearDown();
 	}
 

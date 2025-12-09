@@ -28,8 +28,8 @@ declare(strict_types=1);
 use Ran\PluginLib\Config\Config;
 use Ran\PluginLib\Options\RegisterOptions;
 
-$config  = Config::get_instance();
-$options = RegisterOptions::from_config($config);
+$config  = Config::fromPluginFile(__FILE__);
+$options = new RegisterOptions($config->get_options_key());
 
 // EXAMPLE 1: Theme customization - update colors without losing typography
 $current_theme = $options->get_option('theme_config', array());
@@ -47,7 +47,7 @@ $merged_theme = array_replace_recursive(
 	is_array($current_theme) ? $current_theme : array(),
 	$color_updates
 );
-$options->set_option('theme_config', $merged_theme);
+$options->stage_option('theme_config', $merged_theme)->commit_merge();
 
 // EXAMPLE 2: User dashboard preferences - add widget without losing others
 $current_dashboard = $options->get_option('dashboard_config', array());
@@ -64,7 +64,7 @@ $merged_dashboard = array_replace_recursive(
 	is_array($current_dashboard) ? $current_dashboard : array(),
 	$widget_update
 );
-$options->set_option('dashboard_config', $merged_dashboard);
+$options->stage_option('dashboard_config', $merged_dashboard)->commit_merge();
 
 // EXAMPLE 3: API endpoints - update one endpoint without affecting others
 $current_api     = $options->get_option('api_endpoints', array());
@@ -85,8 +85,9 @@ $merged_api = array_replace_recursive(
 );
 
 // Batch this with other changes for efficiency
-$options->set_option('api_endpoints', $merged_api);
-$options->flush(false); // Will flush later with other changes
+$options->stage_option('api_endpoints', $merged_api)->commit_merge();
+// If staging more keys before persisting, prefer staged commit
+// $options->stage_option('api_endpoints', $merged_api)->commit_replace();
 
 // NUMERIC ARRAY CAVEAT EXAMPLE:
 // BE CAREFUL: array_replace_recursive() with numeric keys can be surprising

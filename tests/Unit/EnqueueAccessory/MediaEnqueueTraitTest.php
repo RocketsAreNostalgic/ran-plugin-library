@@ -8,10 +8,10 @@ use WP_Mock;
 use Ran\PluginLib\Util\ExpectLogTrait;
 use Ran\PluginLib\Util\CollectingLogger;
 use Ran\PluginLib\Config\ConfigInterface;
+use Ran\PluginLib\EnqueueAccessory\AssetType;
 use Ran\PluginLib\Tests\Unit\PluginLibTestCase;
 use Ran\PluginLib\EnqueueAccessory\MediaEnqueueTrait;
 use Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseAbstract;
-use Ran\PluginLib\EnqueueAccessory\AssetType;
 
 /**
  * Concrete implementation of MediaEnqueueTrait for testing media-related methods.
@@ -74,7 +74,6 @@ class MediaEnqueueTraitTest extends PluginLibTestCase {
 	 */
 	public function tearDown(): void {
 		parent::tearDown();
-		Mockery::close();
 	}
 
 	// ------------------------------------------------------------------------
@@ -113,12 +112,12 @@ class MediaEnqueueTraitTest extends PluginLibTestCase {
 		$this->assertArrayHasKey('assets', $result);
 		$this->assertArrayHasKey('deferred', $result);
 		$this->assertSame($media_configs, $result['assets']);
-		$this->assertEmpty($result['deferred']); // Should be empty until stage_media() is called
+		$this->assertEmpty($result['deferred']); // Should be empty until stage() is called
 	}
 
 	/**
 	 * @test
-	 * @covers \Ran\PluginLib\EnqueueAccessory\MediaEnqueueTrait::stage_media
+	 * @covers \Ran\PluginLib\EnqueueAccessory\MediaEnqueueTrait::stage
 	 */
 	public function test_stage_media_organizes_by_hook(): void {
 		// Arrange
@@ -147,7 +146,7 @@ class MediaEnqueueTraitTest extends PluginLibTestCase {
 		);
 
 		// Act
-		$this->instance->stage_media($media_configs);
+		$this->instance->stage($media_configs);
 		$result = $this->instance->get_info();
 
 		// Assert
@@ -167,7 +166,7 @@ class MediaEnqueueTraitTest extends PluginLibTestCase {
 
 	/**
 	 * @test
-	 * @covers \Ran\PluginLib\EnqueueAccessory\MediaEnqueueTrait::_enqueue_deferred_media_tools
+	 * @covers \Ran\PluginLib\EnqueueAccessory\MediaEnqueueTrait::__enqueue_deferred_media_tools
 	 */
 	public function test_enqueue_deferred_media_tools_calls_wp_enqueue_media(): void {
 		// Arrange
@@ -189,7 +188,7 @@ class MediaEnqueueTraitTest extends PluginLibTestCase {
 		);
 
 		// Stage the media configs
-		$this->instance->stage_media($media_configs);
+		$this->instance->stage($media_configs);
 
 		// Set up expectations - wp_enqueue_media should be called once (for the first config only)
 		WP_Mock::userFunction('wp_enqueue_media')
@@ -197,7 +196,7 @@ class MediaEnqueueTraitTest extends PluginLibTestCase {
 			->once();
 
 		// Act
-		$this->instance->_enqueue_deferred_media_tools('admin_enqueue_scripts');
+		$this->instance->__enqueue_deferred_media_tools('admin_enqueue_scripts');
 
 		// Assert: WP_Mock will verify the expectations
 		$this->assertTrue(true); // Prevents risky test warning
@@ -205,7 +204,7 @@ class MediaEnqueueTraitTest extends PluginLibTestCase {
 
 	/**
 	 * @test
-	 * @covers \Ran\PluginLib\EnqueueAccessory\MediaEnqueueTrait::_enqueue_deferred_media_tools
+	 * @covers \Ran\PluginLib\EnqueueAccessory\MediaEnqueueTrait::__enqueue_deferred_media_tools
 	 */
 	public function test_enqueue_deferred_media_tools_handles_missing_hook(): void {
 		// Arrange - no media configs staged
@@ -214,7 +213,7 @@ class MediaEnqueueTraitTest extends PluginLibTestCase {
 		WP_Mock::userFunction('wp_enqueue_media')->never();
 
 		// Act
-		$this->instance->_enqueue_deferred_media_tools('nonexistent_hook');
+		$this->instance->__enqueue_deferred_media_tools('nonexistent_hook');
 
 		// Assert: WP_Mock will verify the expectations
 		$this->assertTrue(true); // Prevents risky test warning

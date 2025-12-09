@@ -3,15 +3,15 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\Tests\Unit\EnqueueAccessory;
 
-use Mockery;
 use WP_Mock;
 use Ran\PluginLib\Util\ExpectLogTrait;
 use Ran\PluginLib\Util\CollectingLogger;
-use Ran\PluginLib\Config\ConfigInterface;
-use Ran\PluginLib\EnqueueAccessory\AssetType;
 use Ran\PluginLib\Tests\Unit\PluginLibTestCase;
 use Ran\PluginLib\EnqueueAccessory\StylesEnqueueTrait;
+use Ran\PluginLib\EnqueueAccessory\AssetType;
 use Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseAbstract;
+use Ran\PluginLib\Config\ConfigInterface;
+use Mockery;
 
 /**
  * Concrete implementation of StylesEnqueueTrait for testing asset-related methods.
@@ -63,7 +63,6 @@ class StylesEnqueueTraitTest extends EnqueueTraitTestCase {
 	 */
 	public function tearDown(): void {
 		parent::tearDown();
-		Mockery::close();
 	}
 
 
@@ -156,21 +155,9 @@ class StylesEnqueueTraitTest extends EnqueueTraitTestCase {
 		// Act
 		$this->instance->stage();
 
-		// Assert: No warnings about missing src should be logged.
-		foreach ($this->logger_mock->get_logs() as $log) {
-			if (strtolower((string) $log['level']) === 'warning') {
-				$this->assertStringNotContainsString('Invalid style definition. Missing handle or src', $log['message']);
-			}
-		}
-		// Ensure the logger was actually called for other things, proving it was active.
-		$has_debug_records = false;
-		foreach ($this->logger_mock->get_logs() as $log) {
-			if ($log['level'] === 'debug') {
-				$has_debug_records = true;
-				break;
-			}
-		}
-		$this->assertTrue($has_debug_records, 'Logger should have debug records.');
+		// Assert: No warnings about missing src should be logged and debug activity occurred.
+		$this->expectLog('warning', 'Invalid style definition. Missing handle or src', 0);
+		$this->expectLog('debug', array('stage_', 'Processing', '"my-sourceless-style"'));
 	}
 
 	/**
@@ -211,7 +198,7 @@ class StylesEnqueueTraitTest extends EnqueueTraitTestCase {
 
 
 	/**
-	 * @covers \Ran\PluginLib\EnqueueAccessory\StylesEnqueueTrait::_enqueue_deferred_styles
+	 * @covers \Ran\PluginLib\EnqueueAccessory\StylesEnqueueTrait::__enqueue_deferred_styles
 	 */
 	public function test_enqueue_deferred_styles_calls_base_method(): void {
 		$hook_name = 'wp_footer';
@@ -228,7 +215,7 @@ class StylesEnqueueTraitTest extends EnqueueTraitTestCase {
 			->with(AssetType::Style, $hook_name, $priority);
 
 		// Call the method under test
-		$instance->_enqueue_deferred_styles($hook_name, $priority);
+		$instance->__enqueue_deferred_styles($hook_name, $priority);
 
 		// Add explicit assertion to avoid PHPUnit marking the test as risky
 		$this->assertTrue(true, 'Method should call _enqueue_deferred_assets with AssetType::Style');
@@ -271,7 +258,7 @@ class StylesEnqueueTraitTest extends EnqueueTraitTestCase {
 	// ------------------------------------------------------------------------
 
 	/**
-	 * @covers \Ran\PluginLib\EnqueueAccessory\StylesEnqueueTrait::_enqueue_external_inline_styles
+	 * @covers \Ran\PluginLib\EnqueueAccessory\StylesEnqueueTrait::__enqueue_external_inline_styles
 	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_enqueue_external_inline_assets
 	 */
 	public function test_enqueue_external_inline_styles_executes_base_method(): void {
@@ -304,7 +291,7 @@ class StylesEnqueueTraitTest extends EnqueueTraitTestCase {
 			->andReturn(null);
 
 		// Call the method under test
-		$this->instance->_enqueue_external_inline_styles();
+		$this->instance->__enqueue_external_inline_styles();
 
 		// Note: In the new implementation, the _process_external_inline_assets method removes individual
 		// entries from the $external_inline_assets array, not the entire hook entry.
@@ -1258,7 +1245,7 @@ class StylesEnqueueTraitTest extends EnqueueTraitTestCase {
 	 * Tests the complete lifecycle of deferred inline styles.
 	 *
 	 * @covers \Ran\PluginLib\EnqueueAccessory\StylesEnqueueTrait::add
-	 * @covers \Ran\PluginLib\EnqueueAccessory\StylesEnqueueTrait::_enqueue_deferred_styles
+	 * @covers \Ran\PluginLib\EnqueueAccessory\StylesEnqueueTrait::__enqueue_deferred_styles
 	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_process_inline_assets
 	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_process_deferred_inline_assets
 	 */
@@ -1319,7 +1306,7 @@ class StylesEnqueueTraitTest extends EnqueueTraitTestCase {
 
 		// Process the deferred asset by calling _enqueue_deferred_styles
 		$reflection = new \ReflectionClass($instance);
-		$method     = $reflection->getMethod('_enqueue_deferred_styles');
+		$method     = $reflection->getMethod('__enqueue_deferred_styles');
 		$method->setAccessible(true);
 		$method->invoke($instance, $hook, $priority);
 
@@ -1341,7 +1328,7 @@ class StylesEnqueueTraitTest extends EnqueueTraitTestCase {
 	 * Tests the complete lifecycle of external inline styles.
 	 *
 	 * @covers \Ran\PluginLib\EnqueueAccessory\StylesEnqueueTrait::add_inline
-	 * @covers \Ran\PluginLib\EnqueueAccessory\StylesEnqueueTrait::_enqueue_external_inline_styles
+	 * @covers \Ran\PluginLib\EnqueueAccessory\StylesEnqueueTrait::__enqueue_external_inline_styles
 	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_process_inline_assets
 	 * @covers \Ran\PluginLib\EnqueueAccessory\AssetEnqueueBaseTrait::_process_external_inline_assets
 	 */
@@ -1388,7 +1375,7 @@ class StylesEnqueueTraitTest extends EnqueueTraitTestCase {
 			->andReturn(true);
 
 		// Process the external inline styles
-		$method = $reflection->getMethod('_enqueue_external_inline_styles');
+		$method = $reflection->getMethod('__enqueue_external_inline_styles');
 		$method->setAccessible(true);
 		$method->invoke($instance, $hook);
 

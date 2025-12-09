@@ -14,7 +14,6 @@ use Ran\PluginLib\Tests\Unit\Config\ConfigTestCase;
  * @covers \Ran\PluginLib\Config\Config::fromPluginFile
  * @covers \Ran\PluginLib\Config\ConfigAbstract::get_config
  * @covers \Ran\PluginLib\Config\ConfigAbstract::get_logger
- * @covers \Ran\PluginLib\Config\ConfigAbstract::get_options
  * @covers \Ran\PluginLib\Config\ConfigAbstract::is_dev_environment
  * @covers \Ran\PluginLib\Config\ConfigAbstract::validate_config
  */
@@ -93,17 +92,8 @@ final class ConfigPluginSmokeTest extends ConfigTestCase {
 		$logger = $config->get_logger();
 		$this->assertInstanceOf(Logger::class, $logger);
 
-		// get_options should delegate to get_option with slug as key by default
+		// options key should default to RAN.AppOption or Slug
 		$expected_key = $cfg['RAN']['AppOption'] ?? $cfg['Slug'];
-		$default      = array('default' => true);
-		WP_Mock::userFunction('get_option')
-			->with($expected_key, $default)
-			->andReturn(array('stored' => 123))
-			->once();
-
-		$result = $config->get_options($default);
-		$this->assertSame(array('stored' => 123), $result);
+		$this->assertSame($expected_key, $config->get_options_key());
 	}
 }
-
-

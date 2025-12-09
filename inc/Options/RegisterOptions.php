@@ -2,54 +2,109 @@
 /**
  * WordPress Options Registration and Management.
  *
- * This class manages plugin options by storing them as a single array
- * under a specified main option name in the WordPress options table.
- * This approach enhances encapsulation and keeps the wp_options table cleaner.
+ * This class manages Plugin/Theme options by storing them as a single array.
+ * It uses a storage adapter to handle scope-aware persistence.
  *
- * @package  RanPluginLib
+ * @package  RanPluginLib\Options
+ * @author   Ran Plugin Lib <bnjmnrsh@gmail.com>
+ * @license  GPL-2.0+ <http://www.gnu.org/licenses/gpl-2.0.txt>
+ * @link     https://github.com/RocketsAreNostalgic
+ * @since    0.1.0
  */
 
 declare(strict_types=1);
 
 namespace Ran\PluginLib\Options;
 
-use Ran\PluginLib\Config\ConfigAbstract;
-use Ran\PluginLib\Config\ConfigInterface;
+use Closure;
 use Ran\PluginLib\Util\Logger;
 use Ran\PluginLib\Util\WPWrappersTrait;
+use Ran\PluginLib\Options\Storage\OptionStorageInterface;
+use Ran\PluginLib\Options\Storage\SiteOptionStorage;
+use Ran\PluginLib\Options\Storage\NetworkOptionStorage;
+use Ran\PluginLib\Options\Storage\BlogOptionStorage;
+use Ran\PluginLib\Options\Storage\UserMetaStorage;
+use Ran\PluginLib\Options\Storage\UserOptionStorage;
+use Ran\PluginLib\Options\Storage\StorageContext;
+use Ran\PluginLib\Options\OptionScope;
+use Ran\PluginLib\Forms\Validation\ValidatorPipelineService;
+use Ran\PluginLib\Options\Policy\WritePolicyInterface;
+use Ran\PluginLib\Forms\Renderer\FormMessageHandler;
+use Ran\PluginLib\Options\WriteContext;
+use Ran\PluginLib\Options\Policy\RestrictedDefaultWritePolicy;
+use Ran\PluginLib\Settings\Settings;
+use Ran\PluginLib\Forms\FormsInterface;
+use Ran\PluginLib\Config\ConfigInterface;
+use Ran\PluginLib\Forms\Validation\Helpers;
 
 /**
- * Manages plugin options by storing them as a single array in the wp_options table.
+ * Manages grouped settings via a scope-aware storage adapter (site, network, blog, or user).
+ * Settings are grouped under one main option key, yielding a single stored row per scope context.
  *
- * This class provides methods for registering, retrieving, and updating plugin settings,
- * all grouped under one main WordPress option. This improves organization and reduces
- * the number of individual rows added to the wp_options table.
+ * This class provides methods for registering, retrieving, and updating settings grouped under
+ * one main option key. Grouping improves organization and reduces the number of discrete rows,
+ * while the actual storage location is selected by the current scope and adapter.
+ *
+ * Collision safety for the same key across scopes:
+ * - Using the same main option key in different helpers (e.g., `site($key)`, `network($key)`,
+ *   `blog($key)`, `user($key, ...)`) does NOT collide. Each scope maps to a distinct storage backend:
+ *   - Site scope → `wp_options` (per site) via `get_option()/update_option()`
+ *   - Network scope → `wp_sitemeta` (network-wide) via `get_site_option()/update_site_option()`
+ *   - Blog scope → `wp_{blog_id}_options` (isolated per blog) via `get_blog_option()/update_option()`
+ *   - User scope → user-specific storage (typically user meta via `get_user_meta()/update_user_meta()`,
+ *     or user option variants depending on adapter configuration)
+ *   Therefore, the same option name is stored in separate locations per scope and cannot overwrite
+ *   or collide with another scope's value.
  *
  * Important semantics and recommendations:
- * - Autoload flag: WordPress applies the autoload value primarily on option creation.
- *   Changing $main_option_autoload later will not flip the stored autoload flag for an
- *   existing row. Use set_main_autoload(true|false) to force a flip (delete + add).
- * - Schema merges are shallow: register_schema() performs a per-key shallow merge of
- *   rules, and default seeding replaces the entire value when seeding a missing key.
- *   For nested structures that require deep/conditional merging, perform an explicit
- *   read–modify–write using this sequence:
+ * - Schema merges are shallow: register_schema() performs a per-key shallow merge of rules, and default
+ *   seeding replaces the entire value when seeding a missing key. For nested structures that require
+ *   deep/conditional merging, perform an explicit read–modify–write using this sequence:
  *     1) Read current value: `$current = $options->get_option('my_key', array());`
  *     2) Merge with your patch (caller-defined):
  *        - Simple deep merge: `$merged = array_replace_recursive($current, $patch);`
  *        - Or custom logic for precise add/remove/transform semantics
- *     3) Write back: `$options->set_option('my_key', $merged);`
- *     4) Persist once (batch-friendly): `$options->flush(false);`
+ *     3) Write back: `$options->stage_option('my_key', $merged)->commit_merge();`
+ *     4) Persist once (batch-friendly): `$options->commit_replace();`
  *   Prefer flat keys where possible, and for disjoint top-level keys use
- *   `$options->add_options([...])` then `$options->flush(true)` to reduce churn.
+ *   `$options->stage_options([...])` then `$options->commit_merge()` to reduce churn.
+ *
+ * Storage and scope:
+ * - Storage is adapter-backed and scope-aware:
+ *   - Site scope: site option storage
+ *   - Network scope: network option storage
+ *   - Blog scope: per-blog option storage
+ *   - User scope: user meta or user option storage
+ * - See `_make_storage()` and `StorageContext` for how adapters are selected.
+ * - Public passthrough on this class:
+ *   - `supports_autoload(): bool` — whether current storage supports autoload
+ *
+ * In-memory vs persistence:
+ * - Constructor/registration may seed in-memory state (schema defaults, initial merges)
+ * - Persistence is explicit (set/update/add + `commit_merge()`/`commit_replace()`)
+ * - `commit_merge()` performs a top-level shallow merge with DB to reduce lost updates for disjoint keys.
+ *   Nested structures are replaced wholesale; for deep merges, use read–modify–write pattern, then `commit_replace()`.
  */
 class RegisterOptions {
 	use WPWrappersTrait;
 
+	private const BUCKET_COMPONENT = ValidatorPipelineService::BUCKET_COMPONENT;
+	private const BUCKET_SCHEMA    = ValidatorPipelineService::BUCKET_SCHEMA;
+	/**
+	 * @var string[]
+	 */
+	private const BUCKET_ORDER = ValidatorPipelineService::BUCKET_ORDER;
+
+	/**
+	 * Shared validator pipeline helper.
+	 */
+	private ?ValidatorPipelineService $validator_pipeline = null;
+
 	/**
 	 * The in-memory store for all plugin options.
-	 * Structure: ['option_key' => ['value' => mixed, 'autoload_hint' => bool|null]]
+	 * Structure: ['option_key' => mixed]
 	 *
-	 * @var array<string, array{"value": mixed, "autoload_hint": bool|null}>
+	 * @var array<string, mixed>
 	 */
 	private array $options = array();
 
@@ -75,149 +130,470 @@ class RegisterOptions {
 	private ?Logger $logger = null;
 
 	/**
-	 * Optional injected config instance to reduce coupling to concrete Config.
+	 * Internal storage adapter (scope-aware).
+	 *
+	 * @var OptionStorageInterface|null
 	 */
-	private ?ConfigInterface $config = null;
+	private ?OptionStorageInterface $storage = null;
+
+	/**
+	 * Typed storage context.
+	 * When null, defaults to Site on first storage access.
+	 */
+	private ?StorageContext $storage_context = null;
+
+	/**
+	 * Form message handler for validation warnings and notices.
+	 *
+	 * @var FormMessageHandler
+	 */
+	private FormMessageHandler $message_handler;
 
 	/**
 	 * Option schema map for sanitization, validation, and defaults.
 	 * Keys are normalized option keys.
 	 * Structure per key:
 	 *   - 'default'  => mixed|null
-	 *   - 'sanitize' => callable|null
-	 *   - 'validate' => callable|null (returns true or throws/returns false)
+	 *   - 'sanitize' => array{component: array<callable>, schema: array<callable>}
+	 *   - 'validate' => array{component: array<callable>, schema: array<callable>}
 	 *
-	 * @var array<string, array{default:mixed|null, sanitize?:callable|null, validate?:callable|null}>
+	 * @var array<string, array{default?:mixed|null, sanitize:array{component:array<callable>,schema:array<callable>}, validate:array{component:array<callable>,schema:array<callable>}}>
 	 */
 	private array $schema = array();
 
 	/**
-     * Creates a new RegisterOptions instance.
+	 * Internal: origin op for persistence gating when _save_all_options() is called
+	 * from another operation (e.g., 'set_option'). Null means default 'save_all'.
+	 *
+	 * @var string|null
+	 */
+	private ?string $__persist_origin = null;
+
+	/**
+	 * Immutable write policy used to gate persistence before filters.
+	 * Initialized lazily to a RestrictedDefaultWritePolicy.
+	 *
+	 * @var WritePolicyInterface|null
+	 */
+	private ?WritePolicyInterface $write_policy = null;
+
+	/**
+	 * Creates a new RegisterOptions instance.
 	 *
 	 * Initializes options by loading them from the database under `$main_wp_option_name`.
-	 * If initial `$default_options` are provided, they are merged with existing options
-	 * and the entire set is saved back to the database.
+	 * No implicit writes occur in the constructor.
 	 *
-	 * @param string $main_wp_option_name The primary key in wp_options where all settings for this instance are stored.
-	 * @param array<string, array{"value": mixed, "autoload_hint": bool|null}|mixed> $initial_options Optional. An array of default options to set if not already present or to merge.
-	 *                                   Each key is the option name. Value can be the direct value or an array ['value' => mixed, 'autoload_hint' => bool].
-     * @param bool $main_option_autoload  Whether the entire group of options should be autoloaded by WordPress. Defaults to true.
-     * @param Logger|null $logger         Optional logger to use. If null, a logger is resolved from Config.
-     * @param ConfigInterface|null $config Optional config used to resolve logger and metadata (favored over concrete Config).
-     * @param array $schema               Optional schema map: ['key' => ['default' => mixed|callable(ConfigInterface|null): mixed, 'sanitize' => callable|null, 'validate' => callable|null]].
-     *                                    - default: value or callable(ConfigInterface|null): mixed used when the option is missing
-     *                                    - sanitize: callable(value): mixed
-     *                                    - validate: callable(value): true|throws/false
+	 * @param    string               $main_wp_option_name   The primary key for this instance's grouped settings.
+	 * @param    StorageContext|null  $storage_context       Storage context for scope-aware persistence. Defaults to site scope if null.
+	 * @param    bool                 $main_option_autoload  Whether the entire group of options should be autoloaded by WordPress (if supported by storage). Defaults to true.
+	 * @param    Logger               $logger                Logger instance for diagnostics.
 	 */
 	public function __construct(
-        string $main_wp_option_name,
-        array $initial_options = array(),
-        bool $main_option_autoload = true,
-        ?Logger $logger = null,
-        ?ConfigInterface $config = null,
-        array $schema = array()
-    ) {
+		string $main_wp_option_name,
+		?StorageContext $storage_context,
+		bool $main_option_autoload,
+		Logger $logger
+	) {
+		$this->logger = $logger;
+
+		// Initialize message handler
+		$this->message_handler = new FormMessageHandler($this->logger);
+
+		// Validate required parameters
+		if (empty($main_wp_option_name)) {
+			$this->_get_logger()->error('RegisterOptions: main_wp_option_name cannot be empty');
+			throw new \InvalidArgumentException('RegisterOptions: main_wp_option_name cannot be empty');
+		}
+
 		$this->main_wp_option_name  = $main_wp_option_name;
 		$this->main_option_autoload = $main_option_autoload;
-		$this->logger               = $logger ?? $this->logger;
-		$this->config               = $config ?? $this->config;
 
-		// Load all existing options from the single database entry.
-		$this->options = $this->_do_get_option($this->main_wp_option_name, array());
-		// @codeCoverageIgnoreStart
-		if ($this->_get_logger()->is_active()) {
-			$this->_get_logger()->debug("RegisterOptions: Initialized with main option '{$this->main_wp_option_name}'. Loaded " . count($this->options) . ' existing sub-options.');
+		// Initialize typed context (defaults to site scope)
+		$this->storage_context = $storage_context ?? StorageContext::forSite();
+
+        // Ensure storage is built for this scope
+		$this->storage = null; // Force rebuild
+
+		// Load options from correct storage
+		$this->options = $this->_read_main_option();
+
+		$this->_get_logger()->debug("RegisterOptions: Initialized with main option '{$this->main_wp_option_name}'. Loaded " . count($this->options) . ' existing sub-options.');
+	}
+
+	/**
+	 * Named factory: Site scope instance.
+	 *
+	 * @param string $option_name        Main option key
+	 * @param bool   $autoload_on_create Whether to autoload on first create (site scope supports autoload)
+	 * @param Logger $logger             Logger instance
+	 * @return static
+	 */
+	public static function site(string $option_name, bool $autoload_on_create = true, ?Logger $logger = null): static {
+		if ($logger === null) {
+			throw new \InvalidArgumentException('RegisterOptions::site() requires a Logger instance.');
 		}
-		// @codeCoverageIgnoreEnd
+		return new static($option_name, StorageContext::forSite(), $autoload_on_create, $logger);
+	}
 
-		// Normalize and set schema
-		if (!empty($schema)) {
-			$this->schema = $this->_normalize_schema_keys($schema);
+	/**
+	 * Named factory: Network scope instance.
+	 *
+	 * Network options do not support autoload semantics; flag is ignored at storage.
+	 *
+	 * @param  string $option_name Main option key
+	 * @param  Logger $logger      Logger instance
+	 * @return static
+	 */
+	public static function network(string $option_name, ?Logger $logger = null): static {
+		if ($logger === null) {
+			throw new \InvalidArgumentException('RegisterOptions::network() requires a Logger instance.');
+		}
+		return new static($option_name, StorageContext::forNetwork(), false, $logger);
+	}
+
+	/**
+	 * Named factory: Blog scope instance.
+	 *
+	 * Autoload on create is only meaningful when targeting the current blog. The underlying
+	 * Blog storage adapter currently ignores the autoload flag; we still accept it for
+	 * API parity and potential future support.
+	 *
+	 * @param string    $option_name         Main option key
+	 * @param int       $blog_id             Target blog/site ID
+	 * @param bool|null $autoload_on_create  Autoload preference for current blog; null to leave default
+	 * @param Logger    $logger              Logger instance
+	 * @return static
+	 */
+	public static function blog(string $option_name, int $blog_id, ?bool $autoload_on_create = null, ?Logger $logger = null): static {
+		if ($logger === null) {
+			throw new \InvalidArgumentException('RegisterOptions::blog() requires a Logger instance.');
+		}
+		// Decide autoload preference (constructor requires bool). For non-current blog, force false.
+		$current_blog = (int) (new class {
+			use WPWrappersTrait;
+			public function id() {
+				return $this->_do_get_current_blog_id();
+			}
+		})->id();
+		$effective_autoload = ($autoload_on_create === true || $autoload_on_create === false)
+			? (bool) $autoload_on_create
+			: false;
+		if ($blog_id !== $current_blog) {
+			$effective_autoload = false;
+		}
+		return new static($option_name, StorageContext::forBlog($blog_id), $effective_autoload, $logger);
+	}
+
+	/**
+	 * Named factory: User scope instance.
+	 *
+	 * User storage does not support autoload. By default, we use user meta storage.
+	 * To opt into user option (per-site or global), callers can later specify args via Config
+	 * or future fluent methods; for now, we default to meta with optional global option retained in args.
+	 *
+	 * @param string $option_name Main option key
+	 * @param int    $user_id     Target user ID
+	 * @param bool   $global      When using user option storage, whether to use user_settings (network-wide)
+	 * @param Logger $logger      Logger instance
+	 * @return static
+	 */
+	public static function user(string $option_name, int $user_id, bool $global = false, ?Logger $logger = null): static {
+		if ($logger === null) {
+			throw new \InvalidArgumentException('RegisterOptions::user() requires a Logger instance.');
+		}
+		return new static($option_name, StorageContext::forUser($user_id, 'meta', $global), false, $logger);
+	}
+
+	/**
+	 * Clone this RegisterOptions configuration onto a different storage context.
+	 *
+	 * Preserves main option name, logger, schema, and write policy. The new
+	 * instance reloads options for the requested context so callers always work
+	 * with fresh data for that scope.
+	 *
+	 * @param StorageContext $context The new storage context.
+	 * @return static A new instance with the specified context.
+	 */
+	public function with_context(StorageContext $context): static {
+		$autoload = $this->main_option_autoload;
+		if ($context->scope === OptionScope::User) {
+			$autoload = false; // user storage does not support autoload semantics
 		}
 
-		// Track whether defaults or initial options cause persistence
-		$options_changed = false;
+		$new = new static(
+			$this->main_wp_option_name,
+			$context,
+			$autoload,
+			$this->logger
+		);
 
-		// Seed defaults from schema for any missing values
+		// Share the validator pipeline with the cloned instance
+		if ($this->validator_pipeline instanceof ValidatorPipelineService) {
+			$new->__set_validator_pipeline($this->validator_pipeline);
+		}
+
+		if ($this->write_policy instanceof WritePolicyInterface) {
+			$new->with_policy($this->write_policy);
+		}
+
 		if (!empty($this->schema)) {
-			foreach ($this->schema as $normalized_key => $rules) {
-				$has_value = isset($this->options[$normalized_key]) && array_key_exists('value', $this->options[$normalized_key]);
-				if (!$has_value && array_key_exists('default', $rules)) {
-					$resolved_default               = $this->_resolve_default_value($rules['default'] ?? null);
-					$resolved_default               = $this->_sanitize_and_validate_option($normalized_key, $resolved_default);
-					$this->options[$normalized_key] = array(
-					    'value'         => $resolved_default,
-					    'autoload_hint' => $this->options[$normalized_key]['autoload_hint'] ?? null,
-					);
-					$options_changed = true;
-				}
-			}
+			$new->__register_internal_schema($this->schema);
 		}
 
-		// If initial/default options are provided, merge and save them.
-		if (!empty($initial_options)) {
-			$options_changed = $options_changed || false;
-			foreach ($initial_options as $option_name => $definition) {
-				$option_name_clean    = self::sanitize_key((string) $option_name);
-				$current_value_exists = isset($this->options[$option_name_clean]);
+		return $new;
+	}
 
-				$value_to_set = is_array($definition) && isset($definition['value']) ? $definition['value'] : $definition;
-				// Apply schema sanitization/validation if defined
-				$value_to_set  = $this->_sanitize_and_validate_option($option_name_clean, $value_to_set);
-				$autoload_hint = is_array($definition) && isset($definition['autoload_hint']) ? $definition['autoload_hint'] : ($this->options[$option_name_clean]['autoload_hint'] ?? null);
+	/**
+	 * Instantiate a scope-aware Settings facade for this RegisterOptions instance.
+	 *
+	 * @param ConfigInterface|null $config Optional Config for namespace resolution and component registration.
+	 * @return FormsInterface
+	 */
+	public function settings(?ConfigInterface $config = null): FormsInterface {
+		return new Settings($this, $config);
+	}
 
-				// Set if new, or if existing value is different (for complex types, this is a simple check).
-				if (!$current_value_exists || ($current_value_exists && $this->options[$option_name_clean]['value'] !== $value_to_set)) {
-					$this->options[$option_name_clean] = array('value' => $value_to_set, 'autoload_hint' => $autoload_hint);
-					$options_changed                   = true;
-					// @codeCoverageIgnoreStart
-					if ($this->_get_logger()->is_active()) {
-						$this->_get_logger()->debug("RegisterOptions: Initial option '{$option_name_clean}' set/updated.");
+	/**
+	 * Fluent setter: Configure write policy.
+	 *
+	 * @param WritePolicyInterface $policy Write policy instance
+	 * @return static
+	 */
+	public function with_policy(WritePolicyInterface $policy): static {
+		$this->write_policy = $policy;
+		return $this;
+	}
+
+	/**
+	 * Retrieve captured messages from the most recent staging pass.
+	 * Returns structured data with both warnings and notices.
+	 *
+	 * @return array<string, array{warnings: array<int, string>, notices: array<int, string>}>
+	 */
+	public function take_messages(): array {
+		$this->_ensure_message_handler();
+		$messages = $this->message_handler->get_all_messages();
+		$this->message_handler->clear();
+		return $messages;
+	}
+
+	/**
+	 * Retrieve captured warning messages from the most recent staging pass.
+	 *
+	 * @deprecated Use take_messages() instead for structured data with both warnings and notices
+	 * @return array<string, array<int, string>>
+	 */
+	public function take_warnings(): array {
+		$this->_ensure_message_handler();
+		$warnings     = array();
+		$all_messages = $this->message_handler->get_all_messages();
+		foreach ($all_messages as $field => $messages) {
+			if (!empty($messages['warnings'])) {
+				$warnings[$field] = $messages['warnings'];
+			}
+		}
+		$this->message_handler->clear();
+		return $warnings;
+	}
+
+	/**
+	 * Retrieve captured notice messages from the most recent staging pass.
+	 *
+	 * @deprecated Use take_messages() instead for structured data with both warnings and notices
+	 * @return array<string, array<int, string>>
+	 */
+	public function take_notices(): array {
+		$this->_ensure_message_handler();
+		$notices      = array();
+		$all_messages = $this->message_handler->get_all_messages();
+		foreach ($all_messages as $field => $messages) {
+			if (!empty($messages['notices'])) {
+				$notices[$field] = $messages['notices'];
+			}
+		}
+		$this->message_handler->clear();
+		return $notices;
+	}
+
+
+	/**
+	 * Fluent alias of register_schema(); returns $this for chaining.
+	 *
+	 * Schema key principles: no implicit writes (unless $flush is true),
+	 * separation of concerns (schema can be pre-wired via Config), and
+	 * Config as source for main option name and autoload policy.
+	 *
+	 * @param array $schema  Schema map: ['key' => ['default' => mixed|callable(ConfigInterface|null): mixed,
+	 *   											'sanitize' => callable|null,
+	 *   											'validate' => callable|null]]
+	 * @return static
+	 */
+	public function with_schema(array $schema): static {
+		$this->register_schema($schema);
+		return $this;
+	}
+
+	/**
+	 * Register/extend schema post-construction (for lazy registration or migrations).
+	 *
+	 * - Always seeds defaults for missing keys into the in-memory store (sanitize+validate applied)
+	 * - Always normalizes existing in-memory values for keys covered by the schema (sanitize+validate)
+	 * - NEVER persists implicitly; callers should use commit_merge()/commit_replace()
+	 *
+	 * @param array $schema Schema map: ['key' => ['default' => mixed|callable(ConfigInterface|null): mixed, 'sanitize' => callable|null, 'validate' => callable|null]]
+	 * @return bool Whether the in-memory store changed as a result of seeding/normalization
+	 */
+	public function register_schema(array $schema): bool {
+		if (empty($schema)) {
+			$this->_get_logger()->error('RegisterOptions: register_schema() called with empty schema');
+			return false;
+		}
+
+		$normalized            = $this->_normalize_schema_keys($schema);
+		$oldSchema             = $this->schema;
+		$newOptions            = $this->options;
+		$changed               = false;
+		$seedKeysApplied       = array();
+		$normalizedKeysApplied = array();
+		$defaultKeysSubmitted  = array();
+		$defaultUnchangedKeys  = array();
+		$defaultChangedKeys    = array();
+		$defaultMissingOptions = array();
+
+		try {
+			$this->__register_internal_schema($normalized);
+
+			foreach ($normalized as $key => $rules) {
+				if (!array_key_exists('default', $rules)) {
+					continue;
+				}
+				$defaultKeysSubmitted[] = $key;
+				$hasExistingDefault     = isset($oldSchema[$key]) && array_key_exists('default', $oldSchema[$key]);
+				if ($hasExistingDefault && Helpers::canonicalStructuresMatch($oldSchema[$key]['default'], $rules['default'])) {
+					$defaultUnchangedKeys[] = $key;
+				} else {
+					$defaultChangedKeys[] = $key;
+				}
+				if (!array_key_exists($key, $newOptions)) {
+					$defaultMissingOptions[] = $key;
+				}
+			}
+
+			$toSeed   = array();
+			$seedKeys = array();
+			foreach ($normalized as $key => $rules) {
+				if (!isset($newOptions[$key]) && array_key_exists('default', $rules)) {
+					$resolved     = $this->_resolve_default_value($rules['default']);
+					$resolved     = $this->_sanitize_and_validate_option($key, $resolved);
+					$toSeed[$key] = $resolved;
+					$seedKeys[]   = $key;
+				}
+			}
+
+			if (!empty($toSeed)) {
+				$ctx    = $this->_get_storage_context();
+				$wcSeed = WriteContext::for_stage_options(
+					$this->main_wp_option_name,
+					$ctx->scope->value,
+					$ctx->blog_id,
+					$ctx->user_id,
+					$ctx->user_storage ?? 'meta',
+					(bool) $ctx->user_global,
+					$seedKeys
+				);
+				if ($this->_apply_write_gate('register_schema', $wcSeed)) {
+					foreach ($toSeed as $k => $entry) {
+						$newOptions[$k]    = $entry;
+						$seedKeysApplied[] = $k;
 					}
-					// @codeCoverageIgnoreEnd
+					$changed = $changed || !empty($seedKeysApplied);
 				}
 			}
 
-			if ($options_changed) {
-				$this->_save_all_options();
-				// @codeCoverageIgnoreStart
-				if ($this->_get_logger()->is_active()) {
-					$this->_get_logger()->debug("RegisterOptions: Options (schema defaults and/or initial) processed and saved to '{$this->main_wp_option_name}'.");
+			$normalizedChanges = array();
+			$normalizedKeys    = array();
+			foreach ($newOptions as $k => $v) {
+				if (isset($normalized[$k])) {
+					$normalizedValue = $this->_sanitize_and_validate_option($k, $v);
+					if ($normalizedValue !== $v) {
+						$normalizedChanges[$k] = $normalizedValue;
+						$normalizedKeys[]      = $k;
+					}
 				}
-				// @codeCoverageIgnoreEnd
 			}
+			if (!empty($normalizedChanges)) {
+				$ctx    = $this->_get_storage_context();
+				$wcNorm = WriteContext::for_stage_options(
+					$this->main_wp_option_name,
+					$ctx->scope->value,
+					$ctx->blog_id,
+					$ctx->user_id,
+					$ctx->user_storage ?? 'meta',
+					(bool) $ctx->user_global,
+					$normalizedKeys
+				);
+				if ($this->_apply_write_gate('register_schema', $wcNorm)) {
+					foreach ($normalizedChanges as $k => $nv) {
+						$newOptions[$k]          = $nv;
+						$normalizedKeysApplied[] = $k;
+					}
+					$changed = $changed || !empty($normalizedKeysApplied);
+				}
+			}
+
+			$this->options = $newOptions;
+			// Note: defaults currently always flow through sanitize/validate even when unchanged.
+			// If telemetry shows costly defaults, consider memoising canonical default signatures here
+			// so unchanged keys can skip the resolution path without breaking seed semantics.
+			$this->__register_internal_schema(
+				array(),
+				array(),
+				array(),
+				array(),
+				array(
+					'submitted'  => $defaultKeysSubmitted,
+					'unchanged'  => $defaultUnchangedKeys,
+					'changed'    => $defaultChangedKeys,
+					'missing'    => $defaultMissingOptions,
+					'seeded'     => $seedKeysApplied,
+					'normalized' => $normalizedKeysApplied,
+				)
+			);
+
+			return $changed;
+		} catch (\Throwable $e) {
+			$this->schema = $oldSchema;
+			$this->_get_logger()->error('RegisterOptions: register_schema failed', array(
+				'exception_class'   => get_class($e),
+				'exception_code'    => $e->getCode(),
+				'exception_message' => $e->getMessage(),
+			));
+			throw $e;
 		}
-		// Persist defaults even when no initial options provided
-		if ($options_changed && empty($initial_options)) {
-			$this->_save_all_options();
-			// @codeCoverageIgnoreStart
-			if ($this->_get_logger()->is_active()) {
-				$this->_get_logger()->debug("RegisterOptions: Schema defaults seeded and saved to '{$this->main_wp_option_name}'.");
-			}
-			// @codeCoverageIgnoreEnd
+
+		if ($defaultsTelemetry !== null) {
+			$this->_log_schema_defaults_summary($defaultsTelemetry);
 		}
 	}
 
 	/**
 	 * Retrieves a specific option's value from the main options array.
 	 *
-     * @param string $option_name The name of the sub-option to retrieve. Key is sanitized via sanitize_key().
+	 * @param string $option_name The name of the sub-option to retrieve. Key is sanitized via sanitize_key().
 	 * @param mixed  $default     Optional. Default value to return if the sub-option does not exist.
 	 * @return mixed The value of the sub-option, or the default value if not found.
 	 */
 	public function get_option(string $option_name, mixed $default = false): mixed {
-		$option_name_clean = self::sanitize_key($option_name);
-		$value             = $this->options[$option_name_clean]['value'] ?? $default;
+		$option_name_clean = $this->_do_sanitize_key($option_name);
+		$value             = $this->options[$option_name_clean] ?? $default;
 
 		// @codeCoverageIgnoreStart
-		if ($this->_get_logger()->is_active()) {
-			$log_value = is_scalar($value) ? (string) $value : (is_array($value) ? 'Array' : 'Object');
-			if (strlen($log_value) > 100) {
-				$log_value = substr($log_value, 0, 97) . '...';
-			}
-			$found_status = isset($this->options[$option_name_clean]['value']) ? 'Found' : 'Not found, using default';
-			$this->_get_logger()->debug("RegisterOptions: Getting option '{$option_name_clean}' from '{$this->main_wp_option_name}'. Status: {$found_status}. Value: {$log_value}");
+		$log_value = is_scalar($value) ? (string) $value : (is_array($value) ? 'Array' : 'Object');
+		if (strlen($log_value) > 100) {
+			$log_value = substr($log_value, 0, 97) . '...';
 		}
+		$found_status = isset($this->options[$option_name_clean]) ? 'Found' : 'Not found, using default';
+		$this->_get_logger()->debug("RegisterOptions: Getting option '{$option_name_clean}' from '{$this->main_wp_option_name}'. Status: {$found_status}. Value: {$log_value}");
 		// @codeCoverageIgnoreEnd
 		return $value;
 	}
@@ -225,464 +601,1019 @@ class RegisterOptions {
 	/**
 	 * Returns the entire array of options currently held by this instance.
 	 *
-	 * @return array<string, array{"value": mixed, "autoload_hint": bool|null}> The array of all sub-options.
+	 * @return array<string, mixed> The array of all sub-options.
 	 */
 	public function get_options(): array {
-		// @codeCoverageIgnoreStart
-		if ($this->_get_logger()->is_active()) {
-			$this->_get_logger()->debug("RegisterOptions: Getting all options from '{$this->main_wp_option_name}'. Count: " . count($this->options));
-		}
-		// @codeCoverageIgnoreEnd
 		return $this->options;
 	}
 
 	/**
-	 * Convenience: returns values-only view of options.
-	 * Does not include metadata like autoload_hint.
+	 * Add a single option to the in-memory store (fluent).
+	 * Call {@see commit_merge()} or {@see commit_replace()} to persist.
 	 *
-	 * @return array<string, mixed>
-	 */
-	public function get_values(): array {
-		$values = array();
-		foreach ($this->options as $key => $entry) {
-			if (is_array($entry) && array_key_exists('value', $entry)) {
-				$values[$key] = $entry['value'];
-			}
-		}
-		return $values;
-	}
-
-	/**
-	 * Sets or updates a specific option's value within the main options array and saves any added options to the DB.
-	 *
-     * @param string     $option_name The name of the sub-option to set. Key is sanitized via sanitize_key().
-	 * @param mixed      $value       The value for the sub-option.
-	 * @param bool|null  $autoload_hint Optional. A hint for whether this specific sub-option might have been intended for autoloading (for metadata purposes only).
-	 * @return bool True if any added options were successfully saved, false otherwise.
-     *
-     * Note:
-     * - No-op guard uses strict (===) comparison for both value and autoload_hint.
-     * - Arrays must match exactly (keys/order/values) to be considered unchanged.
-     * - Objects must be the same instance to avoid a write; identical state in different instances will trigger a save.
-	 */
-	public function set_option(string $option_name, mixed $value, ?bool $autoload_hint = null): bool {
-		$option_name_clean = self::sanitize_key($option_name);
-		$value             = $this->_sanitize_and_validate_option($option_name_clean, $value);
-
-		// @codeCoverageIgnoreStart
-		if ($this->_get_logger()->is_active()) {
-			$this->_get_logger()->debug("RegisterOptions: Setting option '{$option_name_clean}' in '{$this->main_wp_option_name}'.");
-		}
-		// @codeCoverageIgnoreEnd
-
-		$new_autoload_hint = $autoload_hint ?? ($this->options[$option_name_clean]['autoload_hint'] ?? null);
-
-		// Avoid DB churn: if nothing changed, short-circuit
-		if (isset($this->options[$option_name_clean])) {
-			$existing      = $this->options[$option_name_clean];
-			$existing_hint = $existing['autoload_hint'] ?? null;
-			if (($existing['value'] ?? null) === $value && $existing_hint === $new_autoload_hint) {
-				return true; // No-op change
-			}
-		}
-
-		$this->options[$option_name_clean] = array(
-		    'value'         => $value,
-		    'autoload_hint' => $new_autoload_hint,
-		);
-		return $this->_save_all_options();
-	}
-
-	/**
-	 * Batch add multiple options to the in-memory store (fluent). Call flush() to persist.
-	 *
-	 * @param array<string, mixed|array{value:mixed, autoload_hint?:bool|null}> $keyToValue Map of option name => value or ['value'=>..., 'autoload_hint'=>...]
+	 * @param  string $option_name The name of the sub-option to add.
+	 * @param  mixed  $value       The value for the sub-option.
 	 * @return self
 	 */
-	public function add_options(array $keyToValue): self {
-		$changed = false;
+	public function stage_option(string $option_name, mixed $value): self {
+		$this->_ensure_message_handler();
+		$key = $this->_do_sanitize_key($option_name);
+		$this->message_handler->remove_messages(array($key));
 
-		foreach ($keyToValue as $option_name => $definition) {
-			$key = self::sanitize_key((string) $option_name);
+		// Perform sanitization and validation
+		$sanitizedValue = $this->_sanitize_and_validate_option($key, $value);
 
-			$value    = is_array($definition) && array_key_exists('value', $definition) ? $definition['value'] : $definition;
-			$value    = $this->_sanitize_and_validate_option($key, $value);
-			$new_hint = is_array($definition) && array_key_exists('autoload_hint', $definition)
-			    ? $definition['autoload_hint']
-			    : ($this->options[$key]['autoload_hint'] ?? null);
-
-			if (isset($this->options[$key])) {
-				$existing      = $this->options[$key];
-				$existing_hint = $existing['autoload_hint'] ?? null;
-				if (($existing['value'] ?? null) === $value && $existing_hint === $new_hint) {
-					continue; // no change
-				}
-			}
-
-			$this->options[$key] = array(
-			    'value'         => $value,
-			    'autoload_hint' => $new_hint,
-			);
-			$changed = true;
+		// If validation failed (warnings were recorded), don't stage the value
+		if ($this->message_handler->has_validation_failures()) {
+			$this->_get_logger()->debug('RegisterOptions: stage_option validation failed', array(
+				'key'           => $key,
+				'warning_count' => $this->message_handler->get_warning_count()
+			));
+			return $this; // Don't stage invalid values
 		}
-
-		// Return self for fluent chaining (flush separately)
-		return $this;
-	}
-
-	/**
-	 * Add a single option to the in-memory store (fluent). Call flush() to persist.
-	 *
-	 * @param string $option_name The name of the sub-option to add.
-	 * @param mixed $value The value for the sub-option.
-	 * @param bool|null $autoload_hint Optional. A hint for whether this specific sub-option might have been intended for autoloading (for metadata purposes only).
-	 * @return self
-	 */
-	public function add_option(string $option_name, mixed $value, ?bool $autoload_hint = null): self {
-		$key   = self::sanitize_key($option_name);
-		$value = $this->_sanitize_and_validate_option($key, $value);
 
 		// No-op guard
 		if (isset($this->options[$key])) {
-			$existing      = $this->options[$key];
-			$existing_hint = $existing['autoload_hint'] ?? null;
-			if (($existing['value'] ?? null) === $value && $existing_hint === ($autoload_hint ?? $existing_hint)) {
+			$existing = $this->options[$key];
+			if ($existing === $sanitizedValue) {
 				return $this;
 			}
 		}
 
-		$this->options[$key] = array(
-		    'value'         => $value,
-		    'autoload_hint' => $autoload_hint ?? ($this->options[$key]['autoload_hint'] ?? null),
+		// Gate before mutating memory (after no-op guard)
+		$ctx = $this->_get_storage_context();
+		$wc  = WriteContext::for_add_option(
+			$this->main_wp_option_name,
+			$ctx->scope->value,
+			$ctx->blog_id,
+			$ctx->user_id,
+			(string)($ctx->user_storage ?? 'meta'),
+			(bool)($ctx->user_global ?? false),
+			$key
 		);
+		if (!$this->_apply_write_gate('add_option', $wc)) {
+			return $this; // veto: no mutation
+		}
+
+		$this->options[$key] = $sanitizedValue;
 		return $this;
 	}
 
 	/**
-	 * Persist current in-memory options to the database.
+	 * Batch add multiple options to the in-memory store (fluent).
+	 * Call {@see commit_merge()} or {@see commit_replace()} to persist.
 	 *
-	 * @param bool $mergeFromDb When true, reads current DB value and performs a
-	 *                          shallow, top-level merge before saving:
-	 *                          - Existing DB keys are preserved
-	 *                          - In-memory keys overwrite on collision
-	 *                          This reduces lost updates for disjoint keys during
-	 *                          installers/migrations. Nested values are replaced
-	 *                          as a whole; for complex merges, callers should
-	 *                          read–modify–write and then flush(false).
-	 *                          See header notes for details.
-	 * @return bool Whether the save succeeded.
+	 * @param  array<string, mixed> $keyToValue Map of option name => value
+	 * @return self
 	 */
-	public function flush(bool $mergeFromDb = false): bool {
-		return $this->_save_all_options($mergeFromDb);
-	}
-
-	/**
-	 * Register/extend schema post-construction (for lazy registration or migrations).
-	 *
-	 * - Merges provided rules into the existing schema (per-key shallow override)
-	 * - Optionally seeds defaults for keys missing a value
-	 * - Optionally flushes once after seeding
-	 *
-	 * @param array $schema  Schema map: ['key' => ['default' => mixed|callable(ConfigInterface|null): mixed, 'sanitize' => callable|null, 'validate' => callable|null]]
-	 * @param bool  $seedDefaults If true, set missing option values from 'default' (after sanitize/validate)
-	 * @param bool  $flush If true, persist after seeding (single write)
-	 * @return bool When flush=false: whether any values were seeded; when flush=true: whether the save succeeded
-	 */
-	public function register_schema(array $schema, bool $seedDefaults = false, bool $flush = false): bool {
-		if (empty($schema)) {
-			return false;
+	public function stage_options(array $keyToValue): self {
+		$this->_ensure_message_handler();
+		$normalizedKeys = array();
+		foreach (array_keys($keyToValue) as $candidateKey) {
+			$normalizedKeys[] = $this->_do_sanitize_key((string) $candidateKey);
 		}
+		if (!empty($normalizedKeys)) {
+			$this->message_handler->remove_messages($normalizedKeys);
+		}
+		$changed     = false;
+		$changedKeys = array();
 
-		$normalized = $this->_normalize_schema_keys($schema);
+		// Gate batch addition before mutating memory
+		$keys = $normalizedKeys;
+		$ctx  = $this->_get_storage_context();
 
-		// Merge schema shallowly per provided fields (by design)
-		foreach ($normalized as $key => $rules) {
-			if (!isset($this->schema[$key])) {
-				$this->schema[$key] = $rules;
-			} else {
-				$existing           = $this->schema[$key];
-				$this->schema[$key] = array(
-				    'default'  => array_key_exists('default', $rules)  ? $rules['default']  : ($existing['default'] ?? null),
-				    'sanitize' => array_key_exists('sanitize', $rules) ? $rules['sanitize'] : ($existing['sanitize'] ?? null),
-				    'validate' => array_key_exists('validate', $rules) ? $rules['validate'] : ($existing['validate'] ?? null),
-				);
+		// Only create WriteContext and apply gate if we have keys to process
+		if (!empty($keys)) {
+			$wc2 = WriteContext::for_stage_options($this->main_wp_option_name, $ctx->scope->value, $ctx->blog_id, $ctx->user_id, $ctx->user_storage ?? 'meta', (bool) $ctx->user_global, $keys);
+			if (!$this->_apply_write_gate('stage_options', $wc2)) {
+				return $this; // veto: no mutation
 			}
 		}
 
-		$changed = false;
-		if ($seedDefaults) {
-			foreach ($normalized as $key => $rules) {
-				$has_value = isset($this->options[$key]) && array_key_exists('value', $this->options[$key]);
-				if (!$has_value && array_key_exists('default', $rules)) {
-					$resolved            = $this->_resolve_default_value($rules['default']);
-					$resolved            = $this->_sanitize_and_validate_option($key, $resolved);
-					$this->options[$key] = array(
-					    'value'         => $resolved,
-					    'autoload_hint' => $this->options[$key]['autoload_hint'] ?? null,
-					);
-					$changed = true;
+		foreach ($keyToValue as $option_name => $value) {
+			$key   = $this->_do_sanitize_key((string) $option_name);
+			$value = $this->_sanitize_and_validate_option($key, $value);
+
+			if (isset($this->options[$key])) {
+				$existing = $this->options[$key];
+				if ($existing === $value) {
+					continue; // no change
 				}
 			}
+
+			$this->options[$key] = $value;
+			$changed             = true;
+			$changedKeys[]       = $key;
 		}
 
-		if ($flush && $changed) {
-			return $this->_save_all_options();
-		}
-		return $changed;
-	}
+		// Operation-level summary for staging
+		$count = count($changedKeys);
+		$brief = ($count <= 10) ? $changedKeys : array_slice($changedKeys, 0, 10);
+		$this->_get_logger()->debug(
+			'RegisterOptions: stage_options summary',
+			array(
+				'changed' => $count,
+				'keys'    => $brief
+			)
+		);
 
-	/**
-	 * Fluent alias of register_schema(); returns $this for chaining.
-	 */
-	public function with_schema(array $schema, bool $seedDefaults = false, bool $flush = false): self {
-		$this->register_schema($schema, $seedDefaults, $flush);
+		// Return self for fluent chaining (commit_merge or commit_replace separately)
 		return $this;
-	}
-
-	/**
-	 * Updates a specific option's value. Alias for set.
-	 *
-	 * @param string     $option_name The name of the sub-option to update.
-	 * @param mixed      $value       The new value for the sub-option.
-	 * @param bool|null  $autoload_hint Optional. Autoload hint for the sub-option.
-	 * @return bool True if options were saved successfully, false otherwise.
-	 */
-	public function update_option(string $option_name, mixed $value, ?bool $autoload_hint = null): bool {
-		return $this->set_option($option_name, $value, $autoload_hint);
 	}
 
 	/**
 	 * Determine if an option exists (by normalized key) in the in-memory store.
+	 *
+	 * @param string $option_name The name of the sub-option to check.
+	 * @return bool True if the option exists, false otherwise.
 	 */
 	public function has_option(string $option_name): bool {
-		$key = self::sanitize_key($option_name);
-		return array_key_exists($key, $this->options) && array_key_exists('value', $this->options[$key]);
-	}
-
-	/**
-	 * Refreshes the local options cache by reloading them from the database.
-	 */
-	public function refresh_options(): void {
-		// @codeCoverageIgnoreStart
-		if ($this->_get_logger()->is_active()) {
-			$this->_get_logger()->debug("RegisterOptions: Refreshing options from database for '{$this->main_wp_option_name}'.");
-		}
-		// @codeCoverageIgnoreEnd
-		$this->options = $this->_do_get_option($this->main_wp_option_name, array());
+		$key = $this->_do_sanitize_key($option_name);
+		return array_key_exists($key, $this->options);
 	}
 
 	/**
 	 * Delete an option by name and persist changes. Returns true if the key existed and was removed.
 	 */
 	public function delete_option(string $option_name): bool {
-		$key = self::sanitize_key($option_name);
+		$key = $this->_do_sanitize_key($option_name);
 		if (!array_key_exists($key, $this->options)) {
 			return false;
 		}
+		// Gate delete before mutating
+		$ctx = $this->_get_storage_context();
+		$wc  = WriteContext::for_delete_option(
+			$this->main_wp_option_name,
+			$ctx->scope->value,
+			$ctx->blog_id,
+			$ctx->user_id,
+			(string)($ctx->user_storage ?? 'meta'),
+			(bool)($ctx->user_global ?? false),
+			$key
+		);
+		if (!$this->_apply_write_gate('delete_option', $wc)) {
+			return false; // veto: no mutation
+		}
+
 		unset($this->options[$key]);
 		return $this->_save_all_options();
+	}
+
+	/**
+	 * Refreshes the local options cache by reloading them from the database.
+	 *
+	 * @return void
+	 */
+	public function refresh_options(): void {
+		$this->options = $this->_read_main_option();
 	}
 
 	/**
 	 * Clear all sub-options in this group and persist the empty set.
 	 */
 	public function clear(): bool {
+		// Gate clear before mutating
+		$ctx = $this->_get_storage_context();
+		$wc  = WriteContext::for_clear(
+			$this->main_wp_option_name,
+			$ctx->scope->value,
+			$ctx->blog_id,
+			$ctx->user_id,
+			(string)($ctx->user_storage ?? 'meta'),
+			(bool)($ctx->user_global ?? false)
+		);
+		if (!$this->_apply_write_gate('clear', $wc)) {
+			return false; // veto
+		}
+
 		$this->options = array();
 		return $this->_save_all_options();
 	}
 
-
 	/**
-	 * Get the autoload preset value for an option if one has been set in the schema.
-	 * Utility for debugging, introspection, migration, etc.
+	 * Commit staged changes with a top-level (shallow) merge against the current DB row.
 	 *
-	 * @param string $key
-	 * @return bool|null
+	 * - Preserves existing DB keys, overwriting collisions with in-memory values
+	 * - Does not deep-merge nested arrays; for nested merges, perform a read–modify–write
+	 *   for the specific key and then use {@see stage_option()} or {@see commit_replace()}
+	 *
+	 * @return bool Whether the save succeeded.
 	 */
-	public function get_autoload_hint(string $key): ?bool {
-		$k = self::sanitize_key($key);
-		return $this->options[$k]['autoload_hint'] ?? null;
-	}
-
-	/**
-	 * Set the autoload behavior for the main option group explicitly.
-	 *
-	 * WordPress only guarantees autoload is applied on creation.
-	 * This method forces the desired autoload by deleting and re-adding the option row.
-	 *
-	 * @param bool $autoload
-	 * @return bool
-	 */
-	public function set_main_autoload(bool $autoload): bool {
-		$current = $this->_do_get_option($this->main_wp_option_name, array());
-		$this->_do_delete_option($this->main_wp_option_name);
-		$result = $this->_do_add_option(
-			$this->main_wp_option_name,
-			$current,
-			'',
-			$autoload ? 'yes' : 'no'
-		);
-
-		// Keep in-memory state consistent with the change
-		$this->main_option_autoload = $autoload;
-		// We just wrote $current, so safely mirror it locally.
-		$this->options = $current;
-		// Alternatively, call $this->refresh_options() if a fresh DB read is preferred.
-
-		return $result;
-	}
-
-	/**
-	 * Sanitize sub-option keys using WordPress's sanitize_key() when available.
-	 * Provides a safe fallback if WP is not loaded.
-	 *
-	 * @param string $key Raw option key
-	 * @return string Normalized option key
-	 */
-	public static function sanitize_key(string $key): string {
-		$original = $key;
-		if (\function_exists('sanitize_key')) {
-			// @codeCoverageIgnoreStart
-			$maybe = \sanitize_key($key);
-			if (is_string($maybe) && $maybe !== '') {
-				return $maybe;
-			}
-			// Fallback to internal normalization if sanitize_key returned non-string/null/empty
-			// @codeCoverageIgnoreEnd
+	public function commit_merge(): bool {
+		$this->_ensure_message_handler();
+		// Check if there are any validation warnings (not notices) from staging
+		if ($this->message_handler->has_validation_failures()) {
+			$this->_get_logger()->info('RegisterOptions: commit_merge aborted due to validation failures', array(
+				'warning_count' => $this->message_handler->get_warning_count(),
+				'messages'      => $this->message_handler->get_all_messages()
+			));
+			return false;
 		}
-		$key = strtolower($original);
-		// Match WP semantics: allow a-z, 0-9, underscore and hyphen; strip everything else
-		$key = preg_replace('/[^a-z0-9_]+/', '_', $key) ?? $key;
-		return trim($key, '_');
+
+		return $this->_save_all_options(true);
 	}
 
 	/**
-	 * Factory: create a RegisterOptions instance using the option name derived from Config.
+	 * Commit staged changes by replacing the entire stored row (no merge).
 	 *
-	 * Uses the library's convention of storing the primary option name in
-     * `$config->get_config()['RAN']['AppOption']`.
+	 * Use when you have staged a complete, authoritative in-memory payload.
 	 *
-	 * @param ConfigInterface $config        Initialized config instance.
-	 * @param array           $initial       Optional initial options (same structure as constructor).
-	 * @param bool            $autoload      Whether the grouped option should autoload.
-	 * @param Logger|null     $logger        Optional logger instance (fallbacks to Config when null).
+	 * @return bool Whether the save succeeded.
+	 */
+	public function commit_replace(): bool {
+		return $this->_save_all_options(false);
+	}
+
+	/**
+	 * Seed the main option row with provided defaults if it does not already exist (idempotent).
 	 *
+	 * - No write occurs if the main option row already exists.
+	 * - Defaults are normalized and passed through schema sanitize/validate if present.
+	 * - Autoload follows this instance's `$main_option_autoload` flag and is applied by the storage
+	 *   adapter only when the current scope supports autoload for the main option row.
+	 *
+	 * @param array<string, mixed> $defaults Map of sub-option => value
 	 * @return self
 	 */
-	public static function from_config(
-        ConfigInterface $config,
-        array $initial = array(),
-        bool $autoload = true,
-        ?Logger $logger = null,
-        array $schema = array()
-    ): self {
-		$plugin_config = method_exists($config, 'get_plugin_config') ? $config->get_config() : $config->get_config();
-		$ran           = (array)($plugin_config['RAN'] ?? array());
-		$main_option   = (string)($ran['AppOption'] ?? '');
-
-		if ($main_option === '' || !is_string($main_option)) {
-			throw new \InvalidArgumentException(static::class . ': Missing or invalid RAN.AppOption in Config config (expected RAN.AppOption).');
+	public function seed_if_missing(array $defaults): self {
+		// Distinguish truly missing from other falsy values via sentinel
+		$sentinel = new \stdClass(); // Allows us to differentiate between a missing option and an option set to nullish (e.g. false, 0, '', null)
+		$existing = $this->_do_get_option($this->main_wp_option_name, $sentinel);
+		if ($existing !== $sentinel) {
+			// Already present; do not modify DB or in-memory state
+			// @codeCoverageIgnoreStart
+			$this->_get_logger()->debug("RegisterOptions: seed_if_missing no-op; option '{$this->main_wp_option_name}' already exists.");
+			// @codeCoverageIgnoreEnd
+			return $this;
 		}
 
-		return new self($main_option, $initial, $autoload, $logger, $config, $schema);
+		// Normalize defaults and apply schema rules
+		$normalized = $this->_normalize_defaults($defaults);
+
+		// Gate seeding before writing or mutating
+		$ctx = $this->_get_storage_context();
+		$wc  = WriteContext::for_seed_if_missing(
+			$this->main_wp_option_name,
+			$ctx->scope->value,
+			$ctx->blog_id,
+			$ctx->user_id,
+			(string)($ctx->user_storage ?? 'meta'),
+			(bool)($ctx->user_global ?? false),
+			array_keys($normalized)
+		);
+		if (!$this->_apply_write_gate('seed_if_missing', $wc)) {
+			$this->_get_logger()->debug('RegisterOptions: seed_if_missing vetoed by write gate');
+			return $this; // veto: do not write or mutate
+		}
+
+		// Persist atomically; add_option is a no-op if row is concurrently created
+		$autoload = $this->main_option_autoload ? 'yes' : 'no';
+		$this->_do_add_option($this->main_wp_option_name, $normalized, '', $autoload);
+
+		// Sync in-memory cache
+		$this->options = $normalized;
+
+		// @codeCoverageIgnoreStart
+		$this->_get_logger()->debug("RegisterOptions: seed_if_missing created '{$this->main_wp_option_name}' with " . count($normalized) . ' defaults.');
+		// @codeCoverageIgnoreEnd
+
+		return $this;
 	}
 
 	/**
-	 * Retrieves the logger instance.
+	 * Apply a migration function to the stored option value, if present.
+	 *
+	 * Callable signature: function (mixed $current, RegisterOptions $self): mixed
+	 * Behavior:
+	 * - Reads current stored value using a sentinel to detect true absence
+	 * - If missing, no-op and returns $this
+	 * - Invokes $migration($current, $this) without try/catch (exceptions propagate)
+	 * - Strict change detection (!==). If changed, normalizes and updates the stored value
+	 * - Preserves autoload by invoking core stage_option() without autoload parameter
+	 * - Synchronizes in-memory cache when a write occurs
+	 */
+	public function migrate(callable $migration): self {
+		// Detect missing row
+		$sentinel = new \stdClass();
+		$current  = $this->_do_get_option($this->main_wp_option_name, $sentinel);
+		if ($current === $sentinel) {
+			// No-op when option row is absent
+			// @codeCoverageIgnoreStart
+			$this->_get_logger()->debug("RegisterOptions: migrate no-op; option '{$this->main_wp_option_name}' missing.");
+			// @codeCoverageIgnoreEnd
+			return $this;
+		}
+
+		// Compute new value (may throw; do not catch)
+		$new = $migration($current, $this);
+
+		// Strict change detection
+		if ($new === $current) {
+			return $this;
+		}
+
+		// Normalize to internal structure
+		$normalized = array();
+		if (is_array($new)) {
+			foreach ($new as $key => $value) {
+				$nk              = $this->_do_sanitize_key((string) $key);
+				$normalized[$nk] = $this->_sanitize_and_validate_option($nk, $value);
+			}
+		} else {
+			// If migration returns a scalar/object, wrap under a reserved key 'value'
+			$nk              = $this->_do_sanitize_key('value');
+			$normalized[$nk] = $this->_sanitize_and_validate_option($nk, $new);
+		}
+
+		// Gate migration write before updating DB / mutating memory
+		$ctx = $this->_get_storage_context();
+		$wc  = WriteContext::for_migrate(
+			$this->main_wp_option_name,
+			$ctx->scope->value,
+			$ctx->blog_id,
+			$ctx->user_id,
+			(string)($ctx->user_storage ?? 'meta'),
+			(bool)($ctx->user_global ?? false),
+			array_keys($normalized)
+		);
+		if (!$this->_apply_write_gate('migrate', $wc)) {
+			return $this; // veto: do not write/mutate
+		}
+
+		// Preserve autoload: call core stage_option with two parameters, autoload is preserved, do not mutate
+		$this->_do_update_option($this->main_wp_option_name, $normalized);
+
+		// Sync in-memory cache
+		$this->options = $normalized;
+
+		// @codeCoverageIgnoreStart
+		$this->_get_logger()->debug("RegisterOptions: migrate updated '{$this->main_wp_option_name}' with migrated data.");
+		// @codeCoverageIgnoreEnd
+
+		return $this;
+	}
+
+	/**
+	 * Whether the underlying storage supports autoload semantics.
+	 *
+	 * This is a passthrough to the scope-aware storage adapter to allow
+	 * examples and callers to check autoload capability without reaching
+	 * into internals.
+	 */
+	public function supports_autoload(): bool {
+		return $this->_get_storage()->supports_autoload();
+	}
+
+	/**
+	 * Public accessor: return the main grouped option name for this instance.
+	 *
+	 * @return string The main grouped option name.
+	 */
+	public function get_main_option_name(): string {
+		return $this->main_wp_option_name;
+	}
+
+	/**
+	 * Public accessor: return the typed StorageContext for this instance.
+	 *
+	 * Defaults to Site when not explicitly set (same behavior as internals).
+	 *
+	 * @return StorageContext The storage context.
+	 */
+	public function get_storage_context(): StorageContext {
+		return $this->_get_storage_context();
+	}
+
+	/**
+	 * Public accessor: return the schema for this instance.
+	 *
+	 * @return array The schema.
+	 */
+	public function get_schema(): array {
+		return $this->_create_flat_schema_view();
+	}
+
+	/**
+	 * Internal accessor that returns the bucketed schema map.
+	 *
+	 * @internal
+	 *
+	 * @return array<string,array{sanitize:array{component:array<callable>,schema:array<callable>}, validate:array{component:array<callable>,schema:array<callable>}, default?:mixed}>
+	 */
+	public function __get_schema_internal(): array {
+		return $this->schema;
+	}
+
+	/**
+	 * Normalize an option key using internal sanitization rules.
+	 */
+	public function normalize_schema_key(string $key): string {
+		return $this->_do_sanitize_key($key);
+	}
+
+	/**
+	 * Check if schema exists for the provided key (after normalization).
+	 */
+	public function has_schema_key(string $key): bool {
+		$normalized = $this->_do_sanitize_key($key);
+		return isset($this->schema[$normalized]);
+	}
+
+	/**
+	 * Merge bucketed schema entries into the internal schema map.
+	 *
+	 * @internal Consumers should prefer register_schema(); this helper accepts bucketed structures
+	 *           and is used by auto-schema backfill logic.
+	 *
+	 * @param array<string,array{sanitize:array{component:array<callable>,schema:array<callable>}, validate:array{component:array<callable>,schema:array<callable>}, default?:mixed}> $schema
+	 * @param array<string,array<string,mixed>> $metadata Optional meta flags (e.g. ['requires_validator' => true]).
+	 * @param array<string,array<int,callable>> $queuedValidators Component validators queued prior to schema merge.
+	 * @param array<string,array<int,callable>> $queuedSanitizers Component sanitizers queued prior to schema merge.
+ 	 * @return void
+ 	 */
+	public function __register_internal_schema(array $schema, array $metadata = array(), array $queuedValidators = array(), array $queuedSanitizers = array(), ?array $defaultsTelemetry = null): void {
+		if (empty($schema)) {
+			if ($defaultsTelemetry !== null) {
+				$this->_log_schema_defaults_summary($defaultsTelemetry);
+			}
+			return;
+		}
+
+		foreach ($schema as $key => $entry) {
+			if (!\is_array($entry)) {
+				throw new \InvalidArgumentException('RegisterOptions: _register_internal_schema expects bucketed schema arrays.');
+			}
+
+			$normalized_key    = $this->_do_sanitize_key((string) $key);
+			$entryForCoercion  = $entry;
+			$hadExisting       = isset($this->schema[$normalized_key]);
+			$requiresValidator = false;
+			if (isset($metadata[$normalized_key]) && is_array($metadata[$normalized_key])) {
+				$requiresValidator = (bool) ($metadata[$normalized_key]['requires_validator'] ?? false);
+			}
+
+			$queuedValidatorCount = isset($queuedValidators[$normalized_key]) && is_array($queuedValidators[$normalized_key])
+				? count($queuedValidators[$normalized_key])
+				: 0;
+			$queuedSanitizerCount = isset($queuedSanitizers[$normalized_key]) && is_array($queuedSanitizers[$normalized_key])
+				? count($queuedSanitizers[$normalized_key])
+				: 0;
+			$metadataKeys = isset($metadata[$normalized_key]) && is_array($metadata[$normalized_key])
+				? array_keys($metadata[$normalized_key])
+				: array();
+			$this->_get_logger()->debug(
+				'RegisterOptions: _register_internal_schema processing entry',
+				array(
+					'key'                  => $normalized_key,
+					'had_existing'         => $hadExisting,
+					'queued_validator_cnt' => $queuedValidatorCount,
+					'queued_sanitizer_cnt' => $queuedSanitizerCount,
+					'metadata_flags'       => $metadataKeys,
+				)
+			);
+
+			$incoming = $this->_coerce_schema_entry($entryForCoercion, $normalized_key);
+
+			if (!isset($this->schema[$normalized_key])) {
+				$this->schema[$normalized_key] = $incoming;
+			} else {
+				// Call 2: Structure check – existing entry should already be coerced from prior registration.
+				// Skip redundant coercion if already in canonical bucket form.
+				$existing = $this->_is_canonical_bucket_structure($this->schema[$normalized_key])
+					? $this->schema[$normalized_key]
+					: $this->_coerce_schema_entry($this->schema[$normalized_key], $normalized_key);
+
+				$this->schema[$normalized_key] = array(
+					'default'  => array_key_exists('default', $incoming) ? $incoming['default'] : ($existing['default'] ?? null),
+					'sanitize' => $this->_merge_bucketed_callables($existing['sanitize'], $incoming['sanitize']),
+					'validate' => $this->_merge_bucketed_callables($existing['validate'], $incoming['validate']),
+				);
+			}
+
+			if (!empty($queuedValidators[$normalized_key])) {
+				// NOTE: Call 3 (pre-merge coercion) removed – merge result from _merge_bucketed_callables()
+				// is already in canonical bucket form, so coercion here was redundant.
+				$componentBucket = &$this->schema[$normalized_key]['validate'][self::BUCKET_COMPONENT];
+				$componentBucket = array_merge($queuedValidators[$normalized_key], $componentBucket);
+				$this->_get_logger()->debug(
+					'RegisterOptions: _register_internal_schema queued validators merged',
+					array(
+						'key'          => $normalized_key,
+						'queued_count' => count($queuedValidators[$normalized_key]),
+					)
+				);
+			}
+
+			if (!empty($queuedSanitizers[$normalized_key])) {
+				$sanitizerBucket = &$this->schema[$normalized_key]['sanitize'][self::BUCKET_COMPONENT];
+				$sanitizerBucket = array_merge($queuedSanitizers[$normalized_key], $sanitizerBucket);
+				$this->_get_logger()->debug(
+					'RegisterOptions: _register_internal_schema queued sanitizers merged',
+					array(
+						'key'          => $normalized_key,
+						'queued_count' => count($queuedSanitizers[$normalized_key]),
+					)
+				);
+			}
+
+			if ($requiresValidator) {
+				$this->_assert_internal_validator_presence($normalized_key, $this->schema[$normalized_key]);
+			}
+
+			// Only coerce if queued validators/sanitizers were injected (they need normalization).
+			// Without queued callables, the merge result is already in canonical bucket form.
+			if (!empty($queuedValidators[$normalized_key]) || !empty($queuedSanitizers[$normalized_key])) {
+				$this->schema[$normalized_key] = $this->_coerce_schema_entry($this->schema[$normalized_key], $normalized_key);
+			}
+			$finalEntry             = $this->schema[$normalized_key];
+			$sanitizeComponentCount = count($finalEntry['sanitize'][self::BUCKET_COMPONENT] ?? array());
+			$sanitizeSchemaCount    = count($finalEntry['sanitize'][self::BUCKET_SCHEMA] ?? array());
+			$validateComponentCount = count($finalEntry['validate'][self::BUCKET_COMPONENT] ?? array());
+			$validateSchemaCount    = count($finalEntry['validate'][self::BUCKET_SCHEMA] ?? array());
+			$this->_get_logger()->debug(
+				'RegisterOptions: _register_internal_schema merged entry',
+				array(
+					'key'                        => $normalized_key,
+					'had_existing'               => $hadExisting,
+					'requires_validator'         => $requiresValidator,
+					'sanitize_component_count'   => $sanitizeComponentCount,
+					'sanitize_schema_count'      => $sanitizeSchemaCount,
+					'validate_component_count'   => $validateComponentCount,
+					'validate_schema_count'      => $validateSchemaCount,
+					'sanitize_component_summary' => $this->_summarize_callable_bucket($finalEntry['sanitize'][self::BUCKET_COMPONENT]),
+					'sanitize_schema_summary'    => $this->_summarize_callable_bucket($finalEntry['sanitize'][self::BUCKET_SCHEMA]),
+					'validate_component_summary' => $this->_summarize_callable_bucket($finalEntry['validate'][self::BUCKET_COMPONENT]),
+					'validate_schema_summary'    => $this->_summarize_callable_bucket($finalEntry['validate'][self::BUCKET_SCHEMA]),
+					'default_present'            => array_key_exists('default', $finalEntry),
+				)
+			);
+		}
+	}
+
+	/**
+	 * Public accessor: return the write policy for this instance.
+	 *
+	 * @return WritePolicyInterface The write policy.
+	 */
+	public function get_write_policy(): WritePolicyInterface {
+		if (!($this->write_policy instanceof WritePolicyInterface)) {
+			$this->write_policy = new RestrictedDefaultWritePolicy();
+		}
+		return $this->write_policy;
+	}
+
+	/**
+	 * Emit defaults telemetry once schema/default processing completes.
+	 *
+	 * @param array<string,array<int,string>>|array<string,array<string>>|array<string,array> $telemetry
+	 *     Expected keys: submitted, unchanged, changed, missing, seeded, normalized.
+	 *
+	 * @return void
+	 */
+	private function _log_schema_defaults_summary(array $telemetry): void {
+		$logger = $this->_get_logger();
+		if (!method_exists($logger, 'is_active') || !$logger->is_active()) {
+			return;
+		}
+
+		$submittedKeys  = isset($telemetry['submitted'])  && is_array($telemetry['submitted']) ? $telemetry['submitted'] : array();
+		$unchangedKeys  = isset($telemetry['unchanged'])  && is_array($telemetry['unchanged']) ? $telemetry['unchanged'] : array();
+		$changedKeys    = isset($telemetry['changed'])    && is_array($telemetry['changed']) ? $telemetry['changed'] : array();
+		$missingKeys    = isset($telemetry['missing'])    && is_array($telemetry['missing']) ? $telemetry['missing'] : array();
+		$seedKeys       = isset($telemetry['seeded'])     && is_array($telemetry['seeded']) ? $telemetry['seeded'] : array();
+		$normalizedKeys = isset($telemetry['normalized']) && is_array($telemetry['normalized']) ? $telemetry['normalized'] : array();
+
+		$brief = static function (array $keys): array {
+			return count($keys) <= 10 ? $keys : array_slice($keys, 0, 10);
+		};
+
+		if (!empty($submittedKeys)) {
+			$logger->info(
+				'RegisterOptions: register_schema defaults',
+				array(
+					'submitted_count'       => count($submittedKeys),
+					'submitted_keys'        => $brief($submittedKeys),
+					'unchanged_count'       => count($unchangedKeys),
+					'unchanged_keys'        => $brief($unchangedKeys),
+					'changed_count'         => count($changedKeys),
+					'changed_keys'          => $brief($changedKeys),
+					'missing_options_count' => count($missingKeys),
+					'missing_option_keys'   => $brief($missingKeys),
+				)
+			);
+		}
+
+		$logger->info(
+			'RegisterOptions: register_schema summary',
+			array(
+				'seeded'          => count($seedKeys),
+				'normalized'      => count($normalizedKeys),
+				'seed_keys'       => $brief($seedKeys),
+				'normalized_keys' => $brief($normalizedKeys),
+			)
+		);
+	}
+
+	/**
+	 * Public accessor: return the bound Logger instance.
+	 *
+	 * @return Logger The logger instance.
+	 */
+	public function get_logger(): Logger {
+		return $this->logger;
+	}
+
+	/**
+	 * Returns the logger instance.
 	 *
 	 * @return Logger The logger instance.
 	 */
 	protected function _get_logger(): Logger {
-		// @codeCoverageIgnoreStart
-		if (null === $this->logger) {
-			if ($this->config instanceof ConfigInterface) {
-				$logger_from_config = $this->config->get_logger();
-			} else {
-				// No config provided; create a lightweight default logger
-				$logger_from_config = new Logger(array());
-			}
-
-			if (null === $logger_from_config) {
-				// This case should ideally be prevented by Config::get_logger() throwing an exception if it cannot provide a logger.
-				throw new \LogicException(static::class . ': Failed to retrieve a valid logger instance from Config. Config::get_logger() returned null.');
-			}
-			$this->logger = $logger_from_config;
-		}
-		// @codeCoverageIgnoreEnd
 		return $this->logger;
+	}
+
+	/**
+	 * Returns the composed storage adapter. Defaults to current site scope.
+	 * Memoized per instance. No public API changes.
+	 *
+	 * @return OptionStorageInterface The storage adapter.
+	 */
+	protected function _get_storage(): OptionStorageInterface {
+		if ($this->storage instanceof OptionStorageInterface) {
+			$st = $this->storage;
+			$this->_get_logger()->debug('RegisterOptions: _get_storage resolved (cached)', array('scope' => $st->scope()->value));
+			return $st;
+		}
+		// Create storage via internal factory to reduce indirection
+		$this->storage = $this->_make_storage();
+		$st            = $this->storage;
+		$this->_get_logger()->debug('RegisterOptions: _get_storage resolved (new)', array('scope' => $st->scope()->value));
+		return $st;
+	}
+
+	/**
+	 * Instantiate the scope-aware storage adapter from current scope/args.
+	 *
+	 * Rules:
+	 * - site: SiteOptionStorage (supports autoload on create)
+	 * - network: NetworkOptionStorage (no autoload)
+	 * - blog: requires integer blog_id → BlogOptionStorage(blog_id)
+	 * - user: requires integer user_id; user_storage 'meta' (default) or 'option'
+	 *         when 'option', honor user_global (bool) flag
+	 */
+	private function _make_storage(): OptionStorageInterface {
+		$ctx = $this->_get_storage_context();
+		switch ($ctx->scope) {
+			case OptionScope::Network:
+				return new NetworkOptionStorage();
+			case OptionScope::Blog:
+				return new BlogOptionStorage((int) $ctx->blog_id);
+			case OptionScope::User:
+				if ($ctx->user_storage === 'option') {
+					return new UserOptionStorage((int) $ctx->user_id, (bool) $ctx->user_global);
+				}
+				return new UserMetaStorage((int) $ctx->user_id);
+			default:
+				return new SiteOptionStorage();
+		}
+	}
+
+	/**
+	 * Resolve typed storage context (memoized). Defaults to Site.
+	 */
+	private function _get_storage_context(): StorageContext {
+		if ($this->storage_context instanceof StorageContext) {
+			return $this->storage_context;
+		}
+		$this->storage_context = StorageContext::forSite();
+		return $this->storage_context;
+	}
+
+	/**
+		* Apply write-gating filters with rich context. Returns true when allowed.
+		*
+		* Filters applied (in order):
+		* - ran/plugin_lib/options/allow_persist
+		* - ran/plugin_lib/options/allow_persist/scope/{scope}
+		*
+		* Context enrichment notes:
+		* - For single-key operations (e.g., 'add_option', 'set_option', 'delete_option'), the context includes 'key'.
+		* - For batch operations (e.g., 'stage_options'), the context includes 'keys' (array of strings).
+		* - For 'save_all', the context includes 'options' (full map) and 'merge_from_db' flag.
+		* - stage_options is atomic by default: policy callbacks should inspect 'keys' and veto the batch if any key is disallowed.
+		*
+		* @param string $op  Operation name (e.g., 'save_all', 'set_option', 'stage_options')
+		* @param WriteContext $wc
+		* @return bool
+		*/
+	protected function _apply_write_gate(string $op, WriteContext $wc): bool {
+		// Derive array ctx for filters/logging from WriteContext
+		$ctx = array(
+			'op'           => $op,
+			'main_option'  => $wc->main_option(),
+			'scope'        => $wc->scope(),
+			'blog_id'      => $wc->blog_id(),
+			'user_id'      => $wc->user_id(),
+			'user_storage' => $wc->user_storage() ?? 'meta',
+			'user_global'  => (bool) $wc->user_global(),
+		);
+		// Enrich context with op-specific identifiers for policy decisions
+		if (method_exists($wc, 'key') && null !== $wc->key()) {
+			$ctx['key'] = (string) $wc->key();
+		}
+		if (method_exists($wc, 'keys') && is_array($wc->keys())) {
+			$ctx['keys'] = array_values(array_map('strval', $wc->keys()));
+		}
+		if ($wc->key() !== null) {
+			$ctx['key'] = $wc->key();
+		}
+		if ($wc->keys() !== null) {
+			$ctx['keys'] = $wc->keys();
+		}
+		if ($wc->options() !== null) {
+			$ctx['options'] = $wc->options();
+		}
+		if ($wc->merge_from_db()) {
+			$ctx['merge_from_db'] = true;
+		}
+
+		// First, consult immutable, non-filterable write policy.
+		if (!($this->write_policy instanceof WritePolicyInterface)) {
+			$this->write_policy = new RestrictedDefaultWritePolicy();
+		}
+		$policyAllowed = $this->write_policy->allow($op, $wc);
+		$this->_get_logger()->debug(
+			'RegisterOptions: _apply_write_gate policy decision',
+			array(
+				'op'          => $op,
+				'main_option' => $ctx['main_option'] ?? '',
+				'scope'       => isset($ctx['scope']) ? (string) $ctx['scope'] : '',
+				'policy'      => 'RestrictedDefaultWritePolicy',
+				'allowed'     => (bool) $policyAllowed,
+			)
+		);
+		if ($policyAllowed === false) {
+			$this->_get_logger()->notice(
+				'RegisterOptions: Write vetoed by immutable policy.',
+				array(
+				'op'          => $op,
+				'main_option' => $ctx['main_option'] ?? '',
+				'scope'       => isset($ctx['scope']) ? (string) $ctx['scope'] : '',
+				)
+			);
+			return false;
+		}
+
+		$allowed = true;
+		$this->_get_logger()->debug(
+			'RegisterOptions: _apply_write_gate applying general allow_persist filter',
+			array(
+			'hook'    => 'ran/plugin_lib/options/allow_persist',
+			'op'      => $op,
+			'context' => $ctx,
+			)
+		);
+		$allowed = (bool) $this->_do_apply_filter('ran/plugin_lib/options/allow_persist', $allowed, $ctx);
+		$this->_get_logger()->debug(
+			'RegisterOptions: _apply_write_gate general filter result',
+			array(
+			'hook'    => 'ran/plugin_lib/options/allow_persist',
+			'allowed' => $allowed,
+			'context' => $ctx,
+			)
+		);
+
+		$scope = isset($ctx['scope']) ? (string) $ctx['scope'] : '';
+		if ($scope !== '') {
+			$hook = 'ran/plugin_lib/options/allow_persist/scope/' . $scope;
+			$this->_get_logger()->debug(
+				'RegisterOptions: _apply_write_gate applying scoped allow_persist filter',
+				array(
+				'hook'    => $hook,
+				'op'      => $op,
+				'scope'   => $scope,
+				'context' => $ctx,
+				)
+			);
+			$allowed = (bool) $this->_do_apply_filter($hook, $allowed, $ctx);
+			$this->_get_logger()->debug(
+				'RegisterOptions: _apply_write_gate scoped filter result',
+				array(
+					'hook'    => $hook,
+					'allowed' => $allowed,
+					'context' => $ctx,
+					)
+			);
+		}
+
+		if ($allowed === false) {
+			$this->_get_logger()->notice(
+				'RegisterOptions: Write vetoed by allow_persist filter.',
+				array(
+				'op'          => $op,
+				'main_option' => $ctx['main_option'] ?? '',
+				'scope'       => $scope,
+				)
+			);
+		}
+		// Debug: final decision
+		$this->_get_logger()->debug(
+			'RegisterOptions: _apply_write_gate final decision',
+			array(
+			'op'          => $op,
+			'main_option' => $ctx['main_option'] ?? '',
+			'scope'       => $scope,
+			'allowed'     => $allowed,
+			)
+		);
+		return $allowed;
+	}
+
+	/**
+	 * Read the main option payload through the storage adapter with safe fallbacks.
+	 *
+	 * @return array<string, mixed>
+	 */
+	protected function _read_main_option(): array {
+		$raw = $this->_get_storage()->read($this->main_wp_option_name);
+		if (!is_array($raw)) {
+			$this->_get_logger()->debug('RegisterOptions: _read_main_option completed', array('count' => 0));
+			return array();
+		}
+		$this->_get_logger()->debug('RegisterOptions: _read_main_option completed', array('count' => count($raw)));
+		return $raw;
 	}
 
 	/**
 	 * Saves all currently held options to the database under the main option name.
 	 *
-	 * @param bool $mergeFromDb Optional. If true, applies a shallow, top-level
-	 *                          merge with the current DB value (DB + in-memory),
-	 *                          where in-memory values win on collisions. This is
-	 *                          intended to reduce lost updates for disjoint keys
+	 * @param bool $merge_from_db Optional. If true, applies a shallow, top-level
+	 *                          merge with the current DB value (keeps DB keys, overwrites with in-memory on collision)
 	 *                          and does not perform deep/nested merges.
 	 * @return bool True if the option was successfully updated or added, false otherwise.
 	 */
-	private function _save_all_options(bool $mergeFromDb = false): bool {
-		// @codeCoverageIgnoreStart
-		if ($this->_get_logger()->is_active()) {
-			$this->_get_logger()->debug(
-				"RegisterOptions: Saving all options to '{$this->main_wp_option_name}'. Total sub-options: "
-				. count($this->options) . '. Autoload: ' . ($this->main_option_autoload ? 'true' : 'false')
-				. ($mergeFromDb ? ' (mergeFromDb)' : '')
-			);
-		}
-		// @codeCoverageIgnoreEnd
+	protected function _save_all_options(bool $merge_from_db = false): bool {
+		$this->_get_logger()->debug(
+			'RegisterOptions: _save_all_options starting...',
+			array(
+			'origin'        => $this->__persist_origin ?? 'save_all',
+			'merge_from_db' => $merge_from_db,
+				)
+		);
+		$to_save             = $this->options;
+		$__exists_from_merge = null; // null = unknown, true = confirmed from merge read
 
-		$to_save = $this->options;
+		if ($merge_from_db) {
+			// Load DB snapshot and merge top-level keys (no deep merge)
+			$dbCurrent = $this->_get_storage()->read($this->main_wp_option_name);
 
-		if ($mergeFromDb) {
-			$dbCurrent = $this->_do_get_option($this->main_wp_option_name, array());
-			if (!is_array($dbCurrent)) {
+			// Optimization: non-empty array proves existence, skip sentinel check later
+			if (is_array($dbCurrent) && !empty($dbCurrent)) {
+				$__exists_from_merge = true;
+				$this->_get_logger()->debug(
+					'RegisterOptions: _save_all_options merge read returned non-empty array; existence confirmed',
+					array('key_count' => count($dbCurrent))
+				);
+			} elseif (!is_array($dbCurrent)) {
+				$this->_get_logger()->debug(
+					'RegisterOptions: _save_all_options merge_from_db snapshot not array; normalizing to empty array',
+					array('snapshot_type' => gettype($dbCurrent))
+				);
 				$dbCurrent = array();
 			}
+			// Note: empty array case leaves $__exists_from_merge as null (ambiguous)
+
 			// Shallow top-level merge: keep DB keys, overwrite with in-memory on collision
-			foreach ($this->options as $k => $entry) {
-				$dbCurrent[$k] = $entry;
+			foreach ($this->options as $k => $value) {
+				$dbCurrent[$k] = $value;
 			}
 			$to_save = $dbCurrent;
 		}
 
-		$result = $this->_do_update_option($this->main_wp_option_name, $to_save, $this->main_option_autoload);
-		// Mirror what we just saved to keep local cache consistent
-		$this->options = $to_save;
+		// Apply final gate before persistence with full context
+		// Build WriteContext directly from typed StorageContext
+		$ctx = $this->_get_storage_context();
+		$wc  = WriteContext::for_save_all(
+			$this->main_wp_option_name,
+			$ctx->scope->value,
+			$ctx->blog_id,
+			$ctx->user_id,
+			(string) ($ctx->user_storage ?? 'meta'),
+			(bool) ($ctx->user_global ?? false),
+			$to_save,
+			$merge_from_db
+		);
+		$allowed = $this->_apply_write_gate($this->__persist_origin ?? 'save_all', $wc);
+		if (!$allowed) {
+			$this->_get_logger()->debug('RegisterOptions: _save_all_options vetoed by policy.');
+			$this->_get_logger()->debug('RegisterOptions: _save_all_options completed', array('result' => false));
+			return false;
+		}
+
+		// Honor initial autoload preference only on creation.
+		// Determine existence: skip sentinel check if merge read already confirmed existence.
+		if ($__exists_from_merge === true) {
+			$__exists   = true;
+			$__sentinel = null; // Not needed, but defined for consistency in retry verification
+			$this->_get_logger()->debug('RegisterOptions: _save_all_options existence confirmed from merge read; skipping sentinel check');
+		} else {
+			// Sentinel pattern: differentiate missing option from nullish stored value (false, 0, '', null)
+			$__sentinel     = new \stdClass();
+			$__raw_existing = $this->_do_get_option($this->main_wp_option_name, $__sentinel);
+			$__exists       = ($__raw_existing !== $__sentinel);
+		}
+		if ($__exists) {
+			// Existing row: use update() without autoload
+			$result = $this->_get_storage()->update($this->main_wp_option_name, $to_save);
+			if (!$result) {
+				// Retry once for transient conditions, then verify DB state
+				$this->_get_logger()->debug('RegisterOptions: storage->update() returned false; retrying once.');
+				$result = $this->_get_storage()->update($this->main_wp_option_name, $to_save);
+				if (!$result) {
+					// Create sentinel for verification if we skipped the initial sentinel check
+					$__verify_sentinel = $__sentinel ?? new \stdClass();
+					$__verify          = $this->_do_get_option($this->main_wp_option_name, $__verify_sentinel);
+					if ($__verify !== $__verify_sentinel && Helpers::canonicalStructuresMatch($__verify, $to_save)) {
+						$this->_get_logger()->warning('RegisterOptions: storage->update() returned false but DB matches desired state; treating as success.');
+						$result = true;
+					} else {
+						$this->_get_logger()->warning('RegisterOptions: storage->update() failed and DB does not match desired state.');
+					}
+				}
+			}
+		} else {
+			// Missing row: prefer add() with autoload; if it fails, fall back to update()
+			$this->_get_logger()->debug(
+				'RegisterOptions: storage->add() selected, as option did not exist in DB',
+				array('autoload' => (bool) $this->main_option_autoload)
+			);
+			$result = $this->_get_storage()->add($this->main_wp_option_name, $to_save, $this->main_option_autoload);
+			if (!$result) {
+				$this->_get_logger()->debug('RegisterOptions: storage->add() returned false; falling back to storage->update().');
+				$result = $this->_get_storage()->update($this->main_wp_option_name, $to_save);
+				if (!$result) {
+					// Retry once for transient conditions before verifying DB state
+					$this->_get_logger()->debug('RegisterOptions: storage->update() returned false; retrying once.');
+					$result = $this->_get_storage()->update($this->main_wp_option_name, $to_save);
+					if (!$result) {
+						$__verify = $this->_do_get_option($this->main_wp_option_name, $__sentinel);
+						if ($__verify !== $__sentinel && Helpers::canonicalStructuresMatch($__verify, $to_save)) {
+							$this->_get_logger()->warning('RegisterOptions: storage->update() also failed but DB matches desired state; treating as success.');
+							$result = true;
+						} else {
+							$this->_get_logger()->warning('RegisterOptions: storage->update() also failed and DB does not match desired state.');
+						}
+					}
+				}
+			}
+		}
+
+		// Mirror what we just saved to keep local cache consistent on success.
+		if ($result) {
+			$this->options = $to_save;
+		}
+
+		$this->_get_logger()->debug('RegisterOptions: _save_all_options completed', array('result' => (bool) $result));
 		return $result;
 	}
 
 	/**
-	 * Applies schema-based sanitization and validation to the value of a given option key.
+	 * Apply schema-based sanitization and validation to the value of a given option key.
 	 * If no schema exists for the key, returns the value unchanged.
 	 *
-	 * @param string $normalized_key
-	 * @param mixed  $value
+	 * @param  string $normalized_key
+	 * @param  mixed  $value
 	 * @return mixed
 	 * @throws \InvalidArgumentException on failed validation
 	 */
-	private function _sanitize_and_validate_option(string $normalized_key, mixed $value): mixed {
+	protected function _sanitize_and_validate_option(string $normalized_key, mixed $value): mixed {
 		if (!isset($this->schema[$normalized_key])) {
-			return $value;
+			$this->_get_logger()->warning('RegisterOptions: _sanitize_and_validate_option no schema', array('key' => $normalized_key));
+			throw new \InvalidArgumentException(static::class . ": No schema defined for option '{$normalized_key}'.");
 		}
 
-		$rules = $this->schema[$normalized_key];
+		$rules                         = $this->_coerce_schema_entry($this->schema[$normalized_key], $normalized_key);
+		$this->schema[$normalized_key] = $rules;
 
-		if (isset($rules['sanitize']) && \is_callable($rules['sanitize'])) {
-			$value = ($rules['sanitize'])($value);
-		}
-		if (isset($rules['validate']) && \is_callable($rules['validate'])) {
-			$validator = $rules['validate'];
-			$valid     = $validator($value);
-			if ($valid !== true) {
-				$valStr       = $this->_stringify_value_for_error($value);
-				$validatorStr = $this->_describe_callable($validator);
-				throw new \InvalidArgumentException(
-					static::class . ": Validation failed for option '{$normalized_key}' with value {$valStr} using validator {$validatorStr}."
-				);
+		$value = $this->_get_validator_pipeline()->sanitize_and_validate(
+			$normalized_key,
+			$value,
+			$rules,
+			'RegisterOptions',
+			$this->_get_logger(),
+			function (callable $callable): string {
+				return $this->_describe_callable($callable);
+			},
+			function (mixed $subject): string {
+				return $this->_stringify_value_for_error($subject);
+			},
+			function (string $key, string $message): void {
+				$this->_record_message($key, $message, 'notice');
+			},
+			function (string $key, string $message): void {
+				$this->_record_message($key, $message, 'warning');
 			}
-		}
+		);
 
 		return $value;
 	}
@@ -691,14 +1622,341 @@ class RegisterOptions {
 	 * Resolves a default value which may be a raw value or a callable.
 	 * If callable, it will be invoked with the current ConfigInterface|null and should return a value.
 	 *
-	 * @param mixed $default
+	 * @param  mixed $default
 	 * @return mixed
 	 */
-	private function _resolve_default_value(mixed $default): mixed {
+	protected function _resolve_default_value(mixed $default): mixed {
 		if (\is_callable($default)) {
-			return $default($this->config);
+			// Contract: callable defaults accept ConfigInterface|null; we now pass null.
+			$val = $default(null);
+			$this->_get_logger()->debug('RegisterOptions: _resolve_default_value resolved callable');
+			return $val;
 		}
+		$this->_get_logger()->debug('RegisterOptions: _resolve_default_value returned literal');
 		return $default;
+	}
+
+	/**
+	 * Normalize defaults and apply schema rules.
+	 *
+	 * @param  array $defaults Raw defaults array
+	 * @return array Normalized defaults with sanitized keys and validated values
+	 */
+	protected function _normalize_defaults(array $defaults): array {
+		$normalized = array();
+		foreach ($defaults as $key => $value) {
+			$nk              = $this->_do_sanitize_key((string) $key);
+			$normalized[$nk] = $this->_sanitize_and_validate_option($nk, $value);
+		}
+		return $normalized;
+	}
+
+	/**
+	 * Record a normalized message for the supplied option key with type classification.
+	 *
+	 * @param  string $normalized_key
+	 * @param  string $message
+	 * @param  string $type Either 'warning' or 'notice'
+	 * @return void
+	 */
+	private function _record_message(string $normalized_key, string $message, string $type = 'warning'): void {
+		$this->_ensure_message_handler();
+		$this->message_handler->add_message($normalized_key, $message, $type);
+	}
+
+	/**
+	 * Return a fresh bucket map for sanitize/validate arrays.
+	 *
+	 * @return array{component:array<int,callable>,schema:array<int,callable>}
+	 */
+	private function _blank_bucket_map(): array {
+		return $this->_get_validator_pipeline()->create_bucket_map();
+	}
+
+	/**
+	 * Normalize callable field from schema definitions.
+	 *
+	 * @param callable|array<callable>|null $callables
+	 * @param string                        $field
+	 * @param string                        $option_key
+	 * @return array<callable>
+	 */
+	private function _normalize_callable_field($callables, string $field, string $option_key): array {
+		return $this->_get_validator_pipeline()->normalize_callable_field($callables, $field, $option_key, 'RegisterOptions');
+	}
+
+	/**
+	 * Produce a lightweight summary for a bucket of callables so logs avoid retaining raw closures.
+	 *
+	 * @param array<int, callable> $bucket
+	 * @return array{count:int, descriptors:array<int,string>}
+	 */
+	private function _summarize_callable_bucket(array $bucket): array {
+		$count       = count($bucket);
+		$limit       = 5;
+		$descriptors = array();
+		$index       = 0;
+		foreach ($bucket as $callable) {
+			if ($index >= $limit) {
+				break;
+			}
+			$descriptors[] = $this->_describe_callable($callable);
+			$index++;
+		}
+
+		return array(
+			'count'       => $count,
+			'descriptors' => $descriptors,
+		);
+	}
+
+	/**
+	 * Ensure the schema entry adheres to the bucket structure.
+	 *
+	 * @param array $entry
+	 * @param string $option_key
+	 * @return array{sanitize:array{component:array, schema:array}, validate:array{component:array, schema:array}, default?:mixed}
+	 */
+	private function _coerce_schema_entry(array $entry, string $option_key): array {
+		return $this->_get_validator_pipeline()->normalize_schema_entry($entry, $option_key, 'RegisterOptions', $this->_get_logger());
+	}
+
+	/**
+	 * Merge two bucket maps while preserving per-bucket ordering.
+	 *
+	 * @param array{component:array<callable>,schema:array<callable>} $existing
+	 * @param array{component:array<callable>,schema:array<callable>} $incoming
+	 * @return array{component:array<callable>,schema:array<callable>}
+	 */
+	private function _merge_bucketed_callables(array $existing, array $incoming): array {
+		return $this->_get_validator_pipeline()->merge_bucketed_callables($existing, $incoming);
+	}
+
+	/**
+	 * Determine whether the supplied array looks like a bucket map.
+	 */
+	private function _is_bucket_map(array $candidate): bool {
+		return $this->_get_validator_pipeline()->is_bucket_map($candidate);
+	}
+
+	/**
+	 * Check if schema entry is already in canonical bucket structure.
+	 *
+	 * This verifies the COMPLETE structure (all 4 arrays present), not just
+	 * partial bucket form. Used to skip redundant coercion when an entry
+	 * has already been normalized.
+	 *
+	 * @param array $entry Schema entry to check.
+	 * @return bool True if already in canonical normalized form.
+	 */
+	private function _is_canonical_bucket_structure(array $entry): bool {
+		return isset($entry['sanitize']['component'])
+			&& isset($entry['sanitize']['schema'])
+			&& isset($entry['validate']['component'])
+			&& isset($entry['validate']['schema'])
+			&& is_array($entry['sanitize']['component'])
+			&& is_array($entry['sanitize']['schema'])
+			&& is_array($entry['validate']['component'])
+			&& is_array($entry['validate']['schema']);
+	}
+
+	private function _get_validator_pipeline(): ValidatorPipelineService {
+		if (!($this->validator_pipeline instanceof ValidatorPipelineService)) {
+			$this->validator_pipeline = new ValidatorPipelineService();
+		}
+		return $this->validator_pipeline;
+	}
+
+	/**
+	 * Expose the validator pipeline instance (shared when injected).
+	 */
+	public function get_validator_pipeline(): ValidatorPipelineService {
+		return $this->_get_validator_pipeline();
+	}
+
+	/**
+	 * Set the validator pipeline instance.
+	 *
+	 * @internal Used by with_context() to share pipeline with cloned instances.
+	 *           Not part of the public API.
+	 *
+	 * @param ValidatorPipelineService $pipeline The pipeline instance to use.
+	 * @return void
+	 */
+	public function __set_validator_pipeline(ValidatorPipelineService $pipeline): void {
+		$this->validator_pipeline = $pipeline;
+	}
+
+	/**
+	 * Record a normalized warning message for the supplied option key.
+	 *
+	 * @deprecated Use _record_message() with type 'warning' instead
+	 * @param  string $normalized_key
+	 * @param  string $message
+	 * @return void
+	 */
+	private function _record_warning(string $normalized_key, string $message): void {
+		$this->_record_message($normalized_key, $message, 'warning');
+	}
+
+	/**
+	 * Ensure the message handler is initialized.
+	 *
+	 * @return void
+	 */
+	private function _ensure_message_handler(): void {
+		if (!isset($this->message_handler)) {
+			$this->message_handler = new FormMessageHandler($this->logger);
+		}
+	}
+
+	/**
+	 * Normalize external schema map keys to internal normalized option keys.
+	 *
+	 * Note: 'default' is included only when explicitly provided by caller to
+	 * avoid seeding with null unintentionally.
+	 *
+	 * @param array $schema
+	 * @return array<string, array{
+	 * 						default?:mixed|null, 	 // Literal default value or callable returning a value
+	 * 						sanitize?:callable|null, // Callable accepting a value and returning a sanitized value
+	 * 						validate?:callable|null  // Callable accepting a value and returning a boolean
+	 * 					}>
+	 */
+	protected function _normalize_schema_keys(array $schema): array {
+		$normalized = array();
+		foreach ($schema as $key => $ruleSet) {
+			if (!\is_array($ruleSet)) {
+				throw new \InvalidArgumentException('RegisterOptions: register_schema expects each rule definition to be an array.');
+			}
+
+			$nKey  = $this->_do_sanitize_key((string) $key);
+			$entry = array(
+				'sanitize' => $this->_blank_bucket_map(),
+				'validate' => $this->_blank_bucket_map(),
+			);
+
+			if (array_key_exists('sanitize', $ruleSet)) {
+				$sanitizeField = $ruleSet['sanitize'];
+				if (\is_array($sanitizeField) && $this->_is_bucket_map($sanitizeField)) {
+					$this->_get_logger()->warning('RegisterOptions: register_schema disallows component sanitize buckets', array('key' => $nKey));
+					throw new \InvalidArgumentException("RegisterOptions: Schema for key '{$nKey}' must not provide bucketed sanitize entries.");
+				}
+				$entry['sanitize'][self::BUCKET_SCHEMA] = $this->_normalize_callable_field($sanitizeField, 'sanitize', $nKey);
+			}
+
+			if (array_key_exists('validate', $ruleSet)) {
+				$validateField = $ruleSet['validate'];
+				if (\is_array($validateField) && $this->_is_bucket_map($validateField)) {
+					$this->_get_logger()->warning('RegisterOptions: register_schema disallows component validate buckets', array('key' => $nKey));
+					throw new \InvalidArgumentException("RegisterOptions: Schema for key '{$nKey}' must not provide bucketed validate entries.");
+				}
+				$entry['validate'][self::BUCKET_SCHEMA] = $this->_normalize_callable_field($validateField, 'validate', $nKey);
+			}
+
+			if (array_key_exists('default', $ruleSet)) {
+				$entry['default'] = $ruleSet['default'];
+			}
+
+			$normalized[$nKey] = $entry;
+		}
+		$this->_get_logger()->debug('RegisterOptions: _normalize_schema_keys completed', array('count' => count($normalized)));
+		return $normalized;
+	}
+
+	/**
+	 * Ensure required validator presence for auto-generated schema entries.
+	 */
+	private function _assert_internal_validator_presence(string $normalized_key, array $entry): void {
+		$componentValidators = $entry['validate'][self::BUCKET_COMPONENT] ?? array();
+		$schemaValidators    = $entry['validate'][self::BUCKET_SCHEMA]    ?? array();
+		if (!empty($componentValidators) || !empty($schemaValidators)) {
+			return;
+		}
+
+		$this->_get_logger()->error('RegisterOptions: Validator required but missing for option', array('key' => $normalized_key));
+		throw new \UnexpectedValueException(sprintf('RegisterOptions: Option "%s" requires at least one validator.', $normalized_key));
+	}
+
+	/**
+	 * Create a flattened schema view with buckets merged for external consumers.
+	 */
+	private function _create_flat_schema_view(): array {
+		$flat = array();
+		foreach ($this->schema as $key => $entry) {
+			$coerced        = $this->_coerce_schema_entry($entry, (string) $key);
+			$schemaSanitize = $coerced['sanitize'][self::BUCKET_SCHEMA] ?? array();
+			$schemaValidate = $coerced['validate'][self::BUCKET_SCHEMA] ?? array();
+
+			$flattened = array(
+				'sanitize' => $this->_prepare_callables_for_export($schemaSanitize),
+				'validate' => $this->_prepare_callables_for_export($schemaValidate),
+			);
+			if (array_key_exists('default', $coerced)) {
+				$flattened['default'] = $coerced['default'];
+			}
+
+			$flat[$key] = $flattened;
+		}
+
+		return $flat;
+	}
+
+	/**
+	 * Prepare callable array for developer export.
+	 *
+	 * @param  array<int,mixed> $callables
+	 * @return array<int,mixed>
+	 */
+	private function _prepare_callables_for_export(array $callables): array {
+		return array_values(array_map(function ($callable) {
+			return $this->_export_schema_callable($callable);
+		}, $callables));
+	}
+
+	/**
+	 * Convert a callable into an export-safe representation.
+	 *
+	 * @param  mixed $callable
+	 * @return mixed
+	 */
+	private function _export_schema_callable(mixed $callable): mixed {
+		if (\is_string($callable)) {
+			return $callable;
+		}
+
+		if (\is_array($callable) && isset($callable[0], $callable[1])) {
+			if (\is_string($callable[0])) {
+				return $callable[0] . '::' . (string) $callable[1];
+			}
+			if (\is_object($callable[0])) {
+				return $this->_export_placeholder_for_callable($callable);
+			}
+		}
+
+		if ($callable instanceof \Closure) {
+			return $this->_export_placeholder_for_callable($callable);
+		}
+
+		if (\is_object($callable) && method_exists($callable, '__invoke')) {
+			return $this->_export_placeholder_for_callable($callable);
+		}
+
+		return $callable;
+	}
+
+	/**
+	 * Create a descriptive placeholder string for non-portable callables and log guidance.
+	 *
+	 * @param  mixed $callable
+	 * @return string
+	 */
+	private function _export_placeholder_for_callable(mixed $callable): string {
+		$description = $this->_describe_callable($callable);
+		$note        = ' (NOTE: Consider using a named function or Class::method for portability.)';
+		$placeholder = ValidatorPipelineService::CLOSURE_PLACEHOLDER_PREFIX . $description . $note;
+		$this->_get_logger()->info('RegisterOptions: Exported closure placeholder for schema callable, consider using a named function or Class::method for portability.', array('callable' => $description));
+		return $placeholder;
 	}
 
 	/**
@@ -707,7 +1965,7 @@ class RegisterOptions {
 	 * @param mixed $value
 	 * @return string
 	 */
-	private function _stringify_value_for_error(mixed $value): string {
+	protected function _stringify_value_for_error(mixed $value): string {
 		if (is_scalar($value) || $value === null) {
 			$s = var_export($value, true);
 		} elseif (is_array($value)) {
@@ -718,51 +1976,44 @@ class RegisterOptions {
 		if (strlen($s) > 120) {
 			$s = substr($s, 0, 117) . '...';
 		}
+		$this->_get_logger()->debug('RegisterOptions: _stringify_value_for_error completed');
 		return $s;
 	}
 
 	/**
-	 * Describe a callable for diagnostics.
+	 * Describe a callable for diagnostics. Provides richer context for closures and invokable objects.
 	 *
-	 * @param callable $callable
+	 * @param mixed $callable
 	 * @return string
 	 */
-	private function _describe_callable(mixed $callable): string {
+	protected function _describe_callable(mixed $callable): string {
 		if (is_string($callable)) {
+			$this->_get_logger()->debug('RegisterOptions: _describe_callable completed (string)');
 			return $callable;
 		}
 		if (is_array($callable) && isset($callable[0], $callable[1])) {
 			$class = is_object($callable[0]) ? get_class($callable[0]) : (string) $callable[0];
-			return $class . '::' . (string) $callable[1];
+			$desc  = $class . '::' . (string) $callable[1];
+			$this->_get_logger()->debug('RegisterOptions: _describe_callable completed (array)');
+			return $desc;
 		}
 		if ($callable instanceof \Closure) {
-			return 'Closure';
-		}
-		return 'callable';
-	}
-
-	/**
-	 * Normalize external schema map keys to internal normalized option keys.
-	 *
-	 * Note: 'default' is included only when explicitly provided by caller to
-	 * avoid seeding with null unintentionally.
-	 *
-	 * @param array $schema
-	 * @return array<string, array{default?:mixed|null, sanitize?:callable|null, validate?:callable|null}>
-	 */
-	private function _normalize_schema_keys(array $schema): array {
-		$normalized = array();
-		foreach ($schema as $key => $rules) {
-			$nKey  = self::sanitize_key((string) $key);
-			$entry = array(
-			    'sanitize' => $rules['sanitize'] ?? null,
-			    'validate' => $rules['validate'] ?? null,
-			);
-			if (\is_array($rules) && array_key_exists('default', $rules)) {
-				$entry['default'] = $rules['default'];
+			$desc = 'Closure';
+			if (function_exists('spl_object_id')) {
+				$desc = 'Closure#' . spl_object_id($callable);
+			} elseif (function_exists('spl_object_hash')) {
+				$desc = 'Closure#' . spl_object_hash($callable);
 			}
-			$normalized[$nKey] = $entry;
+			$this->_get_logger()->debug('RegisterOptions: _describe_callable completed (closure)');
+			return $desc;
 		}
-		return $normalized;
+		if (is_object($callable) && method_exists($callable, '__invoke')) {
+			// Enhanced diagnostics: render as Class::__invoke
+			$desc = get_class($callable) . '::__invoke';
+			$this->_get_logger()->debug('RegisterOptions: _describe_callable completed (invokable object)');
+			return $desc;
+		}
+		$this->_get_logger()->debug('RegisterOptions: _describe_callable completed (other)');
+		return 'callable';
 	}
 }
