@@ -72,6 +72,13 @@ abstract class ConfigAbstract implements ConfigInterface {
 	private ?Logger $_logger = null;
 
 	/**
+	 * Flag to track if hydration is in progress (prevents Logger chicken-and-egg).
+	 *
+	 * @var bool
+	 */
+	private bool $_hydrating = false;
+
+	/**
 	 * Unified normalized config cache (theme or plugin).
 	 *
 	 * @var array<string,mixed>|null
@@ -128,6 +135,11 @@ abstract class ConfigAbstract implements ConfigInterface {
 	public function get_logger(): Logger {
 		if ( $this->_logger instanceof Logger ) {
 			return $this->_logger;
+		}
+		// During hydration, return a temporary no-op logger to avoid chicken-and-egg.
+		// The real logger will be created after hydration completes.
+		if ( $this->_hydrating ) {
+			return new Logger( array() );
 		}
 		$cfg           = $this->get_config();
 		$const         = (string)(($cfg['RAN']['LogConstantName'] ?? null) ?: 'RAN_LOG');
@@ -413,26 +425,31 @@ abstract class ConfigAbstract implements ConfigInterface {
 	 * @return void
 	 */
 	protected function _hydrateFromPlugin( string $plugin_file ): void {
-		$logger  = $this->get_logger();
-		$context = get_class($this) . '::_hydrateFromPlugin';
-		if ( $logger->is_active() ) {
-			$logger->debug("{$context} - Entered.", array(
-				'type' => 'plugin',
-				'file' => $plugin_file,
-			));
-		}
-		// Fail fast with a clear error if the provided plugin file is not usable
-		if ($plugin_file === '' || !is_file($plugin_file) || !is_readable($plugin_file)) {
+		$this->_hydrating = true;
+		try {
+			$logger  = $this->get_logger();
+			$context = get_class($this) . '::_hydrateFromPlugin';
 			if ( $logger->is_active() ) {
-				$logger->warning("{$context} - Invalid or unreadable plugin file.", array(
+				$logger->debug("{$context} - Entered.", array(
 					'type' => 'plugin',
 					'file' => $plugin_file,
 				));
 			}
-			throw new \RuntimeException('Config::fromPlugin requires a valid, readable plugin root file.');
+			// Fail fast with a clear error if the provided plugin file is not usable
+			if ($plugin_file === '' || !is_file($plugin_file) || !is_readable($plugin_file)) {
+				if ( $logger->is_active() ) {
+					$logger->warning("{$context} - Invalid or unreadable plugin file.", array(
+						'type' => 'plugin',
+						'file' => $plugin_file,
+					));
+				}
+				throw new \RuntimeException('Config::fromPlugin requires a valid, readable plugin root file.');
+			}
+			$provider = new PluginHeaderProvider($plugin_file, $this);
+			$this->_hydrate_generic($provider);
+		} finally {
+			$this->_hydrating = false;
 		}
-		$provider = new PluginHeaderProvider($plugin_file, $this);
-		$this->_hydrate_generic($provider);
 	}
 
 	/**
@@ -442,20 +459,25 @@ abstract class ConfigAbstract implements ConfigInterface {
 	 * @return void
 	 */
 	protected function _hydrateFromTheme( string $stylesheet_dir ): void {
-		$logger  = $this->get_logger();
-		$context = get_class($this) . '::_hydrateFromTheme';
-		$dir     = $stylesheet_dir ?: ($this->_do_get_stylesheet_directory());
-		if ($dir === '') {
-			if ( $logger->is_active() ) {
-				$logger->warning("{$context} - Missing stylesheet directory or unavailable WordPress runtime.", array(
-					'type' => 'theme',
-					'dir'  => $stylesheet_dir,
-				));
+		$this->_hydrating = true;
+		try {
+			$logger  = $this->get_logger();
+			$context = get_class($this) . '::_hydrateFromTheme';
+			$dir     = $stylesheet_dir ?: ($this->_do_get_stylesheet_directory());
+			if ($dir === '') {
+				if ( $logger->is_active() ) {
+					$logger->warning("{$context} - Missing stylesheet directory or unavailable WordPress runtime.", array(
+						'type' => 'theme',
+						'dir'  => $stylesheet_dir,
+					));
+				}
+				throw new \RuntimeException('Config::fromThemeDir requires a stylesheet directory or WordPress runtime.');
 			}
-			throw new \RuntimeException('Config::fromThemeDir requires a stylesheet directory or WordPress runtime.');
+			$provider = new ThemeHeaderProvider($dir, $this);
+			$this->_hydrate_generic($provider);
+		} finally {
+			$this->_hydrating = false;
 		}
-		$provider = new ThemeHeaderProvider($dir, $this);
-		$this->_hydrate_generic($provider);
 	}
 
 	/**

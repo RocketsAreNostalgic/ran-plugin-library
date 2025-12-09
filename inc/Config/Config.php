@@ -16,7 +16,7 @@ use Ran\PluginLib\Config\ConfigInterface;
 use Ran\PluginLib\Config\ConfigAbstract;
 
 /**
- * Final Config class which holds key information about the plugin.
+ * Config class which holds key information about a plugin or theme.
  */
 class Config extends ConfigAbstract implements ConfigInterface {
 	/**
