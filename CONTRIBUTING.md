@@ -5,13 +5,28 @@ Thank you for your interest in contributing to a Rocket Are Nostalgic project! W
 ## Table of Contents
 
 - [Contributing to Rockets Are Nostalgic projects](#contributing-to-rockets-are-nostalgic-projects)
-  - [Table of Contents](#table-of-contents)
-  - [Code of Conduct](#code-of-conduct)
-  - [Development Process](#development-process) - [Branching Strategy](#branching-strategy) - [Commit Guidelines](#commit-guidelines) - [Pull Request Process](#pull-request-process)
-  - [Coding Standards](#coding-standards) - [TypeScript Guidelines](#typescript-guidelines) - [Basic Principles](#basic-principles) - [Naming Conventions](#naming-conventions) - [Function Guidelines](#function-guidelines) - [Testing Requirements](#testing-requirements) - [Documentation Requirements](#documentation-requirements)
-  - [Guidelines](#guidelines)
-  - [Questions or Problems?](#questions-or-problems)
-  - [License](#license)
+	- [Table of Contents](#table-of-contents)
+	- [Code of Conduct](#code-of-conduct)
+	- [Development Process](#development-process)
+		- [Branching Strategy](#branching-strategy)
+		- [Commit Guidelines](#commit-guidelines)
+		- [Pull Request Process](#pull-request-process)
+	- [Coding Standards](#coding-standards)
+		- [PHP Guidelines](#php-guidelines)
+			- [Basic Principles](#basic-principles)
+			- [Naming Conventions](#naming-conventions)
+			- [Method Visibility Prefixes](#method-visibility-prefixes)
+			- [Static Method Conventions](#static-method-conventions)
+			- [Function Guidelines](#function-guidelines)
+		- [TypeScript Guidelines](#typescript-guidelines)
+			- [Basic Principles](#basic-principles-1)
+			- [Naming Conventions](#naming-conventions-1)
+			- [Function Guidelines](#function-guidelines-1)
+		- [Testing Requirements](#testing-requirements)
+		- [Documentation Requirements](#documentation-requirements)
+	- [Guidelines](#guidelines)
+	- [Questions or Problems?](#questions-or-problems)
+	- [License](#license)
 
 ## Code of Conduct
 
@@ -69,6 +84,62 @@ Implements #123
 
 ## Coding Standards
 
+### PHP Guidelines
+
+#### Basic Principles
+
+- Follow PSR-12 coding standards
+- Use strict types (`declare(strict_types=1)`)
+- Use early returns for better readability
+- Document public APIs with PHPDoc
+- Prefer composition over inheritance
+
+#### Naming Conventions
+
+- **PascalCase** for classes, interfaces, traits, and enums
+- **snake_case** for public methods, properties, and variables
+- **UPPERCASE** for constants
+- Use complete words over abbreviations
+
+#### Method Visibility Prefixes
+
+| Visibility | Prefix | Example | Use Case |
+|------------|--------|---------|----------|
+| Public API | none | `add_field()` | Methods developers should use |
+| Internal-but-public | `__` | `__render()` | Callbacks, cross-class access (not part of public API) |
+| Protected | `_` | `_validate_input()` | Subclass helpers |
+| Private | `_` | `_build_context()` | Internal implementation |
+
+**Why double underscore for internal-but-public?**
+Some methods must be `public` for technical reasons (WordPress hook callbacks, cross-class access) but are not intended for direct use by library consumers. The `__` prefix:
+
+- Clearly signals "internal, do not call directly"
+- Sorts these methods below the public API in IDE autocomplete (grouped with magic methods like `__construct`)
+
+#### Static Method Conventions
+
+- **Factory methods** (`for*`, `from*`, `create*`) → Keep `camelCase` for readability
+
+  ```php
+  StorageContext::forSite()
+  StorageContext::forUser(123)
+  Config::fromPluginFile('/path/to/plugin.php')
+  ```
+
+- **All other static methods** → Use `snake_case`
+
+  ```php
+  Helpers::validate_required($value)
+  Validate::infer_type_from_value($value)
+  ```
+
+#### Function Guidelines
+
+- Keep functions small and focused
+- Use descriptive names that indicate purpose
+- Use type declarations for parameters and return values
+- Prefer nullable types over default `null` parameters where appropriate
+
 ### TypeScript Guidelines
 
 #### Basic Principles
@@ -77,7 +148,7 @@ Implements #123
 - Declare types for all variables and functions
 - Avoid using `any`
 - Use early returns for better readability
-- Document public APIs with JSDoc/PHPDoc
+- Document public APIs with JSDoc
 
 #### Naming Conventions
 
