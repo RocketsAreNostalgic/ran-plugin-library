@@ -1567,4 +1567,123 @@ trait WPWrappersTrait {
 		}
 		return array();
 	}
+
+	/**
+	 * Wrapper method for WordPress wp_handle_upload function.
+	 *
+	 * Handles file uploads via the WordPress upload handler, which validates
+	 * the file, moves it to the uploads directory, and returns file info.
+	 *
+	 * Availability-guarded: Yes (function_exists check)
+	 *
+	 * @internal
+	 * @param array $file      Reference to a single element of $_FILES.
+	 * @param array $overrides Optional. An associative array of names => values to override default variables.
+	 * @param string $time     Optional. Time formatted in 'yyyy/mm'.
+	 * @return array On success, returns an associative array of file attributes.
+	 *               On failure, returns an array with 'error' key containing error message.
+	 */
+	protected function _do_wp_handle_upload(array $file, array $overrides = array(), string $time = ''): array {
+		if (\function_exists('wp_handle_upload')) {
+			return (array) \wp_handle_upload($file, $overrides, $time);
+		}
+		return array('error' => 'wp_handle_upload() is not available');
+	}
+
+	/**
+	 * Wrapper method for WordPress sanitize_file_name function.
+	 *
+	 * Sanitizes a filename, replacing whitespace and special characters with dashes.
+	 *
+	 * Availability-guarded: Yes (function_exists check with fallback)
+	 *
+	 * @internal
+	 * @param string $filename The filename to be sanitized.
+	 * @return string The sanitized filename.
+	 */
+	protected function _do_sanitize_file_name(string $filename): string {
+		if (\function_exists('sanitize_file_name')) {
+			return (string) \sanitize_file_name($filename);
+		}
+		// Fallback: basic sanitization when WP not available
+		$filename = \preg_replace('/[^a-zA-Z0-9._-]/', '-', $filename) ?? $filename;
+		return \trim($filename, '-');
+	}
+
+	/**
+	 * Wrapper method for WordPress wp_insert_attachment function.
+	 *
+	 * Inserts an attachment into the media library.
+	 *
+	 * Availability-guarded: Yes (function_exists check)
+	 *
+	 * @internal
+	 * @param array  $args     Attachment data.
+	 * @param string $file     Optional. Filepath of the attached file.
+	 * @param int    $parent   Optional. Post ID to attach to.
+	 * @param bool   $wp_error Optional. Whether to return a WP_Error on failure.
+	 * @return int|\WP_Error The attachment ID on success, WP_Error or 0 on failure.
+	 */
+	protected function _do_wp_insert_attachment(array $args, string $file = '', int $parent = 0, bool $wp_error = false): int|\WP_Error {
+		if (\function_exists('wp_insert_attachment')) {
+			return \wp_insert_attachment($args, $file, $parent, $wp_error);
+		}
+		return 0;
+	}
+
+	/**
+	 * Wrapper method for WordPress is_wp_error function.
+	 *
+	 * Checks whether the given variable is a WordPress Error.
+	 *
+	 * Availability-guarded: Yes (function_exists check)
+	 *
+	 * @internal
+	 * @param mixed $thing The variable to check.
+	 * @return bool True if WP_Error, false otherwise.
+	 */
+	protected function _do_is_wp_error(mixed $thing): bool {
+		if (\function_exists('is_wp_error')) {
+			return (bool) \is_wp_error($thing);
+		}
+		return false;
+	}
+
+	/**
+	 * Wrapper method for WordPress wp_generate_attachment_metadata function.
+	 *
+	 * Generates metadata for an attachment.
+	 *
+	 * Availability-guarded: Yes (function_exists check)
+	 *
+	 * @internal
+	 * @param int    $attachment_id Attachment ID.
+	 * @param string $file          Filepath of the attached file.
+	 * @return array Metadata array.
+	 */
+	protected function _do_wp_generate_attachment_metadata(int $attachment_id, string $file): array {
+		if (\function_exists('wp_generate_attachment_metadata')) {
+			return (array) \wp_generate_attachment_metadata($attachment_id, $file);
+		}
+		return array();
+	}
+
+	/**
+	 * Wrapper method for WordPress wp_update_attachment_metadata function.
+	 *
+	 * Updates metadata for an attachment.
+	 *
+	 * Availability-guarded: Yes (function_exists check)
+	 *
+	 * @internal
+	 * @param int   $attachment_id Attachment ID.
+	 * @param array $data          Attachment metadata.
+	 * @return int|false True on success, false on failure.
+	 */
+	protected function _do_wp_update_attachment_metadata(int $attachment_id, array $data): int|false {
+		if (\function_exists('wp_update_attachment_metadata')) {
+			return \wp_update_attachment_metadata($attachment_id, $data);
+		}
+		return false;
+	}
 }
