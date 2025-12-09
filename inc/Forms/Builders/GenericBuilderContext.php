@@ -40,13 +40,6 @@ class GenericBuilderContext implements BuilderContextInterface {
 	private $updateFn;
 
 	/**
-	 * Cached component builder factories.
-	 *
-	 * @var array<string, callable>|null
-	 */
-	private ?array $componentBuilderFactories = null;
-
-	/**
 	 * @param FormsInterface $forms The forms instance.
 	 * @param string $container_id The container ID.
 	 * @param callable $updateFn The update callback.
@@ -83,16 +76,14 @@ class GenericBuilderContext implements BuilderContextInterface {
 			return null;
 		}
 
-		if ($this->componentBuilderFactories === null) {
-			$session = $this->forms->get_form_session();
-			if ($session === null) {
-				$this->componentBuilderFactories = array();
-			} else {
-				$this->componentBuilderFactories = $session->manifest()->builder_factories();
-			}
+		// Don't cache - delegate to manifest which handles auto-discovery of new components
+		$session = $this->forms->get_form_session();
+		if ($session === null) {
+			return null;
 		}
 
-		return $this->componentBuilderFactories[$component] ?? null;
+		$factories = $session->manifest()->builder_factories();
+		return $factories[$component] ?? null;
 	}
 
 	/**

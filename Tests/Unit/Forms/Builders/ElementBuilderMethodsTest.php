@@ -248,7 +248,7 @@ final class ElementBuilderMethodsTest extends TestCase {
 	}
 
 	public function test_element_before_callback_is_stored(): void {
-		$builder  = $this->createSectionBuilder(array(
+		$builder = $this->createSectionBuilder(array(
 			'elements.button' => fn(string $id, string $label): StubComponentBuilder => new StubComponentBuilder($id, $label, 'elements.button'),
 		));
 		$callback = fn(array $ctx): string => '<p>Before element</p>';
@@ -264,7 +264,7 @@ final class ElementBuilderMethodsTest extends TestCase {
 	}
 
 	public function test_element_after_callback_is_stored(): void {
-		$builder  = $this->createSectionBuilder(array(
+		$builder = $this->createSectionBuilder(array(
 			'elements.button' => fn(string $id, string $label): StubComponentBuilder => new StubComponentBuilder($id, $label, 'elements.button'),
 		));
 		$callback = fn(array $ctx): string => '<p>After element</p>';

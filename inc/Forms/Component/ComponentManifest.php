@@ -137,7 +137,8 @@ class ComponentManifest {
 			// (e.g., by UserSettings or AdminSettings registering their context-specific templates)
 			$loaderAliases = $this->views->aliases();
 			if (isset($loaderAliases[$alias])) {
-				// Dynamically register the factory for this alias
+				// Dynamically discover metadata and register the factory for this alias
+				$this->_register_alias($alias);
 				$this->_register_alias_factory($alias);
 			} else {
 				$this->logger->warning(sprintf('Unknown form component "%s".', $alias), array('context' => $context));
@@ -238,9 +239,14 @@ class ComponentManifest {
 	/**
 	 * Creates builder factories for all registered components.
 	 *
+	 * Automatically discovers any new components registered after initial construction.
+	 *
 	 * @return array<string,callable(string,string):ComponentBuilderDefinitionInterface>
 	 */
 	public function builder_factories(): array {
+		// Discover any newly registered components before building factory map
+		$this->_discover_new_aliases();
+
 		$factories = array();
 		foreach ($this->componentMetadata as $alias => $meta) {
 			if (!is_array($meta)) {
@@ -283,9 +289,14 @@ class ComponentManifest {
 	 * - Level 1: Memoizes the factory map (built once per manifest instance)
 	 * - Level 2: Each factory caches its instance (one instance per component alias)
 	 *
+	 * Automatically discovers any new components registered after initial construction.
+	 *
 	 * @return array<string,callable():ValidatorInterface>
 	 */
 	public function validator_factories(): array {
+		// Discover any newly registered components before returning cached map
+		$this->_discover_new_aliases();
+
 		// Level 1: Return memoized factory map if available
 		if ($this->validatorFactoriesCache !== null) {
 			return $this->validatorFactoriesCache;
@@ -337,9 +348,14 @@ class ComponentManifest {
 	 * - Level 1: Memoizes the factory map (built once per manifest instance)
 	 * - Level 2: Each factory caches its instance (one instance per component alias)
 	 *
+	 * Automatically discovers any new components registered after initial construction.
+	 *
 	 * @return array<string,callable():SanitizerInterface>
 	 */
 	public function sanitizer_factories(): array {
+		// Discover any newly registered components before returning cached map
+		$this->_discover_new_aliases();
+
 		// Level 1: Return memoized factory map if available
 		if ($this->sanitizerFactoriesCache !== null) {
 			return $this->sanitizerFactoriesCache;
@@ -417,16 +433,34 @@ class ComponentManifest {
 	}
 
 	/**
-	 * Clear cached validator/sanitizer instances and factory maps.
+	 * Clear all caches including component registry, metadata, and factory maps.
 	 *
-	 * @internal For testing only. Validators and sanitizers are stateless,
-	 * so instance caching is safe for production use.
+	 * Use this during development when adding new companion files (Normalizer,
+	 * Validator, Sanitizer) to an existing component. In debug mode, this is
+	 * called automatically when file modification times change.
+	 *
+	 * @param bool $metadata_only If true, only clears factory caches without
+	 *                            clearing the component registry. Default false.
 	 */
-	public function __clear_instance_cache(): void {
+	public function clear_caches(bool $metadata_only = false): void {
+		// Clear factory caches
 		$this->validatorInstances      = array();
 		$this->sanitizerInstances      = array();
 		$this->validatorFactoriesCache = null;
 		$this->sanitizerFactoriesCache = null;
+
+		if (!$metadata_only) {
+			// Clear component registry and metadata
+			$this->components        = array();
+			$this->componentMetadata = array();
+
+			// Clear the transient cache service (both template and component caches)
+			$this->cacheService->clear_all(ComponentCacheService::PREFIX_TEMPLATE);
+			$this->cacheService->clear_all(ComponentCacheService::PREFIX_COMPONENT);
+
+			// Re-discover all components
+			$this->_discover();
+		}
 	}
 
 	/**
@@ -451,16 +485,64 @@ class ComponentManifest {
 	 * This method discovers metadata, registers a factory, and makes the component
 	 * available for rendering.
 	 *
+	 * In debug mode (WP_DEBUG), automatically re-registers the factory if any
+	 * companion files (Normalizer, Validator, Sanitizer) have been modified.
+	 *
 	 * @param string $alias Component alias to discover (e.g., 'my-plugin.color-picker')
+	 * @param bool   $force If true, re-registers the factory even if already registered.
+	 *                      Use this when companion classes may have changed.
 	 */
-	public function discover_alias(string $alias): void {
-		// Discover and cache metadata
+	public function discover_alias(string $alias, bool $force = false): void {
+		// In debug mode, check if companion files have changed
+		if (!$force && !$this->cacheService->is_enabled()) {
+			$force = $this->_has_companion_files_changed($alias);
+		}
+
+		// Discover and cache metadata (this finds Normalizer, Validator, etc.)
 		$this->_register_alias($alias);
 
-		// Register a factory for the component if not already registered
-		if (!$this->has($alias)) {
+		// Register a factory for the component if not already registered (or forced)
+		if ($force || !$this->has($alias)) {
 			$this->_register_alias_factory($alias);
 		}
+	}
+
+	/**
+	 * Track last known modification times for component directories.
+	 *
+	 * @var array<string, int>
+	 */
+	private array $componentMtimes = array();
+
+	/**
+	 * Check if any companion files in a component directory have changed.
+	 *
+	 * @param string $alias Component alias
+	 * @return bool True if files have changed since last check
+	 */
+	private function _has_companion_files_changed(string $alias): bool {
+		$componentDir = $this->views->resolve_component_directory($alias);
+		if ($componentDir === null || !is_dir($componentDir)) {
+			return false;
+		}
+
+		// Get max mtime of all PHP files in the component directory
+		$currentMtime = 0;
+		$files        = glob($componentDir . '/*.php');
+		if ($files !== false) {
+			foreach ($files as $file) {
+				$mtime = filemtime($file);
+				if ($mtime !== false && $mtime > $currentMtime) {
+					$currentMtime = $mtime;
+				}
+			}
+		}
+
+		// Compare with last known mtime
+		$lastMtime                     = $this->componentMtimes[$alias] ?? 0;
+		$this->componentMtimes[$alias] = $currentMtime;
+
+		return $currentMtime > $lastMtime && $lastMtime > 0;
 	}
 
 	/**
@@ -470,6 +552,47 @@ class ComponentManifest {
 		foreach ($this->views->aliases() as $alias => $_path) {
 			$this->_register_alias($alias);
 		}
+	}
+
+	/**
+	 * Track the last known loader alias count to avoid repeated array_diff calls.
+	 *
+	 * @var int
+	 */
+	private int $lastKnownAliasCount = 0;
+
+	/**
+	 * Discover any aliases registered on the loader that aren't yet in componentMetadata.
+	 *
+	 * This handles components registered after manifest construction (e.g., external
+	 * components registered via register_components()). If new aliases are found,
+	 * the factory caches are invalidated to include them.
+	 */
+	private function _discover_new_aliases(): void {
+		$loaderAliases = $this->views->aliases();
+		$aliasCount    = count($loaderAliases);
+
+		// Quick check: if alias count hasn't changed, skip the expensive diff
+		if ($aliasCount === $this->lastKnownAliasCount) {
+			return;
+		}
+
+		$newAliases = array_diff(array_keys($loaderAliases), array_keys($this->componentMetadata));
+
+		if (empty($newAliases)) {
+			$this->lastKnownAliasCount = $aliasCount;
+			return;
+		}
+
+		// Discover metadata for new aliases
+		foreach ($newAliases as $alias) {
+			$this->_register_alias($alias);
+		}
+
+		// Update count and invalidate factory caches
+		$this->lastKnownAliasCount     = count($this->views->aliases());
+		$this->validatorFactoriesCache = null;
+		$this->sanitizerFactoriesCache = null;
 	}
 
 	/**

@@ -18,6 +18,7 @@ use Ran\PluginLib\Config\ConfigInterface;
 use FilesystemIterator;
 use DirectoryIterator;
 
+/** @package Ran\PluginLib\Forms\Component */
 class ComponentLoader {
 	use WPWrappersTrait;
 
@@ -162,7 +163,7 @@ class ComponentLoader {
 			}
 
 			$folderName   = $item->getFilename();
-			$aliasSegment = $this->_pascal_to_kebab($folderName);
+			$aliasSegment = $this->_normalize_to_kebab($folderName);
 			$alias        = $prefix ? $prefix . '.' . $aliasSegment : $aliasSegment;
 
 			$relativePath = $options['path'] . '/' . $folderName;
@@ -226,7 +227,7 @@ class ComponentLoader {
 	 * @return mixed
 	 */
 	public function render_payload(string $name, array $context = array()): mixed {
-		$path = $this->_resolve_path($name);
+		$path = $this->resolve_template_path($name);
 		if (!\file_exists($path)) {
 			$this->logger?->warning('ComponentLoader: Template not found', array(
 				'template' => $name,
@@ -286,9 +287,37 @@ class ComponentLoader {
 
 	/**
 	 * Resolve the class name for a sanitizer by its alias.
+	 *
+	 * @param string $name
+	 *
+	 * @return string|null The class name for the sanitizer, or null if not found
 	 */
 	public function resolve_sanitizer_class(string $alias): ?string {
 		return $this->_resolve_component_class($alias, 'Sanitizer');
+	}
+
+	/**
+	 * Resolve the directory path for a component by its alias.
+	 *
+	 * Returns the directory containing the component's View.php and companion files.
+	 *
+	 * @param string $alias Component alias
+	 * @return string|null Absolute path to the component directory, or null if not found
+	 */
+	public function resolve_component_directory(string $alias): ?string {
+		if (!isset($this->map[$alias])) {
+			return null;
+		}
+
+		$entry = $this->map[$alias];
+
+		// External component: array with 'path' key (absolute path to View.php)
+		if (is_array($entry)) {
+			return dirname($entry['path']);
+		}
+
+		// Built-in component: string (relative path from baseDir)
+		return dirname($this->baseDir . '/' . $entry);
 	}
 
 	/**
@@ -297,7 +326,7 @@ class ComponentLoader {
 	 * @param string $name
 	 * @return string Absolute path to the template file.
 	 */
-	private function _resolve_path(string $name): string {
+	public function resolve_template_path(string $name): string {
 		if (!isset($this->map[$name])) {
 			$this->logger?->warning('ComponentLoader: No template mapping registered', array(
 				'template' => $name
@@ -500,13 +529,19 @@ class ComponentLoader {
 	}
 
 	/**
-	 * Convert PascalCase to kebab-case for alias generation.
+	 * Normalize any naming convention to kebab-case for alias generation.
 	 *
-	 * @param string $input PascalCase string (e.g., 'ColorPicker')
+	 * Handles PascalCase, camelCase, snake_case, and kebab-case inputs.
+	 *
+	 * @param string $input Directory name in any convention
 	 * @return string kebab-case string (e.g., 'color-picker')
 	 */
-	private function _pascal_to_kebab(string $input): string {
+	private function _normalize_to_kebab(string $input): string {
+		// First handle PascalCase/camelCase: insert hyphen before uppercase letters
 		$result = preg_replace('/([a-z])([A-Z])/', '$1-$2', $input);
+		// Then replace underscores with hyphens (snake_case)
+		$result = preg_replace('/_/', '-', $result ?? $input);
+		// Lowercase everything
 		return strtolower($result ?? $input);
 	}
 
