@@ -98,6 +98,22 @@ trait WPWrappersTrait {
 	}
 
 	/**
+	 * Wrapper method for WordPress is_admin function.
+	 *
+	 * Returns true if the current request is for an admin page (including AJAX).
+	 * Availability-guarded: Yes (returns false if WP not loaded)
+	 *
+	 * @internal
+	 * @return bool True if in admin context, false otherwise.
+	 */
+	protected function _do_is_admin(): bool {
+		if (\function_exists('is_admin')) {
+			return (bool) \is_admin();
+		}
+		return false;
+	}
+
+	/**
 	 * Wrapper method for WordPress add_filter function.
 	 *
 	 * This method provides a consistent interface for adding filters across the codebase
