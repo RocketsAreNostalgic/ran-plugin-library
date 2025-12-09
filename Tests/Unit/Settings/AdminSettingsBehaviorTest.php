@@ -453,25 +453,20 @@ final class AdminSettingsBehaviorTest extends PluginLibTestCase {
 		    'container_id' => 'group-one',
 		)));
 
+		// Verify state was updated correctly (logging reduced to commit only)
+		$menuGroups = $this->getSettingsProperty('menu_groups');
+		self::assertArrayHasKey('group-one', $menuGroups);
+		self::assertSame('Group One Title', $menuGroups['group-one']['meta']['menu_title'] ?? null);
+		self::assertSame('manage_options', $menuGroups['group-one']['meta']['capability'] ?? null);
+
+		// Verify commit log was emitted
 		$logEntries = \array_slice($this->logger->collected_logs, $logStart);
-		$updateLogs = \array_values(\array_filter($logEntries, static function (array $entry): bool {
-			return $entry['message'] === 'settings.builder.menu_group.updated';
-		}));
 		$commitLogs = \array_values(\array_filter($logEntries, static function (array $entry): bool {
 			return $entry['message'] === 'settings.builder.menu_group.committed';
 		}));
-
-		self::assertNotEmpty($updateLogs);
 		self::assertNotEmpty($commitLogs);
-
-		$update = \array_pop($updateLogs);
-		self::assertSame('group-one', $update['context']['container_id'] ?? null);
-		self::assertSame('Group One Title', $update['context']['menu_title'] ?? null);
-		self::assertSame('manage_options', $update['context']['capability'] ?? null);
-
 		$commit = \array_pop($commitLogs);
 		self::assertSame('group-one', $commit['context']['container_id'] ?? null);
-		self::assertIsArray($commit['context']['pages'] ?? null);
 	}
 
 	public function test_handle_context_update_records_page_lookup(): void {
@@ -488,14 +483,11 @@ final class AdminSettingsBehaviorTest extends PluginLibTestCase {
 		    'page_data'    => array('meta' => array('heading' => 'Context Page')),
 		)));
 
-		$logEntries = \array_slice($this->logger->collected_logs, $logStart);
-		$pageLogs   = \array_values(\array_filter($logEntries, static function (array $entry): bool {
-			return $entry['message'] === 'settings.builder.page.updated';
-		}));
-		self::assertNotEmpty($pageLogs);
-		$log = \array_pop($pageLogs);
-		self::assertSame('context-page', $log['context']['page_slug'] ?? null);
-		self::assertSame('context-group', $log['context']['group_id'] ?? null);
+		// Verify state was updated correctly (logging reduced to commit only)
+		$pages = $this->getSettingsProperty('pages');
+		self::assertArrayHasKey('context-page', $pages);
+		self::assertSame('context-group', $pages['context-page']['group'] ?? null);
+		self::assertSame('context-page', $pages['context-page']['page'] ?? null);
 	}
 
 	/* issue **/

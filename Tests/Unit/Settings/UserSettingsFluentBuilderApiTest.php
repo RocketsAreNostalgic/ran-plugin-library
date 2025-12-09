@@ -141,6 +141,16 @@ class UserSettingsFluentBuilderApiTest extends TestCase {
 	}
 
 	/**
+	 * Helper: Get a property value from UserSettings via reflection.
+	 */
+	private function getProperty(UserSettings $user, string $property): mixed {
+		$reflection = new \ReflectionClass($user);
+		$prop       = $reflection->getProperty($property);
+		$prop->setAccessible(true);
+		return $prop->getValue($user);
+	}
+
+	/**
 	 * Builder API test: Fieldset builder stores metadata and fields for user settings.
 	 *
 	 * @test
@@ -158,36 +168,22 @@ class UserSettingsFluentBuilderApiTest extends TestCase {
 			->end_section()
 		->end();
 
-		$groupMetadataLogs = $this->logger_mock->find_logs(static function (array $entry): bool {
-			return $entry['message']                           === 'settings.builder.group.metadata'
-			    && ($entry['context']['container_id'] ?? null) === 'profile'
-			    && ($entry['context']['section_id'] ?? null)   === 'preferences'
-			    && ($entry['context']['group_id'] ?? null)     === 'profile-details';
-		});
-		self::assertNotEmpty($groupMetadataLogs, 'Fieldset metadata log missing.');
-		$fieldSetContext = $this->findLatestContext($groupMetadataLogs, static function (array $context): bool {
-			return ($context['disabled'] ?? false) === true;
-		});
-		self::assertSame('Profile Details', $fieldSetContext['heading']);
-		self::assertSame('highlighted', $fieldSetContext['style']);
-		self::assertTrue($fieldSetContext['disabled']);
+		// Verify state directly instead of logs
+		$groups = $this->getProperty($user, 'groups');
+		self::assertArrayHasKey('profile', $groups);
+		self::assertArrayHasKey('preferences', $groups['profile']);
+		self::assertArrayHasKey('profile-details', $groups['profile']['preferences']);
 
-		$collectionLogs = $this->logger_mock->find_logs(static function (array $entry): bool {
-			return $entry['message']                           === 'settings.builder.collection.updated'
-			    && ($entry['context']['container_id'] ?? null) === 'profile';
-		});
-		self::assertNotEmpty($collectionLogs, 'Collection metadata log missing.');
-		$collectionContext = $this->findLatestContext($collectionLogs);
-		self::assertSame('collection-style', $collectionContext['style'] ?? null);
+		$fieldset = $groups['profile']['preferences']['profile-details'];
+		self::assertSame('Profile Details', $fieldset['title']);
+		self::assertSame('highlighted', $fieldset['style']);
+		self::assertTrue($fieldset['disabled']);
+		self::assertCount(1, $fieldset['fields']);
+		self::assertSame('field_three', $fieldset['fields'][0]['id']);
 
-		$fieldLogs = $this->logger_mock->find_logs(static function (array $entry): bool {
-			return $entry['message']                           === 'settings.builder.group_field.updated'
-			    && ($entry['context']['container_id'] ?? null) === 'profile'
-			    && ($entry['context']['section_id'] ?? null)   === 'preferences'
-			    && ($entry['context']['group_id'] ?? null)     === 'profile-details'
-			    && ($entry['context']['field_id'] ?? null)     === 'field_three';
-		});
-		self::assertNotEmpty($fieldLogs, 'Fieldset field update log missing.');
+		$collections = $this->getProperty($user, 'collections');
+		self::assertArrayHasKey('profile', $collections);
+		self::assertSame('collection-style', $collections['profile']['style'] ?? null);
 	}
 
 	/**
@@ -236,100 +232,37 @@ class UserSettingsFluentBuilderApiTest extends TestCase {
 			->end_section()
 		->end();
 
-		$sectionLogs = $this->logger_mock->find_logs(static function (array $entry): bool {
-			return $entry['message']                           === 'settings.builder.section.metadata'
-			    && ($entry['context']['container_id'] ?? null) === 'profile'
-			    && ($entry['context']['section_id'] ?? null)   === 'display';
-		});
-		self::assertNotEmpty($sectionLogs, 'Display section metadata log missing.');
-		$sectionContext = $this->findLatestContext($sectionLogs, static fn(array $context): bool => ($context['has_after'] ?? false) === true);
-		self::assertNotNull($sectionContext, 'Display section metadata log missing.');
-		self::assertTrue($sectionContext['has_before']);
-		self::assertTrue($sectionContext['has_after']);
+		// Verify state directly instead of logs
+		$sections = $this->getProperty($user, 'sections');
+		self::assertArrayHasKey('profile', $sections);
+		self::assertArrayHasKey('display', $sections['profile']);
+		$displaySection = $sections['profile']['display'];
+		self::assertNotNull($displaySection['before']);
+		self::assertNotNull($displaySection['after']);
 
-		$groupMetaLogs = $this->logger_mock->find_logs(static function (array $entry): bool {
-			return $entry['message']                           === 'settings.builder.group.metadata'
-			    && ($entry['context']['container_id'] ?? null) === 'profile'
-			    && ($entry['context']['section_id'] ?? null)   === 'display'
-			    && ($entry['context']['group_id'] ?? null)     === 'notifications';
-		});
-		self::assertNotEmpty($groupMetaLogs, 'Notifications group metadata log missing.');
-		$groupContext = $this->findLatestContext($groupMetaLogs, static fn(array $context): bool => !empty($context['fields']));
-		self::assertNotNull($groupContext, 'Notifications group metadata log missing.');
-		self::assertTrue($groupContext['has_before']);
-		self::assertTrue($groupContext['has_after']);
-		self::assertSame(array('email_alerts'), $groupContext['fields']);
+		$groups = $this->getProperty($user, 'groups');
+		self::assertArrayHasKey('profile', $groups);
+		self::assertArrayHasKey('display', $groups['profile']);
+		self::assertArrayHasKey('notifications', $groups['profile']['display']);
+		$notificationsGroup = $groups['profile']['display']['notifications'];
+		self::assertNotNull($notificationsGroup['before']);
+		self::assertNotNull($notificationsGroup['after']);
+		self::assertSame(array('email_alerts'), array_column($notificationsGroup['fields'], 'id'));
 
-		$fieldLogsDisplay = $this->logger_mock->find_logs(static function (array $entry): bool {
-			return $entry['message']                           === 'settings.builder.field.updated'
-			    && ($entry['context']['container_id'] ?? null) === 'profile'
-			    && ($entry['context']['section_id'] ?? null)   === 'display';
-		});
-		$displayOrder      = array();
-		$displayContextMap = array();
-		foreach ($fieldLogsDisplay as $entry) {
-			$context = $entry['context']    ?? array();
-			$fieldId = $context['field_id'] ?? null;
-			if ($fieldId === null) {
-				continue;
-			}
-			if (!array_key_exists($fieldId, $displayContextMap)) {
-				$displayOrder[] = $fieldId;
-			}
-			$displayContextMap[$fieldId] = $context;
-		}
-		$displayContexts = array_map(static fn(string $id) => $displayContextMap[$id], $displayOrder);
-		self::assertSame(array('display_name', 'bio'), array_column($displayContexts, 'field_id'));
+		$fields = $this->getProperty($user, 'fields');
+		self::assertArrayHasKey('profile', $fields);
+		self::assertArrayHasKey('display', $fields['profile']);
+		$displayFieldIds = array_column($fields['profile']['display'], 'id');
+		self::assertSame(array('display_name', 'bio'), $displayFieldIds);
 
-		$fieldSetLogs = $this->logger_mock->find_logs(static function (array $entry): bool {
-			return $entry['message']                           === 'settings.builder.group.metadata'
-			    && ($entry['context']['container_id'] ?? null) === 'profile'
-			    && ($entry['context']['section_id'] ?? null)   === 'display'
-			    && ($entry['context']['group_id'] ?? null)     === 'contact-preferences';
-		});
-		self::assertNotEmpty($fieldSetLogs, 'Contact preferences metadata log missing.');
-		$fieldsetContext = $this->findLatestContext($fieldSetLogs);
-		self::assertNotNull($fieldsetContext);
-		self::assertSame('minimal', $fieldsetContext['style']);
-		self::assertTrue($fieldsetContext['disabled']);
+		$contactPrefs = $groups['profile']['display']['contact-preferences'];
+		self::assertSame('minimal', $contactPrefs['style']);
+		self::assertTrue($contactPrefs['disabled']);
+		self::assertSame(array('contact_method'), array_column($contactPrefs['fields'], 'id'));
 
-		$notificationFieldLogs = $this->logger_mock->find_logs(static function (array $entry): bool {
-			return $entry['message']                           === 'settings.builder.group_field.updated'
-			    && ($entry['context']['container_id'] ?? null) === 'profile'
-			    && ($entry['context']['section_id'] ?? null)   === 'display'
-			    && ($entry['context']['group_id'] ?? null)     === 'notifications';
-		});
-		self::assertNotEmpty($notificationFieldLogs, 'Notification group field log missing.');
-
-		$contactFieldLogs = $this->logger_mock->find_logs(static function (array $entry): bool {
-			return $entry['message']                           === 'settings.builder.group_field.updated'
-			    && ($entry['context']['container_id'] ?? null) === 'profile'
-			    && ($entry['context']['section_id'] ?? null)   === 'display'
-			    && ($entry['context']['group_id'] ?? null)     === 'contact-preferences';
-		});
-		self::assertNotEmpty($contactFieldLogs, 'Contact preferences field log missing.');
-		self::assertSame('contact_method', $this->findLatestContext($contactFieldLogs)['field_id'] ?? null);
-
-		$fieldLogsSecurity = $this->logger_mock->find_logs(static function (array $entry): bool {
-			return $entry['message']                           === 'settings.builder.field.updated'
-			    && ($entry['context']['container_id'] ?? null) === 'profile'
-			    && ($entry['context']['section_id'] ?? null)   === 'security';
-		});
-		$securityOrder      = array();
-		$securityContextMap = array();
-		foreach ($fieldLogsSecurity as $entry) {
-			$context = $entry['context']    ?? array();
-			$fieldId = $context['field_id'] ?? null;
-			if ($fieldId === null) {
-				continue;
-			}
-			if (!array_key_exists($fieldId, $securityContextMap)) {
-				$securityOrder[] = $fieldId;
-			}
-			$securityContextMap[$fieldId] = $context;
-		}
-		$securityContexts = array_map(static fn(string $id) => $securityContextMap[$id], $securityOrder);
-		self::assertSame(array('two_factor', 'submit'), array_column($securityContexts, 'field_id'));
+		self::assertArrayHasKey('security', $fields['profile']);
+		$securityFieldIds = array_column($fields['profile']['security'], 'id');
+		self::assertSame(array('two_factor', 'submit'), $securityFieldIds);
 	}
 
 	/**
@@ -352,42 +285,15 @@ class UserSettingsFluentBuilderApiTest extends TestCase {
 			->end_section()
 		->end();
 
-		$groupMetaLogs = $this->logger_mock->find_logs(static function (array $entry): bool {
-			return $entry['message']                           === 'settings.builder.group.metadata'
-			    && ($entry['context']['container_id'] ?? null) === 'profile'
-			    && ($entry['context']['section_id'] ?? null)   === 'grouped-section';
-		});
-		$groupContexts = array();
-		foreach ($groupMetaLogs as $entry) {
-			$context = $entry['context']    ?? array();
-			$groupId = $context['group_id'] ?? null;
-			if ($groupId === null) {
-				continue;
-			}
-			$groupContexts[$groupId] = $context;
-		}
-		self::assertSame(array('group-one', 'group-two'), array_keys($groupContexts));
+		// Verify state directly instead of logs
+		$groups = $this->getProperty($user, 'groups');
+		self::assertArrayHasKey('profile', $groups);
+		self::assertArrayHasKey('grouped-section', $groups['profile']);
+		self::assertSame(array('group-one', 'group-two'), array_keys($groups['profile']['grouped-section']));
 
-		$fieldLogs = $this->logger_mock->find_logs(static function (array $entry): bool {
-			return $entry['message']                           === 'settings.builder.field.updated'
-			    && ($entry['context']['container_id'] ?? null) === 'profile'
-			    && ($entry['context']['section_id'] ?? null)   === 'grouped-section';
-		});
-		$fieldOrder      = array();
-		$fieldContextMap = array();
-		foreach ($fieldLogs as $entry) {
-			$context = $entry['context']    ?? array();
-			$fieldId = $context['field_id'] ?? null;
-			if ($fieldId === null) {
-				continue;
-			}
-			if (!array_key_exists($fieldId, $fieldContextMap)) {
-				$fieldOrder[] = $fieldId;
-			}
-			$fieldContextMap[$fieldId] = $context;
-		}
-		$fieldContexts = array_map(static fn(string $id) => $fieldContextMap[$id], $fieldOrder);
-		self::assertSame(array(), array_column($fieldContexts, 'field_id'), 'No standalone fields should be logged.');
+		$fields           = $this->getProperty($user, 'fields');
+		$standaloneFields = $fields['profile']['grouped-section'] ?? array();
+		self::assertSame(array(), array_column($standaloneFields, 'id'), 'No standalone fields should exist.');
 	}
 
 	/**
@@ -411,42 +317,16 @@ class UserSettingsFluentBuilderApiTest extends TestCase {
 			->end_section()
 		->end();
 
-		$sectionLogs = $this->logger_mock->find_logs(static function (array $entry): bool {
-			return $entry['message'] === 'settings.builder.section.updated'
-			    && in_array($entry['context']['container_id'] ?? null, array('profile', 'preferences'), true);
-		});
-		$sectionContexts = array();
-		foreach ($sectionLogs as $entry) {
-			$context   = $entry['context']        ?? array();
-			$container = $context['container_id'] ?? null;
-			if ($container === null) {
-				continue;
-			}
-			$sectionContexts[$container] = $context;
-		}
-		self::assertArrayHasKey('profile', $sectionContexts);
-		self::assertArrayHasKey('preferences', $sectionContexts);
+		// Verify state directly instead of logs
+		$sections = $this->getProperty($user, 'sections');
+		self::assertArrayHasKey('profile', $sections);
+		self::assertArrayHasKey('preferences', $sections);
 
-		$fieldLogs = $this->logger_mock->find_logs(static function (array $entry): bool {
-			return $entry['message'] === 'settings.builder.field.updated'
-			    && in_array($entry['context']['container_id'] ?? null, array('profile', 'preferences'), true);
-		});
-		$fieldOrder      = array();
-		$fieldContextMap = array();
-		foreach ($fieldLogs as $entry) {
-			$context = $entry['context']    ?? array();
-			$fieldId = $context['field_id'] ?? null;
-			if ($fieldId === null) {
-				continue;
-			}
-			if (!array_key_exists($fieldId, $fieldContextMap)) {
-				$fieldOrder[] = $fieldId;
-			}
-			$fieldContextMap[$fieldId] = $context;
-		}
-		$fieldContexts = array_map(static fn(string $id) => $fieldContextMap[$id], $fieldOrder);
-		self::assertContains('display_name', array_column($fieldContexts, 'field_id'));
-		self::assertContains('preferences_field', array_column($fieldContexts, 'field_id'));
+		$fields          = $this->getProperty($user, 'fields');
+		$profileFieldIds = array_column($fields['profile']['basic'] ?? array(), 'id');
+		$prefsFieldIds   = array_column($fields['preferences']['general'] ?? array(), 'id');
+		self::assertContains('display_name', $profileFieldIds);
+		self::assertContains('preferences_field', $prefsFieldIds);
 	}
 
 	/**
@@ -476,53 +356,20 @@ class UserSettingsFluentBuilderApiTest extends TestCase {
 			->end_section()
 		->end();
 
-		$fieldLogs = $this->logger_mock->find_logs(static function (array $entry): bool {
-			return $entry['message']                           === 'settings.builder.field.updated'
-			    && ($entry['context']['container_id'] ?? null) === 'profile'
-			    && ($entry['context']['section_id'] ?? null)   === 'test-section';
-		});
-		$fieldOrder      = array();
-		$fieldContextMap = array();
-		foreach ($fieldLogs as $entry) {
-			$context = $entry['context']    ?? array();
-			$fieldId = $context['field_id'] ?? null;
-			if ($fieldId === null) {
-				continue;
-			}
-			if (!array_key_exists($fieldId, $fieldContextMap)) {
-				$fieldOrder[] = $fieldId;
-			}
-			$fieldContextMap[$fieldId] = $context;
-		}
-		$fieldContexts = array_map(static fn(string $id) => $fieldContextMap[$id], $fieldOrder);
-		self::assertSame(array('field_three', 'field_one', 'field_two'), array_column($fieldContexts, 'field_id'));
-		self::assertSame(array(30, 10, 20), array_map(static fn(array $context) => $context['order'], $fieldContexts));
+		// Verify state directly instead of logs
+		$fields = $this->getProperty($user, 'fields');
+		self::assertArrayHasKey('profile', $fields);
+		self::assertArrayHasKey('test-section', $fields['profile']);
+		$sectionFields = $fields['profile']['test-section'];
+		self::assertSame(array('field_three', 'field_one', 'field_two'), array_column($sectionFields, 'id'));
+		self::assertSame(array(30, 10, 20), array_column($sectionFields, 'order'));
 
-		$groupFieldLogs = $this->logger_mock->find_logs(static function (array $entry): bool {
-			return $entry['message']                           === 'settings.builder.group_field.updated'
-			    && ($entry['context']['container_id'] ?? null) === 'profile'
-			    && ($entry['context']['section_id'] ?? null)   === 'test-section'
-			    && ($entry['context']['group_id'] ?? null)     === 'group-one';
-		});
-		$groupFieldOrder      = array();
-		$groupFieldContextMap = array();
-		foreach ($groupFieldLogs as $entry) {
-			$context = $entry['context']    ?? array();
-			$fieldId = $context['field_id'] ?? null;
-			if ($fieldId === null) {
-				continue;
-			}
-			if (!array_key_exists($fieldId, $groupFieldContextMap)) {
-				$groupFieldOrder[] = $fieldId;
-			}
-			$groupFieldContextMap[$fieldId] = $context;
-		}
-		$groupFieldContexts = array_map(static fn(string $id) => $groupFieldContextMap[$id], $groupFieldOrder);
-		self::assertCount(1, $groupFieldContexts, 'Group should contain one field');
-		$groupFieldContext = $groupFieldContexts[0];
-		self::assertSame('group_field', $groupFieldContext['field_id']);
-		self::assertSame(30, $groupFieldContext['order']);
-		self::assertSame('Grouped Placeholder', $groupFieldContext['component_context']['attributes']['placeholder'] ?? null);
+		$groups      = $this->getProperty($user, 'groups');
+		$groupFields = $groups['profile']['test-section']['group-one']['fields'];
+		self::assertCount(1, $groupFields, 'Group should contain one field');
+		self::assertSame('group_field', $groupFields[0]['id']);
+		self::assertSame(30, $groupFields[0]['order']);
+		self::assertSame('Grouped Placeholder', $groupFields[0]['component_context']['attributes']['placeholder'] ?? null);
 	}
 
 	/**
@@ -540,42 +387,18 @@ class UserSettingsFluentBuilderApiTest extends TestCase {
 
 		$groupBuilder->end_group()->end_section()->end_collection()->end();
 
-		$groupMetaLogs = $this->logger_mock->find_logs(static function (array $entry): bool {
-			return $entry['message']                           === 'settings.builder.group.metadata'
-			    && ($entry['context']['container_id'] ?? null) === 'implicit-group-collection'
-			    && ($entry['context']['section_id'] ?? null)   === 'implicit-group-section'
-			    && ($entry['context']['group_id'] ?? null)     === 'implicit-group';
-		});
-		self::assertNotEmpty($groupMetaLogs, 'Implicit group metadata log missing.');
-		$groupContext = $this->findLatestContext($groupMetaLogs);
-		self::assertNotNull($groupContext);
+		// Verify state directly instead of logs
+		$groups = $this->getProperty($user, 'groups');
+		self::assertArrayHasKey('implicit-group-collection', $groups);
+		self::assertArrayHasKey('implicit-group-section', $groups['implicit-group-collection']);
+		self::assertArrayHasKey('implicit-group', $groups['implicit-group-collection']['implicit-group-section']);
 
-		$fieldLogs = $this->logger_mock->find_logs(static function (array $entry): bool {
-			return $entry['message']                           === 'settings.builder.group_field.updated'
-			    && ($entry['context']['container_id'] ?? null) === 'implicit-group-collection'
-			    && ($entry['context']['section_id'] ?? null)   === 'implicit-group-section'
-			    && ($entry['context']['group_id'] ?? null)     === 'implicit-group';
-		});
-		$fieldOrder      = array();
-		$fieldContextMap = array();
-		foreach ($fieldLogs as $entry) {
-			$context = $entry['context']    ?? array();
-			$fieldId = $context['field_id'] ?? null;
-			if ($fieldId === null) {
-				continue;
-			}
-			if (!array_key_exists($fieldId, $fieldContextMap)) {
-				$fieldOrder[] = $fieldId;
-			}
-			$fieldContextMap[$fieldId] = $context;
-		}
-		self::assertSame(array('group_field'), $fieldOrder);
+		$group = $groups['implicit-group-collection']['implicit-group-section']['implicit-group'];
+		self::assertSame('Implicit Group', $group['title']);
+		self::assertSame(array('group_field'), array_column($group['fields'], 'id'));
 
-		$collectionLogs = $this->logger_mock->find_logs(static function (array $entry): bool {
-			return $entry['message']                           === 'settings.builder.collection.updated'
-			    && ($entry['context']['container_id'] ?? null) === 'implicit-group-collection';
-		});
-		self::assertNotEmpty($collectionLogs, 'Collection update log missing.');
+		$collections = $this->getProperty($user, 'collections');
+		self::assertArrayHasKey('implicit-group-collection', $collections);
 	}
 
 	/**
@@ -593,23 +416,14 @@ class UserSettingsFluentBuilderApiTest extends TestCase {
 
 		$fieldsetBuilder->end_fieldset()->end_section()->end_collection()->end(); // final end() is no-op, but exists for API consistency with AdminSettings
 
-		$fieldsetLogs = $this->logger_mock->find_logs(static function (array $entry): bool {
-			return $entry['message']                           === 'settings.builder.group.metadata'
-			    && ($entry['context']['container_id'] ?? null) === 'implicit-fieldset-collection'
-			    && ($entry['context']['section_id'] ?? null)   === 'implicit-fieldset-section'
-			    && ($entry['context']['group_id'] ?? null)     === 'implicit-fieldset';
-		});
-		self::assertNotEmpty($fieldsetLogs, 'Implicit fieldset metadata log missing.');
-		$fieldsetContext = $this->findLatestContext($fieldsetLogs);
-		self::assertNotNull($fieldsetContext);
-		self::assertSame('Implicit Fieldset', $fieldsetContext['heading']);
+		// Verify state directly instead of logs
+		$groups = $this->getProperty($user, 'groups');
+		self::assertArrayHasKey('implicit-fieldset-collection', $groups);
+		self::assertArrayHasKey('implicit-fieldset-section', $groups['implicit-fieldset-collection']);
+		self::assertArrayHasKey('implicit-fieldset', $groups['implicit-fieldset-collection']['implicit-fieldset-section']);
 
-		$fieldLogs = $this->logger_mock->find_logs(static function (array $entry): bool {
-			return $entry['message']                           === 'settings.builder.group_field.updated'
-			    && ($entry['context']['container_id'] ?? null) === 'implicit-fieldset-collection'
-			    && ($entry['context']['section_id'] ?? null)   === 'implicit-fieldset-section'
-			    && ($entry['context']['group_id'] ?? null)     === 'implicit-fieldset';
-		});
-		self::assertSame(array('contact_method'), array_column(array_map(static fn(array $entry): array => $entry['context'], $fieldLogs), 'field_id'));
+		$fieldset = $groups['implicit-fieldset-collection']['implicit-fieldset-section']['implicit-fieldset'];
+		self::assertSame('Implicit Fieldset', $fieldset['title']);
+		self::assertSame(array('contact_method'), array_column($fieldset['fields'], 'id'));
 	}
 }

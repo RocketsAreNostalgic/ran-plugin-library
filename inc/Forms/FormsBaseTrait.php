@@ -1162,15 +1162,6 @@ trait FormsBaseTrait {
 			'index'          => $this->__section_index++,
 			'style'          => trim((string) ($section_data['style'] ?? '')),
 		);
-		$this->logger->debug('settings.builder.section.updated', array(
-			'container_id'       => $container_id,
-			'section_id'         => $section_id,
-			'heading'            => $this->sections[$container_id][$section_id]['title'],
-			'has_description_cb' => $this->sections[$container_id][$section_id]['description_cb'] !== null,
-			'order'              => $this->sections[$container_id][$section_id]['order'],
-			'has_before'         => $this->sections[$container_id][$section_id]['before'] !== null,
-			'has_after'          => $this->sections[$container_id][$section_id]['after']  !== null,
-		));
 	}
 
 	/**
@@ -1205,15 +1196,6 @@ trait FormsBaseTrait {
 		if (array_key_exists('style', $group_data)) {
 			$section['style'] = trim((string) $group_data['style']);
 		}
-		$this->logger->debug('settings.builder.section.metadata', array(
-			'container_id'       => $container_id,
-			'section_id'         => $section_id,
-			'heading'            => $section['title'],
-			'has_description_cb' => $section['description_cb'] !== null,
-			'order'              => $section['order'],
-			'has_before'         => $section['before'] !== null,
-			'has_after'          => $section['after']  !== null,
-		));
 	}
 
 	/**
@@ -1300,15 +1282,6 @@ trait FormsBaseTrait {
 			return ($a['index'] ?? 0) <=> ($b['index'] ?? 0);
 		});
 		$this->fields[$container_id][$section_id] = array_values($fields);
-		$this->logger->debug('settings.builder.field.updated', array(
-			'container_id'      => $container_id,
-			'section_id'        => $section_id,
-			'field_id'          => $field_entry['id'],
-			'label'             => $field_entry['label'],
-			'component'         => $field_entry['component'],
-			'order'             => $field_entry['order'],
-			'component_context' => $field_entry['component_context'],
-		));
 	}
 
 	/**
@@ -1392,16 +1365,6 @@ trait FormsBaseTrait {
 			'required' => (bool) ($group_data['required'] ?? false),
 			'index'    => $this->__group_index++,
 		);
-		$this->logger->debug('settings.builder.group.updated', array(
-			'container_id' => $container_id,
-			'section_id'   => $section_id,
-			'group_id'     => $group_id,
-			'heading'      => $this->groups[$container_id][$section_id][$group_id]['title'],
-			'order'        => $this->groups[$container_id][$section_id][$group_id]['order'],
-			'has_before'   => $this->groups[$container_id][$section_id][$group_id]['before'] !== null,
-			'has_after'    => $this->groups[$container_id][$section_id][$group_id]['after']  !== null,
-			'fields'       => array_column($this->groups[$container_id][$section_id][$group_id]['fields'], 'id'),
-		));
 	}
 
 	/**
@@ -1508,16 +1471,6 @@ trait FormsBaseTrait {
 			return ($a['index'] ?? 0) <=> ($b['index'] ?? 0);
 		});
 		$this->groups[$container_id][$section_id][$group_id]['fields'] = array_values($fields);
-		$this->logger->debug('settings.builder.group_field.updated', array(
-			'container_id'      => $container_id,
-			'section_id'        => $section_id,
-			'group_id'          => $group_id,
-			'field_id'          => $field_id,
-			'label'             => $field_data['label'] ?? '',
-			'component'         => $component,
-			'order'             => $orderValue,
-			'component_context' => $context,
-		));
 	}
 
 	/**
@@ -1580,20 +1533,6 @@ trait FormsBaseTrait {
 		$this->groups[$container_id][$section_id][$group_id]['form']     = (string) ($group_data['form'] ?? '');
 		$this->groups[$container_id][$section_id][$group_id]['name']     = (string) ($group_data['name'] ?? '');
 		$this->groups[$container_id][$section_id][$group_id]['disabled'] = (bool) ($group_data['disabled'] ?? false);
-		$this->logger->debug('settings.builder.group.metadata', array(
-			'container_id' => $container_id,
-			'section_id'   => $section_id,
-			'group_id'     => $group_id,
-			'heading'      => $this->groups[$container_id][$section_id][$group_id]['title'],
-			'order'        => $this->groups[$container_id][$section_id][$group_id]['order'],
-			'style'        => $this->groups[$container_id][$section_id][$group_id]['style'],
-			'form'         => $this->groups[$container_id][$section_id][$group_id]['form'],
-			'name'         => $this->groups[$container_id][$section_id][$group_id]['name'],
-			'disabled'     => $this->groups[$container_id][$section_id][$group_id]['disabled'],
-			'has_before'   => $this->groups[$container_id][$section_id][$group_id]['before'] !== null,
-			'has_after'    => $this->groups[$container_id][$section_id][$group_id]['after']  !== null,
-			'fields'       => array_column($this->groups[$container_id][$section_id][$group_id]['fields'], 'id'),
-		));
 	}
 
 	/**
@@ -1675,21 +1614,6 @@ trait FormsBaseTrait {
 
 		if (!empty($overrides)) {
 			$this->form_session->set_individual_element_override($element_type, $element_id, $overrides);
-			$this->logger->debug('settings.builder.template_override', array(
-				'element_type' => $element_type,
-				'element_id'   => $element_id,
-				'overrides'    => $overrides,
-			));
-			return;
-		}
-
-		if ($zone_id !== '' || array_key_exists('callback', $data)) {
-			$this->logger->debug('settings.builder.template_override', array(
-				'element_type' => $element_type,
-				'element_id'   => $element_id,
-				'zone_id'      => $zone_id,
-				'callback'     => array_key_exists('callback', $data) && is_callable($data['callback']) ? 'registered' : (array_key_exists('callback', $data) && $data['callback'] === null ? 'cleared' : null),
-			));
 		}
 	}
 

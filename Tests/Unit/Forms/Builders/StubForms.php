@@ -19,11 +19,11 @@ final class StubForms implements FormsInterface {
 		throw new \BadMethodCallException('StubForms::resolve_options() should not be called during these tests.');
 	}
 
-	public function boot(): void {
+	public function boot(bool $eager = false): void {
 		// Not used in tests.
 	}
 
-	public function safe_boot(callable $callback): void {
+	public function safe_boot(callable $callback, bool $eager = false): void {
 		// No-op for tests.
 	}
 

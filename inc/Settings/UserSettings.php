@@ -633,12 +633,6 @@ class UserSettings implements FormsInterface {
 		    'storage_kind' => $storage,
 		    'global'       => $global,
 		);
-		$this->logger->debug('settings.builder.context.resolved', array(
-			'user_id'      => $result['user_id'],
-			'storage_kind' => $result['storage_kind'],
-			'global'       => $result['global'],
-			'scope'        => $scope instanceof OptionScope ? $scope->value : (string) $scope,
-		));
 
 		return $result;
 	}
@@ -692,11 +686,6 @@ class UserSettings implements FormsInterface {
 					$this->collections[$container_id] = array();
 				}
 				$this->collections[$container_id] = array_merge($this->collections[$container_id], $collection_data);
-				$this->logger->debug('settings.builder.collection.updated', array(
-					'container_id' => $container_id,
-					'style'        => $this->collections[$container_id]['style'] ?? '',
-					'collection'   => $this->collections[$container_id],
-				));
 				break;
 			case 'collection_commit':
 				$container_id = $data['container_id'] ?? '';

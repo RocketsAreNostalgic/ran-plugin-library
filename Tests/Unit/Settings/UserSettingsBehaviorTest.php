@@ -135,7 +135,8 @@ final class UserSettingsBehaviorTest extends PluginLibTestCase {
 		$user_settings->collection('profile')->section('basic', 'Basic Info');
 
 		$logStart = \count($this->logger->collected_logs);
-		$user_settings->boot();
+		// Use eager=true to force hook registration regardless of context (lazy loading would skip in tests)
+		$user_settings->boot(true);
 
 		$logEntries = \array_slice($this->logger->collected_logs, $logStart);
 		$actionLogs = \array_values(\array_filter($logEntries, static function (array $entry) use ($expectedHooks): bool {
@@ -592,12 +593,14 @@ final class UserSettingsBehaviorTest extends PluginLibTestCase {
 		$collectionBuilder->heading('Profile Heading');
 		$collectionBuilder->end_collection();
 
-		$logs = $this->logger->find_logs(static function (array $entry): bool {
-			return $entry['message']                                 === 'settings.builder.collection.updated'
-				&& ($entry['context']['container_id'] ?? null)          === 'profile'
-				&& ($entry['context']['collection']['heading'] ?? null) === 'Profile Heading';
-		});
-		self::assertNotEmpty($logs, 'Expected collection updated log for profile heading.');
+		// Verify state directly instead of logs
+		$reflection = new \ReflectionClass($user_settings);
+		$prop       = $reflection->getProperty('collections');
+		$prop->setAccessible(true);
+		$collections = $prop->getValue($user_settings);
+
+		self::assertArrayHasKey('profile', $collections);
+		self::assertSame('Profile Heading', $collections['profile']['heading'] ?? null);
 
 		$commitLogs = $this->logger->find_logs(static function (array $entry): bool {
 			return $entry['message']                        === 'settings.builder.collection.committed'
@@ -629,15 +632,14 @@ final class UserSettingsBehaviorTest extends PluginLibTestCase {
 		$options  = new RegisterOptions('behavior_user_options', StorageContext::forUser(123, 'option', true), false, $this->logger);
 		$settings = new UserSettings($options, $this->manifest, null, $this->logger);
 
-		$settings->resolve_options(array('user_id' => 123, 'storage' => 'option', 'global' => true));
+		$result = $settings->resolve_options(array('user_id' => 123, 'storage' => 'option', 'global' => true));
 
-		$logs = $this->logger->find_logs(static function (array $entry): bool {
-			return $entry['message']                        === 'settings.builder.context.resolved'
-				&& ($entry['context']['user_id'] ?? null)      === 123
-				&& ($entry['context']['storage_kind'] ?? null) === 'option'
-				&& ($entry['context']['global'] ?? null)       === true;
-		});
-		self::assertNotEmpty($logs, 'Expected context resolved log for explicit option storage.');
+		// Verify the resolved RegisterOptions has the correct storage context
+		self::assertInstanceOf(RegisterOptions::class, $result);
+		$storageContext = $result->get_storage_context();
+		self::assertSame(123, $storageContext->user_id);
+		self::assertSame('option', $storageContext->user_storage);
+		self::assertTrue($storageContext->user_global);
 	}
 
 	public function test_save_settings_uses_commit_merge_for_option_storage(): void {

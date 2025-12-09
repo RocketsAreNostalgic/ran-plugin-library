@@ -834,16 +834,6 @@ class AdminSettings implements FormsInterface {
 			);
 		}
 		$this->menu_groups[$container_id]['meta'] = $group_data;
-		$this->logger->debug('settings.builder.menu_group.updated', array(
-			'container_id' => $container_id,
-			'heading'      => $group_data['heading']    ?? null,
-			'menu_title'   => $group_data['menu_title'] ?? null,
-			'capability'   => $group_data['capability'] ?? null,
-			'parent'       => $group_data['parent']     ?? null,
-			'icon'         => $group_data['icon']       ?? null,
-			'position'     => $group_data['position']   ?? null,
-			'order'        => $group_data['order']      ?? null,
-		));
 	}
 
 	/**
@@ -927,16 +917,6 @@ class AdminSettings implements FormsInterface {
 			'group' => $group_id,
 			'page'  => $container_id,
 		);
-		$this->logger->debug('settings.builder.page.updated', array(
-			'group_id'    => $group_id,
-			'page_slug'   => $container_id,
-			'heading'     => $page_data['heading']     ?? null,
-			'description' => $page_data['description'] ?? null,
-			'menu_title'  => $page_data['menu_title']  ?? null,
-			'capability'  => $page_data['capability']  ?? null,
-			'order'       => $page_data['order']       ?? null,
-			'template'    => $page_data['template']    ?? null,
-		));
 	}
 
 	/**

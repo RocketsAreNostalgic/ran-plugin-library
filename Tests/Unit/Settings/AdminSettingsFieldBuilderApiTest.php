@@ -61,37 +61,31 @@ final class AdminSettingsFieldBuilderApiTest extends TestCase {
 		    ->end_page()
 		->end_menu();
 
-		$fieldLogs = $this->logger_mock->find_logs(static function (array $entry): bool {
-			return $entry['message']                           === 'settings.builder.field.updated'
-			    && ($entry['context']['container_id'] ?? null) === 'base-page'
-			    && ($entry['context']['section_id'] ?? null)   === 'base-section'
-			    && ($entry['context']['field_id'] ?? null)     === 'base-input';
-		});
-		self::assertNotEmpty($fieldLogs, 'Expected field updated logs for base-input.');
-		$fieldContext = $this->findLogByFieldId($fieldLogs, 'base-input')['context'];
-		self::assertSame('Base Input', $fieldContext['label']);
-		self::assertSame('fields.input', $fieldContext['component']);
-		self::assertSame(42, $fieldContext['order']);
-		self::assertSame('base-input', $fieldContext['component_context']['name'] ?? null);
-		self::assertSame('Base component description', $fieldContext['component_context']['description'] ?? null);
+		// Verify state directly instead of logs
+		$fields = $this->getProperty($admin, 'fields');
+		self::assertArrayHasKey('base-page', $fields);
+		self::assertArrayHasKey('base-section', $fields['base-page']);
+		$sectionFields = $fields['base-page']['base-section'];
+		$fieldEntry    = null;
+		foreach ($sectionFields as $f) {
+			if ($f['id'] === 'base-input') {
+				$fieldEntry = $f;
+				break;
+			}
+		}
+		self::assertNotNull($fieldEntry, 'Expected field entry for base-input.');
+		self::assertSame('Base Input', $fieldEntry['label']);
+		self::assertSame('fields.input', $fieldEntry['component']);
+		self::assertSame(42, $fieldEntry['order']);
+		self::assertSame('base-input', $fieldEntry['component_context']['name'] ?? null);
+		self::assertSame('Base component description', $fieldEntry['component_context']['description'] ?? null);
 		self::assertSame(
 			array(
 				'data-test'  => 'input-base',
 				'aria-label' => 'Base Input Label',
 				'data-extra' => 'extra',
 			),
-			$fieldContext['component_context']['attributes'] ?? null
-		);
-
-		$templateLogs = $this->logger_mock->find_logs(static function (array $entry): bool {
-			return $entry['message']                           === 'settings.builder.template_override'
-			    && ($entry['context']['element_type'] ?? null) === 'field'
-			    && ($entry['context']['element_id'] ?? null)   === 'base-input';
-		});
-		self::assertCount(1, $templateLogs, 'Expected template override log for base-input field.');
-		self::assertSame(
-			array('field-wrapper' => 'custom-field-wrapper'),
-			$templateLogs[0]['context']['overrides'] ?? null
+			$fieldEntry['component_context']['attributes'] ?? null
 		);
 
 		$session = $admin->get_form_session();
@@ -118,26 +112,31 @@ final class AdminSettingsFieldBuilderApiTest extends TestCase {
 		    ->end_page()
 		->end_menu();
 
-		$buttonLogs = $this->logger_mock->find_logs(static function (array $entry): bool {
-			return $entry['message']                           === 'settings.builder.field.updated'
-			    && ($entry['context']['container_id'] ?? null) === 'button-page'
-			    && ($entry['context']['section_id'] ?? null)   === 'button-section';
-		});
-		self::assertNotEmpty($buttonLogs, 'Expected button field update logs.');
+		// Verify state directly instead of logs
+		$fields = $this->getProperty($admin, 'fields');
+		self::assertArrayHasKey('button-page', $fields);
+		self::assertArrayHasKey('button-section', $fields['button-page']);
+		$sectionFields = $fields['button-page']['button-section'];
 
-		$ctaLog = $this->findLogByFieldId($buttonLogs, 'cta-button');
-		self::assertNotNull($ctaLog, 'CTA button log missing.');
-		$ctaContext = $ctaLog['context'];
-		self::assertSame(7, $ctaContext['order']);
-		self::assertSame('elements.button', $ctaContext['component']);
-		self::assertTrue($ctaContext['component_context']['disabled'] ?? false);
+		$ctaField        = null;
+		$ctaEnabledField = null;
+		foreach ($sectionFields as $f) {
+			if ($f['id'] === 'cta-button') {
+				$ctaField = $f;
+			} elseif ($f['id'] === 'cta-button-enabled') {
+				$ctaEnabledField = $f;
+			}
+		}
 
-		$ctaEnabledLog = $this->findLogByFieldId($buttonLogs, 'cta-button-enabled');
-		self::assertNotNull($ctaEnabledLog, 'Enabled CTA button log missing.');
-		$ctaEnabledContext = $ctaEnabledLog['context'];
-		self::assertSame('elements.button', $ctaEnabledContext['component']);
-		self::assertSame('Call To Action', $ctaEnabledContext['label']);
-		self::assertFalse(array_key_exists('disabled', $ctaEnabledContext['component_context']));
+		self::assertNotNull($ctaField, 'CTA button field missing.');
+		self::assertSame(7, $ctaField['order']);
+		self::assertSame('elements.button', $ctaField['component']);
+		self::assertTrue($ctaField['component_context']['disabled'] ?? false);
+
+		self::assertNotNull($ctaEnabledField, 'Enabled CTA button field missing.');
+		self::assertSame('elements.button', $ctaEnabledField['component']);
+		self::assertSame('Call To Action', $ctaEnabledField['label']);
+		self::assertFalse(array_key_exists('disabled', $ctaEnabledField['component_context']));
 	}
 
 	private function createAdminSettings(): AdminSettings {
@@ -168,6 +167,16 @@ final class AdminSettingsFieldBuilderApiTest extends TestCase {
 		}
 
 		return null;
+	}
+
+	/**
+	 * Helper: Get a property value from AdminSettings via reflection.
+	 */
+	private function getProperty(AdminSettings $admin, string $property): mixed {
+		$reflection = new \ReflectionClass($admin);
+		$prop       = $reflection->getProperty($property);
+		$prop->setAccessible(true);
+		return $prop->getValue($admin);
 	}
 
 	private function stringSchema(): array {
