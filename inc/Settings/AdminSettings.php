@@ -224,13 +224,33 @@ class AdminSettings implements FormsInterface {
 	}
 
 	/**
+	 * Check if AdminSettings should load at all.
+	 *
+	 * Returns true only if we're in admin context.
+	 * Called BEFORE the builder callback runs to avoid unnecessary work.
+	 *
+	 * @return bool True if should load, false to skip entirely.
+	 */
+	protected function _should_load(): bool {
+		return $this->_do_is_admin();
+	}
+
+	/**
 	 * Boot admin: register settings, sections, fields, and menu pages.
 	 *
+	 * By default, uses lazy loading - skips hook registration if not in admin context.
+	 * Set $eager to true to force immediate hook registration regardless of context.
+	 *
+	 * @param bool $eager If true, skip lazy loading checks and always register hooks.
 	 * @return void
 	 */
-	public function boot(): void {
+	public function boot(bool $eager = false): void {
+		// Note: The admin context check now happens in _should_load() before the callback runs.
+		// This boot() method is only called if _should_load() returned true (or eager=true).
+
 		$this->logger->debug('admin_settings.boot.entry', array(
 			'main_option'    => $this->main_option,
+			'eager'          => $eager,
 			'request_method' => $_SERVER['REQUEST_METHOD'] ?? 'unknown',
 		));
 
@@ -242,9 +262,13 @@ class AdminSettings implements FormsInterface {
 		$hooks = array();
 
 		// 1. File upload handling and validation message restoration (admin_init)
+		// Only run on our pages or options.php (save handler)
 		$hooks[] = array(
 			'hook'     => 'admin_init',
 			'callback' => function () {
+				if (!$this->_is_our_admin_page()) {
+					return;
+				}
 				// Handle file uploads early - before options.php processes the form
 				// This injects uploaded file data into $_POST so it reaches the sanitize callback
 				$this->_handle_file_uploads();
@@ -265,6 +289,29 @@ class AdminSettings implements FormsInterface {
 		);
 
 		$this->_register_action_hooks($hooks);
+	}
+
+	/**
+	 * Check if current request is for one of our admin pages or the options.php save handler.
+	 *
+	 * @return bool True if we're on one of our pages or processing a save.
+	 */
+	protected function _is_our_admin_page(): bool {
+		// Always run on options.php (save handler) - check if our option is being saved
+		$pagenow = $GLOBALS['pagenow'] ?? '';
+		if ($pagenow === 'options.php') {
+			// Check if this is a save for our option group
+			$option_page = $_POST['option_page'] ?? '';
+			return $option_page === $this->main_option . '_group';
+		}
+
+		// Check if we're on one of our registered pages
+		$page = $_GET['page'] ?? '';
+		if ($page === '') {
+			return false;
+		}
+
+		return isset($this->pages[$page]);
 	}
 
 	// Internal Private Protected

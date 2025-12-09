@@ -9,10 +9,10 @@ declare(strict_types = 1);
 
 namespace Ran\PluginLib\Config;
 
-use Exception;
-use Ran\PluginLib\Util\Logger;
 use Ran\PluginLib\Util\WPWrappersTrait;
+use Ran\PluginLib\Util\Logger;
 use Ran\PluginLib\Config\ConfigInterface;
+use Exception;
 
 /**
  * Abstract base class for plugin/theme configuration management.

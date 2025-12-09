@@ -196,11 +196,30 @@ class UserSettings implements FormsInterface {
 	}
 
 	/**
+	 * Check if UserSettings should load at all.
+	 *
+	 * Returns true only if we're on a profile page.
+	 * Called BEFORE the builder callback runs to avoid unnecessary work.
+	 *
+	 * @return bool True if should load, false to skip entirely.
+	 */
+	protected function _should_load(): bool {
+		return $this->_is_profile_page();
+	}
+
+	/**
 	 * Boot user settings: register collections, sections, fields and save handlers.
 	 *
+	 * By default, uses lazy loading - skips hook registration if not on a profile page.
+	 * Set $eager to true to force immediate hook registration regardless of context.
+	 *
+	 * @param bool $eager If true, skip lazy loading checks and always register hooks.
 	 * @return void
 	 */
-	public function boot(): void {
+	public function boot(bool $eager = false): void {
+		// Note: The profile page check now happens in _should_load() before the callback runs.
+		// This boot() method is only called if _should_load() returned true (or eager=true).
+
 		$hooks = array();
 
 		// 1. Render hooks (show_user_profile, edit_user_profile)
@@ -292,6 +311,17 @@ class UserSettings implements FormsInterface {
 		}
 
 		$this->_register_action_hooks($hooks);
+	}
+
+	/**
+	 * Check if current request is for a user profile page.
+	 *
+	 * @return bool True if we're on profile.php or user-edit.php.
+	 */
+	protected function _is_profile_page(): bool {
+		// Check pagenow for profile pages
+		$pagenow = $GLOBALS['pagenow'] ?? '';
+		return in_array($pagenow, array('profile.php', 'user-edit.php'), true);
 	}
 
 	// Internal Private Protected

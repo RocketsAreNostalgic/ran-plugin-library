@@ -181,12 +181,24 @@ trait FormsBaseTrait {
 	 * ```
 	 *
 	 * @param callable $callback The builder callback, receives $this as argument.
+	 * @param bool $eager If true, skip lazy loading checks and always register hooks.
 	 * @return void
 	 */
-	public function safe_boot(callable $callback): void {
+	public function safe_boot(callable $callback, bool $eager = false): void {
 		try {
+			// Early bail: check if we should load at all BEFORE running the callback
+			if (!$eager && !$this->_should_load()) {
+				$this->logger->debug('forms_base.safe_boot.skipped_early', array(
+					'class'          => static::class,
+					'reason'         => 'should_load_returned_false',
+					'request_method' => $_SERVER['REQUEST_METHOD'] ?? 'unknown',
+				));
+				return;
+			}
+
 			$this->logger->debug('forms_base.safe_boot.entry', array(
 				'class'          => static::class,
+				'eager'          => $eager,
 				'request_method' => $_SERVER['REQUEST_METHOD'] ?? 'unknown',
 			));
 			$callback($this); // Type-hint the callback parameter for IDE autocomplete.
@@ -194,7 +206,7 @@ trait FormsBaseTrait {
 				'class'          => static::class,
 				'request_method' => $_SERVER['REQUEST_METHOD'] ?? 'unknown',
 			));
-			$this->boot();
+			$this->boot($eager);
 			$this->logger->debug('forms_base.safe_boot.boot_complete', array(
 				'class'          => static::class,
 				'request_method' => $_SERVER['REQUEST_METHOD'] ?? 'unknown',
@@ -208,6 +220,19 @@ trait FormsBaseTrait {
 			));
 			$this->__handle_builder_error($e, 'safe_boot');
 		}
+	}
+
+	/**
+	 * Check if this settings instance should load at all.
+	 *
+	 * Override in concrete classes to implement context-specific checks.
+	 * Called BEFORE the builder callback runs to avoid unnecessary work.
+	 *
+	 * @return bool True if should load, false to skip entirely.
+	 */
+	protected function _should_load(): bool {
+		// Default: always load. Concrete classes override this.
+		return true;
 	}
 
 	// -- Form Defaults --

@@ -83,10 +83,15 @@ final class Settings implements FormsInterface {
 	 * field, etc.) have been invoked. If using `safe_boot()`, this is called
 	 * automatically after the callback completes successfully.
 	 *
+	 * By default, uses lazy loading - hooks are only registered if the current
+	 * request context requires this settings type. Set $eager to true to force
+	 * immediate hook registration.
+	 *
+	 * @param bool $eager If true, skip lazy loading checks and always register hooks.
 	 * @return void
 	 */
-	public function boot(): void {
-		$this->inner->boot();
+	public function boot(bool $eager = false): void {
+		$this->inner->boot($eager);
 	}
 
 	/**
@@ -96,11 +101,16 @@ final class Settings implements FormsInterface {
 	 * On error, logs the exception and displays an admin notice in dev mode.
 	 * Automatically calls boot() after the callback completes successfully.
 	 *
+	 * By default, uses lazy loading - hooks are only registered if the current
+	 * request context requires this settings type. Set $eager to true to force
+	 * immediate hook registration.
+	 *
 	 * @param callable $callback The builder callback, receives $this as argument.
+	 * @param bool $eager If true, skip lazy loading checks and always register hooks.
 	 * @return void
 	 */
-	public function safe_boot(callable $callback): void {
-		$this->inner->safe_boot($callback);
+	public function safe_boot(callable $callback, bool $eager = false): void {
+		$this->inner->safe_boot($callback, $eager);
 	}
 
 	/**

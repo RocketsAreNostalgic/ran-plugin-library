@@ -50,9 +50,17 @@ interface FormsInterface {
 	/**
 	 * Bootstrap the settings.
 	 *
+	 * By default, boot() uses lazy loading - it will skip hook registration
+	 * if the current request context doesn't require this settings type:
+	 * - AdminSettings: Only registers hooks in admin context
+	 * - UserSettings: Only registers hooks on profile pages
+	 *
+	 * Set $eager to true to force immediate hook registration regardless of context.
+	 *
+	 * @param bool $eager If true, skip lazy loading checks and always register hooks.
 	 * @return void
 	 */
-	public function boot(): void;
+	public function boot(bool $eager = false): void;
 
 	/**
 	 * Execute a builder callback with error protection.
@@ -61,10 +69,15 @@ interface FormsInterface {
 	 * On error, logs the exception and displays an admin notice in dev mode.
 	 * Automatically calls boot() after the callback completes successfully.
 	 *
+	 * By default, uses lazy loading - hooks are only registered if the current
+	 * request context requires this settings type. Set $eager to true to force
+	 * immediate hook registration.
+	 *
 	 * @param callable $callback The builder callback, receives $this as argument.
+	 * @param bool $eager If true, skip lazy loading checks and always register hooks.
 	 * @return void
 	 */
-	public function safe_boot(callable $callback): void;
+	public function safe_boot(callable $callback, bool $eager = false): void;
 
 	/**
 	 * Override specific form-wide defaults for AdminForms context.
