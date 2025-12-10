@@ -10,6 +10,7 @@ declare(strict_types = 1);
 namespace Ran\PluginLib\Config;
 
 use Ran\PluginLib\Util\Logger;
+use Ran\PluginLib\Settings\AdminMenuRegistry;
 use Ran\PluginLib\Options\Storage\StorageContext;
 use Ran\PluginLib\Options\RegisterOptions;
 use Ran\PluginLib\Config\ConfigInterface;
@@ -82,5 +83,40 @@ class Config extends ConfigAbstract implements ConfigInterface {
 	 */
 	public function options(?StorageContext $context = null, bool $autoload = true): RegisterOptions {
 		return new RegisterOptions($this->get_options_key(), $context, $autoload, $this->get_logger());
+	}
+
+	/**
+	 * Accessor: get an AdminMenuRegistry for lazy admin menu registration.
+	 *
+	 * This is the recommended entry point for admin settings. Menus are
+	 * registered immediately (lightweight), but AdminSettings and RegisterOptions
+	 * are only created when a page is actually rendered.
+	 *
+	 * Usage:
+	 * ```php
+	 * $config->admin_menu($context)->register(function (AdminMenuRegistry $m) {
+	 *     $m->settings_page('my-settings')
+	 *         ->heading('My Settings')
+	 *         ->on_render(function (AdminSettings $s) {
+	 *             $s->section('general', 'General')
+	 *                 ->field('name', 'Name', 'fields.input')
+	 *                 ->end_field()
+	 *             ->end_section();
+	 *         });
+	 * });
+	 * ```
+	 *
+	 * @param StorageContext|null $context  Typed storage context; when null defaults to site scope.
+	 * @param bool                $autoload Whether to autoload on create (site/blog storages only).
+	 * @return AdminMenuRegistry
+	 */
+	public function admin_menu(?StorageContext $context = null, bool $autoload = true): AdminMenuRegistry {
+		return new AdminMenuRegistry(
+			$this->get_options_key(),
+			$context ?? StorageContext::forSite('option'),
+			$autoload,
+			$this->get_logger(),
+			$this
+		);
 	}
 }
