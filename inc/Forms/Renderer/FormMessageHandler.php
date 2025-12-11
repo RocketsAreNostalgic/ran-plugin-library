@@ -144,10 +144,11 @@ class FormMessageHandler {
 	 * @return array<string, mixed> Effective values to display
 	 */
 	public function get_effective_values(array $stored_values): array {
-		// If we have pending values (validation failed), use those for display
+		// If we have pending values (validation failed), merge with stored values
+		// This ensures fields not in the pending submission still show their stored values
 		if ($this->pending_values !== null) {
-			$this->_get_logger()->debug('FormMessageHandler: Using pending values due to validation failure');
-			return $this->pending_values;
+			$this->_get_logger()->debug('FormMessageHandler: Merging pending values with stored values');
+			return array_merge($stored_values, $this->pending_values);
 		}
 
 		// Otherwise use stored values

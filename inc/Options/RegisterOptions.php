@@ -1135,7 +1135,7 @@ class RegisterOptions {
 			if (!empty($queuedValidators[$normalized_key]) || !empty($queuedSanitizers[$normalized_key])) {
 				$this->schema[$normalized_key] = $this->_coerce_schema_entry($this->schema[$normalized_key], $normalized_key);
 			}
-			$finalEntry             = $this->schema[$normalized_key];
+			$finalEntry = $this->schema[$normalized_key];
 			// Only log per-entry merged result in verbose mode to avoid log flooding
 			if (ErrorNoticeRenderer::isVerboseDebug()) {
 				$sanitizeComponentCount = count($finalEntry['sanitize'][self::BUCKET_COMPONENT] ?? array());

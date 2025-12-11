@@ -526,8 +526,6 @@ class UserSettings implements FormsInterface {
 
 		$this->_prepare_validation_messages($payload);
 
-		$previous_options = $opts->get_options();
-
 		$bundle = $this->_resolve_schema_bundle($opts, array(
 			'intent'       => 'save',
 			'user_id'      => $user_id,
@@ -570,8 +568,8 @@ class UserSettings implements FormsInterface {
 			// Pass user_id since we're editing a specific user's profile (not necessarily current user).
 			$this->_persist_form_messages($messages, $user_id);
 
-			$opts->clear();
-			$opts->stage_options($previous_options);
+			// On validation failure, do NOT modify storage - just return.
+			// The previous values remain in the database unchanged.
 			return;
 		}
 
