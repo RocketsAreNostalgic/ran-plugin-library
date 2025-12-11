@@ -10,6 +10,5 @@ if (is_callable($renderSubmit)) {
 }
 
 return new ComponentRenderResult(
-	markup: '<div class="theme-page">' . $content . '</div>',
-	component_type: 'layout_wrapper'
+	markup: '<div class="theme-page">' . $content . '</div>'
 );

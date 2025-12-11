@@ -18,7 +18,6 @@
 declare(strict_types=1);
 
 use Ran\PluginLib\Forms\Component\ComponentRenderResult;
-use Ran\PluginLib\Forms\Component\ComponentType;
 
 // Prevent direct access
 if (!defined('ABSPATH')) {
@@ -203,6 +202,5 @@ ob_start();
 $markup = (string) ob_get_clean();
 
 return new ComponentRenderResult(
-	markup: $markup,
-	component_type: ComponentType::LayoutWrapper
+	markup: $markup
 );

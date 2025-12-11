@@ -79,7 +79,6 @@ class ComponentManifestTemplateIntegrationTest extends TestCase {
 		$result = $loader->render('integration.test', array('message' => 'Integration Success'));
 		$this->assertInstanceOf(ComponentRenderResult::class, $result);
 		$this->assertEquals('<div class="integration-test">Integration Success</div>', $result->markup);
-		$this->assertEquals('layout_wrapper', $result->component_type);
 	}
 
 	/**
@@ -111,13 +110,10 @@ class ComponentManifestTemplateIntegrationTest extends TestCase {
 		// Test rendering
 		$this->assertEquals('<main class="batch-page">Page Content</main>',
 			$loader->render('batch.page', array('inner_html' => 'Page Content'))->markup);
-		$this->assertEquals('layout_wrapper', $loader->render('batch.page', array('inner_html' => 'Page Content'))->component_type);
 		$this->assertEquals('<section class="batch-section">Section Content</section>',
 			$loader->render('batch.section', array('inner_html' => 'Section Content'))->markup);
-		$this->assertEquals('layout_wrapper', $loader->render('batch.section', array('inner_html' => 'Section Content'))->component_type);
 		$this->assertEquals('<div class="batch-field"><input></div>',
 			$loader->render('batch.field-wrapper', array('inner_html' => '<input>'))->markup);
-		$this->assertEquals('layout_wrapper', $loader->render('batch.field-wrapper', array('inner_html' => '<input>'))->component_type);
 	}
 
 	/**
@@ -140,14 +136,11 @@ class ComponentManifestTemplateIntegrationTest extends TestCase {
 		// Test component rendering through ComponentManifest
 		$component_result = $this->manifest->render('test.component', array('value' => 'test-value'));
 		$this->assertStringContainsString('test-value', $component_result->markup);
-		$this->assertTrue($component_result->submits_data());
-		$this->assertEquals('input', $component_result->component_type);
 
 		// Test template rendering through ComponentLoader
 		$wrapper_result = $loader->render('test.wrapper', array('inner_html' => $component_result->markup));
 		$this->assertInstanceOf(ComponentRenderResult::class, $wrapper_result);
 		$this->assertEquals('<div class="wrapper"><input type="text" name="test" value="test-value"></div>', $wrapper_result->markup);
-		$this->assertEquals('layout_wrapper', $wrapper_result->component_type);
 	}
 
 	// Helper methods

@@ -145,7 +145,7 @@ class FormElementRendererValidationTest extends PluginLibTestCase {
 		$this->assertSame(array('warning-one'), $context['validation_warnings']);
 		$this->assertSame(array('notice-one'), $context['display_notices']);
 		$this->assertSame('<span>before</span>', $context['before']);
-		$this->expectLog('debug', 'FormMessageHandler: Using pending values due to validation failure');
+		$this->expectLog('debug', 'FormMessageHandler: Merging pending values with stored values');
 		$this->expectLog('debug', 'FormElementRenderer: Context prepared');
 	}
 

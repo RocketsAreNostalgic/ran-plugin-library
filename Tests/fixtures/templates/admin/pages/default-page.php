@@ -1,7 +1,6 @@
 <?php
 
 use Ran\PluginLib\Forms\Component\ComponentRenderResult;
-use Ran\PluginLib\Forms\Component\ComponentType;
 
 $heading        = $context['heading']                  ?? 'Settings';
 $description    = $context['page_meta']['description'] ?? ($context['description'] ?? '');
@@ -41,6 +40,5 @@ if (is_callable($renderSubmit)) {
 <?php
 
 return new ComponentRenderResult(
-	markup: (string) ob_get_clean(),
-	component_type: ComponentType::LayoutWrapper
+	markup: (string) ob_get_clean()
 );

@@ -11,6 +11,12 @@ use \Ran\PluginLib\Util\ExpectLogTrait;
 use \Ran\PluginLib\Util\CollectingLogger;
 use WP_Mock\Tools\TestCase;
 
+// Enable verbose debug logging for tests so log assertions work
+// In production, this constant is not defined, so verbose logs are suppressed
+if (!defined('RAN_VERBOSE_DEBUG')) {
+	define('RAN_VERBOSE_DEBUG', true);
+}
+
 // Bootstrap WP_Mock to initialize built-in features.
 WP_Mock::bootstrap();
 

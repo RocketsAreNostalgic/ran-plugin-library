@@ -616,7 +616,7 @@ class ComponentLoaderExternalComponentTest extends PluginLibTestCase {
 		mkdir($this->externalComponentDir . '/DatePicker', 0777, true);
 		file_put_contents($this->externalComponentDir . '/DatePicker/View.php', '<?php
 use Ran\PluginLib\Forms\Component\ComponentRenderResult;
-return new ComponentRenderResult(markup: "<div>DatePicker</div>", component_type: "input");
+return new ComponentRenderResult(markup: "<div>DatePicker</div>");
 ');
 
 		WP_Mock::userFunction('add_action')->andReturn(true);
@@ -711,7 +711,7 @@ $value = $context["value"] ?? "";
 
 $markup = sprintf(\'<input type="text" name="%s" value="%s">\', $name, $value);
 
-return new ComponentRenderResult(markup: $markup, component_type: \'input\');
+return new ComponentRenderResult(markup: $markup);
 ');
 
 		// Create external ColorPicker component template
@@ -724,7 +724,7 @@ $value = $context["value"] ?? "#000000";
 
 $markup = sprintf(\'<div class="ColorPicker"><input type="color" name="%s" value="%s"></div>\', $name, $value);
 
-return new ComponentRenderResult(markup: $markup, component_type: \'input\');
+return new ComponentRenderResult(markup: $markup);
 ');
 	}
 

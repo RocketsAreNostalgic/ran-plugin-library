@@ -177,8 +177,7 @@ class SettingsIntegrationSeamsTest extends PluginLibTestCase {
 			$value = htmlspecialchars((string) ($context['value'] ?? ''), ENT_QUOTES);
 			$name  = htmlspecialchars((string) ($context['name'] ?? ''), ENT_QUOTES);
 			return new ComponentRenderResult(
-				'<input type="text" name="' . $name . '" value="' . $value . '" data-seam="manifest-to-render">',
-				component_type: 'input'
+				'<input type="text" name="' . $name . '" value="' . $value . '" data-seam="manifest-to-render">'
 			);
 		});
 		// Register a builder factory for the custom component
@@ -234,7 +233,7 @@ class SettingsIntegrationSeamsTest extends PluginLibTestCase {
 		$manifest = new ComponentManifest($loader, $this->logger);
 
 		$manifest->register('fields.input', static function (array $context): ComponentRenderResult {
-			return new ComponentRenderResult('<input type="text">', component_type: 'input');
+			return new ComponentRenderResult('<input type="text">');
 		});
 		$manifest->register_builder('fields.input', \Ran\PluginLib\Forms\Components\Fields\Input\Builder::class);
 
@@ -315,8 +314,7 @@ class SettingsIntegrationSeamsTest extends PluginLibTestCase {
 			$value = htmlspecialchars((string) ($context['value'] ?? ''), ENT_QUOTES);
 			$name  = htmlspecialchars((string) ($context['name'] ?? ''), ENT_QUOTES);
 			return new ComponentRenderResult(
-				'<input type="text" name="' . $name . '" value="' . $value . '" data-seam="user-manifest-to-render">',
-				component_type: 'input'
+				'<input type="text" name="' . $name . '" value="' . $value . '" data-seam="user-manifest-to-render">'
 			);
 		});
 		$manifest->register_builder('profile.input', \Ran\PluginLib\Forms\Components\Fields\Input\Builder::class);
@@ -369,7 +367,7 @@ class SettingsIntegrationSeamsTest extends PluginLibTestCase {
 		$manifest = new ComponentManifest($loader, $this->logger);
 
 		$manifest->register('fields.input', static function (array $context): ComponentRenderResult {
-			return new ComponentRenderResult('<input type="text">', component_type: 'input');
+			return new ComponentRenderResult('<input type="text">');
 		});
 		$manifest->register_builder('fields.input', \Ran\PluginLib\Forms\Components\Fields\Input\Builder::class);
 
@@ -408,8 +406,7 @@ class SettingsIntegrationSeamsTest extends PluginLibTestCase {
 use Ran\PluginLib\Forms\Component\ComponentRenderResult;
 $value = htmlspecialchars((string)($context["value"] ?? ""), ENT_QUOTES);
 return new ComponentRenderResult(
-    \'<div data-seam="external-component-admin">\' . $value . \'</div>\',
-    component_type: "input"
+    \'<div data-seam="external-component-admin">\' . $value . \'</div>\'
 );';
 		file_put_contents($externalDir . '/SeamComponent/View.php', $viewCode);
 		file_put_contents($externalDir . '/SeamComponent/Builder.php', $this->createBuilderPhp('SeamTest', 'SeamComponent'));
@@ -471,8 +468,7 @@ return new ComponentRenderResult(
 use Ran\PluginLib\Forms\Component\ComponentRenderResult;
 $value = htmlspecialchars((string)($context["value"] ?? ""), ENT_QUOTES);
 return new ComponentRenderResult(
-    \'<div data-seam="external-component-user">\' . $value . \'</div>\',
-    component_type: "input"
+    \'<div data-seam="external-component-user">\' . $value . \'</div>\'
 );';
 		file_put_contents($externalDir . '/UserSeamComponent/View.php', $viewCode);
 		file_put_contents($externalDir . '/UserSeamComponent/Builder.php', $this->createBuilderPhp('UserSeamTest', 'UserSeamComponent'));
@@ -554,8 +550,7 @@ return new ComponentRenderResult(
 		$manifest->register('fields.input', static function (array $context): ComponentRenderResult {
 			$value = htmlspecialchars((string) ($context['value'] ?? ''), ENT_QUOTES);
 			return new ComponentRenderResult(
-				'<input type="text" value="' . $value . '" data-roundtrip="admin">',
-				component_type: 'input'
+				'<input type="text" value="' . $value . '" data-roundtrip="admin">'
 			);
 		});
 		$manifest->register_builder('fields.input', \Ran\PluginLib\Forms\Components\Fields\Input\Builder::class);
@@ -628,8 +623,7 @@ return new ComponentRenderResult(
 		$manifest->register('fields.input', static function (array $context): ComponentRenderResult {
 			$value = htmlspecialchars((string) ($context['value'] ?? ''), ENT_QUOTES);
 			return new ComponentRenderResult(
-				'<input type="text" value="' . $value . '" data-roundtrip="user">',
-				component_type: 'input'
+				'<input type="text" value="' . $value . '" data-roundtrip="user">'
 			);
 		});
 		$manifest->register_builder('fields.input', \Ran\PluginLib\Forms\Components\Fields\Input\Builder::class);
@@ -706,7 +700,7 @@ return new ComponentRenderResult(
 		$manifest = new ComponentManifest($loader, $this->logger);
 
 		$manifest->register('fields.input', static function (array $context): ComponentRenderResult {
-			return new ComponentRenderResult('<input type="text">', component_type: 'input');
+			return new ComponentRenderResult('<input type="text">');
 		});
 		$manifest->register_builder('fields.input', \Ran\PluginLib\Forms\Components\Fields\Input\Builder::class);
 
@@ -772,7 +766,7 @@ return new ComponentRenderResult(
 		$manifest = new ComponentManifest($loader, $this->logger);
 
 		$manifest->register('fields.input', static function (array $context): ComponentRenderResult {
-			return new ComponentRenderResult('<input type="text">', component_type: 'input');
+			return new ComponentRenderResult('<input type="text">');
 		});
 		$manifest->register_builder('fields.input', \Ran\PluginLib\Forms\Components\Fields\Input\Builder::class);
 

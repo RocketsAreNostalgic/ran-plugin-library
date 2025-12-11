@@ -496,22 +496,26 @@ class FormsTemplateOverrideResolverTest extends TestCase {
 	}
 
 	/**
-	 * Test template resolution logging - emergency fallback logs WARNING
+	 * Test template resolution - system fallback logs DEBUG in verbose mode
+	 *
+	 * System fallback is expected behavior when form classes only override specific templates
+	 * (e.g., AdminSettings only overrides root-wrapper, letting field-wrapper use system default).
+	 * Logging is gated behind RAN_VERBOSE_DEBUG which is enabled in test bootstrap.
 	 */
-	public function test_template_resolution_emergency_fallback_logs_warning(): void {
-		// Emergency fallback should produce a WARNING (indicates misconfiguration)
+	public function test_template_resolution_system_fallback_logs_debug_in_verbose_mode(): void {
+		// System fallback should produce a DEBUG log (expected behavior, not an error)
+		// RAN_VERBOSE_DEBUG is defined as true in test_bootstrap.php
 		$this->logger->expects($this->once())
-			->method('warning')
+			->method('debug')
 			->with(
-				$this->stringContains('FormsTemplateOverrideResolver: Template resolved via emergency fallback'),
+				$this->stringContains('FormsTemplateOverrideResolver: Template resolved via system fallback'),
 				$this->callback(function($context) {
 					return isset($context['template_type'])
-						&& isset($context['template'])
-						&& isset($context['hint']);
+						&& isset($context['template']);
 				})
 			);
 
-		// Don't set form defaults - this triggers emergency fallback
+		// Don't set form defaults - this triggers system fallback
 		$resolved = $this->resolver->resolve_template('field-wrapper', array());
 		$this->assertEquals('layout.field.field-wrapper', $resolved);
 	}

@@ -12,6 +12,5 @@ if (is_callable($renderSubmit)) {
 $content .= '</div>';
 
 return new ComponentRenderResult(
-	markup: $content,
-	component_type: 'layout_wrapper'
+	markup: $content
 );

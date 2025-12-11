@@ -338,7 +338,7 @@ $markup = sprintf(
 );
 $markup = sprintf($markup, $label, $name, $value);
 
-return new ComponentRenderResult(markup: $markup, component_type: "input");
+return new ComponentRenderResult(markup: $markup);
 ';
 	}
 

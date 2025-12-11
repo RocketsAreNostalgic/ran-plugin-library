@@ -518,8 +518,7 @@ final class UserSettingsBehaviorTest extends PluginLibTestCase {
 
 			return new ComponentRenderResult(
 				'<div class="profile-asset">' . htmlspecialchars((string) ($context['field_id'] ?? ''), ENT_QUOTES) . '</div>',
-				script: $script,
-				component_type: 'input'
+				script: $script
 			);
 		});
 		$this->injectBuilderFactory('fields.profile-asset');
@@ -527,14 +526,12 @@ final class UserSettingsBehaviorTest extends PluginLibTestCase {
 		// Ensure root templates are registered for the render pipeline used in this test.
 		$this->manifest->register('root-wrapper', static function (array $context): ComponentRenderResult {
 			return new ComponentRenderResult(
-				'<div class="root-wrapper">' . ($context['inner_html'] ?? '') . '</div>',
-				component_type: 'layout_wrapper'
+				'<div class="root-wrapper">' . ($context['inner_html'] ?? '') . '</div>'
 			);
 		});
 		$this->manifest->register('user.root-wrapper', static function (array $context): ComponentRenderResult {
 			return new ComponentRenderResult(
-				'<div class="user-root-wrapper">' . ($context['inner_html'] ?? '') . '</div>',
-				component_type: 'layout_wrapper'
+				'<div class="user-root-wrapper">' . ($context['inner_html'] ?? '') . '</div>'
 			);
 		});
 
@@ -710,8 +707,7 @@ final class UserSettingsBehaviorTest extends PluginLibTestCase {
 		$this->manifest->register('field-wrapper', static function (array $context): ComponentRenderResult {
 			$componentHtml = (string) ($context['inner_html'] ?? '');
 			return new ComponentRenderResult(
-				'<div class="test-field-wrapper">' . $componentHtml . '</div>',
-				component_type: ComponentType::LayoutWrapper
+				'<div class="test-field-wrapper">' . $componentHtml . '</div>'
 			);
 		});
 		$loader->register('fields.input', 'admin/fields/test-field.php');
@@ -721,15 +717,13 @@ final class UserSettingsBehaviorTest extends PluginLibTestCase {
 		$this->manifest->register('user.root-wrapper', static function (array $context): ComponentRenderResult {
 			$content = (string) ($context['inner_html'] ?? '');
 			return new ComponentRenderResult(
-				'<div class="user-root-wrapper">' . $content . '</div>',
-				component_type: ComponentType::LayoutWrapper
+				'<div class="user-root-wrapper">' . $content . '</div>'
 			);
 		});
 		$this->manifest->register('root-wrapper', static function (array $context): ComponentRenderResult {
 			$content = (string) ($context['inner_html'] ?? '');
 			return new ComponentRenderResult(
-				'<div class="root-wrapper">' . $content . '</div>',
-				component_type: ComponentType::LayoutWrapper
+				'<div class="root-wrapper">' . $content . '</div>'
 			);
 		});
 	}
@@ -757,14 +751,13 @@ final class UserSettingsBehaviorTest extends PluginLibTestCase {
 		$this->manifest->register($alias, static function (array $context): ComponentRenderResult {
 			$fieldId = htmlspecialchars((string) ($context['field_id'] ?? ''), ENT_QUOTES);
 			return new ComponentRenderResult(
-				'<input name="' . $fieldId . '" />',
-				component_type: 'input'
+				'<input name="' . $fieldId . '" />'
 			);
 		});
 
 		$this->injectBuilderFactory($alias);
 		$this->injectManifestDefaults($alias, array(
-			'context'  => array('component_type' => 'input'),
+			
 			'validate' => array(static fn ($value, callable $emitWarning): bool => true),
 		));
 

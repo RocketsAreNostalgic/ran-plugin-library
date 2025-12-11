@@ -455,7 +455,7 @@ $markup = sprintf(
 );
 $markup = sprintf($markup, $label, $name, $value);
 
-return new ComponentRenderResult(markup: $markup, component_type: "input");
+return new ComponentRenderResult(markup: $markup);
 ';
 	}
 
@@ -1212,7 +1212,7 @@ class Normalizer {
 
 			// Inject sanitizer via manifest defaults BEFORE field registration
 			$this->injectManifestDefaults($settings, 'ext.sanitize-comp', array(
-				'context'  => array('component_type' => 'input'),
+				
 				'sanitize' => array(function($v) use (&$sanitizerCalled, &$sanitizedValue) {
 					$sanitizerCalled = true;
 					$sanitizedValue  = strtoupper(trim((string) $v));
@@ -1271,7 +1271,7 @@ class Normalizer {
 
 			// Inject validator BEFORE field registration
 			$this->injectManifestDefaults($settings, 'ext.validate-comp', array(
-				'context'  => array('component_type' => 'input'),
+				
 				'validate' => array(function($v, callable $emit) use (&$validatorCalled) {
 					$validatorCalled = true;
 					if (strlen((string) $v) < 5) {
@@ -1329,7 +1329,7 @@ class Normalizer {
 			));
 
 			$this->injectManifestDefaults($settings, 'ext.accept-comp', array(
-				'context'  => array('component_type' => 'input'),
+				
 				'validate' => array(function($v, callable $emit) use (&$validatorCalled) {
 					$validatorCalled = true;
 					return strlen((string) $v) >= 5;
@@ -1382,7 +1382,7 @@ class Normalizer {
 			));
 
 			$this->injectManifestDefaults($settings, 'ext.multi-san-comp', array(
-				'context'  => array('component_type' => 'input'),
+				
 				'sanitize' => array(
 					function($v) use (&$executionOrder) {
 						$executionOrder[] = 'first';
@@ -1453,7 +1453,7 @@ class Normalizer {
 
 			// Inject manifest-level sanitizer
 			$this->injectManifestDefaults($settings, 'ext.merge-comp', array(
-				'context'  => array('component_type' => 'input'),
+				
 				'sanitize' => array(function($v) use (&$manifestSanitizerCalled) {
 					$manifestSanitizerCalled = true;
 					return trim((string) $v);

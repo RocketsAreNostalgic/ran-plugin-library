@@ -60,12 +60,12 @@ final class ComponentManifestDefaultsTest extends PluginLibTestCase {
 	}
 
 	/**
-	 * @return array{repeatable:bool}
+	 * Defaults are now empty - component_type comes from View's ComponentRenderResult at render time.
+	 *
+	 * @return array<string,mixed>
 	 */
-	private function expectedContext(): array {
-		return array(
-			'repeatable' => false,
-		);
+	private function expectedDefaults(): array {
+		return array();
 	}
 
 	public function test_manifest_collects_defaults_from_normalizer(): void {
@@ -80,13 +80,10 @@ final class ComponentManifestDefaultsTest extends PluginLibTestCase {
 		$this->resetLogs();
 		$manifest = new ComponentManifest($this->loader, $this->logger_mock);
 
-		// Note: Defaults no longer contain sanitize/validate class names.
+		// Defaults are now empty - component_type comes from View's ComponentRenderResult at render time.
 		// Sanitizers and validators are injected via factory -> queue -> merge path.
-		$expected = array(
-			'context' => $this->expectedContext(),
-		);
-		$this->assertSame($expected, $manifest->get_defaults_for('sample.component'));
-		$this->assertSame(array('sample.component' => $expected), $manifest->default_catalogue());
+		$this->assertSame($this->expectedDefaults(), $manifest->get_defaults_for('sample.component'));
+		$this->assertSame(array('sample.component' => $this->expectedDefaults()), $manifest->default_catalogue());
 		// With normalizer present, defaults are considered "discovered" (sanitize sources exist)
 		$this->expectLog('debug', 'ComponentManifest: defaults missing for component');
 	}
@@ -103,7 +100,7 @@ final class ComponentManifestDefaultsTest extends PluginLibTestCase {
 		$this->resetLogs();
 		$manifest = new ComponentManifest($this->loader, $this->logger_mock);
 
-		$this->assertSame(array('context' => $this->expectedContext()), $manifest->get_defaults_for('empty.component'));
+		$this->assertSame($this->expectedDefaults(), $manifest->get_defaults_for('empty.component'));
 		$this->expectLog('debug', 'ComponentManifest: defaults missing for component');
 	}
 
@@ -119,7 +116,7 @@ final class ComponentManifestDefaultsTest extends PluginLibTestCase {
 		$this->resetLogs();
 		$manifest = new ComponentManifest($this->loader, $this->logger_mock);
 
-		$this->assertSame(array('context' => $this->expectedContext()), $manifest->get_defaults_for('builder.component'));
+		$this->assertSame($this->expectedDefaults(), $manifest->get_defaults_for('builder.component'));
 		$this->expectLog('debug', 'ComponentManifest: defaults missing for component');
 	}
 
@@ -135,12 +132,9 @@ final class ComponentManifestDefaultsTest extends PluginLibTestCase {
 		$this->resetLogs();
 		$manifest = new ComponentManifest($this->loader, $this->logger_mock);
 
-		// Note: Defaults no longer contain sanitize/validate class names.
+		// Defaults are now empty - component_type comes from View's ComponentRenderResult at render time.
 		// Validators are injected via factory -> queue -> merge path.
-		$expected = array(
-			'context' => $this->expectedContext(),
-		);
-		$this->assertSame($expected, $manifest->get_defaults_for('validator.component'));
+		$this->assertSame($this->expectedDefaults(), $manifest->get_defaults_for('validator.component'));
 		// With validator present, validate sources exist
 		$this->expectLog('debug', 'ComponentManifest: defaults discovered for component');
 	}
@@ -157,13 +151,11 @@ final class ComponentManifestDefaultsTest extends PluginLibTestCase {
 		$this->resetLogs();
 		$firstManifest = new ComponentManifest($this->loader, $this->logger_mock);
 
-		// Note: Defaults no longer contain sanitize/validate class names.
+		// Defaults are now empty - component_type comes from View's ComponentRenderResult at render time.
 		$cacheKey = 'kepler_comp_meta_cached.component';
 		$this->assertArrayHasKey($cacheKey, $this->cachedMetadata);
 		$this->assertSame(
-			array(
-				'context' => $this->expectedContext(),
-			),
+			$this->expectedDefaults(),
 			$this->cachedMetadata[$cacheKey]['defaults'] ?? null
 		);
 		// Logging now happens in ComponentCacheService
@@ -172,9 +164,7 @@ final class ComponentManifestDefaultsTest extends PluginLibTestCase {
 		$this->resetLogs();
 		$secondManifest = new ComponentManifest($this->loader, $this->logger_mock);
 		$this->assertSame(
-			array(
-				'context' => $this->expectedContext(),
-			),
+			$this->expectedDefaults(),
 			$secondManifest->get_defaults_for('cached.component')
 		);
 		// Logging now happens in ComponentCacheService
@@ -236,11 +226,9 @@ final class ComponentManifestDefaultsTest extends PluginLibTestCase {
 
 		$resolver = new FormsTemplateOverrideResolver($this->logger_mock);
 		$session  = new FormsServiceSession($manifest, new FormsAssets(), $resolver, $this->logger_mock);
-		// Note: Defaults no longer contain sanitize/validate class names.
+		// Defaults are now empty - component_type comes from View's ComponentRenderResult at render time.
 		$this->assertSame(
-			array('session.component' => array(
-				'context' => $this->expectedContext(),
-			)),
+			array('session.component' => $this->expectedDefaults()),
 			$session->manifest_defaults()
 		);
 	}
