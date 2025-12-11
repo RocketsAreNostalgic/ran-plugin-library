@@ -228,11 +228,69 @@ final class ValidatorPipelineService {
 	 * @return array{component:array<callable>,schema:array<callable>}
 	 */
 	public function merge_bucketed_callables(array $existing, array $incoming): array {
-		$merged                         = $this->create_bucket_map();
+		$merged = $this->create_bucket_map();
+
+		// Component validators always merge (they come from different sources)
 		$merged[self::BUCKET_COMPONENT] = array_merge($existing[self::BUCKET_COMPONENT], $incoming[self::BUCKET_COMPONENT]);
-		$merged[self::BUCKET_SCHEMA]    = array_merge($existing[self::BUCKET_SCHEMA], $incoming[self::BUCKET_SCHEMA]);
+
+		// Schema validators: deduplicate using stable keys based on closure definition location
+		// This prevents duplicate validators when the same schema is registered multiple times
+		$schemaValidators = array();
+		foreach ($existing[self::BUCKET_SCHEMA] as $validator) {
+			$key                    = $this->_get_callable_identity_key($validator);
+			$schemaValidators[$key] = $validator;
+		}
+		foreach ($incoming[self::BUCKET_SCHEMA] as $validator) {
+			$key = $this->_get_callable_identity_key($validator);
+			// Only add if not already present (deduplication)
+			if (!isset($schemaValidators[$key])) {
+				$schemaValidators[$key] = $validator;
+			}
+		}
+		$merged[self::BUCKET_SCHEMA] = array_values($schemaValidators);
 
 		return $merged;
+	}
+
+	/**
+	 * Generate a stable identity key for a callable.
+	 *
+	 * For closures, uses ReflectionFunction to get file+line which is stable
+	 * across multiple instantiations of the same closure definition.
+	 * This allows deduplication without requiring developers to cache their schema.
+	 *
+	 * @param callable $callable The callable to generate a key for.
+	 * @return string A stable identity key.
+	 */
+	private function _get_callable_identity_key(callable $callable): string {
+		if ($callable instanceof \Closure) {
+			try {
+				$ref = new \ReflectionFunction($callable);
+				// Use file + start line + end line as stable identity
+				return $ref->getFileName() . ':' . $ref->getStartLine() . '-' . $ref->getEndLine();
+			} catch (\ReflectionException $e) {
+				// Fall back to object hash if reflection fails
+				return spl_object_hash($callable);
+			}
+		}
+
+		// For other callables (strings, arrays), serialize for comparison
+		if (is_string($callable)) {
+			return 'fn:' . $callable;
+		}
+
+		if (is_array($callable)) {
+			// [class, method] or [object, method]
+			$class = is_object($callable[0]) ? get_class($callable[0]) : $callable[0];
+			return 'method:' . $class . '::' . $callable[1];
+		}
+
+		// Fallback for invokable objects
+		if (is_object($callable)) {
+			return 'invokable:' . get_class($callable);
+		}
+
+		return md5(serialize($callable));
 	}
 
 	/**
@@ -419,6 +477,9 @@ final class ValidatorPipelineService {
 			}
 		}
 
+		// Run all validators and accumulate messages (no fail-fast)
+		$anyValidationFailed = false;
+
 		foreach (self::BUCKET_ORDER as $bucket) {
 			foreach ($rules['validate'][$bucket] as $index => $validator) {
 				if (!\is_callable($validator)) {
@@ -462,16 +523,16 @@ final class ValidatorPipelineService {
 						$recordWarning($normalizedKey, "Validation failed for value {$valStr}");
 					}
 
-					$logger->debug("{$hostLabel}: validation failed, stopping validator chain", array('key' => $normalizedKey, 'validator' => $validatorDesc, 'bucket' => $bucket));
-
-					return $value;
+					$logger->debug("{$hostLabel}: validation failed", array('key' => $normalizedKey, 'validator' => $validatorDesc, 'bucket' => $bucket));
+					$anyValidationFailed = true;
+					// Continue to run remaining validators to accumulate all messages
 				}
 			}
 		}
 
 		// Only log per-option completion in verbose mode to avoid log flooding
 		if (ErrorNoticeRenderer::isVerboseDebug()) {
-			$logger->debug("{$hostLabel}: _sanitize_and_validate_option completed", array('key' => $normalizedKey));
+			$logger->debug("{$hostLabel}: _sanitize_and_validate_option completed", array('key' => $normalizedKey, 'validation_failed' => $anyValidationFailed));
 		}
 		return $value;
 	}

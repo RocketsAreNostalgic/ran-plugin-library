@@ -219,7 +219,13 @@ class FormMessageHandler {
 			$this->messages_by_field[$sanitized_field_id] = array('warnings' => array(), 'notices' => array());
 		}
 
-		$this->messages_by_field[$sanitized_field_id][$type . 's'][] = $message;
+		$key = $type . 's';
+		// Deduplicate: don't add the same message twice for the same field
+		if (in_array($message, $this->messages_by_field[$sanitized_field_id][$key], true)) {
+			return;
+		}
+
+		$this->messages_by_field[$sanitized_field_id][$key][] = $message;
 
 		$this->_get_logger()->debug('FormMessageHandler: Message added', array(
 			'field_id' => $sanitized_field_id,

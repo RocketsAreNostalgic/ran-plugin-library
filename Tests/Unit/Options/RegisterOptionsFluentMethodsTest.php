@@ -281,7 +281,7 @@ final class RegisterOptionsFluentMethodsTest extends PluginLibTestCase {
 		self::assertSame('value_r_ws1_ws2', $options->get_option('test_field'));
 	}
 
-	public function test_validator_execution_stops_on_failure(): void {
+	public function test_validator_execution_runs_all_validators(): void {
 		$options = new RegisterOptions('validator_order', StorageContext::forSite(), true, $this->logger);
 
 		$execution = array();
@@ -299,6 +299,10 @@ final class RegisterOptionsFluentMethodsTest extends PluginLibTestCase {
 					},
 					static function($value, callable $emitWarning) use (&$execution) {
 						$execution[] = 'second';
+						if ($value === 'fail') {
+							$emitWarning('second failed');
+							return false;
+						}
 						return true;
 					},
 				),
@@ -314,8 +318,10 @@ final class RegisterOptionsFluentMethodsTest extends PluginLibTestCase {
 		$options->stage_option('test_field', 'fail');
 		self::assertFalse($options->commit_merge());
 		$messages = $options->take_messages();
-		self::assertSame(array('first'), $execution);
+		// All validators run to accumulate messages (no fail-fast)
+		self::assertSame(array('first', 'second'), $execution);
 		self::assertContains('first failed', $messages['test_field']['warnings']);
+		self::assertContains('second failed', $messages['test_field']['warnings']);
 	}
 
 	public function test_multiple_sanitizers_execute_in_order(): void {

@@ -338,7 +338,9 @@ class RegisterOptions {
 		}
 
 		if (!empty($this->schema)) {
-			$new->__register_internal_schema($this->schema);
+			// Directly assign schema to avoid re-registration and duplicate validators
+			// The schema is already in canonical bucket form, so no coercion needed
+			$new->__set_schema_internal($this->schema);
 		}
 
 		return $new;
@@ -1003,6 +1005,19 @@ class RegisterOptions {
 	 */
 	public function __get_schema_internal(): array {
 		return $this->schema;
+	}
+
+	/**
+	 * Directly set the internal schema array.
+	 *
+	 * Used by with_context() to share schema between instances without
+	 * re-registration, which would cause duplicate validators.
+	 *
+	 * @internal
+	 * @param array<string,array{sanitize:array{component:array<callable>,schema:array<callable>}, validate:array{component:array<callable>,schema:array<callable>}, default?:mixed}> $schema
+	 */
+	public function __set_schema_internal(array $schema): void {
+		$this->schema = $schema;
 	}
 
 	/**

@@ -2468,15 +2468,21 @@ trait FormsBaseTrait {
 		}
 
 		// Layer 2: Merge in schema-level entries (developer validators)
-		// Schema validators are added to the 'schema' bucket, not replacing component validators
+		// IMPORTANT: Schema validators are already registered in RegisterOptions via register_schema().
+		// We only need to merge defaults here, NOT validators, to avoid duplicate registration.
+		// The validators will be used during validation via the RegisterOptions schema.
 		if (!empty($bundle['schema'])) {
 			foreach ($bundle['schema'] as $key => $entry) {
 				if (!isset($merged[$key])) {
-					$merged[$key] = $entry;
-				} else {
-					// Merge the schema entry buckets
-					$merged[$key] = $this->_merge_schema_entry_buckets($merged[$key], $entry);
+					// Only include the default, not the validators (they're already registered)
+					if (array_key_exists('default', $entry)) {
+						$merged[$key] = array('default' => $entry['default']);
+					}
+				} elseif (!array_key_exists('default', $merged[$key]) && array_key_exists('default', $entry)) {
+					// Merged entry exists but has no default - add the default
+					$merged[$key]['default'] = $entry['default'];
 				}
+				// Skip merging validators - they're already in RegisterOptions
 			}
 		}
 
@@ -2629,7 +2635,16 @@ trait FormsBaseTrait {
 				$sanitizeComponents = (array) ($currentEntry['sanitize']['component'] ?? array());
 				$validateComponents = (array) ($currentEntry['validate']['component'] ?? array());
 				if ($sanitizeComponents === array() || $validateComponents === array()) {
-					$merged                         = $session->merge_schema_with_defaults($component, $currentEntry, $manifestCatalogue);
+					// Strip schema validators before merging - they're already in RegisterOptions
+					// and will be used during validation. Including them here would cause duplicates.
+					$entryForMerge = $currentEntry;
+					if (isset($entryForMerge['sanitize']['schema'])) {
+						$entryForMerge['sanitize']['schema'] = array();
+					}
+					if (isset($entryForMerge['validate']['schema'])) {
+						$entryForMerge['validate']['schema'] = array();
+					}
+					$merged                         = $session->merge_schema_with_defaults($component, $entryForMerge, $manifestCatalogue);
 					$bucketedSchema[$normalizedKey] = $merged;
 					// A component requires a validator if it has a validator factory registered
 					$validatorFactories = $this->components->validator_factories();
