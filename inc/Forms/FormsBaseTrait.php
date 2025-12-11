@@ -753,11 +753,18 @@ trait FormsBaseTrait {
 		}
 
 		$key = $this->_get_form_messages_transient_key($user_id);
-		$this->_do_set_transient($key, $messages, 30); // 30 second TTL
+
+		// Persist both messages and pending values so failed values are shown after redirect
+		$data = array(
+			'messages'       => $messages,
+			'pending_values' => $this->pending_values,
+		);
+		$this->_do_set_transient($key, $data, 30); // 30 second TTL
 
 		$this->logger->debug('forms.messages_persisted', array(
-			'transient_key' => $key,
-			'field_count'   => count($messages),
+			'transient_key'        => $key,
+			'field_count'          => count($messages),
+			'pending_values_count' => $this->pending_values !== null ? count($this->pending_values) : 0,
 		));
 	}
 
@@ -772,22 +779,40 @@ trait FormsBaseTrait {
 	 * @return bool True if messages were restored, false if none found.
 	 */
 	protected function _restore_form_messages(?int $user_id = null): bool {
-		$key      = $this->_get_form_messages_transient_key($user_id);
-		$messages = $this->_do_get_transient($key);
+		$key  = $this->_get_form_messages_transient_key($user_id);
+		$data = $this->_do_get_transient($key);
 
-		if (empty($messages) || !is_array($messages)) {
+		if (empty($data) || !is_array($data)) {
 			return false;
 		}
 
 		// Delete transient after reading (one-time display)
 		$this->_do_delete_transient($key);
 
+		// Handle both old format (just messages) and new format (messages + pending_values)
+		if (isset($data['messages'])) {
+			// New format: { messages: {...}, pending_values: {...} }
+			$messages       = $data['messages'];
+			$pending_values = $data['pending_values'] ?? null;
+		} else {
+			// Old format: just the messages array directly
+			$messages       = $data;
+			$pending_values = null;
+		}
+
 		// Feed messages into our message handler
 		$this->message_handler->set_messages($messages);
 
+		// Restore pending values so failed values are shown in form fields
+		if ($pending_values !== null) {
+			$this->message_handler->set_pending_values($pending_values);
+			$this->pending_values = $pending_values;
+		}
+
 		$this->logger->debug('forms.messages_restored', array(
-			'transient_key' => $key,
-			'field_count'   => count($messages),
+			'transient_key'        => $key,
+			'field_count'          => count($messages),
+			'pending_values_count' => $pending_values !== null ? count($pending_values) : 0,
 		));
 
 		return true;
