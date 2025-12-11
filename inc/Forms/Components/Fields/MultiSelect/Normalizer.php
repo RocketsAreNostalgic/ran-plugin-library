@@ -19,7 +19,16 @@ final class Normalizer extends NormalizerBase {
 		// Set multiple attribute
 		$context['attributes']['multiple'] = 'multiple';
 
+		// Ensure name ends with [] for PHP to receive array values
+		if (isset($context['attributes']['name'])) {
+			$name = $context['attributes']['name'];
+			if (!str_ends_with($name, '[]')) {
+				$context['attributes']['name'] = $name . '[]';
+			}
+		}
+
 		// Get selected values using base class validation
+		// Multi-select can receive values as 'values' (array), 'value' (string or array), or 'default' (array)
 		$selectedValues = array();
 		if (isset($context['values'])) {
 			$values = $this->_validate_config_array($context['values'], 'values');
@@ -27,7 +36,12 @@ final class Normalizer extends NormalizerBase {
 				$selectedValues = array_map(fn($v) => $this->_sanitize_string($v, 'selected value'), $values);
 			}
 		} elseif (isset($context['value'])) {
-			$selectedValues = array($this->_sanitize_string($context['value'], 'value'));
+			// Handle both array and string for 'value' key
+			if (is_array($context['value'])) {
+				$selectedValues = array_map(fn($v) => $this->_sanitize_string($v, 'value'), $context['value']);
+			} else {
+				$selectedValues = array($this->_sanitize_string($context['value'], 'value'));
+			}
 		} elseif (isset($context['default'])) {
 			$defaults = $this->_validate_config_array($context['default'], 'default');
 			if ($defaults !== null) {
@@ -50,25 +64,31 @@ final class Normalizer extends NormalizerBase {
 
 	/**
 	 * Build options HTML markup.
+	 *
+	 * Supports two formats:
+	 * 1. Simple key-value: ['value1' => 'Label 1', 'value2' => 'Label 2']
+	 * 2. Structured array: [['value' => 'value1', 'label' => 'Label 1', 'group' => 'Group'], ...]
 	 */
 	private function _build_options(mixed $options, array $selectedValues): array {
 		if (!is_array($options)) {
 			return array();
 		}
 
-		$grouped = array();
-		foreach ($options as $option) {
-			if (!is_array($option)) {
-				continue;
-			}
+		// Normalize options to structured format
+		$normalizedOptions = $this->_normalize_options_format($options);
+
+		// Use a sentinel key for ungrouped options
+		$ungroupedKey = '__ungrouped__';
+		$grouped      = array();
+		foreach ($normalizedOptions as $option) {
 			$groupRaw          = $option['group'] ?? '';
-			$group             = $groupRaw !== '' ? $this->_sanitize_string($groupRaw, 'option group') : null;
+			$group             = $groupRaw !== '' ? $this->_sanitize_string($groupRaw, 'option group') : $ungroupedKey;
 			$grouped[$group][] = $this->_render_option_markup($option, $selectedValues);
 		}
 
 		$markup = array();
 		foreach ($grouped as $groupLabel => $optionMarkupList) {
-			if ($groupLabel === null) {
+			if ($groupLabel === $ungroupedKey) {
 				foreach ($optionMarkupList as $optionMarkup) {
 					$markup[] = $optionMarkup;
 				}
@@ -80,6 +100,33 @@ final class Normalizer extends NormalizerBase {
 		}
 
 		return $markup;
+	}
+
+	/**
+	 * Normalize options to structured array format.
+	 *
+	 * Converts simple key-value format to structured format.
+	 *
+	 * @param array $options Raw options array
+	 * @return array<int, array{value: string, label: string, group?: string}> Normalized options
+	 */
+	private function _normalize_options_format(array $options): array {
+		$normalized = array();
+
+		foreach ($options as $key => $value) {
+			if (is_array($value)) {
+				// Already structured format: ['value' => 'x', 'label' => 'X']
+				$normalized[] = $value;
+			} else {
+				// Simple key-value format: 'value' => 'Label'
+				$normalized[] = array(
+					'value' => (string) $key,
+					'label' => (string) $value,
+				);
+			}
+		}
+
+		return $normalized;
 	}
 
 	/**

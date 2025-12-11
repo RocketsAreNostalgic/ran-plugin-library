@@ -159,42 +159,12 @@ final class Builder extends ComponentBuilderBase {
 	/**
 	 * Resolve options, handling callable if set.
 	 *
-	 * @return array<int,array<string,mixed>>
+	 * Returns raw options array - normalization is handled by the Normalizer.
+	 *
+	 * @return array Raw options array (key-value or structured format).
 	 */
 	private function _resolve_options(): array {
-		$options = is_callable($this->options) ? ($this->options)() : $this->options;
-		return $this->_normalize_options($options);
-	}
-
-	/**
-	 * Normalize options array to consistent format.
-	 *
-	 * @param array $options Raw options array.
-	 * @return array<int,array<string,mixed>>
-	 */
-	private function _normalize_options(array $options): array {
-		$normalized = array();
-		foreach ($options as $option) {
-			if (!is_array($option)) {
-				continue;
-			}
-			$item = array(
-			    'value'      => isset($option['value']) ? (string) $option['value'] : '',
-			    'label'      => isset($option['label']) ? (string) $option['label'] : (isset($option['value']) ? (string) $option['value'] : ''),
-			    'attributes' => isset($option['attributes']) && is_array($option['attributes']) ? array_map('strval', $option['attributes']) : array(),
-			);
-			if (isset($option['group']) && $option['group'] !== null && $option['group'] !== '') {
-				$item['group'] = (string) $option['group'];
-			}
-			if (!empty($option['selected'])) {
-				$item['selected'] = true;
-			}
-			if (!empty($option['disabled'])) {
-				$item['disabled'] = true;
-			}
-			$normalized[] = $item;
-		}
-		return $normalized;
+		return is_callable($this->options) ? ($this->options)() : $this->options;
 	}
 
 	/**

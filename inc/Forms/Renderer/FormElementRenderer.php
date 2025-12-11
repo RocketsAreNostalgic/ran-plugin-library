@@ -268,12 +268,19 @@ class FormElementRenderer {
 		// Merge component_context at top level - this includes builder-provided
 		// attributes like 'attributes', 'placeholder', 'required', 'disabled', etc.
 		// Normalizers expect these at the top level, not nested.
-		foreach ($component_context as $key => $value) {
-			// For 'value', use context value as fallback when stored value is null
+		foreach ($component_context as $key => $ctx_value) {
+			// For 'value'/'values', use context value as fallback when stored value is null/empty
+			// This allows hardcoded defaults while respecting saved database values
 			if ($key === 'value' && $context['value'] === null) {
-				$context['value'] = $value;
+				$context['value'] = $ctx_value;
+			} elseif ($key === 'values' && ($context['value'] === null || $context['value'] === array())) {
+				// Multi-select uses 'values' key - only use as default if no stored value
+				$context['values'] = $ctx_value;
+			} elseif ($key === 'values' && $context['value'] !== null) {
+				// Stored value exists - don't use hardcoded 'values', let normalizer use 'value'
+				continue;
 			} elseif (!array_key_exists($key, $context)) {
-				$context[$key] = $value;
+				$context[$key] = $ctx_value;
 			}
 		}
 
