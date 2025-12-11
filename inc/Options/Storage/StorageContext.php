@@ -70,4 +70,28 @@ final class StorageContext {
 		}
 		return new self(OptionScope::User, user_id: $user_id, user_storage: $storage_kind, user_global: $user_global);
 	}
+
+	/**
+	 * Generate a unique cache key for this storage context.
+	 *
+	 * @return string A string key uniquely identifying this context.
+	 */
+	public function get_cache_key(): string {
+		$parts = array($this->scope->value);
+
+		if ($this->blog_id !== null) {
+			$parts[] = 'blog:' . $this->blog_id;
+		}
+		if ($this->user_id !== null) {
+			$parts[] = 'user:' . $this->user_id;
+		}
+		if ($this->user_storage !== 'meta') {
+			$parts[] = 'storage:' . $this->user_storage;
+		}
+		if ($this->user_global) {
+			$parts[] = 'global';
+		}
+
+		return implode('|', $parts);
+	}
 }

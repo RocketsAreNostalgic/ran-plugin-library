@@ -306,13 +306,38 @@ trait FormsBaseTrait {
 	 * Resolve the correctly scoped RegisterOptions instance for current admin context.
 	 * Callers can chain fluent API on the returned object.
 	 *
+	 * Cache rationale: In a typical page lifecycle, resolve_options() is called once
+	 * per request (either render OR save, not both). The cache provides minimal benefit
+	 * in this flow since each request creates a fresh Settings instance with an empty
+	 * cache. However, the cache helps in edge cases:
+	 * - Multiple collections rendered in the same request with identical storage context
+	 * - Custom code calling resolve_options() multiple times within a single operation
+	 * - Future use cases where the same Settings instance handles multiple operations
+	 *
+	 * The overhead is minimal (array key check), so we retain it for defensive purposes.
+	 *
 	 * @param array<string,mixed>|null $context Optional resolution context.
 	 *
 	 * @return RegisterOptions
 	 */
 	public function resolve_options(?array $context = null): RegisterOptions {
 		$resolved = $this->_resolve_context($context ?? array());
-		return $this->base_options->with_context($resolved['storage']);
+		$cacheKey = $resolved['storage']->get_cache_key();
+
+		// Return cached instance if available (see docblock for cache rationale)
+		if (isset($this->__resolved_options_cache[$cacheKey])) {
+			return $this->__resolved_options_cache[$cacheKey];
+		}
+
+		// NOTE: We intentionally call with_context() even when contexts match.
+		// with_context() shares the schema via __register_internal_schema(), which
+		// is necessary for proper validator/sanitizer execution during stage_options().
+		// Returning base_options directly would skip this schema sharing step.
+
+		$opts                                      = $this->base_options->with_context($resolved['storage']);
+		$this->__resolved_options_cache[$cacheKey] = $opts;
+
+		return $opts;
 	}
 
 	// -- Messages --
