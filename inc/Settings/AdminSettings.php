@@ -25,6 +25,7 @@ use Ran\PluginLib\Forms\Renderer\FormElementRenderer;
 use Ran\PluginLib\Forms\FormsService;
 use Ran\PluginLib\Forms\FormsInterface;
 use Ran\PluginLib\Forms\FormsBaseTrait;
+use Ran\PluginLib\Forms\ErrorNoticeRenderer;
 use Ran\PluginLib\Forms\Components\Elements\Button\Builder as ButtonBuilder;
 use Ran\PluginLib\Forms\Component\ComponentManifest;
 use Ran\PluginLib\Forms\Component\ComponentLoader;
@@ -344,7 +345,7 @@ class AdminSettings implements FormsInterface {
 	 */
 	public function __render(string $id_slug, ?array $context = null): void {
 		if (!isset($this->pages[$id_slug])) {
-			echo '<div class="notice notice-error"><h1>Settings</h1><p>Unknown settings page.</p></div>';
+			ErrorNoticeRenderer::renderSimpleNotice('Unknown settings page: ' . $id_slug);
 			return;
 		}
 		$this->_start_form_session();

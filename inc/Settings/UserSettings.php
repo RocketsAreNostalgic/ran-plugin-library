@@ -19,14 +19,13 @@ use Ran\PluginLib\Util\Logger;
 use Ran\PluginLib\Options\Storage\StorageContext;
 use Ran\PluginLib\Options\RegisterOptions;
 use Ran\PluginLib\Options\OptionScope;
-use Ran\PluginLib\Forms\Validation\ValidatorPipelineService;
 use Ran\PluginLib\Forms\Renderer\FormMessageHandler;
 use Ran\PluginLib\Forms\Renderer\FormElementRenderer;
 use Ran\PluginLib\Forms\FormsService;
 use Ran\PluginLib\Forms\FormsInterface;
 use Ran\PluginLib\Forms\FormsBaseTrait;
+use Ran\PluginLib\Forms\ErrorNoticeRenderer;
 use Ran\PluginLib\Forms\Component\ComponentManifest;
-use Ran\PluginLib\Forms\Component\ComponentLoader;
 use Ran\PluginLib\Config\ConfigInterface;
 
 
@@ -372,7 +371,7 @@ class UserSettings implements FormsInterface {
 	 */
 	public function __render(string $id_slug = 'profile', ?array $context = null): void {
 		if (!isset($this->collections[$id_slug])) {
-			echo '<div class="notice notice-error"><p>Unknown settings collection.</p></div>';
+			ErrorNoticeRenderer::renderSimpleNotice('Unknown settings collection: ' . $id_slug);
 			return;
 		}
 		$this->_start_form_session();
@@ -873,13 +872,7 @@ class UserSettings implements FormsInterface {
 	 */
 	protected function _register_error_fallback_pages(\Throwable $e, string $hook, bool $is_dev): void {
 		$render_error = function () use ($is_dev) {
-			echo '<div class="user-settings-error" style="margin: 20px 0; padding: 12px 15px; background: #fff; border-left: 4px solid #dc3232;">';
-			if ($is_dev) {
-				echo '<strong>User Settings Error</strong> — See admin notice above for details.';
-			} else {
-				echo '<strong>Settings Unavailable</strong> — Please contact the site administrator.';
-			}
-			echo '</div>';
+			ErrorNoticeRenderer::renderInlinePlaceholder('User Settings Error — See admin notice above for details.', $is_dev);
 		};
 
 		// Register on profile hooks so placeholder shows where collections would be

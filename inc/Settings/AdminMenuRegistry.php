@@ -630,7 +630,7 @@ class AdminMenuRegistry implements SettingsRegistryInterface {
 	 * @return void
 	 */
 	protected function _register_error_fallback_page(\Throwable $e): void {
-		$is_dev = defined('WP_DEBUG') && WP_DEBUG;
+		$is_dev = ErrorNoticeRenderer::isDevMode();
 
 		// Try to detect page slug from current request
 		$page_slug = isset($_GET['page']) ? sanitize_text_field($_GET['page']) : null;
@@ -641,13 +641,7 @@ class AdminMenuRegistry implements SettingsRegistryInterface {
 
 		$render_error = function () use ($is_dev) {
 			// Error is already shown via admin_notices, just show a simple page wrapper
-			echo '<div class="wrap">';
-			echo '<h1>Settings Error</h1>';
-			if (!$is_dev) {
-				echo '<p>This settings page is temporarily unavailable due to a configuration error.</p>';
-				echo '<p>Please contact the site administrator if this problem persists.</p>';
-			}
-			echo '</div>';
+			ErrorNoticeRenderer::renderFallbackPage('Settings Error', 'Settings Error', $is_dev);
 		};
 
 		// Register the fallback page on admin_menu

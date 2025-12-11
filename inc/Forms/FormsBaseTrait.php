@@ -880,15 +880,7 @@ trait FormsBaseTrait {
 		$register_pages = function () use ($main_slug, $page_slugs, $is_dev) {
 			// Brief page content - full error details shown in admin_notices
 			$render_error = function () use ($is_dev) {
-				echo '<div class="wrap">';
-				if ($is_dev) {
-					echo '<h1>Settings Builder Errors</h1>';
-				} else {
-					echo '<h1>Settings Unavailable</h1>';
-					echo '<p>This settings page is temporarily unavailable. ';
-					echo 'Please contact the site administrator if this problem persists.</p>';
-				}
-				echo '</div>';
+				ErrorNoticeRenderer::renderFallbackPage('Settings Builder Errors', 'Settings Unavailable', $is_dev);
 			};
 
 			// Register main menu page
@@ -2203,13 +2195,19 @@ trait FormsBaseTrait {
 			$this->_start_form_session();
 		}
 
-		// Render error using the field-wrapper template with error context
-		return $this->form_session->render_component('field-wrapper', array(
-			'field_id'      => 'error',
-			'label'         => 'Error',
-			'inner_html'    => esc_html($message),
-			'is_error'      => true,
-			'error_message' => $message
+		// Dev mode shows full error details, production shows generic message
+		$display_message = ErrorNoticeRenderer::getFieldErrorMessage($message);
+
+		// Render error using the field-wrapper template type (not component)
+		// render_element() resolves template types, render_component() expects component aliases
+		// Use validation_warnings array which the template expects for error styling
+		// inner_html is a non-breaking space to satisfy template requirement without duplicating message
+		return $this->form_session->render_element('field-wrapper', array(
+			'field_id'            => 'error',
+			'label'               => 'Error',
+			'inner_html'          => '&nbsp;',
+			'validation_warnings' => array($display_message),
+			'field_type'          => 'error',
 		));
 	}
 
