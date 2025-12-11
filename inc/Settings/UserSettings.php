@@ -164,10 +164,14 @@ class UserSettings implements FormsInterface {
 		$description = array_key_exists('description', $args) ? $args['description'] : ($this->collections[$id_slug]['description'] ?? null);
 		$order       = isset($args['order']) ? max(0, (int) $args['order']) : ($this->collections[$id_slug]['order'] ?? 10);
 
-		$initial_meta = array(
-		    'order'       => $order,
-		    'heading'     => $heading,
-		    'description' => $description,
+		// Start with base meta, then merge in all args to preserve style, before, after, etc.
+		$initial_meta = array_merge(
+			$args,
+			array(
+				'order'       => $order,
+				'heading'     => $heading,
+				'description' => $description,
+			)
 		);
 
 		$updateFn = $this->_create_update_function();
@@ -196,6 +200,17 @@ class UserSettings implements FormsInterface {
 	}
 
 	/**
+	 * Get the base RegisterOptions instance.
+	 *
+	 * Useful for schema registration in on_render callbacks.
+	 *
+	 * @return RegisterOptions
+	 */
+	public function get_base_options(): RegisterOptions {
+		return $this->base_options;
+	}
+
+	/**
 	 * Check if UserSettings should load at all.
 	 *
 	 * Returns true only if we're on a profile page.
@@ -205,6 +220,22 @@ class UserSettings implements FormsInterface {
 	 */
 	protected function _should_load(): bool {
 		return $this->_is_profile_page();
+	}
+
+	/**
+	 * @var bool Whether to skip hook registration (when used via UserSettingsRegistry).
+	 */
+	private bool $skip_hooks = false;
+
+	/**
+	 * Tell UserSettings to skip registering WordPress hooks.
+	 *
+	 * Used by UserSettingsRegistry which handles hook registration itself.
+	 *
+	 * @return void
+	 */
+	public function skip_hook_registration(): void {
+		$this->skip_hooks = true;
 	}
 
 	/**
@@ -310,7 +341,10 @@ class UserSettings implements FormsInterface {
 			);
 		}
 
-		$this->_register_action_hooks($hooks);
+		// Skip hook registration if managed by UserSettingsRegistry
+		if (!$this->skip_hooks) {
+			$this->_register_action_hooks($hooks);
+		}
 	}
 
 	/**
@@ -803,6 +837,18 @@ class UserSettings implements FormsInterface {
 	protected function _process_file_uploads(array $payload): array {
 		$processed = $this->_process_uploaded_files();
 		return array_merge($payload, $processed);
+	}
+
+	/**
+	 * Public method to process file uploads and merge into payload.
+	 *
+	 * Used by UserSettingsRegistry when handling saves externally.
+	 *
+	 * @param array<string,mixed> $payload The current payload from $_POST.
+	 * @return array<string,mixed> The payload with processed file data merged in.
+	 */
+	public function process_file_uploads(array $payload): array {
+		return $this->_process_file_uploads($payload);
 	}
 
 	/**
