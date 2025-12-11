@@ -74,6 +74,5 @@ ob_start();
 </tr>
 <?php
 return new ComponentRenderResult(
-	markup: (string) ob_get_clean(),
-	component_type: 'layout_wrapper'
+	markup: (string) ob_get_clean()
 );
