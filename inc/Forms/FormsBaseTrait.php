@@ -93,6 +93,9 @@ trait FormsBaseTrait {
 	/** @var array<string, array<string,mixed>>|null Session-scoped catalogue cache for defaults memoization */
 	private ?array $__catalogue_cache = null;
 
+	/** @var array<string, RegisterOptions> Cache of resolved RegisterOptions by storage context key */
+	private array $__resolved_options_cache = array();
+
 	// Template override system removed - now handled by FormsTemplateOverrideResolver in FormsServiceSession
 
 	private int $__section_index = 0;
