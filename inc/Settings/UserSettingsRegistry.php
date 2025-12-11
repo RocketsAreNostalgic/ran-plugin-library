@@ -18,10 +18,10 @@ use Ran\PluginLib\Util\Logger;
 use Ran\PluginLib\Settings\UserSettings;
 use Ran\PluginLib\Options\Storage\StorageContext;
 use Ran\PluginLib\Options\RegisterOptions;
+use Ran\PluginLib\Forms\ErrorNoticeRenderer;
 use Ran\PluginLib\Forms\Component\ComponentManifest;
 use Ran\PluginLib\Forms\Component\ComponentLoader;
 use Ran\PluginLib\Config\ConfigInterface;
-use Ran\PluginLib\Forms\ErrorNoticeRenderer;
 
 /**
  * Lightweight registry for user profile settings.
@@ -104,6 +104,15 @@ class UserSettingsRegistry implements SettingsRegistryInterface {
 		$this->autoload        = $autoload;
 		$this->logger          = $logger;
 		$this->config          = $config;
+	}
+
+	/**
+	 * Get the logger instance.
+	 *
+	 * @return Logger
+	 */
+	public function get_logger(): Logger {
+		return $this->logger;
 	}
 
 	/**

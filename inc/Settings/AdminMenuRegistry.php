@@ -408,6 +408,12 @@ class AdminMenuRegistry implements SettingsRegistryInterface {
 			$this->_ensure_settings();
 
 			if ($this->settings !== null) {
+				// Restore validation messages from transient NOW.
+				// AdminSettings registers this on admin_init, but since we're already
+				// inside admin_init when _ensure_settings() creates the instance,
+				// the hook never fires. Call it directly here.
+				$this->settings->restore_form_messages();
+
 				// AdminSettings::boot() handles register_setting() and add_settings_section/field
 				// But we need to run the render callback first to define sections/fields
 				$callback = $this->render_callbacks[$current_page] ?? null;

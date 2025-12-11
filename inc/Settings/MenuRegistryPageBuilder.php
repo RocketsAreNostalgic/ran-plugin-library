@@ -11,6 +11,7 @@ declare(strict_types=1);
 namespace Ran\PluginLib\Settings;
 
 use Ran\PluginLib\Util\Logger;
+use Ran\PluginLib\Forms\Builders\DeferredBuilderTrait;
 
 /**
  * Fluent builder for pages in AdminMenuRegistry.
@@ -19,6 +20,8 @@ use Ran\PluginLib\Util\Logger;
  * on_render callback without requiring expensive dependencies.
  */
 class MenuRegistryPageBuilder {
+	use DeferredBuilderTrait;
+
 	private MenuRegistryGroupBuilder $group;
 	private string $page_slug;
 	private Logger $logger;
@@ -38,6 +41,13 @@ class MenuRegistryPageBuilder {
 	private $render_callback = null;
 
 	/**
+	 * Schema for field validation/sanitization.
+	 *
+	 * @var array|callable|null
+	 */
+	private mixed $schema = null;
+
+	/**
 	 * Constructor.
 	 *
 	 * @param MenuRegistryGroupBuilder $group The parent group builder.
@@ -48,6 +58,7 @@ class MenuRegistryPageBuilder {
 		$this->group     = $group;
 		$this->page_slug = AdminMenuRegistry::prefix_slug($page_slug);
 		$this->logger    = $logger;
+		$this->_initDeferred($logger);
 	}
 
 	/**
@@ -99,32 +110,66 @@ class MenuRegistryPageBuilder {
 	}
 
 	/**
+	 * Set the validation/sanitization schema for this page's fields.
+	 *
+	 * The schema is registered before on_render() or deferred calls are executed.
+	 * This allows schema to work with both manual on_render() and deferred syntax.
+	 *
+	 * Accepts either:
+	 * - An array: Schema array keyed by field name
+	 * - A callable: Function that returns the schema array (lazy evaluation)
+	 *
+	 * @param array|callable $schema Schema array or callable returning schema array.
+	 * @return self
+	 */
+	public function schema(array|callable $schema): self {
+		$this->schema = $schema;
+		return $this;
+	}
+
+	/**
 	 * Set a before callback for wrapping content.
 	 *
-	 * This value is passed through to the AdminSettingsPageBuilder
-	 * when the page is rendered.
+	 * Context-aware: If called before section(), sets page-level metadata.
+	 * If called after section()/field(), records for deferred replay.
 	 *
 	 * @param callable $callback Callback returning HTML string.
 	 * @return self
 	 */
 	public function before(callable $callback): self {
-		$this->meta['before'] = $callback;
+		if ($this->deferred->hasCalls()) {
+			// We're in deferred mode (after section/field calls)
+			$this->deferred->record('before', func_get_args());
+		} else {
+			// Page-level metadata
+			$this->meta['before'] = $callback;
+		}
 		return $this;
 	}
 
 	/**
 	 * Set an after callback for wrapping content.
 	 *
-	 * This value is passed through to the AdminSettingsPageBuilder
-	 * when the page is rendered.
+	 * Context-aware: If called before section(), sets page-level metadata.
+	 * If called after section()/field(), records for deferred replay.
 	 *
 	 * @param callable $callback Callback returning HTML string.
 	 * @return self
 	 */
 	public function after(callable $callback): self {
-		$this->meta['after'] = $callback;
+		if ($this->deferred->hasCalls()) {
+			// We're in deferred mode (after section/field calls)
+			$this->deferred->record('after', func_get_args());
+		} else {
+			// Page-level metadata
+			$this->meta['after'] = $callback;
+		}
 		return $this;
 	}
+
+	// =========================================================================
+	// Render Callback
+	// =========================================================================
 
 	/**
 	 * Set the render callback for this page.
@@ -147,11 +192,42 @@ class MenuRegistryPageBuilder {
 	 * @throws \LogicException If no on_render callback was provided.
 	 */
 	public function end_page(): MenuRegistryGroupBuilder {
-		if ($this->render_callback === null) {
-			throw new \LogicException("Page '{$this->page_slug}' must have an on_render() callback.");
+		// If deferred calls exist but no on_render, create one that replays them
+		if ($this->render_callback === null && $this->hasDeferred()) {
+			$this->render_callback = $this->_createDeferredRenderCallback();
 		}
-		$this->group->_commit_page($this->page_slug, $this->meta, $this->render_callback);
+
+		if ($this->render_callback === null) {
+			throw new \LogicException("Page '{$this->page_slug}' must have an on_render() callback or deferred section/field definitions.");
+		}
+
+		// Wrap the render callback to register schema first (if provided)
+		$final_callback = $this->_wrapCallbackWithSchema($this->render_callback);
+
+		$this->group->_commit_page($this->page_slug, $this->meta, $final_callback);
 		return $this->group;
+	}
+
+	/**
+	 * Wrap a render callback to register schema before execution.
+	 *
+	 * @param callable $callback The original render callback.
+	 * @return callable The wrapped callback.
+	 */
+	private function _wrapCallbackWithSchema(callable $callback): callable {
+		if ($this->schema === null) {
+			return $callback;
+		}
+
+		$schema = $this->schema;
+		return function ($builder) use ($callback, $schema) {
+			// Resolve schema if callable
+			$resolved_schema = is_callable($schema) ? $schema() : $schema;
+			// Register schema before running the callback
+			$builder->get_options()->register_schema($resolved_schema);
+			// Then run the original callback
+			$callback($builder);
+		};
 	}
 
 	/**
