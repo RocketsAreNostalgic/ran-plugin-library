@@ -11,7 +11,7 @@ use Ran\PluginLib\Util\Validate;
 use Ran\PluginLib\Forms\Validation\Helpers;
 use Ran\PluginLib\Forms\Component\Validate\ValidatorBase;
 
-final class Validator extends ValidatorBase {
+class Validator extends ValidatorBase {
 	/** @var array<int,string> */
 	private array $validInputTypes = array(
 		'checkbox', 'color', 'date', 'datetime-local', 'email', 'file', 'hidden',
