@@ -312,6 +312,18 @@ class AdminSettingsPageBuilder implements AdminSettingsBuilderRootInterface {
 	}
 
 	/**
+	 * Get the RegisterOptions instance for schema registration.
+	 *
+	 * Useful in on_render callbacks when you need to register validation schemas
+	 * before defining fields.
+	 *
+	 * @return \Ran\PluginLib\Options\RegisterOptions
+	 */
+	public function get_options(): \Ran\PluginLib\Options\RegisterOptions {
+		return $this->get_settings()->get_base_options();
+	}
+
+	/**
 	 * Provide the active FormsInterface to nested builders.
 	 *
 	 * @return AdminSettings

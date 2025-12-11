@@ -183,6 +183,16 @@ class AdminSettings implements FormsInterface {
 			'order'       => $order,
 			'description' => $args['description'] ?? null,
 		);
+		// Pass through optional rendering metadata
+		if (isset($args['style'])) {
+			$page_args['style'] = $args['style'];
+		}
+		if (isset($args['before'])) {
+			$page_args['before'] = $args['before'];
+		}
+		if (isset($args['after'])) {
+			$page_args['after'] = $args['after'];
+		}
 
 		$page = $group->page($page_slug, $template, $page_args);
 
@@ -224,6 +234,17 @@ class AdminSettings implements FormsInterface {
 	}
 
 	/**
+	 * Get the base RegisterOptions instance.
+	 *
+	 * Useful for schema registration in on_render callbacks.
+	 *
+	 * @return RegisterOptions
+	 */
+	public function get_base_options(): RegisterOptions {
+		return $this->base_options;
+	}
+
+	/**
 	 * Check if AdminSettings should load at all.
 	 *
 	 * Returns true only if we're in admin context.
@@ -261,7 +282,7 @@ class AdminSettings implements FormsInterface {
 
 		$hooks = array();
 
-		// 1. File upload handling and validation message restoration (admin_init)
+		// File upload handling and validation message restoration (admin_init)
 		// Only run on our pages or options.php (save handler)
 		$hooks[] = array(
 			'hook'     => 'admin_init',
@@ -280,13 +301,8 @@ class AdminSettings implements FormsInterface {
 			},
 		);
 
-		// 2. Menu registration (admin_menu)
-		$hooks[] = array(
-			'hook'     => 'admin_menu',
-			'callback' => function () {
-				$this->_register_menu_pages();
-			},
-		);
+		// Note: Menu registration is handled by AdminMenuRegistry, not here.
+		// AdminSettings is now page-content-only (sections, fields, validation, rendering).
 
 		$this->_register_action_hooks($hooks);
 	}
@@ -456,94 +472,6 @@ class AdminSettings implements FormsInterface {
 	}
 
 	// WP Settings API hooks
-
-	/**
-	 * Register all menu pages and submenus for admin settings.
-	 *
-	 * @return void
-	 */
-	protected function _register_menu_pages(): void {
-		foreach ($this->menu_groups as $group_slug => $group) {
-			$meta  = $group['meta'];
-			$pages = $group['pages'];
-			if (empty($pages)) {
-				continue;
-			}
-
-			// Skip groups with incomplete meta (not properly committed)
-			if (!isset($meta['heading']) || !isset($meta['menu_title']) || !isset($meta['capability'])) {
-				$this->logger->warning('AdminSettings: Skipping group with incomplete meta', array(
-					'group_slug' => $group_slug,
-					'meta_keys'  => array_keys($meta),
-				));
-				continue;
-			}
-
-			$first_page_slug = array_key_first($pages);
-			$submenu_parent  = $meta['parent'] ?? null;
-			$skip_first      = false;
-
-			if ($submenu_parent === null) {
-				$this->_do_add_menu_page(
-					$meta['heading'],
-					$meta['menu_title'],
-					$meta['capability'],
-					$group_slug,
-					function () use ($first_page_slug) {
-						$this->__render($first_page_slug);
-					},
-					$meta['icon']     ?? null,
-					$meta['position'] ?? null
-				);
-				$submenu_parent = $group_slug;
-				$skip_first     = true;
-			} elseif ($submenu_parent === 'options-general.php') {
-				$this->_do_add_options_page(
-					$meta['heading'],
-					$meta['menu_title'],
-					$meta['capability'],
-					$group_slug,
-					function () use ($first_page_slug) {
-						$this->__render($first_page_slug);
-					},
-					$meta['position'] ?? null
-				);
-				$submenu_parent = 'options-general.php';
-				$skip_first     = true;
-			} else {
-				$this->_do_add_submenu_page(
-					$submenu_parent,
-					$meta['heading'],
-					$meta['menu_title'],
-					$meta['capability'],
-					$group_slug,
-					function () use ($first_page_slug) {
-						$this->__render($first_page_slug);
-					}
-				);
-				$submenu_parent = $meta['parent'];
-				$skip_first     = true;
-			}
-
-			foreach ($pages as $page_slug => $page_meta) {
-				if ($skip_first && $page_slug === $first_page_slug) {
-					continue;
-				}
-				$page_ref  = $this->_resolve_page_reference($page_slug);
-				$page_meta = $page_ref['meta'];
-				$this->_do_add_submenu_page(
-					$submenu_parent,
-					$page_meta['heading'],
-					$page_meta['menu_title'],
-					$page_meta['capability'],
-					$page_slug,
-					function () use ($page_slug) {
-						$this->__render($page_slug);
-					}
-				);
-			}
-		}
-	}
 
 	/**
 	 * Register the setting with WordPress Settings API and wire sanitize callback.

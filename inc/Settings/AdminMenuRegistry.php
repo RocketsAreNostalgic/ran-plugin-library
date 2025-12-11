@@ -43,7 +43,7 @@ use Ran\PluginLib\Forms\ErrorNoticeRenderer;
  * });
  * ```
  */
-class AdminMenuRegistry {
+class AdminMenuRegistry implements SettingsRegistryInterface {
 	use WPWrappersTrait;
 
 	/**
@@ -90,6 +90,11 @@ class AdminMenuRegistry {
 	private bool $menus_registered = false;
 
 	/**
+	 * Stored error from register() callback, to display on pages.
+	 */
+	private ?\Throwable $register_error = null;
+
+	/**
 	 * Constructor.
 	 *
 	 * @param string $option_key The main option key for RegisterOptions.
@@ -123,9 +128,22 @@ class AdminMenuRegistry {
 	 */
 	public function register(callable $callback): void {
 		// Run callback to collect menu structure (lightweight, no deps)
-		$callback($this);
+		try {
+			$callback($this);
+		} catch (\Throwable $e) {
+			$this->logger->error('admin_menu_registry.register_callback_error', array(
+				'message' => $e->getMessage(),
+				'file'    => $e->getFile(),
+				'line'    => $e->getLine(),
+			));
+
+			// Store error to display on pages, but continue registering
+			// whatever menus were defined before the error occurred
+			$this->register_error = $e;
+		}
 
 		// Register WordPress menus on admin_menu hook
+		// Even if there was an error, register what we have so pages still load
 		$this->_do_add_action('admin_menu', array( $this, '_register_wordpress_menus' ), 10);
 
 		// Register admin_init for Settings API registration
@@ -145,8 +163,19 @@ class AdminMenuRegistry {
 		}
 
 		$this->logger->debug('admin_menu_registry.hooks_registered', array(
-			'option_key' => $this->option_key,
+			'option_key'  => $this->option_key,
+			'has_error'   => $this->register_error !== null,
+			'menu_groups' => count($this->menu_groups),
 		));
+	}
+
+	/**
+	 * Get the option key used for storage.
+	 *
+	 * @return string
+	 */
+	public function get_option_key(): string {
+		return $this->option_key;
 	}
 
 	/**
@@ -259,6 +288,15 @@ class AdminMenuRegistry {
 
 			if ($submenu_parent === null) {
 				// Top-level menu
+				$this->logger->debug('admin_menu_registry.adding_top_level_menu', array(
+					'group_slug' => $group_slug,
+					'menu_slug'  => $prefixed_group_slug,
+					'heading'    => $meta['heading']    ?? '',
+					'menu_title' => $meta['menu_title'] ?? '',
+					'icon'       => $meta['icon']       ?? '',
+					'position'   => $meta['position']   ?? null,
+					'first_page' => $first_page_slug,
+				));
 				$this->_do_add_menu_page(
 					$meta['heading']    ?? '',
 					$meta['menu_title'] ?? '',
@@ -273,11 +311,18 @@ class AdminMenuRegistry {
 				$submenu_parent = $prefixed_group_slug;
 				$skip_first     = true;
 			} elseif ($submenu_parent === 'options-general.php') {
-				// Settings submenu
+				// Settings submenu - use first page's metadata since settings_page() sets it there
+				$first_page_meta = $pages[$first_page_slug] ?? array();
+				$this->logger->debug('admin_menu_registry.adding_settings_page', array(
+					'group_slug' => $group_slug,
+					'page_slug'  => $first_page_slug,
+					'heading'    => $first_page_meta['heading']    ?? $meta['heading'] ?? '',
+					'menu_title' => $first_page_meta['menu_title'] ?? $meta['menu_title'] ?? '',
+				));
 				$this->_do_add_options_page(
-					$meta['heading']    ?? '',
-					$meta['menu_title'] ?? '',
-					$meta['capability'] ?? 'manage_options',
+					$first_page_meta['heading']    ?? $meta['heading'] ?? '',
+					$first_page_meta['menu_title'] ?? $meta['menu_title'] ?? '',
+					$first_page_meta['capability'] ?? $meta['capability'] ?? 'manage_options',
 					$first_page_slug,
 					function () use ($first_page_slug) {
 						$this->_render_page($first_page_slug);
@@ -332,13 +377,30 @@ class AdminMenuRegistry {
 	 */
 	public function _register_settings_api(): void {
 		// Only register if we're on one of our pages
-		$current_page = $_GET['page'] ?? '';
-		if ($current_page === '' || !str_starts_with($current_page, self::PAGE_SLUG_PREFIX)) {
-			// Also check for POST saves to options.php
-			$pagenow = $GLOBALS['pagenow'] ?? '';
-			if (!($pagenow === 'options.php' && ($_SERVER['REQUEST_METHOD'] ?? '') === 'POST')) {
+		$current_page = $_GET['page']       ?? '';
+		$pagenow      = $GLOBALS['pagenow'] ?? '';
+		$is_post_save = $pagenow === 'options.php' && ($_SERVER['REQUEST_METHOD'] ?? '') === 'POST';
+
+		// On POST to options.php, WordPress sends option_page in POST data
+		// This is the group name (e.g., 'kepler_stress_test_settings_group')
+		if ($is_post_save && $current_page === '') {
+			$option_page = $_POST['option_page'] ?? '';
+			// Check if this is our option group
+			$expected_group = $this->option_key . '_group';
+			if ($option_page === $expected_group) {
+				// This is a save for our settings - run ALL render callbacks
+				// to ensure schema is defined for all fields
+				$this->_ensure_settings();
+				if ($this->settings !== null) {
+					$this->_run_all_render_callbacks();
+					$this->settings->boot();
+				}
 				return;
 			}
+		}
+
+		if ($current_page === '' || !str_starts_with($current_page, self::PAGE_SLUG_PREFIX)) {
+			return;
 		}
 
 		try {
@@ -408,15 +470,27 @@ class AdminMenuRegistry {
 
 			// Create a page builder context for the callback
 			// The callback receives a page builder so it can use section() directly
+			// Pass through all page metadata including style, before, after
+			$page_args = array(
+				'heading'    => $page_meta['heading']    ?? '',
+				'menu_title' => $page_meta['menu_title'] ?? '',
+				'capability' => $page_meta['capability'] ?? 'manage_options',
+				'parent'     => null, // Menu already registered by AdminMenuRegistry
+			);
+			// Merge in optional metadata (style, before, after)
+			if (isset($page_meta['style'])) {
+				$page_args['style'] = $page_meta['style'];
+			}
+			if (isset($page_meta['before'])) {
+				$page_args['before'] = $page_meta['before'];
+			}
+			if (isset($page_meta['after'])) {
+				$page_args['after'] = $page_meta['after'];
+			}
 			$page_builder = $this->settings->settings_page(
 				$page_slug,
 				null,
-				array(
-					'heading'    => $page_meta['heading']    ?? '',
-					'menu_title' => $page_meta['menu_title'] ?? '',
-					'capability' => $page_meta['capability'] ?? 'manage_options',
-					'parent'     => null, // Menu already registered by AdminMenuRegistry
-				)
+				$page_args
 			);
 
 			// Run the on_render callback with the page builder
@@ -451,6 +525,46 @@ class AdminMenuRegistry {
 			}
 		}
 		return array();
+	}
+
+	/**
+	 * Run all render callbacks to define schema for all pages.
+	 *
+	 * Used during POST save when we don't know which page the form came from.
+	 * This ensures all field schemas are registered before sanitization.
+	 *
+	 * @return void
+	 */
+	private function _run_all_render_callbacks(): void {
+		if ($this->settings === null) {
+			return;
+		}
+
+		foreach ($this->render_callbacks as $page_slug => $callback) {
+			try {
+				$page_meta = $this->_find_page_meta($page_slug);
+
+				// Create a page builder context for the callback
+				$page_builder = $this->settings->settings_page(
+					$page_slug,
+					null,
+					array(
+						'heading'    => $page_meta['heading']    ?? '',
+						'menu_title' => $page_meta['menu_title'] ?? '',
+						'capability' => $page_meta['capability'] ?? 'manage_options',
+						'parent'     => null,
+					)
+				);
+
+				// Run the callback to define fields/schema
+				$callback($page_builder);
+			} catch (\Throwable $e) {
+				$this->logger->error('admin_menu_registry.render_callback_error', array(
+					'page_slug' => $page_slug,
+					'message'   => $e->getMessage(),
+				));
+			}
+		}
 	}
 
 	/**
@@ -498,6 +612,48 @@ class AdminMenuRegistry {
 			));
 			return null;
 		}
+	}
+
+	/**
+	 * Register a fallback error page when the register callback fails.
+	 *
+	 * This ensures users see the error on the page they were trying to access,
+	 * rather than getting "Sorry, you are not allowed to access this page."
+	 *
+	 * @param \Throwable $e The caught exception.
+	 * @return void
+	 */
+	protected function _register_error_fallback_page(\Throwable $e): void {
+		$is_dev = defined('WP_DEBUG') && WP_DEBUG;
+
+		// Try to detect page slug from current request
+		$page_slug = isset($_GET['page']) ? sanitize_text_field($_GET['page']) : null;
+
+		if ($page_slug === null || !str_starts_with($page_slug, self::PAGE_SLUG_PREFIX)) {
+			return; // Not one of our pages
+		}
+
+		$render_error = function () use ($is_dev) {
+			// Error is already shown via admin_notices, just show a simple page wrapper
+			echo '<div class="wrap">';
+			echo '<h1>Settings Error</h1>';
+			if (!$is_dev) {
+				echo '<p>This settings page is temporarily unavailable due to a configuration error.</p>';
+				echo '<p>Please contact the site administrator if this problem persists.</p>';
+			}
+			echo '</div>';
+		};
+
+		// Register the fallback page on admin_menu
+		$this->_do_add_action('admin_menu', function () use ($page_slug, $render_error) {
+			$this->_do_add_options_page(
+				'Settings Error',
+				'Settings Error',
+				'manage_options',
+				$page_slug,
+				$render_error
+			);
+		}, 10);
 	}
 
 	/**
