@@ -9,8 +9,8 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\Forms\Validation;
 
-use Ran\PluginLib\Forms\ErrorNoticeRenderer;
 use Ran\PluginLib\Util\Logger;
+use Ran\PluginLib\Forms\ErrorNoticeRenderer;
 
 final class ValidatorPipelineService {
 	public const BUCKET_COMPONENT           = 'component';
@@ -343,14 +343,17 @@ final class ValidatorPipelineService {
 			$merged['default'] = $defaultBuckets['default'];
 		}
 
-		$logger->debug('ValidatorPipelineService: merge_schema_with_defaults completed', array(
-			'default_sanitize_component' => count($defaultBuckets['sanitize'][self::BUCKET_COMPONENT]),
-			'default_validate_component' => count($defaultBuckets['validate'][self::BUCKET_COMPONENT]),
-			'schema_sanitize_schema'     => count($schemaBuckets['sanitize'][self::BUCKET_SCHEMA]),
-			'schema_validate_schema'     => count($schemaBuckets['validate'][self::BUCKET_SCHEMA]),
-			'merged_sanitize_component'  => count($merged['sanitize'][self::BUCKET_COMPONENT]),
-			'merged_validate_component'  => count($merged['validate'][self::BUCKET_COMPONENT]),
-		));
+		// Only log per-merge completion in verbose mode to avoid log flooding
+		if (ErrorNoticeRenderer::isVerboseDebug()) {
+			$logger->debug('ValidatorPipelineService: merge_schema_with_defaults completed', array(
+				'default_sanitize_component' => count($defaultBuckets['sanitize'][self::BUCKET_COMPONENT]),
+				'default_validate_component' => count($defaultBuckets['validate'][self::BUCKET_COMPONENT]),
+				'schema_sanitize_schema'     => count($schemaBuckets['sanitize'][self::BUCKET_SCHEMA]),
+				'schema_validate_schema'     => count($schemaBuckets['validate'][self::BUCKET_SCHEMA]),
+				'merged_sanitize_component'  => count($merged['sanitize'][self::BUCKET_COMPONENT]),
+				'merged_validate_component'  => count($merged['validate'][self::BUCKET_COMPONENT]),
+			));
+		}
 
 		return $merged;
 	}
@@ -381,12 +384,15 @@ final class ValidatorPipelineService {
 				}
 
 				$sanitizerDesc = $describeCallable($sanitizer);
-				$logger->debug("{$hostLabel}: running sanitizer", array(
-					'key'       => $normalizedKey,
-					'bucket'    => $bucket,
-					'index'     => $index,
-					'sanitizer' => $sanitizerDesc,
-				));
+				// Only log per-sanitizer execution in verbose mode to avoid log flooding
+				if (ErrorNoticeRenderer::isVerboseDebug()) {
+					$logger->debug("{$hostLabel}: running sanitizer", array(
+						'key'       => $normalizedKey,
+						'bucket'    => $bucket,
+						'index'     => $index,
+						'sanitizer' => $sanitizerDesc,
+					));
+				}
 
 				try {
 					$firstPass = $sanitizer($value, function (string $message) use ($recordNotice, $normalizedKey): void {
@@ -421,12 +427,15 @@ final class ValidatorPipelineService {
 				}
 
 				$validatorDesc = $describeCallable($validator);
-				$logger->debug("{$hostLabel}: running validator", array(
-					'key'       => $normalizedKey,
-					'bucket'    => $bucket,
-					'index'     => $index,
-					'validator' => $validatorDesc,
-				));
+				// Only log per-validator execution in verbose mode to avoid log flooding
+				if (ErrorNoticeRenderer::isVerboseDebug()) {
+					$logger->debug("{$hostLabel}: running validator", array(
+						'key'       => $normalizedKey,
+						'bucket'    => $bucket,
+						'index'     => $index,
+						'validator' => $validatorDesc,
+					));
+				}
 
 				$messageRecorded = false;
 				try {
@@ -460,7 +469,10 @@ final class ValidatorPipelineService {
 			}
 		}
 
-		$logger->debug("{$hostLabel}: _sanitize_and_validate_option completed", array('key' => $normalizedKey));
+		// Only log per-option completion in verbose mode to avoid log flooding
+		if (ErrorNoticeRenderer::isVerboseDebug()) {
+			$logger->debug("{$hostLabel}: _sanitize_and_validate_option completed", array('key' => $normalizedKey));
+		}
 		return $value;
 	}
 }

@@ -28,6 +28,10 @@ class FormsServiceSession {
 	private ValidatorPipelineService $pipeline;
 	/** @var array<string,callable> */
 	private array $root_template_callbacks = array();
+	/** @var array<string,bool> Track aliases already warned about missing validators to dedupe warnings */
+	private array $warned_no_validators = array();
+	/** @var array<string,bool> Track aliases already warned about missing sanitizers to dedupe warnings */
+	private array $warned_no_sanitizers = array();
 
 	public function __construct(
 		ComponentManifest $manifest,
@@ -262,9 +266,12 @@ class FormsServiceSession {
 			: $this->manifest->get_defaults_for($alias);
 
 		if ($defaults === array()) {
-			$this->logger->debug('forms.schema.merge.no_defaults', array(
-				'alias' => $alias,
-			));
+			// Only log in verbose mode - no defaults is expected for static HTML elements like _raw_html, _hr
+			if (ErrorNoticeRenderer::isVerboseDebug()) {
+				$this->logger->debug('forms.schema.merge.no_defaults', array(
+					'alias' => $alias,
+				));
+			}
 			// Still coerce schema to bucket structure for consistency
 			return $this->pipeline->coerce_to_bucket_structure($schema, false, $this->logger);
 		}
@@ -278,10 +285,31 @@ class FormsServiceSession {
 		$componentType = (string) ($context['component_type'] ?? '');
 		$isFormField   = $componentType === '' || $componentType === Component\ComponentType::FormField->value;
 
-		$hasValidators = !empty($merged['validate']['component']) || !empty($merged['validate']['schema']);
-		if ($isFormField && !$hasValidators) {
+		// Check for validators in merged schema OR in manifest metadata (injected via queue path)
+		$hasValidators       = !empty($merged['validate']['component']) || !empty($merged['validate']['schema']);
+		$manifestValidators  = $this->manifest->validator_factories();
+		$hasManifestValidator = isset($manifestValidators[$alias]);
+		if ($isFormField && !$hasValidators && !$hasManifestValidator && !isset($this->warned_no_validators[$alias])) {
 			// Log as warning instead of error - validators are recommended but not strictly required
+			// Deduplicate: only warn once per alias per session
+			$this->warned_no_validators[$alias] = true;
 			$this->logger->warning('forms.schema.merge.no_validators', array(
+				'alias'          => $alias,
+				'component_type' => $componentType,
+				'schema'         => $schema,
+				'defaults'       => $defaults,
+			));
+		}
+
+		// Check for sanitizers in merged schema OR in manifest metadata (injected via queue path)
+		$hasSanitizers        = !empty($merged['sanitize']['component']) || !empty($merged['sanitize']['schema']);
+		$manifestSanitizers   = $this->manifest->sanitizer_factories();
+		$hasManifestSanitizer = isset($manifestSanitizers[$alias]);
+		if ($isFormField && !$hasSanitizers && !$hasManifestSanitizer && !isset($this->warned_no_sanitizers[$alias])) {
+			// Log as warning - sanitizers are recommended but not strictly required
+			// Deduplicate: only warn once per alias per session
+			$this->warned_no_sanitizers[$alias] = true;
+			$this->logger->warning('forms.schema.merge.no_sanitizers', array(
 				'alias'          => $alias,
 				'component_type' => $componentType,
 				'schema'         => $schema,

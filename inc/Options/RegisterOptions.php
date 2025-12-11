@@ -19,6 +19,7 @@ namespace Ran\PluginLib\Options;
 use Closure;
 use Ran\PluginLib\Util\Logger;
 use Ran\PluginLib\Util\WPWrappersTrait;
+use Ran\PluginLib\Forms\ErrorNoticeRenderer;
 use Ran\PluginLib\Options\Storage\OptionStorageInterface;
 use Ran\PluginLib\Options\Storage\SiteOptionStorage;
 use Ran\PluginLib\Options\Storage\NetworkOptionStorage;
@@ -1061,16 +1062,19 @@ class RegisterOptions {
 			$metadataKeys = isset($metadata[$normalized_key]) && is_array($metadata[$normalized_key])
 				? array_keys($metadata[$normalized_key])
 				: array();
-			$this->_get_logger()->debug(
-				'RegisterOptions: _register_internal_schema processing entry',
-				array(
-					'key'                  => $normalized_key,
-					'had_existing'         => $hadExisting,
-					'queued_validator_cnt' => $queuedValidatorCount,
-					'queued_sanitizer_cnt' => $queuedSanitizerCount,
-					'metadata_flags'       => $metadataKeys,
-				)
-			);
+			// Only log per-entry processing in verbose mode to avoid log flooding
+			if (ErrorNoticeRenderer::isVerboseDebug()) {
+				$this->_get_logger()->debug(
+					'RegisterOptions: _register_internal_schema processing entry',
+					array(
+						'key'                  => $normalized_key,
+						'had_existing'         => $hadExisting,
+						'queued_validator_cnt' => $queuedValidatorCount,
+						'queued_sanitizer_cnt' => $queuedSanitizerCount,
+						'metadata_flags'       => $metadataKeys,
+					)
+				);
+			}
 
 			$incoming = $this->_coerce_schema_entry($entryForCoercion, $normalized_key);
 
@@ -1095,25 +1099,31 @@ class RegisterOptions {
 				// is already in canonical bucket form, so coercion here was redundant.
 				$componentBucket = &$this->schema[$normalized_key]['validate'][self::BUCKET_COMPONENT];
 				$componentBucket = array_merge($queuedValidators[$normalized_key], $componentBucket);
-				$this->_get_logger()->debug(
-					'RegisterOptions: _register_internal_schema queued validators merged',
-					array(
-						'key'          => $normalized_key,
-						'queued_count' => count($queuedValidators[$normalized_key]),
-					)
-				);
+				// Only log per-entry merging in verbose mode to avoid log flooding
+				if (ErrorNoticeRenderer::isVerboseDebug()) {
+					$this->_get_logger()->debug(
+						'RegisterOptions: _register_internal_schema queued validators merged',
+						array(
+							'key'          => $normalized_key,
+							'queued_count' => count($queuedValidators[$normalized_key]),
+						)
+					);
+				}
 			}
 
 			if (!empty($queuedSanitizers[$normalized_key])) {
 				$sanitizerBucket = &$this->schema[$normalized_key]['sanitize'][self::BUCKET_COMPONENT];
 				$sanitizerBucket = array_merge($queuedSanitizers[$normalized_key], $sanitizerBucket);
-				$this->_get_logger()->debug(
-					'RegisterOptions: _register_internal_schema queued sanitizers merged',
-					array(
-						'key'          => $normalized_key,
-						'queued_count' => count($queuedSanitizers[$normalized_key]),
-					)
-				);
+				// Only log per-entry merging in verbose mode to avoid log flooding
+				if (ErrorNoticeRenderer::isVerboseDebug()) {
+					$this->_get_logger()->debug(
+						'RegisterOptions: _register_internal_schema queued sanitizers merged',
+						array(
+							'key'          => $normalized_key,
+							'queued_count' => count($queuedSanitizers[$normalized_key]),
+						)
+					);
+				}
 			}
 
 			if ($requiresValidator) {
@@ -1126,27 +1136,30 @@ class RegisterOptions {
 				$this->schema[$normalized_key] = $this->_coerce_schema_entry($this->schema[$normalized_key], $normalized_key);
 			}
 			$finalEntry             = $this->schema[$normalized_key];
-			$sanitizeComponentCount = count($finalEntry['sanitize'][self::BUCKET_COMPONENT] ?? array());
-			$sanitizeSchemaCount    = count($finalEntry['sanitize'][self::BUCKET_SCHEMA] ?? array());
-			$validateComponentCount = count($finalEntry['validate'][self::BUCKET_COMPONENT] ?? array());
-			$validateSchemaCount    = count($finalEntry['validate'][self::BUCKET_SCHEMA] ?? array());
-			$this->_get_logger()->debug(
-				'RegisterOptions: _register_internal_schema merged entry',
-				array(
-					'key'                        => $normalized_key,
-					'had_existing'               => $hadExisting,
-					'requires_validator'         => $requiresValidator,
-					'sanitize_component_count'   => $sanitizeComponentCount,
-					'sanitize_schema_count'      => $sanitizeSchemaCount,
-					'validate_component_count'   => $validateComponentCount,
-					'validate_schema_count'      => $validateSchemaCount,
-					'sanitize_component_summary' => $this->_summarize_callable_bucket($finalEntry['sanitize'][self::BUCKET_COMPONENT]),
-					'sanitize_schema_summary'    => $this->_summarize_callable_bucket($finalEntry['sanitize'][self::BUCKET_SCHEMA]),
-					'validate_component_summary' => $this->_summarize_callable_bucket($finalEntry['validate'][self::BUCKET_COMPONENT]),
-					'validate_schema_summary'    => $this->_summarize_callable_bucket($finalEntry['validate'][self::BUCKET_SCHEMA]),
-					'default_present'            => array_key_exists('default', $finalEntry),
-				)
-			);
+			// Only log per-entry merged result in verbose mode to avoid log flooding
+			if (ErrorNoticeRenderer::isVerboseDebug()) {
+				$sanitizeComponentCount = count($finalEntry['sanitize'][self::BUCKET_COMPONENT] ?? array());
+				$sanitizeSchemaCount    = count($finalEntry['sanitize'][self::BUCKET_SCHEMA] ?? array());
+				$validateComponentCount = count($finalEntry['validate'][self::BUCKET_COMPONENT] ?? array());
+				$validateSchemaCount    = count($finalEntry['validate'][self::BUCKET_SCHEMA] ?? array());
+				$this->_get_logger()->debug(
+					'RegisterOptions: _register_internal_schema merged entry',
+					array(
+						'key'                        => $normalized_key,
+						'had_existing'               => $hadExisting,
+						'requires_validator'         => $requiresValidator,
+						'sanitize_component_count'   => $sanitizeComponentCount,
+						'sanitize_schema_count'      => $sanitizeSchemaCount,
+						'validate_component_count'   => $validateComponentCount,
+						'validate_schema_count'      => $validateSchemaCount,
+						'sanitize_component_summary' => $this->_summarize_callable_bucket($finalEntry['sanitize'][self::BUCKET_COMPONENT]),
+						'sanitize_schema_summary'    => $this->_summarize_callable_bucket($finalEntry['sanitize'][self::BUCKET_SCHEMA]),
+						'validate_component_summary' => $this->_summarize_callable_bucket($finalEntry['validate'][self::BUCKET_COMPONENT]),
+						'validate_schema_summary'    => $this->_summarize_callable_bucket($finalEntry['validate'][self::BUCKET_SCHEMA]),
+						'default_present'            => array_key_exists('default', $finalEntry),
+					)
+				);
+			}
 		}
 	}
 
@@ -1988,14 +2001,19 @@ class RegisterOptions {
 	 * @return string
 	 */
 	protected function _describe_callable(mixed $callable): string {
+		$verbose = ErrorNoticeRenderer::isVerboseDebug();
 		if (is_string($callable)) {
-			$this->_get_logger()->debug('RegisterOptions: _describe_callable completed (string)');
+			if ($verbose) {
+				$this->_get_logger()->debug('RegisterOptions: _describe_callable completed (string)');
+			}
 			return $callable;
 		}
 		if (is_array($callable) && isset($callable[0], $callable[1])) {
 			$class = is_object($callable[0]) ? get_class($callable[0]) : (string) $callable[0];
 			$desc  = $class . '::' . (string) $callable[1];
-			$this->_get_logger()->debug('RegisterOptions: _describe_callable completed (array)');
+			if ($verbose) {
+				$this->_get_logger()->debug('RegisterOptions: _describe_callable completed (array)');
+			}
 			return $desc;
 		}
 		if ($callable instanceof \Closure) {
@@ -2005,16 +2023,22 @@ class RegisterOptions {
 			} elseif (function_exists('spl_object_hash')) {
 				$desc = 'Closure#' . spl_object_hash($callable);
 			}
-			$this->_get_logger()->debug('RegisterOptions: _describe_callable completed (closure)');
+			if ($verbose) {
+				$this->_get_logger()->debug('RegisterOptions: _describe_callable completed (closure)');
+			}
 			return $desc;
 		}
 		if (is_object($callable) && method_exists($callable, '__invoke')) {
 			// Enhanced diagnostics: render as Class::__invoke
 			$desc = get_class($callable) . '::__invoke';
-			$this->_get_logger()->debug('RegisterOptions: _describe_callable completed (invokable object)');
+			if ($verbose) {
+				$this->_get_logger()->debug('RegisterOptions: _describe_callable completed (invokable object)');
+			}
 			return $desc;
 		}
-		$this->_get_logger()->debug('RegisterOptions: _describe_callable completed (other)');
+		if ($verbose) {
+			$this->_get_logger()->debug('RegisterOptions: _describe_callable completed (other)');
+		}
 		return 'callable';
 	}
 }

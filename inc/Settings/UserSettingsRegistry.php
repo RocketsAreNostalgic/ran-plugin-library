@@ -347,7 +347,22 @@ class UserSettingsRegistry implements SettingsRegistryInterface {
 	/**
 	 * Run all render callbacks to define schema for all collections.
 	 *
-	 * Used during save when schema needs to be defined before validation.
+	 * Called during POST save when we don't know which collection the form
+	 * submission originated from. WordPress profile pages can have multiple
+	 * collections, so ALL collection schemas must be registered to ensure
+	 * any submitted field can be validated.
+	 *
+	 * Performance implications:
+	 * - On POST: All collections' render callbacks execute, registering all fields.
+	 *   The resulting schema bundle is cached per-request via FormsBaseTrait::__schema_bundle_cache.
+	 * - On GET: Only the rendered collection's callback runs, registering only
+	 *   that collection's fields.
+	 *
+	 * This mirrors AdminMenuRegistry::_run_all_render_callbacks() behavior.
+	 * Debug logs for components without defaults are gated behind RAN_VERBOSE_DEBUG.
+	 *
+	 * @see AdminMenuRegistry::_run_all_render_callbacks() Admin equivalent
+	 * @see FormsBaseTrait::_resolve_schema_bundle() Schema bundle caching
 	 *
 	 * @return void
 	 */

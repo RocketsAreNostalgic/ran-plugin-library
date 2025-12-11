@@ -11,6 +11,7 @@ namespace Ran\PluginLib\Forms\Component;
 
 use Ran\PluginLib\Util\WPWrappersTrait;
 use Ran\PluginLib\Util\Logger;
+use Ran\PluginLib\Forms\ErrorNoticeRenderer;
 use Ran\PluginLib\Forms\Component\Validate\ValidatorInterface;
 use Ran\PluginLib\Forms\Component\Sanitize\SanitizerInterface;
 use Ran\PluginLib\Forms\Component\Normalize\NormalizeInterface;
@@ -669,15 +670,18 @@ class ComponentManifest {
 			$sources[] = 'validator';
 		}
 
-		if (!empty($sources)) {
-			$this->logger->debug('ComponentManifest: defaults discovered for component', array(
-				'alias'   => $alias,
-				'sources' => $sources,
-			));
-		} else {
-			$this->logger->debug('ComponentManifest: defaults missing for component', array(
-				'alias' => $alias,
-			));
+		// Only log component defaults discovery in verbose mode to avoid log flooding
+		if (ErrorNoticeRenderer::isVerboseDebug()) {
+			if (!empty($sources)) {
+				$this->logger->debug('ComponentManifest: defaults discovered for component', array(
+					'alias'   => $alias,
+					'sources' => $sources,
+				));
+			} else {
+				$this->logger->debug('ComponentManifest: defaults missing for component', array(
+					'alias' => $alias,
+				));
+			}
 		}
 
 		$this->componentMetadata[$alias] = $meta;
@@ -785,10 +789,20 @@ class ComponentManifest {
 	 * @return array{component_type:string,repeatable:bool}
 	 */
 	private function _derive_component_context(string $alias, array $meta): array {
-		// Don't assume component_type - let the View declare it explicitly.
-		// This prevents non-input components from being incorrectly flagged as requiring validators.
+		// Get component_type from Normalizer's manifest_defaults() if available
+		// This allows components to declare their type without rendering the View
+		$componentType = '';
+		$repeatable    = false;
+
+		if (!empty($meta['normalizer']) && method_exists($meta['normalizer'], 'manifest_defaults')) {
+			$manifestDefaults = $meta['normalizer']::manifest_defaults();
+			$componentType    = (string) ($manifestDefaults['component_type'] ?? '');
+			$repeatable       = (bool) ($manifestDefaults['repeatable'] ?? false);
+		}
+
 		return array(
-			'repeatable' => false,
+			'component_type' => $componentType,
+			'repeatable'     => $repeatable,
 		);
 	}
 

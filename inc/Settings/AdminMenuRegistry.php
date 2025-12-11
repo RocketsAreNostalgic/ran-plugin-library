@@ -536,8 +536,24 @@ class AdminMenuRegistry implements SettingsRegistryInterface {
 	/**
 	 * Run all render callbacks to define schema for all pages.
 	 *
-	 * Used during POST save when we don't know which page the form came from.
-	 * This ensures all field schemas are registered before sanitization.
+	 * Called during POST save (options.php) when we don't know which page the
+	 * form submission originated from. WordPress's Settings API doesn't provide
+	 * page context during sanitization, so ALL field schemas must be registered
+	 * to ensure any submitted field can be validated.
+	 *
+	 * Performance implications:
+	 * - On POST: All pages' render callbacks execute, registering all fields
+	 *   (e.g., 132 fields across 12 pages in the stress test). The resulting
+	 *   schema bundle is cached per-request via FormsBaseTrait::__schema_bundle_cache.
+	 * - On GET: Only the current page's callback runs, registering only that
+	 *   page's fields (e.g., 9 fields for the checkboxes page).
+	 *
+	 * This means components used on other pages (like _raw_html, _hr on the
+	 * elements page) will be processed during POST even when saving a different
+	 * page. Debug logs for these are gated behind RAN_VERBOSE_DEBUG.
+	 *
+	 * @see FormsBaseTrait::_resolve_schema_bundle() Schema bundle caching
+	 * @see FormsBaseTrait::_assemble_initial_bucketed_schema() Field iteration
 	 *
 	 * @return void
 	 */

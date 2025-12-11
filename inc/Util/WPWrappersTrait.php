@@ -69,13 +69,16 @@ trait WPWrappersTrait {
 			$via     = 'native';
 		}
 
+		// Only log per-hook registration in verbose mode to avoid log flooding
 		if (isset($this->logger) && $this->logger instanceof \Ran\PluginLib\Util\Logger) {
-			$this->logger->debug('wp_wrappers.add_action', array(
-			    'hook'          => $hook,
-			    'priority'      => $priority,
-			    'accepted_args' => $accepted_args,
-			    'via'           => $via,
-			));
+			if (\Ran\PluginLib\Forms\ErrorNoticeRenderer::isVerboseDebug()) {
+				$this->logger->debug('wp_wrappers.add_action', array(
+				    'hook'          => $hook,
+				    'priority'      => $priority,
+				    'accepted_args' => $accepted_args,
+				    'via'           => $via,
+				));
+			}
 		}
 	}
 
@@ -243,13 +246,16 @@ trait WPWrappersTrait {
 		// Under WP_Mock, apply_filters may return null if not explicitly mocked; normalize to $value.
 		if (\function_exists('apply_filters')) {
 			$res = \apply_filters($hook_name, $value, ...$args);
+			// Only log per-filter call in verbose mode to avoid log flooding
 			if (isset($this->logger) && $this->logger instanceof \Ran\PluginLib\Util\Logger) {
-				$this->logger->debug('wp_wrappers.apply_filters', array(
-				    'hook'   => $hook_name,
-				    'value'  => $value,
-				    'args'   => $args,
-				    'result' => $res,
-				));
+				if (\Ran\PluginLib\Forms\ErrorNoticeRenderer::isVerboseDebug()) {
+					$this->logger->debug('wp_wrappers.apply_filters', array(
+					    'hook'   => $hook_name,
+					    'value'  => $value,
+					    'args'   => $args,
+					    'result' => $res,
+					));
+				}
 			}
 			return $res !== null ? $res : $value;
 		}
