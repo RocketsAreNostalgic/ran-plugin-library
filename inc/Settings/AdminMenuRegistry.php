@@ -21,6 +21,7 @@ use Ran\PluginLib\Options\Storage\StorageContext;
 use Ran\PluginLib\Forms\Component\ComponentManifest;
 use Ran\PluginLib\Forms\Component\ComponentLoader;
 use Ran\PluginLib\Config\ConfigInterface;
+use Ran\PluginLib\Forms\ErrorNoticeRenderer;
 
 /**
  * Lightweight admin menu registry.
@@ -129,6 +130,19 @@ class AdminMenuRegistry {
 
 		// Register admin_init for Settings API registration
 		$this->_do_add_action('admin_init', array( $this, '_register_settings_api' ), 10);
+
+		// If there was an error, show admin notice so developers see it on any page
+		if ($this->register_error !== null) {
+			$error = $this->register_error;
+			$this->_do_add_action('admin_notices', function () use ($error) {
+				ErrorNoticeRenderer::render($error, 'AdminMenuRegistry Error');
+			});
+
+			// If no menus were defined at all, register fallback page for direct URL access
+			if (empty($this->menu_groups)) {
+				$this->_register_error_fallback_page($error);
+			}
+		}
 
 		$this->logger->debug('admin_menu_registry.hooks_registered', array(
 			'option_key' => $this->option_key,
@@ -420,7 +434,7 @@ class AdminMenuRegistry {
 			));
 
 			// Show error in admin
-			echo '<div class="notice notice-error"><p><strong>Settings Error:</strong> ' . esc_html($e->getMessage()) . '</p></div>';
+			ErrorNoticeRenderer::renderWithContext($e, 'AdminSettings Error', 'page', $page_slug);
 		}
 	}
 

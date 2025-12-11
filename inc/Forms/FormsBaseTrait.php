@@ -940,17 +940,7 @@ trait FormsBaseTrait {
 	 * @return void
 	 */
 	protected function _render_builder_error_notice(\Throwable $e, string $hook): void {
-		$message = esc_html($e->getMessage());
-		$file    = esc_html($e->getFile());
-		$line    = (int) $e->getLine();
-		$trace   = esc_html($e->getTraceAsString());
-
-		echo '<div class="notice notice-error">';
-		echo '<p><strong>Settings Builder Error</strong> (on <code>' . esc_html($hook) . '</code> hook)</p>';
-		echo '<p>' . $message . '</p>';
-		echo '<p><small>' . $file . ':' . $line . '</small></p>';
-		echo '<details><summary>Stack Trace</summary><pre style="overflow:auto;max-height:300px;font-size:11px;">' . $trace . '</pre></details>';
-		echo '</div>';
+		ErrorNoticeRenderer::renderWithContext($e, 'Settings Builder Error', 'hook', $hook);
 	}
 
 	/**
