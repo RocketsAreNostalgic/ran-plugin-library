@@ -1090,4 +1090,16 @@ class AdminSettings implements FormsInterface {
 
 		return array_unique($slugs);
 	}
+
+	/**
+	 * Public wrapper to restore form validation messages from transient.
+	 *
+	 * Called by AdminMenuRegistry after creating the AdminSettings instance,
+	 * since the admin_init hook has already fired by that point.
+	 *
+	 * @return bool True if messages were restored, false if none found.
+	 */
+	public function restore_form_messages(): bool {
+		return $this->_restore_form_messages();
+	}
 }
