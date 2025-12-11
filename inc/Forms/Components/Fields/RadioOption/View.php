@@ -50,6 +50,5 @@ return new ComponentRenderResult(
 	        'description'      => '',
 	        'description_id'   => '',
 	    ),
-	),
-	component_type: 'input'
+	)
 );

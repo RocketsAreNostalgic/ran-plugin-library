@@ -156,6 +156,5 @@ return new ComponentRenderResult(
 	        'errors'       => array(),
 	        'notices'      => array(),
 	    ),
-	),
-	component_type: 'template'
+	)
 );

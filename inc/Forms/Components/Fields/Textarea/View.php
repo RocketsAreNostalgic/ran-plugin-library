@@ -31,6 +31,5 @@ return new ComponentRenderResult(
 	    'defaults' => array(
 	        'value' => '',
 	    ),
-	),
-	component_type: 'input'
+	)
 );

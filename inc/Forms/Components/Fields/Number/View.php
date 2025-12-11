@@ -34,6 +34,5 @@ return new ComponentRenderResult(
 		'required' => array('input_attributes', 'input_type'),
 		'optional' => array('min', 'max', 'step', 'repeatable'),
 		'defaults' => array(),
-	),
-	component_type: 'input'
+	)
 );
