@@ -13,6 +13,7 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\Forms\Builders;
 
+use Ran\PluginLib\Forms\ErrorNoticeRenderer;
 use Ran\PluginLib\Util\Logger;
 
 /**
@@ -69,11 +70,14 @@ class DeferredCallRecorder {
 			'line'   => $caller['line'] ?? 0,
 		);
 
-		$this->logger?->debug('deferred_call.recorded', array(
-			'method' => $method,
-			'file'   => $caller['file'] ?? 'unknown',
-			'line'   => $caller['line'] ?? 0,
-		));
+		// Only log individual calls in verbose mode to avoid log flooding
+		if (ErrorNoticeRenderer::isVerboseDebug()) {
+			$this->logger?->debug('deferred_call.recorded', array(
+				'method' => $method,
+				'file'   => $caller['file'] ?? 'unknown',
+				'line'   => $caller['line'] ?? 0,
+			));
+		}
 	}
 
 	/**

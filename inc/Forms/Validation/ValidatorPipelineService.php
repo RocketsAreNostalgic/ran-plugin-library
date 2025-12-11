@@ -9,6 +9,7 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\Forms\Validation;
 
+use Ran\PluginLib\Forms\ErrorNoticeRenderer;
 use Ran\PluginLib\Util\Logger;
 
 final class ValidatorPipelineService {
@@ -209,12 +210,15 @@ final class ValidatorPipelineService {
 			$normalized['default'] = $entry['default'];
 		}
 
-		$logger->debug("{$hostLabel}: _coerce_schema_entry completed", array(
-			'key'              => $optionKey,
-			'sanitize_summary' => $this->summarize_bucket_map($normalized['sanitize']),
-			'validate_summary' => $this->summarize_bucket_map($normalized['validate']),
-			'default_summary'  => $this->summarize_default($normalized)
-		));
+		// Only log per-entry coercion in verbose mode to avoid log flooding
+		if (ErrorNoticeRenderer::isVerboseDebug()) {
+			$logger->debug("{$hostLabel}: _coerce_schema_entry completed", array(
+				'key'              => $optionKey,
+				'sanitize_summary' => $this->summarize_bucket_map($normalized['sanitize']),
+				'validate_summary' => $this->summarize_bucket_map($normalized['validate']),
+				'default_summary'  => $this->summarize_default($normalized)
+			));
+		}
 		return $normalized;
 	}
 

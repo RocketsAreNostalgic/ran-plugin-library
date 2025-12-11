@@ -47,6 +47,23 @@ class ErrorNoticeRenderer {
 	}
 
 	/**
+	 * Check if verbose debug logging is enabled.
+	 *
+	 * Verbose mode enables detailed per-call logging that would otherwise flood
+	 * the debug log. Enable by defining RAN_VERBOSE_DEBUG as true in wp-config.php.
+	 *
+	 * Use this for high-frequency logs like:
+	 * - Individual deferred call recordings
+	 * - Per-field schema coercion details
+	 * - Per-field render context preparation
+	 *
+	 * @return bool
+	 */
+	public static function isVerboseDebug(): bool {
+		return defined('RAN_VERBOSE_DEBUG') && RAN_VERBOSE_DEBUG;
+	}
+
+	/**
 	 * Get the appropriate field-level error message based on dev mode.
 	 *
 	 * In dev mode, returns the detailed message. In production, returns generic message.

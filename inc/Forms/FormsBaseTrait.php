@@ -2055,10 +2055,13 @@ trait FormsBaseTrait {
 		$field_id  = isset($field['id']) ? (string) $field['id'] : '';
 		$label     = isset($field['label']) ? (string) $field['label'] : '';
 		$component = isset($field['component']) && is_string($field['component']) ? trim($field['component']) : '';
-		$this->logger->debug('forms.default_field.render', array(
-			'field_id'  => $field_id,
-			'component' => $component,
-		));
+		// Only log per-field render in verbose mode to avoid log flooding
+		if (ErrorNoticeRenderer::isVerboseDebug()) {
+			$this->logger->debug('forms.default_field.render', array(
+				'field_id'  => $field_id,
+				'component' => $component,
+			));
+		}
 
 		if ($component === '') {
 			$this->logger->error(static::class . ': field missing component metadata.', array('field' => $field_id));

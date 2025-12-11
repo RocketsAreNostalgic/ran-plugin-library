@@ -495,18 +495,21 @@ class FormsServiceSession {
 		$schemaBuckets   = $this->pipeline->normalize_schema_entry($schema, $alias, 'FormsServiceSession', $this->logger);
 		$mergedBuckets   = $this->pipeline->normalize_schema_entry($merged, $alias, 'FormsServiceSession', $this->logger);
 
-		$this->logger->debug('forms.schema.merge', array(
-			'alias'                   => $alias,
-			'default_sanitize_counts' => $summary($defaultsBuckets['sanitize']),
-			'default_validate_counts' => $summary($defaultsBuckets['validate']),
-			'schema_sanitize_counts'  => $summary($schemaBuckets['sanitize']),
-			'schema_validate_counts'  => $summary($schemaBuckets['validate']),
-			'merged_sanitize_counts'  => $summary($mergedBuckets['sanitize']),
-			'merged_validate_counts'  => $summary($mergedBuckets['validate']),
-			'manifest_context_keys'   => array_keys($defaultContext),
-			'schema_context_keys'     => array_keys($schemaContext),
-			'merged_context_keys'     => array_keys($mergedContext),
-		));
+		// Only log per-component schema merge in verbose mode to avoid log flooding
+		if (ErrorNoticeRenderer::isVerboseDebug()) {
+			$this->logger->debug('forms.schema.merge', array(
+				'alias'                   => $alias,
+				'default_sanitize_counts' => $summary($defaultsBuckets['sanitize']),
+				'default_validate_counts' => $summary($defaultsBuckets['validate']),
+				'schema_sanitize_counts'  => $summary($schemaBuckets['sanitize']),
+				'schema_validate_counts'  => $summary($schemaBuckets['validate']),
+				'merged_sanitize_counts'  => $summary($mergedBuckets['sanitize']),
+				'merged_validate_counts'  => $summary($mergedBuckets['validate']),
+				'manifest_context_keys'   => array_keys($defaultContext),
+				'schema_context_keys'     => array_keys($schemaContext),
+				'merged_context_keys'     => array_keys($mergedContext),
+			));
+		}
 	}
 
 	/**
