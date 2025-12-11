@@ -85,6 +85,48 @@ class MenuRegistryPageBuilder {
 	}
 
 	/**
+	 * Set a custom CSS class/style identifier for this page.
+	 *
+	 * This value is passed through to the AdminSettingsPageBuilder
+	 * when the page is rendered.
+	 *
+	 * @param string $style Style identifier.
+	 * @return self
+	 */
+	public function style(string $style): self {
+		$this->meta['style'] = $style;
+		return $this;
+	}
+
+	/**
+	 * Set a before callback for wrapping content.
+	 *
+	 * This value is passed through to the AdminSettingsPageBuilder
+	 * when the page is rendered.
+	 *
+	 * @param callable $callback Callback returning HTML string.
+	 * @return self
+	 */
+	public function before(callable $callback): self {
+		$this->meta['before'] = $callback;
+		return $this;
+	}
+
+	/**
+	 * Set an after callback for wrapping content.
+	 *
+	 * This value is passed through to the AdminSettingsPageBuilder
+	 * when the page is rendered.
+	 *
+	 * @param callable $callback Callback returning HTML string.
+	 * @return self
+	 */
+	public function after(callable $callback): self {
+		$this->meta['after'] = $callback;
+		return $this;
+	}
+
+	/**
 	 * Set the render callback for this page.
 	 *
 	 * The callback receives an AdminSettings instance and should define
