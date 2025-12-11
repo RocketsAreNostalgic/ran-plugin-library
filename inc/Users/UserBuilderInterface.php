@@ -24,8 +24,27 @@ interface UserBuilderInterface {
 	public function user_scope(bool $global = false, string $storage = 'meta'): self;
 	/** @param array<string,mixed> $kv */
 	public function options(array $kv): self;
-	/** @param array<string,mixed> $schema */
-	public function schema(array $schema, bool $seed_defaults = false, bool $flush = false): self;
+	/**
+	 * Set the validation/sanitization schema for user options.
+	 *
+	 * @param array|callable $schema Schema array or callable returning schema array.
+	 * @return self
+	 */
+	public function schema(array|callable $schema): self;
+	/**
+	 * Enable seeding of default values from schema.
+	 *
+	 * @param bool $seed Whether to seed defaults.
+	 * @return self
+	 */
+	public function seed_defaults(bool $seed = true): self;
+	/**
+	 * Enable flushing existing options when schema is registered.
+	 *
+	 * @param bool $flush Whether to flush on schema registration.
+	 * @return self
+	 */
+	public function flush_on_schema(bool $flush = true): self;
 	public function with_policy(WritePolicyInterface $policy): self;
 	public function on_exists(string $policy): self;
 
