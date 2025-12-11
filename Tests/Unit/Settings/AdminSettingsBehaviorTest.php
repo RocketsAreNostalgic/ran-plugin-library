@@ -313,7 +313,8 @@ final class AdminSettingsBehaviorTest extends PluginLibTestCase {
 			$this->settings->__render('missing-page');
 		});
 
-		$this->assertStringContainsString('Unknown settings page', $output);
+		// In production mode (WP_DEBUG=false), shows generic error message
+		$this->assertStringContainsString('Settings Error', $output);
 	}
 
 	/* issue */

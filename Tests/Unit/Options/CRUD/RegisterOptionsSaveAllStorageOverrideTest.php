@@ -5,12 +5,12 @@ declare(strict_types=1);
 namespace Ran\PluginLib\Tests\Unit\Options;
 
 use WP_Mock;
-use Ran\PluginLib\Options\OptionScope;
 use Ran\PluginLib\Util\ExpectLogTrait;
-use Ran\PluginLib\Config\ConfigInterface;
-use Ran\PluginLib\Options\RegisterOptions;
 use Ran\PluginLib\Tests\Unit\PluginLibTestCase;
 use Ran\PluginLib\Options\Storage\StorageContext;
+use Ran\PluginLib\Options\RegisterOptions;
+use Ran\PluginLib\Options\OptionScope;
+use Ran\PluginLib\Config\ConfigInterface;
 
 /**
  * Test-only subclass that guarantees _get_storage() returns our injected mock.

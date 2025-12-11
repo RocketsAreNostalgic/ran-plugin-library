@@ -481,7 +481,8 @@ final class UserSettingsBehaviorTest extends PluginLibTestCase {
 		});
 
 		$this->assertStringContainsString('notice-error', $output);
-		$this->assertStringContainsString('Unknown settings collection', $output);
+		// In production mode (WP_DEBUG=false), shows generic error message
+		$this->assertStringContainsString('Settings Error', $output);
 	}
 
 	public function test_render_uses_custom_collection_template(): void {
