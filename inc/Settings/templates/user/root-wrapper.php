@@ -29,9 +29,12 @@ $inner_html    = (string) $context['inner_html'];
 $before = (string) ($context['before'] ?? '');
 $after  = (string) ($context['after'] ?? '');
 
+// Check if file upload fields are present (passed from render context as 'has_files')
+$has_file_uploads = !empty($context['has_files']);
+
 ob_start();
 ?>
-<div class="kplr-form user-settings<?php echo $style !== '' ? ' ' . esc_attr($style) : ''; ?>" data-kplr-form-id="<?php echo esc_attr($collection_id); ?>">
+<div class="kplr-form user-settings<?php echo $style !== '' ? ' ' . esc_attr($style) : ''; ?>" data-kplr-form-id="<?php echo esc_attr($collection_id); ?>"<?php echo $has_file_uploads ? ' data-kplr-has-file-uploads="1"' : ''; ?>>
 <?php if ($title !== '') : ?>
 	<h2 class="kplr-form__title"><?php echo esc_html($title); ?></h2>
 <?php endif; ?>
@@ -44,5 +47,17 @@ ob_start();
 </table>
 <?php echo $after; ?>
 </div>
+<?php if ($has_file_uploads) : ?>
+<script>
+(function() {
+	// WordPress profile form doesn't have enctype="multipart/form-data" by default.
+	// We need to add it for file uploads to work.
+	var form = document.querySelector('form#your-profile');
+	if (form && form.getAttribute('enctype') !== 'multipart/form-data') {
+		form.setAttribute('enctype', 'multipart/form-data');
+	}
+})();
+</script>
+<?php endif; ?>
 <?php
 return new ComponentRenderResult((string) ob_get_clean());
