@@ -1517,10 +1517,11 @@ class RegisterOptions {
 			$__sentinel = null; // Not needed, but defined for consistency in retry verification
 			$this->_get_logger()->debug('RegisterOptions: _save_all_options existence confirmed from merge read; skipping sentinel check');
 		} else {
-			// Sentinel pattern: differentiate missing option from nullish stored value (false, 0, '', null)
-			$__sentinel     = new \stdClass();
-			$__raw_existing = $this->_do_get_option($this->main_wp_option_name, $__sentinel);
-			$__exists       = ($__raw_existing !== $__sentinel);
+			// Use storage adapter to check existence (works for all storage types: site, user meta, etc.)
+			$__raw_existing = $this->_get_storage()->read($this->main_wp_option_name);
+			// For user meta, empty string means not found; for site options, false means not found
+			// We treat empty array as "exists but empty" vs truly missing
+			$__exists = ($__raw_existing !== '' && $__raw_existing !== false);
 		}
 		if ($__exists) {
 			// Existing row: use update() without autoload
@@ -1530,11 +1531,10 @@ class RegisterOptions {
 				$this->_get_logger()->debug('RegisterOptions: storage->update() returned false; retrying once.');
 				$result = $this->_get_storage()->update($this->main_wp_option_name, $to_save);
 				if (!$result) {
-					// Create sentinel for verification if we skipped the initial sentinel check
-					$__verify_sentinel = $__sentinel ?? new \stdClass();
-					$__verify          = $this->_do_get_option($this->main_wp_option_name, $__verify_sentinel);
-					if ($__verify !== $__verify_sentinel && Helpers::canonicalStructuresMatch($__verify, $to_save)) {
-						$this->_get_logger()->warning('RegisterOptions: storage->update() returned false but DB matches desired state; treating as success.');
+					// Verify via storage adapter (works for all storage types)
+					$__verify = $this->_get_storage()->read($this->main_wp_option_name);
+					if (is_array($__verify) && Helpers::canonicalStructuresMatch($__verify, $to_save)) {
+						$this->_get_logger()->debug('RegisterOptions: storage->update() returned false but DB matches desired state; treating as success (no-op).');
 						$result = true;
 					} else {
 						$this->_get_logger()->warning('RegisterOptions: storage->update() failed and DB does not match desired state.');
@@ -1556,9 +1556,10 @@ class RegisterOptions {
 					$this->_get_logger()->debug('RegisterOptions: storage->update() returned false; retrying once.');
 					$result = $this->_get_storage()->update($this->main_wp_option_name, $to_save);
 					if (!$result) {
-						$__verify = $this->_do_get_option($this->main_wp_option_name, $__sentinel);
-						if ($__verify !== $__sentinel && Helpers::canonicalStructuresMatch($__verify, $to_save)) {
-							$this->_get_logger()->warning('RegisterOptions: storage->update() also failed but DB matches desired state; treating as success.');
+						// Verify via storage adapter (works for all storage types)
+						$__verify = $this->_get_storage()->read($this->main_wp_option_name);
+						if (is_array($__verify) && Helpers::canonicalStructuresMatch($__verify, $to_save)) {
+							$this->_get_logger()->debug('RegisterOptions: storage->update() also returned false but DB matches desired state; treating as success (no-op).');
 							$result = true;
 						} else {
 							$this->_get_logger()->warning('RegisterOptions: storage->update() also failed and DB does not match desired state.');
