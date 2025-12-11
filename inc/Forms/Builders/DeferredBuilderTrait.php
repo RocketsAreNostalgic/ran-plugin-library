@@ -71,12 +71,13 @@ trait DeferredBuilderTrait {
 	/**
 	 * Define a section (deferred until render).
 	 *
-	 * @param string      $slug     Section slug.
-	 * @param string|null $title    Section title.
-	 * @param string|null $template Optional template override.
+	 * @param string                    $section_id     Section identifier.
+	 * @param string                    $title          Section title/heading.
+	 * @param string|callable|null      $description_cb Optional description or callback.
+	 * @param array                     $args           Optional additional arguments.
 	 * @return static
 	 */
-	public function section(string $slug, ?string $title = null, ?string $template = null): static {
+	public function section(string $section_id, string $title = '', string|callable|null $description_cb = null, array $args = array()): static {
 		$this->deferred->record('section', func_get_args());
 		return $this;
 	}
@@ -94,11 +95,13 @@ trait DeferredBuilderTrait {
 	/**
 	 * Define a group (deferred until render).
 	 *
-	 * @param string      $slug     Group slug.
-	 * @param string|null $template Optional template override.
+	 * @param string                    $group_id       Group identifier.
+	 * @param string                    $heading        Group heading.
+	 * @param string|callable|null      $description_cb Optional description or callback.
+	 * @param array|null                $args           Optional additional arguments.
 	 * @return static
 	 */
-	public function group(string $slug, ?string $template = null): static {
+	public function group(string $group_id, string $heading = '', string|callable|null $description_cb = null, ?array $args = null): static {
 		$this->deferred->record('group', func_get_args());
 		return $this;
 	}
@@ -116,12 +119,13 @@ trait DeferredBuilderTrait {
 	/**
 	 * Define a fieldset (deferred until render).
 	 *
-	 * @param string      $slug     Fieldset slug.
-	 * @param string|null $legend   Fieldset legend.
-	 * @param string|null $template Optional template override.
+	 * @param string                    $fieldset_id    Fieldset identifier.
+	 * @param string                    $heading        Fieldset heading/legend.
+	 * @param string|callable|null      $description_cb Optional description or callback.
+	 * @param array|null                $args           Optional additional arguments.
 	 * @return static
 	 */
-	public function fieldset(string $slug, ?string $legend = null, ?string $template = null): static {
+	public function fieldset(string $fieldset_id, string $heading = '', string|callable|null $description_cb = null, ?array $args = null): static {
 		$this->deferred->record('fieldset', func_get_args());
 		return $this;
 	}
@@ -139,12 +143,13 @@ trait DeferredBuilderTrait {
 	/**
 	 * Define a field (deferred until render).
 	 *
-	 * @param string      $name     Field name/key.
-	 * @param string|null $label    Field label.
-	 * @param string|null $template Template name.
+	 * @param string      $field_id  Field identifier/key.
+	 * @param string|null $label     Field label.
+	 * @param string|null $component Component alias (e.g., 'fields.input', 'fields.select').
+	 * @param array       $args      Additional arguments (context, order, field_template, etc.).
 	 * @return static
 	 */
-	public function field(string $name, ?string $label = null, ?string $template = null): static {
+	public function field(string $field_id, ?string $label = null, ?string $component = null, array $args = array()): static {
 		$this->deferred->record('field', func_get_args());
 		return $this;
 	}
@@ -267,5 +272,21 @@ trait DeferredBuilderTrait {
 		return function ($builder) use ($deferred) {
 			$deferred->replay($builder);
 		};
+	}
+
+	/**
+	 * Magic method to record unknown method calls for deferred replay.
+	 *
+	 * This allows custom component builder methods (e.g., custom_option(),
+	 * special_config()) to be recorded and replayed without explicitly
+	 * defining them in this trait.
+	 *
+	 * @param string $name Method name.
+	 * @param array<int,mixed> $arguments Method arguments.
+	 * @return static
+	 */
+	public function __call(string $name, array $arguments): static {
+		$this->deferred->record($name, $arguments);
+		return $this;
 	}
 }
