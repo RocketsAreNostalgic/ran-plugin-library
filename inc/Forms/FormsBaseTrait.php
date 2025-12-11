@@ -23,7 +23,6 @@ use Ran\PluginLib\Forms\Renderer\FormElementRenderer;
 use Ran\PluginLib\Forms\FormsServiceSession;
 use Ran\PluginLib\Forms\FormsService;
 use Ran\PluginLib\Forms\FormsAssets;
-use Ran\PluginLib\Forms\Component\ComponentType;
 use Ran\PluginLib\Forms\Component\ComponentRenderResult;
 use Ran\PluginLib\Forms\Component\ComponentManifest;
 use Ran\PluginLib\Forms\Component\ComponentLoader;
@@ -2227,24 +2226,15 @@ trait FormsBaseTrait {
 	 * @return void
 	 */
 	protected function _inject_component_validators(string $field_id, string $component, array $field_context = array()): void {
-		$field_key       = $this->base_options->normalize_schema_key($field_id);
-		$defaults        = $this->components->get_defaults_for($component);
-		$manifestContext = is_array($defaults['context'] ?? null) ? $defaults['context'] : array();
-		// Merge manifest defaults with field-specific context; field context takes precedence
-		$context       = array_merge($manifestContext, $field_context);
-		$componentType = isset($context['component_type']) ? (string) $context['component_type'] : '';
-		$submits       = $componentType === ComponentType::FormField->value;
+		$field_key = $this->base_options->normalize_schema_key($field_id);
+		// Field context is passed directly - no manifest defaults needed
+		$context = $field_context;
 
 		$validator_factories = $this->components->validator_factories();
 		$factory             = $validator_factories[$component] ?? null;
 		if (!is_callable($factory)) {
-			if ($submits) {
-				$this->logger->error(static::class . ': Component missing validator for data-submitting field', array(
-					'field_id'  => $field_id,
-					'component' => $component,
-				));
-				throw new \UnexpectedValueException(sprintf('Component "%s" must provide a validator for field "%s".', $component, $field_id));
-			}
+			// No validator for this component - silently skip
+			// Display-only components (buttons, raw HTML) won't have validators
 			return;
 		}
 
@@ -2290,11 +2280,9 @@ trait FormsBaseTrait {
 	 * @return void
 	 */
 	protected function _inject_component_sanitizers(string $field_id, string $component, array $field_context = array()): void {
-		$field_key       = $this->base_options->normalize_schema_key($field_id);
-		$defaults        = $this->components->get_defaults_for($component);
-		$manifestContext = is_array($defaults['context'] ?? null) ? $defaults['context'] : array();
-		// Merge manifest defaults with field-specific context; field context takes precedence
-		$context = array_merge($manifestContext, $field_context);
+		$field_key = $this->base_options->normalize_schema_key($field_id);
+		// Field context is passed directly - no manifest defaults needed
+		$context = $field_context;
 
 		$sanitizer_factories = $this->components->sanitizer_factories();
 		$factory             = $sanitizer_factories[$component] ?? null;
@@ -2611,10 +2599,6 @@ trait FormsBaseTrait {
 				$componentSchema = array();
 			}
 
-			$componentContextFromCatalogue = isset($manifestCatalogue[$component]['context']) && is_array($manifestCatalogue[$component]['context'])
-				? $manifestCatalogue[$component]['context']
-				: array();
-
 			// When schema already exists, only merge defaults if component buckets remain empty.
 			if (is_array($currentEntry)) {
 				$sanitizeComponents = (array) ($currentEntry['sanitize']['component'] ?? array());
@@ -2622,9 +2606,9 @@ trait FormsBaseTrait {
 				if ($sanitizeComponents === array() || $validateComponents === array()) {
 					$merged                         = $session->merge_schema_with_defaults($component, $currentEntry, $manifestCatalogue);
 					$bucketedSchema[$normalizedKey] = $merged;
-					$context                        = isset($merged['context']) && is_array($merged['context']) ? $merged['context'] : array();
-					$componentType                  = (string) ($context['component_type'] ?? ($componentContextFromCatalogue['component_type'] ?? ''));
-					if ($componentType === ComponentType::FormField->value) {
+					// A component requires a validator if it has a validator factory registered
+					$validatorFactories = $this->components->validator_factories();
+					if (isset($validatorFactories[$component])) {
 						$metadata[$normalizedKey]['requires_validator'] = true;
 					}
 				}
@@ -2634,9 +2618,9 @@ trait FormsBaseTrait {
 			$merged                         = $session->merge_schema_with_defaults($component, $componentSchema, $manifestCatalogue);
 			$bucketedSchema[$normalizedKey] = $merged;
 
-			$context       = isset($merged['context']) && is_array($merged['context']) ? $merged['context'] : array();
-			$componentType = (string) ($context['component_type'] ?? ($componentContextFromCatalogue['component_type'] ?? ''));
-			if ($componentType === ComponentType::FormField->value) {
+			// A component requires a validator if it has a validator factory registered
+			$validatorFactories = $this->components->validator_factories();
+			if (isset($validatorFactories[$component])) {
 				$metadata[$normalizedKey]['requires_validator'] = true;
 			}
 		}
