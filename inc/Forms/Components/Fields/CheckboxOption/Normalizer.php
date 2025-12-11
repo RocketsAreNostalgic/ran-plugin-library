@@ -16,8 +16,7 @@ final class Normalizer extends NormalizerBase {
 		if ($name === '') {
 			$error = 'Checkbox option requires a name attribute.';
 			$this->logger->error('Missing required name attribute', array(
-				'component_type' => $this->componentType,
-				'context_keys'   => array_keys($context)
+				'context_keys' => array_keys($context)
 			));
 			throw new \InvalidArgumentException($error);
 		}

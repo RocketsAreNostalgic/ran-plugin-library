@@ -153,10 +153,9 @@ final class Normalizer extends NormalizerBase {
 			} else {
 				$error = 'components.file-upload requires a "name" value.';
 				$this->logger->error('Missing required name value', array(
-					'component_type' => $this->componentType,
-					'context_keys'   => array_keys($context),
-					'has_name'       => isset($context['name']),
-					'has_id'         => isset($context['id'])
+					'context_keys' => array_keys($context),
+					'has_name'     => isset($context['name']),
+					'has_id'       => isset($context['id'])
 				));
 				throw new \InvalidArgumentException($error);
 			}
