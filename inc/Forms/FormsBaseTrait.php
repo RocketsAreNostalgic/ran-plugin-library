@@ -622,11 +622,31 @@ trait FormsBaseTrait {
 	/**
 	 * Capture validation messages emitted by the provided RegisterOptions instance.
 	 *
+	 * Also updates pending_values with the sanitized values from the RegisterOptions instance.
+	 * This ensures that when validation fails, the user sees the sanitized values (what they
+	 * would get if validation passed), not the original pre-sanitized values.
+	 *
 	 * @return array<string, array{warnings: array<int, string>, notices: array<int, string>}>
 	 */
 	protected function _process_validation_messages(RegisterOptions $options): array {
 		$messages = $options->take_messages();
 		$this->message_handler->set_messages($messages);
+
+		// Update pending values with sanitized values from RegisterOptions
+		// This ensures the user sees post-sanitization values, not pre-sanitization values
+		// IMPORTANT: Only update values that were in the original payload, not all options
+		// (RegisterOptions may contain database values for keys not in the submission)
+		$sanitizedValues = $options->get_options();
+		if (!empty($sanitizedValues) && !empty($this->pending_values)) {
+			// Only merge sanitized values for keys that were in the original payload
+			foreach (array_keys($this->pending_values) as $key) {
+				if (array_key_exists($key, $sanitizedValues)) {
+					$this->pending_values[$key] = $sanitizedValues[$key];
+				}
+			}
+			$this->message_handler->set_pending_values($this->pending_values);
+		}
+
 		return $messages;
 	}
 
@@ -2635,8 +2655,8 @@ trait FormsBaseTrait {
 				$sanitizeComponents = (array) ($currentEntry['sanitize']['component'] ?? array());
 				$validateComponents = (array) ($currentEntry['validate']['component'] ?? array());
 				if ($sanitizeComponents === array() || $validateComponents === array()) {
-					// Strip schema validators before merging - they're already in RegisterOptions
-					// and will be used during validation. Including them here would cause duplicates.
+					// Strip schema sanitizers/validators before merging - they're already in RegisterOptions
+					// and will be used during sanitization/validation. Including them here would cause duplicates.
 					$entryForMerge = $currentEntry;
 					if (isset($entryForMerge['sanitize']['schema'])) {
 						$entryForMerge['sanitize']['schema'] = array();

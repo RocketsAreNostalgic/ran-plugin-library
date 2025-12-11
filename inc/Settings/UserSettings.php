@@ -577,6 +577,12 @@ class UserSettings implements FormsInterface {
 		// Note: commit_merge returns false when no changes were made (WordPress behavior).
 		// This is not a failure - the data is already correct in the database.
 		// We only need to clear pending validation state on success or no-change.
+
+		// Persist notices even when validation passes (e.g., sanitizer feedback messages)
+		if (!empty($messages)) {
+			$this->_persist_form_messages($messages, $user_id);
+		}
+
 		$this->_clear_pending_validation();
 	}
 

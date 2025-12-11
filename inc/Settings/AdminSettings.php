@@ -604,6 +604,11 @@ class AdminSettings implements FormsInterface {
 			'sanitized_payload' => $result,
 		));
 
+		// Persist notices even when validation passes (e.g., sanitizer feedback messages)
+		if (!empty($messages)) {
+			$this->_persist_form_messages($messages);
+		}
+
 		$this->_clear_pending_validation();
 
 		return $result;
