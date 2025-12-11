@@ -76,7 +76,8 @@ final class RegisterOptionsSaveAllAddFallbackTest extends PluginLibTestCase {
 
 		// Inject storage mock: add() returns false, then update() returns true
 		$storage = $this->createMock(\Ran\PluginLib\Options\Storage\OptionStorageInterface::class);
-		$storage->method('read')->willReturn(array());
+		// Return false to simulate "not found" - triggers add() branch
+		$storage->method('read')->willReturn(false);
 		$storage->method('scope')->willReturn(OptionScope::Site);
 		$storage->expects($this->once())
 		    ->method('add')
@@ -94,7 +95,7 @@ final class RegisterOptionsSaveAllAddFallbackTest extends PluginLibTestCase {
 		// Assert logs after SUT ran
 		$this->expectLog('debug', 'RegisterOptions: storage->add() selected');
 		$this->expectLog('debug', 'RegisterOptions: storage->add() returned false; falling back to storage->update().');
-		
+
 		$this->expectLog('debug', 'RegisterOptions: _save_all_options completed');
 	}
 }

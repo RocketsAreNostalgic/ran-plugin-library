@@ -31,15 +31,21 @@ final class RegisterOptionsSaveAllRetryVerifyTest extends PluginLibTestCase {
 	public function test_update_retry_then_verify_treats_as_success_when_db_matches(): void {
 		$main = 'opts_retry_verify_success';
 
-		// Anonymous subclass to inject a controlled storage and custom get_option behavior
-		$opts = new class($main, StorageContext::forSite(), true, $this->logger_mock) extends RegisterOptions {
+		// Shared state for tracking read calls and verify payload
+		$sharedState                = new \stdClass();
+		$sharedState->readCalls     = 0;
+		$sharedState->verifyPayload = array();
+
+		// Anonymous subclass to inject a controlled storage
+		$opts = new class($main, StorageContext::forSite(), true, $this->logger_mock, $sharedState) extends RegisterOptions {
 			private object $storage;
-			private int $getCalls        = 0;
-			private array $verifyPayload = array();
-			public function __construct($main, $ctx, $autoload, $logger) {
+			public function __construct($main, $ctx, $autoload, $logger, $sharedState) {
 				// Initialize storage BEFORE parent constructor to avoid early _get_storage() access
-				$this->storage = new class implements \Ran\PluginLib\Options\Storage\OptionStorageInterface {
-					private int $updates = 0;
+				$this->storage = new class($sharedState) implements \Ran\PluginLib\Options\Storage\OptionStorageInterface {
+					private object $state;
+					public function __construct($state) {
+						$this->state = $state;
+					}
 					public function scope(): \Ran\PluginLib\Options\OptionScope {
 						return \Ran\PluginLib\Options\OptionScope::Site;
 					}
@@ -50,11 +56,17 @@ final class RegisterOptionsSaveAllRetryVerifyTest extends PluginLibTestCase {
 						return true;
 					}
 					public function read(string $key, mixed $default = false): mixed {
-						return $default;
+						// 1st call: constructor load
+						// 2nd call: existence check → return array to indicate "exists"
+						// 3rd call: verification → return the verify payload
+						$this->state->readCalls++;
+						if ($this->state->readCalls <= 2) {
+							return array('exists' => true); // row exists (constructor + existence check)
+						}
+						return $this->state->verifyPayload;
 					}
 					public function update(string $key, mixed $value, ?bool $autoload = null): bool {
-						// First and second calls return false to trigger retry + verify path
-						$this->updates++;
+						// Always return false to trigger retry + verify path
 						return false;
 					}
 					public function add(string $key, mixed $value, ?bool $autoload = null): bool {
@@ -69,38 +81,22 @@ final class RegisterOptionsSaveAllRetryVerifyTest extends PluginLibTestCase {
 			protected function _get_storage(): \Ran\PluginLib\Options\Storage\OptionStorageInterface {
 				return $this->storage;
 			}
-			public function setVerifyPayload(array $payload): void {
-				$this->verifyPayload = $payload;
-			}
 			public function _do_apply_filter(string $hook_name, $value, ...$args) {
 				if ($hook_name === 'ran/plugin_lib/options/allow_persist' || $hook_name === 'ran/plugin_lib/options/allow_persist/scope/site') {
 					return true;
 				}
 				return $value;
 			}
-			public function _do_get_option(string $option, mixed $default = false): mixed {
-				// 1st call: existence check → pretend row exists
-				// 2nd call (verify): return the desired $this->options payload
-				$this->getCalls++;
-				if ($this->getCalls === 1) {
-					return array('exists' => true);
-				}
-				return $this->verifyPayload;
-			}
 		};
 
 		// Prepare payload to save; directly set options via reflection to avoid other side effects
-		// Reflect the private base-class property from RegisterOptions to set on this instance
 		$baseRef = new \ReflectionClass(\Ran\PluginLib\Options\RegisterOptions::class);
 		$prop    = $baseRef->getProperty('options');
 		$prop->setAccessible(true);
 		$toSave = array('foo' => 'bar', 'n' => 1);
 		$prop->setValue($opts, $toSave);
-		// Also set the verify payload used by the anonymous subclass for the post-update DB check
-		if (method_exists($opts, 'setVerifyPayload')) {
-			$opts->setVerifyPayload($toSave);
-		}
-		$ref = new \ReflectionClass($opts);
+		$sharedState->verifyPayload = $toSave;
+		$ref                        = new \ReflectionClass($opts);
 
 		// Expect: first update false → retry → false → verify matches → treat as success (result true)
 
@@ -120,12 +116,19 @@ final class RegisterOptionsSaveAllRetryVerifyTest extends PluginLibTestCase {
 	public function test_update_retry_then_verify_logs_failure_when_db_does_not_match(): void {
 		$main = 'opts_retry_verify_failure';
 
+		// Shared state for tracking read calls
+		$sharedState            = new \stdClass();
+		$sharedState->readCalls = 0;
+
 		// Anonymous subclass: force update() to return false twice; verify returns non-matching value
-		$opts = new class($main, StorageContext::forSite(), true, $this->logger_mock) extends RegisterOptions {
+		$opts = new class($main, StorageContext::forSite(), true, $this->logger_mock, $sharedState) extends RegisterOptions {
 			private object $storage;
-			private int $getCalls = 0;
-			public function __construct($main, $ctx, $autoload, $logger) {
-				$this->storage = new class implements \Ran\PluginLib\Options\Storage\OptionStorageInterface {
+			public function __construct($main, $ctx, $autoload, $logger, $sharedState) {
+				$this->storage = new class($sharedState) implements \Ran\PluginLib\Options\Storage\OptionStorageInterface {
+					private object $state;
+					public function __construct($state) {
+						$this->state = $state;
+					}
 					public function scope(): \Ran\PluginLib\Options\OptionScope {
 						return \Ran\PluginLib\Options\OptionScope::Site;
 					}
@@ -136,7 +139,14 @@ final class RegisterOptionsSaveAllRetryVerifyTest extends PluginLibTestCase {
 						return true;
 					}
 					public function read(string $key, mixed $default = false): mixed {
-						return $default;
+						// 1st call: constructor load
+						// 2nd call: existence check → return array to indicate "exists"
+						// 3rd call: verification → return non-matching payload
+						$this->state->readCalls++;
+						if ($this->state->readCalls <= 2) {
+							return array('exists' => true); // row exists (constructor + existence check)
+						}
+						return array('different' => 'payload'); // non-matching
 					}
 					public function update(string $key, mixed $value, ?bool $autoload = null): bool {
 						return false;
@@ -158,14 +168,6 @@ final class RegisterOptionsSaveAllRetryVerifyTest extends PluginLibTestCase {
 					return true; // allow this instance
 				}
 				return $value;
-			}
-			public function _do_get_option(string $option, mixed $default = false): mixed {
-				// 1st call existence check → pretend row exists; 2nd call verify → return non-matching
-				$this->getCalls++;
-				if ($this->getCalls === 1) {
-					return array('exists' => true);
-				}
-				return array('different' => 'payload');
 			}
 		};
 
@@ -193,13 +195,21 @@ final class RegisterOptionsSaveAllRetryVerifyTest extends PluginLibTestCase {
 	public function test_add_fallback_then_verify_treats_as_success_when_db_matches(): void {
 		$main = 'opts_add_fallback_verify_success';
 
+		// Shared state for tracking read calls and verify payload
+		$sharedState                = new \stdClass();
+		$sharedState->readCalls     = 0;
+		$sharedState->verifyPayload = array();
+
 		// Anonymous subclass: force add() to fail, update() to fail; verify returns matching value
-		$opts = new class($main, StorageContext::forSite(), true, $this->logger_mock) extends RegisterOptions {
+		$opts = new class($main, StorageContext::forSite(), true, $this->logger_mock, $sharedState) extends RegisterOptions {
 			private object $storage;
-			private int $getCalls        = 0;
-			private array $verifyPayload = array();
-			public function __construct($main, $ctx, $autoload, $logger) {
-				$this->storage = new class implements \Ran\PluginLib\Options\Storage\OptionStorageInterface {
+			public function __construct($main, $ctx, $autoload, $logger, $sharedState) {
+				// Create storage with access to shared state for read call tracking
+				$this->storage = new class($sharedState) implements \Ran\PluginLib\Options\Storage\OptionStorageInterface {
+					private object $state;
+					public function __construct($state) {
+						$this->state = $state;
+					}
 					public function scope(): \Ran\PluginLib\Options\OptionScope {
 						return \Ran\PluginLib\Options\OptionScope::Site;
 					}
@@ -210,7 +220,14 @@ final class RegisterOptionsSaveAllRetryVerifyTest extends PluginLibTestCase {
 						return true;
 					}
 					public function read(string $key, mixed $default = false): mixed {
-						return $default;
+						// 1st call: constructor load → return false (not found)
+						// 2nd call: existence check → return false (not found)
+						// 3rd call: verification → return the verify payload
+						$this->state->readCalls++;
+						if ($this->state->readCalls <= 2) {
+							return false; // not found (constructor + existence check)
+						}
+						return $this->state->verifyPayload;
 					}
 					public function update(string $key, mixed $value, ?bool $autoload = null): bool {
 						return false;
@@ -233,18 +250,6 @@ final class RegisterOptionsSaveAllRetryVerifyTest extends PluginLibTestCase {
 				}
 				return $value;
 			}
-			public function setVerifyPayload(array $payload): void {
-				$this->verifyPayload = $payload;
-			}
-			public function _do_get_option(string $option, mixed $default = false): mixed {
-				// 1st call existence check → pretend row does NOT exist (return sentinel)
-				// 2nd call verify → return the desired payload to simulate DB match
-				$this->getCalls++;
-				if ($this->getCalls === 1) {
-					return $default; // sentinel: missing row
-				}
-				return $this->verifyPayload;
-			}
 		};
 
 		// Prepare payload to save; reflect into private property and set verify payload
@@ -253,10 +258,8 @@ final class RegisterOptionsSaveAllRetryVerifyTest extends PluginLibTestCase {
 		$prop->setAccessible(true);
 		$toSave = array('a' => 1, 'b' => 'x');
 		$prop->setValue($opts, $toSave);
-		if (method_exists($opts, 'setVerifyPayload')) {
-			$opts->setVerifyPayload($toSave);
-		}
-		$ref = new \ReflectionClass($opts);
+		$sharedState->verifyPayload = $toSave;
+		$ref                        = new \ReflectionClass($opts);
 
 		// Invoke protected _save_all_options(false) to exercise add() → update() → verify success path
 		$m = $ref->getMethod('_save_all_options');
@@ -274,12 +277,19 @@ final class RegisterOptionsSaveAllRetryVerifyTest extends PluginLibTestCase {
 	public function test_add_fallback_then_verify_logs_failure_when_db_does_not_match(): void {
 		$main = 'opts_add_fallback_verify_failure';
 
+		// Shared state for tracking read calls
+		$sharedState            = new \stdClass();
+		$sharedState->readCalls = 0;
+
 		// Anonymous subclass: force add() fail, update() fail, and verify returns non-matching payload
-		$opts = new class($main, StorageContext::forSite(), true, $this->logger_mock) extends RegisterOptions {
+		$opts = new class($main, StorageContext::forSite(), true, $this->logger_mock, $sharedState) extends RegisterOptions {
 			private object $storage;
-			private int $getCalls = 0;
-			public function __construct($main, $ctx, $autoload, $logger) {
-				$this->storage = new class implements \Ran\PluginLib\Options\Storage\OptionStorageInterface {
+			public function __construct($main, $ctx, $autoload, $logger, $sharedState) {
+				$this->storage = new class($sharedState) implements \Ran\PluginLib\Options\Storage\OptionStorageInterface {
+					private object $state;
+					public function __construct($state) {
+						$this->state = $state;
+					}
 					public function scope(): \Ran\PluginLib\Options\OptionScope {
 						return \Ran\PluginLib\Options\OptionScope::Site;
 					}
@@ -290,7 +300,14 @@ final class RegisterOptionsSaveAllRetryVerifyTest extends PluginLibTestCase {
 						return true;
 					}
 					public function read(string $key, mixed $default = false): mixed {
-						return $default;
+						// 1st call: constructor load → return false (not found)
+						// 2nd call: existence check → return false (not found)
+						// 3rd call: verification → return mismatched payload
+						$this->state->readCalls++;
+						if ($this->state->readCalls <= 2) {
+							return false; // not found (constructor + existence check)
+						}
+						return array('mismatch' => true); // non-matching payload
 					}
 					public function update(string $key, mixed $value, ?bool $autoload = null): bool {
 						return false;
@@ -312,14 +329,6 @@ final class RegisterOptionsSaveAllRetryVerifyTest extends PluginLibTestCase {
 					return true;
 				}
 				return $value;
-			}
-			public function _do_get_option(string $option, mixed $default = false): mixed {
-				// 1st call existence check → pretend row does NOT exist (return sentinel); 2nd call verify → mismatch
-				$this->getCalls++;
-				if ($this->getCalls === 1) {
-					return $default; // sentinel missing row
-				}
-				return array('mismatch' => true);
 			}
 		};
 

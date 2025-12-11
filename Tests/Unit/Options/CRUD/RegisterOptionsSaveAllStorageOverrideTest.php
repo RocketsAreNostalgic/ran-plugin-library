@@ -121,7 +121,8 @@ final class RegisterOptionsSaveAllStorageOverrideTest extends PluginLibTestCase 
 		$this->_set_protected_property_value($opts, 'options', array('z' => 3));
 
 		$storage = $this->createMock(\Ran\PluginLib\Options\Storage\OptionStorageInterface::class);
-		$storage->method('read')->willReturn(array());
+		// Return false to simulate "not found" - triggers add() branch
+		$storage->method('read')->willReturn(false);
 		$storage->method('scope')->willReturn(OptionScope::Site);
 		$storage->expects($this->once())
 			->method('add')
