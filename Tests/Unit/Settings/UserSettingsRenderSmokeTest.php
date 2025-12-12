@@ -319,7 +319,7 @@ class UserSettingsRenderSmokeTest extends PluginLibTestCase {
 		$loader->register('shared.field-wrapper', 'field-wrapper.php');
 
 		$manifest = new ComponentManifest($loader, $this->logger);
-		$options  = new RegisterOptions($optionName, StorageContext::forUser(123), false, $this->logger);
+		$options  = new RegisterOptions($optionName, StorageContext::forUserId(123), false, $this->logger);
 
 		return new UserSettings($options, $manifest, $config, $this->logger);
 	}
@@ -426,7 +426,7 @@ PHP;
 		$loader->register('shared.field-wrapper', 'field-wrapper.php');
 
 		$manifest = new ComponentManifest($loader, $this->logger);
-		$options  = new RegisterOptions($optionName, StorageContext::forUser(123), false, $this->logger);
+		$options  = new RegisterOptions($optionName, StorageContext::forUserId(123), false, $this->logger);
 
 		return new UserSettings($options, $manifest, $config, $this->logger);
 	}

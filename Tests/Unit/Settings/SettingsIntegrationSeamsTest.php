@@ -275,7 +275,7 @@ class SettingsIntegrationSeamsTest extends PluginLibTestCase {
 		$config->method('get_namespace')->willReturn('TestPlugin');
 
 		// Create RegisterOptions with user scope
-		$options = new RegisterOptions('test_user_opts', StorageContext::forUser(123), false, $this->logger);
+		$options = new RegisterOptions('test_user_opts', StorageContext::forUserId(123), false, $this->logger);
 
 		$loader = new ComponentLoader(__DIR__ . '/../fixtures/templates', $this->logger);
 		$loader->register('user.root-wrapper', 'default-page.php');
@@ -301,7 +301,7 @@ class SettingsIntegrationSeamsTest extends PluginLibTestCase {
 		$config->method('get_namespace')->willReturn('TestPlugin');
 
 		$this->userMetaValues['user_manifest_test'] = array(456 => array('profile_field' => 'user_stored_value'));
-		$options                                    = new RegisterOptions('user_manifest_test', StorageContext::forUser(456), false, $this->logger);
+		$options                                    = new RegisterOptions('user_manifest_test', StorageContext::forUserId(456), false, $this->logger);
 
 		$loader = new ComponentLoader(__DIR__ . '/../fixtures/templates', $this->logger);
 		$loader->register('user.root-wrapper', 'default-page.php');
@@ -346,7 +346,7 @@ class SettingsIntegrationSeamsTest extends PluginLibTestCase {
 
 		$sanitizerCalled                          = false;
 		$this->userMetaValues['user_schema_save'] = array(789 => array());
-		$options                                  = new RegisterOptions('user_schema_save', StorageContext::forUser(789), false, $this->logger);
+		$options                                  = new RegisterOptions('user_schema_save', StorageContext::forUserId(789), false, $this->logger);
 
 		// Register schema with sanitizer at the RegisterOptions level
 		$options->register_schema(array(
@@ -484,7 +484,7 @@ return new ComponentRenderResult(
 			$config->method('get_namespace')->willReturn('UserSeamTest');
 
 			$this->userMetaValues['seam_ext_user'] = array(999 => array('user_ext_field' => 'user_external_value'));
-			$options                               = new RegisterOptions('seam_ext_user', StorageContext::forUser(999), false, $this->logger);
+			$options                               = new RegisterOptions('seam_ext_user', StorageContext::forUserId(999), false, $this->logger);
 
 			$loader = new ComponentLoader(__DIR__ . '/../fixtures/templates', $this->logger);
 			$loader->register('user.root-wrapper', 'default-page.php');
@@ -603,7 +603,7 @@ return new ComponentRenderResult(
 
 		$userId                                 = 555;
 		$this->userMetaValues['roundtrip_user'] = array($userId => array('user_roundtrip_field' => 'user_initial_value'));
-		$options                                = new RegisterOptions('roundtrip_user', StorageContext::forUser($userId), false, $this->logger);
+		$options                                = new RegisterOptions('roundtrip_user', StorageContext::forUserId($userId), false, $this->logger);
 
 		$options->register_schema(array(
 			'user_roundtrip_field' => array(
@@ -648,7 +648,7 @@ return new ComponentRenderResult(
 		self::assertSame('new_user_value', $storedValue); // Lowercase and trimmed
 
 		// Step 4: Create fresh instance and verify stored value is retrieved
-		$options2  = new RegisterOptions('roundtrip_user', StorageContext::forUser($userId), false, $this->logger);
+		$options2  = new RegisterOptions('roundtrip_user', StorageContext::forUserId($userId), false, $this->logger);
 		$settings2 = new UserSettings($options2, $manifest, $config, $this->logger);
 
 		$settings2->collection('profile')
@@ -739,7 +739,7 @@ return new ComponentRenderResult(
 		$userId = 777;
 		// Start with empty storage - we'll verify the invalid value is NOT written
 		$this->userMetaValues['val_fail_user'] = array($userId => array());
-		$options                               = new RegisterOptions('val_fail_user', StorageContext::forUser($userId), false, $this->logger);
+		$options                               = new RegisterOptions('val_fail_user', StorageContext::forUserId($userId), false, $this->logger);
 
 		$validatorCalled        = false;
 		$validatorReceivedValue = null;
@@ -804,7 +804,7 @@ return new ComponentRenderResult(
 		$config = $this->createMock(ConfigInterface::class);
 		$config->method('get_config')->willReturn(array('PATH' => __DIR__));
 
-		$options = new RegisterOptions('wrong_scope', StorageContext::forUser(123), false, $this->logger);
+		$options = new RegisterOptions('wrong_scope', StorageContext::forUserId(123), false, $this->logger);
 
 		$loader   = new ComponentLoader(__DIR__ . '/../fixtures/templates', $this->logger);
 		$manifest = new ComponentManifest($loader, $this->logger);

@@ -302,7 +302,7 @@ class RegisterOptions {
 		if ($logger === null) {
 			throw new \InvalidArgumentException('RegisterOptions::user() requires a Logger instance.');
 		}
-		return new static($option_name, StorageContext::forUser($user_id, 'meta', $global), false, $logger);
+		return new static($option_name, StorageContext::forUserId($user_id, 'meta', $global), false, $logger);
 	}
 
 	/**

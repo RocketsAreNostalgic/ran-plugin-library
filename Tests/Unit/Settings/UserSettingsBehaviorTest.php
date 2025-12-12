@@ -86,7 +86,7 @@ final class UserSettingsBehaviorTest extends PluginLibTestCase {
 		$this->registerTemplateStubs();
 		$this->options = new RegisterOptions(
 			'behavior_user_options',
-			StorageContext::forUser(123),
+			StorageContext::forUserId(123),
 			false,
 			$this->logger
 		);
@@ -627,7 +627,7 @@ final class UserSettingsBehaviorTest extends PluginLibTestCase {
 	}
 
 	public function test_resolve_context_accepts_explicit_option_storage(): void {
-		$options  = new RegisterOptions('behavior_user_options', StorageContext::forUser(123, 'option', true), false, $this->logger);
+		$options  = new RegisterOptions('behavior_user_options', StorageContext::forUserId(123, 'option', true), false, $this->logger);
 		$settings = new UserSettings($options, $this->manifest, null, $this->logger);
 
 		$result = $settings->resolve_options(array('user_id' => 123, 'storage' => 'option', 'global' => true));
@@ -641,7 +641,7 @@ final class UserSettingsBehaviorTest extends PluginLibTestCase {
 	}
 
 	public function test_save_settings_uses_commit_merge_for_option_storage(): void {
-		$options = new RegisterOptions('behavior_user_options', StorageContext::forUser(123, 'option', true), false, $this->logger);
+		$options = new RegisterOptions('behavior_user_options', StorageContext::forUserId(123, 'option', true), false, $this->logger);
 		$options->register_schema(array(
 		    'profile_toggle' => array(
 		        'default'  => false,
@@ -757,7 +757,7 @@ final class UserSettingsBehaviorTest extends PluginLibTestCase {
 
 		$this->injectBuilderFactory($alias);
 		$this->injectManifestDefaults($alias, array(
-			
+
 			'validate' => array(static fn ($value, callable $emitWarning): bool => true),
 		));
 

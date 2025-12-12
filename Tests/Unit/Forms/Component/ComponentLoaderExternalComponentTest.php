@@ -660,7 +660,7 @@ return new ComponentRenderResult(markup: "<div>DatePicker</div>");
 
 		$this->loader = new ComponentLoader($this->testTemplateDir, $this->logger_mock);
 		$manifest     = new ComponentManifest($this->loader, $this->logger_mock);
-		$options      = new RegisterOptions('test_user', StorageContext::forUser(1), true, $this->logger_mock);
+		$options      = new RegisterOptions('test_user', StorageContext::forUserId(1), true, $this->logger_mock);
 
 		$config = $this->createMock(ConfigInterface::class);
 		$config->method('get_config')->willReturn(array(

@@ -66,7 +66,7 @@ class DeveloperAPISimpleTest extends PluginLibTestCase {
 
 		$this->user_options = new RegisterOptions(
 			'test_user_options',
-			StorageContext::forUser(1),
+			StorageContext::forUserId(1),
 			true,
 			$this->logger_mock
 		);

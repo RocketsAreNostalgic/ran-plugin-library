@@ -56,17 +56,45 @@ final class StorageContext {
 	}
 
 	/**
-	 * @param int    $user_id      Positive WP user ID.
+	 * Create a user-scoped context with deferred user_id resolution.
+	 *
+	 * Use this when registering user settings at plugin load time, before
+	 * the target user is known. The actual user_id will be resolved at
+	 * render/save time from WordPress profile hooks.
+	 *
+	 * This is the recommended default for UserSettings registration.
+	 *
 	 * @param string $user_storage 'meta' (default) or 'option'.
-	 * @param bool   $user_global  When storage is 'option', whether to use network-wide (user_settings) storage.
+	 * @param bool   $user_global  When storage is 'option', whether to use network-wide storage.
+	 * @return self
 	 */
-	public static function forUser(int $user_id, string $user_storage = 'meta', bool $user_global = false): self {
-		if ($user_id <= 0) {
-			throw new \InvalidArgumentException('StorageContext::forUser requires a positive user_id.');
-		}
+	public static function forUser(string $user_storage = 'meta', bool $user_global = false): self {
 		$storage_kind = strtolower($user_storage);
 		if ($storage_kind !== 'meta' && $storage_kind !== 'option') {
 			throw new \InvalidArgumentException("StorageContext::forUser: user_storage must be 'meta' or 'option'.");
+		}
+		// user_id = null signals deferred resolution
+		return new self(OptionScope::User, user_id: null, user_storage: $storage_kind, user_global: $user_global);
+	}
+
+	/**
+	 * Create a user-scoped context for a specific user ID.
+	 *
+	 * Use this for programmatic access when you need a specific user's data
+	 * outside of the profile page context (REST API, AJAX, WP-CLI, cron, etc.).
+	 *
+	 * @param int    $user_id      Positive WP user ID.
+	 * @param string $user_storage 'meta' (default) or 'option'.
+	 * @param bool   $user_global  When storage is 'option', whether to use network-wide (user_settings) storage.
+	 * @return self
+	 */
+	public static function forUserId(int $user_id, string $user_storage = 'meta', bool $user_global = false): self {
+		if ($user_id <= 0) {
+			throw new \InvalidArgumentException('StorageContext::forUserId requires a positive user_id.');
+		}
+		$storage_kind = strtolower($user_storage);
+		if ($storage_kind !== 'meta' && $storage_kind !== 'option') {
+			throw new \InvalidArgumentException("StorageContext::forUserId: user_storage must be 'meta' or 'option'.");
 		}
 		return new self(OptionScope::User, user_id: $user_id, user_storage: $storage_kind, user_global: $user_global);
 	}

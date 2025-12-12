@@ -79,8 +79,8 @@ final class ConfigOptionsScopeParityTest extends PluginLibTestCase {
 		$cfg    = $this->makeProdConfig();
 		$entity = new UserEntity(5, true, 'option');
 
-		$optsViaConfig  = $cfg->options(StorageContext::forUser(5, 'option', true));
-		$optsViaFactory = new RegisterOptions($cfg->get_options_key(), StorageContext::forUser(5, 'option', true), false, $this->logger_mock);
+		$optsViaConfig  = $cfg->options(StorageContext::forUserId(5, 'option', true));
+		$optsViaFactory = new RegisterOptions($cfg->get_options_key(), StorageContext::forUserId(5, 'option', true), false, $this->logger_mock);
 
 		$this->assertInstanceOf(RegisterOptions::class, $optsViaConfig);
 		$this->assertInstanceOf(RegisterOptions::class, $optsViaFactory);

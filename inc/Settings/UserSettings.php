@@ -665,7 +665,7 @@ class UserSettings implements FormsInterface {
 		$global  = $this->_resolve_global_flag($context, $storage);
 
 		$result = array(
-		    'storage'      => StorageContext::forUser($userId, $storage, $global),
+		    'storage'      => StorageContext::forUserId($userId, $storage, $global),
 		    'user_id'      => $userId,
 		    'storage_kind' => $storage,
 		    'global'       => $global,

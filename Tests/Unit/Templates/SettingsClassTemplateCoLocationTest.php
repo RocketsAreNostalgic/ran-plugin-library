@@ -178,7 +178,7 @@ class SettingsClassTemplateCoLocationTest extends TestCase {
 		// Create user-specific mock options
 		$user_mock_options = $this->createMock(RegisterOptions::class);
 		$user_mock_options->method('get_storage_context')
-		    ->willReturn(StorageContext::forUser(1));
+		    ->willReturn(StorageContext::forUserId(1));
 		$user_mock_options->method('get_main_option_name')
 		    ->willReturn('test_user_options');
 		$user_mock_options->method('get_logger')

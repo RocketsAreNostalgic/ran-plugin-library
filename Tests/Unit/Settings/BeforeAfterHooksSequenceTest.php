@@ -418,7 +418,7 @@ final class BeforeAfterHooksSequenceTest extends PluginLibTestCase {
 		// Use real components + fixture templates
 		$loader   = new ComponentLoader(__DIR__ . '/../../../inc/Forms/Components', $this->logger);
 		$manifest = new ComponentManifest($loader, $this->logger);
-		$options  = new RegisterOptions($optionName, StorageContext::forUser(123), false, $this->logger);
+		$options  = new RegisterOptions($optionName, StorageContext::forUserId(123), false, $this->logger);
 
 		// UserSettings constructor registers actual production templates from inc/Settings/templates/user/
 		return array(

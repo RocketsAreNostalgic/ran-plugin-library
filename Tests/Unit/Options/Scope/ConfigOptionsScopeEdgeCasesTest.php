@@ -72,6 +72,6 @@ final class ConfigOptionsScopeEdgeCasesTest extends PluginLibTestCase {
 		$this->expectException(\InvalidArgumentException::class);
 		$cfg = $this->makeConfig();
 		// In typed API, pass invalid user id to trigger exception
-		$cfg->options(StorageContext::forUser(0, 'meta', false));
+		$cfg->options(StorageContext::forUserId(0, 'meta', false));
 	}
 }

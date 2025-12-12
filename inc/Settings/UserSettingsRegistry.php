@@ -211,22 +211,29 @@ class UserSettingsRegistry implements SettingsRegistryInterface {
 	 * Ensure UserSettings instance exists.
 	 *
 	 * Creates RegisterOptions and ComponentManifest on first call.
+	 * If the storage context has a deferred user_id (null), it will be
+	 * resolved from the provided user_id parameter.
 	 *
+	 * @param int|null $user_id Optional user ID from hook context.
 	 * @return void
 	 */
-	private function _ensure_settings(): void {
+	private function _ensure_settings(?int $user_id = null): void {
 		if ($this->settings !== null) {
 			return;
 		}
 
+		// Resolve storage context with user_id if deferred
+		$context = $this->_resolve_storage_context($user_id);
+
 		$this->logger->debug('user_settings_registry.creating_settings', array(
 			'option_key' => $this->option_key,
+			'user_id'    => $context->user_id,
 		));
 
 		// Create RegisterOptions
 		$this->options = new RegisterOptions(
 			$this->option_key,
-			$this->storage_context,
+			$context,
 			$this->autoload,
 			$this->logger
 		);
@@ -263,8 +270,8 @@ class UserSettingsRegistry implements SettingsRegistryInterface {
 			return;
 		}
 
-		// Create expensive dependencies NOW
-		$this->_ensure_settings();
+		// Create expensive dependencies NOW, passing user_id from hook context
+		$this->_ensure_settings((int) $user->ID);
 
 		if ($this->settings === null) {
 			$this->logger->error('user_settings_registry.settings_creation_failed');
@@ -321,8 +328,8 @@ class UserSettingsRegistry implements SettingsRegistryInterface {
 	 * @return void
 	 */
 	public function _save_collections(int $user_id): void {
-		// Create expensive dependencies if not already done
-		$this->_ensure_settings();
+		// Create expensive dependencies if not already done, passing user_id from hook context
+		$this->_ensure_settings($user_id);
 
 		if ($this->settings === null) {
 			return;
@@ -410,5 +417,53 @@ class UserSettingsRegistry implements SettingsRegistryInterface {
 	public function get_options(): ?RegisterOptions {
 		$this->_ensure_settings();
 		return $this->options;
+	}
+
+	/**
+	 * Resolve the storage context, creating a new one with user_id if deferred.
+	 *
+	 * If the original storage context has a null user_id (deferred resolution),
+	 * this method creates a new StorageContext with the provided user_id.
+	 * Otherwise, returns the original context unchanged.
+	 *
+	 * @param int|null $user_id User ID from hook context.
+	 * @return StorageContext Resolved storage context with valid user_id.
+	 * @throws \InvalidArgumentException If user_id cannot be resolved.
+	 */
+	private function _resolve_storage_context(?int $user_id): StorageContext {
+		// If original context already has a user_id, use it
+		if ($this->storage_context->user_id !== null) {
+			return $this->storage_context;
+		}
+
+		// Deferred resolution: need to determine user_id now
+		$resolved_user_id = $user_id;
+
+		// Fallback chain if no user_id provided
+		if ($resolved_user_id === null || $resolved_user_id <= 0) {
+			// Try global profileuser (set by WordPress on profile pages)
+			if (isset($GLOBALS['profileuser']) && $GLOBALS['profileuser'] instanceof \WP_User) {
+				$resolved_user_id = (int) $GLOBALS['profileuser']->ID;
+			}
+		}
+
+		if ($resolved_user_id === null || $resolved_user_id <= 0) {
+			// Last resort: current user
+			$resolved_user_id = (int) $this->_do_get_current_user_id();
+		}
+
+		if ($resolved_user_id <= 0) {
+			$this->logger->error('user_settings_registry.cannot_resolve_user_id', array(
+				'option_key' => $this->option_key,
+			));
+			throw new \InvalidArgumentException('UserSettingsRegistry: Cannot resolve user_id for deferred storage context.');
+		}
+
+		// Create new context with resolved user_id
+		return StorageContext::forUserId(
+			$resolved_user_id,
+			$this->storage_context->user_storage,
+			$this->storage_context->user_global
+		);
 	}
 }
