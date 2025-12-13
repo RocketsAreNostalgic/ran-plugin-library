@@ -38,6 +38,8 @@ interface FormsStateStoreInterface {
 
 	public function has_fields(string $container_id, string $section_id): bool;
 
+	public function get_fields_map(string $container_id): array;
+
 	/**
 	 * @return array<int,array<string,mixed>>
 	 */
@@ -49,6 +51,8 @@ interface FormsStateStoreInterface {
 	public function set_fields(string $container_id, string $section_id, array $fields): void;
 
 	public function has_group(string $container_id, string $section_id, string $group_id): bool;
+
+	public function get_groups_map(string $container_id): array;
 
 	/**
 	 * @return array<string,mixed>
@@ -196,6 +200,11 @@ class FormsStateStore implements FormsStateStoreInterface {
 		return isset($this->fields[$container_id]) && isset($this->fields[$container_id][$section_id]);
 	}
 
+	public function get_fields_map(string $container_id): array {
+		$container = $this->fields[$container_id] ?? array();
+		return is_array($container) ? $container : array();
+	}
+
 	public function get_fields(string $container_id, string $section_id): array {
 		$container = $this->fields[$container_id] ?? array();
 		if (!is_array($container)) {
@@ -221,6 +230,11 @@ class FormsStateStore implements FormsStateStoreInterface {
 		return isset($this->groups[$container_id])
 			&& isset($this->groups[$container_id][$section_id])
 			&& isset($this->groups[$container_id][$section_id][$group_id]);
+	}
+
+	public function get_groups_map(string $container_id): array {
+		$container = $this->groups[$container_id] ?? array();
+		return is_array($container) ? $container : array();
 	}
 
 	public function get_group(string $container_id, string $section_id, string $group_id): array {

@@ -18,6 +18,8 @@ use Ran\PluginLib\Util\Logger;
 use Ran\PluginLib\Options\RegisterOptions;
 use Ran\PluginLib\Options\OptionScope;
 use Ran\PluginLib\Forms\Validation\ValidatorPipelineService;
+use Ran\PluginLib\Forms\Services\FormsStateStoreInterface;
+use Ran\PluginLib\Forms\Services\FormsStateStore;
 use Ran\PluginLib\Forms\Renderer\FormMessageHandler;
 use Ran\PluginLib\Forms\Renderer\FormElementRenderer;
 use Ran\PluginLib\Forms\FormsServiceSession;
@@ -26,8 +28,6 @@ use Ran\PluginLib\Forms\FormsAssets;
 use Ran\PluginLib\Forms\Component\ComponentRenderResult;
 use Ran\PluginLib\Forms\Component\ComponentManifest;
 use Ran\PluginLib\Forms\Component\ComponentLoader;
-use Ran\PluginLib\Forms\Services\FormsStateStore;
-use Ran\PluginLib\Forms\Services\FormsStateStoreInterface;
 use Ran\PluginLib\Config\ConfigInterface;
 
 /**
@@ -531,48 +531,7 @@ trait FormsBaseTrait {
 	 * }>
 	 */
 	protected function _get_registered_field_metadata(): array {
-		try {
-			return $this->_get_state_store()->get_registered_field_metadata();
-		} catch (\Throwable $e) {
-			// Fall back to legacy in-trait logic.
-		}
-
-		$entries = array();
-
-		foreach ($this->fields as $container_id => $sections) {
-			foreach ($sections as $section_id => $fields) {
-				foreach ($fields as $field) {
-					$field_entry = is_array($field) ? $field : array();
-					$entries[]   = array(
-						'container_id' => (string) $container_id,
-						'section_id'   => (string) $section_id,
-						'group_id'     => null,
-						'field'        => $field_entry,
-					);
-				}
-			}
-		}
-
-		foreach ($this->groups as $container_id => $sections) {
-			foreach ($sections as $section_id => $groups) {
-				foreach ($groups as $group_id => $group) {
-					$group_fields = isset($group['fields']) && is_array($group['fields']) ? $group['fields'] : array();
-					foreach ($group_fields as $field) {
-						$field_entry = is_array($field) ? $field : array();
-						$group_entry = is_array($group) ? $group : array();
-						$entries[]   = array(
-							'container_id' => (string) $container_id,
-							'section_id'   => (string) $section_id,
-							'group_id'     => (string) $group_id,
-							'field'        => $field_entry,
-							'group'        => $group_entry,
-						);
-					}
-				}
-			}
-		}
-
-		return $entries;
+		return $this->_get_state_store()->get_registered_field_metadata();
 	}
 
 	/**
@@ -584,50 +543,7 @@ trait FormsBaseTrait {
 	 * @return string|null
 	 */
 	protected function _lookup_component_alias(string $field_id): ?string {
-		try {
-			return $this->_get_state_store()->lookup_component_alias($field_id);
-		} catch (\Throwable $e) {
-			// Fall back to legacy in-trait logic.
-		}
-
-		if ($field_id === '') {
-			return null;
-		}
-
-		foreach ($this->fields as $container) {
-			foreach ($container as $section) {
-				foreach ($section as $field) {
-					if (($field['id'] ?? '') === $field_id) {
-						$component = $field['component'] ?? null;
-						return is_string($component) && $component !== '' ? $component : null;
-					}
-				}
-			}
-		}
-
-		foreach ($this->groups as $container) {
-			foreach ($container as $section) {
-				foreach ($section as $group) {
-					foreach ($group['fields'] ?? array() as $field) {
-						if (($field['id'] ?? '') === $field_id) {
-							$component = $field['component'] ?? null;
-							return is_string($component) && $component !== '' ? $component : null;
-						}
-					}
-				}
-			}
-		}
-
-		foreach ($this->submit_controls as $container) {
-			foreach ($container['controls'] ?? array() as $control) {
-				if (($control['id'] ?? '') === $field_id) {
-					$component = $control['component'] ?? null;
-					return is_string($component) && $component !== '' ? $component : null;
-				}
-			}
-		}
-
-		return null;
+		return $this->_get_state_store()->lookup_component_alias($field_id);
 	}
 
 	// -- Validation Message Helpers --
@@ -1786,8 +1702,8 @@ trait FormsBaseTrait {
 	 * @return string Rendered HTML markup.
 	 */
 	protected function _render_default_sections_wrapper(string $id_slug, array $sections, array $values): string {
-		$groups_map = $this->groups[$id_slug] ?? array();
-		$fields_map = $this->fields[$id_slug] ?? array();
+		$groups_map = $this->_get_state_store()->get_groups_map($id_slug);
+		$fields_map = $this->_get_state_store()->get_fields_map($id_slug);
 
 		if ($this->form_session === null) {
 			$this->_start_form_session();
@@ -2855,7 +2771,7 @@ trait FormsBaseTrait {
 	 */
 	protected function _container_has_file_uploads(string $container_id): bool {
 		// Check fields registered for this container
-		$container_fields = $this->fields[$container_id] ?? array();
+		$container_fields = $this->_get_state_store()->get_fields_map($container_id);
 		foreach ($container_fields as $section_id => $fields) {
 			foreach ($fields as $field) {
 				$component = $field['component'] ?? '';
@@ -2866,7 +2782,7 @@ trait FormsBaseTrait {
 		}
 
 		// Check groups registered for this container
-		$container_groups = $this->groups[$container_id] ?? array();
+		$container_groups = $this->_get_state_store()->get_groups_map($container_id);
 		foreach ($container_groups as $section_id => $groups) {
 			foreach ($groups as $group_id => $group) {
 				$group_fields = $group['fields'] ?? array();

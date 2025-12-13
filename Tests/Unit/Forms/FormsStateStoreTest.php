@@ -163,4 +163,48 @@ final class FormsStateStoreTest extends TestCase {
 
 		self::assertSame('components.text', $store->lookup_component_alias('f1'));
 	}
+
+	public function test_get_fields_map_returns_container_map_or_empty_array(): void {
+		$containers      = array();
+		$sections        = array();
+		$fields          = array(
+			'c1' => array(
+				's1' => array(
+					array('id' => 'f1'),
+				),
+			),
+		);
+		$groups          = array();
+		$submit_controls = array();
+
+		$store = new FormsStateStore($containers, $sections, $fields, $groups, $submit_controls);
+
+		self::assertSame($fields['c1'], $store->get_fields_map('c1'));
+		self::assertSame(array(), $store->get_fields_map('missing'));
+
+		$fields['broken'] = 'not-an-array';
+		self::assertSame(array(), $store->get_fields_map('broken'));
+	}
+
+	public function test_get_groups_map_returns_container_map_or_empty_array(): void {
+		$containers = array();
+		$sections   = array();
+		$fields     = array();
+		$groups     = array(
+			'c1' => array(
+				's1' => array(
+					'g1' => array('group_id' => 'g1', 'fields' => array()),
+				),
+			),
+		);
+		$submit_controls = array();
+
+		$store = new FormsStateStore($containers, $sections, $fields, $groups, $submit_controls);
+
+		self::assertSame($groups['c1'], $store->get_groups_map('c1'));
+		self::assertSame(array(), $store->get_groups_map('missing'));
+
+		$groups['broken'] = 'not-an-array';
+		self::assertSame(array(), $store->get_groups_map('broken'));
+	}
 }
