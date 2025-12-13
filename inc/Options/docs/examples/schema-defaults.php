@@ -103,9 +103,9 @@ $schema = array(
     // Upload directory with site-specific path
     'upload_directory' => array(
         'default' => function($cfg) {
-	        $upload_dir  = wp_upload_dir();
-	        $plugin_name = $cfg ? (string) ($cfg->get_config()['TextDomain'] ?? $cfg->get_options_key()) : 'my-plugin';
-	        return $upload_dir['basedir'] . '/' . $plugin_name;
+        	$upload_dir  = wp_upload_dir();
+        	$plugin_name = $cfg ? (string) ($cfg->get_config()['TextDomain'] ?? $cfg->get_options_key()) : 'my-plugin';
+        	return $upload_dir['basedir'] . '/' . $plugin_name;
         },
         'validate' => Validate::compose()->all(array(
             Validate::basic()->is_string(),
