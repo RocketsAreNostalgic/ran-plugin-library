@@ -18,8 +18,12 @@ use Ran\PluginLib\Util\Logger;
 use Ran\PluginLib\Options\RegisterOptions;
 use Ran\PluginLib\Options\OptionScope;
 use Ran\PluginLib\Forms\Validation\ValidatorPipelineService;
+use Ran\PluginLib\Forms\Services\FormsUpdateRouterInterface;
+use Ran\PluginLib\Forms\Services\FormsUpdateRouter;
 use Ran\PluginLib\Forms\Services\FormsStateStoreInterface;
 use Ran\PluginLib\Forms\Services\FormsStateStore;
+use Ran\PluginLib\Forms\Services\FormsErrorHandlerInterface;
+use Ran\PluginLib\Forms\Services\AdminFormsErrorHandler;
 use Ran\PluginLib\Forms\Renderer\FormMessageHandler;
 use Ran\PluginLib\Forms\Renderer\FormElementRenderer;
 use Ran\PluginLib\Forms\FormsServiceSession;
@@ -97,7 +101,9 @@ trait FormsBaseTrait {
 	/** @var array<string, RegisterOptions> Cache of resolved RegisterOptions by storage context key */
 	private array $__resolved_options_cache = array();
 
-	private ?FormsStateStoreInterface $__state_store = null;
+	private ?FormsStateStoreInterface $__state_store     = null;
+	private ?FormsUpdateRouterInterface $__update_router = null;
+	private ?FormsErrorHandlerInterface $__error_handler = null;
 
 	// Template override system removed - now handled by FormsTemplateOverrideResolver in FormsServiceSession
 
@@ -112,6 +118,24 @@ trait FormsBaseTrait {
 
 		$this->__state_store = new FormsStateStore($this->containers, $this->sections, $this->fields, $this->groups, $this->submit_controls);
 		return $this->__state_store;
+	}
+
+	protected function _get_update_router(): FormsUpdateRouterInterface {
+		if ($this->__update_router instanceof FormsUpdateRouterInterface) {
+			return $this->__update_router;
+		}
+
+		$this->__update_router = new FormsUpdateRouter();
+		return $this->__update_router;
+	}
+
+	protected function _get_error_handler(): FormsErrorHandlerInterface {
+		if ($this->__error_handler instanceof FormsErrorHandlerInterface) {
+			return $this->__error_handler;
+		}
+
+		$this->__error_handler = new AdminFormsErrorHandler();
+		return $this->__error_handler;
 	}
 
 	// =========================================================================
@@ -806,38 +830,40 @@ trait FormsBaseTrait {
 	 * @return void
 	 */
 	public function __handle_builder_error(\Throwable $e, string $hook): void {
-		$context = array(
-			'hook'  => $hook,
-			'class' => static::class,
-			'file'  => $e->getFile(),
-			'line'  => $e->getLine(),
-			'trace' => $e->getTraceAsString(),
+		$is_dev_environment = function (): bool {
+			if ($this->config !== null && method_exists($this->config, 'is_dev_environment')) {
+				return $this->config->is_dev_environment();
+			}
+			return \defined('WP_DEBUG') && \WP_DEBUG;
+		};
+
+		$is_admin = function (): bool {
+			return \is_admin();
+		};
+
+		$current_user_can = function (string $capability): bool {
+			return \current_user_can($capability);
+		};
+
+		$add_action = function (string $hook, callable $callback, int $priority = 10, int $accepted_args = 1): void {
+			\add_action($hook, $callback, $priority, $accepted_args);
+		};
+
+		$register_fallback_pages = function (\Throwable $e, string $hook, bool $is_dev): void {
+			$this->_register_error_fallback_pages($e, $hook, $is_dev);
+		};
+
+		$this->_get_error_handler()->handle_builder_error(
+			$e,
+			$hook,
+			$this->logger,
+			static::class,
+			$is_dev_environment,
+			$is_admin,
+			$current_user_can,
+			$add_action,
+			$register_fallback_pages
 		);
-
-		// Always log the error
-		$this->logger->error(
-			sprintf('Settings builder error on %s hook: %s', $hook, $e->getMessage()),
-			$context
-		);
-
-		// Only proceed if in admin and user can manage options
-		// Note: Using raw WP functions here since this trait is used by classes
-		// that may not have WPWrappersTrait (e.g., AdminSettings)
-		if (!\is_admin() || !\current_user_can('manage_options')) {
-			return;
-		}
-
-		$is_dev = $this->_is_dev_environment();
-
-		// Show admin notice in dev mode
-		if ($is_dev) {
-			\add_action('admin_notices', function () use ($e, $hook) {
-				$this->_render_builder_error_notice($e, $hook);
-			});
-		}
-
-		// Always register fallback error pages so routes are valid
-		$this->_register_error_fallback_pages($e, $hook, $is_dev);
 	}
 
 	/**
@@ -852,52 +878,47 @@ trait FormsBaseTrait {
 	 * @return void
 	 */
 	protected function _register_error_fallback_pages(\Throwable $e, string $hook, bool $is_dev): void {
-		// Extract page slugs from the session data that was being built
 		$page_slugs = $this->_extract_page_slugs_from_session();
 
-		if (empty($page_slugs)) {
-			return;
-		}
-
-		// Get the first slug as the main menu, rest as subpages
-		$main_slug = array_shift($page_slugs);
-
-		$register_pages = function () use ($main_slug, $page_slugs, $is_dev) {
-			// Brief page content - full error details shown in admin_notices
-			$render_error = function () use ($is_dev) {
-				ErrorNoticeRenderer::renderFallbackPage('Settings Builder Errors', 'Settings Unavailable', $is_dev);
-			};
-
-			// Register main menu page
-			$this->_do_add_menu_page(
-				$is_dev ? 'Settings Error' : 'Settings',
-				$is_dev ? 'Settings Error' : 'Settings',
-				'manage_options',
-				$main_slug,
-				$render_error,
-				$is_dev ? 'dashicons-warning' : 'dashicons-admin-generic',
-				999
-			);
-
-			// Register subpages under the main menu
-			foreach ($page_slugs as $slug) {
-				$this->_do_add_submenu_page(
-					$main_slug,
-					$is_dev ? 'Settings Error' : 'Settings',
-					$is_dev ? 'Settings Error' : 'Settings',
-					'manage_options',
-					$slug,
-					$render_error
-				);
-			}
+		$add_menu_page = function (
+			string $page_title,
+			string $menu_title,
+			string $capability,
+			string $menu_slug,
+			callable $callback,
+			string $icon_url = '',
+			?int $position = null
+		): void {
+			$this->_do_add_menu_page($page_title, $menu_title, $capability, $menu_slug, $callback, $icon_url, $position);
 		};
 
-		// Check if admin_menu has already fired
-		if ($this->_do_did_action('admin_menu')) {
-			$register_pages();
-		} else {
-			\add_action('admin_menu', $register_pages, 999);
-		}
+		$add_submenu_page = function (
+			string $parent_slug,
+			string $page_title,
+			string $menu_title,
+			string $capability,
+			string $menu_slug,
+			callable $callback
+		): void {
+			$this->_do_add_submenu_page($parent_slug, $page_title, $menu_title, $capability, $menu_slug, $callback);
+		};
+
+		$did_action = function (string $hook): bool {
+			return (bool) $this->_do_did_action($hook);
+		};
+
+		$add_action = function (string $hook, callable $callback, int $priority = 10, int $accepted_args = 1): void {
+			\add_action($hook, $callback, $priority, $accepted_args);
+		};
+
+		$this->_get_error_handler()->register_admin_menu_fallback_pages(
+			$page_slugs,
+			$is_dev,
+			$add_menu_page,
+			$add_submenu_page,
+			$did_action,
+			$add_action
+		);
 	}
 
 	/**
@@ -912,31 +933,6 @@ trait FormsBaseTrait {
 		return array();
 	}
 
-	/**
-	 * Render an admin notice for builder errors (dev mode only).
-	 *
-	 * @param \Throwable $e The caught exception or error.
-	 * @param string $hook The WordPress hook where the error occurred.
-	 * @return void
-	 */
-	protected function _render_builder_error_notice(\Throwable $e, string $hook): void {
-		ErrorNoticeRenderer::renderWithContext($e, 'Settings Builder Error', 'hook', $hook);
-	}
-
-	/**
-	 * Check if we're in a development environment.
-	 *
-	 * Uses Config if available, falls back to WP_DEBUG.
-	 *
-	 * @return bool
-	 */
-	protected function _is_dev_environment(): bool {
-		if ($this->config !== null && method_exists($this->config, 'is_dev_environment')) {
-			return $this->config->is_dev_environment();
-		}
-		return \defined('WP_DEBUG') && \WP_DEBUG;
-	}
-
 	// -- Builder Update Handlers --
 
 	/**
@@ -947,47 +943,47 @@ trait FormsBaseTrait {
 	 * @return callable The update function that handles all builder updates
 	 */
 	protected function _create_update_function(): callable {
-		return function(string $type, array $data): void {
-			switch ($type) {
-				case 'section':
-					$this->_handle_section_update($data);
-					break;
-				case 'section_metadata':
-					$this->_handle_section_metadata_update($data);
-					break;
-				case 'field':
-					$this->_handle_field_update($data);
-					break;
-				case 'group':
-					$this->_handle_group_update($data);
-					break;
-				case 'group_field':
-					$this->_handle_group_field_update($data);
-					break;
-				case 'group_metadata':
-					$this->_handle_group_metadata_update($data);
-					break;
-				case 'section_cleanup':
-					$this->_handle_section_cleanup($data);
-					break;
-				case 'template_override':
-					$this->_handle_template_override($data);
-					break;
-				case 'form_defaults_override':
-					$this->_handle_form_defaults_override($data);
-					break;
-				case 'submit_controls_zone':
-					$this->_handle_submit_controls_zone_update($data);
-					break;
-				case 'submit_controls_set':
-					$this->_handle_submit_controls_set_update($data);
-					break;
-				default:
-					// Allow concrete classes to handle implementation-specific update types
-					$this->_handle_context_update($type, $data);
-					break;
-			}
+		$handlers = array(
+			'section' => function (array $data): void {
+				$this->_handle_section_update($data);
+			},
+			'section_metadata' => function (array $data): void {
+				$this->_handle_section_metadata_update($data);
+			},
+			'field' => function (array $data): void {
+				$this->_handle_field_update($data);
+			},
+			'group' => function (array $data): void {
+				$this->_handle_group_update($data);
+			},
+			'group_field' => function (array $data): void {
+				$this->_handle_group_field_update($data);
+			},
+			'group_metadata' => function (array $data): void {
+				$this->_handle_group_metadata_update($data);
+			},
+			'section_cleanup' => function (array $data): void {
+				$this->_handle_section_cleanup($data);
+			},
+			'template_override' => function (array $data): void {
+				$this->_handle_template_override($data);
+			},
+			'form_defaults_override' => function (array $data): void {
+				$this->_handle_form_defaults_override($data);
+			},
+			'submit_controls_zone' => function (array $data): void {
+				$this->_handle_submit_controls_zone_update($data);
+			},
+			'submit_controls_set' => function (array $data): void {
+				$this->_handle_submit_controls_set_update($data);
+			},
+		);
+
+		$fallback = function (string $type, array $data): void {
+			$this->_handle_context_update($type, $data);
 		};
+
+		return $this->_get_update_router()->create_update_function($handlers, $fallback);
 	}
 
 	/**

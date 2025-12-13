@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\Tests\Unit\Forms;
 
-use PHPUnit\Framework\TestCase;
 use Ran\PluginLib\Forms\Services\FormsStateStore;
+use PHPUnit\Framework\TestCase;
 
 /**
  * @coversDefaultClass \Ran\PluginLib\Forms\Services\FormsStateStore
@@ -165,9 +165,9 @@ final class FormsStateStoreTest extends TestCase {
 	}
 
 	public function test_get_fields_map_returns_container_map_or_empty_array(): void {
-		$containers      = array();
-		$sections        = array();
-		$fields          = array(
+		$containers = array();
+		$sections   = array();
+		$fields     = array(
 			'c1' => array(
 				's1' => array(
 					array('id' => 'f1'),
