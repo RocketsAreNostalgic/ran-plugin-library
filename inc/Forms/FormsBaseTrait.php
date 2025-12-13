@@ -16,7 +16,6 @@ namespace Ran\PluginLib\Forms;
 use UnexpectedValueException;
 use Ran\PluginLib\Util\Logger;
 use Ran\PluginLib\Options\RegisterOptions;
-use Ran\PluginLib\Options\OptionScope;
 use Ran\PluginLib\Forms\Validation\ValidatorPipelineService;
 use Ran\PluginLib\Forms\Services\FormsUpdateRouterInterface;
 use Ran\PluginLib\Forms\Services\FormsUpdateRouter;
@@ -26,6 +25,8 @@ use Ran\PluginLib\Forms\Services\FormsErrorHandlerInterface;
 use Ran\PluginLib\Forms\Services\AdminFormsErrorHandler;
 use Ran\PluginLib\Forms\Services\FormsValidatorServiceInterface;
 use Ran\PluginLib\Forms\Services\FormsValidatorService;
+use Ran\PluginLib\Forms\Services\FormsSchemaServiceInterface;
+use Ran\PluginLib\Forms\Services\FormsSchemaService;
 use Ran\PluginLib\Forms\Renderer\FormMessageHandler;
 use Ran\PluginLib\Forms\Renderer\FormElementRenderer;
 use Ran\PluginLib\Forms\FormsServiceSession;
@@ -107,6 +108,7 @@ trait FormsBaseTrait {
 	private ?FormsUpdateRouterInterface $__update_router         = null;
 	private ?FormsErrorHandlerInterface $__error_handler         = null;
 	private ?FormsValidatorServiceInterface $__validator_service = null;
+	private ?FormsSchemaServiceInterface $__schema_service       = null;
 
 	// Template override system removed - now handled by FormsTemplateOverrideResolver in FormsServiceSession
 
@@ -156,6 +158,31 @@ trait FormsBaseTrait {
 			$queued_sanitizers
 		);
 		return $this->__validator_service;
+	}
+
+	protected function _get_schema_service(): FormsSchemaServiceInterface {
+		if ($this->__schema_service instanceof FormsSchemaServiceInterface) {
+			return $this->__schema_service;
+		}
+
+		$schema_bundle_cache = & $this->__schema_bundle_cache;
+		$catalogue_cache     = & $this->__catalogue_cache;
+		$this->__schema_service = new FormsSchemaService(
+			$this->base_options,
+			$this->components,
+			$this->logger,
+			$this->_get_validator_service(),
+			static::class,
+			$schema_bundle_cache,
+			$catalogue_cache,
+			fn (): ?FormsServiceSession => $this->get_form_session(),
+			function (): void {
+				$this->_start_form_session();
+			},
+			fn (): array => $this->_get_registered_field_metadata()
+		);
+
+		return $this->__schema_service;
 	}
 
 	// =========================================================================
@@ -2256,77 +2283,7 @@ trait FormsBaseTrait {
 	 * }
 	 */
 	protected function _resolve_schema_bundle(RegisterOptions $options, array $context = array()): array {
-		$storage       = $options->get_storage_context();
-		$cacheKeyParts = array(
-			$options->get_main_option_name(),
-			$storage->scope?->value ?? 'site',
-		);
-
-		// Add scope-specific identifiers only when needed
-		if ($storage->scope === OptionScope::Blog && $storage->blog_id !== null) {
-			$cacheKeyParts[] = (string) $storage->blog_id;
-		} elseif ($storage->scope === OptionScope::User && $storage->user_id !== null) {
-			$cacheKeyParts[] = (string) $storage->user_id;
-		}
-
-		$cacheKey = implode('|', $cacheKeyParts);
-
-		if (isset($this->__schema_bundle_cache[$cacheKey])) {
-			$this->logger->debug('forms.schema_bundle.cache_hit', array(
-				'key'    => $cacheKey,
-				'intent' => $context['intent'] ?? 'none',
-			));
-			return $this->__schema_bundle_cache[$cacheKey];
-		}
-
-		$schemaInternal = $options->__get_schema_internal();
-		$defaults       = array();
-		foreach ($schemaInternal as $normalizedKey => $entry) {
-			if (is_array($entry) && array_key_exists('default', $entry)) {
-				$defaults[$normalizedKey] = array('default' => $entry['default']);
-			}
-		}
-
-		$session = $this->get_form_session();
-		if ($session === null) {
-			$this->_start_form_session();
-			$session = $this->get_form_session();
-		}
-
-		// Assemble bucketed schema with queued validators/sanitizers in one call
-		$bucketedSchema   = array();
-		$metadata         = array();
-		$queuedValidators = array();
-		$queuedSanitizers = array();
-
-		if ($session !== null) {
-			$assembled        = $this->_assemble_initial_bucketed_schema($session);
-			$bucketedSchema   = $assembled['schema'];
-			$metadata         = $assembled['metadata'];
-			$queuedValidators = $assembled['queued_validators'];
-			$queuedSanitizers = $assembled['queued_sanitizers'];
-		}
-
-		$bundle = array(
-			'schema'            => $schemaInternal,
-			'defaults'          => $defaults,
-			'bucketed_schema'   => $bucketedSchema,
-			'metadata'          => $metadata,
-			'queued_validators' => $queuedValidators,
-			'queued_sanitizers' => $queuedSanitizers,
-		);
-
-		$this->__schema_bundle_cache[$cacheKey] = $bundle;
-		$this->logger->debug('forms.schema_bundle.cached', array(
-			'key'                   => $cacheKey,
-			'schema_keys'           => array_keys($schemaInternal),
-			'default_count'         => count($defaults),
-			'bucketed_count'        => count($bucketedSchema),
-			'queued_validator_keys' => array_keys($queuedValidators),
-			'queued_sanitizer_keys' => array_keys($queuedSanitizers),
-		));
-
-		return $bundle;
+		return $this->_get_schema_service()->resolve_schema_bundle($options, $context);
 	}
 
 	/**
@@ -2350,64 +2307,7 @@ trait FormsBaseTrait {
 	 * }
 	 */
 	protected function _merge_schema_bundle_sources(array $bundle): array {
-		$merged           = array();
-		$metadata         = $bundle['metadata']          ?? array();
-		$queuedValidators = $bundle['queued_validators'] ?? array();
-		$queuedSanitizers = $bundle['queued_sanitizers'] ?? array();
-
-		// Layer 1: Start with bucketed schema (component validators)
-		if (!empty($bundle['bucketed_schema'])) {
-			$merged = $bundle['bucketed_schema'];
-		}
-
-		// Layer 2: Merge in schema-level entries (developer validators)
-		// IMPORTANT: Schema validators are already registered in RegisterOptions via register_schema().
-		// We only need to merge defaults here, NOT validators, to avoid duplicate registration.
-		// The validators will be used during validation via the RegisterOptions schema.
-		if (!empty($bundle['schema'])) {
-			foreach ($bundle['schema'] as $key => $entry) {
-				if (!isset($merged[$key])) {
-					// Only include the default, not the validators (they're already registered)
-					if (array_key_exists('default', $entry)) {
-						$merged[$key] = array('default' => $entry['default']);
-					}
-				} elseif (!array_key_exists('default', $merged[$key]) && array_key_exists('default', $entry)) {
-					// Merged entry exists but has no default - add the default
-					$merged[$key]['default'] = $entry['default'];
-				}
-				// Skip merging validators - they're already in RegisterOptions
-			}
-		}
-
-		// Layer 3: Defaults only fill missing keys (for seeding, not validation override)
-		// We keep defaults separate for seeding purposes
-		$defaultsForSeeding = $bundle['defaults'] ?? array();
-		if (!empty($defaultsForSeeding)) {
-			foreach ($defaultsForSeeding as $key => $entry) {
-				if (!isset($merged[$key])) {
-					// Key not in merged schema - add it with default only
-					$merged[$key] = $entry;
-				} elseif (!array_key_exists('default', $merged[$key]) && array_key_exists('default', $entry)) {
-					// Merged entry exists but has no default - add the default
-					$merged[$key]['default'] = $entry['default'];
-				}
-			}
-		}
-
-		$this->logger->debug('forms.schema_bundle.merged', array(
-			'bucketed_count' => count($bundle['bucketed_schema'] ?? array()),
-			'schema_count'   => count($bundle['schema'] ?? array()),
-			'defaults_count' => count($defaultsForSeeding),
-			'merged_count'   => count($merged),
-		));
-
-		return array(
-			'merged_schema'        => $merged,
-			'metadata'             => $metadata,
-			'queued_validators'    => $queuedValidators,
-			'queued_sanitizers'    => $queuedSanitizers,
-			'defaults_for_seeding' => $defaultsForSeeding,
-		);
+		return $this->_get_schema_service()->merge_schema_bundle_sources($bundle);
 	}
 
 	/**
@@ -2421,49 +2321,7 @@ trait FormsBaseTrait {
 	 * @return array The merged schema entry.
 	 */
 	protected function _merge_schema_entry_buckets(array $existing, array $incoming): array {
-		$merged = $existing;
-
-		// Merge default (incoming takes precedence if both have it)
-		if (array_key_exists('default', $incoming)) {
-			$merged['default'] = $incoming['default'];
-		}
-
-		// Merge sanitize buckets
-		if (isset($incoming['sanitize']) && is_array($incoming['sanitize'])) {
-			if (!isset($merged['sanitize']) || !is_array($merged['sanitize'])) {
-				$merged['sanitize'] = array('component' => array(), 'schema' => array());
-			}
-			foreach (array('component', 'schema') as $bucket) {
-				if (isset($incoming['sanitize'][$bucket]) && is_array($incoming['sanitize'][$bucket])) {
-					$merged['sanitize'][$bucket] = array_merge(
-						$merged['sanitize'][$bucket] ?? array(),
-						$incoming['sanitize'][$bucket]
-					);
-				}
-			}
-		}
-
-		// Merge validate buckets
-		if (isset($incoming['validate']) && is_array($incoming['validate'])) {
-			if (!isset($merged['validate']) || !is_array($merged['validate'])) {
-				$merged['validate'] = array('component' => array(), 'schema' => array());
-			}
-			foreach (array('component', 'schema') as $bucket) {
-				if (isset($incoming['validate'][$bucket]) && is_array($incoming['validate'][$bucket])) {
-					$merged['validate'][$bucket] = array_merge(
-						$merged['validate'][$bucket] ?? array(),
-						$incoming['validate'][$bucket]
-					);
-				}
-			}
-		}
-
-		// Merge context if present
-		if (isset($incoming['context']) && is_array($incoming['context'])) {
-			$merged['context'] = array_merge($merged['context'] ?? array(), $incoming['context']);
-		}
-
-		return $merged;
+		return $this->_get_schema_service()->merge_schema_entry_buckets($existing, $incoming);
 	}
 
 	/**
@@ -2494,85 +2352,7 @@ trait FormsBaseTrait {
 	 * }
 	 */
 	protected function _assemble_initial_bucketed_schema(FormsServiceSession $session): array {
-		$bucketedSchema = array();
-		$metadata       = array();
-
-		// Session-scoped memoization – catalogue is fetched once and reused for all merge calls.
-		// Cache clears naturally when the trait instance is garbage collected.
-		if ($this->__catalogue_cache === null) {
-			$this->__catalogue_cache = $this->components->default_catalogue();
-			$this->logger->debug(static::class . ': Catalogue fetched and cached', array(
-				'component_count' => count($this->__catalogue_cache),
-			));
-		}
-		$manifestCatalogue = $this->__catalogue_cache;
-		$internalSchema    = $this->base_options->__get_schema_internal();
-
-		foreach ($this->_get_registered_field_metadata() as $entry) {
-			$field     = $entry['field'] ?? array();
-			$fieldId   = isset($field['id']) ? (string) $field['id'] : '';
-			$component = isset($field['component']) ? (string) $field['component'] : '';
-			if ($fieldId === '' || $component === '') {
-				continue;
-			}
-
-			$normalizedKey   = $this->base_options->normalize_schema_key($fieldId);
-			$currentEntry    = $internalSchema[$normalizedKey] ?? null;
-			$componentSchema = $field['schema']                ?? array();
-			if (!is_array($componentSchema)) {
-				$componentSchema = array();
-			}
-
-			// When schema already exists, only merge defaults if component buckets remain empty.
-			if (is_array($currentEntry)) {
-				$sanitizeComponents = (array) ($currentEntry['sanitize']['component'] ?? array());
-				$validateComponents = (array) ($currentEntry['validate']['component'] ?? array());
-				if ($sanitizeComponents === array() || $validateComponents === array()) {
-					// Strip schema sanitizers/validators before merging - they're already in RegisterOptions
-					// and will be used during sanitization/validation. Including them here would cause duplicates.
-					$entryForMerge = $currentEntry;
-					if (isset($entryForMerge['sanitize']['schema'])) {
-						$entryForMerge['sanitize']['schema'] = array();
-					}
-					if (isset($entryForMerge['validate']['schema'])) {
-						$entryForMerge['validate']['schema'] = array();
-					}
-					$merged                         = $session->merge_schema_with_defaults($component, $entryForMerge, $manifestCatalogue);
-					$bucketedSchema[$normalizedKey] = $merged;
-					// A component requires a validator if it has a validator factory registered
-					$validatorFactories = $this->components->validator_factories();
-					if (isset($validatorFactories[$component])) {
-						$metadata[$normalizedKey]['requires_validator'] = true;
-					}
-				}
-				continue;
-			}
-
-			$merged                         = $session->merge_schema_with_defaults($component, $componentSchema, $manifestCatalogue);
-			$bucketedSchema[$normalizedKey] = $merged;
-
-			// A component requires a validator if it has a validator factory registered
-			$validatorFactories = $this->components->validator_factories();
-			if (isset($validatorFactories[$component])) {
-				$metadata[$normalizedKey]['requires_validator'] = true;
-			}
-		}
-
-		// Consume queued validators and sanitizers as part of assembly
-		$queuedValidators = array();
-		$queuedSanitizers = array();
-
-		if ($bucketedSchema !== array()) {
-			list($bucketedSchema, $queuedValidators) = $this->_consume_component_validator_queue($bucketedSchema);
-			list($bucketedSchema, $queuedSanitizers) = $this->_consume_component_sanitizer_queue($bucketedSchema);
-		}
-
-		return array(
-			'schema'            => $bucketedSchema,
-			'metadata'          => $metadata,
-			'queued_validators' => $queuedValidators,
-			'queued_sanitizers' => $queuedSanitizers,
-		);
+		return $this->_get_schema_service()->assemble_initial_bucketed_schema($session);
 	}
 
 	/**
