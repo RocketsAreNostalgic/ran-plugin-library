@@ -26,6 +26,8 @@ use Ran\PluginLib\Forms\FormsAssets;
 use Ran\PluginLib\Forms\Component\ComponentRenderResult;
 use Ran\PluginLib\Forms\Component\ComponentManifest;
 use Ran\PluginLib\Forms\Component\ComponentLoader;
+use Ran\PluginLib\Forms\Services\FormsStateStore;
+use Ran\PluginLib\Forms\Services\FormsStateStoreInterface;
 use Ran\PluginLib\Config\ConfigInterface;
 
 /**
@@ -95,11 +97,22 @@ trait FormsBaseTrait {
 	/** @var array<string, RegisterOptions> Cache of resolved RegisterOptions by storage context key */
 	private array $__resolved_options_cache = array();
 
+	private ?FormsStateStoreInterface $__state_store = null;
+
 	// Template override system removed - now handled by FormsTemplateOverrideResolver in FormsServiceSession
 
 	private int $__section_index = 0;
 	private int $__field_index   = 0;
 	private int $__group_index   = 0;
+
+	protected function _get_state_store(): FormsStateStoreInterface {
+		if ($this->__state_store instanceof FormsStateStoreInterface) {
+			return $this->__state_store;
+		}
+
+		$this->__state_store = new FormsStateStore($this->containers, $this->sections, $this->fields, $this->groups, $this->submit_controls);
+		return $this->__state_store;
+	}
 
 	// =========================================================================
 	// ABSTRACT METHODS (Contract for implementers)
@@ -518,6 +531,12 @@ trait FormsBaseTrait {
 	 * }>
 	 */
 	protected function _get_registered_field_metadata(): array {
+		try {
+			return $this->_get_state_store()->get_registered_field_metadata();
+		} catch (\Throwable $e) {
+			// Fall back to legacy in-trait logic.
+		}
+
 		$entries = array();
 
 		foreach ($this->fields as $container_id => $sections) {
@@ -565,6 +584,12 @@ trait FormsBaseTrait {
 	 * @return string|null
 	 */
 	protected function _lookup_component_alias(string $field_id): ?string {
+		try {
+			return $this->_get_state_store()->lookup_component_alias($field_id);
+		} catch (\Throwable $e) {
+			// Fall back to legacy in-trait logic.
+		}
+
 		if ($field_id === '') {
 			return null;
 		}
@@ -1070,14 +1095,16 @@ trait FormsBaseTrait {
 		$before = $data['before'] ?? null;
 		$after  = $data['after']  ?? null;
 
-		$current_controls = $this->submit_controls[$container_id]['controls'] ?? array();
-
-		$this->submit_controls[$container_id] = array(
+		$existing_payload = $this->_get_state_store()->get_submit_controls($container_id);
+		$current_controls = $existing_payload['controls'] ?? array();
+		$current_controls = is_array($current_controls) ? $current_controls : array();
+		$updated_payload  = array(
 			'zone_id'  => $zone_id,
 			'before'   => is_callable($before) ? $before : null,
 			'after'    => is_callable($after) ? $after : null,
 			'controls' => $current_controls,
 		);
+		$this->_get_state_store()->set_submit_controls($container_id, $updated_payload);
 
 		$this->logger->debug('forms.submit_controls.zone.updated', array(
 			'container_id' => $container_id,
@@ -1105,17 +1132,17 @@ trait FormsBaseTrait {
 			return;
 		}
 
-		$existing = $this->submit_controls[$container_id] ?? null;
-		if ($existing === null) {
+		if (!$this->_get_state_store()->has_submit_controls($container_id)) {
 			$this->logger->warning('Submit controls update received without matching zone', array(
 				'container_id' => $container_id,
 				'zone_id'      => $zone_id,
 			));
 			return;
 		}
+		$existing = $this->_get_state_store()->get_submit_controls($container_id);
 
 		if (($existing['zone_id'] ?? '') === '') {
-			$this->submit_controls[$container_id]['zone_id'] = $zone_id;
+			$existing['zone_id'] = $zone_id;
 		}
 
 		$controls = $data['controls'] ?? array();
@@ -1169,7 +1196,8 @@ trait FormsBaseTrait {
 			$normalized = array_values($normalized);
 		}
 
-		$this->submit_controls[$container_id]['controls'] = $normalized;
+		$existing['controls'] = $normalized;
+		$this->_get_state_store()->set_submit_controls($container_id, $existing);
 		if (!empty($normalized)) {
 			$this->logger->debug('forms.submit_controls.controls.updated', array(
 				'container_id' => $container_id,
@@ -1201,13 +1229,7 @@ trait FormsBaseTrait {
 			return;
 		}
 
-		// Initialize arrays if needed
-		if (!isset($this->sections[$container_id])) {
-			$this->sections[$container_id] = array();
-		}
-
-		// Store section with proper indexing
-		$this->sections[$container_id][$section_id] = array(
+		$section_entry = array(
 			'title'          => (string) ($section_data['title'] ?? ''),
 			'description_cb' => $section_data['description_cb'] ?? null,
 			'before'         => $section_data['before']         ?? null,
@@ -1216,6 +1238,8 @@ trait FormsBaseTrait {
 			'index'          => $this->__section_index++,
 			'style'          => trim((string) ($section_data['style'] ?? '')),
 		);
+
+		$this->_get_state_store()->set_section($container_id, $section_id, $section_entry);
 	}
 
 	/**
@@ -1234,22 +1258,24 @@ trait FormsBaseTrait {
 			return;
 		}
 
-		if (!isset($this->sections[$container_id][$section_id])) {
+		if (!$this->_get_state_store()->has_section($container_id, $section_id)) {
 			$this->logger->warning('FormsBaseTrait: Section metadata update received before section registration', $data);
 			return;
 		}
 
-		$section                   = &$this->sections[$container_id][$section_id];
-		$section['title']          = (string) ($group_data['heading'] ?? $section['title']);
-		$section['description_cb'] = $group_data['description'] ?? $section['description_cb'];
-		$section['before']         = $group_data['before']      ?? $section['before'];
-		$section['after']          = $group_data['after']       ?? $section['after'];
+		$section                   = $this->_get_state_store()->get_section($container_id, $section_id);
+		$section['title']          = (string) ($group_data['heading'] ?? ($section['title'] ?? ''));
+		$section['description_cb'] = $group_data['description'] ?? ($section['description_cb'] ?? null);
+		$section['before']         = $group_data['before']      ?? ($section['before'] ?? null);
+		$section['after']          = $group_data['after']       ?? ($section['after'] ?? null);
 		if (array_key_exists('order', $group_data) && $group_data['order'] !== null) {
 			$section['order'] = (int) $group_data['order'];
 		}
 		if (array_key_exists('style', $group_data)) {
 			$section['style'] = trim((string) $group_data['style']);
 		}
+
+		$this->_get_state_store()->set_section($container_id, $section_id, $section);
 	}
 
 	/**
@@ -1281,14 +1307,6 @@ trait FormsBaseTrait {
 			throw new \InvalidArgumentException(sprintf('Field "%s" in container "%s" must provide array component_context.', $field_id, $container_id));
 		}
 
-		// Initialize arrays if needed
-		if (!isset($this->fields[$container_id])) {
-			$this->fields[$container_id] = array();
-		}
-		if (!isset($this->fields[$container_id][$section_id])) {
-			$this->fields[$container_id][$section_id] = array();
-		}
-
 		$orderProvided = array_key_exists('order', $field_data ?? array()) && $field_data['order'] !== null;
 		$orderValue    = $orderProvided ? (int) $field_data['order'] : 0;
 
@@ -1303,7 +1321,7 @@ trait FormsBaseTrait {
 			'after'             => $field_data['after']  ?? null,
 		);
 
-		$fields  = & $this->fields[$container_id][$section_id];
+		$fields  = $this->_get_state_store()->get_fields($container_id, $section_id);
 		$updated = false;
 
 		foreach ($fields as $idx => $existing_field) {
@@ -1335,7 +1353,7 @@ trait FormsBaseTrait {
 		usort($fields, function(array $a, array $b): int {
 			return ($a['index'] ?? 0) <=> ($b['index'] ?? 0);
 		});
-		$this->fields[$container_id][$section_id] = array_values($fields);
+		$this->_get_state_store()->set_fields($container_id, $section_id, array_values($fields));
 	}
 
 	/**
@@ -1353,14 +1371,6 @@ trait FormsBaseTrait {
 		if ($container_id === '' || $section_id === '' || $group_id === '') {
 			$this->logger->warning('FormsBaseTrait: Group update missing required IDs', $data);
 			return;
-		}
-
-		// Initialize arrays if needed
-		if (!isset($this->groups[$container_id])) {
-			$this->groups[$container_id] = array();
-		}
-		if (!isset($this->groups[$container_id][$section_id])) {
-			$this->groups[$container_id][$section_id] = array();
 		}
 
 		// Normalize group fields with proper indexing
@@ -1408,7 +1418,7 @@ trait FormsBaseTrait {
 		// Store group with proper indexing
 		$title = $group_data['heading'] ?? $group_data['title'] ?? '';
 
-		$this->groups[$container_id][$section_id][$group_id] = array(
+		$group_entry = array(
 			'group_id' => $group_id,
 			'title'    => (string) $title,
 			'fields'   => $normalized_fields,
@@ -1419,6 +1429,8 @@ trait FormsBaseTrait {
 			'required' => (bool) ($group_data['required'] ?? false),
 			'index'    => $this->__group_index++,
 		);
+
+		$this->_get_state_store()->set_group($container_id, $section_id, $group_id, $group_entry);
 	}
 
 	/**
@@ -1451,34 +1463,25 @@ trait FormsBaseTrait {
 			throw new \InvalidArgumentException(sprintf('Group field "%s" in group "%s" must provide array component_context.', $field_id, $group_id));
 		}
 
-		// Initialize arrays if needed
-		if (!isset($this->groups[$container_id])) {
-			$this->groups[$container_id] = array();
-		}
-		if (!isset($this->groups[$container_id][$section_id])) {
-			$this->groups[$container_id][$section_id] = array();
-		}
-		if (!isset($this->groups[$container_id][$section_id][$group_id])) {
-			$this->groups[$container_id][$section_id][$group_id] = array(
+		if (!$this->_get_state_store()->has_group($container_id, $section_id, $group_id)) {
+			$this->_get_state_store()->set_group($container_id, $section_id, $group_id, array(
 				'group_id' => $group_id,
-				'title'    => '', // Will be set when group metadata is sent
+				'title'    => '',
 				'fields'   => array(),
 				'before'   => null,
 				'after'    => null,
 				'order'    => 0,
 				'index'    => $this->__group_index++,
-			);
+			));
 		}
 
-		// Ensure section-level field container exists (for sections with only groups)
-		if (!isset($this->fields[$container_id])) {
-			$this->fields[$container_id] = array();
-		}
-		if (!isset($this->fields[$container_id][$section_id])) {
-			$this->fields[$container_id][$section_id] = array();
+		if (!$this->_get_state_store()->has_fields($container_id, $section_id)) {
+			$this->_get_state_store()->set_fields($container_id, $section_id, array());
 		}
 
-		$fields        = & $this->groups[$container_id][$section_id][$group_id]['fields'];
+		$group         = $this->_get_state_store()->get_group($container_id, $section_id, $group_id);
+		$fields        = $group['fields'] ?? array();
+		$fields        = is_array($fields) ? $fields : array();
 		$updated       = false;
 		$orderProvided = array_key_exists('order', $field_data ?? array()) && $field_data['order'] !== null;
 		$orderValue    = $orderProvided ? (int) $field_data['order'] : 0;
@@ -1524,7 +1527,8 @@ trait FormsBaseTrait {
 		usort($fields, function(array $a, array $b): int {
 			return ($a['index'] ?? 0) <=> ($b['index'] ?? 0);
 		});
-		$this->groups[$container_id][$section_id][$group_id]['fields'] = array_values($fields);
+		$group['fields'] = array_values($fields);
+		$this->_get_state_store()->set_group($container_id, $section_id, $group_id, $group);
 	}
 
 	/**
@@ -1544,49 +1548,41 @@ trait FormsBaseTrait {
 			return;
 		}
 
-		// Initialize arrays if needed
-		if (!isset($this->groups[$container_id])) {
-			$this->groups[$container_id] = array();
-		}
-		if (!isset($this->groups[$container_id][$section_id])) {
-			$this->groups[$container_id][$section_id] = array();
-		}
-		if (!isset($this->groups[$container_id][$section_id][$group_id])) {
-			$this->groups[$container_id][$section_id][$group_id] = array(
+		if (!$this->_get_state_store()->has_group($container_id, $section_id, $group_id)) {
+			$this->_get_state_store()->set_group($container_id, $section_id, $group_id, array(
 				'group_id' => $group_id,
 				'fields'   => array(),
 				'index'    => $this->__group_index++,
 				'before'   => null,
 				'after'    => null,
-			);
+			));
 		}
 
-		// Ensure the corresponding section field container exists even if no standalone fields were added
-		if (!isset($this->fields[$container_id])) {
-			$this->fields[$container_id] = array();
-		}
-		if (!isset($this->fields[$container_id][$section_id])) {
-			$this->fields[$container_id][$section_id] = array();
+		if (!$this->_get_state_store()->has_fields($container_id, $section_id)) {
+			$this->_get_state_store()->set_fields($container_id, $section_id, array());
 		}
 
 		// Update group metadata
 		$title = $group_data['heading'] ?? $group_data['title'] ?? '';
 
-		$this->groups[$container_id][$section_id][$group_id]['title'] = (string) $title;
+		$group          = $this->_get_state_store()->get_group($container_id, $section_id, $group_id);
+		$group['title'] = (string) $title;
 		// Only update before/after if explicitly provided (preserve existing values)
 		if (array_key_exists('before', $group_data)) {
-			$this->groups[$container_id][$section_id][$group_id]['before'] = $group_data['before'];
+			$group['before'] = $group_data['before'];
 		}
 		if (array_key_exists('after', $group_data)) {
-			$this->groups[$container_id][$section_id][$group_id]['after'] = $group_data['after'];
+			$group['after'] = $group_data['after'];
 		}
-		$this->groups[$container_id][$section_id][$group_id]['order'] = (int) ($group_data['order'] ?? 0);
-		$this->groups[$container_id][$section_id][$group_id]['style'] = trim((string) ($group_data['style'] ?? ''));
-		$this->groups[$container_id][$section_id][$group_id]['type']  = (string) ($group_data['type'] ?? 'group');
+		$group['order'] = (int) ($group_data['order'] ?? 0);
+		$group['style'] = trim((string) ($group_data['style'] ?? ''));
+		$group['type']  = (string) ($group_data['type'] ?? 'group');
 		// Fieldset-specific attributes
-		$this->groups[$container_id][$section_id][$group_id]['form']     = (string) ($group_data['form'] ?? '');
-		$this->groups[$container_id][$section_id][$group_id]['name']     = (string) ($group_data['name'] ?? '');
-		$this->groups[$container_id][$section_id][$group_id]['disabled'] = (bool) ($group_data['disabled'] ?? false);
+		$group['form']     = (string) ($group_data['form'] ?? '');
+		$group['name']     = (string) ($group_data['name'] ?? '');
+		$group['disabled'] = (bool) ($group_data['disabled'] ?? false);
+
+		$this->_get_state_store()->set_group($container_id, $section_id, $group_id, $group);
 	}
 
 	/**
