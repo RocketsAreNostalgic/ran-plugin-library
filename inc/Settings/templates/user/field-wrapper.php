@@ -15,7 +15,6 @@
  *     context?: array
  * } $context
  */
-use Ran\PluginLib\Forms\Component\ComponentType;
 use Ran\PluginLib\Forms\Component\ComponentRenderResult;
 
 // Prevent direct access
@@ -27,8 +26,7 @@ $inner_html = isset($context['inner_html']) ? (string) $context['inner_html'] : 
 
 if ($inner_html === '') {
 	return new ComponentRenderResult(
-		markup: '',
-		component_type: ComponentType::LayoutWrapper
+		markup: ''
 	);
 }
 
@@ -85,6 +83,5 @@ ob_start();
 </tr>
 <?php
 return new ComponentRenderResult(
-	markup: (string) ob_get_clean(),
-	component_type: 'layout_wrapper'
+	markup: (string) ob_get_clean()
 );

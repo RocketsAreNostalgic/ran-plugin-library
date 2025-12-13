@@ -151,12 +151,16 @@ final class AdminSettingsMenuGroupBuilder {
 		$capability = (string) ($args['capability'] ?? ($this->meta['capability'] ?? 'manage_options'));
 		$order      = isset($args['order']) ? max(0, (int) $args['order']) : count($this->active_pages);
 
-		$initial_meta = array(
-		    'heading'     => $heading,
-		    'menu_title'  => $menu_title,
-		    'capability'  => $capability,
-		    'order'       => $order,
-		    'description' => $args['description'] ?? null,
+		// Start with base meta, then merge in all args to preserve style, before, after, etc.
+		$initial_meta = array_merge(
+			$args,
+			array(
+				'heading'     => $heading,
+				'menu_title'  => $menu_title,
+				'capability'  => $capability,
+				'order'       => $order,
+				'description' => $args['description'] ?? null,
+			)
 		);
 
 		$builder = new AdminSettingsPageBuilder(

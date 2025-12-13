@@ -615,8 +615,7 @@ class ComponentLoader {
 				$payload['style']  ?? null,
 				(bool) ($payload['requires_media'] ?? false),
 				(bool) ($payload['repeatable'] ?? false),
-				$payload['context_schema'] ?? array(),
-				(string) ($payload['component_type'] ?? 'input')
+				$payload['context_schema'] ?? array()
 			);
 		}
 

@@ -166,7 +166,7 @@ final class RegisterOptionsConstructorDefaultArgsTest extends PluginLibTestCase 
 	 */
 	public function test_constructor_user_with_context(): void {
 		$cfg  = $this->makeConfig();
-		$ctx  = StorageContext::forUser(7, 'option', true);
+		$ctx  = StorageContext::forUserId(7, 'option', true);
 		$opts = new RegisterOptions($cfg->get_options_key(), $ctx, true, $this->logger_mock);
 		$this->assertInstanceOf(RegisterOptions::class, $opts);
 	}

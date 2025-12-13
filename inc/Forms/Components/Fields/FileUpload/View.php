@@ -147,6 +147,5 @@ return new ComponentRenderResult(
 			'required'       => false,
 			'value'          => null,
 		),
-	),
-	component_type: 'input'
+	)
 );

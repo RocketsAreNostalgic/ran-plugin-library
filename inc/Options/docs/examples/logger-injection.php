@@ -26,7 +26,7 @@ $siteOptions->stage_option('feature_enabled', true)->commit_replace();
 
 // User-scoped options using the same logger
 $userOptions = $config->options(
-	StorageContext::forUser((int) get_current_user_id(), 'meta', false),
+	StorageContext::forUserId((int) get_current_user_id(), 'meta', false),
 	false
 );
 $userOptions->stage_option('dashboard_prefs', array('layout' => 'compact'))->commit_replace();
@@ -37,6 +37,7 @@ var_dump($logger->collected_logs);
 // Alternate: construct explicitly with typed context (logger comes from Config)
 $explicit = new RegisterOptions(
 	$config->get_options_key(),
-	StorageContext::forUser((int) get_current_user_id(), 'meta', true),
-	false
+	StorageContext::forUserId((int) get_current_user_id(), 'meta', true),
+	false,
+	$config->get_logger()
 );

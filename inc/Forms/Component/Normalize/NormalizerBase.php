@@ -43,7 +43,7 @@ abstract class NormalizerBase implements NormalizeInterface {
 		$this->session = $session;
 		$this->logger  = $session->get_logger();
 
-		// Extract component info from alias (e.g., "fields.checkbox" -> type: "checkbox", template: "fields.checkbox")
+		// Extract component info from alias (e.g., "fields.checkbox" -> type: "checkbox")
 		$this->componentType = $this->_extract_component_type($componentAlias);
 		$templateName        = $componentAlias; // Alias IS the template name
 
@@ -163,7 +163,6 @@ abstract class NormalizerBase implements NormalizeInterface {
 			// Log the integration for debugging
 			$this->logger->debug('Validation warnings integrated into component context', array(
 				'field_id'       => $field_id,
-				'component_type' => $this->componentType,
 				'warning_count'  => count($validation_warnings),
 				'total_warnings' => count($context['warnings'])
 			));
@@ -186,10 +185,9 @@ abstract class NormalizerBase implements NormalizeInterface {
 
 			// Log the integration for debugging
 			$this->logger->debug('Display notices integrated into component context', array(
-				'field_id'       => $field_id,
-				'component_type' => $this->componentType,
-				'notice_count'   => count($display_notices),
-				'total_notices'  => count($context['notices'])
+				'field_id'      => $field_id,
+				'notice_count'  => count($display_notices),
+				'total_notices' => count($context['notices'])
 			));
 
 			// Remove the temporary display notices to avoid duplication
@@ -206,6 +204,7 @@ abstract class NormalizerBase implements NormalizeInterface {
 	protected function _normalize_component_specific(array $context): array {
 		return $context;
 	}
+
 
 	/**
 	 * Extract component type from alias for session state.
@@ -426,10 +425,9 @@ abstract class NormalizerBase implements NormalizeInterface {
 			$error = "Configuration field '{$fieldName}' must be a string, got " . gettype($value);
 
 			$this->logger->error('Invalid configuration string type', array(
-				'field_name'     => $fieldName,
-				'expected_type'  => 'string',
-				'actual_type'    => gettype($value),
-				'component_type' => $this->componentType
+				'field_name'    => $fieldName,
+				'expected_type' => 'string',
+				'actual_type'   => gettype($value),
 			));
 
 			throw new \InvalidArgumentException($error);
@@ -439,8 +437,7 @@ abstract class NormalizerBase implements NormalizeInterface {
 			return Helpers::sanitizeConfigString((string) $value, $fieldName, $this->logger);
 		} catch (InvalidArgumentException $exception) {
 			$this->logger->error('Empty configuration string', array(
-				'field_name'     => $fieldName,
-				'component_type' => $this->componentType
+				'field_name' => $fieldName,
 			));
 			throw $exception;
 		}
@@ -464,10 +461,9 @@ abstract class NormalizerBase implements NormalizeInterface {
 			$error = "Configuration field '{$fieldName}' must be an array, got " . gettype($value);
 
 			$this->logger->error('Invalid configuration array type', array(
-				'field_name'     => $fieldName,
-				'expected_type'  => 'array',
-				'actual_type'    => gettype($value),
-				'component_type' => $this->componentType
+				'field_name'    => $fieldName,
+				'expected_type' => 'array',
+				'actual_type'   => gettype($value),
 			));
 
 			throw new \InvalidArgumentException($error);
@@ -501,7 +497,7 @@ abstract class NormalizerBase implements NormalizeInterface {
 				'field_name'     => $fieldName,
 				'provided_value' => $value,
 				'allowed_values' => $allowedValues,
-				'component_type' => $this->componentType
+				''               => $this->componentType
 			));
 
 			throw new \InvalidArgumentException($error);

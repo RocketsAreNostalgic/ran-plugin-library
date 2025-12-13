@@ -313,7 +313,8 @@ final class AdminSettingsBehaviorTest extends PluginLibTestCase {
 			$this->settings->__render('missing-page');
 		});
 
-		$this->assertStringContainsString('Unknown settings page', $output);
+		// In production mode (WP_DEBUG=false), shows generic error message
+		$this->assertStringContainsString('Settings Error', $output);
 	}
 
 	/* issue */
@@ -615,8 +616,7 @@ final class AdminSettingsBehaviorTest extends PluginLibTestCase {
 			$fieldId = htmlspecialchars((string) ($context['field_id'] ?? ''), ENT_QUOTES);
 			$value   = htmlspecialchars((string) ($context['value'] ?? ''), ENT_QUOTES);
 			return new ComponentRenderResult(
-				'<input name="' . $fieldId . '" value="' . $value . '" />',
-				component_type: 'input'
+				'<input name="' . $fieldId . '" value="' . $value . '" />'
 			);
 		});
 
@@ -630,7 +630,7 @@ final class AdminSettingsBehaviorTest extends PluginLibTestCase {
 				}
 				return true;
 			}),
-			'context' => array('component_type' => 'input'),
+			
 		));
 		$this->setManifestValidatorClass($alias, AdminSettingsBehaviorTest_PassThroughValidator::class);
 
@@ -744,14 +744,13 @@ final class AdminSettingsBehaviorTest extends PluginLibTestCase {
 		$this->manifest->register($alias, static function (array $context): ComponentRenderResult {
 			$fieldId = htmlspecialchars((string) ($context['field_id'] ?? ''), ENT_QUOTES);
 			return new ComponentRenderResult(
-				'<input name="' . $fieldId . '" />',
-				component_type: 'input'
+				'<input name="' . $fieldId . '" />'
 			);
 		});
 
 		$this->injectBuilderFactory($alias);
 		$this->injectManifestDefaults($alias, array(
-			'context'  => array('component_type' => 'input'),
+			
 			'validate' => array(static fn ($value, callable $emitWarning): bool => true),
 		));
 
@@ -837,16 +836,14 @@ final class AdminSettingsBehaviorTest extends PluginLibTestCase {
 			$markup .= '</div>';
 
 			return new ComponentRenderResult(
-				$markup,
-				component_type: 'layout_wrapper'
+				$markup
 			);
 		});
 
 		$this->manifest->register('field-wrapper', static function (array $context): ComponentRenderResult {
 			$componentHtml = (string) ($context['inner_html'] ?? '');
 			return new ComponentRenderResult(
-				'<div class="test-field-wrapper">' . $componentHtml . '</div>',
-				component_type: ComponentType::LayoutWrapper
+				'<div class="test-field-wrapper">' . $componentHtml . '</div>'
 			);
 		});
 
@@ -854,8 +851,7 @@ final class AdminSettingsBehaviorTest extends PluginLibTestCase {
 			$fieldId = htmlspecialchars($context['field_id'] ?? 'field', ENT_QUOTES);
 			$value   = htmlspecialchars((string) ($context['value'] ?? ''), ENT_QUOTES);
 			return new ComponentRenderResult(
-				'<input name="' . $fieldId . '" value="' . $value . '" />',
-				component_type: 'input'
+				'<input name="' . $fieldId . '" value="' . $value . '" />'
 			);
 		});
 
@@ -863,14 +859,13 @@ final class AdminSettingsBehaviorTest extends PluginLibTestCase {
 		$this->injectManifestDefaults('fields.input', array(
 			'sanitize' => array(static fn (mixed $value): string => is_string($value) ? trim($value) : ''),
 			'validate' => array(static fn (mixed $value, callable $emitWarning): bool => true),
-			'context'  => array('component_type' => 'input'),
+			
 		));
 
 		$this->manifest->register('admin.pages.behavior-page', static function (array $context): ComponentRenderResult {
 			$content = $context['inner_html'] ?? '';
 			return new ComponentRenderResult(
-				'<div class="admin-page">' . $content . '</div>',
-				component_type: 'layout_wrapper'
+				'<div class="admin-page">' . $content . '</div>'
 			);
 		});
 
@@ -878,8 +873,7 @@ final class AdminSettingsBehaviorTest extends PluginLibTestCase {
 			$zone    = htmlspecialchars((string) ($context['zone_id'] ?? ''), ENT_QUOTES);
 			$content = $context['inner_html'] ?? '';
 			return new ComponentRenderResult(
-				'<div class="submit-wrapper" data-zone="' . $zone . '">' . $content . '</div>',
-				component_type: 'layout_wrapper'
+				'<div class="submit-wrapper" data-zone="' . $zone . '">' . $content . '</div>'
 			);
 		});
 
@@ -887,8 +881,7 @@ final class AdminSettingsBehaviorTest extends PluginLibTestCase {
 			$type  = htmlspecialchars((string) ($context['type'] ?? 'button'), ENT_QUOTES);
 			$label = htmlspecialchars((string) ($context['label'] ?? ''), ENT_QUOTES);
 			return new ComponentRenderResult(
-				'<button type="' . $type . '">' . $label . '</button>',
-				component_type: 'input'
+				'<button type="' . $type . '">' . $label . '</button>'
 			);
 		});
 	}
@@ -998,8 +991,7 @@ final class AdminSettingsBehaviorTest extends PluginLibTestCase {
 
 			return new ComponentRenderResult(
 				'<div data-asset-field="' . htmlspecialchars((string) ($context['field_id'] ?? ''), ENT_QUOTES) . '">Asset Field</div>',
-				script: $script,
-				component_type: 'input'
+				script: $script
 			);
 		});
 

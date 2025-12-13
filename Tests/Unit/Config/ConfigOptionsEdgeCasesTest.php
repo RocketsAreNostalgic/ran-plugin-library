@@ -142,7 +142,7 @@ final class ConfigOptionsEdgeCasesTest extends PluginLibTestCase {
 
 		$this->expectException(\InvalidArgumentException::class);
 		// Invalid user id should throw from StorageContext
-		$cfg->options(StorageContext::forUser(0, 'meta', false));
+		$cfg->options(StorageContext::forUserId(0, 'meta', false));
 	}
 
 	/**
@@ -211,7 +211,7 @@ final class ConfigOptionsEdgeCasesTest extends PluginLibTestCase {
 		WP_Mock::userFunction('get_option')->andReturn(array());
 		WP_Mock::userFunction('get_user_meta')->andReturn(array());
 
-		$opts = $cfg->options(StorageContext::forUser(42, 'meta', false));
+		$opts = $cfg->options(StorageContext::forUserId(42, 'meta', false));
 
 		$this->assertInstanceOf(\Ran\PluginLib\Options\RegisterOptions::class, $opts);
 	}
@@ -235,7 +235,7 @@ final class ConfigOptionsEdgeCasesTest extends PluginLibTestCase {
 		WP_Mock::userFunction('get_option')->andReturn(array());
 		WP_Mock::userFunction('get_user_option')->andReturn(array());
 
-		$opts = $cfg->options(StorageContext::forUser(42, 'option', false));
+		$opts = $cfg->options(StorageContext::forUserId(42, 'option', false));
 
 		$this->assertInstanceOf(\Ran\PluginLib\Options\RegisterOptions::class, $opts);
 	}
@@ -260,7 +260,7 @@ final class ConfigOptionsEdgeCasesTest extends PluginLibTestCase {
 		// Mock user meta function for user scope with meta storage (default when null)
 		WP_Mock::userFunction('get_user_meta')->andReturn(array());
 
-		$opts = $cfg->options(StorageContext::forUser(42, 'meta', false));
+		$opts = $cfg->options(StorageContext::forUserId(42, 'meta', false));
 
 		$this->assertInstanceOf(\Ran\PluginLib\Options\RegisterOptions::class, $opts);
 	}
@@ -427,7 +427,7 @@ final class ConfigOptionsEdgeCasesTest extends PluginLibTestCase {
 		// Mock user meta function for user scope with enum
 		WP_Mock::userFunction('get_user_meta')->andReturn(array());
 
-		$opts = $cfg->options(StorageContext::forUser(42, 'meta', true));
+		$opts = $cfg->options(StorageContext::forUserId(42, 'meta', true));
 
 		$this->assertInstanceOf(\Ran\PluginLib\Options\RegisterOptions::class, $opts);
 	}

@@ -136,7 +136,6 @@ class FormsServiceSessionTest extends TestCase {
 		// Mock ComponentRenderResult
 		$render_result = new ComponentRenderResult(
 			markup: '<div>Test Field</div>',
-			component_type: 'input'
 		);
 
 		// Expect ComponentManifest to be called with resolved template key
@@ -179,8 +178,7 @@ class FormsServiceSessionTest extends TestCase {
 
 		// Mock ComponentRenderResult
 		$render_result = new ComponentRenderResult(
-			markup: '<div>Special Field</div>',
-			component_type: 'input'
+			markup: '<div>Special Field</div>'
 		);
 
 		// Expect ComponentManifest to be called with individual override template key
@@ -374,8 +372,7 @@ class FormsServiceSessionTest extends TestCase {
 	public function test_existing_render_component_still_works(): void {
 		// Mock ComponentRenderResult
 		$render_result = new ComponentRenderResult(
-			markup: '<div>Component</div>',
-			component_type: 'input'
+			markup: '<div>Component</div>'
 		);
 
 		// Expect ComponentManifest to be called directly
@@ -413,8 +410,7 @@ class FormsServiceSessionTest extends TestCase {
 		));
 
 		$render_result = new ComponentRenderResult(
-			markup: '<div>Rendered</div>',
-			component_type: 'input'
+			markup: '<div>Rendered</div>'
 		);
 
 		/** @var ComponentManifest&MockObject $manifest */
@@ -464,18 +460,15 @@ class FormsServiceSessionTest extends TestCase {
 
 		// Mock ComponentRenderResults
 		$regular_field_result = new ComponentRenderResult(
-			markup: '<div>Regular Field</div>',
-			component_type: 'input'
+			markup: '<div>Regular Field</div>'
 		);
 
 		$special_field_result = new ComponentRenderResult(
-			markup: '<div>Special Field</div>',
-			component_type: 'input'
+			markup: '<div>Special Field</div>'
 		);
 
 		$section_result = new ComponentRenderResult(
-			markup: '<section>Custom Section</section>',
-			component_type: 'layout_wrapper'
+			markup: '<section>Custom Section</section>'
 		);
 
 		// Set up expectations using callback pattern (replaces deprecated withConsecutive)

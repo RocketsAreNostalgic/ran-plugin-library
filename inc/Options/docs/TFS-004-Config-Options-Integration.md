@@ -118,10 +118,10 @@ $opts = $config->options(StorageContext::forNetwork());
 $opts = $config->options(StorageContext::forBlog(123));
 
 // User-specific (meta)
-$opts = $config->options(StorageContext::forUser(456, 'meta', false));
+$opts = $config->options(StorageContext::forUserId(456, 'meta', false));
 
 // User global options (option storage, global=true)
-$opts = $config->options(StorageContext::forUser(456, 'option', true));
+$opts = $config->options(StorageContext::forUserId(456, 'option', true));
 
 // Inject a custom immutable write policy (fluent on RegisterOptions)
 $opts = $config->options();

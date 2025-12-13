@@ -14,6 +14,13 @@ final class Normalizer extends NormalizerBase {
 		$name    = $this->_sanitize_string($context['name'] ?? '', 'name');
 		$default = $this->_sanitize_string($context['default'] ?? '', 'default');
 
+		// Get stored value from context - 'value' comes from database
+		// For radio groups, this is a single string value
+		$storedValue = null;
+		if (isset($context['value']) && is_string($context['value']) && $context['value'] !== '') {
+			$storedValue = $context['value'];
+		}
+
 		// Generate fieldset ID
 		$fieldsetId = '';
 		$idSource   = $context['attributes']['id'] ?? ($context['id'] ?? ($name !== '' ? $name : null));
@@ -28,10 +35,20 @@ final class Normalizer extends NormalizerBase {
 		// Render individual options
 		$renderedOptions = array();
 		foreach ($options as $option) {
-			$optionContext            = $option;
-			$optionContext['name']    = $optionContext['name']    ?? $name;
-			$optionContext['checked'] = $optionContext['checked'] ?? ($default !== '' && isset($option['value']) && $this->_sanitize_string($option['value'], 'option value') === $default);
-			$renderedOptions[]        = $this->_render_option($optionContext);
+			$optionContext         = $option;
+			$optionContext['name'] = $optionContext['name'] ?? $name;
+
+			// Determine checked state: stored value > hardcoded checked > default
+			$optionValue = $this->_sanitize_string($option['value'] ?? '', 'option value');
+			if ($storedValue !== null) {
+				// Use stored value to determine checked state
+				$optionContext['checked'] = ($optionValue === $storedValue);
+			} elseif (!isset($optionContext['checked'])) {
+				// Fall back to 'default' property for initial state
+				$optionContext['checked'] = ($default !== '' && $optionValue === $default);
+			}
+
+			$renderedOptions[] = $this->_render_option($optionContext);
 		}
 
 		// Build template context

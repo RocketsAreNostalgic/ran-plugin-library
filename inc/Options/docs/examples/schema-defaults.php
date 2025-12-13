@@ -63,7 +63,7 @@ $schema = array(
         	if ($cfg->is_dev_environment()) {
         		return 0;
         	}     // No cache in dev
-        	if ($cfg->is_staging_environment()) {
+        	if (function_exists('wp_get_environment_type') && wp_get_environment_type() === 'staging') {
         		return 300;
         	} // 5 min in staging
         	return 3600; // 1 hour in production
@@ -83,7 +83,7 @@ $schema = array(
         	if ($cfg->is_dev_environment()) {
         		return 'debug';
         	}
-        	if ($cfg->is_staging_environment()) {
+        	if (function_exists('wp_get_environment_type') && wp_get_environment_type() === 'staging') {
         		return 'warning';
         	}
         	return 'error'; // Production: errors only
@@ -104,12 +104,12 @@ $schema = array(
     'upload_directory' => array(
         'default' => function($cfg) {
         	$upload_dir  = wp_upload_dir();
-        	$plugin_name = $cfg ? $cfg->get_plugin_config()['TextDomain'] : 'my-plugin';
+        	$plugin_name = $cfg ? (string) ($cfg->get_config()['TextDomain'] ?? $cfg->get_options_key()) : 'my-plugin';
         	return $upload_dir['basedir'] . '/' . $plugin_name;
         },
         'validate' => Validate::compose()->all(array(
             Validate::basic()->is_string(),
-			Validate::basic()->isNotEmpty(),
+			Validate::string()->min_length(1),
         )),
     ),
 
@@ -160,14 +160,14 @@ register_activation_hook(__FILE__, function() {
 	        'default'  => '1.0.0',
 	        'validate' => Validate::compose()->all(array(
 	            Validate::basic()->is_string(),
-	            Validate::basic()->isNotEmpty(),
+	            Validate::string()->min_length(1),
 	        )),
 	    ),
 	    'installed_date' => array(
 	        'default'  => fn($cfg) => current_time('mysql'),
 	        'validate' => Validate::compose()->all(array(
 	            Validate::basic()->is_string(),
-	            Validate::basic()->isNotEmpty(),
+	            Validate::string()->min_length(1),
 	        )),
 	    ),
 	    'needs_welcome_screen' => array(
@@ -196,7 +196,7 @@ register_activation_hook(__FILE__, function() {
 // When you need to seed defaults for a different storage scope, prefer Config::options()
 // Example: per-user defaults
 $userOptions = $config->options(
-	StorageContext::forUser((int) get_current_user_id(), 'meta', false),
+	StorageContext::forUserId((int) get_current_user_id(), 'meta', false),
 	false
 )->with_schema($schema);
 

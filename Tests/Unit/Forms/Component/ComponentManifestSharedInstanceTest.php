@@ -71,7 +71,7 @@ class ComponentManifestSharedInstanceTest extends PluginLibTestCase {
 	 */
 	public function test_shared_component_manifest_instance(): void {
 		$adminOptions = new RegisterOptions('test_admin_settings', StorageContext::forSite(), true, $this->logger_mock);
-		$userOptions  = new RegisterOptions('test_user_settings', StorageContext::forUser(1), true, $this->logger_mock);
+		$userOptions  = new RegisterOptions('test_user_settings', StorageContext::forUserId(1), true, $this->logger_mock);
 
 		// Create AdminSettings and UserSettings with the same ComponentManifest
 		$adminSettings = new AdminSettings($adminOptions, $this->manifest, null, $this->logger_mock);
@@ -112,7 +112,7 @@ class ComponentManifestSharedInstanceTest extends PluginLibTestCase {
 	 * Test that ComponentManifest integration works with UserSettings constructor.
 	 */
 	public function test_user_settings_component_manifest_integration(): void {
-		$options = new RegisterOptions('test_user_settings', StorageContext::forUser(1), true, $this->logger_mock);
+		$options = new RegisterOptions('test_user_settings', StorageContext::forUserId(1), true, $this->logger_mock);
 
 		// Should not throw exception with ComponentManifest parameter
 		$userSettings = new UserSettings($options, $this->manifest, null, $this->logger_mock);
@@ -131,7 +131,7 @@ class ComponentManifestSharedInstanceTest extends PluginLibTestCase {
 	 */
 	public function test_old_api_methods_removed(): void {
 		$adminOptions = new RegisterOptions('test_admin_settings', StorageContext::forSite(), true, $this->logger_mock);
-		$userOptions  = new RegisterOptions('test_user_settings', StorageContext::forUser(1), true, $this->logger_mock);
+		$userOptions  = new RegisterOptions('test_user_settings', StorageContext::forUserId(1), true, $this->logger_mock);
 
 		$adminSettings = new AdminSettings($adminOptions, $this->manifest, null, $this->logger_mock);
 		$userSettings  = new UserSettings($userOptions, $this->manifest, null, $this->logger_mock);

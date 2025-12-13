@@ -18,7 +18,7 @@ use Ran\PluginLib\Options\Policy\ExampleUserSelfServiceWhitelistPolicy;
 // 1) Obtain a pre‑wired RegisterOptions manager from Config in user scope
 //    Target the current user via typed StorageContext.
 $opts = $config->options(
-	StorageContext::forUser((int) get_current_user_id(), 'meta', false),
+	StorageContext::forUserId((int) get_current_user_id(), 'meta', false),
 	false
 );
 

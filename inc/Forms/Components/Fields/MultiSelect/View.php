@@ -35,6 +35,5 @@ return new ComponentRenderResult(
 	    'required' => array('select_attributes', 'options_html'),
 	    'optional' => array(),
 	    'defaults' => array(),
-	),
-	component_type: 'input'
+	)
 );

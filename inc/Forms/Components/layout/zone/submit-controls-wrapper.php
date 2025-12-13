@@ -19,7 +19,6 @@
 declare(strict_types=1);
 
 use Ran\PluginLib\Forms\Component\ComponentRenderResult;
-use Ran\PluginLib\Forms\Component\ComponentType;
 
 // Prevent direct access.
 if (!defined('ABSPATH')) {
@@ -74,6 +73,5 @@ ob_start();
 </div>
 <?php
 return new ComponentRenderResult(
-	markup: (string) ob_get_clean(),
-	component_type: ComponentType::LayoutWrapper
+	markup: (string) ob_get_clean()
 );

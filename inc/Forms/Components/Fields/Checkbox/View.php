@@ -48,6 +48,5 @@ return new ComponentRenderResult(
 	        'unchecked_value' => 'off',
 	        'name'            => null,
 	    ),
-	),
-	component_type: 'input'
+	)
 );

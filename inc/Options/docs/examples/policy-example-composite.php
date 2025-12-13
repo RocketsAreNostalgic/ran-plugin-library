@@ -96,7 +96,7 @@ $opts->stage_options(array(
 
 // Obtain a RegisterOptions manager in user scope for the current user
 $opts = $config->options(
-	StorageContext::forUser((int) get_current_user_id(), 'meta', false),
+	StorageContext::forUserId((int) get_current_user_id(), 'meta', false),
 	false
 );
 

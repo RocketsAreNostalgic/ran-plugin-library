@@ -16,7 +16,6 @@
  * @package RanPluginLib\Forms\Views\Shared
  */
 
-use Ran\PluginLib\Forms\Component\ComponentType;
 use Ran\PluginLib\Forms\Component\ComponentRenderResult;
 
 // Prevent direct access
@@ -62,6 +61,5 @@ ob_start();
 </div>
 <?php
 return new ComponentRenderResult(
-	markup: (string) ob_get_clean(),
-	component_type: ComponentType::LayoutWrapper
+	markup: (string) ob_get_clean()
 );

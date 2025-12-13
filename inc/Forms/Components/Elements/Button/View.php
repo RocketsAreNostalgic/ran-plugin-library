@@ -47,6 +47,5 @@ return new ComponentRenderResult(
 	        'icon_html'         => '',
 	        'variant'           => 'primary',
 	    ),
-	),
-	component_type: 'display'
+	)
 );

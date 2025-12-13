@@ -264,6 +264,18 @@ class UserSettingsCollectionBuilder implements UserSettingsBuilderRootInterface 
 	}
 
 	/**
+	 * Get the RegisterOptions instance for schema registration.
+	 *
+	 * Useful in on_render callbacks when you need to register validation schemas
+	 * before defining fields.
+	 *
+	 * @return \Ran\PluginLib\Options\RegisterOptions
+	 */
+	public function get_options(): \Ran\PluginLib\Options\RegisterOptions {
+		return $this->settings->get_base_options();
+	}
+
+	/**
 	 * Expose the root FormsInterface to child builders.
 	 *
 	 * @internal

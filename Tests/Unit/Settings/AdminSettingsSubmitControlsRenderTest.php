@@ -317,12 +317,12 @@ final class AdminSettingsSubmitControlsRenderTest extends TestCase {
 			}
 			$markup .= '</section>';
 
-			return new ComponentRenderResult($markup, component_type: 'layout_wrapper');
+			return new ComponentRenderResult($markup);
 		});
 
 		$this->manifest->register('field-wrapper', static function (array $context): ComponentRenderResult {
 			$componentHtml = $context['inner_html'] ?? '';
-			return new ComponentRenderResult('<div class="field-wrapper">' . $componentHtml . '</div>', component_type: ComponentType::LayoutWrapper);
+			return new ComponentRenderResult('<div class="field-wrapper">' . $componentHtml . '</div>');
 		});
 
 		$this->manifest->register('layout.zone.submit-controls-wrapper', static function (array $context): ComponentRenderResult {
@@ -357,13 +357,13 @@ final class AdminSettingsSubmitControlsRenderTest extends TestCase {
 			}
 			$markup .= '</div>';
 
-			return new ComponentRenderResult($markup, component_type: ComponentType::LayoutWrapper);
+			return new ComponentRenderResult($markup);
 		});
 
 		$this->manifest->register('fields.input', static function (array $context): ComponentRenderResult {
 			$fieldId = htmlspecialchars($context['field_id'] ?? 'field', ENT_QUOTES);
 			$value   = htmlspecialchars((string) ($context['value'] ?? ''), ENT_QUOTES);
-			return new ComponentRenderResult('<input name="' . $fieldId . '" value="' . $value . '" />', component_type: 'input');
+			return new ComponentRenderResult('<input name="' . $fieldId . '" value="' . $value . '" />');
 		});
 
 		$rootWrapper = static function (array $context): ComponentRenderResult {
@@ -377,7 +377,7 @@ final class AdminSettingsSubmitControlsRenderTest extends TestCase {
 			    . '<footer class="form-submit-area">' . $renderSubmit . '</footer>'
 			    . '</div>';
 
-			return new ComponentRenderResult($markup, component_type: 'layout_wrapper');
+			return new ComponentRenderResult($markup);
 		};
 
 		$this->manifest->register('root-wrapper', $rootWrapper);
@@ -391,7 +391,7 @@ final class AdminSettingsSubmitControlsRenderTest extends TestCase {
 			    . $content
 			    . '</div>';
 
-			return new ComponentRenderResult($markup, component_type: 'layout_wrapper');
+			return new ComponentRenderResult($markup);
 		});
 
 		$this->manifest->register('admin.custom-submit-wrapper', static function (array $context): ComponentRenderResult {
@@ -404,7 +404,7 @@ final class AdminSettingsSubmitControlsRenderTest extends TestCase {
 			    . '<span class="suffix"><span class="pipe">|</span></span>'
 			    . '</div>';
 
-			return new ComponentRenderResult($markup, component_type: 'layout_wrapper');
+			return new ComponentRenderResult($markup);
 		});
 
 		$this->manifest->register('components.button', static function (array $context): ComponentRenderResult {
@@ -438,12 +438,12 @@ final class AdminSettingsSubmitControlsRenderTest extends TestCase {
 				$markup = '<button type="' . $type . '"' . $extra . '>' . $label . '</button>';
 			}
 
-			return new ComponentRenderResult($markup, component_type: 'input');
+			return new ComponentRenderResult($markup);
 		});
 
 		$this->manifest->register('components.divider', static function (array $context): ComponentRenderResult {
 			$markup = (string) ($context['markup'] ?? '');
-			return new ComponentRenderResult($markup, component_type: 'template');
+			return new ComponentRenderResult($markup);
 		});
 	}
 

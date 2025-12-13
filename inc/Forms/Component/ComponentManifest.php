@@ -11,6 +11,7 @@ namespace Ran\PluginLib\Forms\Component;
 
 use Ran\PluginLib\Util\WPWrappersTrait;
 use Ran\PluginLib\Util\Logger;
+use Ran\PluginLib\Forms\ErrorNoticeRenderer;
 use Ran\PluginLib\Forms\Component\Validate\ValidatorInterface;
 use Ran\PluginLib\Forms\Component\Sanitize\SanitizerInterface;
 use Ran\PluginLib\Forms\Component\Normalize\NormalizeInterface;
@@ -24,7 +25,7 @@ class ComponentManifest {
 	private array $components = array();
 	/** @var array<int,string> */
 	private array $warnings = array();
-	/** @var array<string,array{normalizer:?string,builder:?string,validator:?string,sanitizer:?string,defaults?:array{sanitize?:array<int,string>,validate?:array<int,string>,context?:array{component_type:string,repeatable:bool}}}> */
+	/** @var array<string,array{normalizer:?string,builder:?string,validator:?string,sanitizer:?string,defaults?:array{sanitize?:array<int,string>,validate?:array<int,string>}}> */
 	private array $componentMetadata = array();
 	private ComponentNormalizationContext $helpers;
 	/** @var ComponentCacheService Shared caching service */
@@ -465,7 +466,9 @@ class ComponentManifest {
 
 	/**
 	 * Checks if a component is eligible for auto-schema generation.
-	 * V2: Simple method for auto-schema generation compatibility.
+	 *
+	 * A component is schema-eligible if it has a validator factory registered,
+	 * indicating it submits form data that needs validation.
 	 *
 	 * @param string $alias
 	 * @return bool
@@ -474,8 +477,8 @@ class ComponentManifest {
 		if (!$this->has($alias)) {
 			return false;
 		}
-		$result = $this->render($alias, array());
-		return $result->submits_data();
+		$validatorFactories = $this->validator_factories();
+		return isset($validatorFactories[$alias]);
 	}
 
 	/**
@@ -656,11 +659,10 @@ class ComponentManifest {
 			$meta['sanitizer'] = $sanitizer;
 		}
 
-		$defaults         = $this->_derive_component_defaults($alias, $meta);
-		$meta['defaults'] = $defaults;
+		$meta['defaults'] = array();
 
-		// Check for validator/sanitizer presence in metadata (not defaults)
-		// since sanitizers/validators are now injected via factory -> queue -> merge path
+		// Check for validator/sanitizer presence in metadata
+		// Validators/sanitizers are injected via factory -> queue -> merge path
 		$sources = array();
 		if (!empty($meta['sanitizer'])) {
 			$sources[] = 'sanitizer';
@@ -669,15 +671,18 @@ class ComponentManifest {
 			$sources[] = 'validator';
 		}
 
-		if (!empty($sources)) {
-			$this->logger->debug('ComponentManifest: defaults discovered for component', array(
-				'alias'   => $alias,
-				'sources' => $sources,
-			));
-		} else {
-			$this->logger->debug('ComponentManifest: defaults missing for component', array(
-				'alias' => $alias,
-			));
+		// Only log component defaults discovery in verbose mode to avoid log flooding
+		if (ErrorNoticeRenderer::isVerboseDebug()) {
+			if (!empty($sources)) {
+				$this->logger->debug('ComponentManifest: defaults discovered for component', array(
+					'alias'   => $alias,
+					'sources' => $sources,
+				));
+			} else {
+				$this->logger->debug('ComponentManifest: defaults missing for component', array(
+					'alias' => $alias,
+				));
+			}
 		}
 
 		$this->componentMetadata[$alias] = $meta;
@@ -761,38 +766,6 @@ class ComponentManifest {
 	}
 
 	/**
-	 * Derive component defaults from metadata.
-	 *
-	 * Note: Sanitizers and validators are injected via the factory → queue → merge
-	 * path in FormsBaseTrait (_inject_component_validators, _inject_component_sanitizers),
-	 * not stored in defaults. Only context is needed here.
-	 *
-	 * @param string              $alias Component alias.
-	 * @param array<string,mixed> $meta  Component metadata.
-	 * @return array{context: array{repeatable: bool}}
-	 */
-	private function _derive_component_defaults(string $alias, array $meta): array {
-		return array(
-			'context' => $this->_derive_component_context($alias, $meta),
-		);
-	}
-
-	/**
-	 * Derive baseline context metadata for a component.
-	 *
-	 * @param string                     $alias
-	 * @param array<string,null|string> $meta
-	 * @return array{component_type:string,repeatable:bool}
-	 */
-	private function _derive_component_context(string $alias, array $meta): array {
-		// Don't assume component_type - let the View declare it explicitly.
-		// This prevents non-input components from being incorrectly flagged as requiring validators.
-		return array(
-			'repeatable' => false,
-		);
-	}
-
-	/**
 	 * Creates a ComponentRenderResult from a payload.
 	 *
 	 * @param array<string,mixed> $payload
@@ -805,8 +778,7 @@ class ComponentManifest {
 			$payload['style']  ?? null,
 			(bool) ($payload['requires_media'] ?? false),
 			(bool) ($payload['repeatable'] ?? false),
-			$payload['context_schema'] ?? array(),
-			(string) ($payload['component_type'] ?? 'input') // V2
+			$payload['context_schema'] ?? array()
 		);
 	}
 
@@ -833,8 +805,7 @@ class ComponentManifest {
 		// Fallback for string returns
 		$markup = is_string($result) ? $result : $this->views->render($alias, $context);
 		return new ComponentRenderResult(
-			markup: (string) $markup,
-			component_type: 'input' // V2: Default for raw components
+			markup: (string) $markup
 		);
 	}
 

@@ -19,7 +19,6 @@
  * @package RanPluginLib\Forms\Views\Admin\Fields
  */
 
-use Ran\PluginLib\Forms\Component\ComponentType;
 use Ran\PluginLib\Forms\Component\ComponentRenderResult;
 
 // Prevent direct access
@@ -32,8 +31,7 @@ $inner_html = isset($context['inner_html']) ? (string) $context['inner_html'] : 
 // Early return if no inner_html
 if ($inner_html === '') {
 	return new ComponentRenderResult(
-		markup: '',
-		component_type: ComponentType::LayoutWrapper
+		markup: ''
 	);
 }
 
@@ -112,6 +110,5 @@ ob_start();
 </div>
 <?php
 return new ComponentRenderResult(
-	markup: (string) ob_get_clean(),
-	component_type: ComponentType::LayoutWrapper
+	markup: (string) ob_get_clean()
 );

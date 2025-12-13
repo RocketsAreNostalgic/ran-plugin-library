@@ -15,15 +15,18 @@ The component system supports two approaches:
 
 Each component can have up to 5 files:
 
-| File | Purpose | Interface/Base Class |
-|------|---------|---------------------|
-| `View.php` | Template that returns `ComponentRenderResult` | Returns `ComponentRenderResult` |
-| `Normalizer.php` | Transforms raw context into normalized context | `NormalizeInterface` / `NormalizerBase` |
-| `Builder.php` | Fluent API for constructing field definitions | `ComponentBuilderDefinitionInterface` / `ComponentBuilderBase` |
-| `Validator.php` | Validates submitted values | `ValidatorInterface` / `ValidatorBase` |
-| `Sanitizer.php` | Sanitizes submitted values before storage | `SanitizerInterface` / `SanitizerBase` |
+| File | Purpose | Required? |
+|------|---------|----------|
+| `View.php` | Template that returns `ComponentRenderResult` | Required |
+| `Validator.php` | Validates submitted values | Required for components that submit data |
+| `Sanitizer.php` | Sanitizes submitted values before storage | Strongly recommended for components that submit data |
+| `Normalizer.php` | Transforms raw context into normalized context | Recommended (best practice) |
+| `Builder.php` | Fluent API for constructing field definitions | Optional (recommended for DX) |
 
-Only `View.php` is required. The other files are optional and provide additional functionality.
+Notes:
+
+- A component is treated as an input/data-submitting component when it has a `Validator`.
+- Normalizers and sanitizers are not strictly required. You can do all logic in the View, but best practice is to keep Views thin and isolate normalization/sanitization/validation in their respective classes.
 
 ## How Built-in Auto-Discovery Works
 
@@ -56,10 +59,10 @@ my-plugin/
 │   └── Components/
 │       └── ColorPicker/
 │           ├── View.php
-│           ├── Normalizer.php   (optional)
+│           ├── Normalizer.php   (recommended)
 │           ├── Builder.php      (optional)
-│           ├── Validator.php    (optional)
-│           └── Sanitizer.php    (optional)
+│           ├── Validator.php    (required for input components)
+│           └── Sanitizer.php    (recommended for input components)
 └── my-plugin.php
 ```
 
@@ -97,14 +100,15 @@ return new ComponentRenderResult(
         'required' => array('input_attributes'),
         'optional' => array('my_option', 'repeatable'),
         'defaults' => array(),
-    ),
-    component_type: 'input'          // See ComponentType enum below
+    )
 );
 ```
 
 ### Step 3: Create Normalizer.php (Optional)
 
-The Normalizer transforms raw context data into the normalized format expected by the View:
+The Normalizer transforms raw context data into the normalized format expected by the View.
+
+This is optional, but recommended to keep your `View.php` focused on rendering only:
 
 ```php
 <?php
@@ -203,7 +207,9 @@ final class Builder extends ComponentBuilderInputBase {
 
 ### Step 5: Create Validator.php (Optional)
 
-The Validator validates submitted values before they are saved:
+The Validator validates submitted values before they are saved.
+
+If your component submits data, you should treat a `Validator` as required. Validator presence is used by the Forms system to determine if a component participates in the validation pipeline:
 
 ```php
 <?php
@@ -242,7 +248,9 @@ final class Validator extends ValidatorBase {
 
 ### Step 6: Create Sanitizer.php (Optional)
 
-The Sanitizer cleans submitted values before storage:
+The Sanitizer cleans submitted values before storage.
+
+This is not strictly required, but is best practice for any component that submits data:
 
 ```php
 <?php
@@ -277,27 +285,36 @@ final class Sanitizer extends SanitizerBase {
 
 After creating your component files, you need to register them with the Forms system. This is typically done during plugin initialization.
 
-#### Option A: Register Template Path (Recommended)
+#### Option A: Register Component Directory (Recommended)
 
-Use `ComponentLoader::register()` to map an alias to your View template:
+Use the Forms registration API (`register_component()` / `register_components()`) so the system can derive the component namespace. This enables auto-discovery of companion classes (`Normalizer`, `Builder`, `Validator`, `Sanitizer`) for external components.
 
 ```php
 <?php
 // In your plugin's initialization code
 
-use Ran\PluginLib\Forms\Component\ComponentLoader;
-use Ran\PluginLib\Forms\Component\ComponentManifest;
+// $settings can be AdminSettings, UserSettings, or any FormsInterface implementation.
 
-// Get the manifest from your FormsService instance
-$manifest = $formsService->manifest();
-$loader = $manifest->get_component_loader();
+// Register a single component directory
+$settings->register_component('color-picker', array(
+    'path'   => 'inc/Components/ColorPicker',
+    'prefix' => 'my-plugin',
+));
 
-// Register your custom component
-// Alias format: 'your-plugin.component-name'
-$loader->register(
-    'my-plugin.color-picker',
-    MY_PLUGIN_PATH . '/inc/Components/ColorPicker/View.php'
-);
+// Or register all component directories under a folder (each must contain View.php)
+$settings->register_components(array(
+    'path'   => 'inc/Components',
+    'prefix' => 'my-plugin',
+));
+```
+
+This will register your view at `my-plugin.color-picker` and also allow the system to discover:
+
+```text
+MyPlugin\Components\ColorPicker\Normalizer
+MyPlugin\Components\ColorPicker\Builder
+MyPlugin\Components\ColorPicker\Validator
+MyPlugin\Components\ColorPicker\Sanitizer
 ```
 
 #### Option B: Register Factory Function (Simple Components)
@@ -312,8 +329,7 @@ $manifest->register('my-plugin.simple-display', function(array $context): Compon
     $content = esc_html($context['content'] ?? '');
 
     return new ComponentRenderResult(
-        markup: "<div class=\"my-plugin-display\">{$content}</div>",
-        component_type: 'display'
+        markup: "<div class=\"my-plugin-display\">{$content}</div>"
     );
 });
 ```
@@ -345,13 +361,12 @@ $manifest->register('my-plugin.color-picker', function(array $context): Componen
     <?php
 
     return new ComponentRenderResult(
-        markup: (string) ob_get_clean(),
-        component_type: 'input'
+        markup: (string) ob_get_clean()
     );
 });
 ```
 
-> **Note**: The library's auto-discovery of Validator/Sanitizer classes only works for components within the library's `inc/Forms/Components/` directory. For external plugin components, validation and sanitization should be handled at the form/settings level (e.g., via WordPress Settings API callbacks or custom form handlers).
+> **Note**: If you register external components using `register_component()` / `register_components()`, the system can auto-discover companion classes (Validator/Sanitizer/Normalizer/Builder) for those external components. If you register only a template path, only the View is available.
 
 ### Alias Naming Convention
 
@@ -362,24 +377,6 @@ your-plugin.component-name     ✓ Good
 my-theme.custom-field          ✓ Good
 fields.my-custom               ✗ Avoid (may conflict with built-in)
 ```
-
-## ComponentType Enum
-
-The `component_type` parameter in `ComponentRenderResult` determines how the component is treated:
-
-```php
-enum ComponentType: string {
-    case FormField     = 'input';          // Submits data (text, checkbox, select, etc.)
-    case LayoutWrapper = 'layout_wrapper'; // Structural elements (section, group wrappers)
-    case Display       = 'display';        // Read-only display elements
-    case Template      = 'template';       // Generic template
-}
-```
-
-- **`input`**: Components that submit form data. These require validators and sanitizers.
-- **`layout_wrapper`**: Structural components that wrap other components.
-- **`display`**: Read-only components that don't submit data.
-- **`template`**: Generic templates for miscellaneous use.
 
 ## Base Class Hierarchy
 
@@ -424,14 +421,13 @@ When creating a custom component in your plugin:
 
 - [ ] Create directory in your plugin (e.g., `my-plugin/inc/Components/MyComponent/`)
 - [ ] Add `View.php` returning `ComponentRenderResult`
-- [ ] Set appropriate `component_type` ('input', 'display', 'layout_wrapper', 'template')
 - [ ] Define `context_schema` with required/optional/defaults
-- [ ] Add `Normalizer.php` if context transformation is needed
-- [ ] Add `Builder.php` if fluent API is desired
-- [ ] Add `Validator.php` if custom validation is needed (for 'input' types)
-- [ ] Add `Sanitizer.php` if custom sanitization is needed (for 'input' types)
+- [ ] Add `Normalizer.php` if context transformation is needed (recommended)
+- [ ] Add `Builder.php` if fluent API is desired (optional)
+- [ ] Add `Validator.php` if the component submits data
+- [ ] Add `Sanitizer.php` if the component submits data (recommended)
 - [ ] Use your plugin's namespace (e.g., `MyPlugin\Components\MyComponent`)
-- [ ] Register the component with `ComponentLoader::register()` or `ComponentManifest::register()`
+- [ ] Register the component with `register_component()` / `register_components()`
 - [ ] Use namespaced alias (e.g., `my-plugin.my-component`) to avoid conflicts
 
 ## Related Documentation

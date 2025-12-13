@@ -50,7 +50,7 @@ enum OptionScope: string { case Site = 'site'; case Network = 'network'; case Bl
 ```php
 namespace Ran\PluginLib\Options\Storage;
 
-use Ran\PluginLib\Config\Config;
+use Ran\PluginLib\Options\Storage\StorageContext;
 
 interface OptionStorageInterface {
     public function scope(): OptionScope;
@@ -77,7 +77,7 @@ A small factory selects the adapter from the typed `StorageContext` and is used 
 
 `Config::options(?StorageContext $context = null, bool $autoload = true): RegisterOptions`
 
-- `StorageContext` selects scope: `forSite()`, `forNetwork()`, `forBlog(int)`, `forUser(int, 'meta'|'option', bool)`
+- `StorageContext` selects scope: `forSite()`, `forNetwork()`, `forBlog(int)`, `forUserId(int, 'meta'|'option', bool)`
 - Side‑effect free; returns a pre‑wired `RegisterOptions`.
 
 ### 2) Constructor on RegisterOptions
@@ -145,7 +145,7 @@ $current = $opts->get_options();
 ### Network‑wide options (multisite)
 
 ```php
-use Ran\PluginLib\Options\Storage\StorageContext;
+use Ran\PluginLib\Config\Config;
 if (is_multisite() && current_user_can('manage_network_options')) {
   $opts = $config->options(StorageContext::forNetwork());
   $global = $opts->get_options();

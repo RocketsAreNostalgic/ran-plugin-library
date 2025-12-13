@@ -411,8 +411,7 @@ class FormRenderingPipelineTest extends PluginLibTestCase {
 				return isset($context['field_id']) && $context['field_id'] === 'custom_field' && isset($context['label']) && $context['label'] === 'Custom Field' && isset($context['inner_html']) && strpos($context['inner_html'], 'custom-field-wrapper') !== false && isset($context['validation_warnings']) && is_array($context['validation_warnings']) && isset($context['display_notices']) && is_array($context['display_notices']);
 			}))
 			->andReturn(new ComponentRenderResult(
-				'<div class="field-container"><div class="field-label">Custom Field</div><div class="field-input"><div class="custom-field-wrapper"><label for="custom_field">Custom Label</label><input type="text" id="custom_field" name="custom_field" class="custom-input" /></div></div></div>',
-				component_type: 'layout_wrapper'
+				'<div class="field-container"><div class="field-label">Custom Field</div><div class="field-input"><div class="custom-field-wrapper"><label for="custom_field">Custom Label</label><input type="text" id="custom_field" name="custom_field" class="custom-input" /></div></div></div>'
 			));
 
 		// Create FormsService with mocked manifest

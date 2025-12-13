@@ -19,13 +19,29 @@ final class Normalizer extends NormalizerBase {
 			$context['attributes']['id'] = $fieldsetId;
 		}
 
+		// Get the group name - required for form submission
+		// Ensure name ends with [] for PHP to receive array values
+		$groupName = $this->_sanitize_string($context['name'] ?? '', 'name');
+		if ($groupName !== '' && !str_ends_with($groupName, '[]')) {
+			$groupName .= '[]';
+		}
+
+		// Get stored/selected values from context
+		// 'value' comes from the database (stored value), 'values' from hardcoded defaults
+		$selectedValues = array();
+		if (isset($context['value']) && is_array($context['value'])) {
+			$selectedValues = array_map('strval', $context['value']);
+		} elseif (isset($context['values']) && is_array($context['values'])) {
+			$selectedValues = array_map('strval', $context['values']);
+		}
+
 		// Validate options array using base class method
 		$options = $this->_validate_config_array($context['options'] ?? null, 'options') ?? array();
 
 		// Render individual options
 		$renderedOptions = array();
 		foreach ($options as $index => $option) {
-			$renderedOptions[] = $this->_render_option($option, $fieldsetId, $index);
+			$renderedOptions[] = $this->_render_option($option, $fieldsetId, $index, $groupName, $selectedValues);
 		}
 
 		// Build template context
@@ -38,17 +54,43 @@ final class Normalizer extends NormalizerBase {
 
 	/**
 	 * Render individual checkbox option.
+	 *
+	 * @param array<string,mixed> $option The option configuration.
+	 * @param string $fieldsetId The fieldset ID for generating option IDs.
+	 * @param int $index The option index.
+	 * @param string $groupName The group name attribute (with [] suffix).
+	 * @param array<int,string> $selectedValues Array of currently selected values.
 	 */
-	private function _render_option(array $option, string $fieldsetId, int $index): string {
+	private function _render_option(array $option, string $fieldsetId, int $index, string $groupName, array $selectedValues): string {
 		$attributes = isset($option['attributes']) && is_array($option['attributes']) ? $option['attributes'] : array();
 
-		// Set checkbox type and states using base class boolean sanitization
+		// Set checkbox type
 		$attributes['type'] = 'checkbox';
-		if ($this->_sanitize_boolean($option['checked'] ?? false, 'option checked')) {
+
+		// Set the value attribute first (needed for checked determination)
+		$optionValue         = $this->_sanitize_string($option['value'] ?? '', 'option value');
+		$attributes['value'] = $optionValue;
+
+		// Determine checked state: stored value takes precedence, then hardcoded 'checked'
+		$isChecked = false;
+		if (!empty($selectedValues)) {
+			// Use stored/selected values to determine checked state
+			$isChecked = in_array($optionValue, $selectedValues, true);
+		} else {
+			// Fall back to hardcoded 'checked' property (for initial defaults)
+			$isChecked = $this->_sanitize_boolean($option['checked'] ?? false, 'option checked');
+		}
+		if ($isChecked) {
 			$attributes['checked'] = 'checked';
 		}
+
 		if ($this->_sanitize_boolean($option['disabled'] ?? false, 'option disabled')) {
 			$attributes['disabled'] = 'disabled';
+		}
+
+		// Set the name attribute for form submission (with [] for array values)
+		if ($groupName !== '') {
+			$attributes['name'] = $groupName;
 		}
 
 		// Generate option ID

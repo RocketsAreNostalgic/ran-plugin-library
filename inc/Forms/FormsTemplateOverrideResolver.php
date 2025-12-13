@@ -203,15 +203,18 @@ class FormsTemplateOverrideResolver {
 			return $this->form_defaults[$template_type];
 		}
 
-		// EMERGENCY FALLBACK: If no form-wide default is set, use system fallback
-		// This should rarely be used if form classes properly configure form_defaults
-		// Log as WARNING since this indicates potential misconfiguration
+		// SYSTEM FALLBACK: If no form-wide default is set, use system fallback
+		// This is expected behavior when form classes only override specific templates
+		// (e.g., AdminSettings only overrides root-wrapper, letting field-wrapper use system default)
 		$system_fallback = $this->get_system_fallback_template($template_type);
-		$this->logger->warning('FormsTemplateOverrideResolver: Template resolved via emergency fallback (form_defaults may be misconfigured)', array(
-			'template_type' => $template_type,
-			'template'      => $system_fallback,
-			'hint'          => 'Ensure form_defaults includes this template_type'
-		));
+
+		// Only log in verbose mode since this is a valid/expected path
+		if (ErrorNoticeRenderer::isVerboseDebug()) {
+			$this->logger->debug('FormsTemplateOverrideResolver: Template resolved via system fallback', array(
+				'template_type' => $template_type,
+				'template'      => $system_fallback,
+			));
+		}
 		return $system_fallback;
 	}
 

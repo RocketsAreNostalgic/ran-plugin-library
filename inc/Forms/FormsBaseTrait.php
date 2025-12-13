@@ -23,7 +23,6 @@ use Ran\PluginLib\Forms\Renderer\FormElementRenderer;
 use Ran\PluginLib\Forms\FormsServiceSession;
 use Ran\PluginLib\Forms\FormsService;
 use Ran\PluginLib\Forms\FormsAssets;
-use Ran\PluginLib\Forms\Component\ComponentType;
 use Ran\PluginLib\Forms\Component\ComponentRenderResult;
 use Ran\PluginLib\Forms\Component\ComponentManifest;
 use Ran\PluginLib\Forms\Component\ComponentLoader;
@@ -92,6 +91,9 @@ trait FormsBaseTrait {
 
 	/** @var array<string, array<string,mixed>>|null Session-scoped catalogue cache for defaults memoization */
 	private ?array $__catalogue_cache = null;
+
+	/** @var array<string, RegisterOptions> Cache of resolved RegisterOptions by storage context key */
+	private array $__resolved_options_cache = array();
 
 	// Template override system removed - now handled by FormsTemplateOverrideResolver in FormsServiceSession
 
@@ -306,13 +308,38 @@ trait FormsBaseTrait {
 	 * Resolve the correctly scoped RegisterOptions instance for current admin context.
 	 * Callers can chain fluent API on the returned object.
 	 *
+	 * Cache rationale: In a typical page lifecycle, resolve_options() is called once
+	 * per request (either render OR save, not both). The cache provides minimal benefit
+	 * in this flow since each request creates a fresh Settings instance with an empty
+	 * cache. However, the cache helps in edge cases:
+	 * - Multiple collections rendered in the same request with identical storage context
+	 * - Custom code calling resolve_options() multiple times within a single operation
+	 * - Future use cases where the same Settings instance handles multiple operations
+	 *
+	 * The overhead is minimal (array key check), so we retain it for defensive purposes.
+	 *
 	 * @param array<string,mixed>|null $context Optional resolution context.
 	 *
 	 * @return RegisterOptions
 	 */
 	public function resolve_options(?array $context = null): RegisterOptions {
 		$resolved = $this->_resolve_context($context ?? array());
-		return $this->base_options->with_context($resolved['storage']);
+		$cacheKey = $resolved['storage']->get_cache_key();
+
+		// Return cached instance if available (see docblock for cache rationale)
+		if (isset($this->__resolved_options_cache[$cacheKey])) {
+			return $this->__resolved_options_cache[$cacheKey];
+		}
+
+		// NOTE: We intentionally call with_context() even when contexts match.
+		// with_context() shares the schema via __register_internal_schema(), which
+		// is necessary for proper validator/sanitizer execution during stage_options().
+		// Returning base_options directly would skip this schema sharing step.
+
+		$opts                                      = $this->base_options->with_context($resolved['storage']);
+		$this->__resolved_options_cache[$cacheKey] = $opts;
+
+		return $opts;
 	}
 
 	// -- Messages --
@@ -595,11 +622,31 @@ trait FormsBaseTrait {
 	/**
 	 * Capture validation messages emitted by the provided RegisterOptions instance.
 	 *
+	 * Also updates pending_values with the sanitized values from the RegisterOptions instance.
+	 * This ensures that when validation fails, the user sees the sanitized values (what they
+	 * would get if validation passed), not the original pre-sanitized values.
+	 *
 	 * @return array<string, array{warnings: array<int, string>, notices: array<int, string>}>
 	 */
 	protected function _process_validation_messages(RegisterOptions $options): array {
 		$messages = $options->take_messages();
 		$this->message_handler->set_messages($messages);
+
+		// Update pending values with sanitized values from RegisterOptions
+		// This ensures the user sees post-sanitization values, not pre-sanitization values
+		// IMPORTANT: Only update values that were in the original payload, not all options
+		// (RegisterOptions may contain database values for keys not in the submission)
+		$sanitizedValues = $options->get_options();
+		if (!empty($sanitizedValues) && !empty($this->pending_values)) {
+			// Only merge sanitized values for keys that were in the original payload
+			foreach (array_keys($this->pending_values) as $key) {
+				if (array_key_exists($key, $sanitizedValues)) {
+					$this->pending_values[$key] = $sanitizedValues[$key];
+				}
+			}
+			$this->message_handler->set_pending_values($this->pending_values);
+		}
+
 		return $messages;
 	}
 
@@ -726,11 +773,18 @@ trait FormsBaseTrait {
 		}
 
 		$key = $this->_get_form_messages_transient_key($user_id);
-		$this->_do_set_transient($key, $messages, 30); // 30 second TTL
+
+		// Persist both messages and pending values so failed values are shown after redirect
+		$data = array(
+			'messages'       => $messages,
+			'pending_values' => $this->pending_values,
+		);
+		$this->_do_set_transient($key, $data, 30); // 30 second TTL
 
 		$this->logger->debug('forms.messages_persisted', array(
-			'transient_key' => $key,
-			'field_count'   => count($messages),
+			'transient_key'        => $key,
+			'field_count'          => count($messages),
+			'pending_values_count' => $this->pending_values !== null ? count($this->pending_values) : 0,
 		));
 	}
 
@@ -745,22 +799,40 @@ trait FormsBaseTrait {
 	 * @return bool True if messages were restored, false if none found.
 	 */
 	protected function _restore_form_messages(?int $user_id = null): bool {
-		$key      = $this->_get_form_messages_transient_key($user_id);
-		$messages = $this->_do_get_transient($key);
+		$key  = $this->_get_form_messages_transient_key($user_id);
+		$data = $this->_do_get_transient($key);
 
-		if (empty($messages) || !is_array($messages)) {
+		if (empty($data) || !is_array($data)) {
 			return false;
 		}
 
 		// Delete transient after reading (one-time display)
 		$this->_do_delete_transient($key);
 
+		// Handle both old format (just messages) and new format (messages + pending_values)
+		if (isset($data['messages'])) {
+			// New format: { messages: {...}, pending_values: {...} }
+			$messages       = $data['messages'];
+			$pending_values = $data['pending_values'] ?? null;
+		} else {
+			// Old format: just the messages array directly
+			$messages       = $data;
+			$pending_values = null;
+		}
+
 		// Feed messages into our message handler
 		$this->message_handler->set_messages($messages);
 
+		// Restore pending values so failed values are shown in form fields
+		if ($pending_values !== null) {
+			$this->message_handler->set_pending_values($pending_values);
+			$this->pending_values = $pending_values;
+		}
+
 		$this->logger->debug('forms.messages_restored', array(
-			'transient_key' => $key,
-			'field_count'   => count($messages),
+			'transient_key'        => $key,
+			'field_count'          => count($messages),
+			'pending_values_count' => $pending_values !== null ? count($pending_values) : 0,
 		));
 
 		return true;
@@ -852,15 +924,7 @@ trait FormsBaseTrait {
 		$register_pages = function () use ($main_slug, $page_slugs, $is_dev) {
 			// Brief page content - full error details shown in admin_notices
 			$render_error = function () use ($is_dev) {
-				echo '<div class="wrap">';
-				if ($is_dev) {
-					echo '<h1>Settings Builder Errors</h1>';
-				} else {
-					echo '<h1>Settings Unavailable</h1>';
-					echo '<p>This settings page is temporarily unavailable. ';
-					echo 'Please contact the site administrator if this problem persists.</p>';
-				}
-				echo '</div>';
+				ErrorNoticeRenderer::renderFallbackPage('Settings Builder Errors', 'Settings Unavailable', $is_dev);
 			};
 
 			// Register main menu page
@@ -915,17 +979,7 @@ trait FormsBaseTrait {
 	 * @return void
 	 */
 	protected function _render_builder_error_notice(\Throwable $e, string $hook): void {
-		$message = esc_html($e->getMessage());
-		$file    = esc_html($e->getFile());
-		$line    = (int) $e->getLine();
-		$trace   = esc_html($e->getTraceAsString());
-
-		echo '<div class="notice notice-error">';
-		echo '<p><strong>Settings Builder Error</strong> (on <code>' . esc_html($hook) . '</code> hook)</p>';
-		echo '<p>' . $message . '</p>';
-		echo '<p><small>' . $file . ':' . $line . '</small></p>';
-		echo '<details><summary>Stack Trace</summary><pre style="overflow:auto;max-height:300px;font-size:11px;">' . $trace . '</pre></details>';
-		echo '</div>';
+		ErrorNoticeRenderer::renderWithContext($e, 'Settings Builder Error', 'hook', $hook);
 	}
 
 	/**
@@ -2045,10 +2099,13 @@ trait FormsBaseTrait {
 		$field_id  = isset($field['id']) ? (string) $field['id'] : '';
 		$label     = isset($field['label']) ? (string) $field['label'] : '';
 		$component = isset($field['component']) && is_string($field['component']) ? trim($field['component']) : '';
-		$this->logger->debug('forms.default_field.render', array(
-			'field_id'  => $field_id,
-			'component' => $component,
-		));
+		// Only log per-field render in verbose mode to avoid log flooding
+		if (ErrorNoticeRenderer::isVerboseDebug()) {
+			$this->logger->debug('forms.default_field.render', array(
+				'field_id'  => $field_id,
+				'component' => $component,
+			));
+		}
 
 		if ($component === '') {
 			$this->logger->error(static::class . ': field missing component metadata.', array('field' => $field_id));
@@ -2185,13 +2242,19 @@ trait FormsBaseTrait {
 			$this->_start_form_session();
 		}
 
-		// Render error using the field-wrapper template with error context
-		return $this->form_session->render_component('field-wrapper', array(
-			'field_id'      => 'error',
-			'label'         => 'Error',
-			'inner_html'    => esc_html($message),
-			'is_error'      => true,
-			'error_message' => $message
+		// Dev mode shows full error details, production shows generic message
+		$display_message = ErrorNoticeRenderer::getFieldErrorMessage($message);
+
+		// Render error using the field-wrapper template type (not component)
+		// render_element() resolves template types, render_component() expects component aliases
+		// Use validation_warnings array which the template expects for error styling
+		// inner_html is a non-breaking space to satisfy template requirement without duplicating message
+		return $this->form_session->render_element('field-wrapper', array(
+			'field_id'            => 'error',
+			'label'               => 'Error',
+			'inner_html'          => '&nbsp;',
+			'validation_warnings' => array($display_message),
+			'field_type'          => 'error',
 		));
 	}
 
@@ -2208,24 +2271,15 @@ trait FormsBaseTrait {
 	 * @return void
 	 */
 	protected function _inject_component_validators(string $field_id, string $component, array $field_context = array()): void {
-		$field_key       = $this->base_options->normalize_schema_key($field_id);
-		$defaults        = $this->components->get_defaults_for($component);
-		$manifestContext = is_array($defaults['context'] ?? null) ? $defaults['context'] : array();
-		// Merge manifest defaults with field-specific context; field context takes precedence
-		$context       = array_merge($manifestContext, $field_context);
-		$componentType = isset($context['component_type']) ? (string) $context['component_type'] : '';
-		$submits       = $componentType === ComponentType::FormField->value;
+		$field_key = $this->base_options->normalize_schema_key($field_id);
+		// Field context is passed directly - no manifest defaults needed
+		$context = $field_context;
 
 		$validator_factories = $this->components->validator_factories();
 		$factory             = $validator_factories[$component] ?? null;
 		if (!is_callable($factory)) {
-			if ($submits) {
-				$this->logger->error(static::class . ': Component missing validator for data-submitting field', array(
-					'field_id'  => $field_id,
-					'component' => $component,
-				));
-				throw new \UnexpectedValueException(sprintf('Component "%s" must provide a validator for field "%s".', $component, $field_id));
-			}
+			// No validator for this component - silently skip
+			// Display-only components (buttons, raw HTML) won't have validators
 			return;
 		}
 
@@ -2236,11 +2290,14 @@ trait FormsBaseTrait {
 
 		$hadSchema                                         = $this->base_options->has_schema_key($field_key);
 		$this->__queued_component_validators[$field_key][] = $validator_callable;
-		$this->logger->debug(static::class . ': Component validator queued pending schema', array(
-			'field_id'          => $field_id,
-			'component'         => $component,
-			'schema_registered' => $hadSchema,
-		));
+		// Only log per-field queuing in verbose mode to avoid log flooding
+		if (ErrorNoticeRenderer::isVerboseDebug()) {
+			$this->logger->debug(static::class . ': Component validator queued pending schema', array(
+				'field_id'          => $field_id,
+				'component'         => $component,
+				'schema_registered' => $hadSchema,
+			));
+		}
 	}
 
 	/**
@@ -2268,11 +2325,9 @@ trait FormsBaseTrait {
 	 * @return void
 	 */
 	protected function _inject_component_sanitizers(string $field_id, string $component, array $field_context = array()): void {
-		$field_key       = $this->base_options->normalize_schema_key($field_id);
-		$defaults        = $this->components->get_defaults_for($component);
-		$manifestContext = is_array($defaults['context'] ?? null) ? $defaults['context'] : array();
-		// Merge manifest defaults with field-specific context; field context takes precedence
-		$context = array_merge($manifestContext, $field_context);
+		$field_key = $this->base_options->normalize_schema_key($field_id);
+		// Field context is passed directly - no manifest defaults needed
+		$context = $field_context;
 
 		$sanitizer_factories = $this->components->sanitizer_factories();
 		$factory             = $sanitizer_factories[$component] ?? null;
@@ -2288,11 +2343,14 @@ trait FormsBaseTrait {
 
 		$hadSchema                                         = $this->base_options->has_schema_key($field_key);
 		$this->__queued_component_sanitizers[$field_key][] = $sanitizer_callable;
-		$this->logger->debug(static::class . ': Component sanitizer queued pending schema', array(
-			'field_id'          => $field_id,
-			'component'         => $component,
-			'schema_registered' => $hadSchema,
-		));
+		// Only log per-field queuing in verbose mode to avoid log flooding
+		if (ErrorNoticeRenderer::isVerboseDebug()) {
+			$this->logger->debug(static::class . ': Component sanitizer queued pending schema', array(
+				'field_id'          => $field_id,
+				'component'         => $component,
+				'schema_registered' => $hadSchema,
+			));
+		}
 	}
 
 	/**
@@ -2430,15 +2488,21 @@ trait FormsBaseTrait {
 		}
 
 		// Layer 2: Merge in schema-level entries (developer validators)
-		// Schema validators are added to the 'schema' bucket, not replacing component validators
+		// IMPORTANT: Schema validators are already registered in RegisterOptions via register_schema().
+		// We only need to merge defaults here, NOT validators, to avoid duplicate registration.
+		// The validators will be used during validation via the RegisterOptions schema.
 		if (!empty($bundle['schema'])) {
 			foreach ($bundle['schema'] as $key => $entry) {
 				if (!isset($merged[$key])) {
-					$merged[$key] = $entry;
-				} else {
-					// Merge the schema entry buckets
-					$merged[$key] = $this->_merge_schema_entry_buckets($merged[$key], $entry);
+					// Only include the default, not the validators (they're already registered)
+					if (array_key_exists('default', $entry)) {
+						$merged[$key] = array('default' => $entry['default']);
+					}
+				} elseif (!array_key_exists('default', $merged[$key]) && array_key_exists('default', $entry)) {
+					// Merged entry exists but has no default - add the default
+					$merged[$key]['default'] = $entry['default'];
 				}
+				// Skip merging validators - they're already in RegisterOptions
 			}
 		}
 
@@ -2586,20 +2650,25 @@ trait FormsBaseTrait {
 				$componentSchema = array();
 			}
 
-			$componentContextFromCatalogue = isset($manifestCatalogue[$component]['context']) && is_array($manifestCatalogue[$component]['context'])
-				? $manifestCatalogue[$component]['context']
-				: array();
-
 			// When schema already exists, only merge defaults if component buckets remain empty.
 			if (is_array($currentEntry)) {
 				$sanitizeComponents = (array) ($currentEntry['sanitize']['component'] ?? array());
 				$validateComponents = (array) ($currentEntry['validate']['component'] ?? array());
 				if ($sanitizeComponents === array() || $validateComponents === array()) {
-					$merged                         = $session->merge_schema_with_defaults($component, $currentEntry, $manifestCatalogue);
+					// Strip schema sanitizers/validators before merging - they're already in RegisterOptions
+					// and will be used during sanitization/validation. Including them here would cause duplicates.
+					$entryForMerge = $currentEntry;
+					if (isset($entryForMerge['sanitize']['schema'])) {
+						$entryForMerge['sanitize']['schema'] = array();
+					}
+					if (isset($entryForMerge['validate']['schema'])) {
+						$entryForMerge['validate']['schema'] = array();
+					}
+					$merged                         = $session->merge_schema_with_defaults($component, $entryForMerge, $manifestCatalogue);
 					$bucketedSchema[$normalizedKey] = $merged;
-					$context                        = isset($merged['context']) && is_array($merged['context']) ? $merged['context'] : array();
-					$componentType                  = (string) ($context['component_type'] ?? ($componentContextFromCatalogue['component_type'] ?? ''));
-					if ($componentType === ComponentType::FormField->value) {
+					// A component requires a validator if it has a validator factory registered
+					$validatorFactories = $this->components->validator_factories();
+					if (isset($validatorFactories[$component])) {
 						$metadata[$normalizedKey]['requires_validator'] = true;
 					}
 				}
@@ -2609,9 +2678,9 @@ trait FormsBaseTrait {
 			$merged                         = $session->merge_schema_with_defaults($component, $componentSchema, $manifestCatalogue);
 			$bucketedSchema[$normalizedKey] = $merged;
 
-			$context       = isset($merged['context']) && is_array($merged['context']) ? $merged['context'] : array();
-			$componentType = (string) ($context['component_type'] ?? ($componentContextFromCatalogue['component_type'] ?? ''));
-			if ($componentType === ComponentType::FormField->value) {
+			// A component requires a validator if it has a validator factory registered
+			$validatorFactories = $this->components->validator_factories();
+			if (isset($validatorFactories[$component])) {
 				$metadata[$normalizedKey]['requires_validator'] = true;
 			}
 		}
@@ -2666,10 +2735,13 @@ trait FormsBaseTrait {
 				$count                           = count($validators);
 				$queuedForSchema[$normalizedKey] = $validators;
 				$matchedCounts[$normalizedKey]   = $count;
-				$this->logger->debug(static::class . ': Component validator queue matched schema key', array(
-					'normalized_key'  => $normalizedKey,
-					'validator_count' => $count,
-				));
+				// Only log per-key matching in verbose mode to avoid log flooding
+				if (ErrorNoticeRenderer::isVerboseDebug()) {
+					$this->logger->debug(static::class . ': Component validator queue matched schema key', array(
+						'normalized_key'  => $normalizedKey,
+						'validator_count' => $count,
+					));
+				}
 				continue;
 			}
 
@@ -2682,17 +2754,23 @@ trait FormsBaseTrait {
 				);
 			}
 			$unmatchedKeys[] = $normalizedKey;
-			$this->logger->debug(static::class . ': Component validator queue re-queued unmatched key', array(
-				'normalized_key'  => $normalizedKey,
-				'validator_count' => count($validators),
-			));
+			// Only log per-key re-queuing in verbose mode to avoid log flooding
+			if (ErrorNoticeRenderer::isVerboseDebug()) {
+				$this->logger->debug(static::class . ': Component validator queue re-queued unmatched key', array(
+					'normalized_key'  => $normalizedKey,
+					'validator_count' => count($validators),
+				));
+			}
 		}
 
-		$this->logger->debug(static::class . ': Component validator queue consumed', array(
-			'schema_keys'    => array_keys($bucketedSchema),
-			'queued_counts'  => $matchedCounts,
-			'unmatched_keys' => $unmatchedKeys,
-		));
+		// Only log queue consumption summary in verbose mode to avoid log flooding
+		if (ErrorNoticeRenderer::isVerboseDebug()) {
+			$this->logger->debug(static::class . ': Component validator queue consumed', array(
+				'schema_keys'    => array_keys($bucketedSchema),
+				'queued_counts'  => $matchedCounts,
+				'unmatched_keys' => $unmatchedKeys,
+			));
+		}
 
 		return array($bucketedSchema, $queuedForSchema);
 	}
@@ -2731,10 +2809,13 @@ trait FormsBaseTrait {
 				$count                           = count($sanitizers);
 				$queuedForSchema[$normalizedKey] = $sanitizers;
 				$matchedCounts[$normalizedKey]   = $count;
-				$this->logger->debug(static::class . ': Component sanitizer queue matched schema key', array(
-					'normalized_key'  => $normalizedKey,
-					'sanitizer_count' => $count,
-				));
+				// Only log per-key matching in verbose mode to avoid log flooding
+				if (ErrorNoticeRenderer::isVerboseDebug()) {
+					$this->logger->debug(static::class . ': Component sanitizer queue matched schema key', array(
+						'normalized_key'  => $normalizedKey,
+						'sanitizer_count' => $count,
+					));
+				}
 				continue;
 			}
 
@@ -2747,17 +2828,23 @@ trait FormsBaseTrait {
 				);
 			}
 			$unmatchedKeys[] = $normalizedKey;
-			$this->logger->debug(static::class . ': Component sanitizer queue re-queued unmatched key', array(
-				'normalized_key'  => $normalizedKey,
-				'sanitizer_count' => count($sanitizers),
-			));
+			// Only log per-key re-queuing in verbose mode to avoid log flooding
+			if (ErrorNoticeRenderer::isVerboseDebug()) {
+				$this->logger->debug(static::class . ': Component sanitizer queue re-queued unmatched key', array(
+					'normalized_key'  => $normalizedKey,
+					'sanitizer_count' => count($sanitizers),
+				));
+			}
 		}
 
-		$this->logger->debug(static::class . ': Component sanitizer queue consumed', array(
-			'schema_keys'    => array_keys($bucketedSchema),
-			'queued_counts'  => $matchedCounts,
-			'unmatched_keys' => $unmatchedKeys,
-		));
+		// Only log queue consumption summary in verbose mode to avoid log flooding
+		if (ErrorNoticeRenderer::isVerboseDebug()) {
+			$this->logger->debug(static::class . ': Component sanitizer queue consumed', array(
+				'schema_keys'    => array_keys($bucketedSchema),
+				'queued_counts'  => $matchedCounts,
+				'unmatched_keys' => $unmatchedKeys,
+			));
+		}
 
 		return array($bucketedSchema, $queuedForSchema);
 	}

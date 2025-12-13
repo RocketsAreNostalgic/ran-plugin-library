@@ -44,8 +44,7 @@ final class FormsAssetsTest extends TestCase {
 			script: $scriptDefinition,
 			style: $styleDefinition,
 			requires_media: true,
-			repeatable: false,
-			component_type: 'input'
+			repeatable: false
 		);
 
 		$assets->ingest($result);
@@ -91,8 +90,7 @@ final class FormsAssetsTest extends TestCase {
 		$first = new ComponentRenderResult(
 			markup: '<div>First</div>',
 			script: $firstScript,
-			repeatable: false,
-			component_type: 'input'
+			repeatable: false
 		);
 
 		$secondStyle = StyleDefinition::from_array(array(
@@ -103,8 +101,7 @@ final class FormsAssetsTest extends TestCase {
 			markup: '<div>Second</div>',
 			style: $secondStyle,
 			requires_media: true,
-			repeatable: false,
-			component_type: 'input'
+			repeatable: false
 		);
 
 		$assets->ingest($first);

@@ -22,6 +22,5 @@ $markup = $before . '<div class="field-wrapper" data-field-id="' . htmlspecialch
 	. '</div>' . $after;
 
 return new ComponentRenderResult(
-	markup: $markup,
-	component_type: 'layout_wrapper'
+	markup: $markup
 );

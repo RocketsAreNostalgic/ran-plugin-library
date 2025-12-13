@@ -12,10 +12,10 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\Users;
 
-use Exception;
 use Ran\PluginLib\Util\Logger;
-use Ran\PluginLib\Config\ConfigInterface;
 use Ran\PluginLib\Options\Policy\WritePolicyInterface;
+use Ran\PluginLib\Config\ConfigInterface;
+use Exception;
 
 final class User implements UserBuilderInterface {
 	private string $email          = '';
@@ -32,8 +32,12 @@ final class User implements UserBuilderInterface {
 	private string $optStorage = 'meta'; // 'meta'|'option'
 	/** @var array<string,mixed> */
 	private array $optValues = array();
-	/** @var array<string,mixed> */
-	private array $optSchema              = array();
+	/**
+	 * Schema for field validation/sanitization.
+	 *
+	 * @var array|callable|null
+	 */
+	private mixed $optSchema              = null;
 	private bool $optSeedDefaults         = false;
 	private bool $optFlushOnSchema        = false;
 	private ?WritePolicyInterface $policy = null;
@@ -89,10 +93,45 @@ final class User implements UserBuilderInterface {
 		$this->optValues = $kv;
 		return $this;
 	}
-	/** @param array<string,mixed> $schema */
-	public function schema(array $schema, bool $seed_defaults = false, bool $flush = false): self {
-		$this->optSchema        = $schema;
-		$this->optSeedDefaults  = $seed_defaults;
+	/**
+	 * Set the validation/sanitization schema for user options.
+	 *
+	 * Accepts either:
+	 * - An array: Schema array keyed by field name
+	 * - A callable: Function that returns the schema array (lazy evaluation)
+	 *
+	 * @param array|callable $schema Schema array or callable returning schema array.
+	 * @return self
+	 */
+	public function schema(array|callable $schema): self {
+		$this->optSchema = $schema;
+		return $this;
+	}
+
+	/**
+	 * Enable seeding of default values from schema.
+	 *
+	 * When enabled, default values defined in the schema will be
+	 * written to storage if they don't already exist.
+	 *
+	 * @param bool $seed Whether to seed defaults (default: true).
+	 * @return self
+	 */
+	public function seed_defaults(bool $seed = true): self {
+		$this->optSeedDefaults = $seed;
+		return $this;
+	}
+
+	/**
+	 * Enable flushing existing options when schema is registered.
+	 *
+	 * When enabled, existing stored options will be cleared before
+	 * the new schema is applied. Use with caution.
+	 *
+	 * @param bool $flush Whether to flush on schema registration (default: true).
+	 * @return self
+	 */
+	public function flush_on_schema(bool $flush = true): self {
 		$this->optFlushOnSchema = $flush;
 		return $this;
 	}
@@ -189,7 +228,7 @@ final class User implements UserBuilderInterface {
 	}
 
 	private function apply_options(int $userId): void {
-		if (empty($this->optSchema) && empty($this->optValues)) {
+		if ($this->optSchema === null && empty($this->optValues)) {
 			return;
 		}
 		$store = new UserOptionsStore($this->config);
@@ -197,8 +236,10 @@ final class User implements UserBuilderInterface {
 		if ($this->policy instanceof WritePolicyInterface) {
 			$store->with_policy($this->policy);
 		}
-		if (!empty($this->optSchema)) {
-			$store->register_schema($this->optSchema, $this->optSeedDefaults, $this->optFlushOnSchema);
+		if ($this->optSchema !== null) {
+			// Resolve schema if callable
+			$resolved_schema = is_callable($this->optSchema) ? ($this->optSchema)() : $this->optSchema;
+			$store->register_schema($resolved_schema, $this->optSeedDefaults, $this->optFlushOnSchema);
 		}
 		if (!empty($this->optValues)) {
 			$store->set_many($this->optValues);

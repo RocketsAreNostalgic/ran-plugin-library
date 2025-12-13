@@ -19,14 +19,13 @@ use Ran\PluginLib\Util\Logger;
 use Ran\PluginLib\Options\Storage\StorageContext;
 use Ran\PluginLib\Options\RegisterOptions;
 use Ran\PluginLib\Options\OptionScope;
-use Ran\PluginLib\Forms\Validation\ValidatorPipelineService;
 use Ran\PluginLib\Forms\Renderer\FormMessageHandler;
 use Ran\PluginLib\Forms\Renderer\FormElementRenderer;
 use Ran\PluginLib\Forms\FormsService;
 use Ran\PluginLib\Forms\FormsInterface;
 use Ran\PluginLib\Forms\FormsBaseTrait;
+use Ran\PluginLib\Forms\ErrorNoticeRenderer;
 use Ran\PluginLib\Forms\Component\ComponentManifest;
-use Ran\PluginLib\Forms\Component\ComponentLoader;
 use Ran\PluginLib\Config\ConfigInterface;
 
 
@@ -164,10 +163,14 @@ class UserSettings implements FormsInterface {
 		$description = array_key_exists('description', $args) ? $args['description'] : ($this->collections[$id_slug]['description'] ?? null);
 		$order       = isset($args['order']) ? max(0, (int) $args['order']) : ($this->collections[$id_slug]['order'] ?? 10);
 
-		$initial_meta = array(
-		    'order'       => $order,
-		    'heading'     => $heading,
-		    'description' => $description,
+		// Start with base meta, then merge in all args to preserve style, before, after, etc.
+		$initial_meta = array_merge(
+			$args,
+			array(
+				'order'       => $order,
+				'heading'     => $heading,
+				'description' => $description,
+			)
 		);
 
 		$updateFn = $this->_create_update_function();
@@ -196,6 +199,17 @@ class UserSettings implements FormsInterface {
 	}
 
 	/**
+	 * Get the base RegisterOptions instance.
+	 *
+	 * Useful for schema registration in on_render callbacks.
+	 *
+	 * @return RegisterOptions
+	 */
+	public function get_base_options(): RegisterOptions {
+		return $this->base_options;
+	}
+
+	/**
 	 * Check if UserSettings should load at all.
 	 *
 	 * Returns true only if we're on a profile page.
@@ -205,6 +219,22 @@ class UserSettings implements FormsInterface {
 	 */
 	protected function _should_load(): bool {
 		return $this->_is_profile_page();
+	}
+
+	/**
+	 * @var bool Whether to skip hook registration (when used via UserSettingsRegistry).
+	 */
+	private bool $skip_hooks = false;
+
+	/**
+	 * Tell UserSettings to skip registering WordPress hooks.
+	 *
+	 * Used by UserSettingsRegistry which handles hook registration itself.
+	 *
+	 * @return void
+	 */
+	public function skip_hook_registration(): void {
+		$this->skip_hooks = true;
 	}
 
 	/**
@@ -310,7 +340,10 @@ class UserSettings implements FormsInterface {
 			);
 		}
 
-		$this->_register_action_hooks($hooks);
+		// Skip hook registration if managed by UserSettingsRegistry
+		if (!$this->skip_hooks) {
+			$this->_register_action_hooks($hooks);
+		}
 	}
 
 	/**
@@ -338,7 +371,7 @@ class UserSettings implements FormsInterface {
 	 */
 	public function __render(string $id_slug = 'profile', ?array $context = null): void {
 		if (!isset($this->collections[$id_slug])) {
-			echo '<div class="notice notice-error"><p>Unknown settings collection.</p></div>';
+			ErrorNoticeRenderer::renderSimpleNotice('Unknown settings collection: ' . $id_slug);
 			return;
 		}
 		$this->_start_form_session();
@@ -493,8 +526,6 @@ class UserSettings implements FormsInterface {
 
 		$this->_prepare_validation_messages($payload);
 
-		$previous_options = $opts->get_options();
-
 		$bundle = $this->_resolve_schema_bundle($opts, array(
 			'intent'       => 'save',
 			'user_id'      => $user_id,
@@ -537,8 +568,8 @@ class UserSettings implements FormsInterface {
 			// Pass user_id since we're editing a specific user's profile (not necessarily current user).
 			$this->_persist_form_messages($messages, $user_id);
 
-			$opts->clear();
-			$opts->stage_options($previous_options);
+			// On validation failure, do NOT modify storage - just return.
+			// The previous values remain in the database unchanged.
 			return;
 		}
 
@@ -546,6 +577,12 @@ class UserSettings implements FormsInterface {
 		// Note: commit_merge returns false when no changes were made (WordPress behavior).
 		// This is not a failure - the data is already correct in the database.
 		// We only need to clear pending validation state on success or no-change.
+
+		// Persist notices even when validation passes (e.g., sanitizer feedback messages)
+		if (!empty($messages)) {
+			$this->_persist_form_messages($messages, $user_id);
+		}
+
 		$this->_clear_pending_validation();
 	}
 
@@ -628,7 +665,7 @@ class UserSettings implements FormsInterface {
 		$global  = $this->_resolve_global_flag($context, $storage);
 
 		$result = array(
-		    'storage'      => StorageContext::forUser($userId, $storage, $global),
+		    'storage'      => StorageContext::forUserId($userId, $storage, $global),
 		    'user_id'      => $userId,
 		    'storage_kind' => $storage,
 		    'global'       => $global,
@@ -806,6 +843,18 @@ class UserSettings implements FormsInterface {
 	}
 
 	/**
+	 * Public method to process file uploads and merge into payload.
+	 *
+	 * Used by UserSettingsRegistry when handling saves externally.
+	 *
+	 * @param array<string,mixed> $payload The current payload from $_POST.
+	 * @return array<string,mixed> The payload with processed file data merged in.
+	 */
+	public function process_file_uploads(array $payload): array {
+		return $this->_process_file_uploads($payload);
+	}
+
+	/**
 	 * Extract collection IDs from the current builder state for error fallback.
 	 *
 	 * @return array<string> List of collection IDs that were being registered.
@@ -827,13 +876,7 @@ class UserSettings implements FormsInterface {
 	 */
 	protected function _register_error_fallback_pages(\Throwable $e, string $hook, bool $is_dev): void {
 		$render_error = function () use ($is_dev) {
-			echo '<div class="user-settings-error" style="margin: 20px 0; padding: 12px 15px; background: #fff; border-left: 4px solid #dc3232;">';
-			if ($is_dev) {
-				echo '<strong>User Settings Error</strong> — See admin notice above for details.';
-			} else {
-				echo '<strong>Settings Unavailable</strong> — Please contact the site administrator.';
-			}
-			echo '</div>';
+			ErrorNoticeRenderer::renderInlinePlaceholder('User Settings Error — See admin notice above for details.', $is_dev);
 		};
 
 		// Register on profile hooks so placeholder shows where collections would be

@@ -24,6 +24,5 @@ if (isset($context['sections']) && is_array($context['sections'])) {
 }
 
 return new ComponentRenderResult(
-	markup: $markup,
-	component_type: 'layout_wrapper'
+	markup: $markup
 );

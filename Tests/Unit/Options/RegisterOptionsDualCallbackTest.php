@@ -381,26 +381,24 @@ final class RegisterOptionsDualCallbackTest extends PluginLibTestCase {
 		$result = $options->commit_merge();
 		$this->assertFalse($result, 'Weak password should fail validation');
 
-		// Verify only first warning was captured (early termination)
+		// All validators run and accumulate messages (no fail-fast)
 		$messages = $options->take_messages();
 		$this->assertArrayHasKey('password_field', $messages);
 		$this->assertArrayHasKey('warnings', $messages['password_field']);
 		$this->assertContains('Password must be at least 8 characters', $messages['password_field']['warnings']);
-		// Should not contain other warnings due to early termination
-		$this->assertNotContains('Password must contain uppercase letter', $messages['password_field']['warnings']);
-		$this->assertNotContains('Password must contain number', $messages['password_field']['warnings']);
+		$this->assertContains('Password must contain uppercase letter', $messages['password_field']['warnings']);
+		$this->assertContains('Password must contain number', $messages['password_field']['warnings']);
 
-		// Test password that passes first but fails second validator
+		// Test password that passes first but fails second and third validators
 		$options->stage_option('password_field', 'abcdefgh'); // Long enough, but no uppercase, no number
 		$result = $options->commit_merge();
 		$this->assertFalse($result, 'Password without uppercase should fail validation');
 
-		// Verify second warning was captured
+		// All remaining validators run and accumulate messages
 		$messages = $options->take_messages();
 		$this->assertArrayHasKey('password_field', $messages);
 		$this->assertContains('Password must contain uppercase letter', $messages['password_field']['warnings']);
-		// Should not contain third warning due to early termination
-		$this->assertNotContains('Password must contain number', $messages['password_field']['warnings']);
+		$this->assertContains('Password must contain number', $messages['password_field']['warnings']);
 
 		// Test valid password
 		$options->stage_option('password_field', 'Abcdefgh1'); // Long, uppercase, number

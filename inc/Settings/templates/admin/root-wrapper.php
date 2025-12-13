@@ -67,6 +67,5 @@ if (function_exists('submit_button')) {
 
 <?php
 return new ComponentRenderResult(
-	markup: (string) ob_get_clean(),
-	component_type: 'layout_wrapper'
+	markup: (string) ob_get_clean()
 );

@@ -278,6 +278,23 @@ trait FieldProxyTrait {
 	}
 
 	/**
+	 * Set options for select/multi-select/radio/checkbox-group fields.
+	 *
+	 * Delegates to the underlying component builder if it supports options().
+	 *
+	 * @param array|callable $options Array of options or callable that returns array.
+	 *
+	 * @return static
+	 */
+	public function options(array|callable $options): static {
+		if (method_exists($this->builder, 'options')) {
+			call_user_func(array($this->builder, 'options'), $options);
+			$this->_emit_field_update();
+		}
+		return $this;
+	}
+
+	/**
 	 * Set the order for this field.
 	 *
 	 * @param int $order The order.

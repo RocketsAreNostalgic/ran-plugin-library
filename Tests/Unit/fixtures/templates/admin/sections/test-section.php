@@ -3,6 +3,5 @@
 use Ran\PluginLib\Forms\Component\ComponentRenderResult;
 
 return new ComponentRenderResult(
-	markup: '<div class="test-section">' . ($context['inner_html'] ?? '') . '</div>',
-	component_type: 'layout_wrapper'
+	markup: '<div class="test-section">' . ($context['inner_html'] ?? '') . '</div>'
 );

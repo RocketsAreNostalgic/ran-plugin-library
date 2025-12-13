@@ -66,6 +66,5 @@ return new ComponentRenderResult(
 	        'preview_html'  => '',
 	        'multiple'      => false,
 	    ),
-	),
-	component_type: 'input'
+	)
 );

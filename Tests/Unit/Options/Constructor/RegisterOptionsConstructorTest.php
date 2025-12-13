@@ -755,7 +755,7 @@ final class RegisterOptionsConstructorTest extends PluginLibTestCase {
 			}
 		};
 
-		$opts = new RegisterOptions($config->get_options_key(), StorageContext::forUser(42), true, $this->logger_mock);
+		$opts = new RegisterOptions($config->get_options_key(), StorageContext::forUserId(42), true, $this->logger_mock);
 		// Expect constructor initialization log captured via Config-provided logger
 		$this->expectLog('debug', "RegisterOptions: Initialized with main option 'test_plugin_options'. Loaded 0 existing sub-options.", 1);
 		$this->assertInstanceOf(RegisterOptions::class, $opts);

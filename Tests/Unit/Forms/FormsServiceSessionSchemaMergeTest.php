@@ -52,6 +52,8 @@ final class FormsServiceSessionSchemaMergeTest extends PluginLibTestCase {
 			->with('components.merge')
 			->andReturn($defaults);
 		$manifest->shouldReceive('default_catalogue')->andReturn(array());
+		$manifest->shouldReceive('validator_factories')->andReturn(array());
+		$manifest->shouldReceive('sanitizer_factories')->andReturn(array());
 
 		$resolver = new FormsTemplateOverrideResolver($this->logger_mock);
 		$session  = new FormsServiceSession($manifest, new FormsAssets(), $resolver, $this->logger_mock);
@@ -97,6 +99,8 @@ final class FormsServiceSessionSchemaMergeTest extends PluginLibTestCase {
 			->with('components.empty')
 			->andReturn(array());
 		$manifest->shouldReceive('default_catalogue')->andReturn(array());
+		$manifest->shouldReceive('validator_factories')->andReturn(array());
+		$manifest->shouldReceive('sanitizer_factories')->andReturn(array());
 
 		$resolver = new FormsTemplateOverrideResolver($this->logger_mock);
 		$session  = new FormsServiceSession($manifest, new FormsAssets(), $resolver, $this->logger_mock);
@@ -119,50 +123,55 @@ final class FormsServiceSessionSchemaMergeTest extends PluginLibTestCase {
 	}
 
 	/**
-	 * Test that FormField components without validators log a warning (but don't throw).
+	 * Test that components with validator factories are logged in verbose debug mode.
 	 *
-	 * Validators are recommended for input components but not strictly required.
-	 * Non-input components (layout wrappers, display, templates) don't need validators at all.
+	 * Validators are injected via the queue path in FormsBaseTrait, not through schema merge.
+	 * The merge just logs what factories are available.
 	 */
-	public function test_merge_schema_with_defaults_warns_when_no_validators(): void {
+	public function test_merge_schema_logs_available_factories(): void {
 		$manifestDefaults = array(
-			'sanitize' => array(function($value) {
-				return $value;
-			}),
+			'sanitize' => array(),
 			'validate' => array(),
-			// No component_type means it defaults to FormField behavior
 		);
+
+		// Create mock factories
+		$mockValidatorFactory = function() {
+			return Mockery::mock(\Ran\PluginLib\Forms\Component\Validate\ValidatorInterface::class);
+		};
+		$mockSanitizerFactory = function() {
+			return Mockery::mock(\Ran\PluginLib\Forms\Component\Sanitize\SanitizerInterface::class);
+		};
 
 		$manifest = Mockery::mock(ComponentManifest::class);
 		$manifest->shouldReceive('get_defaults_for')
 			->once()
-			->with('components.requires-validator')
+			->with('fields.text')
 			->andReturn($manifestDefaults);
 		$manifest->shouldReceive('default_catalogue')->andReturn(array());
+		$manifest->shouldReceive('validator_factories')->andReturn(array(
+			'fields.text' => $mockValidatorFactory,
+		));
+		$manifest->shouldReceive('sanitizer_factories')->andReturn(array(
+			'fields.text' => $mockSanitizerFactory,
+		));
 
 		$resolver = new FormsTemplateOverrideResolver($this->logger_mock);
 		$session  = new FormsServiceSession($manifest, new FormsAssets(), $resolver, $this->logger_mock);
 
-		// Should not throw - just log a warning
-		$result = $session->merge_schema_with_defaults('components.requires-validator', array());
+		$result = $session->merge_schema_with_defaults('fields.text', array());
 
-		// Verify result is returned (not an exception)
 		$this->assertIsArray($result);
-
-		// Verify warning was logged
-		$this->expectLog('warning', 'forms.schema.merge.no_validators');
+		// In verbose debug mode, would log 'forms.schema.merge.factories_available'
+		// but we don't assert on debug logs in tests
 	}
 
 	/**
-	 * Test that non-input components (layout wrappers) don't require validators.
+	 * Test that components without factories don't cause errors.
 	 */
-	public function test_merge_schema_with_defaults_no_warning_for_layout_wrapper(): void {
+	public function test_merge_schema_handles_components_without_factories(): void {
 		$manifestDefaults = array(
 			'sanitize' => array(),
 			'validate' => array(),
-			'context'  => array(
-				'component_type' => 'layout_wrapper',
-			),
 		);
 
 		$manifest = Mockery::mock(ComponentManifest::class);
@@ -171,15 +180,16 @@ final class FormsServiceSessionSchemaMergeTest extends PluginLibTestCase {
 			->with('layout.wrapper')
 			->andReturn($manifestDefaults);
 		$manifest->shouldReceive('default_catalogue')->andReturn(array());
+		$manifest->shouldReceive('validator_factories')->andReturn(array());
+		$manifest->shouldReceive('sanitizer_factories')->andReturn(array());
 
 		$resolver = new FormsTemplateOverrideResolver($this->logger_mock);
 		$session  = new FormsServiceSession($manifest, new FormsAssets(), $resolver, $this->logger_mock);
 
-		// Should not throw or warn - layout wrappers don't need validators
+		// Should not throw - components without factories are valid (display/layout components)
 		$result = $session->merge_schema_with_defaults('layout.wrapper', array());
 
 		$this->assertIsArray($result);
-		// No warning should be logged for non-input components
 	}
 
 	public function test_merge_pipeline_propagates_validation_messages(): void {
@@ -218,6 +228,9 @@ final class FormsServiceSessionSchemaMergeTest extends PluginLibTestCase {
 			->with('fields.merge')
 			->andReturn($manifestDefaults);
 		$manifest->shouldReceive('default_catalogue')->andReturn(array('fields.merge' => $manifestDefaults));
+		// Component has validators/sanitizers in manifest - no warning expected
+		$manifest->shouldReceive('validator_factories')->andReturn(array('fields.merge' => fn() => null));
+		$manifest->shouldReceive('sanitizer_factories')->andReturn(array('fields.merge' => fn() => null));
 
 		$resolver = new FormsTemplateOverrideResolver($this->logger_mock);
 		$session  = new FormsServiceSession($manifest, new FormsAssets(), $resolver, $this->logger_mock);

@@ -79,7 +79,7 @@ final class UserOptionsStore implements UserOptionsStoreInterface {
 		}
 		// Config::options() already injects the logger via constructor DI
 		$this->opts = $this->config->options(
-			StorageContext::forUser($this->entity->id, $this->entity->storage, $this->entity->global)
+			StorageContext::forUserId($this->entity->id, $this->entity->storage, $this->entity->global)
 		);
 	}
 }

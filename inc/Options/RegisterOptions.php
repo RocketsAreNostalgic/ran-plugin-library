@@ -19,6 +19,7 @@ namespace Ran\PluginLib\Options;
 use Closure;
 use Ran\PluginLib\Util\Logger;
 use Ran\PluginLib\Util\WPWrappersTrait;
+use Ran\PluginLib\Forms\ErrorNoticeRenderer;
 use Ran\PluginLib\Options\Storage\OptionStorageInterface;
 use Ran\PluginLib\Options\Storage\SiteOptionStorage;
 use Ran\PluginLib\Options\Storage\NetworkOptionStorage;
@@ -301,7 +302,7 @@ class RegisterOptions {
 		if ($logger === null) {
 			throw new \InvalidArgumentException('RegisterOptions::user() requires a Logger instance.');
 		}
-		return new static($option_name, StorageContext::forUser($user_id, 'meta', $global), false, $logger);
+		return new static($option_name, StorageContext::forUserId($user_id, 'meta', $global), false, $logger);
 	}
 
 	/**
@@ -337,7 +338,9 @@ class RegisterOptions {
 		}
 
 		if (!empty($this->schema)) {
-			$new->__register_internal_schema($this->schema);
+			// Directly assign schema to avoid re-registration and duplicate validators
+			// The schema is already in canonical bucket form, so no coercion needed
+			$new->__set_schema_internal($this->schema);
 		}
 
 		return $new;
@@ -1005,6 +1008,19 @@ class RegisterOptions {
 	}
 
 	/**
+	 * Directly set the internal schema array.
+	 *
+	 * Used by with_context() to share schema between instances without
+	 * re-registration, which would cause duplicate validators.
+	 *
+	 * @internal
+	 * @param array<string,array{sanitize:array{component:array<callable>,schema:array<callable>}, validate:array{component:array<callable>,schema:array<callable>}, default?:mixed}> $schema
+	 */
+	public function __set_schema_internal(array $schema): void {
+		$this->schema = $schema;
+	}
+
+	/**
 	 * Normalize an option key using internal sanitization rules.
 	 */
 	public function normalize_schema_key(string $key): string {
@@ -1061,16 +1077,19 @@ class RegisterOptions {
 			$metadataKeys = isset($metadata[$normalized_key]) && is_array($metadata[$normalized_key])
 				? array_keys($metadata[$normalized_key])
 				: array();
-			$this->_get_logger()->debug(
-				'RegisterOptions: _register_internal_schema processing entry',
-				array(
-					'key'                  => $normalized_key,
-					'had_existing'         => $hadExisting,
-					'queued_validator_cnt' => $queuedValidatorCount,
-					'queued_sanitizer_cnt' => $queuedSanitizerCount,
-					'metadata_flags'       => $metadataKeys,
-				)
-			);
+			// Only log per-entry processing in verbose mode to avoid log flooding
+			if (ErrorNoticeRenderer::isVerboseDebug()) {
+				$this->_get_logger()->debug(
+					'RegisterOptions: _register_internal_schema processing entry',
+					array(
+						'key'                  => $normalized_key,
+						'had_existing'         => $hadExisting,
+						'queued_validator_cnt' => $queuedValidatorCount,
+						'queued_sanitizer_cnt' => $queuedSanitizerCount,
+						'metadata_flags'       => $metadataKeys,
+					)
+				);
+			}
 
 			$incoming = $this->_coerce_schema_entry($entryForCoercion, $normalized_key);
 
@@ -1095,25 +1114,31 @@ class RegisterOptions {
 				// is already in canonical bucket form, so coercion here was redundant.
 				$componentBucket = &$this->schema[$normalized_key]['validate'][self::BUCKET_COMPONENT];
 				$componentBucket = array_merge($queuedValidators[$normalized_key], $componentBucket);
-				$this->_get_logger()->debug(
-					'RegisterOptions: _register_internal_schema queued validators merged',
-					array(
-						'key'          => $normalized_key,
-						'queued_count' => count($queuedValidators[$normalized_key]),
-					)
-				);
+				// Only log per-entry merging in verbose mode to avoid log flooding
+				if (ErrorNoticeRenderer::isVerboseDebug()) {
+					$this->_get_logger()->debug(
+						'RegisterOptions: _register_internal_schema queued validators merged',
+						array(
+							'key'          => $normalized_key,
+							'queued_count' => count($queuedValidators[$normalized_key]),
+						)
+					);
+				}
 			}
 
 			if (!empty($queuedSanitizers[$normalized_key])) {
 				$sanitizerBucket = &$this->schema[$normalized_key]['sanitize'][self::BUCKET_COMPONENT];
 				$sanitizerBucket = array_merge($queuedSanitizers[$normalized_key], $sanitizerBucket);
-				$this->_get_logger()->debug(
-					'RegisterOptions: _register_internal_schema queued sanitizers merged',
-					array(
-						'key'          => $normalized_key,
-						'queued_count' => count($queuedSanitizers[$normalized_key]),
-					)
-				);
+				// Only log per-entry merging in verbose mode to avoid log flooding
+				if (ErrorNoticeRenderer::isVerboseDebug()) {
+					$this->_get_logger()->debug(
+						'RegisterOptions: _register_internal_schema queued sanitizers merged',
+						array(
+							'key'          => $normalized_key,
+							'queued_count' => count($queuedSanitizers[$normalized_key]),
+						)
+					);
+				}
 			}
 
 			if ($requiresValidator) {
@@ -1125,28 +1150,31 @@ class RegisterOptions {
 			if (!empty($queuedValidators[$normalized_key]) || !empty($queuedSanitizers[$normalized_key])) {
 				$this->schema[$normalized_key] = $this->_coerce_schema_entry($this->schema[$normalized_key], $normalized_key);
 			}
-			$finalEntry             = $this->schema[$normalized_key];
-			$sanitizeComponentCount = count($finalEntry['sanitize'][self::BUCKET_COMPONENT] ?? array());
-			$sanitizeSchemaCount    = count($finalEntry['sanitize'][self::BUCKET_SCHEMA] ?? array());
-			$validateComponentCount = count($finalEntry['validate'][self::BUCKET_COMPONENT] ?? array());
-			$validateSchemaCount    = count($finalEntry['validate'][self::BUCKET_SCHEMA] ?? array());
-			$this->_get_logger()->debug(
-				'RegisterOptions: _register_internal_schema merged entry',
-				array(
-					'key'                        => $normalized_key,
-					'had_existing'               => $hadExisting,
-					'requires_validator'         => $requiresValidator,
-					'sanitize_component_count'   => $sanitizeComponentCount,
-					'sanitize_schema_count'      => $sanitizeSchemaCount,
-					'validate_component_count'   => $validateComponentCount,
-					'validate_schema_count'      => $validateSchemaCount,
-					'sanitize_component_summary' => $this->_summarize_callable_bucket($finalEntry['sanitize'][self::BUCKET_COMPONENT]),
-					'sanitize_schema_summary'    => $this->_summarize_callable_bucket($finalEntry['sanitize'][self::BUCKET_SCHEMA]),
-					'validate_component_summary' => $this->_summarize_callable_bucket($finalEntry['validate'][self::BUCKET_COMPONENT]),
-					'validate_schema_summary'    => $this->_summarize_callable_bucket($finalEntry['validate'][self::BUCKET_SCHEMA]),
-					'default_present'            => array_key_exists('default', $finalEntry),
-				)
-			);
+			$finalEntry = $this->schema[$normalized_key];
+			// Only log per-entry merged result in verbose mode to avoid log flooding
+			if (ErrorNoticeRenderer::isVerboseDebug()) {
+				$sanitizeComponentCount = count($finalEntry['sanitize'][self::BUCKET_COMPONENT] ?? array());
+				$sanitizeSchemaCount    = count($finalEntry['sanitize'][self::BUCKET_SCHEMA] ?? array());
+				$validateComponentCount = count($finalEntry['validate'][self::BUCKET_COMPONENT] ?? array());
+				$validateSchemaCount    = count($finalEntry['validate'][self::BUCKET_SCHEMA] ?? array());
+				$this->_get_logger()->debug(
+					'RegisterOptions: _register_internal_schema merged entry',
+					array(
+						'key'                        => $normalized_key,
+						'had_existing'               => $hadExisting,
+						'requires_validator'         => $requiresValidator,
+						'sanitize_component_count'   => $sanitizeComponentCount,
+						'sanitize_schema_count'      => $sanitizeSchemaCount,
+						'validate_component_count'   => $validateComponentCount,
+						'validate_schema_count'      => $validateSchemaCount,
+						'sanitize_component_summary' => $this->_summarize_callable_bucket($finalEntry['sanitize'][self::BUCKET_COMPONENT]),
+						'sanitize_schema_summary'    => $this->_summarize_callable_bucket($finalEntry['sanitize'][self::BUCKET_SCHEMA]),
+						'validate_component_summary' => $this->_summarize_callable_bucket($finalEntry['validate'][self::BUCKET_COMPONENT]),
+						'validate_schema_summary'    => $this->_summarize_callable_bucket($finalEntry['validate'][self::BUCKET_SCHEMA]),
+						'default_present'            => array_key_exists('default', $finalEntry),
+					)
+				);
+			}
 		}
 	}
 
@@ -1517,10 +1545,11 @@ class RegisterOptions {
 			$__sentinel = null; // Not needed, but defined for consistency in retry verification
 			$this->_get_logger()->debug('RegisterOptions: _save_all_options existence confirmed from merge read; skipping sentinel check');
 		} else {
-			// Sentinel pattern: differentiate missing option from nullish stored value (false, 0, '', null)
-			$__sentinel     = new \stdClass();
-			$__raw_existing = $this->_do_get_option($this->main_wp_option_name, $__sentinel);
-			$__exists       = ($__raw_existing !== $__sentinel);
+			// Use storage adapter to check existence (works for all storage types: site, user meta, etc.)
+			$__raw_existing = $this->_get_storage()->read($this->main_wp_option_name);
+			// For user meta, empty string means not found; for site options, false means not found
+			// We treat empty array as "exists but empty" vs truly missing
+			$__exists = ($__raw_existing !== '' && $__raw_existing !== false);
 		}
 		if ($__exists) {
 			// Existing row: use update() without autoload
@@ -1530,11 +1559,10 @@ class RegisterOptions {
 				$this->_get_logger()->debug('RegisterOptions: storage->update() returned false; retrying once.');
 				$result = $this->_get_storage()->update($this->main_wp_option_name, $to_save);
 				if (!$result) {
-					// Create sentinel for verification if we skipped the initial sentinel check
-					$__verify_sentinel = $__sentinel ?? new \stdClass();
-					$__verify          = $this->_do_get_option($this->main_wp_option_name, $__verify_sentinel);
-					if ($__verify !== $__verify_sentinel && Helpers::canonicalStructuresMatch($__verify, $to_save)) {
-						$this->_get_logger()->warning('RegisterOptions: storage->update() returned false but DB matches desired state; treating as success.');
+					// Verify via storage adapter (works for all storage types)
+					$__verify = $this->_get_storage()->read($this->main_wp_option_name);
+					if (is_array($__verify) && Helpers::canonicalStructuresMatch($__verify, $to_save)) {
+						$this->_get_logger()->debug('RegisterOptions: storage->update() returned false but DB matches desired state; treating as success (no-op).');
 						$result = true;
 					} else {
 						$this->_get_logger()->warning('RegisterOptions: storage->update() failed and DB does not match desired state.');
@@ -1556,9 +1584,10 @@ class RegisterOptions {
 					$this->_get_logger()->debug('RegisterOptions: storage->update() returned false; retrying once.');
 					$result = $this->_get_storage()->update($this->main_wp_option_name, $to_save);
 					if (!$result) {
-						$__verify = $this->_do_get_option($this->main_wp_option_name, $__sentinel);
-						if ($__verify !== $__sentinel && Helpers::canonicalStructuresMatch($__verify, $to_save)) {
-							$this->_get_logger()->warning('RegisterOptions: storage->update() also failed but DB matches desired state; treating as success.');
+						// Verify via storage adapter (works for all storage types)
+						$__verify = $this->_get_storage()->read($this->main_wp_option_name);
+						if (is_array($__verify) && Helpers::canonicalStructuresMatch($__verify, $to_save)) {
+							$this->_get_logger()->debug('RegisterOptions: storage->update() also returned false but DB matches desired state; treating as success (no-op).');
 							$result = true;
 						} else {
 							$this->_get_logger()->warning('RegisterOptions: storage->update() also failed and DB does not match desired state.');
@@ -1987,14 +2016,19 @@ class RegisterOptions {
 	 * @return string
 	 */
 	protected function _describe_callable(mixed $callable): string {
+		$verbose = ErrorNoticeRenderer::isVerboseDebug();
 		if (is_string($callable)) {
-			$this->_get_logger()->debug('RegisterOptions: _describe_callable completed (string)');
+			if ($verbose) {
+				$this->_get_logger()->debug('RegisterOptions: _describe_callable completed (string)');
+			}
 			return $callable;
 		}
 		if (is_array($callable) && isset($callable[0], $callable[1])) {
 			$class = is_object($callable[0]) ? get_class($callable[0]) : (string) $callable[0];
 			$desc  = $class . '::' . (string) $callable[1];
-			$this->_get_logger()->debug('RegisterOptions: _describe_callable completed (array)');
+			if ($verbose) {
+				$this->_get_logger()->debug('RegisterOptions: _describe_callable completed (array)');
+			}
 			return $desc;
 		}
 		if ($callable instanceof \Closure) {
@@ -2004,16 +2038,22 @@ class RegisterOptions {
 			} elseif (function_exists('spl_object_hash')) {
 				$desc = 'Closure#' . spl_object_hash($callable);
 			}
-			$this->_get_logger()->debug('RegisterOptions: _describe_callable completed (closure)');
+			if ($verbose) {
+				$this->_get_logger()->debug('RegisterOptions: _describe_callable completed (closure)');
+			}
 			return $desc;
 		}
 		if (is_object($callable) && method_exists($callable, '__invoke')) {
 			// Enhanced diagnostics: render as Class::__invoke
 			$desc = get_class($callable) . '::__invoke';
-			$this->_get_logger()->debug('RegisterOptions: _describe_callable completed (invokable object)');
+			if ($verbose) {
+				$this->_get_logger()->debug('RegisterOptions: _describe_callable completed (invokable object)');
+			}
 			return $desc;
 		}
-		$this->_get_logger()->debug('RegisterOptions: _describe_callable completed (other)');
+		if ($verbose) {
+			$this->_get_logger()->debug('RegisterOptions: _describe_callable completed (other)');
+		}
 		return 'callable';
 	}
 }

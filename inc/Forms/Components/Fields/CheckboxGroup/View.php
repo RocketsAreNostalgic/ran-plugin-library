@@ -40,6 +40,5 @@ return new ComponentRenderResult(
 	    'defaults' => array(
 	        'legend' => '',
 	    ),
-	),
-	component_type: 'input'
+	)
 );

@@ -10,8 +10,6 @@ namespace Ran\PluginLib\Forms\Components\Elements\Button;
 use Ran\PluginLib\Forms\Component\Normalize\NormalizerBase;
 
 final class Normalizer extends NormalizerBase {
-	// Component type and template name now derived from component alias passed to render()
-
 	protected function _normalize_component_specific(array $context): array {
 		// Normalize button type using base class string sanitization
 		$type                          = $this->_sanitize_string($context['type'] ?? 'button', 'type');

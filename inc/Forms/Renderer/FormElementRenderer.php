@@ -23,6 +23,7 @@ use Ran\PluginLib\Forms\FormsService;
 use Ran\PluginLib\Forms\Component\ComponentManifest;
 use Ran\PluginLib\Forms\Component\ComponentRenderResult;
 use Ran\PluginLib\Forms\FormsServiceSession;
+use Ran\PluginLib\Forms\ErrorNoticeRenderer;
 
 /**
  * Universal form field processing logic that eliminates duplication between
@@ -164,12 +165,15 @@ class FormElementRenderer {
 				$field_id
 			);
 
-			$this->_get_logger()->debug('FormElementRenderer: Component rendered with assets', array(
-				'component'   => $component,
-				'field_id'    => $field_id,
-				'has_assets'  => $render_result->has_assets(),
-				'asset_types' => $this->_get_asset_types_summary($render_result),
-			));
+			// Only log per-field render in verbose mode to avoid log flooding
+			if (ErrorNoticeRenderer::isVerboseDebug()) {
+				$this->_get_logger()->debug('FormElementRenderer: Component rendered with assets', array(
+					'component'   => $component,
+					'field_id'    => $field_id,
+					'has_assets'  => $render_result->has_assets(),
+					'asset_types' => $this->_get_asset_types_summary($render_result),
+				));
+			}
 
 			return $render_result->markup;
 		} catch (\Throwable $e) {
@@ -268,12 +272,19 @@ class FormElementRenderer {
 		// Merge component_context at top level - this includes builder-provided
 		// attributes like 'attributes', 'placeholder', 'required', 'disabled', etc.
 		// Normalizers expect these at the top level, not nested.
-		foreach ($component_context as $key => $value) {
-			// For 'value', use context value as fallback when stored value is null
+		foreach ($component_context as $key => $ctx_value) {
+			// For 'value'/'values', use context value as fallback when stored value is null/empty
+			// This allows hardcoded defaults while respecting saved database values
 			if ($key === 'value' && $context['value'] === null) {
-				$context['value'] = $value;
+				$context['value'] = $ctx_value;
+			} elseif ($key === 'values' && ($context['value'] === null || $context['value'] === array())) {
+				// Multi-select uses 'values' key - only use as default if no stored value
+				$context['values'] = $ctx_value;
+			} elseif ($key === 'values' && $context['value'] !== null) {
+				// Stored value exists - don't use hardcoded 'values', let normalizer use 'value'
+				continue;
 			} elseif (!array_key_exists($key, $context)) {
-				$context[$key] = $value;
+				$context[$key] = $ctx_value;
 			}
 		}
 
@@ -291,12 +302,15 @@ class FormElementRenderer {
 			$context['after'] = $extras['after'];
 		}
 
-		$this->_get_logger()->debug('FormElementRenderer: Context prepared', array(
-			'field_id'     => $field_id,
-			'component'    => $component,
-			'has_warnings' => !empty($field_messages['warnings']),
-			'has_notices'  => !empty($field_messages['notices'])
-		));
+		// Only log per-field context preparation in verbose mode to avoid log flooding
+		if (ErrorNoticeRenderer::isVerboseDebug()) {
+			$this->_get_logger()->debug('FormElementRenderer: Context prepared', array(
+				'field_id'     => $field_id,
+				'component'    => $component,
+				'has_warnings' => !empty($field_messages['warnings']),
+				'has_notices'  => !empty($field_messages['notices'])
+			));
+		}
 
 		return $context;
 	}
@@ -425,11 +439,14 @@ class FormElementRenderer {
 				$session
 			);
 
-			$this->_get_logger()->debug('FormElementRenderer: Field rendered with wrapper successfully', array(
-				'component'        => $component,
-				'field_id'         => $field_id,
-				'wrapper_template' => $wrapper_template
-			));
+			// Only log per-field success in verbose mode to avoid log flooding
+			if (ErrorNoticeRenderer::isVerboseDebug()) {
+				$this->_get_logger()->debug('FormElementRenderer: Field rendered with wrapper successfully', array(
+					'component'        => $component,
+					'field_id'         => $field_id,
+					'wrapper_template' => $wrapper_template
+				));
+			}
 
 			return $wrapped_html;
 		} catch (\Throwable $e) {
@@ -509,12 +526,15 @@ class FormElementRenderer {
 
 			try {
 				$wrapped_html = $session->render_element($template_type, $element_config, $resolver_context);
-				$this->_get_logger()->debug('FormElementRenderer: Template wrapper applied', array(
-					'template_name'   => $template_name,
-					'actual_template' => $actual_template,
-					'field_id'        => $field_id,
-					'resolved_by'     => $resolvedBy,
-				));
+				// Only log per-field wrapper in verbose mode to avoid log flooding
+				if (ErrorNoticeRenderer::isVerboseDebug()) {
+					$this->_get_logger()->debug('FormElementRenderer: Template wrapper applied', array(
+						'template_name'   => $template_name,
+						'actual_template' => $actual_template,
+						'field_id'        => $field_id,
+						'resolved_by'     => $resolvedBy,
+					));
+				}
 				return $wrapped_html;
 			} catch (\Throwable $e) {
 				$this->_get_logger()->error('FormElementRenderer: Session render_element failed; falling back to loader', array(
@@ -532,12 +552,15 @@ class FormElementRenderer {
 			$wrapped_result = $this->views->render($actual_template, $template_context);
 			$wrapped_html   = $wrapped_result->markup;
 
-			$this->_get_logger()->debug('FormElementRenderer: Template wrapper applied', array(
-				'template_name'   => $template_name,
-				'actual_template' => $actual_template,
-				'field_id'        => $field_id,
-				'resolved_by'     => $resolvedBy,
-			));
+			// Only log per-field wrapper in verbose mode to avoid log flooding
+			if (ErrorNoticeRenderer::isVerboseDebug()) {
+				$this->_get_logger()->debug('FormElementRenderer: Template wrapper applied', array(
+					'template_name'   => $template_name,
+					'actual_template' => $actual_template,
+					'field_id'        => $field_id,
+					'resolved_by'     => $resolvedBy,
+				));
+			}
 
 			return $wrapped_html;
 		} catch (\Throwable $e) {

@@ -47,7 +47,7 @@ final class UserEntity extends ScopeEntity {
 	 * @return StorageContext
 	 */
 	public function to_storage_context(): StorageContext {
-		return StorageContext::forUser(
+		return StorageContext::forUserId(
 			(int) $this->id,
 			strtolower((string) $this->storage),
 			(bool) $this->global

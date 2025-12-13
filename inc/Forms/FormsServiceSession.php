@@ -262,9 +262,12 @@ class FormsServiceSession {
 			: $this->manifest->get_defaults_for($alias);
 
 		if ($defaults === array()) {
-			$this->logger->debug('forms.schema.merge.no_defaults', array(
-				'alias' => $alias,
-			));
+			// Only log in verbose mode - no defaults is expected for static HTML elements like _raw_html, _hr
+			if (ErrorNoticeRenderer::isVerboseDebug()) {
+				$this->logger->debug('forms.schema.merge.no_defaults', array(
+					'alias' => $alias,
+				));
+			}
 			// Still coerce schema to bucket structure for consistency
 			return $this->pipeline->coerce_to_bucket_structure($schema, false, $this->logger);
 		}
@@ -272,20 +275,19 @@ class FormsServiceSession {
 		// Delegate to pipeline for merge logic
 		$merged = $this->pipeline->merge_schema_with_defaults($defaults, $schema, $this->logger);
 
-		// Only require validators for FormField (input) type components.
-		// Layout wrappers, display components, and templates don't need validation.
-		$context       = isset($merged['context']) && is_array($merged['context']) ? $merged['context'] : array();
-		$componentType = (string) ($context['component_type'] ?? '');
-		$isFormField   = $componentType === '' || $componentType === Component\ComponentType::FormField->value;
+		// Log what validators/sanitizers are available for this component.
+		// Note: Validators and sanitizers are injected via the queue path in FormsBaseTrait,
+		// so merged schema may have empty buckets at this point - that's expected.
+		$manifestValidators = $this->manifest->validator_factories();
+		$manifestSanitizers = $this->manifest->sanitizer_factories();
+		$hasValidator       = isset($manifestValidators[$alias]);
+		$hasSanitizer       = isset($manifestSanitizers[$alias]);
 
-		$hasValidators = !empty($merged['validate']['component']) || !empty($merged['validate']['schema']);
-		if ($isFormField && !$hasValidators) {
-			// Log as warning instead of error - validators are recommended but not strictly required
-			$this->logger->warning('forms.schema.merge.no_validators', array(
-				'alias'          => $alias,
-				'component_type' => $componentType,
-				'schema'         => $schema,
-				'defaults'       => $defaults,
+		if (ErrorNoticeRenderer::isVerboseDebug() && ($hasValidator || $hasSanitizer)) {
+			$this->logger->debug('forms.schema.merge.factories_available', array(
+				'alias'         => $alias,
+				'has_validator' => $hasValidator,
+				'has_sanitizer' => $hasSanitizer,
 			));
 		}
 
@@ -495,18 +497,21 @@ class FormsServiceSession {
 		$schemaBuckets   = $this->pipeline->normalize_schema_entry($schema, $alias, 'FormsServiceSession', $this->logger);
 		$mergedBuckets   = $this->pipeline->normalize_schema_entry($merged, $alias, 'FormsServiceSession', $this->logger);
 
-		$this->logger->debug('forms.schema.merge', array(
-			'alias'                   => $alias,
-			'default_sanitize_counts' => $summary($defaultsBuckets['sanitize']),
-			'default_validate_counts' => $summary($defaultsBuckets['validate']),
-			'schema_sanitize_counts'  => $summary($schemaBuckets['sanitize']),
-			'schema_validate_counts'  => $summary($schemaBuckets['validate']),
-			'merged_sanitize_counts'  => $summary($mergedBuckets['sanitize']),
-			'merged_validate_counts'  => $summary($mergedBuckets['validate']),
-			'manifest_context_keys'   => array_keys($defaultContext),
-			'schema_context_keys'     => array_keys($schemaContext),
-			'merged_context_keys'     => array_keys($mergedContext),
-		));
+		// Only log per-component schema merge in verbose mode to avoid log flooding
+		if (ErrorNoticeRenderer::isVerboseDebug()) {
+			$this->logger->debug('forms.schema.merge', array(
+				'alias'                   => $alias,
+				'default_sanitize_counts' => $summary($defaultsBuckets['sanitize']),
+				'default_validate_counts' => $summary($defaultsBuckets['validate']),
+				'schema_sanitize_counts'  => $summary($schemaBuckets['sanitize']),
+				'schema_validate_counts'  => $summary($schemaBuckets['validate']),
+				'merged_sanitize_counts'  => $summary($mergedBuckets['sanitize']),
+				'merged_validate_counts'  => $summary($mergedBuckets['validate']),
+				'manifest_context_keys'   => array_keys($defaultContext),
+				'schema_context_keys'     => array_keys($schemaContext),
+				'merged_context_keys'     => array_keys($mergedContext),
+			));
+		}
 	}
 
 	/**

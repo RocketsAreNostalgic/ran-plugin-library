@@ -99,8 +99,7 @@ class ComponentManifestCacheIntegrationTest extends PluginLibTestCase {
 		// Register identical components on both
 		$factory = function(array $context): ComponentRenderResult {
 			return new ComponentRenderResult(
-				markup: '<input type="text" name="' . ($context['name'] ?? 'test') . '">',
-				component_type: 'input'
+				markup: '<input type="text" name="' . ($context['name'] ?? 'test') . '">'
 			);
 		};
 
@@ -117,8 +116,7 @@ class ComponentManifestCacheIntegrationTest extends PluginLibTestCase {
 
 		$this->assertEquals('<input type="text" name="cached">', $result_cached->markup);
 		$this->assertEquals('<input type="text" name="uncached">', $result_uncached->markup);
-		$this->assertEquals($result_cached->submits_data(), $result_uncached->submits_data());
-		$this->assertEquals($result_cached->component_type, $result_uncached->component_type);
+		$this->assertEquals($result_cached->repeatable, $result_uncached->repeatable);
 	}
 
 	/**
@@ -132,8 +130,7 @@ class ComponentManifestCacheIntegrationTest extends PluginLibTestCase {
 		// Register a component
 		$manifest->register('cache.clear.test', function(array $context): ComponentRenderResult {
 			return new ComponentRenderResult(
-				markup: '<div>Test: ' . ($context['value'] ?? 'default') . '</div>',
-				component_type: 'display'
+				markup: '<div>Test: ' . ($context['value'] ?? 'default') . '</div>'
 			);
 		});
 
@@ -149,8 +146,6 @@ class ComponentManifestCacheIntegrationTest extends PluginLibTestCase {
 		$this->assertEquals('<div>Test: after</div>', $result_after->markup);
 
 		// Component properties should be identical
-		$this->assertEquals($result_before->submits_data(), $result_after->submits_data());
-		$this->assertEquals($result_before->component_type, $result_after->component_type);
 		$this->assertEquals($result_before->requires_media, $result_after->requires_media);
 		$this->assertEquals($result_before->repeatable, $result_after->repeatable);
 	}
@@ -196,28 +191,35 @@ class ComponentManifestCacheIntegrationTest extends PluginLibTestCase {
 
 	/**
 	 * Test that schema eligibility checking works with caching.
+	 *
+	 * A component is schema-eligible if it has a validator factory registered.
+	 * Validator factories are discovered from component metadata via resolve_validator_class.
 	 */
 	public function test_schema_eligibility_works_with_caching(): void {
-		$this->setupBasicLoaderExpectations();
+		WP_Mock::userFunction('wp_get_environment_type')->andReturn('development');
+
+		// Setup loader to return aliases with one having a validator class
+		$this->loader->shouldReceive('aliases')->andReturn(array(
+			'schema.submits' => 'components/submits.php',
+			'schema.display' => 'components/display.php',
+		));
+
+		// schema.submits has a validator class, schema.display does not
+		$this->loader->shouldReceive('resolve_validator_class')
+			->with('schema.submits')
+			->andReturn(CacheIntegrationStubValidator::class);
+		$this->loader->shouldReceive('resolve_validator_class')
+			->with('schema.display')
+			->andReturn(null);
+
+		$this->loader->shouldReceive('resolve_normalizer_class')->andReturn(null);
+		$this->loader->shouldReceive('resolve_builder_class')->andReturn(null);
+		$this->loader->shouldReceive('resolve_sanitizer_class')->andReturn(null);
+		$this->loader->shouldReceive('get_cache_service')->andReturn(new ComponentCacheService($this->logger_mock));
 
 		$manifest = new ComponentManifest($this->loader, $this->logger_mock);
 
-		// Register components with different data submission properties
-		$manifest->register('schema.submits', function(array $context): ComponentRenderResult {
-			return new ComponentRenderResult(
-				markup: '<input type="text">',
-				component_type: 'input'
-			);
-		});
-
-		$manifest->register('schema.display', function(array $context): ComponentRenderResult {
-			return new ComponentRenderResult(
-				markup: '<div>Display only</div>',
-				component_type: 'display'
-			);
-		});
-
-		// Test schema eligibility - should work with caching
+		// Test schema eligibility - component with validator factory is eligible
 		$this->assertTrue($manifest->is_component_schema_eligible('schema.submits'));
 		$this->assertFalse($manifest->is_component_schema_eligible('schema.display'));
 		$this->assertFalse($manifest->is_component_schema_eligible('nonexistent'));
@@ -277,5 +279,14 @@ class ComponentManifestCacheIntegrationTest extends PluginLibTestCase {
 		$this->loader->shouldReceive('resolve_validator_class')->andReturn(null);
 		$this->loader->shouldReceive('resolve_sanitizer_class')->andReturn(null);
 		$this->loader->shouldReceive('get_cache_service')->andReturn(new ComponentCacheService($this->logger_mock));
+	}
+}
+
+/**
+ * Stub validator for testing schema eligibility.
+ */
+class CacheIntegrationStubValidator implements ValidatorInterface {
+	public function validate(mixed $value, array $context, callable $emitWarning): bool {
+		return true;
 	}
 }

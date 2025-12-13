@@ -78,7 +78,7 @@ final class ScopeResolver {
 			if ($userId <= 0) {
 				throw new InvalidArgumentException('ScopeResolver: user scope requires a valid user_id.');
 			}
-			return StorageContext::forUser($userId, $userStorage, $userGlobal);
+			return StorageContext::forUserId($userId, $userStorage, $userGlobal);
 		}
 
 		// Fallback

@@ -80,7 +80,7 @@ final class RegisterOptionsMakeStorageTest extends PluginLibTestCase {
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::_make_storage
 	 */
 	public function test_user_meta_default(): void {
-		$ro  = $this->makeRO(StorageContext::forUser(7, 'meta', false));
+		$ro  = $this->makeRO(StorageContext::forUserId(7, 'meta', false));
 		$ref = new \ReflectionClass($ro);
 		$m   = $ref->getMethod('_make_storage');
 		$m->setAccessible(true);
@@ -92,7 +92,7 @@ final class RegisterOptionsMakeStorageTest extends PluginLibTestCase {
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::_make_storage
 	 */
 	public function test_user_option_when_requested(): void {
-		$ro  = $this->makeRO(StorageContext::forUser(7, 'option', true));
+		$ro  = $this->makeRO(StorageContext::forUserId(7, 'option', true));
 		$ref = new \ReflectionClass($ro);
 		$m   = $ref->getMethod('_make_storage');
 		$m->setAccessible(true);
@@ -104,7 +104,7 @@ final class RegisterOptionsMakeStorageTest extends PluginLibTestCase {
 	 * @covers \Ran\PluginLib\Options\RegisterOptions::_make_storage
 	 */
 	public function test_user_option_when_requested_case_insensitive(): void {
-		$ro  = $this->makeRO(StorageContext::forUser(7, 'option', true));
+		$ro  = $this->makeRO(StorageContext::forUserId(7, 'option', true));
 		$ref = new \ReflectionClass($ro);
 		$m   = $ref->getMethod('_make_storage');
 		$m->setAccessible(true);
@@ -131,8 +131,8 @@ final class RegisterOptionsMakeStorageTest extends PluginLibTestCase {
 	 */
 	public function test_user_scope_missing_user_id_throws(): void {
 		$this->expectException(\InvalidArgumentException::class);
-		// StorageContext::forUser(0, ...) should throw; if not, _make_storage will
-		$ro = $this->makeRO(StorageContext::forUser(0, 'meta', false));
+		// StorageContext::forUserId(0, ...) should throw; if not, _make_storage will
+		$ro = $this->makeRO(StorageContext::forUserId(0, 'meta', false));
 		$this->expectException(\InvalidArgumentException::class);
 		$ref = new \ReflectionClass($ro);
 		$m   = $ref->getMethod('_make_storage');

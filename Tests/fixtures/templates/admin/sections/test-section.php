@@ -1,7 +1,6 @@
 <?php
 
 use Ran\PluginLib\Forms\Component\ComponentRenderResult;
-use Ran\PluginLib\Forms\Component\ComponentType;
 
 // Support both old-style ($context['sections']) and new-style ($context['inner_html']) usage
 if (isset($context['inner_html']) && $context['inner_html'] !== '') {
@@ -49,6 +48,5 @@ if (isset($context['inner_html']) && $context['inner_html'] !== '') {
 }
 
 return new ComponentRenderResult(
-	markup: $markup,
-	component_type: ComponentType::LayoutWrapper
+	markup: $markup
 );

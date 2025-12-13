@@ -10,7 +10,6 @@
  */
 
 use Ran\PluginLib\Forms\Component\ComponentRenderResult;
-use Ran\PluginLib\Forms\Component\ComponentType;
 
 /**
  * Default admin settings page view for tests.
@@ -65,7 +64,6 @@ if (function_exists('submit_button')) {
 <?php
 
 return new ComponentRenderResult(
-	markup: (string) ob_get_clean(),
-	component_type: ComponentType::LayoutWrapper
+	markup: (string) ob_get_clean()
 );
 return (string) ob_get_clean();
