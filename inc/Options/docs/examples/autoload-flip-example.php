@@ -18,22 +18,19 @@
  *   requires delete+add.
  */
 
-use Ran\PluginLib\Config\Config;
-use Ran\PluginLib\Options\RegisterOptions;
-use Ran\PluginLib\Options\Entity\BlogEntity;
-use Ran\PluginLib\Options\Entity\UserEntity;
 use Ran\PluginLib\Options\Storage\StorageContext;
+use Ran\PluginLib\Config\Config;
 
 // Initialize config and options
 $config  = Config::fromPluginFile(__FILE__);
-$options = new RegisterOptions($config->get_options_key()); // site scope by default
+$options = $config->options(StorageContext::forSite(), true);
 
 // Guard: ensure we're in a scope that supports autoload.
 if (!$options->supports_autoload()) {
 	echo "Current scope does not support autoload. Skipping flip.\n";
 	// Example: show that user/blog scopes are not eligible
 	$userOpts = $config->options(
-		StorageContext::forUser(123, 'meta', false),
+		StorageContext::forUserId(123, 'meta', false),
 		false
 	);
 	assert($userOpts->supports_autoload() === false);

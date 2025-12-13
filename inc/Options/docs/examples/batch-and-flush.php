@@ -26,19 +26,18 @@
 declare(strict_types=1);
 
 use Ran\PluginLib\Config\Config;
-use Ran\PluginLib\Options\RegisterOptions;
 use Ran\PluginLib\Options\Storage\StorageContext;
 
 $config  = Config::fromPluginFile(__FILE__);
-$options = new RegisterOptions($config->get_options_key());
+$options = $config->options(StorageContext::forSite(), true);
 
 // BATCH PATTERN: Stage multiple changes in memory first, then commit once
-// Note: You can mix simple values and structured definitions
+// Note: Values are stored as-is; prefer simple scalar/array values.
 $options->stage_options(array(
   'api_key'        => 'abc',                 // Simple value
-  'enabled'        => array('value' => true), // With metadata structure
+  'enabled'        => true,
   'timeout'        => 30,                    // Simple value
-  'cache_duration' => array('value' => 3600) // With metadata structure
+  'cache_duration' => 3600
 ))->commit_replace(); // Single DB write for all changes
 
 // REAL-WORLD EXAMPLE: Plugin activation with many defaults
@@ -77,7 +76,7 @@ if ($_POST['save_settings']) {
 // ------------------------------------------------------------
 // Example: per-user batch update
 $userOptions = $config->options(
-	StorageContext::forUser((int) get_current_user_id(), 'meta', false),
+	StorageContext::forUserId((int) get_current_user_id(), 'meta', false),
 	false // autoload not applicable for user scope
 );
 $userOptions->stage_options(array(

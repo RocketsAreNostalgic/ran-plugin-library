@@ -26,10 +26,10 @@
 declare(strict_types=1);
 
 use Ran\PluginLib\Config\Config;
-use Ran\PluginLib\Options\RegisterOptions;
+use Ran\PluginLib\Options\Storage\StorageContext;
 
 $config  = Config::fromPluginFile(__FILE__);
-$options = new RegisterOptions($config->get_options_key());
+$options = $config->options(StorageContext::forSite(), true);
 
 // EXAMPLE 1: Theme customization - update colors without losing typography
 $current_theme = $options->get_option('theme_config', array());

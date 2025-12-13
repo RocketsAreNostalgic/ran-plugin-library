@@ -29,9 +29,9 @@ use Ran\PluginLib\Options\Storage\StorageContext;
 $config = Config::fromPluginFile(__FILE__);
 
 // Create options group using plugin's primary option name
-// RATIONALE: from_config() uses your plugin's configured option name from Config,
+// RATIONALE: Config::options() uses your plugin's configured option name from Config,
 // ensuring consistency across your plugin and avoiding hardcoded strings.
-$options = new RegisterOptions($config->get_options_key(), StorageContext::forSite(), true);
+$options = $config->options(StorageContext::forSite(), true);
 
 // Set individual options to memory
 $options->stage_option('api_key', 'abc123');
@@ -65,7 +65,7 @@ if (!$options->has_option('version')) {
 // User scope (typed context)
 // Autoload is not supported for user scope (supports_autoload() => false).
 $userOptions = $config->options(
-	StorageContext::forUser((int) get_current_user_id(), 'meta', false),
+	StorageContext::forUserId((int) get_current_user_id(), 'meta', false),
 	false
 );
 $userOptions->stage_option('dashboard_prefs', array('layout' => 'compact'));
@@ -85,7 +85,7 @@ if ($blogOptions->supports_autoload()) {
 // Alternate construction via new RegisterOptions() with typed context
 $explicit = new RegisterOptions(
 	$config->get_options_key(),
-	StorageContext::forUser((int) get_current_user_id(), 'option', true),
+	StorageContext::forUserId((int) get_current_user_id(), 'option', true),
 	false,
 	$config->get_logger()
 );

@@ -20,7 +20,6 @@ declare(strict_types=1);
 
 use Ran\PluginLib\Config\Config;
 use Ran\PluginLib\Options\RegisterOptions;
-use Ran\PluginLib\Options\Entity\UserEntity;
 use Ran\PluginLib\Options\Storage\StorageContext;
 
 // Initialize config (adapt as needed for your plugin bootstrap)
@@ -30,7 +29,7 @@ $userId = get_current_user_id(); // Or any specific user ID
 
 // Default: user meta storage via typed context (stores entire options array in usermeta)
 $options = $config->options(
-	StorageContext::forUser((int) $userId, 'meta', false),
+	StorageContext::forUserId((int) $userId, 'meta', false),
 	false // autoload not applicable for user scope
 );
 
@@ -63,13 +62,14 @@ $options->commit_merge(); // single DB write (shallow merge with DB)
 // Optional: Explicit construction via RegisterOptions (typed context)
 $explicit = new RegisterOptions(
 	$config->get_options_key(),
-	StorageContext::forUser((int) $userId, 'meta', true), // network-wide user meta
-	false // autoload not applicable for user scope
+	StorageContext::forUserId((int) $userId, 'meta', true), // network-wide user meta
+	false, // autoload not applicable for user scope
+	$config->get_logger()
 );
 
 // Alternate backend: user option storage (per-user option key)
 $optionsOption = $config->options(
-	StorageContext::forUser((int) $userId, 'option', false), // select WP user option storage
+	StorageContext::forUserId((int) $userId, 'option', false), // select WP user option storage
 	false // autoload not applicable for user scope
 );
 

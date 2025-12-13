@@ -77,7 +77,7 @@ A small factory selects the adapter from the typed `StorageContext` and is used 
 
 `Config::options(?StorageContext $context = null, bool $autoload = true): RegisterOptions`
 
-- `StorageContext` selects scope: `forSite()`, `forNetwork()`, `forBlog(int)`, `forUser(int, 'meta'|'option', bool)`
+- `StorageContext` selects scope: `forSite()`, `forNetwork()`, `forBlog(int)`, `forUserId(int, 'meta'|'option', bool)`
 - Side‑effect free; returns a pre‑wired `RegisterOptions`.
 
 ### 2) Constructor on RegisterOptions

@@ -62,15 +62,20 @@ public function options(StorageContext $context = null, bool $autoload = true): 
 
 ### 3) Options convenience constructors
 
-Add to `RegisterOptions`:
+Use `Config::options()` as the constructor-like convenience.
+
+- It returns a `RegisterOptions` instance already bound to `$cfg->get_options_key()`.
+- Prefer this over adding additional `RegisterOptions` convenience constructors.
 
 ```php
 use Ran\PluginLib\Options\Storage\StorageContext;
 
-public static function from_config(\Ran\PluginLib\Config\ConfigInterface $cfg, StorageContext $context = null, bool $autoload = true): self;
-```
+// Defaults to site scope
+$opts = $config->options();
 
-- Initializes a `RegisterOptions` bound to `$cfg->get_options_key()` with typed `StorageContext`.
+// Or pick a scope explicitly
+$opts = $config->options(StorageContext::forNetwork());
+```
 
 ### 4) Seeding helper (activation-time)
 
@@ -104,7 +109,7 @@ use Ran\PluginLib\Options\Storage\StorageContext;
 public function options(StorageContext $context = null, bool $autoload = true): \Ran\PluginLib\Options\RegisterOptions;
 ```
 
-- `StorageContext` selects scope: `forSite()`, `forNetwork()`, `forBlog(int)`, `forUser(int, string $storage, bool $global)`.
+- `StorageContext` selects scope: `forSite()`, `forNetwork()`, `forBlog(int)`, `forUser(string $storage, bool $global)`, `forUserId(int $user_id, string $storage, bool $global)`.
 - `autoload` is a policy hint used at new-row creation; does not write by itself.
 
 Notes:
@@ -182,7 +187,26 @@ User scope:
 ```php
 use Ran\PluginLib\Options\Storage\StorageContext;
 
-$opts = $config->options(StorageContext::forUser(123, 'option', true));
+$opts = $config->options(StorageContext::forUserId(123, 'option', true));
+```
+
+User settings (profile fields):
+
+```php
+use Ran\PluginLib\Options\Storage\StorageContext;
+use Ran\PluginLib\Settings\UserSettingsRegistry;
+
+// Register at plugin load time; user_id is resolved later from WordPress profile hooks.
+$config->settings(StorageContext::forUser())->register(function (UserSettingsRegistry $s) {
+    $s->collection('my-user-settings')
+        ->heading('My User Settings')
+        ->on_render(function ($c) {
+            $c->section('my-section', 'My Section')
+                ->field('my_field', 'My Field', 'fields.input')
+                ->end_field()
+            ->end_section();
+        });
+});
 ```
 
 ## Usage Examples
@@ -246,17 +270,15 @@ $enabled = $opts->get_option('enabled', false);
 ## Acceptance Criteria
 
 - Config exposes `get_options_key()` and `options()`.
-- `RegisterOptions` exposes `from_config()`, `seed_if_missing()`, and `migrate()`.
+- `RegisterOptions` exposes `seed_if_missing()` and `migrate()`.
 - README updated with examples for plugins and themes.
 - No implicit DB writes during hydration; all writes occur via Options helpers.
 
 ## Feature Development (Target 0.1.3)
 
-Non-breaking expansion to add explicit option scope support. See PRD-003: [PRD-003-Options-Scope-and-Multisite.md](./PRD-003-Options-Scope-and-Multisite.md).
+Non-breaking expansion to add explicit option scope support. See PRD-003-Options-Scope-and-Multisite.md.
 
-- Extend `Config::options(array $args = [])` to accept `scope` (default `'site'`) and optional `blog_id` (required for `'blog'`).
-
-- Provide `new RegisterOptions(\Ran\PluginLib\Config\ConfigInterface $cfg->get_options_key(), array $args = [])`.
-- Implement internal adapters mapping to `get_option` / `get_site_option` / `get_blog_option`.
+- `Config::options()` accepts a typed `StorageContext` to select scope.
+- `RegisterOptions` uses internal adapters mapping to `get_option` / `get_site_option` / `get_blog_option` and user storage.
 - Documentation: add an “Option Scope” section (scopes, permissions, autoload limits). Explicitly discourage implicit detection; optionally allow header default (`RAN.OptionScope`) as opt-in.
 - Migration: document a WP-CLI recipe for site→network migration (dry-run, progress, rollback notes).

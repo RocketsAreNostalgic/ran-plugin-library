@@ -4,7 +4,7 @@ RAN PluginLib is a (work in progress) library designed to accelerate WordPress p
 
 **BETA - THIS IS CONCEPTUAL AND NOT INTENDED FOR PRODUCTION USE.**
 
-An example implementation is available at <https://github.com/RocketsAreNostalgic/ran-starter-plugin>
+An example implementation is available at github.com/RocketsAreNostalgic/ran-starter-plugin
 
 ## Features
 
@@ -254,7 +254,7 @@ class Bootstrap implements BootstrapInterface {
 The `EnqueueAbstract` class and its children (`EnqueuePublic`, `EnqueueAdmin`) provide a structured way to manage your CSS and JavaScript.
 
 - **`EnqueuePublic`:** Use for assets loaded on the public-facing side of your site. Hooks into `wp_enqueue_scripts`.
-- **`EnqueueAdmin`:** Use for assets loaded in the WordPress admin area. Hooks into `admin_stage_scripts`.
+- **`EnqueueAdmin`:** Use for assets loaded in the WordPress admin area. Hooks into `admin_enqueue_scripts`.
 
 ##### Key Methods
 
@@ -272,7 +272,7 @@ Adds one or more inline script definitions to the enqueuer instance's internal l
 
 - `load()`
 
-This is a crucial method that finalizes the asset registration process. It iterates through all script, style, and inline script definitions that have been added to the enqueuer instance and registers the appropriate WordPress action hooks (e.g., `wp_enqueue_scripts` for public assets or `admin_stage_scripts` for admin assets). These hooks ensure that WordPress enqueues the assets at the correct time during page load.
+This is a crucial method that finalizes the asset registration process. It iterates through all script, style, and inline script definitions that have been added to the enqueuer instance and registers the appropriate WordPress action hooks (e.g., `wp_enqueue_scripts` for public assets or `admin_enqueue_scripts` for admin assets). These hooks ensure that WordPress enqueues the assets at the correct time during page load.
 
 **Important:** You must call `load()` once for each enqueuer instance (e.g., once for public assets and once for admin assets if you're using separate instances). This call should be made _after_ all `add_scripts()`, `add_styles()`, and `add_inline_scripts()` calls for that specific instance have been completed. The `load()` method is what actually instructs WordPress to process your asset list and include them on the page.
 
@@ -377,7 +377,7 @@ $networkOpts = $config->options(StorageContext::forNetwork());
 $blogOpts = $config->options(StorageContext::forBlog(123));
 
 // Specific user options
-$userOpts = $config->options(StorageContext::forUser(456, 'meta', false));
+$userOpts = $config->options(StorageContext::forUserId(456, 'meta', false));
 ```
 
 Notes:
@@ -388,6 +388,50 @@ Notes:
   - inc/Config/docs/PRD-002-Config-Options-Integration.md
   - inc/Config/docs/PRD-003-Options-Scope-and-Multisite.md
 
+### 5. Settings Registration (Admin + User) (Quick Start)
+
+Use `Config::settings(?StorageContext $context = null, bool $autoload = true)` as the unified entry point for settings registration.
+
+- Site / Network / Blog scope returns an Admin settings registry.
+- User scope returns a User settings registry.
+
+Admin settings (site scope):
+
+```php
+use Ran\PluginLib\Options\Storage\StorageContext;
+use Ran\PluginLib\Settings\AdminMenuRegistry;
+
+$config->settings(StorageContext::forSite())->register(function (AdminMenuRegistry $s) {
+ $s->settings_page('my-settings')
+  ->heading('My Settings')
+  ->on_render(function ($page) {
+   $page->section('main', 'Main')
+    ->field('enabled', 'Enabled', 'fields.checkbox')
+    ->end_field()
+   ->end_section();
+  });
+});
+```
+
+User settings (profile fields):
+
+```php
+use Ran\PluginLib\Options\Storage\StorageContext;
+use Ran\PluginLib\Settings\UserSettingsRegistry;
+
+// Use deferred user context so the edited user is resolved from profile hooks.
+$config->settings(StorageContext::forUser())->register(function (UserSettingsRegistry $s) {
+ $s->collection('my-user-settings')
+  ->heading('My User Settings')
+  ->on_render(function ($c) {
+   $c->section('main', 'Main')
+    ->field('favorite_color', 'Favorite Color', 'fields.input')
+    ->end_field()
+   ->end_section();
+  });
+});
+```
+
 #### Performance notes
 
 - Schema rules (`sanitize`/`validate`) can run multiple times by design:
@@ -397,25 +441,23 @@ Notes:
 
 #### Config::options() semantics (no-write accessor)
 
-- Recognized args (all optional):
-  - `autoload` (bool, default: true) — default autoload policy for future writes.
-  - `scope` ('site'|'network'|'blog'|'user' or OptionScope enum), default: 'site'.
-  - `entity` (typed entity: `BlogEntity` or `UserEntity` | null) — required when scope is 'blog' or 'user'.
-- For scopes 'blog' and 'user', a typed entity is required.
+- Signature: `Config::options(?StorageContext $context = null, bool $autoload = true)`.
+- `$context` selects scope (site/network/blog/user). When omitted, it defaults to site scope.
+- `$autoload` is a policy hint used only when a new option row is created (site and blog storages only).
 - This accessor performs no writes, seeding, or flushes.
-- Unknown args are ignored and a warning is logged via the Config’s logger.
 
 Recommended pattern & persisting changes:
 
 ```php
-$opts = $config->options(['autoload' => true]);
+$opts = $config->options();
 $opts->stage_options(['enabled' => true]);
 $opts->commit_replace(); // explicit write
 
 // or seed schema defaults and persist immediately (use fluent API on RegisterOptions)
 $opts->register_schema(['enabled' => ['default' => true]], seed_defaults: true, flush: true);
 
-> Note: For construction-only scenarios, `new RegisterOptions($config->get_options_key(), ['autoload' => ..., 'scope' => ..., 'entity' => ...])` is available. Prefer `Config::options()`. Both use typed entities for scope handling. Customization can be applied via fluent methods (schema/defaults/policy). These accessors perform no writes.
+// Programmatic user access
+$userOpts = $config->options(StorageContext::forUserId(123));
 ```
 
 Examples:
@@ -431,10 +473,10 @@ This library is under active development, and several areas are still evolving o
 
 Basic testing infrastructure is in place, but comprehensive test coverage is an ongoing goal.
 
-- **Framework**: [PHPUnit](https://phpunit.de/) is used for testing, often in conjunction with [WP Mock](https://github.com/10up/wp-mock) for mocking WordPress functions.
+- **Framework**: PHPUnit is used for testing, often in conjunction with WP_Mock for mocking WordPress functions.
 - **Location**: Tests are located in the `Tests/` directory at the root of the library.
 
-- **Running Tests**: Currently, there isn't a dedicated Composer script for running tests. You would typically run PHPUnit directly from the command line, ensuring you are in the library's root directory:
+- **Running Tests**: Use the Composer script from the library root directory:
 
   ```bash
   composer test

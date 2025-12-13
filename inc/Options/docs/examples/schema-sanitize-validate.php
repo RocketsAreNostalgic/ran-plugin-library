@@ -21,9 +21,9 @@
  * EXECUTION ORDER:
  * 1. Sanitize: Clean/transform the input value
  * 2. Validate: Check if the sanitized value is acceptable
- * 3. If validation fails, throw InvalidArgumentException
+ * 3. If validation fails, a warning is recorded and the value is not staged; commits will return false
  *
- * IMPORTANT: Validation should return true or throw/return false
+ * IMPORTANT: Use commit_merge()/commit_replace() return values and take_warnings() to inspect failures
  */
 
 declare(strict_types=1);
@@ -31,7 +31,6 @@ declare(strict_types=1);
 use Ran\PluginLib\Config\Config;
 use Ran\PluginLib\Util\Sanitize;
 use Ran\PluginLib\Util\Validate;
-use Ran\PluginLib\Options\RegisterOptions;
 use Ran\PluginLib\Options\Storage\StorageContext;
 
 $config = Config::fromPluginFile(__FILE__);
@@ -112,60 +111,60 @@ $schema = array(
 );
 
 // Construct with autoload preference and attach schema via fluent
-$options = (new RegisterOptions(
-	$config->get_options_key(),
-	StorageContext::forSite(),
-	true,
-	$config->get_logger()
-))->with_schema($schema);
+$options = $config->options(StorageContext::forSite(), true)->with_schema($schema);
 
 // EXAMPLES OF SANITIZATION AND VALIDATION IN ACTION:
 
-try {
-	// This will be trimmed and validated
-	$options->stage_option('stripe_api_key', '  sk_test_redacted  ')->commit_merge();
+// This will be trimmed and validated
+$ok = $options->stage_option('stripe_api_key', '  sk_test_redacted  ')->commit_merge();
+if ($ok) {
 	echo "✓ API key saved successfully\n";
-} catch (InvalidArgumentException $e) {
-	echo '✗ API key validation failed: ' . $e->getMessage() . "\n";
+} else {
+	echo "✗ API key validation failed\n";
+	var_dump($options->take_warnings());
 }
 
-try {
-	// This will be sanitized to a valid email
-	$options->stage_option('notification_email', ' admin@example.com ')->commit_merge();
+// This will be sanitized to a valid email
+$ok = $options->stage_option('notification_email', ' admin@example.com ')->commit_merge();
+if ($ok) {
 	echo "✓ Email saved successfully\n";
-} catch (InvalidArgumentException $e) {
-	echo '✗ Email validation failed: ' . $e->getMessage() . "\n";
+} else {
+	echo "✗ Email validation failed\n";
+	var_dump($options->take_warnings());
 }
 
-try {
-	// This will fail validation (invalid URL)
-	$options->stage_option('webhook_url', 'not-a-valid-url')->commit_merge();
+// This will fail validation (invalid URL)
+$ok = $options->stage_option('webhook_url', 'not-a-valid-url')->commit_merge();
+if ($ok) {
 	echo "✓ Webhook URL saved successfully\n";
-} catch (InvalidArgumentException $e) {
-	echo '✗ Webhook URL validation failed: ' . $e->getMessage() . "\n";
+} else {
+	echo "✗ Webhook URL validation failed\n";
+	var_dump($options->take_warnings());
 }
 
-try {
-    // This will be clamped to valid range by sanitizer
-	$options->stage_option('image_quality', 150)->commit_merge(); // Will become 100
+// This will be clamped to valid range by sanitizer
+$ok = $options->stage_option('image_quality', 150)->commit_merge(); // Will become 100
+if ($ok) {
 	echo '✓ Image quality saved as: ' . $options->get_option('image_quality') . "\n";
-} catch (InvalidArgumentException $e) {
-	echo '✗ Image quality validation failed: ' . $e->getMessage() . "\n";
+} else {
+	echo "✗ Image quality validation failed\n";
+	var_dump($options->take_warnings());
 }
 
 // REAL-WORLD FORM PROCESSING EXAMPLE:
 if ($_POST['save_settings']) {
-	try {
-		$options->stage_options(array(
-		    'stripe_api_key'     => $_POST['api_key'],
-		    'notification_email' => $_POST['admin_email'],
-		    'webhook_url'        => $_POST['webhook'],
-		    'api_timeout'        => $_POST['timeout'],
-		    'enabled_features'   => $_POST['features'] ?? array(),
-		        ))->commit_replace();
+	$options->stage_options(array(
+	    'stripe_api_key'     => $_POST['api_key'],
+	    'notification_email' => $_POST['admin_email'],
+	    'webhook_url'        => $_POST['webhook'],
+	    'api_timeout'        => $_POST['timeout'],
+	    'enabled_features'   => $_POST['features'] ?? array(),
+	));
 
+	$ok = $options->commit_replace();
+	if ($ok) {
 		wp_redirect(add_query_arg('updated', '1', wp_get_referer()));
-	} catch (InvalidArgumentException $e) {
-		wp_redirect(add_query_arg('error', urlencode($e->getMessage()), wp_get_referer()));
+	} else {
+		wp_redirect(add_query_arg('error', urlencode('Validation failed'), wp_get_referer()));
 	}
 }
