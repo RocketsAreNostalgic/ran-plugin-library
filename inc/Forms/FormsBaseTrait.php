@@ -24,6 +24,8 @@ use Ran\PluginLib\Forms\Services\FormsStateStoreInterface;
 use Ran\PluginLib\Forms\Services\FormsStateStore;
 use Ran\PluginLib\Forms\Services\FormsErrorHandlerInterface;
 use Ran\PluginLib\Forms\Services\AdminFormsErrorHandler;
+use Ran\PluginLib\Forms\Services\FormsValidatorServiceInterface;
+use Ran\PluginLib\Forms\Services\FormsValidatorService;
 use Ran\PluginLib\Forms\Renderer\FormMessageHandler;
 use Ran\PluginLib\Forms\Renderer\FormElementRenderer;
 use Ran\PluginLib\Forms\FormsServiceSession;
@@ -101,9 +103,10 @@ trait FormsBaseTrait {
 	/** @var array<string, RegisterOptions> Cache of resolved RegisterOptions by storage context key */
 	private array $__resolved_options_cache = array();
 
-	private ?FormsStateStoreInterface $__state_store     = null;
-	private ?FormsUpdateRouterInterface $__update_router = null;
-	private ?FormsErrorHandlerInterface $__error_handler = null;
+	private ?FormsStateStoreInterface $__state_store             = null;
+	private ?FormsUpdateRouterInterface $__update_router         = null;
+	private ?FormsErrorHandlerInterface $__error_handler         = null;
+	private ?FormsValidatorServiceInterface $__validator_service = null;
 
 	// Template override system removed - now handled by FormsTemplateOverrideResolver in FormsServiceSession
 
@@ -136,6 +139,23 @@ trait FormsBaseTrait {
 
 		$this->__error_handler = new AdminFormsErrorHandler();
 		return $this->__error_handler;
+	}
+
+	protected function _get_validator_service(): FormsValidatorServiceInterface {
+		if ($this->__validator_service instanceof FormsValidatorServiceInterface) {
+			return $this->__validator_service;
+		}
+
+		$queued_validators         = & $this->__queued_component_validators;
+		$queued_sanitizers         = & $this->__queued_component_sanitizers;
+		$this->__validator_service = new FormsValidatorService(
+			$this->base_options,
+			$this->components,
+			$this->logger,
+			$queued_validators,
+			$queued_sanitizers
+		);
+		return $this->__validator_service;
 	}
 
 	// =========================================================================
@@ -2179,33 +2199,7 @@ trait FormsBaseTrait {
 	 * @return void
 	 */
 	protected function _inject_component_validators(string $field_id, string $component, array $field_context = array()): void {
-		$field_key = $this->base_options->normalize_schema_key($field_id);
-		// Field context is passed directly - no manifest defaults needed
-		$context = $field_context;
-
-		$validator_factories = $this->components->validator_factories();
-		$factory             = $validator_factories[$component] ?? null;
-		if (!is_callable($factory)) {
-			// No validator for this component - silently skip
-			// Display-only components (buttons, raw HTML) won't have validators
-			return;
-		}
-
-		$validator_instance = $factory();
-		$validator_callable = function($value, callable $emitWarning) use ($validator_instance, $context): bool {
-			return $validator_instance->validate($value, $context, $emitWarning);
-		};
-
-		$hadSchema                                         = $this->base_options->has_schema_key($field_key);
-		$this->__queued_component_validators[$field_key][] = $validator_callable;
-		// Only log per-field queuing in verbose mode to avoid log flooding
-		if (ErrorNoticeRenderer::isVerboseDebug()) {
-			$this->logger->debug(static::class . ': Component validator queued pending schema', array(
-				'field_id'          => $field_id,
-				'component'         => $component,
-				'schema_registered' => $hadSchema,
-			));
-		}
+		$this->_get_validator_service()->inject_component_validators($field_id, $component, $field_context);
 	}
 
 	/**
@@ -2216,9 +2210,7 @@ trait FormsBaseTrait {
 	 * @return array<string, array<int, callable>>
 	 */
 	protected function _drain_queued_component_validators(): array {
-		$buffer                              = $this->__queued_component_validators;
-		$this->__queued_component_validators = array();
-		return $buffer;
+		return $this->_get_validator_service()->drain_queued_component_validators();
 	}
 
 	/**
@@ -2233,32 +2225,7 @@ trait FormsBaseTrait {
 	 * @return void
 	 */
 	protected function _inject_component_sanitizers(string $field_id, string $component, array $field_context = array()): void {
-		$field_key = $this->base_options->normalize_schema_key($field_id);
-		// Field context is passed directly - no manifest defaults needed
-		$context = $field_context;
-
-		$sanitizer_factories = $this->components->sanitizer_factories();
-		$factory             = $sanitizer_factories[$component] ?? null;
-		if (!is_callable($factory)) {
-			// Sanitizers are optional – silently skip components without one
-			return;
-		}
-
-		$sanitizer_instance = $factory();
-		$sanitizer_callable = function($value, callable $emitNotice) use ($sanitizer_instance, $context): mixed {
-			return $sanitizer_instance->sanitize($value, $context, $emitNotice);
-		};
-
-		$hadSchema                                         = $this->base_options->has_schema_key($field_key);
-		$this->__queued_component_sanitizers[$field_key][] = $sanitizer_callable;
-		// Only log per-field queuing in verbose mode to avoid log flooding
-		if (ErrorNoticeRenderer::isVerboseDebug()) {
-			$this->logger->debug(static::class . ': Component sanitizer queued pending schema', array(
-				'field_id'          => $field_id,
-				'component'         => $component,
-				'schema_registered' => $hadSchema,
-			));
-		}
+		$this->_get_validator_service()->inject_component_sanitizers($field_id, $component, $field_context);
 	}
 
 	/**
@@ -2269,9 +2236,7 @@ trait FormsBaseTrait {
 	 * @return array<string, array<int, callable>>
 	 */
 	protected function _drain_queued_component_sanitizers(): array {
-		$buffer                              = $this->__queued_component_sanitizers;
-		$this->__queued_component_sanitizers = array();
-		return $buffer;
+		return $this->_get_validator_service()->drain_queued_component_sanitizers();
 	}
 
 	// -- Schema Bundle Resolution --
@@ -2623,64 +2588,7 @@ trait FormsBaseTrait {
 	 * }
 	 */
 	protected function _consume_component_validator_queue(array $bucketedSchema): array {
-		$drained = $this->_drain_queued_component_validators();
-		if ($drained === array()) {
-			return array($bucketedSchema, array());
-		}
-
-		$queuedForSchema = array();
-		$matchedCounts   = array();
-		$unmatchedKeys   = array();
-		$schemaKeyLookup = array_fill_keys(array_keys($bucketedSchema), true);
-
-		foreach ($drained as $normalizedKey => $validators) {
-			if (!is_array($validators) || $validators === array()) {
-				continue;
-			}
-
-			$validators = array_values($validators);
-			if (isset($schemaKeyLookup[$normalizedKey])) {
-				$count                           = count($validators);
-				$queuedForSchema[$normalizedKey] = $validators;
-				$matchedCounts[$normalizedKey]   = $count;
-				// Only log per-key matching in verbose mode to avoid log flooding
-				if (ErrorNoticeRenderer::isVerboseDebug()) {
-					$this->logger->debug(static::class . ': Component validator queue matched schema key', array(
-						'normalized_key'  => $normalizedKey,
-						'validator_count' => $count,
-					));
-				}
-				continue;
-			}
-
-			if (!isset($this->__queued_component_validators[$normalizedKey])) {
-				$this->__queued_component_validators[$normalizedKey] = $validators;
-			} else {
-				$this->__queued_component_validators[$normalizedKey] = array_merge(
-					(array) $this->__queued_component_validators[$normalizedKey],
-					$validators
-				);
-			}
-			$unmatchedKeys[] = $normalizedKey;
-			// Only log per-key re-queuing in verbose mode to avoid log flooding
-			if (ErrorNoticeRenderer::isVerboseDebug()) {
-				$this->logger->debug(static::class . ': Component validator queue re-queued unmatched key', array(
-					'normalized_key'  => $normalizedKey,
-					'validator_count' => count($validators),
-				));
-			}
-		}
-
-		// Only log queue consumption summary in verbose mode to avoid log flooding
-		if (ErrorNoticeRenderer::isVerboseDebug()) {
-			$this->logger->debug(static::class . ': Component validator queue consumed', array(
-				'schema_keys'    => array_keys($bucketedSchema),
-				'queued_counts'  => $matchedCounts,
-				'unmatched_keys' => $unmatchedKeys,
-			));
-		}
-
-		return array($bucketedSchema, $queuedForSchema);
+		return $this->_get_validator_service()->consume_component_validator_queue($bucketedSchema);
 	}
 
 	/**
@@ -2697,64 +2605,7 @@ trait FormsBaseTrait {
 	 * }
 	 */
 	protected function _consume_component_sanitizer_queue(array $bucketedSchema): array {
-		$drained = $this->_drain_queued_component_sanitizers();
-		if ($drained === array()) {
-			return array($bucketedSchema, array());
-		}
-
-		$queuedForSchema = array();
-		$matchedCounts   = array();
-		$unmatchedKeys   = array();
-		$schemaKeyLookup = array_fill_keys(array_keys($bucketedSchema), true);
-
-		foreach ($drained as $normalizedKey => $sanitizers) {
-			if (!is_array($sanitizers) || $sanitizers === array()) {
-				continue;
-			}
-
-			$sanitizers = array_values($sanitizers);
-			if (isset($schemaKeyLookup[$normalizedKey])) {
-				$count                           = count($sanitizers);
-				$queuedForSchema[$normalizedKey] = $sanitizers;
-				$matchedCounts[$normalizedKey]   = $count;
-				// Only log per-key matching in verbose mode to avoid log flooding
-				if (ErrorNoticeRenderer::isVerboseDebug()) {
-					$this->logger->debug(static::class . ': Component sanitizer queue matched schema key', array(
-						'normalized_key'  => $normalizedKey,
-						'sanitizer_count' => $count,
-					));
-				}
-				continue;
-			}
-
-			if (!isset($this->__queued_component_sanitizers[$normalizedKey])) {
-				$this->__queued_component_sanitizers[$normalizedKey] = $sanitizers;
-			} else {
-				$this->__queued_component_sanitizers[$normalizedKey] = array_merge(
-					(array) $this->__queued_component_sanitizers[$normalizedKey],
-					$sanitizers
-				);
-			}
-			$unmatchedKeys[] = $normalizedKey;
-			// Only log per-key re-queuing in verbose mode to avoid log flooding
-			if (ErrorNoticeRenderer::isVerboseDebug()) {
-				$this->logger->debug(static::class . ': Component sanitizer queue re-queued unmatched key', array(
-					'normalized_key'  => $normalizedKey,
-					'sanitizer_count' => count($sanitizers),
-				));
-			}
-		}
-
-		// Only log queue consumption summary in verbose mode to avoid log flooding
-		if (ErrorNoticeRenderer::isVerboseDebug()) {
-			$this->logger->debug(static::class . ': Component sanitizer queue consumed', array(
-				'schema_keys'    => array_keys($bucketedSchema),
-				'queued_counts'  => $matchedCounts,
-				'unmatched_keys' => $unmatchedKeys,
-			));
-		}
-
-		return array($bucketedSchema, $queuedForSchema);
+		return $this->_get_validator_service()->consume_component_sanitizer_queue($bucketedSchema);
 	}
 
 	// -- File Upload Utilities --

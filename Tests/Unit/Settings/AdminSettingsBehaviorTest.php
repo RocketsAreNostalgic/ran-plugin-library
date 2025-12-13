@@ -268,6 +268,13 @@ final class AdminSettingsBehaviorTest extends PluginLibTestCase {
 		    ->end_page()
 		->end_menu();
 
+		$queueRef = new \ReflectionProperty($this->settings, '__queued_component_validators');
+		$queueRef->setAccessible(true);
+		$queueBefore = (array) $queueRef->getValue($this->settings);
+
+		self::assertArrayHasKey('auto_field', $queueBefore);
+		self::assertCount(1, $queueBefore['auto_field']);
+
 		$this->setOptionValues(array(
 			'valid_field'   => '',
 			'integer_field' => 0,
@@ -292,20 +299,8 @@ final class AdminSettingsBehaviorTest extends PluginLibTestCase {
 
 		self::assertSame(array('invalid'), AdminSettingsBehaviorTest_AutoValidator::$calls);
 
-		$matchedLogs = $this->logger->find_logs(static function (array $entry): bool {
-			if (($entry['message'] ?? null) !== AdminSettings::class . ': Component validator queue matched schema key') {
-				return false;
-			}
-			$context = $entry['context'] ?? array();
-			return ($context['normalized_key'] ?? null) === 'auto_field'
-				&& ($context['validator_count'] ?? null)   === 1;
-		});
-		self::assertNotEmpty($matchedLogs, 'Expected validator queue matched log for auto_field.');
-
-		$consumedLogs = $this->logger->find_logs(static function (array $entry): bool {
-			return ($entry['message'] ?? null) === AdminSettings::class . ': Component validator queue consumed';
-		});
-		self::assertNotEmpty($consumedLogs, 'Expected validator queue consumed log.');
+		$queueAfter = (array) $queueRef->getValue($this->settings);
+		self::assertArrayNotHasKey('auto_field', $queueAfter, 'Expected auto_field validator queue to be consumed.');
 	}
 
 	public function test_render_unknown_page_falls_back_to_notice(): void {
@@ -630,7 +625,7 @@ final class AdminSettingsBehaviorTest extends PluginLibTestCase {
 				}
 				return true;
 			}),
-			
+
 		));
 		$this->setManifestValidatorClass($alias, AdminSettingsBehaviorTest_PassThroughValidator::class);
 
@@ -750,7 +745,7 @@ final class AdminSettingsBehaviorTest extends PluginLibTestCase {
 
 		$this->injectBuilderFactory($alias);
 		$this->injectManifestDefaults($alias, array(
-			
+
 			'validate' => array(static fn ($value, callable $emitWarning): bool => true),
 		));
 
@@ -859,7 +854,7 @@ final class AdminSettingsBehaviorTest extends PluginLibTestCase {
 		$this->injectManifestDefaults('fields.input', array(
 			'sanitize' => array(static fn (mixed $value): string => is_string($value) ? trim($value) : ''),
 			'validate' => array(static fn (mixed $value, callable $emitWarning): bool => true),
-			
+
 		));
 
 		$this->manifest->register('admin.pages.behavior-page', static function (array $context): ComponentRenderResult {
