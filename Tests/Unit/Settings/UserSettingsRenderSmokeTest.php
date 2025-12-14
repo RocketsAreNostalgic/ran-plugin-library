@@ -459,10 +459,14 @@ PHP;
 	}
 
 	private function clearCatalogueCache(UserSettings $settings): void {
-		$settingsRef = new \ReflectionObject($settings);
-		$cacheProp   = $settingsRef->getProperty('__catalogue_cache');
+		$getSchemaService = new \ReflectionMethod($settings, '_get_schema_service');
+		$getSchemaService->setAccessible(true);
+		$schemaService = $getSchemaService->invoke($settings);
+
+		$serviceRef = new \ReflectionObject($schemaService);
+		$cacheProp  = $serviceRef->getProperty('catalogue_cache');
 		$cacheProp->setAccessible(true);
-		$cacheProp->setValue($settings, null);
+		$cacheProp->setValue($schemaService, null);
 	}
 }
 

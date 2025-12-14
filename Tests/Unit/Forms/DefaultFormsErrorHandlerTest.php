@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\Tests\Unit\Forms;
 
-use PHPUnit\Framework\TestCase;
-use Psr\Log\AbstractLogger;
 use Ran\PluginLib\Forms\Services\DefaultFormsErrorHandler;
+use Psr\Log\AbstractLogger;
+use PHPUnit\Framework\TestCase;
 
 /**
  * @coversDefaultClass \Ran\PluginLib\Forms\Services\DefaultFormsErrorHandler

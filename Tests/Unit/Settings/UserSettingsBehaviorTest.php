@@ -248,9 +248,13 @@ final class UserSettingsBehaviorTest extends PluginLibTestCase {
 			->end_field()->end_section()
 		->end_collection();
 
-		$queueRef = new \ReflectionProperty($user_settings, '__queued_component_validators');
+		$getValidatorService = new \ReflectionMethod($user_settings, '_get_validator_service');
+		$getValidatorService->setAccessible(true);
+		$validatorService = $getValidatorService->invoke($user_settings);
+		$serviceRef       = new \ReflectionObject($validatorService);
+		$queueRef         = $serviceRef->getProperty('queued_component_validators');
 		$queueRef->setAccessible(true);
-		$queueBefore = (array) $queueRef->getValue($user_settings);
+		$queueBefore = (array) $queueRef->getValue($validatorService);
 
 		self::assertArrayHasKey('auto_field', $queueBefore);
 		self::assertCount(1, $queueBefore['auto_field']);
@@ -276,7 +280,7 @@ final class UserSettingsBehaviorTest extends PluginLibTestCase {
 
 		self::assertSame(array('invalid'), UserSettingsBehaviorTest_AutoValidator::$calls);
 
-		$queueAfter = (array) $queueRef->getValue($user_settings);
+		$queueAfter = (array) $queueRef->getValue($validatorService);
 		self::assertArrayNotHasKey('auto_field', $queueAfter, 'Expected auto_field validator queue to be consumed.');
 	}
 

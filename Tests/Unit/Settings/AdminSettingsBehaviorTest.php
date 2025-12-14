@@ -268,9 +268,13 @@ final class AdminSettingsBehaviorTest extends PluginLibTestCase {
 		    ->end_page()
 		->end_menu();
 
-		$queueRef = new \ReflectionProperty($this->settings, '__queued_component_validators');
+		$getValidatorService = new \ReflectionMethod($this->settings, '_get_validator_service');
+		$getValidatorService->setAccessible(true);
+		$validatorService = $getValidatorService->invoke($this->settings);
+		$serviceRef       = new \ReflectionObject($validatorService);
+		$queueRef         = $serviceRef->getProperty('queued_component_validators');
 		$queueRef->setAccessible(true);
-		$queueBefore = (array) $queueRef->getValue($this->settings);
+		$queueBefore = (array) $queueRef->getValue($validatorService);
 
 		self::assertArrayHasKey('auto_field', $queueBefore);
 		self::assertCount(1, $queueBefore['auto_field']);
@@ -299,7 +303,7 @@ final class AdminSettingsBehaviorTest extends PluginLibTestCase {
 
 		self::assertSame(array('invalid'), AdminSettingsBehaviorTest_AutoValidator::$calls);
 
-		$queueAfter = (array) $queueRef->getValue($this->settings);
+		$queueAfter = (array) $queueRef->getValue($validatorService);
 		self::assertArrayNotHasKey('auto_field', $queueAfter, 'Expected auto_field validator queue to be consumed.');
 	}
 

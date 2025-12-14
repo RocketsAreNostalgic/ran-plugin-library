@@ -95,18 +95,6 @@ trait FormsBaseTrait {
 
 	// -- Private: Internal state
 
-	/** @var array<string, array<int, callable>> */
-	private array $__queued_component_validators = array();
-
-	/** @var array<string, array<int, callable>> */
-	private array $__queued_component_sanitizers = array();
-
-	/** @var array<string, array<string,mixed>> */
-	private array $__schema_bundle_cache = array();
-
-	/** @var array<string, array<string,mixed>>|null Session-scoped catalogue cache for defaults memoization */
-	private ?array $__catalogue_cache = null;
-
 	/** @var array<string, RegisterOptions> Cache of resolved RegisterOptions by storage context key */
 	private array $__resolved_options_cache = array();
 
@@ -157,14 +145,10 @@ trait FormsBaseTrait {
 			return $this->__validator_service;
 		}
 
-		$queued_validators         = & $this->__queued_component_validators;
-		$queued_sanitizers         = & $this->__queued_component_sanitizers;
-		$this->__validator_service = new FormsValidatorService(
+		$this->__validator_service = FormsValidatorService::create_with_internal_state(
 			$this->base_options,
 			$this->components,
-			$this->logger,
-			$queued_validators,
-			$queued_sanitizers
+			$this->logger
 		);
 		return $this->__validator_service;
 	}
@@ -174,16 +158,12 @@ trait FormsBaseTrait {
 			return $this->__schema_service;
 		}
 
-		$schema_bundle_cache    = & $this->__schema_bundle_cache;
-		$catalogue_cache        = & $this->__catalogue_cache;
-		$this->__schema_service = new FormsSchemaService(
+		$this->__schema_service = FormsSchemaService::create_with_internal_state(
 			$this->base_options,
 			$this->components,
 			$this->logger,
 			$this->_get_validator_service(),
 			static::class,
-			$schema_bundle_cache,
-			$catalogue_cache,
 			fn (): ?FormsServiceSession => $this->get_form_session(),
 			function (): void {
 				$this->_start_form_session();

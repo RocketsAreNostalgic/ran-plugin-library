@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\Forms\Services;
 
-use Ran\PluginLib\Forms\FormsServiceSession;
-use Ran\PluginLib\Options\OptionScope;
-use Ran\PluginLib\Options\RegisterOptions;
 use Ran\PluginLib\Util\Logger;
+use Ran\PluginLib\Options\RegisterOptions;
+use Ran\PluginLib\Options\OptionScope;
+use Ran\PluginLib\Forms\FormsServiceSession;
 use Ran\PluginLib\Forms\Component\ComponentManifest;
 
 class FormsSchemaService implements FormsSchemaServiceInterface {
@@ -50,6 +50,37 @@ class FormsSchemaService implements FormsSchemaServiceInterface {
 		$this->get_form_session              = $get_form_session;
 		$this->start_form_session            = $start_form_session;
 		$this->get_registered_field_metadata = $get_registered_field_metadata;
+	}
+
+	/**
+	 * Factory that allocates internal cache state.
+	 *
+	 * This allows consumers (like FormsBaseTrait) to avoid owning cache arrays.
+	 */
+	public static function create_with_internal_state(
+		RegisterOptions $base_options,
+		ComponentManifest $components,
+		Logger $logger,
+		FormsValidatorServiceInterface $validator_service,
+		string $host_label,
+		callable $get_form_session,
+		callable $start_form_session,
+		callable $get_registered_field_metadata
+	): self {
+		$schema_bundle_cache = array();
+		$catalogue_cache     = null;
+		return new self(
+			$base_options,
+			$components,
+			$logger,
+			$validator_service,
+			$host_label,
+			$schema_bundle_cache,
+			$catalogue_cache,
+			$get_form_session,
+			$start_form_session,
+			$get_registered_field_metadata
+		);
 	}
 
 	public function resolve_schema_bundle(RegisterOptions $options, array $context = array()): array {

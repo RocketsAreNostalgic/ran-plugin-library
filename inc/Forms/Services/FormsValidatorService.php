@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\Forms\Services;
 
-use Ran\PluginLib\Forms\Component\ComponentManifest;
-use Ran\PluginLib\Forms\ErrorNoticeRenderer;
-use Ran\PluginLib\Options\RegisterOptions;
 use Ran\PluginLib\Util\Logger;
+use Ran\PluginLib\Options\RegisterOptions;
+use Ran\PluginLib\Forms\ErrorNoticeRenderer;
+use Ran\PluginLib\Forms\Component\ComponentManifest;
 
 class FormsValidatorService implements FormsValidatorServiceInterface {
 	/** @var array<string, array<int, callable>> */
@@ -29,6 +29,16 @@ class FormsValidatorService implements FormsValidatorServiceInterface {
 	) {
 		$this->queued_component_validators = & $queued_component_validators;
 		$this->queued_component_sanitizers = & $queued_component_sanitizers;
+	}
+
+	public static function create_with_internal_state(
+		RegisterOptions $base_options,
+		ComponentManifest $components,
+		Logger $logger
+	): self {
+		$queued_component_validators = array();
+		$queued_component_sanitizers = array();
+		return new self($base_options, $components, $logger, $queued_component_validators, $queued_component_sanitizers);
 	}
 
 	public function inject_component_validators(string $field_id, string $component, array $field_context = array()): void {

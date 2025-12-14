@@ -121,7 +121,7 @@ final class FormsSchemaServiceTest extends TestCase {
 			'defaults' => array(
 				'k3' => array('default' => 'from_defaults'),
 			),
-			'metadata' => array('k1' => array('m' => 1)),
+			'metadata'          => array('k1' => array('m' => 1)),
 			'queued_validators' => array('k1' => array('v')),
 			'queued_sanitizers' => array('k1' => array('s')),
 		);
