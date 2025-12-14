@@ -16,7 +16,7 @@ namespace Ran\PluginLib\Forms;
 /**
  * Static utility class for rendering WordPress admin error notices.
  *
- * Used by FormsBaseTrait, AdminMenuRegistry, and UserSettingsRegistry
+ * Used by FormsCore, AdminMenuRegistry, and UserSettingsRegistry
  * to provide consistent error display with optional stack traces in dev mode.
  */
 class ErrorNoticeRenderer {

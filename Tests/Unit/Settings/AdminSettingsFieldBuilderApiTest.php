@@ -19,7 +19,7 @@ use Ran\PluginLib\Forms\Component\ComponentManifest;
 use Ran\PluginLib\Forms\Component\ComponentLoader;
 
 /**
- * @covers \Ran\PluginLib\Forms\FormsBaseTrait::get_form_session
+ * @covers \Ran\PluginLib\Forms\FormsCore::get_form_session
  */
 final class AdminSettingsFieldBuilderApiTest extends TestCase {
 	use ExpectLogTrait;

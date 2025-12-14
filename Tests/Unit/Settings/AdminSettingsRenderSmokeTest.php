@@ -33,7 +33,7 @@ use Ran\PluginLib\Config\ConfigInterface;
  * Smoke tests verifying render-time context passed to components.
  *
  * @covers \Ran\PluginLib\Settings\AdminSettings
- * @covers \Ran\PluginLib\Forms\FormsBaseTrait
+ * @covers \Ran\PluginLib\Forms\FormsCore
  */
 final class AdminSettingsRenderSmokeTest extends PluginLibTestCase {
 	use ExpectLogTrait;

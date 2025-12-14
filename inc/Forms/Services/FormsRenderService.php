@@ -258,7 +258,7 @@ class FormsRenderService implements FormsRenderServiceInterface {
 				return $result;
 			}
 		} catch (\Throwable $e) {
-			$this->logger->warning('FormsBaseTrait: Group wrapper template failed, using fallback', array(
+			$this->logger->warning('FormsCore: Group wrapper template failed, using fallback', array(
 				'group_id'          => $group_id,
 				'exception_message' => $e->getMessage(),
 			));
@@ -290,7 +290,7 @@ class FormsRenderService implements FormsRenderServiceInterface {
 		}
 
 		if (!is_callable($callback)) {
-			$this->logger->warning('FormsBaseTrait: Callback provided is not callable', array('context_keys' => array_keys($context)));
+			$this->logger->warning('FormsCore: Callback provided is not callable', array('context_keys' => array_keys($context)));
 			return null;
 		}
 
@@ -300,7 +300,7 @@ class FormsRenderService implements FormsRenderServiceInterface {
 			$result         = (string) $callback($context);
 			$result_length  = strlen($result);
 			$preview_length = 120;
-			$this->logger->debug('FormsBaseTrait: Callback executed', array(
+			$this->logger->debug('FormsCore: Callback executed', array(
 				'context_keys'     => $context_keys,
 				'result_length'    => $result_length,
 				'result_preview'   => $preview_length >= $result_length ? $result : substr($result, 0, $preview_length),
@@ -308,7 +308,7 @@ class FormsRenderService implements FormsRenderServiceInterface {
 			));
 			return $result;
 		} catch (\Throwable $e) {
-			$this->logger->error('FormsBaseTrait: Callback execution failed', array(
+			$this->logger->error('FormsCore: Callback execution failed', array(
 				'context_keys'      => $context_keys,
 				'exception_class'   => get_class($e),
 				'exception_message' => $e->getMessage(),

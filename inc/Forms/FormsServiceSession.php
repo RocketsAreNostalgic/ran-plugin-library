@@ -276,7 +276,7 @@ class FormsServiceSession {
 		$merged = $this->pipeline->merge_schema_with_defaults($defaults, $schema, $this->logger);
 
 		// Log what validators/sanitizers are available for this component.
-		// Note: Validators and sanitizers are injected via the queue path in FormsBaseTrait,
+		// Note: Validators and sanitizers are injected via the queue path in FormsCore,
 		// so merged schema may have empty buckets at this point - that's expected.
 		$manifestValidators = $this->manifest->validator_factories();
 		$manifestSanitizers = $this->manifest->sanitizer_factories();

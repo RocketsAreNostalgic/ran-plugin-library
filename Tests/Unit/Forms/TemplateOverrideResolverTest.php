@@ -284,9 +284,9 @@ class FormsTemplateOverrideResolverTest extends TestCase {
 	// ========================================
 
 	/**
-	 * Test simplified two-tier template resolution vs FormsBaseTrait's 6-tier system
+	 * Test simplified two-tier template resolution vs FormsCore's 6-tier system
 	 *
-	 * FormsBaseTrait: field → group → section → page → class_defaults → system_defaults (6 tiers)
+	 * FormsCore: field → group → section → page → class_defaults → system_defaults (6 tiers)
 	 * FormsTemplateOverrideResolver: individual_overrides → form_defaults (2 tiers + emergency fallback)
 	 */
 	public function test_simplified_two_tier_template_resolution_precedence(): void {
@@ -296,7 +296,7 @@ class FormsTemplateOverrideResolverTest extends TestCase {
 			'section-wrapper' => 'form.default-section-wrapper'
 		));
 
-		// Set up Tier 2: Individual element overrides (same hierarchy as FormsBaseTrait)
+		// Set up Tier 2: Individual element overrides (same hierarchy as FormsCore)
 		$this->resolver->set_field_template_overrides('special-field', array(
 			'field-wrapper' => 'individual.special-field-wrapper'
 		));
@@ -428,7 +428,7 @@ class FormsTemplateOverrideResolverTest extends TestCase {
 		// Test unknown template types get generic fallback
 		$this->assertEquals('shared.root-wrapper', $this->resolver->resolve_template('unknown-wrapper', array()));
 
-		// Test unknown template types get generic fallback (FormsBaseTrait approach)
+		// Test unknown template types get generic fallback (FormsCore approach)
 		$this->assertEquals('shared.root-wrapper', $this->resolver->resolve_template('custom-field-wrapper', array()));
 		$this->assertEquals('shared.root-wrapper', $this->resolver->resolve_template('custom-section-wrapper', array()));
 	}
@@ -443,7 +443,7 @@ class FormsTemplateOverrideResolverTest extends TestCase {
 		$this->assertEquals('layout.zone.group-wrapper', $this->resolver->resolve_template('group-wrapper', array()));
 		$this->assertEquals('layout.field.field-wrapper', $this->resolver->resolve_template('field-wrapper', array()));
 
-		// Test unknown template types get generic fallback (same as FormsBaseTrait approach)
+		// Test unknown template types get generic fallback (same as FormsCore approach)
 		$this->assertEquals('shared.root-wrapper', $this->resolver->resolve_template('custom-field-wrapper', array()));
 		$this->assertEquals('shared.root-wrapper', $this->resolver->resolve_template('unknown-wrapper', array()));
 	}
@@ -542,10 +542,10 @@ class FormsTemplateOverrideResolverTest extends TestCase {
 
 
 	/**
-	 * Test that FormsTemplateOverrideResolver is truly simplified vs FormsBaseTrait
+	 * Test that FormsTemplateOverrideResolver is truly simplified vs FormsCore
 	 */
 	public function test_simplified_vs_formbasetrait_comparison(): void {
-		// FormsBaseTrait has 6 tiers: field → group → section → page → class_defaults → system_defaults
+		// FormsCore has 6 tiers: field → group → section → page → class_defaults → system_defaults
 		// FormsTemplateOverrideResolver has 2 tiers: individual_overrides → form_defaults
 
 		// Set up form-wide defaults (Tier 1) - this replaces BOTH class_defaults AND system_defaults
@@ -558,7 +558,7 @@ class FormsTemplateOverrideResolverTest extends TestCase {
 			'field-wrapper' => 'individual.override'
 		));
 
-		// Test: Individual override wins (same as FormsBaseTrait)
+		// Test: Individual override wins (same as FormsCore)
 		$resolved = $this->resolver->resolve_template('field-wrapper', array('field_id' => 'special-field'));
 		$this->assertEquals('individual.override', $resolved);
 
@@ -567,7 +567,7 @@ class FormsTemplateOverrideResolverTest extends TestCase {
 		$this->assertEquals('unified.form-default', $resolved);
 
 		// Key difference: No separate "class instance defaults" tier
-		// FormsBaseTrait would check $this->default_template_overrides before system defaults
+		// FormsCore would check $this->default_template_overrides before system defaults
 		// FormsTemplateOverrideResolver goes directly from individual overrides to form_defaults
 	}
 

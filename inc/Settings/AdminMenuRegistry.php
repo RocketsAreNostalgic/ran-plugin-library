@@ -544,7 +544,7 @@ class AdminMenuRegistry implements SettingsRegistryInterface {
 	 * Performance implications:
 	 * - On POST: All pages' render callbacks execute, registering all fields
 	 *   (e.g., 132 fields across 12 pages in the stress test). The resulting
-	 *   schema bundle is cached per-request via FormsBaseTrait::__schema_bundle_cache.
+	 *   schema bundle is cached per-request via FormsCore::__schema_bundle_cache.
 	 * - On GET: Only the current page's callback runs, registering only that
 	 *   page's fields (e.g., 9 fields for the checkboxes page).
 	 *
@@ -552,8 +552,8 @@ class AdminMenuRegistry implements SettingsRegistryInterface {
 	 * elements page) will be processed during POST even when saving a different
 	 * page. Debug logs for these are gated behind RAN_VERBOSE_DEBUG.
 	 *
-	 * @see FormsBaseTrait::_resolve_schema_bundle() Schema bundle caching
-	 * @see FormsBaseTrait::_assemble_initial_bucketed_schema() Field iteration
+	 * @see FormsCore::_resolve_schema_bundle() Schema bundle caching
+	 * @see FormsCore::_assemble_initial_bucketed_schema() Field iteration
 	 *
 	 * @return void
 	 */

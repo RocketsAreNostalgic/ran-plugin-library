@@ -40,7 +40,7 @@ use Ran\PluginLib\Config\ConfigInterface;
 /**
  * @covers \Ran\PluginLib\Settings\UserSettings
  * @covers \Ran\PluginLib\Settings\AdminSettings
- * @covers \Ran\PluginLib\Forms\FormsBaseTrait
+ * @covers \Ran\PluginLib\Forms\FormsCore
  */
 final class BeforeAfterHooksSequenceTest extends PluginLibTestCase {
 	use ExpectLogTrait;

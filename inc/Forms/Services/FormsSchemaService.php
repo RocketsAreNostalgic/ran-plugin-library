@@ -55,7 +55,7 @@ class FormsSchemaService implements FormsSchemaServiceInterface {
 	/**
 	 * Factory that allocates internal cache state.
 	 *
-	 * This allows consumers (like FormsBaseTrait) to avoid owning cache arrays.
+	 * This allows consumers (like FormsCore) to avoid owning cache arrays.
 	 */
 	public static function create_with_internal_state(
 		RegisterOptions $base_options,
