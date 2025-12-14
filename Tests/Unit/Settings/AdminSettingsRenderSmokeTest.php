@@ -33,7 +33,7 @@ use Ran\PluginLib\Config\ConfigInterface;
  * Smoke tests verifying render-time context passed to components.
  *
  * @covers \Ran\PluginLib\Settings\AdminSettings
- * @covers \Ran\PluginLib\Forms\FormsBaseTrait
+ * @covers \Ran\PluginLib\Forms\FormsCore
  */
 final class AdminSettingsRenderSmokeTest extends PluginLibTestCase {
 	use ExpectLogTrait;
@@ -1212,7 +1212,7 @@ class Normalizer {
 
 			// Inject sanitizer via manifest defaults BEFORE field registration
 			$this->injectManifestDefaults($settings, 'ext.sanitize-comp', array(
-				
+
 				'sanitize' => array(function($v) use (&$sanitizerCalled, &$sanitizedValue) {
 					$sanitizerCalled = true;
 					$sanitizedValue  = strtoupper(trim((string) $v));
@@ -1271,7 +1271,7 @@ class Normalizer {
 
 			// Inject validator BEFORE field registration
 			$this->injectManifestDefaults($settings, 'ext.validate-comp', array(
-				
+
 				'validate' => array(function($v, callable $emit) use (&$validatorCalled) {
 					$validatorCalled = true;
 					if (strlen((string) $v) < 5) {
@@ -1329,7 +1329,7 @@ class Normalizer {
 			));
 
 			$this->injectManifestDefaults($settings, 'ext.accept-comp', array(
-				
+
 				'validate' => array(function($v, callable $emit) use (&$validatorCalled) {
 					$validatorCalled = true;
 					return strlen((string) $v) >= 5;
@@ -1382,7 +1382,7 @@ class Normalizer {
 			));
 
 			$this->injectManifestDefaults($settings, 'ext.multi-san-comp', array(
-				
+
 				'sanitize' => array(
 					function($v) use (&$executionOrder) {
 						$executionOrder[] = 'first';
@@ -1453,7 +1453,7 @@ class Normalizer {
 
 			// Inject manifest-level sanitizer
 			$this->injectManifestDefaults($settings, 'ext.merge-comp', array(
-				
+
 				'sanitize' => array(function($v) use (&$manifestSanitizerCalled) {
 					$manifestSanitizerCalled = true;
 					return trim((string) $v);
@@ -1852,10 +1852,14 @@ PHP;
 	 * @param AdminSettings $settings The settings instance
 	 */
 	private function clearCatalogueCache(AdminSettings $settings): void {
-		$settingsRef = new \ReflectionObject($settings);
-		$cacheProp   = $settingsRef->getProperty('__catalogue_cache');
+		$getSchemaService = new \ReflectionMethod($settings, '_get_schema_service');
+		$getSchemaService->setAccessible(true);
+		$schemaService = $getSchemaService->invoke($settings);
+
+		$serviceRef = new \ReflectionObject($schemaService);
+		$cacheProp  = $serviceRef->getProperty('catalogue_cache');
 		$cacheProp->setAccessible(true);
-		$cacheProp->setValue($settings, null);
+		$cacheProp->setValue($schemaService, null);
 	}
 
 	/**

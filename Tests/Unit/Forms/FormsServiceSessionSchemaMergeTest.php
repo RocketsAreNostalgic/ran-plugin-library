@@ -125,7 +125,7 @@ final class FormsServiceSessionSchemaMergeTest extends PluginLibTestCase {
 	/**
 	 * Test that components with validator factories are logged in verbose debug mode.
 	 *
-	 * Validators are injected via the queue path in FormsBaseTrait, not through schema merge.
+	 * Validators are injected via the queue path in FormsCore, not through schema merge.
 	 * The merge just logs what factories are available.
 	 */
 	public function test_merge_schema_logs_available_factories(): void {

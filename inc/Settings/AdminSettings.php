@@ -13,18 +13,18 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\Settings;
 
-use Ran\PluginLib\Util\WPWrappersTrait;
 use Ran\PluginLib\Util\Logger;
 use Ran\PluginLib\Settings\AdminSettingsMenuGroupBuilder; //
 use Ran\PluginLib\Options\Storage\StorageContext;
 use Ran\PluginLib\Options\RegisterOptions;
 use Ran\PluginLib\Options\OptionScope;
 use Ran\PluginLib\Forms\Validation\ValidatorPipelineService;
+use Ran\PluginLib\Forms\Services\FormsErrorHandlerInterface;
+use Ran\PluginLib\Forms\Services\AdminFormsErrorHandler;
 use Ran\PluginLib\Forms\Renderer\FormMessageHandler;
 use Ran\PluginLib\Forms\Renderer\FormElementRenderer;
 use Ran\PluginLib\Forms\FormsService;
-use Ran\PluginLib\Forms\FormsInterface;
-use Ran\PluginLib\Forms\FormsBaseTrait;
+use Ran\PluginLib\Forms\FormsCore;
 use Ran\PluginLib\Forms\ErrorNoticeRenderer;
 use Ran\PluginLib\Forms\Components\Elements\Button\Builder as ButtonBuilder;
 use Ran\PluginLib\Forms\Component\ComponentManifest;
@@ -45,10 +45,7 @@ use Ran\PluginLib\Config\ConfigInterface;
  * - Network scope: Network-wide settings in multisite installations
  * - Blog scope is NOT supported (use AdminSettingsMultisiteHandler for cross-blog administration)
  */
-class AdminSettings implements FormsInterface {
-	use FormsBaseTrait;
-	use WPWrappersTrait;
-
+class AdminSettings extends FormsCore {
 	/**
 	 * Base context and storage captured from the injected RegisterOptions instance.
 	 * Retained so subsequent renders and saves can derive storage defaults.
@@ -736,7 +733,7 @@ class AdminSettings implements FormsInterface {
 				$this->_handle_context_update($type, $data);
 				break;
 			default:
-				// Log unknown update type (default behavior from FormsBaseTrait)
+				// Log unknown update type (default behavior from FormsCore)
 				$this->logger->warning('AdminSettings: Unknown update type received', array(
 					'type'      => $type,
 					'data_keys' => array_keys($data)
@@ -1095,6 +1092,69 @@ class AdminSettings implements FormsInterface {
 		}
 
 		return array_unique($slugs);
+	}
+
+	/**
+	 * Register fallback admin pages that display the error for pages that failed to build.
+	 *
+	 * This ensures users see the error on the page they were trying to access,
+	 * rather than getting "Sorry, you are not allowed to access this page."
+	 *
+	 * @param \Throwable $e The caught exception or error.
+	 * @param string $hook The WordPress hook or context where the error occurred.
+	 * @param bool $is_dev Whether we're in development mode (show full details).
+	 * @return void
+	 */
+	protected function _register_error_fallback_pages(\Throwable $e, string $hook, bool $is_dev): void {
+		$page_slugs = $this->_extract_page_slugs_from_session();
+
+		$add_menu_page = function (
+			string $page_title,
+			string $menu_title,
+			string $capability,
+			string $menu_slug,
+			callable $callback,
+			string $icon_url = '',
+			?int $position = null
+		): void {
+			$this->_do_add_menu_page($page_title, $menu_title, $capability, $menu_slug, $callback, $icon_url, $position);
+		};
+
+		$add_submenu_page = function (
+			string $parent_slug,
+			string $page_title,
+			string $menu_title,
+			string $capability,
+			string $menu_slug,
+			callable $callback
+		): void {
+			$this->_do_add_submenu_page($parent_slug, $page_title, $menu_title, $capability, $menu_slug, $callback);
+		};
+
+		$did_action = function (string $hook): bool {
+			return (bool) $this->_do_did_action($hook);
+		};
+
+		$add_action = function (string $hook, callable $callback, int $priority = 10, int $accepted_args = 1): void {
+			$this->_do_add_action($hook, $callback, $priority, $accepted_args);
+		};
+
+		$this->_get_error_handler()->register_admin_menu_fallback_pages(
+			$page_slugs,
+			$is_dev,
+			$add_menu_page,
+			$add_submenu_page,
+			$did_action,
+			$add_action
+		);
+	}
+
+	protected function _get_form_type_suffix(): string {
+		return 'admin';
+	}
+
+	protected function _get_error_handler(): FormsErrorHandlerInterface {
+		return new AdminFormsErrorHandler();
 	}
 
 	/**

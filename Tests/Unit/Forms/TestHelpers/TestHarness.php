@@ -8,16 +8,14 @@ use Ran\PluginLib\Options\RegisterOptions;
 use Ran\PluginLib\Forms\Renderer\FormMessageHandler;
 use Ran\PluginLib\Forms\Renderer\FormElementRenderer;
 use Ran\PluginLib\Forms\FormsService;
-use Ran\PluginLib\Forms\FormsBaseTrait;
+use Ran\PluginLib\Forms\FormsCore;
 use Ran\PluginLib\Forms\Component\ComponentManifest;
 use Ran\PluginLib\Forms\Component\ComponentLoader;
 
 /**
- * Minimal concrete harness exposing FormsBaseTrait internals for testing.
+ * Minimal concrete harness exposing FormsCore internals for testing.
  */
-final class TestHarness {
-	use FormsBaseTrait;
-
+final class TestHarness extends FormsCore {
 	public function __construct(CollectingLogger $logger) {
 		$this->main_option     = 'test_option';
 		$this->pending_values  = null;
@@ -30,8 +28,12 @@ final class TestHarness {
 		$this->base_options    = new RegisterOptions('test_option', null, true, $logger);
 	}
 
-	public function boot(): void {
+	public function boot(bool $eager = false): void {
 		// no-op for tests
+	}
+
+	protected function _should_load(): bool {
+		return true;
 	}
 
 	public function __render(string $id_slug, ?array $context = null): void {
@@ -59,6 +61,10 @@ final class TestHarness {
 			'id'      => 'test-context',
 			'storage' => array('scope' => 'test'),
 		);
+	}
+
+	protected function _get_form_type_suffix(): string {
+		return 'test';
 	}
 
 	protected function _do_sanitize_key(string $key): string {

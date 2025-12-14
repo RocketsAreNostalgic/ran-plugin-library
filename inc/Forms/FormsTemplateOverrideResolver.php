@@ -196,7 +196,7 @@ class FormsTemplateOverrideResolver {
 		}
 
 		// TIER 1: Form-wide Defaults (Final Priority)
-		// This replaces BOTH "class instance defaults" AND "system defaults" from FormsBaseTrait
+		// This replaces BOTH "class instance defaults" AND "system defaults" from FormsCore
 		// for a simplified two-tier system
 		// Note: No logging here - this is the expected/common path. Only log overrides and fallbacks.
 		if (isset($this->form_defaults[$template_type])) {
@@ -221,7 +221,7 @@ class FormsTemplateOverrideResolver {
 	/**
 	 * Get system fallback template for a given template type
 	 *
-	 * Follows FormsBaseTrait approach: check known templates, otherwise use generic fallback
+	 * Follows FormsCore approach: check known templates, otherwise use generic fallback
 	 *
 	 * @param string $template_type The template type
 	 * @return string The fallback template key
@@ -232,7 +232,7 @@ class FormsTemplateOverrideResolver {
 			return self::$BASE_FALLBACKS[$template_type];
 		}
 
-		// Generic fallback for unknown template types (same as FormsBaseTrait approach)
+		// Generic fallback for unknown template types (same as FormsCore approach)
 		return 'shared.root-wrapper';
 	}
 

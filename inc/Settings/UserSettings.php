@@ -14,20 +14,19 @@ declare(strict_types=1);
 namespace Ran\PluginLib\Settings;
 
 use WP_User;
-use Ran\PluginLib\Util\WPWrappersTrait;
 use Ran\PluginLib\Util\Logger;
 use Ran\PluginLib\Options\Storage\StorageContext;
 use Ran\PluginLib\Options\RegisterOptions;
 use Ran\PluginLib\Options\OptionScope;
+use Ran\PluginLib\Forms\Services\FormsErrorHandlerInterface;
+use Ran\PluginLib\Forms\Services\AdminFormsErrorHandler;
 use Ran\PluginLib\Forms\Renderer\FormMessageHandler;
 use Ran\PluginLib\Forms\Renderer\FormElementRenderer;
 use Ran\PluginLib\Forms\FormsService;
-use Ran\PluginLib\Forms\FormsInterface;
-use Ran\PluginLib\Forms\FormsBaseTrait;
+use Ran\PluginLib\Forms\FormsCore;
 use Ran\PluginLib\Forms\ErrorNoticeRenderer;
 use Ran\PluginLib\Forms\Component\ComponentManifest;
 use Ran\PluginLib\Config\ConfigInterface;
-
 
 /**
  * User profile settings facade that bridges WordPress profile hooks with a scoped `RegisterOptions`
@@ -44,10 +43,7 @@ use Ran\PluginLib\Config\ConfigInterface;
  * Likewise WordPress core User setting page provides its own submission block, so UserSettings does not implement
  * a save handler.
  */
-class UserSettings implements FormsInterface {
-	use FormsBaseTrait;
-	use WPWrappersTrait;
-
+class UserSettings extends FormsCore {
 	/**
 	 * Base context, storage and global captured from the injected RegisterOptions instance.
 	 * Retained so subsequent renders and saves can derive user_id/storage defaults.
@@ -686,10 +682,11 @@ class UserSettings implements FormsInterface {
 	protected function _handle_custom_update(string $type, array $data): void {
 		switch ($type) {
 			case 'collection':
+			case 'collection_commit':
 				$this->_handle_context_update($type, $data);
 				break;
 			default:
-				// Log unknown update type (default behavior from FormsBaseTrait)
+				// Log unknown update type (default behavior from FormsCore)
 				$this->logger->warning('UserSettings: Unknown update type received', array(
 					'type'      => $type,
 					'data_keys' => array_keys($data)
@@ -764,7 +761,7 @@ class UserSettings implements FormsInterface {
 	/**
 	 * Render a group/fieldset using the appropriate user template.
 	 *
-	 * This overrides the default implementation in FormsBaseTrait.
+	 * This overrides the default implementation in FormsCore.
 	 *
 	 * Groups use user.group-wrapper (table rows).
 	 * Fieldsets use user.fieldset-wrapper (semantic fieldset with nested table).
@@ -854,6 +851,10 @@ class UserSettings implements FormsInterface {
 		return $this->_process_file_uploads($payload);
 	}
 
+	protected function _get_error_handler(): FormsErrorHandlerInterface {
+		return new AdminFormsErrorHandler();
+	}
+
 	/**
 	 * Extract collection IDs from the current builder state for error fallback.
 	 *
@@ -882,5 +883,9 @@ class UserSettings implements FormsInterface {
 		// Register on profile hooks so placeholder shows where collections would be
 		$this->_do_add_action('show_user_profile', $render_error, 10, 1);
 		$this->_do_add_action('edit_user_profile', $render_error, 10, 1);
+	}
+
+	protected function _get_form_type_suffix(): string {
+		return 'user';
 	}
 }

@@ -27,7 +27,7 @@ use Mockery;
  * @covers \Ran\PluginLib\Forms\FormsService
  * @covers \Ran\PluginLib\Forms\FormsServiceSession
  * @covers \Ran\PluginLib\Forms\FormsAssets
- * @covers \Ran\PluginLib\Forms\FormsBaseTrait
+ * @covers \Ran\PluginLib\Forms\FormsCore
  */
 class FormRenderingPipelineTest extends PluginLibTestCase {
 	private CollectingLogger $logger;

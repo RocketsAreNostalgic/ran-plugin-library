@@ -248,6 +248,17 @@ final class UserSettingsBehaviorTest extends PluginLibTestCase {
 			->end_field()->end_section()
 		->end_collection();
 
+		$getValidatorService = new \ReflectionMethod($user_settings, '_get_validator_service');
+		$getValidatorService->setAccessible(true);
+		$validatorService = $getValidatorService->invoke($user_settings);
+		$serviceRef       = new \ReflectionObject($validatorService);
+		$queueRef         = $serviceRef->getProperty('queued_component_validators');
+		$queueRef->setAccessible(true);
+		$queueBefore = (array) $queueRef->getValue($validatorService);
+
+		self::assertArrayHasKey('auto_field', $queueBefore);
+		self::assertCount(1, $queueBefore['auto_field']);
+
 		WP_Mock::userFunction('current_user_can')->withAnyArgs()->andReturn(true);
 		WP_Mock::userFunction('get_option')->andReturn(array('auto_field' => 'existing'));
 		WP_Mock::userFunction('get_user_meta')->andReturn(array());
@@ -269,20 +280,8 @@ final class UserSettingsBehaviorTest extends PluginLibTestCase {
 
 		self::assertSame(array('invalid'), UserSettingsBehaviorTest_AutoValidator::$calls);
 
-		$matchedLogs = $this->logger->find_logs(static function (array $entry): bool {
-			if (($entry['message'] ?? null) !== UserSettings::class . ': Component validator queue matched schema key') {
-				return false;
-			}
-			$context = $entry['context'] ?? array();
-			return ($context['normalized_key'] ?? null) === 'auto_field'
-				&& ($context['validator_count'] ?? null)   === 1;
-		});
-		self::assertNotEmpty($matchedLogs, 'Expected validator queue matched log for auto_field.');
-
-		$consumedLogs = $this->logger->find_logs(static function (array $entry): bool {
-			return ($entry['message'] ?? null) === UserSettings::class . ': Component validator queue consumed';
-		});
-		self::assertNotEmpty($consumedLogs, 'Expected validator queue consumed log.');
+		$queueAfter = (array) $queueRef->getValue($validatorService);
+		self::assertArrayNotHasKey('auto_field', $queueAfter, 'Expected auto_field validator queue to be consumed.');
 	}
 
 	public function test_render_payload_includes_structured_messages_after_validation_failure(): void {

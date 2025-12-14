@@ -10,9 +10,9 @@ use Ran\PluginLib\Tests\Unit\Forms\TestHelpers\TestHarness;
 use PHPUnit\Framework\TestCase;
 
 /**
- * @covers \Ran\PluginLib\Forms\FormsBaseTrait
+ * @covers \Ran\PluginLib\Forms\FormsCore
  */
-final class FormsBaseTraitSubmitControlsTest extends TestCase {
+final class FormsCoreSubmitControlsTest extends TestCase {
 	use ExpectLogTrait;
 	private CollectingLogger $logger;
 	private CollectingLogger $logger_mock;
