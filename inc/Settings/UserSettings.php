@@ -687,6 +687,7 @@ class UserSettings implements FormsInterface {
 	protected function _handle_custom_update(string $type, array $data): void {
 		switch ($type) {
 			case 'collection':
+			case 'collection_commit':
 				$this->_handle_context_update($type, $data);
 				break;
 			default:
@@ -887,5 +888,9 @@ class UserSettings implements FormsInterface {
 		// Register on profile hooks so placeholder shows where collections would be
 		$this->_do_add_action('show_user_profile', $render_error, 10, 1);
 		$this->_do_add_action('edit_user_profile', $render_error, 10, 1);
+	}
+
+	protected function _get_form_type_suffix(): string {
+		return 'user';
 	}
 }

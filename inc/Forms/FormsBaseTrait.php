@@ -13,7 +13,6 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\Forms;
 
-use UnexpectedValueException;
 use Ran\PluginLib\Util\Logger;
 use Ran\PluginLib\Options\RegisterOptions;
 use Ran\PluginLib\Forms\Validation\ValidatorPipelineService;
@@ -38,7 +37,6 @@ use Ran\PluginLib\Forms\Renderer\FormElementRenderer;
 use Ran\PluginLib\Forms\FormsServiceSession;
 use Ran\PluginLib\Forms\FormsService;
 use Ran\PluginLib\Forms\FormsAssets;
-use Ran\PluginLib\Forms\Component\ComponentRenderResult;
 use Ran\PluginLib\Forms\Component\ComponentManifest;
 use Ran\PluginLib\Forms\Component\ComponentLoader;
 use Ran\PluginLib\Config\ConfigInterface;
@@ -374,10 +372,7 @@ trait FormsBaseTrait {
 	 *
 	 * @return bool True if should load, false to skip entirely.
 	 */
-	protected function _should_load(): bool {
-		// Default: always load. Concrete classes override this.
-		return true;
-	}
+	abstract protected function _should_load(): bool;
 
 	// -- Form Defaults --
 
@@ -727,19 +722,6 @@ trait FormsBaseTrait {
 	// -- Form Message Persistence --
 
 	/**
-	 * Get the transient key for persisting form messages across redirects.
-	 *
-	 * Uses a namespaced key to avoid collision with WordPress's settings_errors
-	 * or other plugins. Includes user_id for user-scoped isolation.
-	 *
-	 * @param int|null $user_id Optional user ID. Defaults to current user.
-	 * @return string Transient key in format: ran_form_messages_{main_option}_{user_id}
-	 */
-	protected function _get_form_messages_transient_key(?int $user_id = null): string {
-		return $this->_get_message_service()->get_form_messages_transient_key($user_id);
-	}
-
-	/**
 	 * Get the form type suffix for transient key namespacing.
 	 *
 	 * Override in subclasses to provide a unique suffix for each form type.
@@ -748,16 +730,7 @@ trait FormsBaseTrait {
 	 *
 	 * @return string Form type identifier (e.g., 'admin', 'user', 'frontend')
 	 */
-	protected function _get_form_type_suffix(): string {
-		$class = static::class;
-		if (str_contains($class, 'UserSettings')) {
-			return 'user';
-		}
-		if (str_contains($class, 'FrontendForms') || str_contains($class, 'Frontend')) {
-			return 'frontend';
-		}
-		return 'admin';
-	}
+	abstract protected function _get_form_type_suffix(): string;
 
 	/**
 	 * Persist form validation messages to a transient for display after redirect.
@@ -816,7 +789,7 @@ trait FormsBaseTrait {
 	 */
 	public function __handle_builder_error(\Throwable $e, string $hook): void {
 		$is_dev_environment = function (): bool {
-			if ($this->config !== null && method_exists($this->config, 'is_dev_environment')) {
+			if ($this->config !== null) {
 				return $this->config->is_dev_environment();
 			}
 			return \defined('WP_DEBUG') && \WP_DEBUG;
@@ -863,47 +836,8 @@ trait FormsBaseTrait {
 	 * @return void
 	 */
 	protected function _register_error_fallback_pages(\Throwable $e, string $hook, bool $is_dev): void {
-		$page_slugs = $this->_extract_page_slugs_from_session();
-
-		$add_menu_page = function (
-			string $page_title,
-			string $menu_title,
-			string $capability,
-			string $menu_slug,
-			callable $callback,
-			string $icon_url = '',
-			?int $position = null
-		): void {
-			$this->_do_add_menu_page($page_title, $menu_title, $capability, $menu_slug, $callback, $icon_url, $position);
-		};
-
-		$add_submenu_page = function (
-			string $parent_slug,
-			string $page_title,
-			string $menu_title,
-			string $capability,
-			string $menu_slug,
-			callable $callback
-		): void {
-			$this->_do_add_submenu_page($parent_slug, $page_title, $menu_title, $capability, $menu_slug, $callback);
-		};
-
-		$did_action = function (string $hook): bool {
-			return (bool) $this->_do_did_action($hook);
-		};
-
-		$add_action = function (string $hook, callable $callback, int $priority = 10, int $accepted_args = 1): void {
-			\add_action($hook, $callback, $priority, $accepted_args);
-		};
-
-		$this->_get_error_handler()->register_admin_menu_fallback_pages(
-			$page_slugs,
-			$is_dev,
-			$add_menu_page,
-			$add_submenu_page,
-			$did_action,
-			$add_action
-		);
+		// Intentionally no-op.
+		// Concrete implementations (e.g., admin settings) may override.
 	}
 
 	/**
@@ -965,7 +899,7 @@ trait FormsBaseTrait {
 		);
 
 		$fallback = function (string $type, array $data): void {
-			$this->_handle_context_update($type, $data);
+			$this->_handle_custom_update($type, $data);
 		};
 
 		return $this->_get_update_router()->create_update_function($handlers, $fallback);
@@ -1643,11 +1577,8 @@ trait FormsBaseTrait {
 	protected function _start_form_session(): void {
 		if ($this->form_session === null) {
 			$this->shared_assets = $this->shared_assets ?? new FormsAssets();
-			$pipeline            = null;
-			if (isset($this->base_options) && method_exists($this->base_options, 'get_validator_pipeline')) {
-				$pipeline = $this->base_options->get_validator_pipeline();
-			}
-			$this->form_session = $this->form_service->start_session(
+			$pipeline            = $this->base_options->get_validator_pipeline();
+			$this->form_session  = $this->form_service->start_session(
 				$this->shared_assets,
 				array(),
 				$pipeline
@@ -1722,31 +1653,6 @@ trait FormsBaseTrait {
 	 */
 	protected function _render_default_field_wrapper(array $field_item, array $values): string {
 		return $this->_get_render_service()->render_default_field_wrapper($field_item, $values);
-	}
-
-	/**
-	 * Render raw HTML content from html() builder method.
-	 *
-	 * This is an escape hatch for injecting arbitrary markup into forms.
-	 * Content is rendered directly without any wrapper.
-	 *
-	 * @param array<string,mixed> $field The field data with _raw_html component.
-	 * @param array<string,mixed> $context Context for callable content (container_id, section_id, values, etc.).
-	 * @return string The raw HTML content.
-	 */
-	protected function _render_raw_html_content(array $field, array $context): string {
-		return $this->_get_render_service()->render_raw_html_content($field, $context);
-	}
-
-	/**
-	 * Render horizontal rule from hr() builder method.
-	 *
-	 * @param array<string,mixed> $field The field data with _hr component.
-	 * @param array<string,mixed> $context Context for before/after callbacks.
-	 * @return string The rendered hr HTML.
-	 */
-	protected function _render_hr_content(array $field, array $context): string {
-		return $this->_get_render_service()->render_hr_content($field, $context);
 	}
 
 	/**
@@ -1957,25 +1863,5 @@ trait FormsBaseTrait {
 	 */
 	protected function _process_uploaded_files(): array {
 		return $this->_get_file_upload_service()->process_uploaded_files($_FILES);
-	}
-
-	/**
-	 * Process a single file upload using WordPress functions.
-	 *
-	 * @param array<string,mixed> $file The file data from $_FILES.
-	 * @return array<string,mixed>|null The processed file data or null on failure.
-	 */
-	protected function _process_single_file_upload(array $file): ?array {
-		return $this->_get_file_upload_service()->process_single_file_upload($file);
-	}
-
-	/**
-	 * Create a media library attachment for an uploaded file.
-	 *
-	 * @param array<string,mixed> $uploadResult The result from wp_handle_upload.
-	 * @return int|null The attachment ID or null on failure.
-	 */
-	protected function _create_media_attachment(array $uploadResult): ?int {
-		return $this->_get_file_upload_service()->create_media_attachment($uploadResult);
 	}
 }

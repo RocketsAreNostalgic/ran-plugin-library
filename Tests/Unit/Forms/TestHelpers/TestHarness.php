@@ -34,6 +34,10 @@ final class TestHarness {
 		// no-op for tests
 	}
 
+	protected function _should_load(): bool {
+		return true;
+	}
+
 	public function __render(string $id_slug, ?array $context = null): void {
 		// no-op for tests
 	}
@@ -59,6 +63,10 @@ final class TestHarness {
 			'id'      => 'test-context',
 			'storage' => array('scope' => 'test'),
 		);
+	}
+
+	protected function _get_form_type_suffix(): string {
+		return 'test';
 	}
 
 	protected function _do_sanitize_key(string $key): string {
