@@ -13,7 +13,6 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\Settings;
 
-use Ran\PluginLib\Util\WPWrappersTrait;
 use Ran\PluginLib\Util\Logger;
 use Ran\PluginLib\Settings\AdminSettingsMenuGroupBuilder; //
 use Ran\PluginLib\Options\Storage\StorageContext;
@@ -25,8 +24,7 @@ use Ran\PluginLib\Forms\Services\AdminFormsErrorHandler;
 use Ran\PluginLib\Forms\Renderer\FormMessageHandler;
 use Ran\PluginLib\Forms\Renderer\FormElementRenderer;
 use Ran\PluginLib\Forms\FormsService;
-use Ran\PluginLib\Forms\FormsInterface;
-use Ran\PluginLib\Forms\FormsBaseTrait;
+use Ran\PluginLib\Forms\FormsCore;
 use Ran\PluginLib\Forms\ErrorNoticeRenderer;
 use Ran\PluginLib\Forms\Components\Elements\Button\Builder as ButtonBuilder;
 use Ran\PluginLib\Forms\Component\ComponentManifest;
@@ -47,10 +45,7 @@ use Ran\PluginLib\Config\ConfigInterface;
  * - Network scope: Network-wide settings in multisite installations
  * - Blog scope is NOT supported (use AdminSettingsMultisiteHandler for cross-blog administration)
  */
-class AdminSettings implements FormsInterface {
-	use FormsBaseTrait;
-	use WPWrappersTrait;
-
+class AdminSettings extends FormsCore {
 	/**
 	 * Base context and storage captured from the injected RegisterOptions instance.
 	 * Retained so subsequent renders and saves can derive storage defaults.

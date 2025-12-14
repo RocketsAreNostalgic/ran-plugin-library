@@ -248,7 +248,7 @@ trait FormsBaseTrait {
 	/**
 	 * Boot admin: register root, sections, fields, templates.
 	 */
-	abstract public function boot(): void;
+	abstract public function boot(bool $eager = false): void;
 
 	/**
 	 * Render a registered root template.
