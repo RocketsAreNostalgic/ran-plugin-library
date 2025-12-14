@@ -13,6 +13,7 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\Forms;
 
+use Ran\PluginLib\Util\WPWrappersTrait;
 use Ran\PluginLib\Util\Logger;
 use Ran\PluginLib\Options\RegisterOptions;
 use Ran\PluginLib\Forms\Validation\ValidatorPipelineService;
@@ -58,7 +59,8 @@ use Ran\PluginLib\Config\ConfigInterface;
  *    - Validator/Sanitizer Injection
  *    - Schema Bundle Resolution
  */
-trait FormsBaseTrait {
+abstract class FormsBaseTrait implements FormsInterface {
+	use WPWrappersTrait { _do_sanitize_key as protected __do_sanitize_key; }
 	// =========================================================================
 	// PROPERTIES
 	// =========================================================================
@@ -274,7 +276,9 @@ trait FormsBaseTrait {
 	 * @param string $key
 	 * @return string
 	 */
-	abstract protected function _do_sanitize_key(string $key): string;
+	protected function _do_sanitize_key(string $key): string {
+		return $this->__do_sanitize_key($key);
+	}
 
 	/**
 	 * Resolve context for the specific implementation.
@@ -796,15 +800,15 @@ trait FormsBaseTrait {
 		};
 
 		$is_admin = function (): bool {
-			return \is_admin();
+			return $this->_do_is_admin();
 		};
 
 		$current_user_can = function (string $capability): bool {
-			return \current_user_can($capability);
+			return $this->_do_current_user_can($capability);
 		};
 
 		$add_action = function (string $hook, callable $callback, int $priority = 10, int $accepted_args = 1): void {
-			\add_action($hook, $callback, $priority, $accepted_args);
+			$this->_do_add_action($hook, $callback, $priority, $accepted_args);
 		};
 
 		$register_fallback_pages = function (\Throwable $e, string $hook, bool $is_dev): void {

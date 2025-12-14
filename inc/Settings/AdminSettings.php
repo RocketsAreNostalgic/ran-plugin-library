@@ -24,7 +24,7 @@ use Ran\PluginLib\Forms\Services\AdminFormsErrorHandler;
 use Ran\PluginLib\Forms\Renderer\FormMessageHandler;
 use Ran\PluginLib\Forms\Renderer\FormElementRenderer;
 use Ran\PluginLib\Forms\FormsService;
-use Ran\PluginLib\Forms\FormsCore;
+use Ran\PluginLib\Forms\FormsBaseTrait;
 use Ran\PluginLib\Forms\ErrorNoticeRenderer;
 use Ran\PluginLib\Forms\Components\Elements\Button\Builder as ButtonBuilder;
 use Ran\PluginLib\Forms\Component\ComponentManifest;
@@ -45,7 +45,7 @@ use Ran\PluginLib\Config\ConfigInterface;
  * - Network scope: Network-wide settings in multisite installations
  * - Blog scope is NOT supported (use AdminSettingsMultisiteHandler for cross-blog administration)
  */
-class AdminSettings extends FormsCore {
+class AdminSettings extends FormsBaseTrait {
 	/**
 	 * Base context and storage captured from the injected RegisterOptions instance.
 	 * Retained so subsequent renders and saves can derive storage defaults.
@@ -1136,7 +1136,7 @@ class AdminSettings extends FormsCore {
 		};
 
 		$add_action = function (string $hook, callable $callback, int $priority = 10, int $accepted_args = 1): void {
-			\add_action($hook, $callback, $priority, $accepted_args);
+			$this->_do_add_action($hook, $callback, $priority, $accepted_args);
 		};
 
 		$this->_get_error_handler()->register_admin_menu_fallback_pages(

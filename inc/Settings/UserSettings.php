@@ -23,7 +23,7 @@ use Ran\PluginLib\Forms\Services\AdminFormsErrorHandler;
 use Ran\PluginLib\Forms\Renderer\FormMessageHandler;
 use Ran\PluginLib\Forms\Renderer\FormElementRenderer;
 use Ran\PluginLib\Forms\FormsService;
-use Ran\PluginLib\Forms\FormsCore;
+use Ran\PluginLib\Forms\FormsBaseTrait;
 use Ran\PluginLib\Forms\ErrorNoticeRenderer;
 use Ran\PluginLib\Forms\Component\ComponentManifest;
 use Ran\PluginLib\Config\ConfigInterface;
@@ -43,7 +43,7 @@ use Ran\PluginLib\Config\ConfigInterface;
  * Likewise WordPress core User setting page provides its own submission block, so UserSettings does not implement
  * a save handler.
  */
-class UserSettings extends FormsCore {
+class UserSettings extends FormsBaseTrait {
 	/**
 	 * Base context, storage and global captured from the injected RegisterOptions instance.
 	 * Retained so subsequent renders and saves can derive user_id/storage defaults.

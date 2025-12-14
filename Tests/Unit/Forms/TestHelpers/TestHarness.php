@@ -8,14 +8,14 @@ use Ran\PluginLib\Options\RegisterOptions;
 use Ran\PluginLib\Forms\Renderer\FormMessageHandler;
 use Ran\PluginLib\Forms\Renderer\FormElementRenderer;
 use Ran\PluginLib\Forms\FormsService;
-use Ran\PluginLib\Forms\FormsCore;
+use Ran\PluginLib\Forms\FormsBaseTrait;
 use Ran\PluginLib\Forms\Component\ComponentManifest;
 use Ran\PluginLib\Forms\Component\ComponentLoader;
 
 /**
  * Minimal concrete harness exposing FormsBaseTrait internals for testing.
  */
-final class TestHarness extends FormsCore {
+final class TestHarness extends FormsBaseTrait {
 	public function __construct(CollectingLogger $logger) {
 		$this->main_option     = 'test_option';
 		$this->pending_values  = null;
