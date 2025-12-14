@@ -25,6 +25,8 @@ use Ran\PluginLib\Forms\Services\FormsStateStoreInterface;
 use Ran\PluginLib\Forms\Services\FormsStateStore;
 use Ran\PluginLib\Forms\Services\FormsSchemaServiceInterface;
 use Ran\PluginLib\Forms\Services\FormsSchemaService;
+use Ran\PluginLib\Forms\Services\FormsRenderServiceInterface;
+use Ran\PluginLib\Forms\Services\FormsRenderService;
 use Ran\PluginLib\Forms\Services\FormsMessageServiceInterface;
 use Ran\PluginLib\Forms\Services\FormsMessageService;
 use Ran\PluginLib\Forms\Services\FormsErrorHandlerInterface;
@@ -112,6 +114,7 @@ trait FormsBaseTrait {
 	private ?FormsValidatorServiceInterface $__validator_service = null;
 	private ?FormsSchemaServiceInterface $__schema_service       = null;
 	private ?FormsMessageServiceInterface $__message_service     = null;
+	private ?FormsRenderServiceInterface $__render_service       = null;
 
 	// Template override system removed - now handled by FormsTemplateOverrideResolver in FormsServiceSession
 
@@ -168,8 +171,8 @@ trait FormsBaseTrait {
 			return $this->__schema_service;
 		}
 
-		$schema_bundle_cache = & $this->__schema_bundle_cache;
-		$catalogue_cache     = & $this->__catalogue_cache;
+		$schema_bundle_cache    = & $this->__schema_bundle_cache;
+		$catalogue_cache        = & $this->__catalogue_cache;
 		$this->__schema_service = new FormsSchemaService(
 			$this->base_options,
 			$this->components,
@@ -193,21 +196,42 @@ trait FormsBaseTrait {
 			return $this->__message_service;
 		}
 
-		$pending_values = & $this->pending_values;
+		$pending_values          = & $this->pending_values;
 		$this->__message_service = new FormsMessageService(
 			$this->message_handler,
 			$this->logger,
 			$this->main_option,
 			$pending_values,
-			fn (string $key): string => $this->_do_sanitize_key($key),
-			fn (): int => (int) $this->_do_get_current_user_id(),
+			fn (string $key): string                        => $this->_do_sanitize_key($key),
+			fn (): int                                      => (int) $this->_do_get_current_user_id(),
 			fn (string $key, mixed $value, int $ttl): mixed => $this->_do_set_transient($key, $value, $ttl),
-			fn (string $key): mixed => $this->_do_get_transient($key),
-			fn (string $key): mixed => $this->_do_delete_transient($key),
-			fn (): string => $this->_get_form_type_suffix()
+			fn (string $key): mixed                         => $this->_do_get_transient($key),
+			fn (string $key): mixed                         => $this->_do_delete_transient($key),
+			fn (): string                                   => $this->_get_form_type_suffix()
 		);
 
 		return $this->__message_service;
+	}
+
+	protected function _get_render_service(): FormsRenderServiceInterface {
+		if ($this->__render_service instanceof FormsRenderServiceInterface) {
+			return $this->__render_service;
+		}
+
+		$this->__render_service = new FormsRenderService(
+			$this->_get_state_store(),
+			$this->logger,
+			$this->views,
+			$this->field_renderer,
+			$this->main_option,
+			function (): void {
+				$this->_start_form_session();
+			},
+			fn (): ?FormsServiceSession => $this->get_form_session(),
+			fn (): string               => $this->_get_section_template()
+		);
+
+		return $this->__render_service;
 	}
 
 	// =========================================================================
@@ -536,6 +560,8 @@ trait FormsBaseTrait {
 	 *
 	 * Extracts sanitizer/validator counts and default presence from the internal schema.
 	 *
+	 * Note: Remaining in trait for now, untill we have a diagnostics service to handle this.
+	 *
 	 * @param array<string,mixed> $internalSchema The resolved schema bundle.
 	 * @return array<string,array{sanitize_component_count:int,sanitize_schema_count:int,validate_component_count:int,validate_schema_count:int,has_default:bool}>
 	 */
@@ -589,18 +615,7 @@ trait FormsBaseTrait {
 	 * @return void
 	 */
 	protected function _finalize_render(string $container_id, array $payload, array $element_context = array()): void {
-		$callback = $this->form_session->get_root_template_callback($container_id);
-		if ($callback !== null) {
-			ob_start();
-			$callback($payload);
-			echo (string) ob_get_clean();
-		} else {
-			echo $this->form_session->render_element('root-wrapper', $payload, array(
-				'root_id' => $container_id,
-				...$element_context,
-			));
-		}
-		$this->form_session->enqueue_assets();
+		$this->_get_render_service()->finalize_render($container_id, $payload, $element_context);
 	}
 
 	// -- Field/Group Utilities --
@@ -1654,183 +1669,7 @@ trait FormsBaseTrait {
 	 * @return string Rendered HTML markup.
 	 */
 	protected function _render_default_sections_wrapper(string $id_slug, array $sections, array $values): string {
-		$groups_map = $this->_get_state_store()->get_groups_map($id_slug);
-		$fields_map = $this->_get_state_store()->get_fields_map($id_slug);
-
-		if ($this->form_session === null) {
-			$this->_start_form_session();
-		}
-
-		$all_sections_markup = '';
-
-		foreach ($sections as $section_id => $meta) {
-			$groups = $groups_map[$section_id] ?? array();
-			$fields = $fields_map[$section_id] ?? array();
-
-			// Sort groups and fields by order
-			uasort($groups, function ($a, $b) {
-				return ($a['order'] <=> $b['order']) ?: ($a['index'] <=> $b['index']);
-			});
-			usort($fields, function ($a, $b) {
-				return ($a['order'] <=> $b['order']) ?: ($a['index'] <=> $b['index']);
-			});
-
-			// Pre-render all content for this section
-			$section_content = '';
-
-			// Render groups first
-			foreach ($groups as $group) {
-				$group_fields = $group['fields'];
-				usort($group_fields, function ($a, $b) {
-					return ($a['order'] <=> $b['order']) ?: ($a['index'] <=> $b['index']);
-				});
-
-				// Render group fields content
-				$group_fields_content = '';
-				foreach ($group_fields as $group_field) {
-					// Handle raw HTML injection (escape hatch)
-					if (($group_field['component'] ?? '') === '_raw_html') {
-						$group_fields_content .= $this->_render_raw_html_content($group_field, array(
-							'container_id' => $id_slug,
-							'section_id'   => $section_id,
-							'group_id'     => $group['group_id'] ?? '',
-							'values'       => $values,
-						));
-						continue;
-					}
-
-					// Handle horizontal rule
-					if (($group_field['component'] ?? '') === '_hr') {
-						$group_fields_content .= $this->_render_hr_content($group_field, array(
-							'container_id' => $id_slug,
-							'section_id'   => $section_id,
-							'group_id'     => $group['group_id'] ?? '',
-							'values'       => $values,
-						));
-						continue;
-					}
-
-					$field_item = array(
-						'field'  => $group_field,
-						'before' => $this->_render_callback_output($group_field['before'] ?? null, array(
-							'field_id'     => $group_field['id'] ?? '',
-							'container_id' => $id_slug,
-							'section_id'   => $section_id,
-							'group_id'     => $group['group_id'] ?? '',
-							'values'       => $values,
-						)),
-						'after' => $this->_render_callback_output($group_field['after'] ?? null, array(
-							'field_id'     => $group_field['id'] ?? '',
-							'container_id' => $id_slug,
-							'section_id'   => $section_id,
-							'group_id'     => $group['group_id'] ?? '',
-							'values'       => $values,
-						)),
-						'group_type' => $group['type'] ?? 'group',
-					);
-					$group_fields_content .= $this->_render_default_field_wrapper($field_item, $values);
-				}
-
-				// Render group before/after callbacks
-				$group_before = $this->_render_callback_output($group['before'] ?? null, array(
-					'group_id'     => $group['group_id'] ?? '',
-					'section_id'   => $section_id,
-					'container_id' => $id_slug,
-					'fields'       => $group_fields,
-					'values'       => $values,
-				)) ?? '';
-				$group_after = $this->_render_callback_output($group['after'] ?? null, array(
-					'group_id'     => $group['group_id'] ?? '',
-					'section_id'   => $section_id,
-					'container_id' => $id_slug,
-					'fields'       => $group_fields,
-					'values'       => $values,
-				)) ?? '';
-
-				// Render group using wrapper template
-				$section_content .= $this->_render_group_wrapper($group, $group_fields_content, $group_before, $group_after, $values);
-			}
-
-			// Render standalone fields
-			foreach ($fields as $field) {
-				// Handle raw HTML injection (escape hatch)
-				if (($field['component'] ?? '') === '_raw_html') {
-					$section_content .= $this->_render_raw_html_content($field, array(
-						'container_id' => $id_slug,
-						'section_id'   => $section_id,
-						'values'       => $values,
-					));
-					continue;
-				}
-
-				// Handle horizontal rule
-				if (($field['component'] ?? '') === '_hr') {
-					$section_content .= $this->_render_hr_content($field, array(
-						'container_id' => $id_slug,
-						'section_id'   => $section_id,
-						'values'       => $values,
-					));
-					continue;
-				}
-
-				$field_item = array(
-					'field'  => $field,
-					'before' => $this->_render_callback_output($field['before'] ?? null, array(
-						'field_id'     => $field['id'] ?? '',
-						'container_id' => $id_slug,
-						'section_id'   => $section_id,
-						'values'       => $values,
-					)),
-					'after' => $this->_render_callback_output($field['after'] ?? null, array(
-						'field_id'     => $field['id'] ?? '',
-						'container_id' => $id_slug,
-						'section_id'   => $section_id,
-						'values'       => $values,
-					)),
-				);
-				$section_content .= $this->_render_default_field_wrapper($field_item, $values);
-			}
-
-			// Render section template with pre-rendered content
-			// Use form_session to respect context-specific template overrides (e.g., user.section-wrapper)
-			$section_style   = trim((string) ($meta['style'] ?? ''));
-			$description_cb  = $meta['description_cb'] ?? null;
-			$section_context = array(
-				'section_id'  => $section_id,
-				'title'       => (string) $meta['title'],
-				'description' => is_callable($description_cb) ? (string) ($description_cb)() : (string) ($description_cb ?? ''),
-				'inner_html'  => $section_content,
-				'before'      => $this->_render_callback_output($meta['before'] ?? null, array(
-					'container_id' => $id_slug,
-					'section_id'   => $section_id,
-					'values'       => $values,
-				)) ?? '',
-				'after' => $this->_render_callback_output($meta['after'] ?? null, array(
-					'container_id' => $id_slug,
-					'section_id'   => $section_id,
-					'values'       => $values,
-				)) ?? '',
-				'style' => trim($section_style),
-			);
-
-			// Render section using the context-appropriate template
-			$section_template = $this->_get_section_template();
-			$sectionComponent = $this->views->render($section_template, $section_context);
-
-			if (!$sectionComponent instanceof ComponentRenderResult) {
-				throw new UnexpectedValueException('Section template must return a ComponentRenderResult instance.');
-			}
-
-			$this->form_session->ingest_component_result(
-				$sectionComponent,
-				'render_section',
-				null
-			);
-
-			$all_sections_markup .= $sectionComponent->markup;
-		}
-
-		return $all_sections_markup;
+		return $this->_get_render_service()->render_default_sections_wrapper($id_slug, $sections, $values);
 	}
 
 	/**
@@ -1857,93 +1696,11 @@ trait FormsBaseTrait {
 	 * @return string Rendered group HTML
 	 */
 	protected function _render_group_wrapper(array $group, string $fields_content, string $before_content, string $after_content, array $values): string {
-		$group_id = $group['group_id'] ?? '';
-		$title    = $group['title']    ?? '';
-		$style    = trim((string) ($group['style'] ?? ''));
-
-		// Build context for the group wrapper template
-		$group_context = array(
-			'group_id'    => $group_id,
-			'title'       => $title,
-			'description' => '', // Could be added if groups support description callbacks
-			'inner_html'  => $fields_content,
-			'before'      => $before_content,
-			'after'       => $after_content,
-			'layout'      => 'vertical',
-			'spacing'     => 'normal',
-			'style'       => $style,
-			'values'      => $values,
-		);
-
-		// Try to render using the group-wrapper template
-		try {
-			if ($this->form_session === null) {
-				$this->_start_form_session();
-			}
-
-			$result = $this->form_session->render_component('group-wrapper', $group_context);
-			if ($result !== '') {
-				return $result;
-			}
-		} catch (\Throwable $e) {
-			$this->logger->warning('FormsBaseTrait: Group wrapper template failed, using fallback', array(
-				'group_id'          => $group_id,
-				'exception_message' => $e->getMessage(),
-			));
-		}
-
-		// Fallback: render without template
-		$group_classes = array('group-wrapper');
-		if ($style !== '') {
-			$group_classes[] = $style;
-		}
-		$output = '';
-		if ($title !== '') {
-			$output .= '<div class="' . esc_attr(implode(' ', $group_classes)) . '" data-group-id="' . esc_attr($group_id) . '">';
-			$output .= '<h4 class="group-wrapper__title">' . esc_html($title) . '</h4>';
-			$output .= '<div class="group-wrapper__content">';
-		}
-		$output .= $before_content;
-		$output .= $fields_content;
-		$output .= $after_content;
-		if ($title !== '') {
-			$output .= '</div></div>';
-		}
-
-		return $output;
+		return $this->_get_render_service()->render_group_wrapper($group, $fields_content, $before_content, $after_content, $values);
 	}
 
 	protected function _render_callback_output(?callable $callback, array $context): ?string {
-		if ($callback === null) {
-			return null;
-		}
-
-		if (!is_callable($callback)) {
-			$this->logger->warning('FormsBaseTrait: Callback provided is not callable', array('context_keys' => array_keys($context)));
-			return null;
-		}
-
-		$context_keys = array_keys($context);
-
-		try {
-			$result         = (string) $callback($context);
-			$result_length  = strlen($result);
-			$preview_length = 120;
-			$this->logger->debug('FormsBaseTrait: Callback executed', array(
-				'context_keys'     => $context_keys,
-				'result_length'    => $result_length,
-				'result_preview'   => $preview_length >= $result_length ? $result : substr($result, 0, $preview_length),
-				'result_truncated' => $result_length > $preview_length,
-			));
-			return $result;
-		} catch (\Throwable $e) {
-			$this->logger->error('FormsBaseTrait: Callback execution failed', array(
-				'context_keys'      => $context_keys,
-				'exception_class'   => get_class($e),
-				'exception_message' => $e->getMessage(),
-			));
-			return null;
-		}
+		return $this->_get_render_service()->render_callback_output($callback, $context);
 	}
 
 	/**
@@ -1955,91 +1712,7 @@ trait FormsBaseTrait {
 	 * @return string Rendered field HTML.
 	 */
 	protected function _render_default_field_wrapper(array $field_item, array $values): string {
-		$field = $field_item['field'] ?? $field_item;
-		if (empty($field)) {
-			return '';
-		}
-
-		$field_id  = isset($field['id']) ? (string) $field['id'] : '';
-		$label     = isset($field['label']) ? (string) $field['label'] : '';
-		$component = isset($field['component']) && is_string($field['component']) ? trim($field['component']) : '';
-		// Only log per-field render in verbose mode to avoid log flooding
-		if (ErrorNoticeRenderer::isVerboseDebug()) {
-			$this->logger->debug('forms.default_field.render', array(
-				'field_id'  => $field_id,
-				'component' => $component,
-			));
-		}
-
-		if ($component === '') {
-			$this->logger->error(static::class . ': field missing component metadata.', array('field' => $field_id));
-			throw new \InvalidArgumentException(sprintf(static::class . ': field "%s" requires a component alias.', $field_id ?: 'unknown'));
-		}
-
-		$component_context = $field['component_context'] ?? array();
-		if (!is_array($component_context)) {
-			$this->logger->error( static::class . ': field provided a non-array component_context.', array('field' => $field_id));
-			throw new \InvalidArgumentException(sprintf(static::class . ': field "%s" must provide an array component_context.', $field_id ?: 'unknown'));
-		}
-
-		// Prepare field configuration
-		$field['field_id']          = $field_id;
-		$field['component']         = $component;
-		$field['label']             = $label;
-		$field['component_context'] = $component_context;
-
-		// Set the name attribute with proper prefix for form submission
-		if (!isset($field['name']) && $field_id !== '') {
-			$field['name'] = $this->main_option . '[' . $field_id . ']';
-		}
-
-		// Use FormElementRenderer for complete field processing with wrapper
-		try {
-			if ($this->form_session === null) {
-				$this->_start_form_session();
-			}
-
-			$extras = array();
-			// before/after are already rendered strings from the caller
-			if (array_key_exists('before', $field_item) && $field_item['before'] !== null) {
-				$extras['before'] = (string) $field_item['before'];
-			}
-			if (array_key_exists('after', $field_item) && $field_item['after'] !== null) {
-				$extras['after'] = (string) $field_item['after'];
-			}
-
-			$field_context = $this->field_renderer->prepare_field_context(
-				$field,
-				$values,
-				$extras
-			);
-
-			// Determine wrapper template based on group type
-			// Fields inside fieldsets use fieldset-field-wrapper for proper table row rendering
-			$group_type  = $field_item['group_type'] ?? 'group';
-			$wrapper_key = $group_type === 'fieldset' ? 'fieldset-field-wrapper' : 'field-wrapper';
-
-			// Let FormElementRenderer handle both component rendering and wrapper application
-			return $this->field_renderer->render_field_with_wrapper(
-				$component,
-				$field_id,
-				$label,
-				$field_context,
-				$wrapper_key,
-				$wrapper_key,
-				$this->form_session
-			);
-		} catch (\Throwable $e) {
-			$this->logger->error(static::class . ': Field rendering failed', array(
-				'field_id'          => $field_id,
-				'component'         => $component,
-				'exception_class'   => get_class($e),
-				'exception_code'    => $e->getCode(),
-				'exception_message' => $e->getMessage(),
-			));
-			// @TODO will this break table based layouts?
-			return $this->_render_default_field_wrapper_warning($e->getMessage());
-		}
+		return $this->_get_render_service()->render_default_field_wrapper($field_item, $values);
 	}
 
 	/**
@@ -2053,13 +1726,7 @@ trait FormsBaseTrait {
 	 * @return string The raw HTML content.
 	 */
 	protected function _render_raw_html_content(array $field, array $context): string {
-		$content = $field['component_context']['content'] ?? '';
-
-		if (is_callable($content)) {
-			return (string) $content($context);
-		}
-
-		return (string) $content;
+		return $this->_get_render_service()->render_raw_html_content($field, $context);
 	}
 
 	/**
@@ -2070,27 +1737,7 @@ trait FormsBaseTrait {
 	 * @return string The rendered hr HTML.
 	 */
 	protected function _render_hr_content(array $field, array $context): string {
-		$component_context = $field['component_context'] ?? array();
-		$style_classes     = trim($component_context['style'] ?? '');
-
-		// Render before callback
-		$before = '';
-		if (isset($field['before']) && is_callable($field['before'])) {
-			$before = (string) ($field['before'])($context);
-		}
-
-		// Render after callback
-		$after = '';
-		if (isset($field['after']) && is_callable($field['after'])) {
-			$after = (string) ($field['after'])($context);
-		}
-
-		// Build hr element - style() provides CSS classes per builder convention
-		$class_attr = 'kplr-hr' . ($style_classes !== '' ? ' ' . $style_classes : '');
-
-		$hr = '<hr class="' . esc_attr($class_attr) . '">';
-
-		return $before . $hr . $after;
+		return $this->_get_render_service()->render_hr_content($field, $context);
 	}
 
 	/**
@@ -2101,25 +1748,7 @@ trait FormsBaseTrait {
 	 * @return string Rendered field HTML.
 	 */
 	protected function _render_default_field_wrapper_warning(string $message): string {
-		// Use FormsServiceSession to render error with proper template resolution
-		if ($this->form_session === null) {
-			$this->_start_form_session();
-		}
-
-		// Dev mode shows full error details, production shows generic message
-		$display_message = ErrorNoticeRenderer::getFieldErrorMessage($message);
-
-		// Render error using the field-wrapper template type (not component)
-		// render_element() resolves template types, render_component() expects component aliases
-		// Use validation_warnings array which the template expects for error styling
-		// inner_html is a non-breaking space to satisfy template requirement without duplicating message
-		return $this->form_session->render_element('field-wrapper', array(
-			'field_id'            => 'error',
-			'label'               => 'Error',
-			'inner_html'          => '&nbsp;',
-			'validation_warnings' => array($display_message),
-			'field_type'          => 'error',
-		));
+		return $this->_get_render_service()->render_default_field_wrapper_warning($message);
 	}
 
 	// -- Validator/Sanitizer Injection --
@@ -2306,32 +1935,7 @@ trait FormsBaseTrait {
 	 * @return bool True if the container has file upload fields.
 	 */
 	protected function _container_has_file_uploads(string $container_id): bool {
-		// Check fields registered for this container
-		$container_fields = $this->_get_state_store()->get_fields_map($container_id);
-		foreach ($container_fields as $section_id => $fields) {
-			foreach ($fields as $field) {
-				$component = $field['component'] ?? '';
-				if ($component === 'fields.file-upload') {
-					return true;
-				}
-			}
-		}
-
-		// Check groups registered for this container
-		$container_groups = $this->_get_state_store()->get_groups_map($container_id);
-		foreach ($container_groups as $section_id => $groups) {
-			foreach ($groups as $group_id => $group) {
-				$group_fields = $group['fields'] ?? array();
-				foreach ($group_fields as $field) {
-					$component = $field['component'] ?? '';
-					if ($component === 'fields.file-upload') {
-						return true;
-					}
-				}
-			}
-		}
-
-		return false;
+		return $this->_get_render_service()->container_has_file_uploads($container_id);
 	}
 
 	/**

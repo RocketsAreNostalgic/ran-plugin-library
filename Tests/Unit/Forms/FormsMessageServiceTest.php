@@ -201,7 +201,7 @@ final class FormsMessageServiceTest extends TestCase {
 		$messages = array(
 			'a' => array('warnings' => array('w'), 'notices' => array()),
 		);
-		$key = $svc->get_form_messages_transient_key(1);
+		$key         = $svc->get_form_messages_transient_key(1);
 		$store[$key] = $messages;
 
 		self::assertTrue($svc->restore_form_messages(1));

@@ -152,7 +152,7 @@ class FormsMessageService implements FormsMessageServiceInterface {
 			return;
 		}
 
-		$key = $this->get_form_messages_transient_key($user_id);
+		$key  = $this->get_form_messages_transient_key($user_id);
 		$data = array(
 			'messages'       => $messages,
 			'pending_values' => $this->pending_values,

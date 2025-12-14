@@ -45,10 +45,10 @@ class FormsSchemaService implements FormsSchemaServiceInterface {
 		callable $start_form_session,
 		callable $get_registered_field_metadata
 	) {
-		$this->schema_bundle_cache          = & $schema_bundle_cache;
-		$this->catalogue_cache              = & $catalogue_cache;
-		$this->get_form_session             = $get_form_session;
-		$this->start_form_session           = $start_form_session;
+		$this->schema_bundle_cache           = & $schema_bundle_cache;
+		$this->catalogue_cache               = & $catalogue_cache;
+		$this->get_form_session              = $get_form_session;
+		$this->start_form_session            = $start_form_session;
 		$this->get_registered_field_metadata = $get_registered_field_metadata;
 	}
 
