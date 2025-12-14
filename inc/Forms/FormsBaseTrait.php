@@ -29,6 +29,8 @@ use Ran\PluginLib\Forms\Services\FormsRenderServiceInterface;
 use Ran\PluginLib\Forms\Services\FormsRenderService;
 use Ran\PluginLib\Forms\Services\FormsMessageServiceInterface;
 use Ran\PluginLib\Forms\Services\FormsMessageService;
+use Ran\PluginLib\Forms\Services\FormsFileUploadServiceInterface;
+use Ran\PluginLib\Forms\Services\FormsFileUploadService;
 use Ran\PluginLib\Forms\Services\FormsErrorHandlerInterface;
 use Ran\PluginLib\Forms\Services\DefaultFormsErrorHandler;
 use Ran\PluginLib\Forms\Renderer\FormMessageHandler;
@@ -108,13 +110,14 @@ trait FormsBaseTrait {
 	/** @var array<string, RegisterOptions> Cache of resolved RegisterOptions by storage context key */
 	private array $__resolved_options_cache = array();
 
-	private ?FormsStateStoreInterface $__state_store             = null;
-	private ?FormsUpdateRouterInterface $__update_router         = null;
-	private ?FormsErrorHandlerInterface $__error_handler         = null;
-	private ?FormsValidatorServiceInterface $__validator_service = null;
-	private ?FormsSchemaServiceInterface $__schema_service       = null;
-	private ?FormsMessageServiceInterface $__message_service     = null;
-	private ?FormsRenderServiceInterface $__render_service       = null;
+	private ?FormsStateStoreInterface $__state_store                = null;
+	private ?FormsUpdateRouterInterface $__update_router            = null;
+	private ?FormsErrorHandlerInterface $__error_handler            = null;
+	private ?FormsValidatorServiceInterface $__validator_service    = null;
+	private ?FormsSchemaServiceInterface $__schema_service          = null;
+	private ?FormsMessageServiceInterface $__message_service        = null;
+	private ?FormsRenderServiceInterface $__render_service          = null;
+	private ?FormsFileUploadServiceInterface $__file_upload_service = null;
 
 	// Template override system removed - now handled by FormsTemplateOverrideResolver in FormsServiceSession
 
@@ -232,6 +235,29 @@ trait FormsBaseTrait {
 		);
 
 		return $this->__render_service;
+	}
+
+	protected function _get_file_upload_service(): FormsFileUploadServiceInterface {
+		if ($this->__file_upload_service instanceof FormsFileUploadServiceInterface) {
+			return $this->__file_upload_service;
+		}
+
+		$this->__file_upload_service = new FormsFileUploadService(
+			$this->logger,
+			$this->main_option,
+			fn (string $path): bool                                                                     => \is_uploaded_file($path),
+			fn (array $file, array $overrides = array(), string $time = ''): array                      => $this->_do_wp_handle_upload($file, $overrides, $time),
+			fn (string $filename): string                                                               => $this->_do_sanitize_file_name($filename),
+			fn (array $args, string $file = '', int $parent = 0, bool $wp_error = false): int|\WP_Error => $this->_do_wp_insert_attachment($args, $file, $parent, $wp_error),
+			fn (mixed $thing): bool                                                                     => $this->_do_is_wp_error($thing),
+			fn (int $attachment_id, string $file): array                                                => $this->_do_wp_generate_attachment_metadata($attachment_id, $file),
+			fn (int $attachment_id, array $data): int|false                                             => $this->_do_wp_update_attachment_metadata($attachment_id, $data),
+			function (): void {
+				require_once ABSPATH . 'wp-admin/includes/image.php';
+			}
+		);
+
+		return $this->__file_upload_service;
 	}
 
 	// =========================================================================
@@ -1947,53 +1973,7 @@ trait FormsBaseTrait {
 	 * @return array<string, array<string,mixed>> Processed file data keyed by field.
 	 */
 	protected function _process_uploaded_files(): array {
-		$processed = array();
-
-		// Check if there are any files uploaded for our option
-		if (!isset($_FILES[$this->main_option]) || !is_array($_FILES[$this->main_option])) {
-			return $processed;
-		}
-
-		$optionFiles = $_FILES[$this->main_option];
-
-		// Process each file field
-		foreach ($optionFiles['name'] as $fieldKey => $fileName) {
-			// Skip if no file was uploaded for this field
-			if (empty($fileName) || $optionFiles['error'][$fieldKey] === UPLOAD_ERR_NO_FILE) {
-				continue;
-			}
-
-			// Skip if there was an upload error
-			if ($optionFiles['error'][$fieldKey] !== UPLOAD_ERR_OK) {
-				$this->logger->warning('FormsBaseTrait._process_uploaded_files: Upload error', array(
-					'field'      => $fieldKey,
-					'error_code' => $optionFiles['error'][$fieldKey],
-				));
-				continue;
-			}
-
-			// Reconstruct the file array for this specific field
-			$file = array(
-				'name'     => $optionFiles['name'][$fieldKey],
-				'type'     => $optionFiles['type'][$fieldKey],
-				'tmp_name' => $optionFiles['tmp_name'][$fieldKey],
-				'error'    => $optionFiles['error'][$fieldKey],
-				'size'     => $optionFiles['size'][$fieldKey],
-			);
-
-			// Process the upload using WordPress
-			$result = $this->_process_single_file_upload($file);
-
-			if ($result !== null) {
-				$processed[$fieldKey] = $result;
-				$this->logger->debug('FormsBaseTrait._process_uploaded_files: File processed', array(
-					'field'  => $fieldKey,
-					'result' => $result,
-				));
-			}
-		}
-
-		return $processed;
+		return $this->_get_file_upload_service()->process_uploaded_files($_FILES);
 	}
 
 	/**
@@ -2003,42 +1983,7 @@ trait FormsBaseTrait {
 	 * @return array<string,mixed>|null The processed file data or null on failure.
 	 */
 	protected function _process_single_file_upload(array $file): ?array {
-		// Verify the file exists and is an uploaded file
-		if (empty($file['tmp_name']) || !is_uploaded_file($file['tmp_name'])) {
-			return null;
-		}
-
-		// Use WordPress upload handler
-		$overrides = array(
-			'test_form' => false, // We've already verified the form
-			'test_type' => true,  // Check MIME type
-		);
-
-		$result = $this->_do_wp_handle_upload($file, $overrides);
-
-		if (isset($result['error'])) {
-			$this->logger->warning('FormsBaseTrait._process_single_file_upload: Upload failed', array(
-				'error' => $result['error'],
-				'file'  => $file['name'],
-			));
-			return null;
-		}
-
-		// Build the file data array
-		$fileData = array(
-			'url'      => $result['url'],
-			'file'     => $result['file'],
-			'type'     => $result['type'],
-			'filename' => $this->_do_sanitize_file_name($file['name']),
-		);
-
-		// Optionally create a media library attachment
-		$attachmentId = $this->_create_media_attachment($result);
-		if ($attachmentId !== null) {
-			$fileData['attachment_id'] = $attachmentId;
-		}
-
-		return $fileData;
+		return $this->_get_file_upload_service()->process_single_file_upload($file);
 	}
 
 	/**
@@ -2048,32 +1993,6 @@ trait FormsBaseTrait {
 	 * @return int|null The attachment ID or null on failure.
 	 */
 	protected function _create_media_attachment(array $uploadResult): ?int {
-		$filePath = $uploadResult['file'];
-		$fileUrl  = $uploadResult['url'];
-		$fileType = $uploadResult['type'];
-
-		$attachment = array(
-			'guid'           => $fileUrl,
-			'post_mime_type' => $fileType,
-			'post_title'     => preg_replace('/\.[^.]+$/', '', basename($filePath)),
-			'post_content'   => '',
-			'post_status'    => 'inherit',
-		);
-
-		$attachmentId = $this->_do_wp_insert_attachment($attachment, $filePath);
-
-		if ($this->_do_is_wp_error($attachmentId)) {
-			$this->logger->warning('FormsBaseTrait._create_media_attachment: Failed to create attachment', array(
-				'error' => $attachmentId->get_error_message(),
-			));
-			return null;
-		}
-
-		// Generate attachment metadata
-		require_once ABSPATH . 'wp-admin/includes/image.php';
-		$attachmentData = $this->_do_wp_generate_attachment_metadata($attachmentId, $filePath);
-		$this->_do_wp_update_attachment_metadata($attachmentId, $attachmentData);
-
-		return $attachmentId;
+		return $this->_get_file_upload_service()->create_media_attachment($uploadResult);
 	}
 }
