@@ -30,7 +30,7 @@ use Ran\PluginLib\Forms\Services\FormsRenderService;
 use Ran\PluginLib\Forms\Services\FormsMessageServiceInterface;
 use Ran\PluginLib\Forms\Services\FormsMessageService;
 use Ran\PluginLib\Forms\Services\FormsErrorHandlerInterface;
-use Ran\PluginLib\Forms\Services\AdminFormsErrorHandler;
+use Ran\PluginLib\Forms\Services\DefaultFormsErrorHandler;
 use Ran\PluginLib\Forms\Renderer\FormMessageHandler;
 use Ran\PluginLib\Forms\Renderer\FormElementRenderer;
 use Ran\PluginLib\Forms\FormsServiceSession;
@@ -145,7 +145,7 @@ trait FormsBaseTrait {
 			return $this->__error_handler;
 		}
 
-		$this->__error_handler = new AdminFormsErrorHandler();
+		$this->__error_handler = new DefaultFormsErrorHandler();
 		return $this->__error_handler;
 	}
 

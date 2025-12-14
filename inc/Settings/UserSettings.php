@@ -19,6 +19,8 @@ use Ran\PluginLib\Util\Logger;
 use Ran\PluginLib\Options\Storage\StorageContext;
 use Ran\PluginLib\Options\RegisterOptions;
 use Ran\PluginLib\Options\OptionScope;
+use Ran\PluginLib\Forms\Services\FormsErrorHandlerInterface;
+use Ran\PluginLib\Forms\Services\AdminFormsErrorHandler;
 use Ran\PluginLib\Forms\Renderer\FormMessageHandler;
 use Ran\PluginLib\Forms\Renderer\FormElementRenderer;
 use Ran\PluginLib\Forms\FormsService;
@@ -27,7 +29,6 @@ use Ran\PluginLib\Forms\FormsBaseTrait;
 use Ran\PluginLib\Forms\ErrorNoticeRenderer;
 use Ran\PluginLib\Forms\Component\ComponentManifest;
 use Ran\PluginLib\Config\ConfigInterface;
-
 
 /**
  * User profile settings facade that bridges WordPress profile hooks with a scoped `RegisterOptions`
@@ -852,6 +853,10 @@ class UserSettings implements FormsInterface {
 	 */
 	public function process_file_uploads(array $payload): array {
 		return $this->_process_file_uploads($payload);
+	}
+
+	protected function _get_error_handler(): FormsErrorHandlerInterface {
+		return new AdminFormsErrorHandler();
 	}
 
 	/**

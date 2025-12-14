@@ -20,6 +20,8 @@ use Ran\PluginLib\Options\Storage\StorageContext;
 use Ran\PluginLib\Options\RegisterOptions;
 use Ran\PluginLib\Options\OptionScope;
 use Ran\PluginLib\Forms\Validation\ValidatorPipelineService;
+use Ran\PluginLib\Forms\Services\FormsErrorHandlerInterface;
+use Ran\PluginLib\Forms\Services\AdminFormsErrorHandler;
 use Ran\PluginLib\Forms\Renderer\FormMessageHandler;
 use Ran\PluginLib\Forms\Renderer\FormElementRenderer;
 use Ran\PluginLib\Forms\FormsService;
@@ -1095,6 +1097,10 @@ class AdminSettings implements FormsInterface {
 		}
 
 		return array_unique($slugs);
+	}
+
+	protected function _get_error_handler(): FormsErrorHandlerInterface {
+		return new AdminFormsErrorHandler();
 	}
 
 	/**
