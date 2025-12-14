@@ -17,16 +17,18 @@ use UnexpectedValueException;
 use Ran\PluginLib\Util\Logger;
 use Ran\PluginLib\Options\RegisterOptions;
 use Ran\PluginLib\Forms\Validation\ValidatorPipelineService;
+use Ran\PluginLib\Forms\Services\FormsValidatorServiceInterface;
+use Ran\PluginLib\Forms\Services\FormsValidatorService;
 use Ran\PluginLib\Forms\Services\FormsUpdateRouterInterface;
 use Ran\PluginLib\Forms\Services\FormsUpdateRouter;
 use Ran\PluginLib\Forms\Services\FormsStateStoreInterface;
 use Ran\PluginLib\Forms\Services\FormsStateStore;
-use Ran\PluginLib\Forms\Services\FormsErrorHandlerInterface;
-use Ran\PluginLib\Forms\Services\AdminFormsErrorHandler;
-use Ran\PluginLib\Forms\Services\FormsValidatorServiceInterface;
-use Ran\PluginLib\Forms\Services\FormsValidatorService;
 use Ran\PluginLib\Forms\Services\FormsSchemaServiceInterface;
 use Ran\PluginLib\Forms\Services\FormsSchemaService;
+use Ran\PluginLib\Forms\Services\FormsMessageServiceInterface;
+use Ran\PluginLib\Forms\Services\FormsMessageService;
+use Ran\PluginLib\Forms\Services\FormsErrorHandlerInterface;
+use Ran\PluginLib\Forms\Services\AdminFormsErrorHandler;
 use Ran\PluginLib\Forms\Renderer\FormMessageHandler;
 use Ran\PluginLib\Forms\Renderer\FormElementRenderer;
 use Ran\PluginLib\Forms\FormsServiceSession;
@@ -109,6 +111,7 @@ trait FormsBaseTrait {
 	private ?FormsErrorHandlerInterface $__error_handler         = null;
 	private ?FormsValidatorServiceInterface $__validator_service = null;
 	private ?FormsSchemaServiceInterface $__schema_service       = null;
+	private ?FormsMessageServiceInterface $__message_service     = null;
 
 	// Template override system removed - now handled by FormsTemplateOverrideResolver in FormsServiceSession
 
@@ -183,6 +186,28 @@ trait FormsBaseTrait {
 		);
 
 		return $this->__schema_service;
+	}
+
+	protected function _get_message_service(): FormsMessageServiceInterface {
+		if ($this->__message_service instanceof FormsMessageServiceInterface) {
+			return $this->__message_service;
+		}
+
+		$pending_values = & $this->pending_values;
+		$this->__message_service = new FormsMessageService(
+			$this->message_handler,
+			$this->logger,
+			$this->main_option,
+			$pending_values,
+			fn (string $key): string => $this->_do_sanitize_key($key),
+			fn (): int => (int) $this->_do_get_current_user_id(),
+			fn (string $key, mixed $value, int $ttl): mixed => $this->_do_set_transient($key, $value, $ttl),
+			fn (string $key): mixed => $this->_do_get_transient($key),
+			fn (string $key): mixed => $this->_do_delete_transient($key),
+			fn (): string => $this->_get_form_type_suffix()
+		);
+
+		return $this->__message_service;
 	}
 
 	// =========================================================================
@@ -434,12 +459,7 @@ trait FormsBaseTrait {
 	 * @return array<string, array{warnings: array<int, string>, notices: array<int, string>}>
 	 */
 	public function take_messages(): array {
-		$messages = $this->message_handler->get_all_messages();
-		$this->message_handler->clear();
-		return $messages ?? array(
-			'warnings' => array(),
-			'notices'  => array(),
-		);
+		return $this->_get_message_service()->take_messages();
 	}
 
 	/**
@@ -626,9 +646,7 @@ trait FormsBaseTrait {
 	 * @return void
 	 */
 	protected function _prepare_validation_messages(array $payload): void {
-		$this->message_handler->clear();
-		$this->message_handler->set_pending_values($payload);
-		$this->pending_values = $payload;
+		$this->_get_message_service()->prepare_validation_messages($payload);
 	}
 
 	/**
@@ -641,40 +659,21 @@ trait FormsBaseTrait {
 	 * @return array<string, array{warnings: array<int, string>, notices: array<int, string>}>
 	 */
 	protected function _process_validation_messages(RegisterOptions $options): array {
-		$messages = $options->take_messages();
-		$this->message_handler->set_messages($messages);
-
-		// Update pending values with sanitized values from RegisterOptions
-		// This ensures the user sees post-sanitization values, not pre-sanitization values
-		// IMPORTANT: Only update values that were in the original payload, not all options
-		// (RegisterOptions may contain database values for keys not in the submission)
-		$sanitizedValues = $options->get_options();
-		if (!empty($sanitizedValues) && !empty($this->pending_values)) {
-			// Only merge sanitized values for keys that were in the original payload
-			foreach (array_keys($this->pending_values) as $key) {
-				if (array_key_exists($key, $sanitizedValues)) {
-					$this->pending_values[$key] = $sanitizedValues[$key];
-				}
-			}
-			$this->message_handler->set_pending_values($this->pending_values);
-		}
-
-		return $messages;
+		return $this->_get_message_service()->process_validation_messages($options);
 	}
 
 	/**
 	 * Determine whether validation failures were recorded during the current operation.
 	 */
 	protected function _has_validation_failures(): bool {
-		return $this->message_handler->has_validation_failures();
+		return $this->_get_message_service()->has_validation_failures();
 	}
 
 	/**
 	 * Clear pending validation state after a successful operation.
 	 */
 	protected function _clear_pending_validation(): void {
-		$this->message_handler->set_pending_values(null);
-		$this->pending_values = null;
+		$this->_get_message_service()->clear_pending_validation();
 	}
 
 	/**
@@ -686,22 +685,7 @@ trait FormsBaseTrait {
 	 * @return void
 	 */
 	protected function _log_validation_failure(string $message, array $context = array(), string $level = 'info'): void {
-		if (!array_key_exists('warning_count', $context)) {
-			$context['warning_count'] = $this->message_handler->get_warning_count();
-		}
-		switch ($level) {
-			case 'warning':
-				$this->logger->warning($message, $context);
-				break;
-			case 'error':
-				$this->logger->error($message, $context);
-				break;
-			case 'debug':
-				$this->logger->debug($message, $context);
-				break;
-			default:
-				$this->logger->info($message, $context);
-		}
+		$this->_get_message_service()->log_validation_failure($message, $context, $level);
 	}
 
 	/**
@@ -713,19 +697,7 @@ trait FormsBaseTrait {
 	 * @return void
 	 */
 	protected function _log_validation_success(string $message, array $context = array(), string $level = 'debug'): void {
-		switch ($level) {
-			case 'info':
-				$this->logger->info($message, $context);
-				break;
-			case 'warning':
-				$this->logger->warning($message, $context);
-				break;
-			case 'error':
-				$this->logger->error($message, $context);
-				break;
-			default:
-				$this->logger->debug($message, $context);
-		}
+		$this->_get_message_service()->log_validation_success($message, $context, $level);
 	}
 
 	// -- Form Message Persistence --
@@ -740,12 +712,7 @@ trait FormsBaseTrait {
 	 * @return string Transient key in format: ran_form_messages_{main_option}_{user_id}
 	 */
 	protected function _get_form_messages_transient_key(?int $user_id = null): string {
-		if ($user_id === null) {
-			$user_id = $this->_do_get_current_user_id();
-		}
-		// Include form type to prevent different form classes from consuming each other's messages
-		$form_type = $this->_get_form_type_suffix();
-		return 'ran_form_messages_' . $form_type . '_' . $this->main_option . '_' . $user_id;
+		return $this->_get_message_service()->get_form_messages_transient_key($user_id);
 	}
 
 	/**
@@ -780,24 +747,7 @@ trait FormsBaseTrait {
 	 * @return void
 	 */
 	protected function _persist_form_messages(array $messages, ?int $user_id = null): void {
-		if (empty($messages)) {
-			return;
-		}
-
-		$key = $this->_get_form_messages_transient_key($user_id);
-
-		// Persist both messages and pending values so failed values are shown after redirect
-		$data = array(
-			'messages'       => $messages,
-			'pending_values' => $this->pending_values,
-		);
-		$this->_do_set_transient($key, $data, 30); // 30 second TTL
-
-		$this->logger->debug('forms.messages_persisted', array(
-			'transient_key'        => $key,
-			'field_count'          => count($messages),
-			'pending_values_count' => $this->pending_values !== null ? count($this->pending_values) : 0,
-		));
+		$this->_get_message_service()->persist_form_messages($messages, $user_id);
 	}
 
 	/**
@@ -811,43 +761,7 @@ trait FormsBaseTrait {
 	 * @return bool True if messages were restored, false if none found.
 	 */
 	protected function _restore_form_messages(?int $user_id = null): bool {
-		$key  = $this->_get_form_messages_transient_key($user_id);
-		$data = $this->_do_get_transient($key);
-
-		if (empty($data) || !is_array($data)) {
-			return false;
-		}
-
-		// Delete transient after reading (one-time display)
-		$this->_do_delete_transient($key);
-
-		// Handle both old format (just messages) and new format (messages + pending_values)
-		if (isset($data['messages'])) {
-			// New format: { messages: {...}, pending_values: {...} }
-			$messages       = $data['messages'];
-			$pending_values = $data['pending_values'] ?? null;
-		} else {
-			// Old format: just the messages array directly
-			$messages       = $data;
-			$pending_values = null;
-		}
-
-		// Feed messages into our message handler
-		$this->message_handler->set_messages($messages);
-
-		// Restore pending values so failed values are shown in form fields
-		if ($pending_values !== null) {
-			$this->message_handler->set_pending_values($pending_values);
-			$this->pending_values = $pending_values;
-		}
-
-		$this->logger->debug('forms.messages_restored', array(
-			'transient_key'        => $key,
-			'field_count'          => count($messages),
-			'pending_values_count' => $pending_values !== null ? count($pending_values) : 0,
-		));
-
-		return true;
+		return $this->_get_message_service()->restore_form_messages($user_id);
 	}
 
 	// -- Session & Hook Management --
@@ -1725,12 +1639,7 @@ trait FormsBaseTrait {
 	 * @return array<string, array{warnings: array<int, string>, notices: array<int, string>}>
 	 */
 	protected function _get_messages_for_field(string $field_id): array {
-		$key      = $this->_do_sanitize_key($field_id);
-		$messages = $this->message_handler->get_messages_for_field($key);
-		return $messages ?? array(
-			'warnings' => array(),
-			'notices'  => array(),
-		);
+		return $this->_get_message_service()->get_messages_for_field($field_id);
 	}
 
 	// -- Rendering Helpers --
