@@ -118,6 +118,9 @@ trait FormsBaseTrait {
 			return $this->__state_store;
 		}
 
+		// NOTE: FormsStateStore intentionally maintains a live view over the trait's internal
+		// container/section/field/group/control arrays. These arrays are passed into the store
+		// by-reference (in FormsStateStore) so updates remain consistent without copying state.
 		$this->__state_store = new FormsStateStore($this->containers, $this->sections, $this->fields, $this->groups, $this->submit_controls);
 		return $this->__state_store;
 	}
@@ -179,7 +182,7 @@ trait FormsBaseTrait {
 			return $this->__message_service;
 		}
 
-		$pending_values          = & $this->pending_values;
+		$pending_values          = $this->pending_values;
 		$this->__message_service = new FormsMessageService(
 			$this->message_handler,
 			$this->logger,

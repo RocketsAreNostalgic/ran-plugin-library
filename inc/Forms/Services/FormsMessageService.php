@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\Forms\Services;
 
-use Ran\PluginLib\Forms\Renderer\FormMessageHandler;
-use Ran\PluginLib\Options\RegisterOptions;
 use Ran\PluginLib\Util\Logger;
+use Ran\PluginLib\Options\RegisterOptions;
+use Ran\PluginLib\Forms\Renderer\FormMessageHandler;
 
 class FormsMessageService implements FormsMessageServiceInterface {
 	/**
@@ -45,7 +45,7 @@ class FormsMessageService implements FormsMessageServiceInterface {
 		private FormMessageHandler $message_handler,
 		private Logger $logger,
 		private string $main_option,
-		?array &$pending_values,
+		?array $pending_values,
 		callable $sanitize_key,
 		callable $get_current_user_id,
 		callable $set_transient,
@@ -53,7 +53,7 @@ class FormsMessageService implements FormsMessageServiceInterface {
 		callable $delete_transient,
 		callable $get_form_type_suffix
 	) {
-		$this->pending_values       = & $pending_values;
+		$this->pending_values       = $pending_values;
 		$this->sanitize_key         = $sanitize_key;
 		$this->get_current_user_id  = $get_current_user_id;
 		$this->set_transient        = $set_transient;

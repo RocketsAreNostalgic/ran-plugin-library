@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\Tests\Unit\Forms;
 
-use PHPUnit\Framework\TestCase;
-use Ran\PluginLib\Forms\Renderer\FormMessageHandler;
-use Ran\PluginLib\Forms\Services\FormsMessageService;
-use Ran\PluginLib\Options\RegisterOptions;
 use Ran\PluginLib\Util\CollectingLogger;
+use Ran\PluginLib\Options\RegisterOptions;
+use Ran\PluginLib\Forms\Services\FormsMessageService;
+use Ran\PluginLib\Forms\Renderer\FormMessageHandler;
+use PHPUnit\Framework\TestCase;
 
 /**
  * @coversDefaultClass \Ran\PluginLib\Forms\Services\FormsMessageService
@@ -47,7 +47,10 @@ final class FormsMessageServiceTest extends TestCase {
 
 		$svc->prepare_validation_messages(array('a' => 'b'));
 
-		self::assertSame(array('a' => 'b'), $pending);
+		$svcRef     = new \ReflectionObject($svc);
+		$pendingRef = $svcRef->getProperty('pending_values');
+		$pendingRef->setAccessible(true);
+		self::assertSame(array('a' => 'b'), $pendingRef->getValue($svc));
 		self::assertSame(array(), $handler->get_all_messages());
 		self::assertSame(array('a' => 'b'), $handler->get_effective_values(array()));
 	}
@@ -91,8 +94,13 @@ final class FormsMessageServiceTest extends TestCase {
 		$result = $svc->process_validation_messages($options);
 
 		self::assertArrayHasKey('a', $result);
-		self::assertSame('sanitized-a', $pending['a']);
-		self::assertSame('raw2', $pending['b']);
+
+		$svcRef     = new \ReflectionObject($svc);
+		$pendingRef = $svcRef->getProperty('pending_values');
+		$pendingRef->setAccessible(true);
+		$pendingAfter = (array) $pendingRef->getValue($svc);
+		self::assertSame('sanitized-a', $pendingAfter['a']);
+		self::assertSame('raw2', $pendingAfter['b']);
 	}
 
 	public function test_get_form_messages_transient_key_uses_form_type_and_current_user_id(): void {
@@ -158,13 +166,18 @@ final class FormsMessageServiceTest extends TestCase {
 		);
 		$svc->persist_form_messages($messages, 1);
 
-		// Reset handler state + pending before restore
+		// Reset handler/service pending state before restore
 		$handler->clear();
-		$pending = null;
+		$svc->clear_pending_validation();
 
 		self::assertTrue($svc->restore_form_messages(1));
 		self::assertSame($messages, $handler->get_all_messages());
-		self::assertSame(array('a' => 'pending-a'), $pending);
+		self::assertSame(array('a' => 'pending-a'), $handler->get_effective_values(array()));
+
+		$svcRef     = new \ReflectionObject($svc);
+		$pendingRef = $svcRef->getProperty('pending_values');
+		$pendingRef->setAccessible(true);
+		self::assertSame(array('a' => 'pending-a'), $pendingRef->getValue($svc));
 
 		// Transient should have been deleted
 		$key = $svc->get_form_messages_transient_key(1);
@@ -206,6 +219,10 @@ final class FormsMessageServiceTest extends TestCase {
 
 		self::assertTrue($svc->restore_form_messages(1));
 		self::assertSame($messages, $handler->get_all_messages());
-		self::assertNull($pending);
+
+		$svcRef     = new \ReflectionObject($svc);
+		$pendingRef = $svcRef->getProperty('pending_values');
+		$pendingRef->setAccessible(true);
+		self::assertNull($pendingRef->getValue($svc));
 	}
 }
