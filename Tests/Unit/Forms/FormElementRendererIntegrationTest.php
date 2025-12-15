@@ -59,18 +59,8 @@ class FormElementRendererIntegrationTest extends PluginLibTestCase {
 	public function test_complete_asset_collection_integration(): void {
 		$this->logger_mock = new CollectingLogger();
 
-		// Create a component with assets
-		$style_definition = StyleDefinition::from_array(array(
-			'handle'  => 'integration-test-style',
-			'src'     => 'integration-test.css',
-			'deps'    => array(),
-			'version' => '1.0.0'
-		));
-
 		$render_result = new ComponentRenderResult(
-			'<input type="text" name="integration_field" />',
-			null,
-			$style_definition
+			'<input type="text" name="integration_field" />'
 		);
 
 		// Mock ComponentManifest to return our test result
@@ -96,8 +86,7 @@ class FormElementRendererIntegrationTest extends PluginLibTestCase {
 		// Start a session to track assets
 		$session = $form_service->start_session();
 
-		// Verify session starts with no assets
-		$this->assertFalse($session->assets()->has_assets());
+		$this->assertSame(array(), $session->get_used_component_aliases());
 
 		// Render field component using FormElementRenderer
 		$field = array(
@@ -121,16 +110,7 @@ class FormElementRendererIntegrationTest extends PluginLibTestCase {
 		// Verify HTML is returned
 		$this->assertEquals('<input type="text" name="integration_field" />', $html);
 
-		// Verify assets were collected in the session
-		$assets = $session->assets();
-		$this->assertTrue($assets->has_assets(), 'Assets should have been collected');
-
-		// Verify the specific style was collected
-		$styles = $assets->styles();
-		$this->assertArrayHasKey('integration-test-style', $styles);
-		$this->assertEquals('integration-test-style', $styles['integration-test-style']->handle);
-
-		$this->expectLog('debug', 'FormElementRenderer: Component rendered with assets');
+		$this->assertSame(array('fields.text'), $session->get_used_component_aliases());
 	}
 
 	/**
@@ -187,15 +167,7 @@ class FormElementRendererIntegrationTest extends PluginLibTestCase {
 		// Verify HTML is returned
 		$this->assertEquals('<div>No assets component</div>', $html);
 
-		// Verify no assets were collected
-		$this->assertFalse($session->assets()->has_assets());
-
-		$this->expectLog('debug', 'FormElementRenderer: Component rendered with assets');
-		$logs           = $this->logger_mock->get_logs();
-		$no_assets_logs = array_filter($logs, static function($log) {
-			return isset($log['context']['has_assets']) && $log['context']['has_assets'] === false;
-		});
-		$this->assertNotEmpty($no_assets_logs, 'Should log when component has no assets');
+		$this->assertSame(array('simple.component'), $session->get_used_component_aliases());
 	}
 
 	/**
@@ -207,23 +179,8 @@ class FormElementRendererIntegrationTest extends PluginLibTestCase {
 	public function test_multiple_components_accumulate_assets(): void {
 		$logger = new CollectingLogger();
 
-		// Create two different components with different assets
-		$style1 = StyleDefinition::from_array(array(
-			'handle'  => 'component-1-style',
-			'src'     => 'component1.css',
-			'deps'    => array(),
-			'version' => '1.0.0'
-		));
-
-		$style2 = StyleDefinition::from_array(array(
-			'handle'  => 'component-2-style',
-			'src'     => 'component2.css',
-			'deps'    => array(),
-			'version' => '1.0.0'
-		));
-
-		$result1 = new ComponentRenderResult('<input type="text" />', null, $style1);
-		$result2 = new ComponentRenderResult('<textarea></textarea>', null, $style2);
+		$result1 = new ComponentRenderResult('<input type="text" />');
+		$result2 = new ComponentRenderResult('<textarea></textarea>');
 
 		// Mock ComponentManifest
 		$mock_manifest = Mockery::mock(ComponentManifest::class);
@@ -267,13 +224,6 @@ class FormElementRendererIntegrationTest extends PluginLibTestCase {
 		$context2 = $renderer->prepare_field_context($field2, array(), array());
 		$renderer->render_field_component('fields.textarea', 'field2', 'Field 2', $context2, 'direct-output', 'field-wrapper', $session);
 
-		// Verify both assets were collected
-		$assets = $session->assets();
-		$this->assertTrue($assets->has_assets());
-
-		$styles = $assets->styles();
-		$this->assertArrayHasKey('component-1-style', $styles);
-		$this->assertArrayHasKey('component-2-style', $styles);
-		$this->assertCount(2, $styles);
+		$this->assertSame(array('fields.text', 'fields.textarea'), $session->get_used_component_aliases());
 	}
 }

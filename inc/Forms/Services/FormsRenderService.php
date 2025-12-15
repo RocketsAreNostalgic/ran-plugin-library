@@ -220,12 +220,7 @@ class FormsRenderService implements FormsRenderServiceInterface {
 			if (!($sectionComponent instanceof ComponentRenderResult)) {
 				throw new \UnexpectedValueException('Section template must return a ComponentRenderResult instance.');
 			}
-
-			$session->ingest_component_result(
-				$sectionComponent,
-				'render_section',
-				null
-			);
+			$session->note_component_used($section_template);
 
 			$all_sections_markup .= $sectionComponent->markup;
 		}

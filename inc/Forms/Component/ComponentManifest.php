@@ -116,6 +116,27 @@ class ComponentManifest {
 		$this->componentMetadata[$alias]['builder'] = $builder;
 	}
 
+	public function register_assets(string $alias, string $assets): void {
+		$assets = trim($assets);
+		if ($assets === '' || !class_exists($assets)) {
+			return;
+		}
+		if (!is_subclass_of($assets, ComponentAssetsDefinitionInterface::class)) {
+			return;
+		}
+		if (!isset($this->componentMetadata[$alias])) {
+			$this->componentMetadata[$alias] = array(
+				'normalizer' => null,
+				'builder'    => null,
+				'validator'  => null,
+				'sanitizer'  => null,
+				'assets'     => null,
+			);
+		}
+		$this->componentMetadata[$alias]['assets'] = $assets;
+		unset($this->assetsDefinitionsCache[$alias]);
+	}
+
 	/**
 	 * Retrieve component asset requirements from the component's Assets.php companion.
 	 *

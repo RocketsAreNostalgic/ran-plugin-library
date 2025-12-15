@@ -38,24 +38,12 @@ class FormsServiceSessionTest extends TestCase {
 		$logger = new CollectingLogger();
 		/** @var ComponentManifest&MockObject $manifest */
 		$manifest = $this->createMock(ComponentManifest::class);
-		$assets   = new class extends FormsAssets {
-			public int $ingest_count = 0;
-
-			public function ingest(ComponentRenderResult $result): void {
-				parent::ingest($result);
-				$this->ingest_count++;
-			}
-		};
+		/** @var FormsAssets&MockObject $assets */
+		$assets   = $this->createMock(FormsAssets::class);
 		$resolver = new FormsTemplateOverrideResolver($logger);
 		$session  = new FormsServiceSession($manifest, $assets, $resolver, $logger);
 
-		$style = StyleDefinition::from_array(array(
-			'handle'  => 'log-style',
-			'src'     => 'style.css',
-			'deps'    => array(),
-			'version' => '1.0.0',
-		));
-		$result = new ComponentRenderResult('<div>Logged</div>', null, $style);
+		$result = new ComponentRenderResult('<div>Logged</div>');
 
 		$manifest->expects($this->once())
 			->method('render')
@@ -63,18 +51,23 @@ class FormsServiceSessionTest extends TestCase {
 			->willReturn($result);
 
 		$session->render_component('fields.example', array('field_id' => 'example-field'));
+		$this->assertSame(array('fields.example'), $session->get_used_component_aliases());
+	}
 
-		$this->assertSame(1, $assets->ingest_count);
+	public function test_enqueue_assets_delegates_to_manifest(): void {
+		$render_result = new ComponentRenderResult(markup: '<div>Test Field</div>');
+		$this->manifest->expects($this->once())
+			->method('render')
+			->with('admin.field-wrapper', array('test' => 'context'))
+			->willReturn($render_result);
 
-		$logs     = $logger->get_logs();
-		$matching = array_filter($logs, static function(array $log): bool {
-			return isset($log['message']) && $log['message'] === 'FormsServiceSession: Assets ingested successfully';
-		});
-		$this->assertCount(1, $matching, 'Expected a single session asset ingestion log entry.');
+		$this->manifest->expects($this->once())
+			->method('enqueue_assets_for_aliases')
+			->with(array('admin.field-wrapper'));
 
-		$entry = array_values($matching)[0];
-		$this->assertSame('render_component:fields.example', $entry['context']['source'] ?? null);
-		$this->assertSame('example-field', $entry['context']['field_id'] ?? null);
+		$this->session->set_form_defaults(array('field-wrapper' => 'admin.field-wrapper'));
+		$this->session->render_element('field-wrapper', array('test' => 'context'));
+		$this->session->enqueue_assets();
 	}
 
 	protected function setUp(): void {
@@ -146,14 +139,9 @@ class FormsServiceSessionTest extends TestCase {
 			->with('admin.field-wrapper', array('test' => 'context'))
 			->willReturn($render_result);
 
-		/** @var FormsAssets&MockObject $assets */
-		$assets = $this->assets;
-		$assets->expects($this->once())
-			->method('ingest')
-			->with($render_result);
-
 		// Execute pipeline
 		$result = $this->session->render_element('field-wrapper', array('test' => 'context'));
+		$this->assertSame(array('admin.field-wrapper'), $this->session->get_used_component_aliases());
 
 		$this->assertEquals('<div>Test Field</div>', $result);
 	}
@@ -189,14 +177,9 @@ class FormsServiceSessionTest extends TestCase {
 			->with('special.field-wrapper', array('field_id' => 'special-field'))
 			->willReturn($render_result);
 
-		/** @var FormsAssets&MockObject $assets */
-		$assets = $this->assets;
-		$assets->expects($this->once())
-			->method('ingest')
-			->with($render_result);
-
 		// Execute pipeline with field context
 		$result = $this->session->render_element('field-wrapper', array(), array('field_id' => 'special-field'));
+		$this->assertSame(array('special.field-wrapper'), $this->session->get_used_component_aliases());
 
 		$this->assertEquals('<div>Special Field</div>', $result);
 	}
@@ -383,16 +366,11 @@ class FormsServiceSessionTest extends TestCase {
 			->with('test-component', array('context' => 'data'))
 			->willReturn($render_result);
 
-		/** @var FormsAssets&MockObject $assets */
-		$assets = $this->assets;
-		$assets->expects($this->once())
-			->method('ingest')
-			->with($render_result);
-
 		// Execute existing method
 		$result = $this->session->render_component('test-component', array('context' => 'data'));
 
 		$this->assertEquals('<div>Component</div>', $result);
+		$this->assertSame(array('test-component'), $this->session->get_used_component_aliases());
 	}
 
 	/**
@@ -420,15 +398,10 @@ class FormsServiceSessionTest extends TestCase {
 			->with($component, $expectedContext)
 			->willReturn($render_result);
 
-		/** @var FormsAssets&MockObject $assets */
-		$assets = $this->assets;
-		$assets->expects($this->once())
-			->method('ingest')
-			->with($render_result);
-
 		$result = $this->session->render_field_component($component, $field_id, $label, $additionalContext);
 
 		$this->assertSame('<div>Rendered</div>', $result);
+		$this->assertSame(array($component), $this->session->get_used_component_aliases());
 	}
 
 	/**
@@ -491,11 +464,6 @@ class FormsServiceSessionTest extends TestCase {
 				return $result;
 			});
 
-		/** @var FormsAssets&MockObject $assets */
-		$assets = $this->assets;
-		$assets->expects($this->exactly(3))
-			->method('ingest');
-
 		// Test regular field (uses form-wide default)
 		$result = $this->session->render_element('field-wrapper', array(), array('field_id' => 'regular-field'));
 		$this->assertEquals('<div>Regular Field</div>', $result);
@@ -507,20 +475,19 @@ class FormsServiceSessionTest extends TestCase {
 		// Test section (uses developer override of form-wide default)
 		$result = $this->session->render_element('section-wrapper', array(), array('section_id' => 'any-section'));
 		$this->assertEquals('<section>Custom Section</section>', $result);
+
+		$this->assertSame(
+			array('admin.field-wrapper', 'custom.section-wrapper', 'special.field-wrapper'),
+			$this->session->get_used_component_aliases()
+		);
 	}
 
 	/**
 	 * @covers ::enqueue_assets
 	 */
 	public function test_enqueue_assets_returns_early_when_no_assets(): void {
-		$assets = $this->assets;
-		$assets->expects($this->once())
-			->method('has_assets')
-			->willReturn(false);
-		$assets->expects($this->never())->method('styles');
-		$assets->expects($this->never())->method('scripts');
-		$assets->expects($this->never())->method('requires_media');
-
+		$this->manifest->expects($this->never())
+			->method('enqueue_assets_for_aliases');
 		$this->session->enqueue_assets();
 	}
 
@@ -528,111 +495,10 @@ class FormsServiceSessionTest extends TestCase {
 	 * @covers ::enqueue_assets
 	 */
 	public function test_enqueue_assets_registers_and_enqueues_assets(): void {
-		$styleDefinition = StyleDefinition::from_array(array(
-			'handle'  => 'sample-style',
-			'src'     => 'https://example.com/style.css',
-			'deps'    => array('wp-components'),
-			'version' => '1.0.0',
-		));
-
-		$scriptDefinition = ScriptDefinition::from_array(array(
-			'handle'  => 'sample-script',
-			'src'     => 'https://example.com/script.js',
-			'deps'    => array('wp-hooks'),
-			'version' => '1.0.0',
-			'data'    => array(
-				'in_footer' => true,
-				'localize'  => array(
-					'Example' => array('foo' => 'bar'),
-				),
-			),
-		));
-
-		$assets = new class($styleDefinition, $scriptDefinition) extends FormsAssets {
-			public function __construct(private StyleDefinition $style, private ScriptDefinition $script) {
-			}
-
-			public function has_assets(): bool {
-				return true;
-			}
-
-			public function styles(): array {
-				return array($this->style->handle => $this->style);
-			}
-
-			public function scripts(): array {
-				return array($this->script->handle => $this->script);
-			}
-
-			public function requires_media(): bool {
-				return true;
-			}
-		};
-
-		$logger   = $this->logger;
-		$manifest = $this->manifest;
-
-		$resolver = new FormsTemplateOverrideResolver($logger);
-		$session  = new class($manifest, $assets, $resolver, $logger) extends FormsServiceSession {
-			public array $registered_styles  = array();
-			public array $registered_scripts = array();
-			public array $enqueued_styles    = array();
-			public array $enqueued_scripts   = array();
-			public int $media_calls          = 0;
-
-			public function _do_wp_register_style(string $handle, string|false $src, array $deps = array(), string|bool|null $ver = false, string $media = 'all'): void {
-				$args                      = func_get_args();
-				$this->registered_styles[] = array(
-					'handle' => $args[0] ?? null,
-					'src'    => $args[1] ?? null,
-					'deps'   => $args[2] ?? null,
-					'ver'    => $args[3] ?? null,
-					'media'  => $args[4] ?? null,
-				);
-			}
-
-			public function _do_wp_enqueue_style(string $handle, string $src = '', array $deps = array(), string|bool|null $ver = false, string $media = 'all'): void {
-				$this->enqueued_styles[] = compact('handle', 'src', 'deps', 'ver', 'media');
-			}
-
-			public function _do_wp_register_script(string $handle, string|false $src, string|array $deps = array(), string|bool|null $ver = false, array|bool $args = array()): bool {
-				$this->registered_scripts[] = compact('handle', 'src', 'deps', 'ver', 'args');
-				return true;
-			}
-
-			public function _do_wp_localize_script(string $handle, string $object_name, array $l10n): bool {
-				$this->localized_scripts[] = compact('handle', 'object_name', 'l10n');
-				return true;
-			}
-
-			public function _do_wp_enqueue_script(string $handle, string $src = '', string|array $deps = array(), string|bool|null $ver = false, array|bool $args = array()): void {
-				$this->enqueued_scripts[] = compact('handle', 'src', 'deps', 'ver', 'args');
-			}
-
-			public function _do_wp_enqueue_media(array $args = array()): void {
-				$this->media_calls++;
-			}
-		};
-
-		$session->enqueue_assets();
-
-		$registeredStyle = $session->registered_styles[0] ?? null;
-		$this->assertSame(
-			array('handle' => 'sample-style', 'src' => 'https://example.com/style.css', 'deps' => array('wp-components'), 'ver' => '1.0.0', 'media' => null),
-			$registeredStyle
-		);
-		$this->assertSame('sample-style', $session->enqueued_styles[0]['handle'] ?? null);
-
-		$registeredScript = $session->registered_scripts[0] ?? null;
-		$this->assertSame(
-			array('handle' => 'sample-script', 'src' => 'https://example.com/script.js', 'deps' => array('wp-hooks'), 'ver' => '1.0.0', 'args' => true),
-			$registeredScript
-		);
-		$this->assertSame('sample-script', $session->enqueued_scripts[0]['handle'] ?? null);
-		$this->assertSame(
-			array('handle' => 'sample-script', 'object_name' => 'Example', 'l10n' => array('foo' => 'bar')),
-			$session->localized_scripts[0] ?? null
-		);
-		$this->assertSame(1, $session->media_calls);
+		$this->manifest->expects($this->once())
+			->method('enqueue_assets_for_aliases')
+			->with(array('sample.component'));
+		$this->session->note_component_used('sample.component');
+		$this->session->enqueue_assets();
 	}
 }

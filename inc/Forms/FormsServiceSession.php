@@ -26,6 +26,8 @@ class FormsServiceSession {
 	private FormsTemplateOverrideResolver $template_resolver;
 	private Logger $logger;
 	private ValidatorPipelineService $pipeline;
+	/** @var array<string,bool> */
+	private array $used_component_aliases = array();
 	/** @var array<string,callable> */
 	private array $root_template_callbacks = array();
 
@@ -78,10 +80,7 @@ class FormsServiceSession {
 			// Step 2: Pass resolved template key to ComponentManifest for rendering
 			$render_context = array_merge($element_config, $context);
 			$result         = $this->manifest->render($template_key, $render_context);
-
-			// Step 3: Extract and store assets from ComponentRenderResult
-			$field_id = isset($context['field_id']) && is_string($context['field_id']) ? $context['field_id'] : null;
-			$this->ingest_component_result($result, sprintf('render_element:%s', $element_type), $field_id);
+			$this->note_component_used($template_key);
 
 			return $result->markup;
 		} catch (\Throwable $e) {
@@ -123,12 +122,26 @@ class FormsServiceSession {
 	 * @return string Rendered HTML markup
 	 */
 	public function render_component(string $component, array $context = array()): string {
-		$result   = $this->manifest->render($component, $context);
-		$field_id = isset($context['field_id']) && is_string($context['field_id'])
-			? $context['field_id']
-			: null;
-		$this->ingest_component_result($result, sprintf('render_component:%s', $component), $field_id);
+		$result = $this->manifest->render($component, $context);
+		$this->note_component_used($component);
 		return $result->markup;
+	}
+
+	public function note_component_used(string $alias): void {
+		$alias = trim($alias);
+		if ($alias === '') {
+			return;
+		}
+		$this->used_component_aliases[$alias] = true;
+	}
+
+	/**
+	 * @return array<int,string>
+	 */
+	public function get_used_component_aliases(): array {
+		$aliases = array_keys($this->used_component_aliases);
+		sort($aliases);
+		return $aliases;
 	}
 
 	/**
@@ -188,39 +201,11 @@ class FormsServiceSession {
 	 * @internal
 	 */
 	public function enqueue_assets(): void {
-		if (!$this->assets->has_assets()) {
+		$aliases = $this->get_used_component_aliases();
+		if ($aliases === array()) {
 			return;
 		}
-
-		foreach ($this->assets->styles() as $definition) {
-			$src     = $definition->src;
-			$deps    = $definition->deps;
-			$version = $definition->version;
-			$this->_do_wp_register_style($definition->handle, is_string($src) || $src === false ? $src : '', $deps, $version ?: false);
-			if ($definition->hook === null) {
-				$this->_do_wp_enqueue_style($definition->handle);
-			}
-		}
-
-		foreach ($this->assets->scripts() as $definition) {
-			$src      = $definition->src;
-			$deps     = $definition->deps;
-			$version  = $definition->version;
-			$inFooter = $definition->data['in_footer'] ?? true;
-			$this->_do_wp_register_script($definition->handle, is_string($src) || $src === false ? $src : '', $deps, $version ?: false, (bool) $inFooter);
-			if (!empty($definition->data['localize']) && is_array($definition->data['localize'])) {
-				foreach ($definition->data['localize'] as $objectName => $l10n) {
-					$this->_do_wp_localize_script($definition->handle, (string) $objectName, $l10n);
-				}
-			}
-			if ($definition->hook === null) {
-				$this->_do_wp_enqueue_script($definition->handle);
-			}
-		}
-
-		if ($this->assets->requires_media()) {
-			$this->_do_wp_enqueue_media();
-		}
+		$this->manifest->enqueue_assets_for_aliases($aliases);
 	}
 
 	/**

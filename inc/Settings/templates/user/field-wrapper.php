@@ -40,13 +40,14 @@ $display_notices     = isset($context['display_notices'])     && is_array($conte
 $required   = isset($context['required']) && $context['required'];
 $field_type = isset($context['field_type']) ? (string) $context['field_type'] : '';
 $layout     = isset($context['layout']) ? (string) $context['layout'] : 'vertical';
+$repeatable = isset($context['repeatable']) && $context['repeatable'];
 
 $field_id = isset($context['field_id']) ? (string) $context['field_id'] : '';
 $label    = isset($context['label']) ? (string) $context['label'] : '';
 
 ob_start();
 ?>
-<tr class="kplr-field<?php echo $required ? ' kplr-field--required' : ''; ?>" data-kplr-field-id="<?php echo esc_attr($field_id); ?>">
+<tr class="kplr-field<?php echo $required ? ' kplr-field--required' : ''; ?><?php echo $repeatable ? ' kplr-field--repeatable' : ''; ?>" data-kplr-field-id="<?php echo esc_attr($field_id); ?>"<?php echo $repeatable ? ' data-kplr-repeatable="1"' : ''; ?>>
 	<th class="kplr-field__label-cell" scope="row">
 		<?php if ($label !== '') : ?>
 			<label class="kplr-field__label"<?php echo $field_id !== '' ? ' for="' . esc_attr($field_id) . '"' : ''; ?>><?php echo esc_html($label); ?><?php echo $required ? '<span class="kplr-field__required">*</span>' : ''; ?></label>

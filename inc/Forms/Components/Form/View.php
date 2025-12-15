@@ -139,10 +139,6 @@ use Ran\PluginLib\Forms\Component\ComponentRenderResult;
 
 return new ComponentRenderResult(
 	markup: $markup,
-	script: null,
-	style: null,
-	requires_media: false,
-	repeatable: false,
 	context_schema: array(
 	    'required' => array('children'),
 	    'optional' => array('action', 'method', 'attributes', 'has_files', 'nonce_action', 'nonce_field', 'errors', 'notices'),

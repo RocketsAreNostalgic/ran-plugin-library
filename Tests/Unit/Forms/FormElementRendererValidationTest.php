@@ -176,10 +176,12 @@ class FormElementRendererValidationTest extends PluginLibTestCase {
 		$manifest = Mockery::mock(ComponentManifest::class);
 		$manifest->shouldReceive('render')
 			->with('fields.text', Mockery::type('array'))
-			->andReturn(new ComponentRenderResult('<input />', null, StyleDefinition::from_array(array(
-				'handle' => 'style',
-				'src'    => 'style.css',
-			))));
+			->andReturn(new ComponentRenderResult('<input />'));
+		$manifest->shouldReceive('render')
+			->with('field-wrapper', Mockery::type('array'))
+			->andReturnUsing(static function(string $template, array $context) {
+				return new ComponentRenderResult('<div class="wrapper">' . ($context['inner_html'] ?? '') . '</div>');
+			});
 
 		$loader = Mockery::mock(ComponentLoader::class);
 		$loader->shouldReceive('render')
@@ -217,8 +219,7 @@ class FormElementRendererValidationTest extends PluginLibTestCase {
 
 		$this->assertStringContainsString('wrapper', $html);
 		$this->assertStringContainsString('<input />', $html);
-		$this->expectLog('debug', 'FormsServiceSession: Assets ingested successfully');
-		$this->expectLog('debug', 'FormElementRenderer: Component rendered with assets');
+		$this->assertSame(array('field-wrapper', 'fields.text'), $session->get_used_component_aliases());
 	}
 
 	public function test_render_field_component_falls_back_when_wrapper_fails(): void {
@@ -257,17 +258,7 @@ class FormElementRendererValidationTest extends PluginLibTestCase {
 	}
 
 	public function test_render_component_with_assets_logs_successfully(): void {
-		WP_Mock::userFunction('wp_register_style')->andReturn(true);
-		WP_Mock::userFunction('wp_enqueue_style')->andReturn(true);
-
-		$style_definition = StyleDefinition::from_array(array(
-			'handle'  => 'logged-style',
-			'src'     => 'logged-style.css',
-			'deps'    => array(),
-			'VErsion' => '1.0.0',
-		));
-
-		$render_result = new ComponentRenderResult('<div>Rendered</div>', null, $style_definition);
+		$render_result = new ComponentRenderResult('<div>Rendered</div>');
 
 		$manifest = Mockery::mock(ComponentManifest::class);
 		$manifest->shouldReceive('render')
@@ -282,9 +273,7 @@ class FormElementRendererValidationTest extends PluginLibTestCase {
 		$html = $renderer->render_component_with_assets('test-component', array('field_id' => 'field'), $session);
 
 		$this->assertSame('<div>Rendered</div>', $html);
-		$this->assertTrue($session->assets()->has_assets());
-		$this->expectLog('debug', 'FormsServiceSession: Assets ingested successfully');
-		$this->expectLog('debug', 'FormElementRenderer: Component rendered with assets');
+		$this->assertSame(array('test-component'), $session->get_used_component_aliases());
 	}
 
 	public function test_render_field_with_wrapper_uses_default_session_when_missing(): void {
