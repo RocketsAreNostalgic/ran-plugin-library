@@ -445,6 +445,83 @@ abstract class FormsCore implements FormsInterface {
 		return $this->components;
 	}
 
+	public function collect_used_component_aliases(?string $container_id = null): array {
+		$aliases = array();
+
+		$container_ids = array();
+		if ($container_id !== null) {
+			$container_id = trim($container_id);
+			if ($container_id !== '') {
+				$container_ids = array($container_id);
+			}
+		}
+		if ($container_ids === array()) {
+			$container_ids = array_keys($this->containers);
+		}
+
+		foreach ($container_ids as $id) {
+			$fields_by_section = $this->fields[$id] ?? array();
+			if (is_array($fields_by_section)) {
+				foreach ($fields_by_section as $section_fields) {
+					if (!is_array($section_fields)) {
+						continue;
+					}
+					foreach ($section_fields as $field) {
+						if (!is_array($field)) {
+							continue;
+						}
+						$component = isset($field['component']) ? trim((string) $field['component']) : '';
+						if ($component !== '') {
+							$aliases[] = $component;
+						}
+					}
+				}
+			}
+
+			$groups_by_id = $this->groups[$id] ?? array();
+			if (is_array($groups_by_id)) {
+				foreach ($groups_by_id as $group) {
+					if (!is_array($group)) {
+						continue;
+					}
+					$group_fields = $group['fields'] ?? array();
+					if (!is_array($group_fields)) {
+						continue;
+					}
+					foreach ($group_fields as $field) {
+						if (!is_array($field)) {
+							continue;
+						}
+						$component = isset($field['component']) ? trim((string) $field['component']) : '';
+						if ($component !== '') {
+							$aliases[] = $component;
+						}
+					}
+				}
+			}
+
+			$submit = $this->submit_controls[$id] ?? null;
+			if (is_array($submit)) {
+				$controls = $submit['controls'] ?? array();
+				if (is_array($controls)) {
+					foreach ($controls as $control) {
+						if (!is_array($control)) {
+							continue;
+						}
+						$component = isset($control['component']) ? trim((string) $control['component']) : '';
+						if ($component !== '') {
+							$aliases[] = $component;
+						}
+					}
+				}
+			}
+		}
+
+		$aliases = array_values(array_unique($aliases));
+		sort($aliases);
+		return $aliases;
+	}
+
 	/**
 	 * Resolve the correctly scoped RegisterOptions instance for current admin context.
 	 * Callers can chain fluent API on the returned object.

@@ -575,13 +575,12 @@ class FormsServiceSessionTest extends TestCase {
 		$resolver = new FormsTemplateOverrideResolver($logger);
 		$session  = new class($manifest, $assets, $resolver, $logger) extends FormsServiceSession {
 			public array $registered_styles  = array();
-			public array $enqueued_styles    = array();
 			public array $registered_scripts = array();
-			public array $localized_scripts  = array();
+			public array $enqueued_styles    = array();
 			public array $enqueued_scripts   = array();
 			public int $media_calls          = 0;
 
-			public function _do_wp_register_style(): void {
+			public function _do_wp_register_style(string $handle, string|false $src, array $deps = array(), string|bool|null $ver = false, string $media = 'all'): void {
 				$args                      = func_get_args();
 				$this->registered_styles[] = array(
 					'handle' => $args[0] ?? null,

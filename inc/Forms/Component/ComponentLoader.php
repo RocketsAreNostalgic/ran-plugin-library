@@ -297,6 +297,16 @@ class ComponentLoader {
 	}
 
 	/**
+	 * Resolve the class name for an assets definition companion by its alias.
+	 *
+	 * @param string $alias
+	 * @return ?string
+	 */
+	public function resolve_assets_class(string $alias): ?string {
+		return $this->_resolve_component_class($alias, 'Assets');
+	}
+
+	/**
 	 * Resolve the directory path for a component by its alias.
 	 *
 	 * Returns the directory containing the component's View.php and companion files.
@@ -371,10 +381,10 @@ class ComponentLoader {
 
 			$basename = $file->getBasename('.php');
 
-			// Skip companion classes (Builder, Normalizer, Sanitizer, Validator)
+			// Skip companion classes (Builder, Normalizer, Sanitizer, Validator, Assets)
 			// These are resolved programmatically via resolve_*_class() methods
 			// Only View.php files or standalone templates should create aliases
-			if (in_array($basename, array('Builder', 'Normalizer', 'Sanitizer', 'Validator'), true)) {
+			if (in_array($basename, array('Builder', 'Normalizer', 'Sanitizer', 'Validator', 'Assets'), true)) {
 				continue;
 			}
 

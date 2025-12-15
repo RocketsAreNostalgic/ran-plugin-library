@@ -85,6 +85,13 @@ class AdminMenuRegistry implements SettingsRegistryInterface {
 	private bool $menus_registered = false;
 
 	/**
+	 * Tracks which page render callbacks have already run in this request.
+	 *
+	 * @var array<string,bool>
+	 */
+	private array $render_callbacks_ran = array();
+
+	/**
 	 * Stored error from register() callback, to display on pages.
 	 */
 	private ?\Throwable $register_error = null;
@@ -145,6 +152,8 @@ class AdminMenuRegistry implements SettingsRegistryInterface {
 		// Register admin_init for Settings API registration
 		$this->_do_add_action('admin_init', array( $this, '_register_settings_api' ), 10);
 
+		$this->_do_add_action('admin_enqueue_scripts', array( $this, '_enqueue_page_assets' ), 10, 1);
+
 		// If there was an error, show admin notice so developers see it on any page
 		if ($this->register_error !== null) {
 			$error = $this->register_error;
@@ -163,6 +172,21 @@ class AdminMenuRegistry implements SettingsRegistryInterface {
 			'has_error'   => $this->register_error !== null,
 			'menu_groups' => count($this->menu_groups),
 		));
+	}
+
+	public function _enqueue_page_assets($hook_suffix = ''): void {
+		$current_page = $_GET['page'] ?? '';
+		if ($current_page === '' || !isset($this->render_callbacks[$current_page])) {
+			return;
+		}
+
+		$this->_ensure_settings();
+		if ($this->settings === null) {
+			return;
+		}
+
+		$aliases = $this->settings->collect_used_component_aliases($current_page);
+		$this->settings->get_component_manifest()->enqueue_assets_for_aliases($aliases);
 	}
 
 	/**
@@ -458,6 +482,7 @@ class AdminMenuRegistry implements SettingsRegistryInterface {
 					);
 
 					$callback($page_builder);
+					$this->render_callbacks_ran[$current_page] = true;
 					$this->settings->boot();
 				}
 			}
@@ -498,33 +523,30 @@ class AdminMenuRegistry implements SettingsRegistryInterface {
 			// Find the page metadata to get group context
 			$page_meta = $this->_find_page_meta($page_slug);
 
-			// Create a page builder context for the callback
-			// The callback receives a page builder so it can use section() directly
-			// Pass through all page metadata including style, before, after
-			$page_args = array(
-				'heading'    => $page_meta['heading']    ?? '',
-				'menu_title' => $page_meta['menu_title'] ?? '',
-				'capability' => $page_meta['capability'] ?? 'manage_options',
-				'parent'     => null, // Menu already registered by AdminMenuRegistry
-			);
-			// Merge in optional metadata (style, before, after)
-			if (isset($page_meta['style'])) {
-				$page_args['style'] = $page_meta['style'];
+			if (!($this->render_callbacks_ran[$page_slug] ?? false)) {
+				$page_args = array(
+					'heading'    => $page_meta['heading']    ?? '',
+					'menu_title' => $page_meta['menu_title'] ?? '',
+					'capability' => $page_meta['capability'] ?? 'manage_options',
+					'parent'     => null,
+				);
+				if (isset($page_meta['style'])) {
+					$page_args['style'] = $page_meta['style'];
+				}
+				if (isset($page_meta['before'])) {
+					$page_args['before'] = $page_meta['before'];
+				}
+				if (isset($page_meta['after'])) {
+					$page_args['after'] = $page_meta['after'];
+				}
+				$page_builder = $this->settings->settings_page(
+					$page_slug,
+					null,
+					$page_args
+				);
+				$callback($page_builder);
+				$this->render_callbacks_ran[$page_slug] = true;
 			}
-			if (isset($page_meta['before'])) {
-				$page_args['before'] = $page_meta['before'];
-			}
-			if (isset($page_meta['after'])) {
-				$page_args['after'] = $page_meta['after'];
-			}
-			$page_builder = $this->settings->settings_page(
-				$page_slug,
-				null,
-				$page_args
-			);
-
-			// Run the on_render callback with the page builder
-			$callback($page_builder);
 
 			// Boot and render
 			$this->settings->boot();

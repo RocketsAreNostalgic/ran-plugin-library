@@ -84,6 +84,18 @@ class UserSettingsRegistry implements SettingsRegistryInterface {
 	private bool $hooks_registered = false;
 
 	/**
+	 * Tracks which collection render callbacks have already run in this request.
+	 *
+	 * @var array<string,bool>
+	 */
+	private array $render_callbacks_ran = array();
+
+	/**
+	 * The user_id used for the current request's preflight build.
+	 */
+	private ?int $preflight_user_id = null;
+
+	/**
 	 * Constructor.
 	 *
 	 * @param string               $option_key      Main option key for storage.
@@ -104,6 +116,70 @@ class UserSettingsRegistry implements SettingsRegistryInterface {
 		$this->autoload        = $autoload;
 		$this->logger          = $logger;
 		$this->config          = $config;
+	}
+
+	public function _preflight_enqueue_assets($hook_suffix = ''): void {
+		$pagenow = $GLOBALS['pagenow'] ?? '';
+		if ($pagenow !== 'profile.php' && $pagenow !== 'user-edit.php') {
+			return;
+		}
+
+		$user_id = $this->_resolve_profile_user_id();
+		if ($user_id <= 0) {
+			return;
+		}
+
+		// Ensure dependencies exist early so assets can enqueue in <head>
+		$this->_ensure_settings($user_id);
+		if ($this->settings === null) {
+			return;
+		}
+
+		if ($this->preflight_user_id !== $user_id) {
+			$this->render_callbacks_ran = array();
+			$this->preflight_user_id    = $user_id;
+		}
+
+		foreach ($this->collections as $slug => $meta) {
+			if (($this->render_callbacks_ran[$slug] ?? false) === true) {
+				continue;
+			}
+			$callback = $this->render_callbacks[$slug] ?? null;
+			$builder  = $this->settings->collection($slug, null, $meta);
+			if ($callback !== null) {
+				try {
+					$callback($builder);
+				} catch (\Throwable $e) {
+					$this->logger->error('user_settings_registry.preflight_render_callback_error', array(
+						'collection' => $slug,
+						'message'    => $e->getMessage(),
+						'file'       => $e->getFile(),
+						'line'       => $e->getLine(),
+					));
+				}
+			}
+			$builder->end_collection();
+			$this->render_callbacks_ran[$slug] = true;
+		}
+
+		$aliases = $this->settings->collect_used_component_aliases();
+		$this->settings->get_component_manifest()->enqueue_assets_for_aliases($aliases);
+	}
+
+	private function _resolve_profile_user_id(): int {
+		$pagenow = $GLOBALS['pagenow'] ?? '';
+		if ($pagenow === 'user-edit.php') {
+			$user_id = isset($_GET['user_id']) ? (int) $_GET['user_id'] : 0;
+			if ($user_id > 0) {
+				return $user_id;
+			}
+		}
+
+		if (isset($GLOBALS['profileuser']) && $GLOBALS['profileuser'] instanceof \WP_User) {
+			return (int) $GLOBALS['profileuser']->ID;
+		}
+
+		return (int) $this->_do_get_current_user_id();
 	}
 
 	/**
@@ -200,6 +276,8 @@ class UserSettingsRegistry implements SettingsRegistryInterface {
 		$this->_do_add_action('personal_options_update', array($this, '_save_collections'), 10, 1);
 		$this->_do_add_action('edit_user_profile_update', array($this, '_save_collections'), 10, 1);
 
+		$this->_do_add_action('admin_enqueue_scripts', array($this, '_preflight_enqueue_assets'), 10, 1);
+
 		$this->hooks_registered = true;
 
 		$this->logger->debug('user_settings_registry.hooks_registered', array(
@@ -278,19 +356,12 @@ class UserSettingsRegistry implements SettingsRegistryInterface {
 			return;
 		}
 
-		// Define and render each collection
 		foreach ($this->collections as $slug => $meta) {
+			if (($this->render_callbacks_ran[$slug] ?? false) === true) {
+				continue;
+			}
 			$callback = $this->render_callbacks[$slug] ?? null;
-
-			// Create collection builder context
-			// Second param is template (null = default), third is args including heading
-			$builder = $this->settings->collection(
-				$slug,
-				null,
-				$meta
-			);
-
-			// Run the on_render callback to define sections/fields
+			$builder  = $this->settings->collection($slug, null, $meta);
 			if ($callback !== null) {
 				try {
 					$callback($builder);
@@ -301,15 +372,12 @@ class UserSettingsRegistry implements SettingsRegistryInterface {
 						'file'       => $e->getFile(),
 						'line'       => $e->getLine(),
 					));
-
-					// Display error inline so developers see it
 					ErrorNoticeRenderer::renderWithContext($e, 'UserSettings Error', 'collection', $slug);
 					continue;
 				}
 			}
-
-			// End the collection
 			$builder->end_collection();
+			$this->render_callbacks_ran[$slug] = true;
 		}
 
 		// Boot and render

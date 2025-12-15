@@ -18,6 +18,8 @@ use Ran\PluginLib\Forms\Component\Normalize\NormalizeInterface;
 use Ran\PluginLib\Forms\Component\Normalize\ComponentNormalizationContext;
 use Ran\PluginLib\Forms\Component\Cache\ComponentCacheService;
 use Ran\PluginLib\Forms\Component\Build\ComponentBuilderDefinitionInterface;
+use Ran\PluginLib\EnqueueAccessory\StyleDefinition;
+use Ran\PluginLib\EnqueueAccessory\ScriptDefinition;
 
 class ComponentManifest {
 	use WPWrappersTrait;
@@ -25,11 +27,18 @@ class ComponentManifest {
 	private array $components = array();
 	/** @var array<int,string> */
 	private array $warnings = array();
-	/** @var array<string,array{normalizer:?string,builder:?string,validator:?string,sanitizer:?string,defaults?:array{sanitize?:array<int,string>,validate?:array<int,string>}}> */
+	/** @var array<string,array{normalizer:?string,builder:?string,validator:?string,sanitizer:?string,assets?:?string,defaults?:array{sanitize?:array<int,string>,validate?:array<int,string>}}> */
 	private array $componentMetadata = array();
 	private ComponentNormalizationContext $helpers;
 	/** @var ComponentCacheService Shared caching service */
 	private ComponentCacheService $cacheService;
+
+	/**
+	 * Memoized Assets.php declarations keyed by component alias.
+	 *
+	 * @var array<string, array{scripts:array<int,ScriptDefinition>,styles:array<int,StyleDefinition>,requires_media:bool,repeatable:bool}>
+	 */
+	private array $assetsDefinitionsCache = array();
 
 	/**
 	 * Memoized validator factory map.
@@ -101,9 +110,162 @@ class ComponentManifest {
 				'builder'    => null,
 				'validator'  => null,
 				'sanitizer'  => null,
+				'assets'     => null,
 			);
 		}
 		$this->componentMetadata[$alias]['builder'] = $builder;
+	}
+
+	/**
+	 * Retrieve component asset requirements from the component's Assets.php companion.
+	 *
+	 * @param string $alias
+	 * @return array{scripts:array<int,ScriptDefinition>,styles:array<int,StyleDefinition>,requires_media:bool,repeatable:bool}
+	 */
+	public function get_assets_for(string $alias): array {
+		$this->_discover_new_aliases();
+
+		if (isset($this->assetsDefinitionsCache[$alias])) {
+			return $this->assetsDefinitionsCache[$alias];
+		}
+
+		$empty = array(
+			'scripts'        => array(),
+			'styles'         => array(),
+			'requires_media' => false,
+			'repeatable'     => false,
+		);
+
+		$meta = $this->componentMetadata[$alias] ?? null;
+		if (!is_array($meta)) {
+			$this->assetsDefinitionsCache[$alias] = $empty;
+			return $empty;
+		}
+
+		$assetsClass = $meta['assets'] ?? null;
+		if (!is_string($assetsClass) || $assetsClass === '') {
+			if (method_exists($this->views, 'resolve_assets_class')) {
+				$resolved = $this->views->resolve_assets_class($alias);
+				if (is_string($resolved) && $resolved !== '' && is_subclass_of($resolved, ComponentAssetsDefinitionInterface::class)) {
+					$assetsClass                               = $resolved;
+					$this->componentMetadata[$alias]['assets'] = $resolved;
+				}
+			}
+		}
+		if (!is_string($assetsClass) || $assetsClass === '') {
+			$this->assetsDefinitionsCache[$alias] = $empty;
+			return $empty;
+		}
+
+		try {
+			if (!is_subclass_of($assetsClass, ComponentAssetsDefinitionInterface::class)) {
+				$this->logger->warning('ComponentManifest: Assets class does not implement ComponentAssetsDefinitionInterface', array(
+					'alias' => $alias,
+					'class' => $assetsClass,
+				));
+				$this->assetsDefinitionsCache[$alias] = $empty;
+				return $empty;
+			}
+
+			$definition = $assetsClass::get();
+			if (!is_array($definition)) {
+				$this->logger->warning('ComponentManifest: Assets::get() must return an array', array(
+					'alias' => $alias,
+					'class' => $assetsClass,
+				));
+				$this->assetsDefinitionsCache[$alias] = $empty;
+				return $empty;
+			}
+		} catch (\Throwable $e) {
+			$this->logger->warning('ComponentManifest: Failed to load Assets.php declaration', array(
+				'alias'           => $alias,
+				'assets_class'    => $assetsClass,
+				'exception_class' => get_class($e),
+				'exception_code'  => $e->getCode(),
+				'error'           => $e->getMessage(),
+			));
+			$this->assetsDefinitionsCache[$alias] = $empty;
+			return $empty;
+		}
+
+		$scripts = $definition['scripts'] ?? array();
+		if (!is_array($scripts)) {
+			$scripts = array();
+		}
+		$scripts = array_values(array_filter($scripts, static fn (mixed $entry): bool => $entry instanceof ScriptDefinition));
+
+		$styles = $definition['styles'] ?? array();
+		if (!is_array($styles)) {
+			$styles = array();
+		}
+		$styles = array_values(array_filter($styles, static fn (mixed $entry): bool => $entry instanceof StyleDefinition));
+
+		$normalized = array(
+			'scripts'        => $scripts,
+			'styles'         => $styles,
+			'requires_media' => (bool) ($definition['requires_media'] ?? false),
+			'repeatable'     => (bool) ($definition['repeatable'] ?? false),
+		);
+
+		$this->assetsDefinitionsCache[$alias] = $normalized;
+		return $normalized;
+	}
+
+	/**
+	 * Register and enqueue assets for a set of used component aliases.
+	 *
+	 * Option A: register+enqueue only assets that are actually used on the current page.
+	 *
+	 * @param array<int,string> $aliases
+	 * @return void
+	 */
+	public function enqueue_assets_for_aliases(array $aliases): void {
+		if ($aliases === array()) {
+			return;
+		}
+
+		$aliases = array_values(array_unique(array_filter($aliases, static fn (mixed $alias): bool => is_string($alias) && $alias !== '')));
+		if ($aliases === array()) {
+			return;
+		}
+
+		$requires_media = false;
+
+		foreach ($aliases as $alias) {
+			$requirements   = $this->get_assets_for($alias);
+			$requires_media = $requires_media || $requirements['requires_media'];
+
+			foreach ($requirements['styles'] as $definition) {
+				$src     = $definition->src;
+				$deps    = $definition->deps;
+				$version = $definition->version;
+				$this->_do_wp_register_style($definition->handle, is_string($src) || $src === false ? $src : '', $deps, $version ?: false, $definition->media);
+				if ($definition->hook === null) {
+					$this->_do_wp_enqueue_style($definition->handle);
+				}
+			}
+
+			foreach ($requirements['scripts'] as $definition) {
+				$src     = $definition->src;
+				$deps    = $definition->deps;
+				$version = $definition->version;
+				$this->_do_wp_register_script($definition->handle, is_string($src) || $src === false ? $src : '', $deps, $version ?: false, (bool) $definition->in_footer);
+				if (!empty($definition->localize) && is_array($definition->localize)) {
+					$objectName = (string) ($definition->localize['object_name'] ?? '');
+					$l10n       = $definition->localize['data'] ?? null;
+					if ($objectName !== '' && is_array($l10n)) {
+						$this->_do_wp_localize_script($definition->handle, $objectName, $l10n);
+					}
+				}
+				if ($definition->hook === null) {
+					$this->_do_wp_enqueue_script($definition->handle);
+				}
+			}
+		}
+
+		if ($requires_media) {
+			$this->_do_wp_enqueue_media();
+		}
 	}
 
 	/**
@@ -637,6 +799,7 @@ class ComponentManifest {
 			'builder'    => null,
 			'validator'  => null,
 			'sanitizer'  => null,
+			'assets'     => null,
 		);
 
 		$class = $this->views->resolve_normalizer_class($alias);
