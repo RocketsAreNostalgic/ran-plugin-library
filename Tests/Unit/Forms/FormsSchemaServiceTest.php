@@ -283,4 +283,80 @@ final class FormsSchemaServiceTest extends TestCase {
 		self::assertIsArray($catalogue_cache);
 		self::assertSame(array('fields.input' => array('default' => 'manifest')), $catalogue_cache);
 	}
+
+	public function test_assemble_initial_bucketed_schema_strips_schema_for_non_submitting_components(): void {
+		$schema_bundle_cache = array();
+		$catalogue_cache     = null;
+		$logger              = new CollectingLogger();
+
+		$base_options = $this->createMock(RegisterOptions::class);
+		$base_options->method('__get_schema_internal')->willReturn(array());
+		$base_options->method('normalize_schema_key')->willReturn('normalized');
+
+		$components = $this->createMock(ComponentManifest::class);
+		$components->expects(self::once())
+			->method('default_catalogue')
+			->willReturn(array('elements.button' => array()));
+		$components->method('validator_factories')->willReturn(array());
+
+		$session = $this->createMock(FormsServiceSession::class);
+		$session->expects(self::once())
+			->method('merge_schema_with_defaults')
+			->with(
+				'elements.button',
+				self::callback(static function (array $incoming): bool {
+					$sanitizeSchema = $incoming['sanitize']['schema'] ?? null;
+					$validateSchema = $incoming['validate']['schema'] ?? null;
+					return $sanitizeSchema === array() && $validateSchema === array();
+				}),
+				array('elements.button' => array())
+			)
+			->willReturn(array(
+				'sanitize' => array('component' => array(), 'schema' => array()),
+				'validate' => array('component' => array(), 'schema' => array()),
+			));
+
+		$validator_service = $this->createMock(FormsValidatorServiceInterface::class);
+		$validator_service->expects(self::once())
+			->method('consume_component_validator_queue')
+			->willReturn(array(array('normalized' => array('sanitize' => array('component' => array(), 'schema' => array()), 'validate' => array('component' => array(), 'schema' => array()))), array()));
+		$validator_service->expects(self::once())
+			->method('consume_component_sanitizer_queue')
+			->willReturn(array(array('normalized' => array('sanitize' => array('component' => array(), 'schema' => array()), 'validate' => array('component' => array(), 'schema' => array()))), array()));
+
+		$get_registered_field_metadata = static fn (): array => array(
+			array(
+				'field' => array(
+					'id'        => 'field_id',
+					'component' => 'elements.button',
+					'schema'    => array(
+						'sanitize' => array('schema' => array('dummy_sanitizer')),
+						'validate' => array('schema' => array('dummy_validator')),
+					),
+				),
+			),
+		);
+
+		$svc = new FormsSchemaService(
+			$base_options,
+			$components,
+			$logger,
+			$validator_service,
+			'test-host',
+			$schema_bundle_cache,
+			$catalogue_cache,
+			static fn (): ?FormsServiceSession => $session,
+			static function (): void {
+			},
+			$get_registered_field_metadata
+		);
+
+		$svc->assemble_initial_bucketed_schema($session);
+
+		$warnings = $logger->find_logs(static function (array $entry): bool {
+			return ($entry['level'] ?? '') === 'warning'
+				&& ($entry['message'] ?? '')  === 'developer provided schema attempts to apply sanitizer/validator to non submiting element, which is not allowed, skipping';
+		});
+		self::assertCount(0, $warnings);
+	}
 }

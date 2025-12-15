@@ -26,6 +26,9 @@ class FormsSchemaService implements FormsSchemaServiceInterface {
 	/** @var callable(): array<int, array<string, mixed>> */
 	private $get_registered_field_metadata;
 
+	/** @var array<string, bool> */
+	private array $non_submitting_schema_warnings = array();
+
 	/**
 	 * @param array<string, array<string,mixed>> $schema_bundle_cache
 	 * @param array<string, array<string,mixed>>|null $catalogue_cache
@@ -250,6 +253,9 @@ class FormsSchemaService implements FormsSchemaServiceInterface {
 		$bucketedSchema = array();
 		$metadata       = array();
 
+		$validatorFactories = $this->components->validator_factories();
+		$shouldWarn         = \defined('WP_DEBUG') && (bool) \WP_DEBUG;
+
 		if ($this->catalogue_cache === null) {
 			$this->catalogue_cache = $this->components->default_catalogue();
 			$this->logger->debug($this->host_label . ': Catalogue fetched and cached', array(
@@ -275,6 +281,60 @@ class FormsSchemaService implements FormsSchemaServiceInterface {
 				$componentSchema = array();
 			}
 
+			$isNonSubmitting = !isset($validatorFactories[$component]);
+			if ($isNonSubmitting) {
+				$hasSanitizeSchema = false;
+				$hasValidateSchema = false;
+				if (is_array($currentEntry)) {
+					$hasSanitizeSchema = isset($currentEntry['sanitize']['schema'])
+						&& is_array($currentEntry['sanitize']['schema'])
+						&& $currentEntry['sanitize']['schema'] !== array();
+					$hasValidateSchema = isset($currentEntry['validate']['schema'])
+						&& is_array($currentEntry['validate']['schema'])
+						&& $currentEntry['validate']['schema'] !== array();
+				}
+				if ($componentSchema !== array()) {
+					$hasSanitizeSchema = $hasSanitizeSchema
+						|| (isset($componentSchema['sanitize']['schema'])
+							&& is_array($componentSchema['sanitize']['schema'])
+							&& $componentSchema['sanitize']['schema'] !== array());
+					$hasValidateSchema = $hasValidateSchema
+						|| (isset($componentSchema['validate']['schema'])
+							&& is_array($componentSchema['validate']['schema'])
+							&& $componentSchema['validate']['schema'] !== array());
+				}
+
+				if ($hasSanitizeSchema || $hasValidateSchema) {
+					if ($shouldWarn) {
+						$warnKey = $normalizedKey . '|' . $component;
+						if (!isset($this->non_submitting_schema_warnings[$warnKey])) {
+							$this->non_submitting_schema_warnings[$warnKey] = true;
+							$this->logger->warning('developer provided schema attempts to apply sanitizer/validator to non submiting element, which is not allowed, skipping', array(
+								'field_id'            => $fieldId,
+								'component'           => $component,
+								'has_sanitize_schema' => $hasSanitizeSchema,
+								'has_validate_schema' => $hasValidateSchema,
+							));
+						}
+					}
+					if (is_array($currentEntry)) {
+						if (isset($currentEntry['sanitize']['schema'])) {
+							$currentEntry['sanitize']['schema'] = array();
+						}
+						if (isset($currentEntry['validate']['schema'])) {
+							$currentEntry['validate']['schema'] = array();
+						}
+						$internalSchema[$normalizedKey] = $currentEntry;
+					}
+					if (isset($componentSchema['sanitize']['schema'])) {
+						$componentSchema['sanitize']['schema'] = array();
+					}
+					if (isset($componentSchema['validate']['schema'])) {
+						$componentSchema['validate']['schema'] = array();
+					}
+				}
+			}
+
 			if (is_array($currentEntry)) {
 				$sanitizeComponents = (array) ($currentEntry['sanitize']['component'] ?? array());
 				$validateComponents = (array) ($currentEntry['validate']['component'] ?? array());
@@ -288,7 +348,6 @@ class FormsSchemaService implements FormsSchemaServiceInterface {
 					}
 					$merged                         = $session->merge_schema_with_defaults($component, $entryForMerge, $manifestCatalogue);
 					$bucketedSchema[$normalizedKey] = $merged;
-					$validatorFactories             = $this->components->validator_factories();
 					if (isset($validatorFactories[$component])) {
 						$metadata[$normalizedKey]['requires_validator'] = true;
 					}
@@ -299,7 +358,6 @@ class FormsSchemaService implements FormsSchemaServiceInterface {
 			$merged                         = $session->merge_schema_with_defaults($component, $componentSchema, $manifestCatalogue);
 			$bucketedSchema[$normalizedKey] = $merged;
 
-			$validatorFactories = $this->components->validator_factories();
 			if (isset($validatorFactories[$component])) {
 				$metadata[$normalizedKey]['requires_validator'] = true;
 			}
