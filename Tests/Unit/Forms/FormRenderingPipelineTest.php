@@ -4,8 +4,8 @@ namespace Ran\PluginLib\Tests\Unit\Forms;
 
 use Ran\PluginLib\Util\CollectingLogger;
 use Ran\PluginLib\Tests\Unit\PluginLibTestCase;
-use Ran\PluginLib\Forms\Renderer\FormElementRenderer;
 use Ran\PluginLib\Forms\Renderer\FormMessageHandler;
+use Ran\PluginLib\Forms\Renderer\FormElementRenderer;
 use Ran\PluginLib\Forms\FormsServiceSession;
 use Ran\PluginLib\Forms\FormsService;
 use Ran\PluginLib\Forms\Component\ComponentRenderResult;
@@ -26,7 +26,6 @@ use Mockery;
  * @coversDefaultClass \Ran\PluginLib\Forms\Renderer\FormElementRenderer
  * @covers \Ran\PluginLib\Forms\FormsService
  * @covers \Ran\PluginLib\Forms\FormsServiceSession
- * @covers \Ran\PluginLib\Forms\FormsAssets
  * @covers \Ran\PluginLib\Forms\FormsCore
  */
 class FormRenderingPipelineTest extends PluginLibTestCase {

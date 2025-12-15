@@ -116,7 +116,10 @@ class ComponentManifestCacheIntegrationTest extends PluginLibTestCase {
 
 		$this->assertEquals('<input type="text" name="cached">', $result_cached->markup);
 		$this->assertEquals('<input type="text" name="uncached">', $result_uncached->markup);
-		$this->assertEquals($result_cached->repeatable, $result_uncached->repeatable);
+		$this->assertEquals(
+			$manifest_cached->get_assets_for('integration.test'),
+			$manifest_uncached->get_assets_for('integration.test')
+		);
 	}
 
 	/**
@@ -137,6 +140,7 @@ class ComponentManifestCacheIntegrationTest extends PluginLibTestCase {
 		// Render before cache clear
 		$result_before = $manifest->render('cache.clear.test', array('value' => 'before'));
 		$this->assertEquals('<div>Test: before</div>', $result_before->markup);
+		$requirements_before = $manifest->get_assets_for('cache.clear.test');
 
 		// Clear cache
 		$manifest->clear_cache();
@@ -144,10 +148,10 @@ class ComponentManifestCacheIntegrationTest extends PluginLibTestCase {
 		// Render after cache clear - should work identically
 		$result_after = $manifest->render('cache.clear.test', array('value' => 'after'));
 		$this->assertEquals('<div>Test: after</div>', $result_after->markup);
+		$requirements_after = $manifest->get_assets_for('cache.clear.test');
 
-		// Component properties should be identical
-		$this->assertEquals($result_before->requires_media, $result_after->requires_media);
-		$this->assertEquals($result_before->repeatable, $result_after->repeatable);
+		// Component requirements should be identical
+		$this->assertEquals($requirements_before, $requirements_after);
 	}
 
 	/**

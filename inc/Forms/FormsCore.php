@@ -37,7 +37,6 @@ use Ran\PluginLib\Forms\Renderer\FormMessageHandler;
 use Ran\PluginLib\Forms\Renderer\FormElementRenderer;
 use Ran\PluginLib\Forms\FormsServiceSession;
 use Ran\PluginLib\Forms\FormsService;
-use Ran\PluginLib\Forms\FormsAssets;
 use Ran\PluginLib\Forms\Component\ComponentManifest;
 use Ran\PluginLib\Forms\Component\ComponentLoader;
 use Ran\PluginLib\Config\ConfigInterface;
@@ -76,7 +75,6 @@ abstract class FormsCore implements FormsInterface {
 	protected FormElementRenderer $field_renderer;
 	protected FormMessageHandler $message_handler;
 	protected ?FormsServiceSession $form_session = null;
-	protected ?FormsAssets $shared_assets        = null;
 	protected Logger $logger;
 	protected RegisterOptions $base_options;
 
@@ -1657,13 +1655,8 @@ abstract class FormsCore implements FormsInterface {
 	 */
 	protected function _start_form_session(): void {
 		if ($this->form_session === null) {
-			$this->shared_assets = $this->shared_assets ?? new FormsAssets();
-			$pipeline            = $this->base_options->get_validator_pipeline();
-			$this->form_session  = $this->form_service->start_session(
-				$this->shared_assets,
-				array(),
-				$pipeline
-			);
+			$pipeline           = $this->base_options->get_validator_pipeline();
+			$this->form_session = $this->form_service->start_session(array(), $pipeline);
 		}
 	}
 

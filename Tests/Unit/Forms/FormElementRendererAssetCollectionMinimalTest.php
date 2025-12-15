@@ -2,14 +2,13 @@
 
 namespace Ran\PluginLib\Tests\Unit\Forms;
 
-use Ran\PluginLib\Util\CollectingLogger;
 use Ran\PluginLib\Util\ExpectLogTrait;
+use Ran\PluginLib\Util\CollectingLogger;
 use Ran\PluginLib\Tests\Unit\PluginLibTestCase;
-use Ran\PluginLib\Forms\Renderer\FormElementRenderer;
 use Ran\PluginLib\Forms\Renderer\FormMessageHandler;
+use Ran\PluginLib\Forms\Renderer\FormElementRenderer;
 use Ran\PluginLib\Forms\FormsServiceSession;
 use Ran\PluginLib\Forms\FormsService;
-use Ran\PluginLib\Forms\FormsAssets;
 use Ran\PluginLib\Forms\Component\ComponentRenderResult;
 use Ran\PluginLib\Forms\Component\ComponentManifest;
 use Ran\PluginLib\Forms\Component\ComponentLoader;
@@ -96,36 +95,19 @@ class FormElementRendererAssetCollectionMinimalTest extends PluginLibTestCase {
 	 */
 	public function test_asset_collection_error_handling_continues_rendering(): void {
 		$this->logger_mock = new CollectingLogger();
-
-		// Create a render result with assets
-		$script_definition = ScriptDefinition::from_array(array(
-			'handle'  => 'test-script',
-			'src'     => 'test-script.js',
-			'deps'    => array(),
-			'version' => '1.0.0'
-		));
-
-		$render_result = new ComponentRenderResult(
-			'<div>Test Component</div>',
-			$script_definition
-		);
+		$this->expectException(\InvalidArgumentException::class);
 
 		// Mock ComponentManifest
 		$mock_manifest = Mockery::mock(ComponentManifest::class);
 		$mock_manifest->shouldReceive('render')
 			->with('test-component', Mockery::type('array'))
-			->andReturn($render_result);
+			->andThrow(new \RuntimeException('Component render failed'));
 
 		// Mock ComponentLoader
 		$mock_loader = Mockery::mock(ComponentLoader::class);
 
-		$form_service    = new FormsService($mock_manifest, $this->logger_mock);
-		$throwing_assets = new class extends FormsAssets {
-			public function ingest(ComponentRenderResult $result): void {
-				throw new \RuntimeException('Asset collection failed');
-			}
-		};
-		$session = $form_service->start_session($throwing_assets);
+		$form_service = new FormsService($mock_manifest, $this->logger_mock);
+		$session      = $form_service->start_session();
 
 		$renderer = new FormElementRenderer(
 			$mock_manifest,
@@ -135,11 +117,7 @@ class FormElementRendererAssetCollectionMinimalTest extends PluginLibTestCase {
 			new FormMessageHandler($this->logger_mock)
 		);
 
-		$html = $renderer->render_component_with_assets('test-component', array(), $session);
-
-		$this->assertEquals('<div>Test Component</div>', $html);
-		$this->expectLog('warning', 'FormsServiceSession: Asset ingestion failed; continuing without assets');
-		$this->expectLog('debug', 'FormElementRenderer: Component rendered with assets');
+		$renderer->render_component_with_assets('test-component', array(), $session);
 	}
 
 	/**
@@ -150,19 +128,7 @@ class FormElementRendererAssetCollectionMinimalTest extends PluginLibTestCase {
 	public function test_render_field_component_enhanced_with_asset_collection(): void {
 		$this->logger_mock = new CollectingLogger();
 
-		// Create a render result with style asset
-		$style_definition = StyleDefinition::from_array(array(
-			'handle'  => 'field-style',
-			'src'     => 'field-style.css',
-			'deps'    => array(),
-			'version' => '1.0.0'
-		));
-
-		$render_result = new ComponentRenderResult(
-			'<input type="text" name="test_field" />',
-			null,
-			$style_definition
-		);
+		$render_result = new ComponentRenderResult('<input type="text" name="test_field" />');
 
 		// Mock ComponentManifest
 		$mock_manifest = Mockery::mock(ComponentManifest::class);
@@ -209,13 +175,6 @@ class FormElementRendererAssetCollectionMinimalTest extends PluginLibTestCase {
 
 		// Verify HTML is returned
 		$this->assertEquals('<input type="text" name="test_field" />', $html);
-
-		// Verify enhanced logging occurred
-		$this->expectLog('debug', 'FormsServiceSession: Assets ingested successfully');
-		$this->expectLog('debug', 'FormElementRenderer: Component rendered with assets');
-
-		$assets = $session->assets();
-		$this->assertTrue($assets->has_assets(), 'Expected session assets to reflect captured style.');
-		$this->assertArrayHasKey('field-style', $assets->styles(), 'Expected style handle to be captured.');
+		$this->assertSame(array('fields.text'), $session->get_used_component_aliases());
 	}
 }

@@ -956,13 +956,21 @@ class ComponentManifest {
 	 * @return ComponentRenderResult
 	 */
 	private function _create_result_from_payload(array $payload): ComponentRenderResult {
+		if (
+			array_key_exists('script', $payload)
+			|| array_key_exists('style', $payload)
+			|| array_key_exists('requires_media', $payload)
+			|| array_key_exists('repeatable', $payload)
+		) {
+			throw new \LogicException('ComponentManifest: legacy asset keys (script/style/requires_media/repeatable) are not supported in template payloads. Declare assets via Assets.php / ComponentManifest instead.');
+		}
+
+		$schema = $payload['context_schema'] ?? array();
+		$schema = is_array($schema) ? $schema : array();
+
 		return new ComponentRenderResult(
 			(string) ($payload['markup'] ?? ''),
-			$payload['script'] ?? null,
-			$payload['style']  ?? null,
-			(bool) ($payload['requires_media'] ?? false),
-			(bool) ($payload['repeatable'] ?? false),
-			$payload['context_schema'] ?? array()
+			$schema
 		);
 	}
 

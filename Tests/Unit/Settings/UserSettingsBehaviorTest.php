@@ -18,9 +18,9 @@ use Ran\PluginLib\Forms\Components\Fields\Input\Builder as InputBuilder;
 use Ran\PluginLib\Forms\Component\Validate\ValidatorInterface;
 use Ran\PluginLib\Forms\Component\ComponentType;
 use Ran\PluginLib\Forms\Component\ComponentRenderResult;
-use Ran\PluginLib\Forms\Component\ComponentAssetsDefinitionInterface;
 use Ran\PluginLib\Forms\Component\ComponentManifest;
 use Ran\PluginLib\Forms\Component\ComponentLoader;
+use Ran\PluginLib\Forms\Component\ComponentAssetsDefinitionInterface;
 use Ran\PluginLib\EnqueueAccessory\ScriptDefinition;
 
 final class UserSettingsBehaviorTest_AutoValidator implements ValidatorInterface {
@@ -576,10 +576,6 @@ final class UserSettingsBehaviorTest extends PluginLibTestCase {
 
 		$session = $user_settings->get_form_session();
 		self::assertInstanceOf(FormsServiceSession::class, $session, 'Expected UserSettings to have an active form session.');
-		$this->logger->debug('user_settings.test.session_assets', array(
-			'scripts' => array_keys($session->assets()->scripts()),
-			'styles'  => array_keys($session->assets()->styles()),
-		));
 		$fieldRenderLogs = $this->logger->find_logs(static function (array $entry): bool {
 			return $entry['message'] === 'forms.default_field.render' && ($entry['context']['field_id'] ?? null) === 'profile_asset';
 		});

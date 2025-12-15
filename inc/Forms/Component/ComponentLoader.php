@@ -619,12 +619,20 @@ class ComponentLoader {
 		}
 
 		if (is_array($payload) && isset($payload['markup'])) {
+			if (
+				array_key_exists('script', $payload)
+				|| array_key_exists('style', $payload)
+				|| array_key_exists('requires_media', $payload)
+				|| array_key_exists('repeatable', $payload)
+			) {
+				throw new \LogicException(sprintf(
+					'Template "%s" must not return legacy asset keys (script/style/requires_media/repeatable). Declare assets via Assets.php / ComponentManifest instead.',
+					$alias
+				));
+			}
+
 			return new ComponentRenderResult(
 				(string) ($payload['markup'] ?? ''),
-				$payload['script'] ?? null,
-				$payload['style']  ?? null,
-				(bool) ($payload['requires_media'] ?? false),
-				(bool) ($payload['repeatable'] ?? false),
 				$payload['context_schema'] ?? array()
 			);
 		}

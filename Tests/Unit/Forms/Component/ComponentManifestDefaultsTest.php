@@ -15,7 +15,6 @@ use Ran\PluginLib\Tests\Unit\Forms\Stubs\StubNormalizerWithDefaults;
 use Ran\PluginLib\Tests\Unit\Forms\Stubs\StubBuilderWithDefaults;
 use Ran\PluginLib\Forms\FormsTemplateOverrideResolver;
 use Ran\PluginLib\Forms\FormsServiceSession;
-use Ran\PluginLib\Forms\FormsAssets;
 use Ran\PluginLib\Forms\Component\ComponentManifest;
 use Ran\PluginLib\Forms\Component\ComponentLoader;
 use Ran\PluginLib\Forms\Component\Cache\ComponentCacheService;
@@ -225,7 +224,7 @@ final class ComponentManifestDefaultsTest extends PluginLibTestCase {
 		$manifest = new ComponentManifest($this->loader, $this->logger_mock);
 
 		$resolver = new FormsTemplateOverrideResolver($this->logger_mock);
-		$session  = new FormsServiceSession($manifest, new FormsAssets(), $resolver, $this->logger_mock);
+		$session  = new FormsServiceSession($manifest, $resolver, $this->logger_mock);
 		// Defaults are now empty - component_type comes from View's ComponentRenderResult at render time.
 		$this->assertSame(
 			array('session.component' => $this->expectedDefaults()),

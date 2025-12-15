@@ -10,10 +10,14 @@ declare(strict_types=1);
 namespace Ran\PluginLib\Forms;
 
 use Ran\PluginLib\Util\WPWrappersTrait;
+use Ran\PluginLib\Util\Validate;
 use Ran\PluginLib\Util\Logger;
 use Ran\PluginLib\Forms\Validation\ValidatorPipelineService;
+use Ran\PluginLib\Forms\Component\TemplateOverrideCollection;
+use Ran\PluginLib\Forms\Component\TemplateOverride;
 use Ran\PluginLib\Forms\Component\ComponentRenderResult;
 use Ran\PluginLib\Forms\Component\ComponentManifest;
+use Psr\Log\LoggerInterface;
 
 /**
  * FormsServiceSession: per-render context for component dispatching and asset collection.
@@ -22,7 +26,6 @@ class FormsServiceSession {
 	use WPWrappersTrait;
 
 	private ComponentManifest $manifest;
-	private FormsAssets $assets;
 	private FormsTemplateOverrideResolver $template_resolver;
 	private Logger $logger;
 	private ValidatorPipelineService $pipeline;
@@ -33,14 +36,12 @@ class FormsServiceSession {
 
 	public function __construct(
 		ComponentManifest $manifest,
-		FormsAssets $assets,
 		FormsTemplateOverrideResolver $template_resolver,
 		Logger $logger,
 		array $form_defaults = array(),
 		?ValidatorPipelineService $pipeline = null
 	) {
 		$this->manifest          = $manifest;
-		$this->assets            = $assets;
 		$this->template_resolver = $template_resolver;
 		$this->logger            = $logger;
 		$this->pipeline          = $pipeline ?? new ValidatorPipelineService();
@@ -145,39 +146,6 @@ class FormsServiceSession {
 	}
 
 	/**
-	 * Ingest ComponentRenderResult assets with centralized logging and error handling.
-	 *
-	 * @param ComponentRenderResult $result
-	 * @param string                $source
-	 * @param string|null           $field_id
-	 * @return void
-	 */
-	public function ingest_component_result(ComponentRenderResult $result, string $source, ?string $field_id = null): void {
-		try {
-			$this->assets->ingest($result);
-
-			if ($result->has_assets()) {
-				$this->logger->debug('FormsServiceSession: Assets ingested successfully', array(
-					'source'         => $source,
-					'field_id'       => $field_id,
-					'has_script'     => $result->has_script(),
-					'has_style'      => $result->has_style(),
-					'requires_media' => $result->requires_media,
-					'script_handle'  => $result->has_script() ? $result->script->handle : null,
-					'style_handle'   => $result->has_style() ? $result->style->handle : null,
-				));
-			}
-		} catch (\Throwable $e) {
-			$this->logger->warning('FormsServiceSession: Asset ingestion failed; continuing without assets', array(
-				'source'          => $source,
-				'field_id'        => $field_id,
-				'error'           => $e->getMessage(),
-				'exception_class' => get_class($e),
-			));
-		}
-	}
-
-	/**
 	 * Render a component-backed field with field-specific context.
 	 *
 	 * @internal
@@ -279,17 +247,6 @@ class FormsServiceSession {
 		$this->_log_schema_merge($alias, $defaults, $schema, $merged);
 
 		return $merged;
-	}
-
-	/**
-	 * Get the FormsAssets instance for direct access
-	 *
-	 * @internal
-	 *
-	 * @return FormsAssets
-	 */
-	public function assets(): FormsAssets {
-		return $this->assets;
 	}
 
 	/**

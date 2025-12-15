@@ -42,8 +42,8 @@ class GenericComponentBuilder extends ComponentBuilderBase {
 	 * @var array<string,string>
 	 */
 	private const ASSET_TAGS = array(
-		'script' => 'Use wp_enqueue_script() or the ScriptDefinition in ComponentRenderResult to properly enqueue JavaScript.',
-		'style'  => 'Use wp_enqueue_style() or the StyleDefinition in ComponentRenderResult to properly enqueue CSS.',
+		'script' => 'Use wp_enqueue_script() or declare scripts via Assets.php / ComponentManifest for the component alias.',
+		'style'  => 'Use wp_enqueue_style() or declare styles via Assets.php / ComponentManifest for the component alias.',
 		'link'   => 'Use wp_enqueue_style() for stylesheets or wp_enqueue_script() for preload hints.',
 	);
 

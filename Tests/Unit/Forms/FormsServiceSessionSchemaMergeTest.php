@@ -17,7 +17,6 @@ use Ran\PluginLib\Forms\Renderer\FormElementRenderer;
 use Ran\PluginLib\Forms\FormsTemplateOverrideResolver;
 use Ran\PluginLib\Forms\FormsServiceSession;
 use Ran\PluginLib\Forms\FormsService;
-use Ran\PluginLib\Forms\FormsAssets;
 use Ran\PluginLib\Forms\Component\ComponentRenderResult;
 use Ran\PluginLib\Forms\Component\ComponentManifest;
 use Ran\PluginLib\Forms\Component\ComponentLoader;
@@ -56,7 +55,7 @@ final class FormsServiceSessionSchemaMergeTest extends PluginLibTestCase {
 		$manifest->shouldReceive('sanitizer_factories')->andReturn(array());
 
 		$resolver = new FormsTemplateOverrideResolver($this->logger_mock);
-		$session  = new FormsServiceSession($manifest, new FormsAssets(), $resolver, $this->logger_mock);
+		$session  = new FormsServiceSession($manifest, $resolver, $this->logger_mock);
 
 		$schema = array(
 			'sanitize' => array($schemaSanitize),
@@ -103,7 +102,7 @@ final class FormsServiceSessionSchemaMergeTest extends PluginLibTestCase {
 		$manifest->shouldReceive('sanitizer_factories')->andReturn(array());
 
 		$resolver = new FormsTemplateOverrideResolver($this->logger_mock);
-		$session  = new FormsServiceSession($manifest, new FormsAssets(), $resolver, $this->logger_mock);
+		$session  = new FormsServiceSession($manifest, $resolver, $this->logger_mock);
 
 		$validator = function () {
 			return true;
@@ -156,7 +155,7 @@ final class FormsServiceSessionSchemaMergeTest extends PluginLibTestCase {
 		));
 
 		$resolver = new FormsTemplateOverrideResolver($this->logger_mock);
-		$session  = new FormsServiceSession($manifest, new FormsAssets(), $resolver, $this->logger_mock);
+		$session  = new FormsServiceSession($manifest, $resolver, $this->logger_mock);
 
 		$result = $session->merge_schema_with_defaults('fields.text', array());
 
@@ -184,7 +183,7 @@ final class FormsServiceSessionSchemaMergeTest extends PluginLibTestCase {
 		$manifest->shouldReceive('sanitizer_factories')->andReturn(array());
 
 		$resolver = new FormsTemplateOverrideResolver($this->logger_mock);
-		$session  = new FormsServiceSession($manifest, new FormsAssets(), $resolver, $this->logger_mock);
+		$session  = new FormsServiceSession($manifest, $resolver, $this->logger_mock);
 
 		// Should not throw - components without factories are valid (display/layout components)
 		$result = $session->merge_schema_with_defaults('layout.wrapper', array());
@@ -233,7 +232,7 @@ final class FormsServiceSessionSchemaMergeTest extends PluginLibTestCase {
 		$manifest->shouldReceive('sanitizer_factories')->andReturn(array('fields.merge' => fn() => null));
 
 		$resolver = new FormsTemplateOverrideResolver($this->logger_mock);
-		$session  = new FormsServiceSession($manifest, new FormsAssets(), $resolver, $this->logger_mock);
+		$session  = new FormsServiceSession($manifest, $resolver, $this->logger_mock);
 
 		$merged = $session->merge_schema_with_defaults('fields.merge', $schema);
 

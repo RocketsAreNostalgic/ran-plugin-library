@@ -6,7 +6,6 @@ use Ran\PluginLib\Util\Logger;
 use Ran\PluginLib\Util\CollectingLogger;
 use Ran\PluginLib\Forms\FormsTemplateOverrideResolver;
 use Ran\PluginLib\Forms\FormsServiceSession;
-use Ran\PluginLib\Forms\FormsAssets;
 use Ran\PluginLib\Forms\Component\ComponentRenderResult;
 use Ran\PluginLib\Forms\Component\ComponentManifest;
 use Ran\PluginLib\EnqueueAccessory\StyleDefinition;
@@ -21,15 +20,12 @@ use PHPUnit\Framework\MockObject\MockObject;
  * template resolution → component rendering → asset collection
  *
  * @coversDefaultClass \Ran\PluginLib\Forms\FormsServiceSession
- * @covers \Ran\PluginLib\Forms\FormsAssets
  * @covers \Ran\PluginLib\Forms\FormsService
  */
 class FormsServiceSessionTest extends TestCase {
 	private FormsServiceSession $session;
 	/** @var ComponentManifest&MockObject */
 	private ComponentManifest $manifest;
-	/** @var FormsAssets&MockObject */
-	private FormsAssets $assets;
 	/** @var Logger&MockObject */
 	private Logger $logger;
 	private FormsTemplateOverrideResolver $resolver;
@@ -38,10 +34,8 @@ class FormsServiceSessionTest extends TestCase {
 		$logger = new CollectingLogger();
 		/** @var ComponentManifest&MockObject $manifest */
 		$manifest = $this->createMock(ComponentManifest::class);
-		/** @var FormsAssets&MockObject $assets */
-		$assets   = $this->createMock(FormsAssets::class);
 		$resolver = new FormsTemplateOverrideResolver($logger);
-		$session  = new FormsServiceSession($manifest, $assets, $resolver, $logger);
+		$session  = new FormsServiceSession($manifest, $resolver, $logger);
 
 		$result = new ComponentRenderResult('<div>Logged</div>');
 
@@ -74,15 +68,12 @@ class FormsServiceSessionTest extends TestCase {
 		/** @var ComponentManifest&MockObject $manifest */
 		$manifest       = $this->createMock(ComponentManifest::class);
 		$this->manifest = $manifest;
-		/** @var FormsAssets&MockObject $assets */
-		$assets       = $this->createMock(FormsAssets::class);
-		$this->assets = $assets;
 		/** @var Logger&MockObject $logger */
 		$logger         = $this->createMock(Logger::class);
 		$this->logger   = $logger;
 		$this->resolver = new FormsTemplateOverrideResolver($this->logger);
 
-		$this->session = new FormsServiceSession($this->manifest, $this->assets, $this->resolver, $this->logger);
+		$this->session = new FormsServiceSession($this->manifest, $this->resolver, $this->logger);
 	}
 
 	/**
@@ -109,7 +100,7 @@ class FormsServiceSessionTest extends TestCase {
 		);
 
 		$resolver = new FormsTemplateOverrideResolver($this->logger);
-		$session  = new FormsServiceSession($this->manifest, $this->assets, $resolver, $this->logger, $form_defaults);
+		$session  = new FormsServiceSession($this->manifest, $resolver, $this->logger, $form_defaults);
 
 		$this->assertEquals($form_defaults, $session->get_form_defaults());
 	}
@@ -337,14 +328,10 @@ class FormsServiceSessionTest extends TestCase {
 	}
 
 	/**
-	 * Test existing manifest() and assets() accessors still work
-	 *
 	 * @covers ::manifest
-	 * @covers ::assets
 	 */
-	public function test_existing_accessors_work(): void {
+	public function test_manifest_accessor_returns_manifest(): void {
 		$this->assertSame($this->manifest, $this->session->manifest());
-		$this->assertSame($this->assets, $this->session->assets());
 	}
 
 	/**
