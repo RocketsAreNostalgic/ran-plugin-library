@@ -127,7 +127,8 @@ class MenuRegistryGroupBuilder {
 	 * @return MenuRegistryPageBuilder
 	 */
 	public function page(string $page_slug): MenuRegistryPageBuilder {
-		return new MenuRegistryPageBuilder($this, $page_slug, $this->logger);
+		$prefixed_slug = $this->registry->prefix_page_slug($page_slug);
+		return new MenuRegistryPageBuilder($this, $prefixed_slug, $this->logger);
 	}
 
 	/**

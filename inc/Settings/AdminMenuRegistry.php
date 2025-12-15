@@ -38,7 +38,6 @@ use Ran\PluginLib\Forms\ErrorNoticeRenderer;
  *             $s->section('general', 'General')
  *                 ->field('name', 'Name', 'fields.input')
  *                 ->end_field()
- *             ->end_section();
  *         });
  * });
  * ```
@@ -46,19 +45,15 @@ use Ran\PluginLib\Forms\ErrorNoticeRenderer;
 class AdminMenuRegistry implements SettingsRegistryInterface {
 	use WPWrappersTrait;
 
-	/**
-	 * Page slug prefix for plugin admin pages.
-	 */
 	public const PAGE_SLUG_PREFIX = 'kplr-';
 
-	/**
-	 * Stored parameters for deferred RegisterOptions creation.
-	 */
 	private string $option_key;
 	private ?StorageContext $storage_context;
 	private bool $autoload;
 	private ?ConfigInterface $config;
 	private Logger $logger;
+
+	private string $page_slug_prefix;
 
 	/**
 	 * Collected menu groups with their pages.
@@ -110,11 +105,12 @@ class AdminMenuRegistry implements SettingsRegistryInterface {
 		Logger $logger,
 		?ConfigInterface $config = null
 	) {
-		$this->option_key      = $option_key;
-		$this->storage_context = $storage_context;
-		$this->autoload        = $autoload;
-		$this->logger          = $logger;
-		$this->config          = $config;
+		$this->option_key       = $option_key;
+		$this->storage_context  = $storage_context;
+		$this->autoload         = $autoload;
+		$this->logger           = $logger;
+		$this->config           = $config;
+		$this->page_slug_prefix = $this->_resolve_page_slug_prefix();
 	}
 
 	/**
@@ -239,11 +235,39 @@ class AdminMenuRegistry implements SettingsRegistryInterface {
 	 * @param string $slug The slug to prefix.
 	 * @return string The prefixed slug.
 	 */
-	public static function prefix_slug(string $slug): string {
-		if (str_starts_with($slug, self::PAGE_SLUG_PREFIX)) {
+	public function prefix_page_slug(string $slug): string {
+		if (str_starts_with($slug, $this->page_slug_prefix)) {
 			return $slug;
 		}
-		return self::PAGE_SLUG_PREFIX . $slug;
+		return $this->page_slug_prefix . $slug;
+	}
+
+	public function get_page_slug_prefix(): string {
+		return $this->page_slug_prefix;
+	}
+
+	private function _resolve_page_slug_prefix(): string {
+		$prefix = '';
+		if ($this->config !== null) {
+			$cfg = $this->config->get_config();
+			$ran = $cfg['RAN'] ?? null;
+			if (is_array($ran) && isset($ran['AdminPageSlugPrefix']) && $ran['AdminPageSlugPrefix'] !== '') {
+				$prefix = (string) $ran['AdminPageSlugPrefix'];
+			}
+		}
+
+		$prefix = trim($prefix);
+		if ($prefix === '') {
+			$prefix = $this->option_key;
+		}
+		$prefix = trim($prefix);
+		if ($prefix === '') {
+			$prefix = self::PAGE_SLUG_PREFIX;
+		}
+		if (!str_ends_with($prefix, '-')) {
+			$prefix .= '-';
+		}
+		return $prefix;
 	}
 
 	/**
@@ -281,7 +305,7 @@ class AdminMenuRegistry implements SettingsRegistryInterface {
 				continue;
 			}
 
-			$prefixed_group_slug = self::prefix_slug($group_slug);
+			$prefixed_group_slug = $this->prefix_page_slug($group_slug);
 			$first_page_slug     = array_key_first($pages);
 			$submenu_parent      = $meta['parent'] ?? null;
 			$skip_first          = false;
@@ -399,7 +423,7 @@ class AdminMenuRegistry implements SettingsRegistryInterface {
 			}
 		}
 
-		if ($current_page === '' || !str_starts_with($current_page, self::PAGE_SLUG_PREFIX)) {
+		if ($current_page === '' || !str_starts_with($current_page, $this->page_slug_prefix)) {
 			return;
 		}
 
@@ -649,9 +673,9 @@ class AdminMenuRegistry implements SettingsRegistryInterface {
 		$is_dev = ErrorNoticeRenderer::isDevMode();
 
 		// Try to detect page slug from current request
-		$page_slug = isset($_GET['page']) ? sanitize_text_field($_GET['page']) : null;
+		$page_slug = isset($_GET['page']) ? \sanitize_text_field($_GET['page']) : null;
 
-		if ($page_slug === null || !str_starts_with($page_slug, self::PAGE_SLUG_PREFIX)) {
+		if ($page_slug === null || !str_starts_with($page_slug, $this->page_slug_prefix)) {
 			return; // Not one of our pages
 		}
 
