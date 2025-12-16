@@ -64,6 +64,8 @@ use Exception;
 abstract class ConfigAbstract implements ConfigInterface {
 	use WPWrappersTrait;
 
+	private const HEADER_CACHE_TTL = 86400;
+
 	/**
 	 * Holds the logger instance.
 	 *
@@ -869,19 +871,41 @@ abstract class ConfigAbstract implements ConfigInterface {
 			return self::$_header_buffer_cache[ $file_path ];
 		}
 
+		$logger  = $this->get_logger();
+		$context = get_class($this) . '::_read_header_content';
+
+		$normPath = \realpath($file_path) ?: $file_path;
+		$mtime    = \filemtime($normPath);
+		$mtime    = $mtime === false ? 0 : (int) $mtime;
+		$cacheKey = 'ran_cfg_hdr_buf_' . \sha1($normPath);
+
+		// Check transient cache
+		$cached = $this->_do_get_transient($cacheKey);
+		if (is_array($cached)
+			&& isset($cached['mtime'], $cached['buf'])
+			&& (int) $cached['mtime'] === $mtime
+			&& is_string($cached['buf'])
+			&& $cached['buf'] !== '') {
+			self::$_header_buffer_cache[ $file_path ] = $cached['buf'];
+			if ( $logger->is_active() ) {
+				$logger->debug("{$context} - Config header transient cache HIT.", array('file' => $file_path));
+			}
+			return $cached['buf'];
+		}
 		// Read first 8KB of the file for header parsing
+			$logger->debug("{$context} - Config header transient cache MISS.", array('file' => $file_path));
 		$buf = file_get_contents( $file_path, false, null, 0, 8 * 1024 );
 		if ( $buf === false ) {
-			$logger  = $this->get_logger();
-			$context = get_class($this) . '::_read_header_content';
-			if ( $logger->is_active() ) {
 				$logger->warning("{$context} - Failed to read header content.", array('file' => $file_path));
-			}
 		}
 
 		// Cache only successful reads to avoid storing false values
 		if ( $buf !== false ) {
 			self::$_header_buffer_cache[ $file_path ] = $buf;
+			$this->_do_set_transient($cacheKey, array(
+				'mtime' => $mtime,
+				'buf'   => $buf,
+			), self::HEADER_CACHE_TTL);
 		}
 
 		return $buf;
@@ -895,8 +919,27 @@ abstract class ConfigAbstract implements ConfigInterface {
 	 * @return array<string,mixed>
 	 */
 	public function __get_standard_plugin_headers(string $plugin_file): array {
-		$data = (array) $this->_do_get_plugin_data($plugin_file, false, false);
-		return array_filter($data, static fn($v) => $v !== '');
+		$normPath = \realpath($plugin_file) ?: $plugin_file;
+		$mtime    = \filemtime($normPath);
+		$mtime    = $mtime === false ? 0 : (int) $mtime;
+		$cacheKey = 'ran_cfg_plugin_headers_' . \sha1($normPath);
+
+		$cached = $this->_do_get_transient($cacheKey);
+		if (is_array($cached)
+			&& isset($cached['mtime'], $cached['headers'])
+			&& (int) $cached['mtime'] === $mtime
+			&& is_array($cached['headers'])) {
+			return $cached['headers'];
+		}
+
+		$data     = (array) $this->_do_get_plugin_data($plugin_file, false, false);
+		$filtered = array_filter($data, static fn($v) => $v !== '');
+		$this->_do_set_transient($cacheKey, array(
+			'mtime'   => $mtime,
+			'headers' => $filtered,
+		), self::HEADER_CACHE_TTL);
+
+		return $filtered;
 	}
 
 	/**
