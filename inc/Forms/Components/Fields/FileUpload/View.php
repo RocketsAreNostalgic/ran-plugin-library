@@ -108,7 +108,7 @@ ob_start();
 						<?php if (!empty($fileUrl)): ?>
 							<?php if ($isImage($fileType)): ?>
 								<a href="<?php echo esc_url($fileUrl); ?>" target="_blank" class="kplr-file-upload__preview">
-									<img src="<?php echo esc_url($fileUrl); ?>" alt="<?php echo esc_attr($fileName); ?>" class="kplr-file-upload__thumbnail" style="max-width: 100px; max-height: 100px;" />
+									<img src="<?php echo esc_url($fileUrl); ?>" alt="<?php echo esc_attr($fileName); ?>" class="kplr-file-upload__thumbnail" />
 								</a>
 							<?php endif; ?>
 							<a href="<?php echo esc_url($fileUrl); ?>" target="_blank" class="kplr-file-upload__link">
@@ -132,10 +132,6 @@ use Ran\PluginLib\Forms\Component\ComponentRenderResult;
 
 return new ComponentRenderResult(
 	markup: (string) ob_get_clean(),
-	script: null,
-	style: null,
-	requires_media: false,
-	repeatable: true,
 	context_schema: array(
 		'required' => array('name'),
 		'optional' => array('attributes', 'multiple', 'accept', 'existing_files', 'required', 'value'),

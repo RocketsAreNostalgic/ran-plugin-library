@@ -51,10 +51,6 @@ use Ran\PluginLib\Forms\Component\ComponentRenderResult;
 
 return new ComponentRenderResult(
 	markup: (string) ob_get_clean(),
-	script: null,
-	style: null,
-	requires_media: true,
-	repeatable: false,
 	context_schema: array(
 	    'required' => array('input_attributes', 'button_id', 'remove_id'),
 	    'optional' => array('select_label', 'replace_label', 'remove_label', 'has_selection', 'preview_html', 'multiple'),

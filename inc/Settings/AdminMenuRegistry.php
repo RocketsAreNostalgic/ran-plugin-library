@@ -38,7 +38,6 @@ use Ran\PluginLib\Forms\ErrorNoticeRenderer;
  *             $s->section('general', 'General')
  *                 ->field('name', 'Name', 'fields.input')
  *                 ->end_field()
- *             ->end_section();
  *         });
  * });
  * ```
@@ -46,19 +45,15 @@ use Ran\PluginLib\Forms\ErrorNoticeRenderer;
 class AdminMenuRegistry implements SettingsRegistryInterface {
 	use WPWrappersTrait;
 
-	/**
-	 * Page slug prefix for plugin admin pages.
-	 */
 	public const PAGE_SLUG_PREFIX = 'kplr-';
 
-	/**
-	 * Stored parameters for deferred RegisterOptions creation.
-	 */
 	private string $option_key;
 	private ?StorageContext $storage_context;
 	private bool $autoload;
 	private ?ConfigInterface $config;
 	private Logger $logger;
+
+	private string $page_slug_prefix;
 
 	/**
 	 * Collected menu groups with their pages.
@@ -90,6 +85,13 @@ class AdminMenuRegistry implements SettingsRegistryInterface {
 	private bool $menus_registered = false;
 
 	/**
+	 * Tracks which page render callbacks have already run in this request.
+	 *
+	 * @var array<string,bool>
+	 */
+	private array $render_callbacks_ran = array();
+
+	/**
 	 * Stored error from register() callback, to display on pages.
 	 */
 	private ?\Throwable $register_error = null;
@@ -110,11 +112,12 @@ class AdminMenuRegistry implements SettingsRegistryInterface {
 		Logger $logger,
 		?ConfigInterface $config = null
 	) {
-		$this->option_key      = $option_key;
-		$this->storage_context = $storage_context;
-		$this->autoload        = $autoload;
-		$this->logger          = $logger;
-		$this->config          = $config;
+		$this->option_key       = $option_key;
+		$this->storage_context  = $storage_context;
+		$this->autoload         = $autoload;
+		$this->logger           = $logger;
+		$this->config           = $config;
+		$this->page_slug_prefix = $this->_resolve_page_slug_prefix();
 	}
 
 	/**
@@ -149,6 +152,8 @@ class AdminMenuRegistry implements SettingsRegistryInterface {
 		// Register admin_init for Settings API registration
 		$this->_do_add_action('admin_init', array( $this, '_register_settings_api' ), 10);
 
+		$this->_do_add_action('admin_enqueue_scripts', array( $this, '_enqueue_page_assets' ), 10, 1);
+
 		// If there was an error, show admin notice so developers see it on any page
 		if ($this->register_error !== null) {
 			$error = $this->register_error;
@@ -167,6 +172,21 @@ class AdminMenuRegistry implements SettingsRegistryInterface {
 			'has_error'   => $this->register_error !== null,
 			'menu_groups' => count($this->menu_groups),
 		));
+	}
+
+	public function _enqueue_page_assets($hook_suffix = ''): void {
+		$current_page = $_GET['page'] ?? '';
+		if ($current_page === '' || !isset($this->render_callbacks[$current_page])) {
+			return;
+		}
+
+		$this->_ensure_settings();
+		if ($this->settings === null) {
+			return;
+		}
+
+		$aliases = $this->settings->collect_used_component_aliases($current_page);
+		$this->settings->get_component_manifest()->enqueue_assets_for_aliases($aliases);
 	}
 
 	/**
@@ -239,11 +259,39 @@ class AdminMenuRegistry implements SettingsRegistryInterface {
 	 * @param string $slug The slug to prefix.
 	 * @return string The prefixed slug.
 	 */
-	public static function prefix_slug(string $slug): string {
-		if (str_starts_with($slug, self::PAGE_SLUG_PREFIX)) {
+	public function prefix_page_slug(string $slug): string {
+		if (str_starts_with($slug, $this->page_slug_prefix)) {
 			return $slug;
 		}
-		return self::PAGE_SLUG_PREFIX . $slug;
+		return $this->page_slug_prefix . $slug;
+	}
+
+	public function get_page_slug_prefix(): string {
+		return $this->page_slug_prefix;
+	}
+
+	private function _resolve_page_slug_prefix(): string {
+		$prefix = '';
+		if ($this->config !== null) {
+			$cfg = $this->config->get_config();
+			$ran = $cfg['RAN'] ?? null;
+			if (is_array($ran) && isset($ran['AdminPageSlugPrefix']) && $ran['AdminPageSlugPrefix'] !== '') {
+				$prefix = (string) $ran['AdminPageSlugPrefix'];
+			}
+		}
+
+		$prefix = trim($prefix);
+		if ($prefix === '') {
+			$prefix = $this->option_key;
+		}
+		$prefix = trim($prefix);
+		if ($prefix === '') {
+			$prefix = self::PAGE_SLUG_PREFIX;
+		}
+		if (!str_ends_with($prefix, '-')) {
+			$prefix .= '-';
+		}
+		return $prefix;
 	}
 
 	/**
@@ -281,7 +329,7 @@ class AdminMenuRegistry implements SettingsRegistryInterface {
 				continue;
 			}
 
-			$prefixed_group_slug = self::prefix_slug($group_slug);
+			$prefixed_group_slug = $this->prefix_page_slug($group_slug);
 			$first_page_slug     = array_key_first($pages);
 			$submenu_parent      = $meta['parent'] ?? null;
 			$skip_first          = false;
@@ -399,7 +447,7 @@ class AdminMenuRegistry implements SettingsRegistryInterface {
 			}
 		}
 
-		if ($current_page === '' || !str_starts_with($current_page, self::PAGE_SLUG_PREFIX)) {
+		if ($current_page === '' || !str_starts_with($current_page, $this->page_slug_prefix)) {
 			return;
 		}
 
@@ -434,6 +482,7 @@ class AdminMenuRegistry implements SettingsRegistryInterface {
 					);
 
 					$callback($page_builder);
+					$this->render_callbacks_ran[$current_page] = true;
 					$this->settings->boot();
 				}
 			}
@@ -474,33 +523,30 @@ class AdminMenuRegistry implements SettingsRegistryInterface {
 			// Find the page metadata to get group context
 			$page_meta = $this->_find_page_meta($page_slug);
 
-			// Create a page builder context for the callback
-			// The callback receives a page builder so it can use section() directly
-			// Pass through all page metadata including style, before, after
-			$page_args = array(
-				'heading'    => $page_meta['heading']    ?? '',
-				'menu_title' => $page_meta['menu_title'] ?? '',
-				'capability' => $page_meta['capability'] ?? 'manage_options',
-				'parent'     => null, // Menu already registered by AdminMenuRegistry
-			);
-			// Merge in optional metadata (style, before, after)
-			if (isset($page_meta['style'])) {
-				$page_args['style'] = $page_meta['style'];
+			if (!($this->render_callbacks_ran[$page_slug] ?? false)) {
+				$page_args = array(
+					'heading'    => $page_meta['heading']    ?? '',
+					'menu_title' => $page_meta['menu_title'] ?? '',
+					'capability' => $page_meta['capability'] ?? 'manage_options',
+					'parent'     => null,
+				);
+				if (isset($page_meta['style'])) {
+					$page_args['style'] = $page_meta['style'];
+				}
+				if (isset($page_meta['before'])) {
+					$page_args['before'] = $page_meta['before'];
+				}
+				if (isset($page_meta['after'])) {
+					$page_args['after'] = $page_meta['after'];
+				}
+				$page_builder = $this->settings->settings_page(
+					$page_slug,
+					null,
+					$page_args
+				);
+				$callback($page_builder);
+				$this->render_callbacks_ran[$page_slug] = true;
 			}
-			if (isset($page_meta['before'])) {
-				$page_args['before'] = $page_meta['before'];
-			}
-			if (isset($page_meta['after'])) {
-				$page_args['after'] = $page_meta['after'];
-			}
-			$page_builder = $this->settings->settings_page(
-				$page_slug,
-				null,
-				$page_args
-			);
-
-			// Run the on_render callback with the page builder
-			$callback($page_builder);
 
 			// Boot and render
 			$this->settings->boot();
@@ -649,9 +695,9 @@ class AdminMenuRegistry implements SettingsRegistryInterface {
 		$is_dev = ErrorNoticeRenderer::isDevMode();
 
 		// Try to detect page slug from current request
-		$page_slug = isset($_GET['page']) ? sanitize_text_field($_GET['page']) : null;
+		$page_slug = isset($_GET['page']) ? \sanitize_text_field($_GET['page']) : null;
 
-		if ($page_slug === null || !str_starts_with($page_slug, self::PAGE_SLUG_PREFIX)) {
+		if ($page_slug === null || !str_starts_with($page_slug, $this->page_slug_prefix)) {
 			return; // Not one of our pages
 		}
 

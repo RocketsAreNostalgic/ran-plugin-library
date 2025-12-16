@@ -26,10 +26,6 @@ use Ran\PluginLib\Forms\Component\ComponentRenderResult;
 
 return new ComponentRenderResult(
 	markup: (string) ob_get_clean(),
-	script: null,
-	style: null,
-	requires_media: false,
-	repeatable: true,
 	context_schema: array(
 		'required' => array('input_attributes', 'input_type'),
 		'optional' => array('min', 'max', 'step', 'repeatable'),

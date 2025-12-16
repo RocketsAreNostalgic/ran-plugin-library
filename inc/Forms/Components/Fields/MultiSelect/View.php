@@ -27,10 +27,6 @@ use Ran\PluginLib\Forms\Component\ComponentRenderResult;
 
 return new ComponentRenderResult(
 	markup: (string) ob_get_clean(),
-	script: null,
-	style: null,
-	requires_media: false,
-	repeatable: false,
 	context_schema: array(
 	    'required' => array('select_attributes', 'options_html'),
 	    'optional' => array(),

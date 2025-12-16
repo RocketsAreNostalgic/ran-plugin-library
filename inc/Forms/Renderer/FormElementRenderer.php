@@ -158,22 +158,7 @@ class FormElementRenderer {
 		try {
 			$render_result = $this->components->render($component, $context);
 			$field_id      = (string) ($context['field_id'] ?? 'unknown');
-
-			$session->ingest_component_result(
-				$render_result,
-				sprintf('render_component_with_assets:%s', $component),
-				$field_id
-			);
-
-			// Only log per-field render in verbose mode to avoid log flooding
-			if (ErrorNoticeRenderer::isVerboseDebug()) {
-				$this->_get_logger()->debug('FormElementRenderer: Component rendered with assets', array(
-					'component'   => $component,
-					'field_id'    => $field_id,
-					'has_assets'  => $render_result->has_assets(),
-					'asset_types' => $this->_get_asset_types_summary($render_result),
-				));
-			}
+			$session->note_component_used($component);
 
 			return $render_result->markup;
 		} catch (\Throwable $e) {
@@ -486,8 +471,37 @@ class FormElementRenderer {
 		array $context,
 		?FormsServiceSession $session
 	): string {
-		$actual_template  = $template_name;
-		$resolvedBy       = 'default';
+		$actual_template      = $template_name;
+		$resolvedBy           = 'default';
+		$requested_repeatable = (bool) ($context['repeatable'] ?? false);
+		$effective_repeatable = $requested_repeatable;
+		if ($requested_repeatable && $session instanceof FormsServiceSession) {
+			$component = isset($context['component']) && is_string($context['component']) ? trim($context['component']) : '';
+			if ($component !== '') {
+				try {
+					$requirements = $session->manifest()->get_assets_for($component);
+					$supported    = (bool) ($requirements['repeatable'] ?? false);
+					if (!$supported) {
+						$this->_get_logger()->warning('FormElementRenderer: Field requested repeatable but component does not support it; ignoring', array(
+							'field_id'  => $field_id,
+							'component' => $component,
+							'template'  => $template_name,
+							'type'      => $template_type,
+						));
+						$effective_repeatable = false;
+					}
+				} catch (\Throwable $e) {
+					$this->_get_logger()->warning('FormElementRenderer: Failed to determine repeatable capability; ignoring repeatable enablement', array(
+						'field_id'          => $field_id,
+						'component'         => $component,
+						'exception_class'   => get_class($e),
+						'exception_code'    => $e->getCode(),
+						'exception_message' => $e->getMessage(),
+					));
+					$effective_repeatable = false;
+				}
+			}
+		}
 		$template_context = array(
 			'field_id'            => $field_id,
 			'label'               => $label,
@@ -496,6 +510,7 @@ class FormElementRenderer {
 			'display_notices'     => $context['display_notices']     ?? array(),
 			'description'         => $context['description']         ?? '',
 			'required'            => $context['required']            ?? false,
+			'repeatable'          => $effective_repeatable,
 			'context'             => $context,
 		);
 		$template_context = $this->sanitize_wrapper_context($template_context);
@@ -551,6 +566,9 @@ class FormElementRenderer {
 			// Use existing ComponentLoader to render wrapper template
 			$wrapped_result = $this->views->render($actual_template, $template_context);
 			$wrapped_html   = $wrapped_result->markup;
+			if ($session instanceof FormsServiceSession) {
+				$session->note_component_used($actual_template);
+			}
 
 			// Only log per-field wrapper in verbose mode to avoid log flooding
 			if (ErrorNoticeRenderer::isVerboseDebug()) {
@@ -652,77 +670,5 @@ class FormElementRenderer {
 		));
 
 		return '';
-	}
-
-	/**
-	 * Collect assets from ComponentRenderResult with enhanced error handling.
-	 *
-	 * Implements Requirements 6.1, 6.2, 10.1, 10.2 for proper asset collection
-	 * and error handling during component rendering.
-	 *
-	 * @param ComponentRenderResult $render_result The component render result
-	 * @param FormsServiceSession    $session       The form service session
-	 * @param string                $component     Component name for logging
-	 * @param string                $field_id      Field ID for logging
-	 * @return void
-	 */
-	private function _collect_component_assets(
-		ComponentRenderResult $render_result,
-		FormsServiceSession $session,
-		string $component,
-		string $field_id
-	): void {
-		try {
-			// Attempt to collect assets from ComponentRenderResult
-			$session->assets()->ingest($render_result);
-
-			// Log successful asset collection if assets were present
-			if ($render_result->has_assets()) {
-				$this->_get_logger()->debug('FormElementRenderer: Assets collected successfully', array(
-					'component'     => $component,
-					'field_id'      => $field_id,
-					'has_script'    => $render_result->has_script(),
-					'has_style'     => $render_result->has_style(),
-					'needs_media'   => $render_result->requires_media,
-					'script_handle' => $render_result->has_script() ? $render_result->script->handle : null,
-					'style_handle'  => $render_result->has_style() ? $render_result->style->handle : null
-				));
-			}
-		} catch (\Throwable $e) {
-			// Log asset collection failure but continue with rendering
-			$this->_get_logger()->warning('FormElementRenderer: Asset collection failed, continuing with rendering', array(
-				'component'      => $component,
-				'field_id'       => $field_id,
-				'error'          => $e->getMessage(),
-				'exception_type' => get_class($e)
-			));
-
-			// Asset collection failure should not break rendering
-			// The component HTML is still valid even without assets
-		}
-	}
-
-	/**
-	 * Get a summary of asset types for logging purposes.
-	 *
-	 * @param ComponentRenderResult $render_result The component render result
-	 * @return array<string, mixed> Summary of asset types
-	 */
-	private function _get_asset_types_summary(ComponentRenderResult $render_result): array {
-		$summary = array();
-
-		if ($render_result->has_script()) {
-			$summary['script'] = $render_result->script->handle;
-		}
-
-		if ($render_result->has_style()) {
-			$summary['style'] = $render_result->style->handle;
-		}
-
-		if ($render_result->requires_media) {
-			$summary['media'] = true;
-		}
-
-		return $summary;
 	}
 }

@@ -10,10 +10,10 @@ declare(strict_types=1);
 namespace Ran\PluginLib\Forms;
 
 use Ran\PluginLib\Util\Logger;
+use Ran\PluginLib\Forms\Validation\ValidatorPipelineService;
+use Ran\PluginLib\Forms\FormsTemplateOverrideResolver;
 use Ran\PluginLib\Forms\FormsServiceSession;
 use Ran\PluginLib\Forms\Component\ComponentManifest;
-use Ran\PluginLib\Forms\FormsTemplateOverrideResolver;
-use Ran\PluginLib\Forms\Validation\ValidatorPipelineService;
 
 class FormsService {
 	private ComponentManifest $manifest;
@@ -24,10 +24,9 @@ class FormsService {
 		$this->logger   = $logger;
 	}
 
-	public function start_session(?FormsAssets $assets = null, array $form_defaults = array(), ?ValidatorPipelineService $pipeline = null): FormsServiceSession {
-		$bucket   = $assets ?? new FormsAssets();
+	public function start_session(array $form_defaults = array(), ?ValidatorPipelineService $pipeline = null): FormsServiceSession {
 		$resolver = new FormsTemplateOverrideResolver($this->logger);
-		return new FormsServiceSession($this->manifest, $bucket, $resolver, $this->logger, $form_defaults, $pipeline);
+		return new FormsServiceSession($this->manifest, $resolver, $this->logger, $form_defaults, $pipeline);
 	}
 
 	public function manifest(): ComponentManifest {

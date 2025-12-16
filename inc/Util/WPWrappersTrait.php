@@ -790,8 +790,8 @@ trait WPWrappersTrait {
 	 * @return void
 	 */
 	protected function _do_wp_enqueue_script(string $handle, string $src = '', string|array $deps = array(), string|bool|null $ver = false, array|bool $args = array()): void {
-		if (\function_exists('wp_enqueue_media')) {
-			\wp_enqueue_media($handle, $src, $deps, $ver, $args);
+		if (\function_exists('wp_enqueue_script')) {
+			\wp_enqueue_script($handle, $src, $deps, $ver, $args);
 		}
 	}
 
@@ -803,9 +803,9 @@ trait WPWrappersTrait {
 	 *
 	 *
 	 */
-	protected function _do_wp_register_style(): void {
-		if (\function_exists('wp_enqueue_media')) {
-			\wp_enqueue_media();
+	protected function _do_wp_register_style(string $handle, string|false $src, array $deps = array(), string|bool|null $ver = false, string $media = 'all'): void {
+		if (\function_exists('wp_register_style')) {
+			\wp_register_style($handle, $src, $deps, $ver, $media);
 		}
 	}
 

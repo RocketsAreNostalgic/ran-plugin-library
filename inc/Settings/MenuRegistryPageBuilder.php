@@ -56,7 +56,7 @@ class MenuRegistryPageBuilder {
 	 */
 	public function __construct(MenuRegistryGroupBuilder $group, string $page_slug, Logger $logger) {
 		$this->group     = $group;
-		$this->page_slug = AdminMenuRegistry::prefix_slug($page_slug);
+		$this->page_slug = $page_slug;
 		$this->logger    = $logger;
 		$this->_initDeferred($logger);
 	}

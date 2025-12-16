@@ -2,14 +2,13 @@
 
 namespace Ran\PluginLib\Tests\Unit\Forms;
 
-use Ran\PluginLib\Util\CollectingLogger;
 use Ran\PluginLib\Util\ExpectLogTrait;
+use Ran\PluginLib\Util\CollectingLogger;
 use Ran\PluginLib\Tests\Unit\PluginLibTestCase;
-use Ran\PluginLib\Forms\Renderer\FormElementRenderer;
 use Ran\PluginLib\Forms\Renderer\FormMessageHandler;
+use Ran\PluginLib\Forms\Renderer\FormElementRenderer;
 use Ran\PluginLib\Forms\FormsServiceSession;
 use Ran\PluginLib\Forms\FormsService;
-use Ran\PluginLib\Forms\FormsAssets;
 use Ran\PluginLib\Forms\Component\ComponentRenderResult;
 use Ran\PluginLib\Forms\Component\ComponentManifest;
 use Ran\PluginLib\Forms\Component\ComponentLoader;
@@ -71,35 +70,7 @@ class FormElementRendererAssetCollectionTest extends PluginLibTestCase {
 	 * @covers ::render_component_with_assets
 	 */
 	public function test_render_component_with_assets_collects_assets_successfully(): void {
-		// Mock WordPress functions
-		\WP_Mock::userFunction('wp_register_style')->andReturn(true);
-		\WP_Mock::userFunction('wp_enqueue_style')->andReturn(true);
-		\WP_Mock::userFunction('wp_register_script')->andReturn(true);
-		\WP_Mock::userFunction('wp_enqueue_script')->andReturn(true);
-		\WP_Mock::userFunction('wp_localize_script')->andReturn(true);
-		\WP_Mock::userFunction('wp_enqueue_media')->andReturn(true);
-
-		// Create a mock ComponentRenderResult with assets
-		$script_definition = ScriptDefinition::from_array(array(
-			'handle'  => 'test-script',
-			'src'     => 'test-script.js',
-			'deps'    => array('jquery'),
-			'version' => '1.0.0'
-		));
-
-		$style_definition = StyleDefinition::from_array(array(
-			'handle'  => 'test-style',
-			'src'     => 'test-style.css',
-			'deps'    => array(),
-			'version' => '1.0.0'
-		));
-
-		$render_result = new ComponentRenderResult(
-			'<div>Test Component</div>',
-			$script_definition,
-			$style_definition,
-			true // requires_media
-		);
+		$render_result = new ComponentRenderResult('<div>Test Component</div>');
 
 		// Mock ComponentManifest to return our test result
 		$mock_manifest = Mockery::mock(ComponentManifest::class);
@@ -129,23 +100,7 @@ class FormElementRendererAssetCollectionTest extends PluginLibTestCase {
 		// Verify HTML is returned
 		$this->assertEquals('<div>Test Component</div>', $html);
 
-		// Verify assets were collected in the session
-		$assets = $session->assets();
-		$this->assertTrue($assets->has_assets());
-		$this->assertTrue($assets->requires_media());
-
-		// Verify script was collected
-		$scripts = $assets->scripts();
-		$this->assertArrayHasKey('test-script', $scripts);
-		$this->assertEquals('test-script', $scripts['test-script']->handle);
-
-		// Verify style was collected
-		$styles = $assets->styles();
-		$this->assertArrayHasKey('test-style', $styles);
-		$this->assertEquals('test-style', $styles['test-style']->handle);
-
-		$this->expectLog('debug', 'FormsServiceSession: Assets ingested successfully');
-		$this->expectLog('debug', 'FormElementRenderer: Component rendered with assets');
+		$this->assertSame(array('test-component'), $session->get_used_component_aliases());
 	}
 
 	/**
@@ -154,18 +109,7 @@ class FormElementRendererAssetCollectionTest extends PluginLibTestCase {
 	 * @covers ::render_component_with_assets
 	 */
 	public function test_asset_collection_error_handling(): void {
-		// Create a render result with assets
-		$script_definition = ScriptDefinition::from_array(array(
-			'handle'  => 'test-script',
-			'src'     => 'test-script.js',
-			'deps'    => array(),
-			'version' => '1.0.0'
-		));
-
-		$render_result = new ComponentRenderResult(
-			'<div>Test Component</div>',
-			$script_definition
-		);
+		$render_result = new ComponentRenderResult('<div>Test Component</div>');
 
 		// Mock ComponentManifest to return our test result
 		$mock_manifest = Mockery::mock(ComponentManifest::class);
@@ -173,13 +117,8 @@ class FormElementRendererAssetCollectionTest extends PluginLibTestCase {
 			->with('test-component', Mockery::type('array'))
 			->andReturn($render_result);
 
-		$form_service    = new FormsService($mock_manifest, $this->logger);
-		$throwing_assets = new class extends FormsAssets {
-			public function ingest(ComponentRenderResult $result): void {
-				throw new \RuntimeException('Asset collection failed');
-			}
-		};
-		$session = $form_service->start_session($throwing_assets);
+		$form_service = new FormsService($mock_manifest, $this->logger);
+		$session      = $form_service->start_session();
 
 		$renderer = new FormElementRenderer(
 			$mock_manifest,
@@ -194,7 +133,7 @@ class FormElementRendererAssetCollectionTest extends PluginLibTestCase {
 
 		$this->assertEquals('<div>Test Component</div>', $html);
 
-		$this->expectLog('warning', 'FormsServiceSession: Asset ingestion failed; continuing without assets');
+		$this->assertSame(array('test-component'), $session->get_used_component_aliases());
 	}
 
 	/**
@@ -203,23 +142,7 @@ class FormElementRendererAssetCollectionTest extends PluginLibTestCase {
 	 * @covers ::render_field_component
 	 */
 	public function test_render_field_component_collects_assets(): void {
-		// Mock WordPress functions
-		\WP_Mock::userFunction('wp_register_style')->andReturn(true);
-		\WP_Mock::userFunction('wp_enqueue_style')->andReturn(true);
-
-		// Create a render result with style asset
-		$style_definition = StyleDefinition::from_array(array(
-			'handle'  => 'field-style',
-			'src'     => 'field-style.css',
-			'deps'    => array(),
-			'version' => '1.0.0'
-		));
-
-		$render_result = new ComponentRenderResult(
-			'<input type="text" name="test_field" />',
-			null,
-			$style_definition
-		);
+		$render_result = new ComponentRenderResult('<input type="text" name="test_field" />');
 
 		// Mock ComponentManifest to return our test result
 		$mock_manifest = Mockery::mock(ComponentManifest::class);
@@ -263,11 +186,7 @@ class FormElementRendererAssetCollectionTest extends PluginLibTestCase {
 		// Verify HTML is returned
 		$this->assertEquals('<input type="text" name="test_field" />', $html);
 
-		$this->expectLog('debug', 'FormElementRenderer: Component rendered with assets');
-
-		$assets = $session->assets();
-		$this->assertTrue($assets->has_assets(), 'Expected session assets to record the style dependency.');
-		$this->assertArrayHasKey('field-style', $assets->styles(), 'Expected style handle to be captured.');
+		$this->assertSame(array('fields.text'), $session->get_used_component_aliases());
 	}
 
 	/**
@@ -306,16 +225,6 @@ class FormElementRendererAssetCollectionTest extends PluginLibTestCase {
 		// Verify HTML is returned
 		$this->assertEquals('<div>No Assets Component</div>', $html);
 
-		// Verify no assets were collected
-		$assets = $session->assets();
-		$this->assertFalse($assets->has_assets());
-
-		$this->expectLog('debug', 'FormElementRenderer: Component rendered with assets');
-
-		$logs       = $this->logger_mock->get_logs();
-		$asset_logs = array_filter($logs, static function($log) {
-			return isset($log['context']['has_assets']) && $log['context']['has_assets'] === false;
-		});
-		$this->assertNotEmpty($asset_logs);
+		$this->assertSame(array('simple-component'), $session->get_used_component_aliases());
 	}
 }

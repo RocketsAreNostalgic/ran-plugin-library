@@ -45,6 +45,7 @@ $display_notices     = $context['display_notices']     ?? array();
 $required   = $context['required']   ?? false;
 $field_type = $context['field_type'] ?? '';
 $layout     = $context['layout']     ?? 'vertical';
+$repeatable = isset($context['repeatable']) && $context['repeatable'];
 
 $field_id = $context['field_id'] ?? '';
 $label    = $context['label']    ?? '';
@@ -54,13 +55,14 @@ $wrapper_classes = array(
 	'kplr-field--' . $layout,
 	!empty($field_type) ? 'kplr-field--' . $field_type : '',
 	$required ? 'kplr-field--required' : '',
+	$repeatable ? 'kplr-field--repeatable' : '',
 	!empty($validation_warnings) ? 'kplr-field--has-warnings' : '',
 	!empty($display_notices) ? 'kplr-field--has-notices' : '',
 );
 ob_start();
 
 ?>
-<div class="<?php echo esc_attr(implode(' ', array_filter($wrapper_classes))); ?>" data-kplr-field-id="<?php echo esc_attr($field_id); ?>">
+<div class="<?php echo esc_attr(implode(' ', array_filter($wrapper_classes))); ?>" data-kplr-field-id="<?php echo esc_attr($field_id); ?>"<?php echo $repeatable ? ' data-kplr-repeatable="1"' : ''; ?>>
     <div class="kplr-field__label-area">
         <?php if (!empty($label)): ?>
             <label for="<?php echo esc_attr($field_id); ?>" class="kplr-field__label">

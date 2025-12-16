@@ -7,7 +7,6 @@ namespace Ran\PluginLib\Tests\Unit\Forms;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use Ran\PluginLib\Forms\Component\ComponentManifest;
-use Ran\PluginLib\Forms\FormsAssets;
 use Ran\PluginLib\Forms\FormsService;
 use Ran\PluginLib\Forms\FormsServiceSession;
 use Ran\PluginLib\Util\Logger;
@@ -25,26 +24,11 @@ final class FormsServiceTest extends TestCase {
 		$service = new FormsService($manifest, $logger);
 
 		$formDefaults = array('field-wrapper' => 'custom.field-wrapper');
-		$session      = $service->start_session(null, $formDefaults);
+		$session      = $service->start_session($formDefaults);
 
 		$this->assertInstanceOf(FormsServiceSession::class, $session);
 		$this->assertSame($manifest, $session->manifest());
 		$this->assertEquals($formDefaults, $session->get_form_defaults());
-	}
-
-	public function test_start_session_uses_provided_assets_bucket(): void {
-		/** @var ComponentManifest&MockObject $manifest */
-		$manifest = $this->createMock(ComponentManifest::class);
-		/** @var FormsAssets&MockObject $assets */
-		$assets = $this->createMock(FormsAssets::class);
-		/** @var Logger&MockObject $logger */
-		$logger = $this->createMock(Logger::class);
-
-		$service = new FormsService($manifest, $logger);
-
-		$session = $service->start_session($assets);
-
-		$this->assertSame($assets, $session->assets());
 	}
 
 	public function test_manifest_accessor_returns_manifest(): void {

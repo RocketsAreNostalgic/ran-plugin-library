@@ -297,6 +297,16 @@ class ComponentLoader {
 	}
 
 	/**
+	 * Resolve the class name for an assets definition companion by its alias.
+	 *
+	 * @param string $alias
+	 * @return ?string
+	 */
+	public function resolve_assets_class(string $alias): ?string {
+		return $this->_resolve_component_class($alias, 'Assets');
+	}
+
+	/**
 	 * Resolve the directory path for a component by its alias.
 	 *
 	 * Returns the directory containing the component's View.php and companion files.
@@ -371,10 +381,10 @@ class ComponentLoader {
 
 			$basename = $file->getBasename('.php');
 
-			// Skip companion classes (Builder, Normalizer, Sanitizer, Validator)
+			// Skip companion classes (Builder, Normalizer, Sanitizer, Validator, Assets)
 			// These are resolved programmatically via resolve_*_class() methods
 			// Only View.php files or standalone templates should create aliases
-			if (in_array($basename, array('Builder', 'Normalizer', 'Sanitizer', 'Validator'), true)) {
+			if (in_array($basename, array('Builder', 'Normalizer', 'Sanitizer', 'Validator', 'Assets'), true)) {
 				continue;
 			}
 
@@ -609,12 +619,20 @@ class ComponentLoader {
 		}
 
 		if (is_array($payload) && isset($payload['markup'])) {
+			if (
+				array_key_exists('script', $payload)
+				|| array_key_exists('style', $payload)
+				|| array_key_exists('requires_media', $payload)
+				|| array_key_exists('repeatable', $payload)
+			) {
+				throw new \LogicException(sprintf(
+					'Template "%s" must not return legacy asset keys (script/style/requires_media/repeatable). Declare assets via Assets.php / ComponentManifest instead.',
+					$alias
+				));
+			}
+
 			return new ComponentRenderResult(
 				(string) ($payload['markup'] ?? ''),
-				$payload['script'] ?? null,
-				$payload['style']  ?? null,
-				(bool) ($payload['requires_media'] ?? false),
-				(bool) ($payload['repeatable'] ?? false),
 				$payload['context_schema'] ?? array()
 			);
 		}

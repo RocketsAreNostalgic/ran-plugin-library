@@ -67,10 +67,6 @@ use Ran\PluginLib\Forms\Component\ComponentRenderResult;
 
 return new ComponentRenderResult(
 	markup: (string) ob_get_clean(),
-	script: null,
-	style: null,
-	requires_media: false,
-	repeatable: false,
 	context_schema: array(
 	    'required' => array('label', 'url'),
 	    'optional' => array('attributes', 'link_attributes', 'target', 'rel', 'icon_html'),

@@ -4,8 +4,8 @@ namespace Ran\PluginLib\Tests\Unit\Forms;
 
 use Ran\PluginLib\Util\CollectingLogger;
 use Ran\PluginLib\Tests\Unit\PluginLibTestCase;
-use Ran\PluginLib\Forms\Renderer\FormElementRenderer;
 use Ran\PluginLib\Forms\Renderer\FormMessageHandler;
+use Ran\PluginLib\Forms\Renderer\FormElementRenderer;
 use Ran\PluginLib\Forms\FormsServiceSession;
 use Ran\PluginLib\Forms\FormsService;
 use Ran\PluginLib\Forms\Component\ComponentRenderResult;
@@ -26,7 +26,6 @@ use Mockery;
  * @coversDefaultClass \Ran\PluginLib\Forms\Renderer\FormElementRenderer
  * @covers \Ran\PluginLib\Forms\FormsService
  * @covers \Ran\PluginLib\Forms\FormsServiceSession
- * @covers \Ran\PluginLib\Forms\FormsAssets
  * @covers \Ran\PluginLib\Forms\FormsCore
  */
 class FormRenderingPipelineTest extends PluginLibTestCase {
@@ -93,46 +92,16 @@ class FormRenderingPipelineTest extends PluginLibTestCase {
 	 * @covers \Ran\PluginLib\Forms\FormsServiceSession::manifest
 	 */
 	public function test_complete_form_rendering_pipeline_with_assets(): void {
-		// Create components with different asset types to test complete pipeline
-		$text_field_style = StyleDefinition::from_array(array(
-			'handle'  => 'text-field-style',
-			'src'     => 'text-field.css',
-			'deps'    => array(),
-			'version' => '1.0.0'
-		));
-
-		$select_field_script = ScriptDefinition::from_array(array(
-			'handle'  => 'select-field-script',
-			'src'     => 'select-field.js',
-			'deps'    => array('jquery'),
-			'version' => '1.0.0'
-		));
-
-		$media_field_style = StyleDefinition::from_array(array(
-			'handle'  => 'media-field-style',
-			'src'     => 'media-field.css',
-			'deps'    => array(),
-			'version' => '1.0.0'
-		));
-
-		// Create render results for different components
 		$text_result = new ComponentRenderResult(
-			'<input type="text" name="text_field" class="fields.input" />',
-			null,
-			$text_field_style
+			'<input type="text" name="text_field" class="fields.input" />'
 		);
 
 		$select_result = new ComponentRenderResult(
-			'<select name="select_field" class="select-input"><option value="">Choose...</option></select>',
-			$select_field_script,
-			null
+			'<select name="select_field" class="select-input"><option value="">Choose...</option></select>'
 		);
 
 		$media_result = new ComponentRenderResult(
-			'<div class="media-field"><input type="hidden" name="media_field" /><button type="button">Choose Media</button></div>',
-			null,
-			$media_field_style,
-			true // requires_media
+			'<div class="media-field"><input type="hidden" name="media_field" /><button type="button">Choose Media</button></div>'
 		);
 
 		// Mock ComponentManifest to return different results for different components
@@ -146,6 +115,9 @@ class FormRenderingPipelineTest extends PluginLibTestCase {
 		$mock_manifest->shouldReceive('render')
 			->with('fields.media', Mockery::type('array'))
 			->andReturn($media_result);
+		$mock_manifest->shouldReceive('enqueue_assets_for_aliases')
+			->once()
+			->with(array('fields.media', 'fields.select', 'fields.text'));
 
 		// Create FormsService with mocked manifest
 		$form_service = new FormsService($mock_manifest, $this->logger);
@@ -162,8 +134,7 @@ class FormRenderingPipelineTest extends PluginLibTestCase {
 		// Start FormsServiceSession to track the complete pipeline
 		$session = $form_service->start_session();
 
-		// Verify session starts clean
-		$this->assertFalse($session->assets()->has_assets());
+		$this->assertSame(array(), $session->get_used_component_aliases());
 
 		// Step 1: Render text field component
 		$text_context = array(
@@ -178,11 +149,7 @@ class FormRenderingPipelineTest extends PluginLibTestCase {
 		// Verify text field HTML
 		$this->assertEquals('<input type="text" name="text_field" class="fields.input" />', $text_html);
 
-		// Verify text field style was collected
-		$assets = $session->assets();
-		$this->assertTrue($assets->has_assets());
-		$styles = $assets->styles();
-		$this->assertArrayHasKey('text-field-style', $styles);
+		$this->assertSame(array('fields.text'), $session->get_used_component_aliases());
 
 		// Step 2: Render select field component
 		$select_context = array(
@@ -197,12 +164,7 @@ class FormRenderingPipelineTest extends PluginLibTestCase {
 		// Verify select field HTML
 		$this->assertEquals('<select name="select_field" class="select-input"><option value="">Choose...</option></select>', $select_html);
 
-		// Verify select field script was collected (accumulated with previous assets)
-		$assets  = $session->assets();
-		$scripts = $assets->scripts();
-		$this->assertArrayHasKey('select-field-script', $scripts);
-		$this->assertCount(1, $styles); // Still has text field style
-		$this->assertCount(1, $scripts); // Now has select field script
+		$this->assertSame(array('fields.select', 'fields.text'), $session->get_used_component_aliases());
 
 		// Step 3: Render media field component
 		$media_context = array(
@@ -216,26 +178,8 @@ class FormRenderingPipelineTest extends PluginLibTestCase {
 		// Verify media field HTML
 		$this->assertEquals('<div class="media-field"><input type="hidden" name="media_field" /><button type="button">Choose Media</button></div>', $media_html);
 
-		// Verify media field assets were collected and media requirement set
-		$assets = $session->assets();
-		$this->assertTrue($assets->requires_media());
-		$styles = $assets->styles();
-		$this->assertArrayHasKey('media-field-style', $styles);
-		$this->assertCount(2, $styles); // text-field-style + media-field-style
-		$this->assertCount(1, $scripts); // select-field-script
-
-		// Verify complete pipeline logging
-		$logs          = $this->logger->get_logs();
-		$pipeline_logs = array_filter($logs, function($log) {
-			return $log['level'] === 'debug' && strpos($log['message'], 'FormElementRenderer: Component rendered with assets') !== false;
-		});
-		$this->assertCount(3, $pipeline_logs, 'Should have logged all three component renderings');
-
-		// Verify asset collection was logged for each component
-		$asset_logs = array_filter($logs, function($log) {
-			return isset($log['context']['has_assets']) && $log['context']['has_assets'] === true;
-		});
-		$this->assertCount(3, $asset_logs, 'Should have logged asset collection for all three components');
+		$this->assertSame(array('fields.media', 'fields.select', 'fields.text'), $session->get_used_component_aliases());
+		$session->enqueue_assets();
 	}
 
 	/**
@@ -245,26 +189,8 @@ class FormRenderingPipelineTest extends PluginLibTestCase {
 	 * @covers ::prepare_field_context
 	 */
 	public function test_form_service_session_orchestrates_complete_pipeline(): void {
-		// Create a component with both script and style assets
-		$script_definition = ScriptDefinition::from_array(array(
-			'handle'  => 'complex-field-script',
-			'src'     => 'complex-field.js',
-			'deps'    => array('jquery', 'wp-util'),
-			'version' => '1.0.0'
-		));
-
-		$style_definition = StyleDefinition::from_array(array(
-			'handle'  => 'complex-field-style',
-			'src'     => 'complex-field.css',
-			'deps'    => array('wp-admin'),
-			'version' => '1.0.0'
-		));
-
 		$render_result = new ComponentRenderResult(
-			'<div class="complex-field"><input type="text" name="complex_field" /><div class="field-controls">Controls</div></div>',
-			$script_definition,
-			$style_definition,
-			true // requires_media
+			'<div class="complex-field"><input type="text" name="complex_field" /><div class="field-controls">Controls</div></div>'
 		);
 
 		// Mock ComponentManifest for template resolution
@@ -275,6 +201,9 @@ class FormRenderingPipelineTest extends PluginLibTestCase {
 				return isset($context['field_id']) && $context['field_id'] === 'complex_field' && isset($context['label']) && $context['label'] === 'Complex Field' && isset($context['value']) && $context['value'] === 'test value' && isset($context['validation_warnings']) && is_array($context['validation_warnings']) && isset($context['display_notices']) && is_array($context['display_notices']);
 			}))
 			->andReturn($render_result);
+		$mock_manifest->shouldReceive('enqueue_assets_for_aliases')
+			->once()
+			->with(array('fields.complex'));
 
 		// Create FormsService with mocked manifest
 		$form_service = new FormsService($mock_manifest, $this->logger);
@@ -345,44 +274,8 @@ class FormRenderingPipelineTest extends PluginLibTestCase {
 		// Verify rendering step
 		$expected_html = '<div class="complex-field"><input type="text" name="complex_field" /><div class="field-controls">Controls</div></div>';
 		$this->assertEquals($expected_html, $html);
-
-		// Step 3: Asset Collection - Verify assets were collected
-		$assets = $session->assets();
-		$this->assertTrue($assets->has_assets());
-		$this->assertTrue($assets->requires_media());
-
-		// Verify script asset
-		$scripts = $assets->scripts();
-		$this->assertArrayHasKey('complex-field-script', $scripts);
-		$this->assertEquals('complex-field-script', $scripts['complex-field-script']->handle);
-		$this->assertEquals(array('jquery', 'wp-util'), $scripts['complex-field-script']->deps);
-
-		// Verify style asset
-		$styles = $assets->styles();
-		$this->assertArrayHasKey('complex-field-style', $styles);
-		$this->assertEquals('complex-field-style', $styles['complex-field-style']->handle);
-		$this->assertEquals(array('wp-admin'), $styles['complex-field-style']->deps);
-
-		// Verify complete orchestration was logged
-		$logs = $this->logger->get_logs();
-
-		// Check context preparation logging
-		$context_logs = array_filter($logs, function($log) {
-			return $log['level'] === 'debug' && strpos($log['message'], 'Context prepared') !== false;
-		});
-		$this->assertNotEmpty($context_logs, 'Should log context preparation');
-
-		// Check component rendering logging
-		$render_logs = array_filter($logs, function($log) {
-			return $log['level'] === 'debug' && strpos($log['message'], 'Component rendered with assets') !== false;
-		});
-		$this->assertNotEmpty($render_logs, 'Should log successful component rendering');
-
-		// Check asset collection logging
-		$asset_logs = array_filter($logs, function($log) {
-			return isset($log['context']['has_assets']) && $log['context']['has_assets'] === true && isset($log['context']['asset_types']) && isset($log['context']['asset_types']['script']) && $log['context']['asset_types']['script'] === 'complex-field-script' && isset($log['context']['asset_types']['style']) && $log['context']['asset_types']['style'] === 'complex-field-style';
-		});
-		$this->assertNotEmpty($asset_logs, 'Should log detailed asset collection information');
+		$this->assertSame(array('fields.complex'), $session->get_used_component_aliases());
+		$session->enqueue_assets();
 	}
 
 	/**
@@ -468,12 +361,6 @@ class FormRenderingPipelineTest extends PluginLibTestCase {
 		$this->assertStringContainsString($expected_direct, $wrapped_html);
 		$this->assertStringContainsString('<!-- kepler-template-fallback: custom_field -->', $wrapped_html);
 		$this->assertStringContainsString('Template failure while rendering "layout.field.field-wrapper". Check logs for details.', $wrapped_html);
-
-		// Verify markup structure logging
-		$logs        = $this->logger->get_logs();
-		$markup_logs = array_filter($logs, function($log) {
-			return $log['level'] === 'debug' && (strpos($log['message'], 'Component rendered with assets') !== false || strpos($log['message'], 'Field rendered with wrapper successfully') !== false);
-		});
-		$this->assertGreaterThanOrEqual(2, count($markup_logs), 'Should log both direct and wrapped rendering');
+		$this->assertSame(array('fields.custom'), $session->get_used_component_aliases());
 	}
 }

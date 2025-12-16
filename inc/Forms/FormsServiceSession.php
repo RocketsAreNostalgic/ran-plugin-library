@@ -10,10 +10,14 @@ declare(strict_types=1);
 namespace Ran\PluginLib\Forms;
 
 use Ran\PluginLib\Util\WPWrappersTrait;
+use Ran\PluginLib\Util\Validate;
 use Ran\PluginLib\Util\Logger;
 use Ran\PluginLib\Forms\Validation\ValidatorPipelineService;
+use Ran\PluginLib\Forms\Component\TemplateOverrideCollection;
+use Ran\PluginLib\Forms\Component\TemplateOverride;
 use Ran\PluginLib\Forms\Component\ComponentRenderResult;
 use Ran\PluginLib\Forms\Component\ComponentManifest;
+use Psr\Log\LoggerInterface;
 
 /**
  * FormsServiceSession: per-render context for component dispatching and asset collection.
@@ -22,23 +26,22 @@ class FormsServiceSession {
 	use WPWrappersTrait;
 
 	private ComponentManifest $manifest;
-	private FormsAssets $assets;
 	private FormsTemplateOverrideResolver $template_resolver;
 	private Logger $logger;
 	private ValidatorPipelineService $pipeline;
+	/** @var array<string,bool> */
+	private array $used_component_aliases = array();
 	/** @var array<string,callable> */
 	private array $root_template_callbacks = array();
 
 	public function __construct(
 		ComponentManifest $manifest,
-		FormsAssets $assets,
 		FormsTemplateOverrideResolver $template_resolver,
 		Logger $logger,
 		array $form_defaults = array(),
 		?ValidatorPipelineService $pipeline = null
 	) {
 		$this->manifest          = $manifest;
-		$this->assets            = $assets;
 		$this->template_resolver = $template_resolver;
 		$this->logger            = $logger;
 		$this->pipeline          = $pipeline ?? new ValidatorPipelineService();
@@ -78,10 +81,7 @@ class FormsServiceSession {
 			// Step 2: Pass resolved template key to ComponentManifest for rendering
 			$render_context = array_merge($element_config, $context);
 			$result         = $this->manifest->render($template_key, $render_context);
-
-			// Step 3: Extract and store assets from ComponentRenderResult
-			$field_id = isset($context['field_id']) && is_string($context['field_id']) ? $context['field_id'] : null;
-			$this->ingest_component_result($result, sprintf('render_element:%s', $element_type), $field_id);
+			$this->note_component_used($template_key);
 
 			return $result->markup;
 		} catch (\Throwable $e) {
@@ -123,45 +123,26 @@ class FormsServiceSession {
 	 * @return string Rendered HTML markup
 	 */
 	public function render_component(string $component, array $context = array()): string {
-		$result   = $this->manifest->render($component, $context);
-		$field_id = isset($context['field_id']) && is_string($context['field_id'])
-			? $context['field_id']
-			: null;
-		$this->ingest_component_result($result, sprintf('render_component:%s', $component), $field_id);
+		$result = $this->manifest->render($component, $context);
+		$this->note_component_used($component);
 		return $result->markup;
 	}
 
-	/**
-	 * Ingest ComponentRenderResult assets with centralized logging and error handling.
-	 *
-	 * @param ComponentRenderResult $result
-	 * @param string                $source
-	 * @param string|null           $field_id
-	 * @return void
-	 */
-	public function ingest_component_result(ComponentRenderResult $result, string $source, ?string $field_id = null): void {
-		try {
-			$this->assets->ingest($result);
-
-			if ($result->has_assets()) {
-				$this->logger->debug('FormsServiceSession: Assets ingested successfully', array(
-					'source'         => $source,
-					'field_id'       => $field_id,
-					'has_script'     => $result->has_script(),
-					'has_style'      => $result->has_style(),
-					'requires_media' => $result->requires_media,
-					'script_handle'  => $result->has_script() ? $result->script->handle : null,
-					'style_handle'   => $result->has_style() ? $result->style->handle : null,
-				));
-			}
-		} catch (\Throwable $e) {
-			$this->logger->warning('FormsServiceSession: Asset ingestion failed; continuing without assets', array(
-				'source'          => $source,
-				'field_id'        => $field_id,
-				'error'           => $e->getMessage(),
-				'exception_class' => get_class($e),
-			));
+	public function note_component_used(string $alias): void {
+		$alias = trim($alias);
+		if ($alias === '') {
+			return;
 		}
+		$this->used_component_aliases[$alias] = true;
+	}
+
+	/**
+	 * @return array<int,string>
+	 */
+	public function get_used_component_aliases(): array {
+		$aliases = array_keys($this->used_component_aliases);
+		sort($aliases);
+		return $aliases;
 	}
 
 	/**
@@ -188,39 +169,11 @@ class FormsServiceSession {
 	 * @internal
 	 */
 	public function enqueue_assets(): void {
-		if (!$this->assets->has_assets()) {
+		$aliases = $this->get_used_component_aliases();
+		if ($aliases === array()) {
 			return;
 		}
-
-		foreach ($this->assets->styles() as $definition) {
-			$src     = $definition->src;
-			$deps    = $definition->deps;
-			$version = $definition->version;
-			$this->_do_wp_register_style($definition->handle, is_string($src) || $src === false ? $src : '', $deps, $version ?: false);
-			if ($definition->hook === null) {
-				$this->_do_wp_enqueue_style($definition->handle);
-			}
-		}
-
-		foreach ($this->assets->scripts() as $definition) {
-			$src      = $definition->src;
-			$deps     = $definition->deps;
-			$version  = $definition->version;
-			$inFooter = $definition->data['in_footer'] ?? true;
-			$this->_do_wp_register_script($definition->handle, is_string($src) || $src === false ? $src : '', $deps, $version ?: false, (bool) $inFooter);
-			if (!empty($definition->data['localize']) && is_array($definition->data['localize'])) {
-				foreach ($definition->data['localize'] as $objectName => $l10n) {
-					$this->_do_wp_localize_script($definition->handle, (string) $objectName, $l10n);
-				}
-			}
-			if ($definition->hook === null) {
-				$this->_do_wp_enqueue_script($definition->handle);
-			}
-		}
-
-		if ($this->assets->requires_media()) {
-			$this->_do_wp_enqueue_media();
-		}
+		$this->manifest->enqueue_assets_for_aliases($aliases);
 	}
 
 	/**
@@ -294,17 +247,6 @@ class FormsServiceSession {
 		$this->_log_schema_merge($alias, $defaults, $schema, $merged);
 
 		return $merged;
-	}
-
-	/**
-	 * Get the FormsAssets instance for direct access
-	 *
-	 * @internal
-	 *
-	 * @return FormsAssets
-	 */
-	public function assets(): FormsAssets {
-		return $this->assets;
 	}
 
 	/**

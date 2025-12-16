@@ -20,6 +20,7 @@ use Ran\PluginLib\Forms\Component\ComponentType;
 use Ran\PluginLib\Forms\Component\ComponentRenderResult;
 use Ran\PluginLib\Forms\Component\ComponentManifest;
 use Ran\PluginLib\Forms\Component\ComponentLoader;
+use Ran\PluginLib\Forms\Component\ComponentAssetsDefinitionInterface;
 use Ran\PluginLib\EnqueueAccessory\ScriptDefinition;
 
 final class UserSettingsBehaviorTest_AutoValidator implements ValidatorInterface {
@@ -36,6 +37,20 @@ final class UserSettingsBehaviorTest_AutoValidator implements ValidatorInterface
 		self::$calls[] = $value;
 		$emitWarning('User auto validator failed for value: ' . (string) $value);
 		return false;
+	}
+}
+
+final class UserSettingsBehaviorTest_ProfileAssetAssets implements ComponentAssetsDefinitionInterface {
+	public static function get(): array {
+		$script = ScriptDefinition::from_array(array(
+			'handle'    => 'profile-asset-script',
+			'src'       => 'https://example.com/profile.js',
+			'deps'      => array(),
+			'in_footer' => true,
+		));
+		return array(
+			'scripts' => array($script),
+		);
 	}
 }
 
@@ -510,16 +525,11 @@ final class UserSettingsBehaviorTest extends PluginLibTestCase {
 				'label'        => $context['label']    ?? null,
 				'context_keys' => array_keys($context),
 			));
-			$script = ScriptDefinition::from_array(array(
-				'handle' => 'profile-asset-script',
-				'src'    => 'https://example.com/profile.js',
-			));
-
 			return new ComponentRenderResult(
-				'<div class="profile-asset">' . htmlspecialchars((string) ($context['field_id'] ?? ''), ENT_QUOTES) . '</div>',
-				script: $script
+				'<div class="profile-asset">' . htmlspecialchars((string) ($context['field_id'] ?? ''), ENT_QUOTES) . '</div>'
 			);
 		});
+		$this->manifest->register_assets('fields.profile-asset', UserSettingsBehaviorTest_ProfileAssetAssets::class);
 		$this->injectBuilderFactory('fields.profile-asset');
 
 		// Ensure root templates are registered for the render pipeline used in this test.
@@ -555,16 +565,17 @@ final class UserSettingsBehaviorTest extends PluginLibTestCase {
 			)
 			->andReturn(true);
 
+		WP_Mock::userFunction('wp_enqueue_script')
+			->times(2)
+			->with('profile-asset-script', '', array(), false, array())
+			->andReturn(true);
+
 		$output = $this->captureOutput(function () use ($user_settings): void {
 			$user_settings->__render('profile', array('user_id' => 123));
 		});
 
 		$session = $user_settings->get_form_session();
 		self::assertInstanceOf(FormsServiceSession::class, $session, 'Expected UserSettings to have an active form session.');
-		$this->logger->debug('user_settings.test.session_assets', array(
-			'scripts' => array_keys($session->assets()->scripts()),
-			'styles'  => array_keys($session->assets()->styles()),
-		));
 		$fieldRenderLogs = $this->logger->find_logs(static function (array $entry): bool {
 			return $entry['message'] === 'forms.default_field.render' && ($entry['context']['field_id'] ?? null) === 'profile_asset';
 		});
@@ -574,11 +585,7 @@ final class UserSettingsBehaviorTest extends PluginLibTestCase {
 			return $entry['message'] === 'user_settings.test.profile_asset.render';
 		});
 		self::assertNotEmpty($componentRenderLogs, 'Expected profile asset component render log.');
-		self::assertArrayHasKey(
-			'profile-asset-script',
-			$session->assets()->scripts(),
-			'Expected script asset to be captured by shared session.'
-		);
+		self::assertContains('fields.profile-asset', $session->get_used_component_aliases(), 'Expected profile asset component alias to be tracked by shared session.');
 
 		$session->enqueue_assets();
 	}
