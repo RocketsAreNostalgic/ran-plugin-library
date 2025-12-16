@@ -14,6 +14,9 @@ class FormsSchemaService implements FormsSchemaServiceInterface {
 	/** @var array<string, array<string,mixed>> */
 	private array $schema_bundle_cache;
 
+	/** @var array<string, bool> */
+	private array $schema_bundle_cache_hit_logged = array();
+
 	/** @var array<string, array<string,mixed>>|null */
 	private ?array $catalogue_cache;
 
@@ -102,10 +105,13 @@ class FormsSchemaService implements FormsSchemaServiceInterface {
 		$cacheKey = implode('|', $cacheKeyParts);
 
 		if (isset($this->schema_bundle_cache[$cacheKey])) {
-			$this->logger->debug('forms.schema_bundle.cache_hit', array(
-				'key'    => $cacheKey,
-				'intent' => $context['intent'] ?? 'none',
-			));
+			if (!isset($this->schema_bundle_cache_hit_logged[$cacheKey])) {
+				$this->schema_bundle_cache_hit_logged[$cacheKey] = true;
+				$this->logger->debug('forms.schema_bundle.cache_hit', array(
+					'key'    => $cacheKey,
+					'intent' => $context['intent'] ?? 'none',
+				));
+			}
 			return $this->schema_bundle_cache[$cacheKey];
 		}
 
