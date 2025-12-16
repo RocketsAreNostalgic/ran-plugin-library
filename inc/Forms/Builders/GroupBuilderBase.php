@@ -14,6 +14,7 @@ namespace Ran\PluginLib\Forms\Builders;
 
 use Ran\PluginLib\Forms\FormsInterface;
 use Ran\PluginLib\Forms\Component\Build\ComponentBuilderDefinitionInterface;
+use Ran\PluginLib\Forms\Component\Build\ComponentBuilderInputBase;
 use Ran\PluginLib\Forms\Builders\Traits\SectionFieldContainerTrait;
 use Ran\PluginLib\Forms\Builders\Traits\GroupBuilderTrait;
 
@@ -228,6 +229,7 @@ abstract class GroupBuilderBase implements GroupBuilderInterface {
 				'id'                => $html_id,
 				'label'             => '',
 				'component'         => '_raw_html',
+				'is_element'        => true,
 				'component_context' => array(
 					'content' => $content,
 				),
@@ -289,6 +291,24 @@ abstract class GroupBuilderBase implements GroupBuilderInterface {
 		}
 
 		$builder = $factory($element_id, $label);
+		$session = $this->context->get_forms()->get_form_session();
+		if ($session !== null) {
+			$validatorFactories = $session->manifest()->validator_factories();
+			if (isset($validatorFactories[$component])) {
+				throw new \InvalidArgumentException(sprintf(
+					'Element "%s" uses component "%s" which has a validator and must be registered via field() not element().',
+					$element_id,
+					$component
+				));
+			}
+		}
+		if ($builder instanceof ComponentBuilderInputBase) {
+			throw new \InvalidArgumentException(sprintf(
+				'Element "%s" uses component "%s" which is an input builder and must be registered via field() not element().',
+				$element_id,
+				$component
+			));
+		}
 
 		$proxy = new GenericElementBuilder(
 			$builder,

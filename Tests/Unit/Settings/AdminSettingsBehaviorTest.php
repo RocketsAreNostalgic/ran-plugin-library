@@ -502,6 +502,7 @@ final class AdminSettingsBehaviorTest extends PluginLibTestCase {
 		});
 
 		$this->injectBuilderFactory('fields.merge');
+		$this->setManifestValidatorClass('fields.merge', AdminSettingsBehaviorTest_PassThroughValidator::class);
 		$this->injectManifestDefaults('fields.merge', array(
 			'sanitize' => array(function (mixed $value) use (&$executionOrder) {
 				$executionOrder[] = 'manifest_sanitize';
@@ -768,6 +769,13 @@ final class AdminSettingsBehaviorTest extends PluginLibTestCase {
 		$current['validator'] = $validatorClass;
 		$metadata[$alias]     = $current;
 		$property->setValue($this->manifest, $metadata);
+
+		$validatorFactoriesProp = $reflection->getProperty('validatorFactoriesCache');
+		$validatorFactoriesProp->setAccessible(true);
+		$validatorFactoriesProp->setValue($this->manifest, null);
+		$sanitizerFactoriesProp = $reflection->getProperty('sanitizerFactoriesCache');
+		$sanitizerFactoriesProp->setAccessible(true);
+		$sanitizerFactoriesProp->setValue($this->manifest, null);
 	}
 
 	/**

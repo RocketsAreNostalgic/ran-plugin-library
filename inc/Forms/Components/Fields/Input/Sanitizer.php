@@ -57,7 +57,7 @@ class Sanitizer extends SanitizerBase {
 			return '';
 		}
 
-		return sanitize_text_field((string) $value);
+		return \sanitize_text_field((string) $value);
 	}
 
 	/**

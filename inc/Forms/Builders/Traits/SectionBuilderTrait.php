@@ -17,6 +17,7 @@ namespace Ran\PluginLib\Forms\Builders\Traits;
 use Ran\PluginLib\Forms\FormsInterface;
 use Ran\PluginLib\Forms\Component\Build\ComponentBuilderDefinitionInterface;
 use Ran\PluginLib\Forms\Component\Build\ComponentBuilderBase;
+use Ran\PluginLib\Forms\Component\Build\ComponentBuilderInputBase;
 use Ran\PluginLib\Forms\Builders\ComponentBuilderProxy;
 use Ran\PluginLib\Forms\Builders\GroupBuilder;
 use Ran\PluginLib\Forms\Builders\FieldsetBuilder;
@@ -275,6 +276,7 @@ trait SectionBuilderTrait {
 				'id'                => $html_id,
 				'label'             => '',
 				'component'         => '_raw_html',
+				'is_element'        => true,
 				'component_context' => array(
 					'content' => $content,
 				),
@@ -323,6 +325,25 @@ trait SectionBuilderTrait {
 		$builder = $factory($element_id, $label);
 		if (!$builder instanceof ComponentBuilderBase) {
 			throw new \UnexpectedValueException(sprintf('Builder factory for "%s" must return ComponentBuilderBase.', $component));
+		}
+
+		$session = $this->__get_forms()->get_form_session();
+		if ($session !== null) {
+			$validatorFactories = $session->manifest()->validator_factories();
+			if (isset($validatorFactories[$component])) {
+				throw new \InvalidArgumentException(sprintf(
+					'Element "%s" uses component "%s" which has a validator and must be registered via field() not element().',
+					$element_id,
+					$component
+				));
+			}
+		}
+		if ($builder instanceof ComponentBuilderInputBase) {
+			throw new \InvalidArgumentException(sprintf(
+				'Element "%s" uses component "%s" which is an input builder and must be registered via field() not element().',
+				$element_id,
+				$component
+			));
 		}
 
 		$proxy = new GenericElementBuilder(

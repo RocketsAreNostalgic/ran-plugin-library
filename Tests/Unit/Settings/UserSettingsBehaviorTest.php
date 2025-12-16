@@ -391,6 +391,7 @@ final class UserSettingsBehaviorTest extends PluginLibTestCase {
 		});
 
 		$this->injectBuilderFactory('fields.merge-user');
+		$this->setManifestValidatorClass('fields.merge-user', UserSettingsBehaviorTest_AutoValidator::class);
 		$this->injectManifestDefaults('fields.merge-user', array(
 			'sanitize' => static function (mixed $value) use (&$executionOrder): string {
 				$executionOrder[] = 'manifest_sanitize';
@@ -531,6 +532,7 @@ final class UserSettingsBehaviorTest extends PluginLibTestCase {
 		});
 		$this->manifest->register_assets('fields.profile-asset', UserSettingsBehaviorTest_ProfileAssetAssets::class);
 		$this->injectBuilderFactory('fields.profile-asset');
+		$this->setManifestValidatorClass('fields.profile-asset', UserSettingsBehaviorTest_AutoValidator::class);
 
 		// Ensure root templates are registered for the render pipeline used in this test.
 		$this->manifest->register('root-wrapper', static function (array $context): ComponentRenderResult {
@@ -782,6 +784,10 @@ final class UserSettingsBehaviorTest extends PluginLibTestCase {
 		$current['validator'] = $validatorClass;
 		$metadata[$alias]     = $current;
 		$property->setValue($this->manifest, $metadata);
+
+		$validatorFactoriesProp = $reflection->getProperty('validatorFactoriesCache');
+		$validatorFactoriesProp->setAccessible(true);
+		$validatorFactoriesProp->setValue($this->manifest, null);
 	}
 
 	/**

@@ -494,10 +494,19 @@ final class BeforeAfterHooksSequenceTest extends PluginLibTestCase {
 		if (!is_array($metadata)) {
 			$metadata = array();
 		}
-		$current            = $metadata[$alias] ?? array();
-		$current['builder'] = static fn (string $id, string $label): InputBuilder => new InputBuilder($id, $label);
-		$metadata[$alias]   = $current;
+		$current              = $metadata[$alias] ?? array();
+		$current['builder']   = static fn (string $id, string $label): InputBuilder => new InputBuilder($id, $label);
+		$current['validator'] = \Ran\PluginLib\Forms\Components\Fields\Input\Validator::class;
+		$current['sanitizer'] = \Ran\PluginLib\Forms\Components\Fields\Input\Sanitizer::class;
+		$metadata[$alias]     = $current;
 		$property->setValue($manifest, $metadata);
+
+		$validatorFactoriesProp = $reflection->getProperty('validatorFactoriesCache');
+		$validatorFactoriesProp->setAccessible(true);
+		$validatorFactoriesProp->setValue($manifest, null);
+		$sanitizerFactoriesProp = $reflection->getProperty('sanitizerFactoriesCache');
+		$sanitizerFactoriesProp->setAccessible(true);
+		$sanitizerFactoriesProp->setValue($manifest, null);
 	}
 
 	/**

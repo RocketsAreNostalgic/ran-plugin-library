@@ -3,9 +3,9 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\Tests\Unit\Util;
 
+use WP_Mock;
 use Ran\PluginLib\Util\Logger;
 use Ran\PluginLib\Tests\Unit\PluginLibTestCase;
-use WP_Mock;
 use Psr\Log\LogLevel;
 
 /**

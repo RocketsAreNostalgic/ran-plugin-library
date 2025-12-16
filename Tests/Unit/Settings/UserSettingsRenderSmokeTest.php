@@ -80,7 +80,9 @@ class UserSettingsRenderSmokeTest extends PluginLibTestCase {
 		mkdir($externalDir . '/ViewOnly', 0777, true);
 		file_put_contents($externalDir . '/ViewOnly/View.php', $this->createViewPhp('view-only'));
 		file_put_contents($externalDir . '/ViewOnly/Builder.php', $this->createBuilderPhp('UserTestPlugin\\Components', 'ViewOnly'));
+		file_put_contents($externalDir . '/ViewOnly/Validator.php', $this->createValidatorPhp('UserTestPlugin\\Components', 'ViewOnly'));
 		require_once $externalDir . '/ViewOnly/Builder.php';
+		require_once $externalDir . '/ViewOnly/Validator.php';
 
 		try {
 			$this->userMetaValues['matrix_1'] = array('field_1' => 'stored_value_1');
@@ -107,6 +109,7 @@ class UserSettingsRenderSmokeTest extends PluginLibTestCase {
 		file_put_contents($externalDir . '/ViewValidator/Builder.php', $this->createBuilderPhp('UserTestPlugin\\Components', 'ViewValidator'));
 		require_once $externalDir . '/ViewValidator/Builder.php';
 		file_put_contents($externalDir . '/ViewValidator/Validator.php', $this->createValidatorPhp('UserTestPlugin\\Components', 'ViewValidator'));
+		require_once $externalDir . '/ViewValidator/Validator.php';
 
 		try {
 			$this->userMetaValues['matrix_2'] = array('field_2' => 'validated_value');
@@ -130,8 +133,11 @@ class UserSettingsRenderSmokeTest extends PluginLibTestCase {
 		mkdir($externalDir . '/ViewNormalizer', 0777, true);
 		file_put_contents($externalDir . '/ViewNormalizer/View.php', $this->createViewPhp('view-normalizer'));
 		file_put_contents($externalDir . '/ViewNormalizer/Builder.php', $this->createBuilderPhp('UserTestPlugin\\Components', 'ViewNormalizer'));
+		file_put_contents($externalDir . '/ViewNormalizer/Validator.php', $this->createValidatorPhp('UserTestPlugin\\Components', 'ViewNormalizer'));
 		require_once $externalDir . '/ViewNormalizer/Builder.php';
 		file_put_contents($externalDir . '/ViewNormalizer/Normalizer.php', $this->createNormalizerPhp('UserTestPlugin\\Components', 'ViewNormalizer'));
+		require_once $externalDir . '/ViewNormalizer/Validator.php';
+		require_once $externalDir . '/ViewNormalizer/Normalizer.php';
 
 		try {
 			$this->userMetaValues['matrix_3'] = array('field_3' => 'normalized_value');
@@ -158,6 +164,8 @@ class UserSettingsRenderSmokeTest extends PluginLibTestCase {
 		require_once $externalDir . '/FullStack/Builder.php';
 		file_put_contents($externalDir . '/FullStack/Validator.php', $this->createValidatorPhp('UserTestPlugin\\Components', 'FullStack'));
 		file_put_contents($externalDir . '/FullStack/Normalizer.php', $this->createNormalizerPhp('UserTestPlugin\\Components', 'FullStack'));
+		require_once $externalDir . '/FullStack/Validator.php';
+		require_once $externalDir . '/FullStack/Normalizer.php';
 
 		try {
 			$this->userMetaValues['matrix_4'] = array('field_4' => 'full_stack_value');
@@ -181,7 +189,9 @@ class UserSettingsRenderSmokeTest extends PluginLibTestCase {
 		mkdir($externalDir . '/ViewDevSchema', 0777, true);
 		file_put_contents($externalDir . '/ViewDevSchema/View.php', $this->createViewPhp('view-dev-schema'));
 		file_put_contents($externalDir . '/ViewDevSchema/Builder.php', $this->createBuilderPhp('UserTestPlugin\\Components', 'ViewDevSchema'));
+		file_put_contents($externalDir . '/ViewDevSchema/Validator.php', $this->createValidatorPhp('UserTestPlugin\\Components', 'ViewDevSchema'));
 		require_once $externalDir . '/ViewDevSchema/Builder.php';
+		require_once $externalDir . '/ViewDevSchema/Validator.php';
 
 		try {
 			$this->userMetaValues['matrix_5'] = array('field_5' => 'schema_value');
@@ -211,6 +221,7 @@ class UserSettingsRenderSmokeTest extends PluginLibTestCase {
 		file_put_contents($externalDir . '/ValidatorDevSchema/Builder.php', $this->createBuilderPhp('UserTestPlugin\\Components', 'ValidatorDevSchema'));
 		require_once $externalDir . '/ValidatorDevSchema/Builder.php';
 		file_put_contents($externalDir . '/ValidatorDevSchema/Validator.php', $this->createValidatorPhp('UserTestPlugin\\Components', 'ValidatorDevSchema'));
+		require_once $externalDir . '/ValidatorDevSchema/Validator.php';
 
 		try {
 			$this->userMetaValues['matrix_6'] = array('field_6' => 'validated_schema_value');
@@ -238,8 +249,11 @@ class UserSettingsRenderSmokeTest extends PluginLibTestCase {
 		mkdir($externalDir . '/NormalizerDevSchema', 0777, true);
 		file_put_contents($externalDir . '/NormalizerDevSchema/View.php', $this->createViewPhp('normalizer-dev-schema'));
 		file_put_contents($externalDir . '/NormalizerDevSchema/Builder.php', $this->createBuilderPhp('UserTestPlugin\\Components', 'NormalizerDevSchema'));
+		file_put_contents($externalDir . '/NormalizerDevSchema/Validator.php', $this->createValidatorPhp('UserTestPlugin\\Components', 'NormalizerDevSchema'));
 		require_once $externalDir . '/NormalizerDevSchema/Builder.php';
 		file_put_contents($externalDir . '/NormalizerDevSchema/Normalizer.php', $this->createNormalizerPhp('UserTestPlugin\\Components', 'NormalizerDevSchema'));
+		require_once $externalDir . '/NormalizerDevSchema/Validator.php';
+		require_once $externalDir . '/NormalizerDevSchema/Normalizer.php';
 
 		try {
 			$this->userMetaValues['matrix_7'] = array('field_7' => 'normalized_schema_value');
@@ -270,6 +284,8 @@ class UserSettingsRenderSmokeTest extends PluginLibTestCase {
 		require_once $externalDir . '/FullStackSchema/Builder.php';
 		file_put_contents($externalDir . '/FullStackSchema/Validator.php', $this->createValidatorPhp('UserTestPlugin\\Components', 'FullStackSchema'));
 		file_put_contents($externalDir . '/FullStackSchema/Normalizer.php', $this->createNormalizerPhp('UserTestPlugin\\Components', 'FullStackSchema'));
+		require_once $externalDir . '/FullStackSchema/Validator.php';
+		require_once $externalDir . '/FullStackSchema/Normalizer.php';
 
 		try {
 			$this->userMetaValues['matrix_8'] = array('field_8' => 'ultimate_value');
@@ -381,9 +397,13 @@ use Ran\PluginLib\Forms\Component\Normalize\ComponentNormalizationContext;
 use Ran\PluginLib\Forms\Component\ComponentLoader;
 use Ran\PluginLib\Util\TranslationService;
 class Normalizer implements NormalizeInterface {
-    public function __construct(ComponentLoader \$views) {}
+    private ComponentLoader \$views;
+    public function __construct(ComponentLoader \$views) {
+        \$this->views = \$views;
+    }
     public function render(array \$context, ComponentNormalizationContext \$session, string \$componentAlias): array {
-        return array('payload' => array('markup' => '<div>normalized</div>', 'script' => null, 'style' => null, 'requires_media' => false, 'context_schema' => array('required' => array(), 'optional' => array(), 'defaults' => array())), 'warnings' => array());
+        \$payload = \$this->views->render_payload(\$componentAlias, \$context);
+        return array('payload' => \$payload, 'warnings' => array());
     }
     public static function create_translation_service(string \$textDomain = 'ran-plugin-lib'): TranslationService {
         return new TranslationService(\$textDomain);

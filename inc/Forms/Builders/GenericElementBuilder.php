@@ -263,6 +263,7 @@ class GenericElementBuilder {
 		$element['component']         = $this->component_alias;
 		$element['id']                = $element['id']    ?? $this->element_id;
 		$element['label']             = $element['label'] ?? '';
+		$element['is_element']        = true;
 
 		if ($this->before_callback !== null) {
 			$element['before'] = $this->before_callback;

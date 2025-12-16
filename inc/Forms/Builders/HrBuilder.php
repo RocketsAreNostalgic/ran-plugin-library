@@ -120,6 +120,7 @@ class HrBuilder {
 			'id'                => $this->hr_id,
 			'label'             => '',
 			'component'         => '_hr',
+			'is_element'        => true,
 			'component_context' => array(
 				'style' => $this->style,
 			),

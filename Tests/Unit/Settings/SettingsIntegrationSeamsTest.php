@@ -78,6 +78,7 @@ class SettingsIntegrationSeamsTest extends PluginLibTestCase {
 			$value = $this->userMetaValues[$key][$userId] ?? ($single ? '' : array());
 			return $single ? $value : array($value);
 		});
+		\WP_Mock::userFunction('sanitize_text_field')->andReturnArg(0);
 		\WP_Mock::userFunction('update_user_meta')->andReturnUsing(function ($userId, $key, $value) {
 			if (!isset($this->userMetaValues[$key])) {
 				$this->userMetaValues[$key] = array();
@@ -182,6 +183,7 @@ class SettingsIntegrationSeamsTest extends PluginLibTestCase {
 		});
 		// Register a builder factory for the custom component
 		$manifest->register_builder('test.input', \Ran\PluginLib\Forms\Components\Fields\Input\Builder::class);
+		$this->injectTestComponentValidationMetadata($manifest, 'test.input');
 
 		$settings = new AdminSettings($options, $manifest, $config, $this->logger);
 
@@ -236,6 +238,7 @@ class SettingsIntegrationSeamsTest extends PluginLibTestCase {
 			return new ComponentRenderResult('<input type="text">');
 		});
 		$manifest->register_builder('fields.input', \Ran\PluginLib\Forms\Components\Fields\Input\Builder::class);
+		$this->injectFieldInputValidationMetadata($manifest);
 
 		$settings = new AdminSettings($options, $manifest, $config, $this->logger);
 
@@ -318,6 +321,7 @@ class SettingsIntegrationSeamsTest extends PluginLibTestCase {
 			);
 		});
 		$manifest->register_builder('profile.input', \Ran\PluginLib\Forms\Components\Fields\Input\Builder::class);
+		$this->injectTestComponentValidationMetadata($manifest, 'profile.input');
 
 		$settings = new UserSettings($options, $manifest, $config, $this->logger);
 
@@ -370,6 +374,7 @@ class SettingsIntegrationSeamsTest extends PluginLibTestCase {
 			return new ComponentRenderResult('<input type="text">');
 		});
 		$manifest->register_builder('fields.input', \Ran\PluginLib\Forms\Components\Fields\Input\Builder::class);
+		$this->injectFieldInputValidationMetadata($manifest);
 
 		$settings = new UserSettings($options, $manifest, $config, $this->logger);
 
@@ -410,7 +415,9 @@ return new ComponentRenderResult(
 );';
 		file_put_contents($externalDir . '/SeamComponent/View.php', $viewCode);
 		file_put_contents($externalDir . '/SeamComponent/Builder.php', $this->createBuilderPhp('SeamTest', 'SeamComponent'));
+		file_put_contents($externalDir . '/SeamComponent/Validator.php', $this->createValidatorPhp('SeamTest', 'SeamComponent'));
 		require_once $externalDir . '/SeamComponent/Builder.php';
+		require_once $externalDir . '/SeamComponent/Validator.php';
 
 		try {
 			$config = $this->createMock(ConfigInterface::class);
@@ -472,7 +479,9 @@ return new ComponentRenderResult(
 );';
 		file_put_contents($externalDir . '/UserSeamComponent/View.php', $viewCode);
 		file_put_contents($externalDir . '/UserSeamComponent/Builder.php', $this->createBuilderPhp('UserSeamTest', 'UserSeamComponent'));
+		file_put_contents($externalDir . '/UserSeamComponent/Validator.php', $this->createValidatorPhp('UserSeamTest', 'UserSeamComponent'));
 		require_once $externalDir . '/UserSeamComponent/Builder.php';
+		require_once $externalDir . '/UserSeamComponent/Validator.php';
 
 		try {
 			$config = $this->createMock(ConfigInterface::class);
@@ -554,6 +563,7 @@ return new ComponentRenderResult(
 			);
 		});
 		$manifest->register_builder('fields.input', \Ran\PluginLib\Forms\Components\Fields\Input\Builder::class);
+		$this->injectFieldInputValidationMetadata($manifest);
 
 		$settings = new AdminSettings($options, $manifest, $config, $this->logger);
 
@@ -627,6 +637,7 @@ return new ComponentRenderResult(
 			);
 		});
 		$manifest->register_builder('fields.input', \Ran\PluginLib\Forms\Components\Fields\Input\Builder::class);
+		$this->injectFieldInputValidationMetadata($manifest);
 
 		$settings = new UserSettings($options, $manifest, $config, $this->logger);
 
@@ -703,6 +714,7 @@ return new ComponentRenderResult(
 			return new ComponentRenderResult('<input type="text">');
 		});
 		$manifest->register_builder('fields.input', \Ran\PluginLib\Forms\Components\Fields\Input\Builder::class);
+		$this->injectFieldInputValidationMetadata($manifest);
 
 		$settings = new AdminSettings($options, $manifest, $config, $this->logger);
 
@@ -769,6 +781,7 @@ return new ComponentRenderResult(
 			return new ComponentRenderResult('<input type="text">');
 		});
 		$manifest->register_builder('fields.input', \Ran\PluginLib\Forms\Components\Fields\Input\Builder::class);
+		$this->injectFieldInputValidationMetadata($manifest);
 
 		$settings = new UserSettings($options, $manifest, $config, $this->logger);
 
@@ -862,6 +875,21 @@ final class Builder extends ComponentBuilderInputBase {
 ';
 	}
 
+	protected function createValidatorPhp(string $namespace, string $componentName): string {
+		return '<?php
+namespace ' . $namespace . '\\' . $componentName . ';
+
+use Ran\\PluginLib\\Forms\\Component\\Validate\\ValidatorInterface;
+
+final class Validator implements ValidatorInterface {
+	public function __construct(?\\Psr\\Log\\LoggerInterface $logger = null) {}
+	public function validate(mixed $value, array $context, callable $emitWarning): bool {
+		return true;
+	}
+}
+';
+	}
+
 	protected function cleanupDirectory(string $dir): void {
 		if (!is_dir($dir)) {
 			return;
@@ -876,5 +904,48 @@ final class Builder extends ComponentBuilderInputBase {
 			}
 		}
 		rmdir($dir);
+	}
+
+	private function injectFieldInputValidationMetadata(ComponentManifest $manifest): void {
+		$reflection = new \ReflectionObject($manifest);
+		$property   = $reflection->getProperty('componentMetadata');
+		$property->setAccessible(true);
+		$metadata = $property->getValue($manifest);
+		if (!is_array($metadata)) {
+			$metadata = array();
+		}
+		$current                  = $metadata['fields.input'] ?? array();
+		$current['validator']     = \Ran\PluginLib\Forms\Components\Fields\Input\Validator::class;
+		$current['sanitizer']     = \Ran\PluginLib\Forms\Components\Fields\Input\Sanitizer::class;
+		$metadata['fields.input'] = $current;
+		$property->setValue($manifest, $metadata);
+
+		$validatorFactoriesProp = $reflection->getProperty('validatorFactoriesCache');
+		$validatorFactoriesProp->setAccessible(true);
+		$validatorFactoriesProp->setValue($manifest, null);
+		$sanitizerFactoriesProp = $reflection->getProperty('sanitizerFactoriesCache');
+		$sanitizerFactoriesProp->setAccessible(true);
+		$sanitizerFactoriesProp->setValue($manifest, null);
+	}
+
+	private function injectTestComponentValidationMetadata(ComponentManifest $manifest, string $alias): void {
+		$reflection = new \ReflectionObject($manifest);
+		$property   = $reflection->getProperty('componentMetadata');
+		$property->setAccessible(true);
+		$metadata = $property->getValue($manifest);
+		if (!is_array($metadata)) {
+			$metadata = array();
+		}
+		$current              = $metadata[$alias] ?? array();
+		$current['validator'] = \Ran\PluginLib\Forms\Components\Fields\Input\Validator::class;
+		$current['sanitizer'] = \Ran\PluginLib\Forms\Components\Fields\Input\Sanitizer::class;
+		$metadata[$alias]     = $current;
+		$property->setValue($manifest, $metadata);
+		$validatorFactoriesProp = $reflection->getProperty('validatorFactoriesCache');
+		$validatorFactoriesProp->setAccessible(true);
+		$validatorFactoriesProp->setValue($manifest, null);
+		$sanitizerFactoriesProp = $reflection->getProperty('sanitizerFactoriesCache');
+		$sanitizerFactoriesProp->setAccessible(true);
+		$sanitizerFactoriesProp->setValue($manifest, null);
 	}
 }

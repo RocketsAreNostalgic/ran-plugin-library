@@ -33,6 +33,9 @@ class ComponentManifest {
 	/** @var ComponentCacheService Shared caching service */
 	private ComponentCacheService $cacheService;
 
+	/** @var array<string,bool> */
+	private array $missingSanitizerWarnings = array();
+
 	/**
 	 * Memoized Assets.php declarations keyed by component alias.
 	 *
@@ -628,10 +631,11 @@ class ComponentManifest {
 	 */
 	public function clear_caches(bool $metadata_only = false): void {
 		// Clear factory caches
-		$this->validatorInstances      = array();
-		$this->sanitizerInstances      = array();
-		$this->validatorFactoriesCache = null;
-		$this->sanitizerFactoriesCache = null;
+		$this->validatorInstances       = array();
+		$this->sanitizerInstances       = array();
+		$this->validatorFactoriesCache  = null;
+		$this->sanitizerFactoriesCache  = null;
+		$this->missingSanitizerWarnings = array();
 
 		if (!$metadata_only) {
 			// Clear component registry and metadata
@@ -841,6 +845,16 @@ class ComponentManifest {
 		$sanitizer = $this->views->resolve_sanitizer_class($alias);
 		if ($sanitizer !== null && is_subclass_of($sanitizer, SanitizerInterface::class)) {
 			$meta['sanitizer'] = $sanitizer;
+		}
+
+		if (!empty($meta['validator']) && empty($meta['sanitizer'])) {
+			if (!isset($this->missingSanitizerWarnings[$alias])) {
+				$this->missingSanitizerWarnings[$alias] = true;
+				$this->logger->warning('ComponentManifest: Component has validator but no sanitizer', array(
+					'alias'     => $alias,
+					'validator' => (string) $meta['validator'],
+				));
+			}
 		}
 
 		$meta['defaults'] = array();

@@ -12,14 +12,14 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\Tests\Unit\Forms\Builders;
 
-use PHPUnit\Framework\TestCase;
-use Ran\PluginLib\Forms\Builders\BuilderContextInterface;
-use Ran\PluginLib\Forms\Builders\SectionBuilder;
-use Ran\PluginLib\Forms\Builders\GroupBuilder;
-use Ran\PluginLib\Forms\Builders\FieldsetBuilder;
-use Ran\PluginLib\Forms\Builders\HrBuilder;
-use Ran\PluginLib\Forms\Builders\GenericElementBuilder;
 use Ran\PluginLib\Forms\FormsInterface;
+use Ran\PluginLib\Forms\Builders\SectionBuilder;
+use Ran\PluginLib\Forms\Builders\HrBuilder;
+use Ran\PluginLib\Forms\Builders\GroupBuilder;
+use Ran\PluginLib\Forms\Builders\GenericElementBuilder;
+use Ran\PluginLib\Forms\Builders\FieldsetBuilder;
+use Ran\PluginLib\Forms\Builders\BuilderContextInterface;
+use PHPUnit\Framework\TestCase;
 
 /**
  * @covers \Ran\PluginLib\Forms\Builders\SectionBuilder
@@ -194,7 +194,7 @@ final class ElementBuilderMethodsTest extends TestCase {
 
 	public function test_element_returns_generic_element_builder(): void {
 		$builder = $this->createSectionBuilder(array(
-			'elements.button' => fn(string $id, string $label): StubComponentBuilder => new StubComponentBuilder($id, $label, 'elements.button'),
+			'elements.button' => fn(string $id, string $label): StubElementComponentBuilder => new StubElementComponentBuilder($id, $label, 'elements.button'),
 		));
 
 		$result = $builder->element('test-button', 'Click Me', 'elements.button');
@@ -204,7 +204,7 @@ final class ElementBuilderMethodsTest extends TestCase {
 
 	public function test_element_emits_field_update_with_component(): void {
 		$builder = $this->createSectionBuilder(array(
-			'elements.button' => fn(string $id, string $label): StubComponentBuilder => new StubComponentBuilder($id, $label, 'elements.button'),
+			'elements.button' => fn(string $id, string $label): StubElementComponentBuilder => new StubElementComponentBuilder($id, $label, 'elements.button'),
 		));
 
 		$builder->element('test-button', 'Click Me', 'elements.button')->end_element();
@@ -219,7 +219,7 @@ final class ElementBuilderMethodsTest extends TestCase {
 
 	public function test_element_style_sets_css_classes(): void {
 		$builder = $this->createSectionBuilder(array(
-			'elements.button' => fn(string $id, string $label): StubComponentBuilder => new StubComponentBuilder($id, $label, 'elements.button'),
+			'elements.button' => fn(string $id, string $label): StubElementComponentBuilder => new StubElementComponentBuilder($id, $label, 'elements.button'),
 		));
 
 		$builder->element('test-button', 'Click Me', 'elements.button')
@@ -234,7 +234,7 @@ final class ElementBuilderMethodsTest extends TestCase {
 
 	public function test_element_description_delegates_to_builder(): void {
 		$builder = $this->createSectionBuilder(array(
-			'elements.button' => fn(string $id, string $label): StubComponentBuilder => new StubComponentBuilder($id, $label, 'elements.button'),
+			'elements.button' => fn(string $id, string $label): StubElementComponentBuilder => new StubElementComponentBuilder($id, $label, 'elements.button'),
 		));
 
 		$builder->element('test-button', 'Click Me', 'elements.button')
@@ -249,7 +249,7 @@ final class ElementBuilderMethodsTest extends TestCase {
 
 	public function test_element_before_callback_is_stored(): void {
 		$builder = $this->createSectionBuilder(array(
-			'elements.button' => fn(string $id, string $label): StubComponentBuilder => new StubComponentBuilder($id, $label, 'elements.button'),
+			'elements.button' => fn(string $id, string $label): StubElementComponentBuilder => new StubElementComponentBuilder($id, $label, 'elements.button'),
 		));
 		$callback = fn(array $ctx): string => '<p>Before element</p>';
 
@@ -265,7 +265,7 @@ final class ElementBuilderMethodsTest extends TestCase {
 
 	public function test_element_after_callback_is_stored(): void {
 		$builder = $this->createSectionBuilder(array(
-			'elements.button' => fn(string $id, string $label): StubComponentBuilder => new StubComponentBuilder($id, $label, 'elements.button'),
+			'elements.button' => fn(string $id, string $label): StubElementComponentBuilder => new StubElementComponentBuilder($id, $label, 'elements.button'),
 		));
 		$callback = fn(array $ctx): string => '<p>After element</p>';
 
@@ -281,7 +281,7 @@ final class ElementBuilderMethodsTest extends TestCase {
 
 	public function test_element_end_element_returns_parent_builder(): void {
 		$builder = $this->createSectionBuilder(array(
-			'elements.button' => fn(string $id, string $label): StubComponentBuilder => new StubComponentBuilder($id, $label, 'elements.button'),
+			'elements.button' => fn(string $id, string $label): StubElementComponentBuilder => new StubElementComponentBuilder($id, $label, 'elements.button'),
 		));
 
 		$result = $builder->element('test-button', 'Click Me', 'elements.button')->end_element();
@@ -300,7 +300,7 @@ final class ElementBuilderMethodsTest extends TestCase {
 
 	public function test_element_in_group_emits_group_field_update(): void {
 		$builder = $this->createSectionBuilder(array(
-			'elements.button' => fn(string $id, string $label): StubComponentBuilder => new StubComponentBuilder($id, $label, 'elements.button'),
+			'elements.button' => fn(string $id, string $label): StubElementComponentBuilder => new StubElementComponentBuilder($id, $label, 'elements.button'),
 		));
 
 		$group = $builder->group('test-group', 'Test Group');
@@ -316,7 +316,7 @@ final class ElementBuilderMethodsTest extends TestCase {
 
 	public function test_element_in_fieldset_emits_group_field_update(): void {
 		$builder = $this->createSectionBuilder(array(
-			'elements.button' => fn(string $id, string $label): StubComponentBuilder => new StubComponentBuilder($id, $label, 'elements.button'),
+			'elements.button' => fn(string $id, string $label): StubElementComponentBuilder => new StubElementComponentBuilder($id, $label, 'elements.button'),
 		));
 
 		$fieldset = $builder->fieldset('test-fieldset', 'Test Fieldset');
@@ -332,7 +332,7 @@ final class ElementBuilderMethodsTest extends TestCase {
 
 	public function test_element_delegates_unknown_methods_to_builder(): void {
 		$builder = $this->createSectionBuilder(array(
-			'elements.button' => fn(string $id, string $label): StubComponentBuilder => new StubComponentBuilder($id, $label, 'elements.button'),
+			'elements.button' => fn(string $id, string $label): StubElementComponentBuilder => new StubElementComponentBuilder($id, $label, 'elements.button'),
 		));
 
 		// StubComponentBuilder has a customOption() method
@@ -346,7 +346,7 @@ final class ElementBuilderMethodsTest extends TestCase {
 
 	public function test_element_throws_for_unknown_method_not_on_builder(): void {
 		$builder = $this->createSectionBuilder(array(
-			'elements.button' => fn(string $id, string $label): StubComponentBuilder => new StubComponentBuilder($id, $label, 'elements.button'),
+			'elements.button' => fn(string $id, string $label): StubElementComponentBuilder => new StubElementComponentBuilder($id, $label, 'elements.button'),
 		));
 
 		$this->expectException(\BadMethodCallException::class);

@@ -299,30 +299,8 @@ final class FormsSchemaServiceTest extends TestCase {
 			->willReturn(array('elements.button' => array()));
 		$components->method('validator_factories')->willReturn(array());
 
-		$session = $this->createMock(FormsServiceSession::class);
-		$session->expects(self::once())
-			->method('merge_schema_with_defaults')
-			->with(
-				'elements.button',
-				self::callback(static function (array $incoming): bool {
-					$sanitizeSchema = $incoming['sanitize']['schema'] ?? null;
-					$validateSchema = $incoming['validate']['schema'] ?? null;
-					return $sanitizeSchema === array() && $validateSchema === array();
-				}),
-				array('elements.button' => array())
-			)
-			->willReturn(array(
-				'sanitize' => array('component' => array(), 'schema' => array()),
-				'validate' => array('component' => array(), 'schema' => array()),
-			));
-
+		$session           = $this->createMock(FormsServiceSession::class);
 		$validator_service = $this->createMock(FormsValidatorServiceInterface::class);
-		$validator_service->expects(self::once())
-			->method('consume_component_validator_queue')
-			->willReturn(array(array('normalized' => array('sanitize' => array('component' => array(), 'schema' => array()), 'validate' => array('component' => array(), 'schema' => array()))), array()));
-		$validator_service->expects(self::once())
-			->method('consume_component_sanitizer_queue')
-			->willReturn(array(array('normalized' => array('sanitize' => array('component' => array(), 'schema' => array()), 'validate' => array('component' => array(), 'schema' => array()))), array()));
 
 		$get_registered_field_metadata = static fn (): array => array(
 			array(
@@ -351,12 +329,8 @@ final class FormsSchemaServiceTest extends TestCase {
 			$get_registered_field_metadata
 		);
 
+		$this->expectException(\UnexpectedValueException::class);
+		$this->expectExceptionMessage('FormsSchemaService: Field "field_id" uses component "elements.button" but the component has no validator.');
 		$svc->assemble_initial_bucketed_schema($session);
-
-		$warnings = $logger->find_logs(static function (array $entry): bool {
-			return ($entry['level'] ?? '') === 'warning'
-				&& ($entry['message'] ?? '')  === 'developer provided schema attempts to apply sanitizer/validator to non submiting element, which is not allowed, skipping';
-		});
-		self::assertCount(0, $warnings);
 	}
 }

@@ -1205,8 +1205,9 @@ abstract class FormsCore implements FormsInterface {
 		}
 
 		// Validate field data
-		$field_id  = $field_data['id'] ?? '';
-		$component = isset($field_data['component']) && is_string($field_data['component']) ? trim($field_data['component']) : '';
+		$field_id   = $field_data['id'] ?? '';
+		$component  = isset($field_data['component']) && is_string($field_data['component']) ? trim($field_data['component']) : '';
+		$is_element = (bool) ($field_data['is_element'] ?? false);
 
 		if ($field_id === '' || $component === '') {
 			throw new \InvalidArgumentException(sprintf('Field "%s" in container "%s" requires id and component metadata.', $field_id !== '' ? $field_id : 'unknown', $container_id));
@@ -1224,6 +1225,7 @@ abstract class FormsCore implements FormsInterface {
 			'id'                => $field_id,
 			'label'             => (string) ($field_data['label'] ?? ''),
 			'component'         => $component,
+			'is_element'        => $is_element,
 			'component_context' => $context,
 			'order'             => $orderValue,
 			'index'             => null,
@@ -1251,7 +1253,8 @@ abstract class FormsCore implements FormsInterface {
 		if (!$updated) {
 			// Inject component validators and sanitizers automatically for new fields only
 			// Skip for _raw_html and _hr which are just escape hatches for arbitrary markup
-			if ($component !== '_raw_html' && $component !== '_hr') {
+			// Skip for is_element entries which do not submit data
+			if (!$is_element && $component !== '_raw_html' && $component !== '_hr') {
 				$this->_inject_component_validators($field_id, $component, $context);
 				$this->_inject_component_sanitizers($field_id, $component, $context);
 			}
@@ -1361,8 +1364,9 @@ abstract class FormsCore implements FormsInterface {
 		}
 
 		// Validate field data
-		$field_id  = $field_data['id'] ?? '';
-		$component = isset($field_data['component']) && is_string($field_data['component']) ? trim($field_data['component']) : '';
+		$field_id   = $field_data['id'] ?? '';
+		$component  = isset($field_data['component']) && is_string($field_data['component']) ? trim($field_data['component']) : '';
+		$is_element = (bool) ($field_data['is_element'] ?? false);
 
 		if ($field_id === '' || $component === '') {
 			throw new \InvalidArgumentException(sprintf('Group field "%s" in group "%s" requires id and component metadata.', $field_id !== '' ? $field_id : 'unknown', $group_id));
@@ -1405,6 +1409,7 @@ abstract class FormsCore implements FormsInterface {
 				'id'                => $field_id,
 				'label'             => (string) ($field_data['label'] ?? ''),
 				'component'         => $component,
+				'is_element'        => $is_element,
 				'component_context' => $context,
 				'order'             => $orderProvided ? $orderValue : (int) ($existing_field['order'] ?? 0),
 				'index'             => $existing_field['index'] ?? $existing_field['order'] ?? $idx,
@@ -1418,7 +1423,8 @@ abstract class FormsCore implements FormsInterface {
 		if (!$updated) {
 			// Inject component validators automatically for new group fields only
 			// Skip for _raw_html and _hr which are just escape hatches for arbitrary markup
-			if ($component !== '_raw_html' && $component !== '_hr') {
+			// Skip for is_element entries which do not submit data
+			if (!$is_element && $component !== '_raw_html' && $component !== '_hr') {
 				$this->_inject_component_validators($field_id, $component);
 			}
 
@@ -1426,6 +1432,7 @@ abstract class FormsCore implements FormsInterface {
 				'id'                => $field_id,
 				'label'             => (string) ($field_data['label'] ?? ''),
 				'component'         => $component,
+				'is_element'        => $is_element,
 				'component_context' => $context,
 				'order'             => $orderValue,
 				'index'             => $this->__field_index++,

@@ -145,10 +145,19 @@ final class AdminSettingsRenderSmokeTest extends PluginLibTestCase {
 		if (!is_array($metadata)) {
 			$metadata = array();
 		}
-		$current            = $metadata[$alias] ?? array();
-		$current['builder'] = static fn (string $id, string $label): InputBuilder => new InputBuilder($id, $label);
-		$metadata[$alias]   = $current;
+		$current              = $metadata[$alias] ?? array();
+		$current['builder']   = static fn (string $id, string $label): InputBuilder => new InputBuilder($id, $label);
+		$current['validator'] = \Ran\PluginLib\Forms\Components\Fields\Input\Validator::class;
+		$current['sanitizer'] = \Ran\PluginLib\Forms\Components\Fields\Input\Sanitizer::class;
+		$metadata[$alias]     = $current;
 		$property->setValue($this->manifest, $metadata);
+
+		$validatorFactoriesProp = $reflection->getProperty('validatorFactoriesCache');
+		$validatorFactoriesProp->setAccessible(true);
+		$validatorFactoriesProp->setValue($this->manifest, null);
+		$sanitizerFactoriesProp = $reflection->getProperty('sanitizerFactoriesCache');
+		$sanitizerFactoriesProp->setAccessible(true);
+		$sanitizerFactoriesProp->setValue($this->manifest, null);
 	}
 
 	/**
@@ -487,11 +496,20 @@ final class Builder extends ComponentBuilderInputBase {
 		return '<?php
 namespace ' . $namespace . '\\' . $componentName . ';
 
-class Validator {
+use Ran\\PluginLib\\Forms\\Component\\Validate\\ValidatorInterface;
+use Psr\\Log\\LoggerInterface;
+
+class Validator implements ValidatorInterface {
+    public function __construct(?LoggerInterface $logger = null) {}
+
     public static function schema(): array {
         return array(
             "value" => array("type" => "string", "default" => ""),
         );
+    }
+
+    public function validate(mixed $value, array $context, callable $emitWarning): bool {
+        return true;
     }
 }
 ';
@@ -548,6 +566,8 @@ class Normalizer {
 		file_put_contents($externalDir . '/ViewOnly/View.php', $this->createViewPhp('view-only'));
 		file_put_contents($externalDir . '/ViewOnly/Builder.php', $this->createBuilderPhp('TestPlugin\\Components', 'ViewOnly'));
 		require_once $externalDir . '/ViewOnly/Builder.php';
+		file_put_contents($externalDir . '/ViewOnly/Validator.php', $this->createValidatorPhp('TestPlugin\\Components', 'ViewOnly'));
+		require_once $externalDir . '/ViewOnly/Validator.php';
 
 		try {
 			$this->optionValues['matrix_1'] = array('field_1' => 'value_from_db');
@@ -592,6 +612,7 @@ class Normalizer {
 		file_put_contents($externalDir . '/WithValidator/Builder.php', $this->createBuilderPhp('TestPlugin\\Components', 'WithValidator'));
 		require_once $externalDir . '/WithValidator/Builder.php';
 		file_put_contents($externalDir . '/WithValidator/Validator.php', $this->createValidatorPhp('TestPlugin\\Components', 'WithValidator'));
+		require_once $externalDir . '/WithValidator/Validator.php';
 
 		try {
 			$this->optionValues['matrix_2'] = array('field_2' => 'validated_value');
@@ -635,6 +656,8 @@ class Normalizer {
 		file_put_contents($externalDir . '/WithNormalizer/Builder.php', $this->createBuilderPhp('TestPlugin\\Components', 'WithNormalizer'));
 		require_once $externalDir . '/WithNormalizer/Builder.php';
 		file_put_contents($externalDir . '/WithNormalizer/Normalizer.php', $this->createNormalizerPhp('TestPlugin\\Components', 'WithNormalizer'));
+		file_put_contents($externalDir . '/WithNormalizer/Validator.php', $this->createValidatorPhp('TestPlugin\\Components', 'WithNormalizer'));
+		require_once $externalDir . '/WithNormalizer/Validator.php';
 
 		try {
 			$this->optionValues['matrix_3'] = array('field_3' => 'normalized_value');
@@ -678,6 +701,7 @@ class Normalizer {
 		file_put_contents($externalDir . '/FullStack/Builder.php', $this->createBuilderPhp('TestPlugin\\Components', 'FullStack'));
 		require_once $externalDir . '/FullStack/Builder.php';
 		file_put_contents($externalDir . '/FullStack/Validator.php', $this->createValidatorPhp('TestPlugin\\Components', 'FullStack'));
+		require_once $externalDir . '/FullStack/Validator.php';
 		file_put_contents($externalDir . '/FullStack/Normalizer.php', $this->createNormalizerPhp('TestPlugin\\Components', 'FullStack'));
 
 		try {
@@ -721,6 +745,8 @@ class Normalizer {
 		file_put_contents($externalDir . '/WithDevSchema/View.php', $this->createViewPhp('view-dev-schema'));
 		file_put_contents($externalDir . '/WithDevSchema/Builder.php', $this->createBuilderPhp('TestPlugin\\Components', 'WithDevSchema'));
 		require_once $externalDir . '/WithDevSchema/Builder.php';
+		file_put_contents($externalDir . '/WithDevSchema/Validator.php', $this->createValidatorPhp('TestPlugin\\Components', 'WithDevSchema'));
+		require_once $externalDir . '/WithDevSchema/Validator.php';
 
 		try {
 			$this->optionValues['matrix_5'] = array('field_5' => 'schema_value');
@@ -769,6 +795,7 @@ class Normalizer {
 		file_put_contents($externalDir . '/ValidatorDevSchema/Builder.php', $this->createBuilderPhp('TestPlugin\\Components', 'ValidatorDevSchema'));
 		require_once $externalDir . '/ValidatorDevSchema/Builder.php';
 		file_put_contents($externalDir . '/ValidatorDevSchema/Validator.php', $this->createValidatorPhp('TestPlugin\\Components', 'ValidatorDevSchema'));
+		require_once $externalDir . '/ValidatorDevSchema/Validator.php';
 
 		try {
 			$this->optionValues['matrix_6'] = array('field_6' => 'combined_value');
@@ -817,6 +844,8 @@ class Normalizer {
 		file_put_contents($externalDir . '/NormalizerDevSchema/Builder.php', $this->createBuilderPhp('TestPlugin\\Components', 'NormalizerDevSchema'));
 		require_once $externalDir . '/NormalizerDevSchema/Builder.php';
 		file_put_contents($externalDir . '/NormalizerDevSchema/Normalizer.php', $this->createNormalizerPhp('TestPlugin\\Components', 'NormalizerDevSchema'));
+		file_put_contents($externalDir . '/NormalizerDevSchema/Validator.php', $this->createValidatorPhp('TestPlugin\\Components', 'NormalizerDevSchema'));
+		require_once $externalDir . '/NormalizerDevSchema/Validator.php';
 
 		try {
 			$this->optionValues['matrix_7'] = array('field_7' => 'normalized_schema_value');
@@ -865,6 +894,7 @@ class Normalizer {
 		file_put_contents($externalDir . '/FullStackSchema/Builder.php', $this->createBuilderPhp('TestPlugin\\Components', 'FullStackSchema'));
 		require_once $externalDir . '/FullStackSchema/Builder.php';
 		file_put_contents($externalDir . '/FullStackSchema/Validator.php', $this->createValidatorPhp('TestPlugin\\Components', 'FullStackSchema'));
+		require_once $externalDir . '/FullStackSchema/Validator.php';
 		file_put_contents($externalDir . '/FullStackSchema/Normalizer.php', $this->createNormalizerPhp('TestPlugin\\Components', 'FullStackSchema'));
 
 		try {
@@ -915,6 +945,8 @@ class Normalizer {
 		file_put_contents($externalDir . '/ComponentA/View.php', $this->createViewPhp('batch-a'));
 		file_put_contents($externalDir . '/ComponentA/Builder.php', $this->createBuilderPhp('BatchPlugin', 'ComponentA'));
 		require_once $externalDir . '/ComponentA/Builder.php';
+		file_put_contents($externalDir . '/ComponentA/Validator.php', $this->createValidatorPhp('BatchPlugin', 'ComponentA'));
+		require_once $externalDir . '/ComponentA/Validator.php';
 
 		// Component B: View + Validator
 		mkdir($externalDir . '/ComponentB', 0777, true);
@@ -922,6 +954,7 @@ class Normalizer {
 		file_put_contents($externalDir . '/ComponentB/Builder.php', $this->createBuilderPhp('BatchPlugin', 'ComponentB'));
 		require_once $externalDir . '/ComponentB/Builder.php';
 		file_put_contents($externalDir . '/ComponentB/Validator.php', $this->createValidatorPhp('BatchPlugin', 'ComponentB'));
+		require_once $externalDir . '/ComponentB/Validator.php';
 
 		// Component C: View + Normalizer
 		mkdir($externalDir . '/ComponentC', 0777, true);
@@ -929,6 +962,8 @@ class Normalizer {
 		file_put_contents($externalDir . '/ComponentC/Builder.php', $this->createBuilderPhp('BatchPlugin', 'ComponentC'));
 		require_once $externalDir . '/ComponentC/Builder.php';
 		file_put_contents($externalDir . '/ComponentC/Normalizer.php', $this->createNormalizerPhp('BatchPlugin', 'ComponentC'));
+		file_put_contents($externalDir . '/ComponentC/Validator.php', $this->createValidatorPhp('BatchPlugin', 'ComponentC'));
+		require_once $externalDir . '/ComponentC/Validator.php';
 
 		try {
 			$this->optionValues['batch_mixed'] = array(
@@ -1003,6 +1038,8 @@ class Normalizer {
 		file_put_contents($externalDir . '/StoredTest/View.php', $this->createViewPhp('stored-test'));
 		file_put_contents($externalDir . '/StoredTest/Builder.php', $this->createBuilderPhp('TestPlugin\\Components', 'StoredTest'));
 		require_once $externalDir . '/StoredTest/Builder.php';
+		file_put_contents($externalDir . '/StoredTest/Validator.php', $this->createValidatorPhp('TestPlugin\\Components', 'StoredTest'));
+		require_once $externalDir . '/StoredTest/Validator.php';
 
 		try {
 			$this->optionValues['stored_test'] = array('test_field' => 'my_stored_value');
@@ -1046,6 +1083,8 @@ class Normalizer {
 		file_put_contents($externalDir . '/SchemaTest/View.php', $this->createViewPhp('schema-test'));
 		file_put_contents($externalDir . '/SchemaTest/Builder.php', $this->createBuilderPhp('TestPlugin\\Components', 'SchemaTest'));
 		require_once $externalDir . '/SchemaTest/Builder.php';
+		file_put_contents($externalDir . '/SchemaTest/Validator.php', $this->createValidatorPhp('TestPlugin\\Components', 'SchemaTest'));
+		require_once $externalDir . '/SchemaTest/Validator.php';
 
 		try {
 			$this->optionValues['schema_test'] = array('test_field' => 'test_value');
@@ -1092,6 +1131,8 @@ class Normalizer {
 		file_put_contents($externalDir . '/MultiField/View.php', $this->createViewPhp('multi-field'));
 		file_put_contents($externalDir . '/MultiField/Builder.php', $this->createBuilderPhp('TestPlugin\\Components', 'MultiField'));
 		require_once $externalDir . '/MultiField/Builder.php';
+		file_put_contents($externalDir . '/MultiField/Validator.php', $this->createValidatorPhp('TestPlugin\\Components', 'MultiField'));
+		require_once $externalDir . '/MultiField/Validator.php';
 
 		try {
 			$this->optionValues['multi_field'] = array(
@@ -1137,6 +1178,8 @@ class Normalizer {
 		file_put_contents($externalDir . '/ComplexSchema/View.php', $this->createViewPhp('complex-schema'));
 		file_put_contents($externalDir . '/ComplexSchema/Builder.php', $this->createBuilderPhp('TestPlugin\\Components', 'ComplexSchema'));
 		require_once $externalDir . '/ComplexSchema/Builder.php';
+		file_put_contents($externalDir . '/ComplexSchema/Validator.php', $this->createValidatorPhp('TestPlugin\\Components', 'ComplexSchema'));
+		require_once $externalDir . '/ComplexSchema/Validator.php';
 
 		try {
 			$this->optionValues['complex_schema'] = array('complex_field' => 'complex_value');
