@@ -134,6 +134,7 @@ class UserSettings extends FormsCore {
 			'root-wrapper'           => 'user.root-wrapper',
 			'section-wrapper'        => 'user.section-wrapper',
 			'group-wrapper'          => 'user.group-wrapper',
+			'fieldset-wrapper'       => 'user.fieldset-wrapper',
 			'field-wrapper'          => 'user.field-wrapper',
 			'fieldset-field-wrapper' => 'user.field-wrapper',
 		));

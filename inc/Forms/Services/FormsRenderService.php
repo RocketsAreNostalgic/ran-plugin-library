@@ -247,8 +247,11 @@ class FormsRenderService implements FormsRenderServiceInterface {
 		);
 
 		try {
+			$element_type = ($group['type'] ?? 'group') === 'fieldset' ? 'fieldset-wrapper' : 'group-wrapper';
 			$session = $this->_ensure_session();
-			$result  = $session->render_component('group-wrapper', $group_context);
+			$result  = $session->render_element($element_type, $group_context, array(
+				'group_id' => (string) $group_id,
+			));
 			if ($result !== '') {
 				return $result;
 			}

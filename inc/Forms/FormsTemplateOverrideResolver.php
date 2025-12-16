@@ -34,6 +34,7 @@ class FormsTemplateOverrideResolver {
 		'section'                 => 'layout.zone.section-wrapper',
 		'group-wrapper'           => 'layout.zone.group-wrapper',
 		'group'                   => 'layout.zone.group-wrapper',
+		'fieldset-wrapper'        => 'layout.field.fieldset-wrapper',
 		'field-wrapper'           => 'layout.field.field-wrapper',
 		'field'                   => 'layout.field.field-wrapper',
 		'fieldset-field-wrapper'  => 'layout.field.field-wrapper', // Fields inside fieldsets use div-based wrapper
