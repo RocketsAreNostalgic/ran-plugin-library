@@ -165,6 +165,8 @@ class Logger implements LoggerInterface {
 	 */
 	private $error_log_handler = null;
 
+	private static ?string $request_id = null;
+
 	/**
 	 * Logger constructor.
 	 *
@@ -320,6 +322,62 @@ class Logger implements LoggerInterface {
 		return $this->effective_log_level_severity;
 	}
 
+	private function _is_request_id_enabled(): bool {
+		$param = '';
+		if (!empty($this->debug_request_param)) {
+			$param = $this->debug_request_param . '_request_id';
+		}
+		if ($param !== '' && array_key_exists($param, $_GET)) {
+			$raw = $_GET[$param];
+			if ('' === $raw) {
+				return true;
+			}
+			$bool = filter_var($raw, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+			return true === $bool;
+		}
+
+		$const = '';
+		if (!empty($this->custom_debug_constant_name)) {
+			$const = $this->custom_debug_constant_name . '_REQUEST_ID';
+		}
+		if ($const !== '' && defined($const)) {
+			$raw = constant($const);
+			if ('' === $raw) {
+				return true;
+			}
+			$bool = filter_var($raw, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+			return true === $bool;
+		}
+
+		return false;
+	}
+
+	protected function get_request_id(): string {
+		if (null !== self::$request_id) {
+			return self::$request_id;
+		}
+
+		try {
+			if (function_exists('random_bytes')) {
+				self::$request_id = bin2hex(random_bytes(8));
+				return self::$request_id;
+			}
+		} catch (\Throwable $e) {
+			self::$request_id = null;
+		}
+
+		self::$request_id = str_replace('.', '', uniqid('req', true));
+		return self::$request_id;
+	}
+
+	protected function enrich_context(array $context): array {
+		if (!array_key_exists('request_id', $context)) {
+			$context['request_id'] = $this->get_request_id();
+		}
+
+		return $context;
+	}
+
 	/**
 	 * System is unusable.
 	 *
@@ -436,6 +494,8 @@ class Logger implements LoggerInterface {
 		if ( $current_level_severity < $this->effective_log_level_severity ) {
 			return;
 		}
+
+		$context = $this->enrich_context($context);
 
 		$formatted_message = sprintf(
 			'[%s] %s',

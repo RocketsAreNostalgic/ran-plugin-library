@@ -21,6 +21,22 @@ class LoggerTest extends PluginLibTestCase {
 	);
 
 	/**
+	 * @return array{0: string, 1: array<string,mixed>|null}
+	 */
+	private function split_logged_message(string $logged_message): array {
+		$parts   = explode(' Context: ', $logged_message, 2);
+		$message = $parts[0];
+		$context = null;
+		if (isset($parts[1])) {
+			$decoded = json_decode($parts[1], true);
+			$this->assertIsArray($decoded);
+			$context = $decoded;
+		}
+
+		return array($message, $context);
+	}
+
+	/**
 	 * Stores messages captured by the mock error log handler.
 	 *
 	 * @var array<string>
@@ -281,7 +297,11 @@ class LoggerTest extends PluginLibTestCase {
 		$logger->debug($test_message);
 
 		$this->assertCount(1, $this->logged_messages, 'Expected one message to be logged.');
-		$this->assertSame($expected_log_message, $this->logged_messages[0], 'Logged message content does not match.');
+		list($message, $context) = $this->split_logged_message($this->logged_messages[0]);
+		$this->assertSame($expected_log_message, $message, 'Logged message content does not match.');
+		$this->assertIsArray($context);
+		$this->assertArrayHasKey('request_id', $context);
+		$this->assertIsString($context['request_id']);
 	}
 
 	/**
@@ -303,7 +323,11 @@ class LoggerTest extends PluginLibTestCase {
 		$logger->info($test_message);
 
 		$this->assertCount(1, $this->logged_messages, 'Expected one message to be logged.');
-		$this->assertSame($expected_log_message, $this->logged_messages[0], 'Logged message content does not match.');
+		list($message, $context) = $this->split_logged_message($this->logged_messages[0]);
+		$this->assertSame($expected_log_message, $message, 'Logged message content does not match.');
+		$this->assertIsArray($context);
+		$this->assertArrayHasKey('request_id', $context);
+		$this->assertIsString($context['request_id']);
 	}
 
 	/**
@@ -325,7 +349,11 @@ class LoggerTest extends PluginLibTestCase {
 		$logger->notice($test_message);
 
 		$this->assertCount(1, $this->logged_messages, 'Expected one message to be logged.');
-		$this->assertSame($expected_log_message, $this->logged_messages[0], 'Logged message content does not match.');
+		list($message, $context) = $this->split_logged_message($this->logged_messages[0]);
+		$this->assertSame($expected_log_message, $message, 'Logged message content does not match.');
+		$this->assertIsArray($context);
+		$this->assertArrayHasKey('request_id', $context);
+		$this->assertIsString($context['request_id']);
 	}
 
 	/**
@@ -347,7 +375,11 @@ class LoggerTest extends PluginLibTestCase {
 		$logger->warning($test_message);
 
 		$this->assertCount(1, $this->logged_messages, 'Expected one message to be logged.');
-		$this->assertSame($expected_log_message, $this->logged_messages[0], 'Logged message content does not match.');
+		list($message, $context) = $this->split_logged_message($this->logged_messages[0]);
+		$this->assertSame($expected_log_message, $message, 'Logged message content does not match.');
+		$this->assertIsArray($context);
+		$this->assertArrayHasKey('request_id', $context);
+		$this->assertIsString($context['request_id']);
 	}
 
 	/**
@@ -369,7 +401,11 @@ class LoggerTest extends PluginLibTestCase {
 		$logger->error($test_message);
 
 		$this->assertCount(1, $this->logged_messages, 'Expected one message to be logged.');
-		$this->assertSame($expected_log_message, $this->logged_messages[0], 'Logged message content does not match.');
+		list($message, $context) = $this->split_logged_message($this->logged_messages[0]);
+		$this->assertSame($expected_log_message, $message, 'Logged message content does not match.');
+		$this->assertIsArray($context);
+		$this->assertArrayHasKey('request_id', $context);
+		$this->assertIsString($context['request_id']);
 	}
 
 	/**
@@ -391,7 +427,11 @@ class LoggerTest extends PluginLibTestCase {
 		$logger->critical($test_message);
 
 		$this->assertCount(1, $this->logged_messages, 'Expected one message to be logged.');
-		$this->assertSame($expected_log_message, $this->logged_messages[0], 'Logged message content does not match.');
+		list($message, $context) = $this->split_logged_message($this->logged_messages[0]);
+		$this->assertSame($expected_log_message, $message, 'Logged message content does not match.');
+		$this->assertIsArray($context);
+		$this->assertArrayHasKey('request_id', $context);
+		$this->assertIsString($context['request_id']);
 	}
 
 	/**
@@ -413,7 +453,11 @@ class LoggerTest extends PluginLibTestCase {
 		$logger->alert($test_message);
 
 		$this->assertCount(1, $this->logged_messages, 'Expected one message to be logged.');
-		$this->assertSame($expected_log_message, $this->logged_messages[0], 'Logged message content does not match.');
+		list($message, $context) = $this->split_logged_message($this->logged_messages[0]);
+		$this->assertSame($expected_log_message, $message, 'Logged message content does not match.');
+		$this->assertIsArray($context);
+		$this->assertArrayHasKey('request_id', $context);
+		$this->assertIsString($context['request_id']);
 	}
 
 	/**
@@ -435,7 +479,11 @@ class LoggerTest extends PluginLibTestCase {
 		$logger->emergency($test_message);
 
 		$this->assertCount(1, $this->logged_messages, 'Expected one message to be logged.');
-		$this->assertSame($expected_log_message, $this->logged_messages[0], 'Logged message content does not match.');
+		list($message, $context) = $this->split_logged_message($this->logged_messages[0]);
+		$this->assertSame($expected_log_message, $message, 'Logged message content does not match.');
+		$this->assertIsArray($context);
+		$this->assertArrayHasKey('request_id', $context);
+		$this->assertIsString($context['request_id']);
 	}
 
 	/**
@@ -497,12 +545,18 @@ class LoggerTest extends PluginLibTestCase {
 		$test_message = 'Debug message with context.';
 		$context      = array('user_id' => 123, 'action' => 'test_action');
 		// wp_json_encode is mocked to use standard json_encode
-		$expected_log_message = '[DEBUG] ' . $test_message . ' Context: ' . json_encode($context);
+		$expected_log_message = '[DEBUG] ' . $test_message;
 
 		$logger->debug($test_message, $context);
 
 		$this->assertCount(1, $this->logged_messages, 'Expected one message to be logged.');
-		$this->assertSame($expected_log_message, $this->logged_messages[0], 'Logged message with context does not match.');
+		list($message, $decoded_context) = $this->split_logged_message($this->logged_messages[0]);
+		$this->assertSame($expected_log_message, $message, 'Logged message with context does not match.');
+		$this->assertIsArray($decoded_context);
+		$this->assertSame(123, $decoded_context['user_id'] ?? null);
+		$this->assertSame('test_action', $decoded_context['action'] ?? null);
+		$this->assertArrayHasKey('request_id', $decoded_context);
+		$this->assertIsString($decoded_context['request_id']);
 	}
 
 	/**

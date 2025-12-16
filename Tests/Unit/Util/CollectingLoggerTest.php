@@ -14,6 +14,15 @@ use Psr\Log\LogLevel;
 class CollectingLoggerTest extends PluginLibTestCase {
 	private CollectingLogger $collecting_logger;
 
+	/**
+	 * @param array<string,mixed> $context
+	 * @return array<string,mixed>
+	 */
+	private function strip_request_id(array $context): array {
+		unset($context['request_id']);
+		return $context;
+	}
+
 	public function setUp(): void {
 		parent::setUp();
 		$this->collecting_logger = new CollectingLogger($this->config_mock->get_plugin_data());
@@ -53,7 +62,10 @@ class CollectingLoggerTest extends PluginLibTestCase {
 		$this->assertCount(1, $logs);
 		$this->assertSame($expected_level, $logs[0]['level']);
 		$this->assertSame($message, $logs[0]['message']);
-		$this->assertSame($context, $logs[0]['context']);
+		$this->assertIsArray($logs[0]['context']);
+		$this->assertArrayHasKey('request_id', $logs[0]['context']);
+		$this->assertIsString($logs[0]['context']['request_id']);
+		$this->assertSame($context, $this->strip_request_id($logs[0]['context']));
 	}
 
 	public function test_log_collects_arbitrary_level_entries(): void {
@@ -65,7 +77,10 @@ class CollectingLoggerTest extends PluginLibTestCase {
 		$this->assertCount(1, $logs);
 		$this->assertSame('custom-level', $logs[0]['level']);
 		$this->assertSame('Custom message', $logs[0]['message']);
-		$this->assertSame($context, $logs[0]['context']);
+		$this->assertIsArray($logs[0]['context']);
+		$this->assertArrayHasKey('request_id', $logs[0]['context']);
+		$this->assertIsString($logs[0]['context']['request_id']);
+		$this->assertSame($context, $this->strip_request_id($logs[0]['context']));
 	}
 
 	public function test_logs_are_preserved_in_call_order(): void {
@@ -77,11 +92,17 @@ class CollectingLoggerTest extends PluginLibTestCase {
 		$this->assertCount(2, $logs);
 		$this->assertSame('info', $logs[0]['level']);
 		$this->assertSame('First message', $logs[0]['message']);
-		$this->assertSame(array(), $logs[0]['context']);
+		$this->assertIsArray($logs[0]['context']);
+		$this->assertArrayHasKey('request_id', $logs[0]['context']);
+		$this->assertIsString($logs[0]['context']['request_id']);
+		$this->assertSame(array(), $this->strip_request_id($logs[0]['context']));
 
 		$this->assertSame('error', $logs[1]['level']);
 		$this->assertSame('Second message', $logs[1]['message']);
-		$this->assertSame(array(), $logs[1]['context']);
+		$this->assertIsArray($logs[1]['context']);
+		$this->assertArrayHasKey('request_id', $logs[1]['context']);
+		$this->assertIsString($logs[1]['context']['request_id']);
+		$this->assertSame(array(), $this->strip_request_id($logs[1]['context']));
 	}
 
 	public function test_drain_streams_entries_to_writer(): void {
@@ -96,7 +117,10 @@ class CollectingLoggerTest extends PluginLibTestCase {
 		self::assertCount(2, $captured);
 		self::assertSame('info', $captured[0]['level']);
 		self::assertSame('One', $captured[0]['message']);
-		self::assertSame(array('foo' => 'bar'), $captured[0]['context']);
+		self::assertIsArray($captured[0]['context']);
+		self::assertArrayHasKey('request_id', $captured[0]['context']);
+		self::assertIsString($captured[0]['context']['request_id']);
+		self::assertSame(array('foo' => 'bar'), $this->strip_request_id($captured[0]['context']));
 		self::assertSame('warning', $captured[1]['level']);
 	}
 

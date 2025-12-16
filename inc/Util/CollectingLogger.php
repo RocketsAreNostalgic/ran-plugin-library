@@ -75,6 +75,8 @@ class CollectingLogger extends Logger {
 	 * The signature must match the parent method.
 	 */
 	public function log($level, string|\Stringable $message, array $context = array()): void {
+		$context = $this->enrich_context($context);
+
 		$this->collected_logs[] = array(
 			'level'   => (string) $level,
 			'message' => (string) $message,
