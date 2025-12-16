@@ -554,9 +554,15 @@ class UserSettings extends FormsCore {
 		if ($this->_has_validation_failures()) {
 			$this->_log_validation_failure(
 				'UserSettings::_save_settings validation failed; aborting persistence.',
-				array(
-					'user_id'             => $user_id,
-					'validation_messages' => $messages,
+				array_merge(
+					array(
+						'user_id'                  => $user_id,
+						'validation_message_count' => is_array($messages) ? count($messages) : 0,
+						'validation_message_keys'  => is_array($messages) ? array_keys($messages) : array(),
+					),
+					ErrorNoticeRenderer::isVerboseDebug() ? array(
+						'validation_messages' => $messages,
+					) : array()
 				)
 			);
 

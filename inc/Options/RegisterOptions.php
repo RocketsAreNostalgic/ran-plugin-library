@@ -1359,7 +1359,12 @@ class RegisterOptions {
 			$ctx['keys'] = $wc->keys();
 		}
 		if ($wc->options() !== null) {
-			$ctx['options'] = $wc->options();
+			$ctxOptions           = $wc->options();
+			$ctx['options_count'] = is_array($ctxOptions) ? count($ctxOptions) : 0;
+			$ctx['options_keys']  = is_array($ctxOptions) ? array_keys($ctxOptions) : array();
+			if (ErrorNoticeRenderer::isVerboseDebug()) {
+				$ctx['options'] = $ctxOptions;
+			}
 		}
 		if ($wc->merge_from_db()) {
 			$ctx['merge_from_db'] = true;

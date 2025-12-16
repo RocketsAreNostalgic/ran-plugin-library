@@ -298,12 +298,14 @@ class FormsRenderService implements FormsRenderServiceInterface {
 			$result         = (string) $callback($context);
 			$result_length  = strlen($result);
 			$preview_length = 120;
-			$this->logger->debug('FormsCore: Callback executed', array(
-				'context_keys'     => $context_keys,
-				'result_length'    => $result_length,
-				'result_preview'   => $preview_length >= $result_length ? $result : substr($result, 0, $preview_length),
-				'result_truncated' => $result_length > $preview_length,
-			));
+			if (ErrorNoticeRenderer::isVerboseDebug()) {
+				$this->logger->debug('FormsCore: Callback executed', array(
+					'context_keys'     => $context_keys,
+					'result_length'    => $result_length,
+					'result_preview'   => $preview_length >= $result_length ? $result : substr($result, 0, $preview_length),
+					'result_truncated' => $result_length > $preview_length,
+				));
+			}
 			return $result;
 		} catch (\Throwable $e) {
 			$this->logger->error('FormsCore: Callback execution failed', array(

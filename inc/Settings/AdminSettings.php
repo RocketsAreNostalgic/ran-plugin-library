@@ -69,6 +69,8 @@ class AdminSettings extends FormsCore {
 	 */
 	private array $pages = array();
 
+	private bool $booted = false;
+
 	/**
 	 * Default submit zone for admin forms.
 	 */
@@ -266,6 +268,10 @@ class AdminSettings extends FormsCore {
 	public function boot(bool $eager = false): void {
 		// Note: The admin context check now happens in _should_load() before the callback runs.
 		// This boot() method is only called if _should_load() returned true (or eager=true).
+		if ($this->booted) {
+			return;
+		}
+		$this->booted = true;
 
 		$this->logger->debug('admin_settings.boot.entry', array(
 			'main_option'    => $this->main_option,
@@ -583,9 +589,17 @@ class AdminSettings extends FormsCore {
 		if ($this->_has_validation_failures()) {
 			$this->_log_validation_failure(
 				'AdminSettings::_sanitize validation failed; returning previous option payload.',
-				array(
-					'previous_payload'    => $previous,
-					'validation_messages' => $messages,
+				array_merge(
+					array(
+						'previous_payload_count'   => is_array($previous) ? count($previous) : 0,
+						'previous_payload_keys'    => is_array($previous) ? array_keys($previous) : array(),
+						'validation_message_count' => is_array($messages) ? count($messages) : 0,
+						'validation_message_keys'  => is_array($messages) ? array_keys($messages) : array(),
+					),
+					ErrorNoticeRenderer::isVerboseDebug() ? array(
+						'previous_payload'    => $previous,
+						'validation_messages' => $messages,
+					) : array()
 				)
 			);
 
@@ -597,9 +611,18 @@ class AdminSettings extends FormsCore {
 		}
 
 		$result = $tmp->get_options();
-		$this->_log_validation_success('AdminSettings::_sanitize returning sanitized payload.', array(
-			'sanitized_payload' => $result,
-		));
+		$this->_log_validation_success(
+			'AdminSettings::_sanitize returning sanitized payload.',
+			array_merge(
+				array(
+					'sanitized_payload_count' => is_array($result) ? count($result) : 0,
+					'sanitized_payload_keys'  => is_array($result) ? array_keys($result) : array(),
+				),
+				ErrorNoticeRenderer::isVerboseDebug() ? array(
+					'sanitized_payload' => $result,
+				) : array()
+			)
+		);
 
 		// Persist notices even when validation passes (e.g., sanitizer feedback messages)
 		if (!empty($messages)) {
