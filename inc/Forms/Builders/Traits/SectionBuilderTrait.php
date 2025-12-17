@@ -115,13 +115,22 @@ trait SectionBuilderTrait {
 	/**
 	 * Set the section template for section container customization.
 	 *
-	 * @param string $template_key The template key to use for section container.
+	 * @param string|callable $template_key The template key to use for section container.
 	 *
 	 * @return static
 	 *
 	 * @throws \InvalidArgumentException If template key is empty.
 	 */
-	public function template(string $template_key): static {
+	public function template(string|callable $template_key): static {
+		if (is_callable($template_key)) {
+			($this->updateFn)('template_override', array(
+				'element_type' => 'section',
+				'element_id'   => $this->section_id,
+				'overrides'    => array('section-wrapper' => $template_key)
+			));
+			return $this;
+		}
+
 		$template_key = trim($template_key);
 		if ($template_key === '') {
 			throw new \InvalidArgumentException('Template key cannot be empty');
@@ -232,7 +241,7 @@ trait SectionBuilderTrait {
 			$builder,
 			$component,
 			null,
-			$field_template,
+			null,
 			$component_context
 		);
 

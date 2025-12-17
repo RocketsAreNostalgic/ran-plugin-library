@@ -38,7 +38,7 @@ interface GroupBuilderInterface {
 	 *
 	 * @return static
 	 */
-	public function template(string $template_key): static;
+	public function template(string|callable $template_key): static;
 
 	/**
 	 * Configure a style override for the container wrapper.

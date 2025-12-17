@@ -92,7 +92,16 @@ abstract class SectionFieldContainerBuilder {
 		return $this;
 	}
 
-	public function template(string $template_key): static {
+	public function template(string|callable $template_key): static {
+		if (is_callable($template_key)) {
+			($this->updateFn)('template_override', array(
+				'element_type' => 'group',
+				'element_id'   => $this->group_id,
+				'overrides'    => array('group-wrapper' => $template_key)
+			));
+			return $this;
+		}
+
 		$template_key = trim($template_key);
 		if ($template_key === '') {
 			throw new \InvalidArgumentException('Template key cannot be empty');
@@ -172,7 +181,7 @@ abstract class SectionFieldContainerBuilder {
 		$proxy = $this->_create_component_proxy(
 			$builder,
 			$component,
-			$field_template,
+			null,
 			$component_context
 		);
 

@@ -38,7 +38,8 @@ trait FieldProxyTrait {
 	private string $section_id;
 	private string $component_alias;
 	private ?string $group_id;
-	private ?string $field_template;
+	/** @var string|callable|null */
+	private $field_template;
 
 	/** @var array<string,mixed> */
 	private array $pending_context;
@@ -94,11 +95,17 @@ trait FieldProxyTrait {
 	/**
 	 * Set the template override for this field.
 	 *
-	 * @param string $template_key The template key.
+	 * @param string|callable $template_key The template key.
 	 *
 	 * @return static
 	 */
-	public function template(string $template_key): static {
+	public function template(string|callable $template_key): static {
+		if (is_callable($template_key)) {
+			$this->field_template = $template_key;
+			$this->_emit_template_override();
+			return $this;
+		}
+
 		$template = trim($template_key);
 		if ($template !== '') {
 			$this->field_template = $template;

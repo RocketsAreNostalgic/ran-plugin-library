@@ -124,13 +124,22 @@ trait SectionFieldContainerTrait {
 	/**
 	 * Set the template for this container.
 	 *
-	 * @param string $template_key The template key.
+	 * @param string|callable $template_key The template key.
 	 *
 	 * @return static
 	 *
 	 * @throws \InvalidArgumentException If template key is empty.
 	 */
-	public function template(string $template_key): static {
+	public function template(string|callable $template_key): static {
+		if (is_callable($template_key)) {
+			($this->updateFn)('template_override', array(
+				'element_type' => 'group',
+				'element_id'   => $this->group_id,
+				'overrides'    => array('group-wrapper' => $template_key)
+			));
+			return $this;
+		}
+
 		$template_key = trim($template_key);
 		if ($template_key === '') {
 			throw new \InvalidArgumentException('Template key cannot be empty');
@@ -244,7 +253,7 @@ trait SectionFieldContainerTrait {
 		$proxy = $this->_create_field_proxy(
 			$builder,
 			$component,
-			$field_template,
+			null,
 			$component_context
 		);
 

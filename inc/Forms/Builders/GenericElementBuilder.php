@@ -42,7 +42,8 @@ class GenericElementBuilder {
 	private string $section_id;
 	private string $component_alias;
 	private ?string $group_id;
-	private ?string $element_template;
+	/** @var string|callable|null */
+	private $element_template;
 
 	/** @var array<string,mixed> */
 	private array $pending_context;
@@ -98,10 +99,15 @@ class GenericElementBuilder {
 	/**
 	 * Set the template override for this element.
 	 *
-	 * @param string $template_key The template key.
+	 * @param string|callable $template_key The template key.
 	 * @return static
 	 */
-	public function template(string $template_key): static {
+	public function template(string|callable $template_key): static {
+		if (is_callable($template_key)) {
+			$this->element_template = $template_key;
+			return $this;
+		}
+
 		$template = trim($template_key);
 		if ($template !== '') {
 			$this->element_template = $template;
@@ -206,7 +212,7 @@ class GenericElementBuilder {
 			}
 
 			if ($key === 'element_template') {
-				$this->element_template = (string) $value;
+				$this->element_template = $value;
 				continue;
 			}
 

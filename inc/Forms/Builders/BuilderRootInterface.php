@@ -46,12 +46,12 @@ interface BuilderRootInterface {
 	/**
 	 * Set the template for this current container.
 	 *
-	 * @param string $template_key The template key to use for the wrapper.
+	 * @param string|callable|null $template_key The template key to use for the wrapper.
 	 *
 	 * @return static
 	 * @throws \InvalidArgumentException If template key is empty.
 	 */
-	public function template(string $template_key): static;
+	public function template(string|callable|null $template_key): static;
 
 	/**
 	 * Set the order for this container.

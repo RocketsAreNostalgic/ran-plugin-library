@@ -36,7 +36,7 @@ interface FieldsetBuilderInterface {
 	 *
 	 * @return static
 	 */
-	public function template(string $template_key): static;
+	public function template(string|callable $template_key): static;
 
 	/**
 	 * Define the visual style for the fieldset wrapper.

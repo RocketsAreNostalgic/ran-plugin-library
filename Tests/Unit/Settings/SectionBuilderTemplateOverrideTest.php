@@ -200,6 +200,38 @@ class SectionBuilderTemplateOverrideTest extends TestCase {
 		self::assertSame('custom-section-wrapper', $overrides['section-wrapper']);
 	}
 
+	public function test_admin_section_section_template_accepts_callable_override_and_is_invoked_with_context(): void {
+		$admin            = $this->createAdminSettings();
+		$captured_context = null;
+
+		$admin->menu_group('test-menu')
+			->page('test-page')
+				->section('template-section', 'Template Section')
+					->template(static function (array $ctx) use (&$captured_context): string {
+						$captured_context = $ctx;
+						return 'callable-section-wrapper';
+					})
+					->field('test_field', 'Test Field', 'fields.input')
+				->end_field()->end_section()
+			->end_page()
+		->end_menu();
+
+		$overrides = $this->getElementOverrides($admin, 'section', 'template-section');
+		self::assertArrayHasKey('section-wrapper', $overrides);
+		self::assertTrue(is_callable($overrides['section-wrapper'] ?? null));
+
+		$session = $this->getProperty($admin, 'form_session');
+		self::assertNotNull($session);
+		$resolved = $session->resolve_template('section-wrapper', array(
+			'section_id' => 'template-section',
+			'values'     => array('example' => 'value'),
+		));
+		self::assertSame('callable-section-wrapper', $resolved);
+		self::assertIsArray($captured_context);
+		self::assertSame('template-section', $captured_context['section_id'] ?? null);
+		self::assertEquals(array('example' => 'value'), $captured_context['values'] ?? null);
+	}
+
 	/**
 	 * @test
 	 */

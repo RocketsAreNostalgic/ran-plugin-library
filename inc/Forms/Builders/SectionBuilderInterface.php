@@ -40,12 +40,12 @@ interface SectionBuilderInterface {
 	/**
 	 * Set the template for this section container.
 	 *
-	 * @param string $template_key The template key to use for the wrapper.
+	 * @param string|callable $template_key The template key to use for the wrapper.
 	 *
 	 * @return static
 	 * @throws \InvalidArgumentException If template key is empty.
 	 */
-	public function template(string $template_key): static;
+	public function template(string|callable $template_key): static;
 
 	/**
 	 * Set the order for this section.
@@ -124,11 +124,11 @@ interface SectionBuilderInterface {
 	/**
 	 * Set the default template for all fields in this section.
 	 *
-	 * @param string $template_key The template key to use for field wrappers.
+	 * @param string|callable $template_key The template key to use for field wrappers.
 	 *
 	 * @return static
 	 */
-	public function field_templates(string $template_key): static;
+	public function field_templates(string|callable $template_key): static;
 
 	/**
 	 * Define a new fieldset group within this section.
@@ -145,11 +145,11 @@ interface SectionBuilderInterface {
 	/**
 	 * Set the default template for all fieldsets in this section.
 	 *
-	 * @param string $template_key The template key to use for fieldset containers.
+	 * @param string|callable $template_key The template key to use for fieldset containers.
 	 *
 	 * @return static
 	 */
-	public function fieldset_templates(string $template_key): static;
+	public function fieldset_templates(string|callable $template_key): static;
 
 	/**
 	 * Define a new field group within this section.
@@ -166,11 +166,11 @@ interface SectionBuilderInterface {
 	/**
 	 * Set the default template for all groups in this section.
 	 *
-	 * @param string $template_key The template key to use for group containers.
+	 * @param string|callable $template_key The template key to use for group containers.
 	 *
 	 * @return static
 	 */
-	public function group_templates(string $template_key): static;
+	public function group_templates(string|callable $template_key): static;
 
 	/**
 	 * end_section() method returns the original Settings instance.
