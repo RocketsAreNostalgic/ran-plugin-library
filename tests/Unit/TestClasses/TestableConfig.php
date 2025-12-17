@@ -12,6 +12,7 @@ namespace Ran\PluginLib\Tests\Unit\TestClasses;
 use Ran\PluginLib\Config\ConfigAbstract;
 use Ran\PluginLib\Options\RegisterOptions;
 use Ran\PluginLib\Options\Storage\StorageContext;
+use Ran\PluginLib\Util\CollectingLogger;
 
 /**
 	* TestableConfig class for testing ConfigAbstract methods.
@@ -95,6 +96,8 @@ class TestableConfig extends ConfigAbstract {
 				return '/path/to/plugins/test-plugin/';
 			});
 		}
+
+		$this->set_logger(new CollectingLogger($this->mock_plugin_data));
 	}
 
 	/**

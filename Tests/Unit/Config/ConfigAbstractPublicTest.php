@@ -96,7 +96,7 @@ final class ConfigAbstractPublicTest extends PluginLibTestCase {
 		$logger = $inst->get_logger();
 		$this->assertInstanceOf(\Ran\PluginLib\Util\Logger::class, $logger);
 		$this->assertNotInstanceOf(\Ran\PluginLib\Util\CollectingLogger::class, $logger);
-		$this->assertTrue($logger->is_active());
+		$this->assertFalse($logger->is_active());
 	}
 
 	/**

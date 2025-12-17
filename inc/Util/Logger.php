@@ -213,40 +213,22 @@ class Logger implements LoggerInterface {
 		$this->is_active                    = false;
 		$this->effective_log_level_severity = self::LOG_LEVELS_MAP[LogLevel::EMERGENCY] + 100; // Default to higher than any level.
 
-		$sources_values = array();
-		// phpcs:disable Squiz.Commenting.InlineComment.InvalidEndChar -- Reading a debug param, not processing form data.
-		// phpcs:disable WordPress.Security.NonceVerification.Recommended -- Reading a debug param, not processing form data.
-		// phpcs:disable WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- Input is checked against known values or used as a boolean flag.
-		if (!empty($this->debug_request_param) && array_key_exists($this->debug_request_param, $_GET)) {
-			$sources_values['url'] = \wp_unslash($_GET[$this->debug_request_param]);
-		}
-		// phpcs:enable WordPress.Security.NonceVerification.Recommended
-		// phpcs:enable WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
-		// phpcs:enable Squiz.Commenting.InlineComment.InvalidEndChar
-
-		if (!empty($this->custom_debug_constant_name) && defined($this->custom_debug_constant_name)) {
-			$sources_values['constant'] = constant($this->custom_debug_constant_name);
+		$debug_enabled = false;
+		if (defined('WP_DEBUG') && (bool) constant('WP_DEBUG')) {
+			$debug_enabled = true;
+		} elseif (defined('WP_DEBUG_LOG') && (bool) constant('WP_DEBUG_LOG')) {
+			$debug_enabled = true;
 		}
 
-		$determined_level_text = null;
+		$can_manage_options = false;
+		if (\function_exists('current_user_can')) {
+			// phpcs:ignore WordPress.WP.Capabilities.Unknown -- Explicit security gate for debug logging.
+			$can_manage_options = (bool) \call_user_func('current_user_can', 'manage_options');
+		}
 
-		foreach (array('url', 'constant') as $source_type) {
-			if (!isset($sources_values[$source_type])) {
-				continue; // Skip if this source is not set.
-			}
-
-			$raw_value    = $sources_values[$source_type];
-			$parsed_level = $this->_parse_log_level_value($raw_value);
-
-			if (null !== $parsed_level) {
-				$determined_level_text = $parsed_level;
-				break;
-			}
-		} // end foreach source_type
-
-		if (null !== $determined_level_text && isset(self::LOG_LEVELS_MAP[$determined_level_text])) {
+		if ($debug_enabled && $can_manage_options) {
 			$this->is_active                    = true;
-			$this->effective_log_level_severity = self::LOG_LEVELS_MAP[$determined_level_text];
+			$this->effective_log_level_severity = self::LOG_LEVELS_MAP[LogLevel::DEBUG];
 		}
 	}
 

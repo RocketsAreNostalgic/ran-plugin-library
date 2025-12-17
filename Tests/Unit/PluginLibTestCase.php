@@ -113,6 +113,7 @@ abstract class PluginLibTestCase extends RanTestCase {
 		parent::setUp();
 		WP_Mock::setUp();
 		$this->defined_constants = array(); // Reset for each test
+		WP_Mock::userFunction('current_user_can')->andReturn(false)->byDefault();
 
 		$this->enable_console_logging = false;
 		$this->mock_plugin_file_path  = __DIR__ . '/mock-plugin-file.php';
