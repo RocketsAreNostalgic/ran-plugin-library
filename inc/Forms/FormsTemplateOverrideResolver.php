@@ -23,8 +23,13 @@ class FormsTemplateOverrideResolver {
 	private Logger $logger;
 
 	/**
-	 * Base system fallback templates - minimal essential fallbacks
-	 * Pattern matching handles variations (e.g., 'field' matches 'field-wrapper')
+	 * Base system fallback templates - minimal essential fallbacks.
+	 *
+	 * This map is NOT part of the Tier 1 / Tier 2 override system. It contains
+	 * literal template keys used as a last-resort fallback when no override is
+	 * available or usable.
+	 *
+	 * Pattern matching handles variations (e.g., 'field' matches 'field-wrapper').
 	 *
 	 * @var array<string, string> Template type => fallback template key mappings
 	 */

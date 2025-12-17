@@ -382,7 +382,7 @@ abstract class FormsCore implements FormsInterface {
 	 * Override specific form-wide defaults for current context.
 	 * Allows developers to customize specific templates without replacing all defaults.
 	 *
-	 * @param array<string, string> $overrides Template type => template key mappings
+	 * @param array<string, string|callable> $overrides Template type => template key mappings
 	 * @return void
 	 */
 	public function override_form_defaults(array $overrides): void {
@@ -390,48 +390,6 @@ abstract class FormsCore implements FormsInterface {
 			$this->_start_form_session();
 		}
 		$this->form_session->override_form_defaults($overrides);
-	}
-
-	// -- Template Setters --
-
-	/**
-	 * Set the root template for current context.
-	 *
-	 * @param string $template_key The template key.
-	 * @return void
-	 */
-	public function set_root_template(string $template_key): void {
-		$this->_set_form_default_template('root-wrapper', $template_key);
-	}
-
-	/**
-	 * Set the section template for current context.
-	 *
-	 * @param string $template_key The template key.
-	 * @return void
-	 */
-	public function set_section_template(string $template_key): void {
-		$this->_set_form_default_template('section-wrapper', $template_key);
-	}
-
-	/**
-	 * Set the group template for current context.
-	 *
-	 * @param string $template_key The template key.
-	 * @return void
-	 */
-	public function set_group_template(string $template_key): void {
-		$this->_set_form_default_template('group-wrapper', $template_key);
-	}
-
-	/**
-	 * Set the field template for current context.
-	 *
-	 * @param string $template_key The template key.
-	 * @return void
-	 */
-	public function set_field_template(string $template_key): void {
-		$this->_set_form_default_template('field-wrapper', $template_key);
 	}
 
 	/**
@@ -1631,21 +1589,6 @@ abstract class FormsCore implements FormsInterface {
 	protected function _cleanup_active_section(string $section_id): void {
 		// Default implementation does nothing
 		// Override in UserSettingsCollectionBuilder, AdminSettingsPageBuilder, etc.
-	}
-
-	/**
-	 * Set the default template for this form.
-	 *
-	 * @param string $template_type The template type.
-	 * @param string $template_key The template key.
-	 * @return void
-	 */
-	protected function _set_form_default_template(string $template_type, string $template_key): void {
-		$template_key = trim($template_key);
-		if ($template_key === '') {
-			throw new \InvalidArgumentException('Template key cannot be empty');
-		}
-		$this->override_form_defaults(array($template_type => $template_key));
 	}
 
 	// Template override methods removed - now handled by FormsTemplateOverrideResolver in FormsServiceSession

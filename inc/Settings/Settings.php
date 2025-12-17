@@ -162,7 +162,7 @@ final class Settings implements FormsInterface {
 	 * ]);
 	 * ```
 	 *
-	 * @param array<string, string> $overrides Template type => template key mappings.
+	 * @param array<string, string|callable> $overrides Template type => template key mappings.
 	 * @return void
 	 */
 	public function override_form_defaults(array $overrides): void {
