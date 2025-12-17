@@ -58,7 +58,7 @@ class FormsRenderService implements FormsRenderServiceInterface {
 		$callback = $session->get_root_template_callback($container_id);
 		if ($callback !== null) {
 			ob_start();
-			$callback($payload);
+			FormsCallbackInvoker::invoke($callback, $payload);
 			echo (string) ob_get_clean();
 		} else {
 			echo $session->render_element('root-wrapper', $payload, array(
@@ -295,7 +295,7 @@ class FormsRenderService implements FormsRenderServiceInterface {
 		$context_keys = array_keys($context);
 
 		try {
-			$result         = (string) $callback($context);
+			$result         = (string) FormsCallbackInvoker::invoke($callback, $context);
 			$result_length  = strlen($result);
 			$preview_length = 120;
 			if (ErrorNoticeRenderer::isVerboseDebug()) {
@@ -398,7 +398,7 @@ class FormsRenderService implements FormsRenderServiceInterface {
 		$content = $field['component_context']['content'] ?? '';
 
 		if (is_callable($content)) {
-			return (string) $content($context);
+			return (string) FormsCallbackInvoker::invoke($content, $context);
 		}
 
 		return (string) $content;
@@ -410,12 +410,12 @@ class FormsRenderService implements FormsRenderServiceInterface {
 
 		$before = '';
 		if (isset($field['before']) && is_callable($field['before'])) {
-			$before = (string) ($field['before'])($context);
+			$before = (string) FormsCallbackInvoker::invoke($field['before'], $context);
 		}
 
 		$after = '';
 		if (isset($field['after']) && is_callable($field['after'])) {
-			$after = (string) ($field['after'])($context);
+			$after = (string) FormsCallbackInvoker::invoke($field['after'], $context);
 		}
 
 		$class_attr = 'kplr-hr' . ($style_classes !== '' ? ' ' . $style_classes : '');

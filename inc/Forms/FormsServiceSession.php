@@ -12,6 +12,7 @@ namespace Ran\PluginLib\Forms;
 use Ran\PluginLib\Util\WPWrappersTrait;
 use Ran\PluginLib\Util\Validate;
 use Ran\PluginLib\Util\Logger;
+use Ran\PluginLib\Forms\Services\FormsCallbackInvoker;
 use Ran\PluginLib\Forms\Validation\ValidatorPipelineService;
 use Ran\PluginLib\Forms\Component\TemplateOverrideCollection;
 use Ran\PluginLib\Forms\Component\TemplateOverride;
@@ -465,7 +466,7 @@ class FormsServiceSession {
 	 */
 	private function _execute_root_callback(callable $callback, array $payload): string {
 		ob_start();
-		$callback($payload);
+		FormsCallbackInvoker::invoke($callback, $payload);
 		$output = (string) ob_get_clean();
 		return $output;
 	}
