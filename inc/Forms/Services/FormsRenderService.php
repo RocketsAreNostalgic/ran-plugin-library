@@ -54,7 +54,10 @@ class FormsRenderService implements FormsRenderServiceInterface {
 	}
 
 	public function finalize_render(string $container_id, array $payload, array $element_context = array()): void {
-		$session  = $this->_ensure_session();
+		$session = $this->_ensure_session();
+		if (!isset($payload['values']) && isset($element_context['values'])) {
+			$payload['values'] = $element_context['values'];
+		}
 		$callback = $session->get_root_template_callback($container_id);
 		if ($callback !== null) {
 			ob_start();
@@ -154,6 +157,9 @@ class FormsRenderService implements FormsRenderServiceInterface {
 					'values'       => $values,
 				)) ?? '';
 
+				$group['section_id']   = (string) $section_id;
+				$group['container_id'] = (string) $id_slug;
+				$group['root_id']      = (string) $id_slug;
 				$section_content .= $this->render_group_wrapper($group, $group_fields_content, $group_before, $group_after, $values);
 			}
 
@@ -211,10 +217,29 @@ class FormsRenderService implements FormsRenderServiceInterface {
 					'section_id'   => $section_id,
 					'values'       => $values,
 				)) ?? '',
-				'style' => trim($section_style),
+				'style'  => trim($section_style),
+				'values' => $values,
 			);
 
-			$section_template = (string) ($this->get_section_template)();
+			$section_template = '';
+			try {
+				$section_template = $session->resolve_template('section-wrapper', array_merge($section_context, array(
+					'root_id'      => (string) $id_slug,
+					'container_id' => (string) $id_slug,
+					'section_id'   => (string) $section_id,
+					'values'       => $values,
+				)));
+			} catch (\Throwable $e) {
+				$this->logger->warning('FormsCore: Section wrapper template resolution failed, using fallback', array(
+					'section_id'        => $section_id,
+					'exception_message' => $e->getMessage(),
+				));
+			}
+
+			if ($section_template === '') {
+				$section_template = (string) ($this->get_section_template)();
+			}
+
 			$sectionComponent = $this->views->render($section_template, $section_context);
 
 			if (!($sectionComponent instanceof ComponentRenderResult)) {
@@ -229,9 +254,12 @@ class FormsRenderService implements FormsRenderServiceInterface {
 	}
 
 	public function render_group_wrapper(array $group, string $fields_content, string $before_content, string $after_content, array $values): string {
-		$group_id = $group['group_id'] ?? '';
-		$title    = $group['title']    ?? '';
-		$style    = trim((string) ($group['style'] ?? ''));
+		$group_id     = $group['group_id'] ?? '';
+		$title        = $group['title']    ?? '';
+		$style        = trim((string) ($group['style'] ?? ''));
+		$section_id   = isset($group['section_id']) ? (string) $group['section_id'] : '';
+		$container_id = isset($group['container_id']) ? (string) $group['container_id'] : '';
+		$root_id      = isset($group['root_id']) ? (string) $group['root_id'] : '';
 
 		$group_context = array(
 			'group_id'    => $group_id,
@@ -244,13 +272,18 @@ class FormsRenderService implements FormsRenderServiceInterface {
 			'spacing'     => 'normal',
 			'style'       => $style,
 			'values'      => $values,
+			'section_id'  => $section_id,
 		);
 
 		try {
 			$element_type = ($group['type'] ?? 'group') === 'fieldset' ? 'fieldset-wrapper' : 'group-wrapper';
 			$session      = $this->_ensure_session();
 			$result       = $session->render_element($element_type, $group_context, array(
-				'group_id' => (string) $group_id,
+				'group_id'     => (string) $group_id,
+				'section_id'   => $section_id,
+				'container_id' => $container_id,
+				'root_id'      => $root_id,
+				'values'       => $values,
 			));
 			if ($result !== '') {
 				return $result;

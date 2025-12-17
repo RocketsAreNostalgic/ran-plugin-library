@@ -3,6 +3,7 @@
 namespace Ran\PluginLib\Forms;
 
 use Ran\PluginLib\Util\Logger;
+use Ran\PluginLib\Forms\Services\FormsCallbackInvoker;
 
 /**
  * FormsTemplateOverrideResolver - Specialized Template Resolution System
@@ -127,13 +128,16 @@ class FormsTemplateOverrideResolver {
 			if ($root_id !== '' && $zone_id !== '') {
 				$override = $this->submit_controls_overrides[$root_id][$zone_id] ?? null;
 				if ($override !== null && $override !== '') {
-					$this->logger->debug('FormsTemplateOverrideResolver: Submit controls wrapper resolved via zone override', array(
-						'root_id'       => $root_id,
-						'zone_id'       => $zone_id,
-						'template'      => $override,
-						'template_type' => $template_type,
-					));
-					return $override;
+					$resolved = $this->resolve_template_override_value($override, $context, $template_type);
+					if ($resolved !== null) {
+						$this->logger->debug('FormsTemplateOverrideResolver: Submit controls wrapper resolved via zone override', array(
+							'root_id'       => $root_id,
+							'zone_id'       => $zone_id,
+							'template'      => $resolved,
+							'template_type' => $template_type,
+						));
+						return $resolved;
+					}
 				}
 			}
 		}
@@ -144,13 +148,16 @@ class FormsTemplateOverrideResolver {
 		if (isset($context['field_id'])) {
 			$field_overrides = $this->get_field_template_overrides($context['field_id']);
 			if (isset($field_overrides[$template_type])) {
-				$this->logger->debug('FormsTemplateOverrideResolver: Template resolved via Tier 2 - field override', array(
-					'template_type' => $template_type,
-					'template'      => $field_overrides[$template_type],
-					'field_id'      => $context['field_id'],
-					'tier'          => 'Tier 2 - Individual Element Override (Field)'
-				));
-				return $field_overrides[$template_type];
+				$resolved = $this->resolve_template_override_value($field_overrides[$template_type], $context, $template_type);
+				if ($resolved !== null) {
+					$this->logger->debug('FormsTemplateOverrideResolver: Template resolved via Tier 2 - field override', array(
+						'template_type' => $template_type,
+						'template'      => $resolved,
+						'field_id'      => $context['field_id'],
+						'tier'          => 'Tier 2 - Individual Element Override (Field)'
+					));
+					return $resolved;
+				}
 			}
 		}
 
@@ -158,13 +165,16 @@ class FormsTemplateOverrideResolver {
 		if (isset($context['group_id'])) {
 			$group_overrides = $this->get_group_template_overrides($context['group_id']);
 			if (isset($group_overrides[$template_type])) {
-				$this->logger->debug('FormsTemplateOverrideResolver: Template resolved via Tier 2 - group override', array(
-					'template_type' => $template_type,
-					'template'      => $group_overrides[$template_type],
-					'group_id'      => $context['group_id'],
-					'tier'          => 'Tier 2 - Individual Element Override (Group)'
-				));
-				return $group_overrides[$template_type];
+				$resolved = $this->resolve_template_override_value($group_overrides[$template_type], $context, $template_type);
+				if ($resolved !== null) {
+					$this->logger->debug('FormsTemplateOverrideResolver: Template resolved via Tier 2 - group override', array(
+						'template_type' => $template_type,
+						'template'      => $resolved,
+						'group_id'      => $context['group_id'],
+						'tier'          => 'Tier 2 - Individual Element Override (Group)'
+					));
+					return $resolved;
+				}
 			}
 		}
 
@@ -172,13 +182,16 @@ class FormsTemplateOverrideResolver {
 		if (isset($context['section_id'])) {
 			$section_overrides = $this->get_section_template_overrides($context['section_id']);
 			if (isset($section_overrides[$template_type])) {
-				$this->logger->debug('FormsTemplateOverrideResolver: Template resolved via Tier 2 - section override', array(
-					'template_type' => $template_type,
-					'template'      => $section_overrides[$template_type],
-					'section_id'    => $context['section_id'],
-					'tier'          => 'Tier 2 - Individual Element Override (Section)'
-				));
-				return $section_overrides[$template_type];
+				$resolved = $this->resolve_template_override_value($section_overrides[$template_type], $context, $template_type);
+				if ($resolved !== null) {
+					$this->logger->debug('FormsTemplateOverrideResolver: Template resolved via Tier 2 - section override', array(
+						'template_type' => $template_type,
+						'template'      => $resolved,
+						'section_id'    => $context['section_id'],
+						'tier'          => 'Tier 2 - Individual Element Override (Section)'
+					));
+					return $resolved;
+				}
 			}
 		}
 
@@ -186,13 +199,16 @@ class FormsTemplateOverrideResolver {
 		if (isset($context['root_id'])) {
 			$root_overrides = $this->get_root_template_overrides($context['root_id']);
 			if (isset($root_overrides[$template_type])) {
-				$this->logger->debug('FormsTemplateOverrideResolver: Template resolved via Tier 2 - root override', array(
-					'template_type' => $template_type,
-					'template'      => $root_overrides[$template_type],
-					'root_id'       => $context['root_id'],
-					'tier'          => 'Tier 2 - Individual Element Override (Root)'
-				));
-				return $root_overrides[$template_type];
+				$resolved = $this->resolve_template_override_value($root_overrides[$template_type], $context, $template_type);
+				if ($resolved !== null) {
+					$this->logger->debug('FormsTemplateOverrideResolver: Template resolved via Tier 2 - root override', array(
+						'template_type' => $template_type,
+						'template'      => $resolved,
+						'root_id'       => $context['root_id'],
+						'tier'          => 'Tier 2 - Individual Element Override (Root)'
+					));
+					return $resolved;
+				}
 			}
 		}
 
@@ -217,6 +233,39 @@ class FormsTemplateOverrideResolver {
 			));
 		}
 		return $system_fallback;
+	}
+
+	private function resolve_template_override_value(mixed $override, array $context, string $template_type): ?string {
+		if (is_string($override)) {
+			$override = trim($override);
+			return $override === '' ? null : $override;
+		}
+
+		if (!is_string($override) && is_callable($override)) {
+			try {
+				$result = FormsCallbackInvoker::invoke($override, $context);
+			} catch (\Throwable $e) {
+				$this->logger->warning('FormsTemplateOverrideResolver: Template override callable threw; continuing fallback', array(
+					'template_type'     => $template_type,
+					'exception_class'   => get_class($e),
+					'exception_message' => $e->getMessage(),
+				));
+				return null;
+			}
+
+			$resolved = trim((string) $result);
+			if ($resolved === '') {
+				$this->logger->warning('FormsTemplateOverrideResolver: Template override callable returned empty; continuing fallback', array(
+					'template_type' => $template_type,
+				));
+				return null;
+			}
+
+			return $resolved;
+		}
+
+		$override = trim((string) $override);
+		return $override === '' ? null : $override;
 	}
 
 	/**

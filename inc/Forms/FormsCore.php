@@ -1663,7 +1663,9 @@ abstract class FormsCore implements FormsInterface {
 	protected function _start_form_session(): void {
 		if ($this->form_session === null) {
 			$pipeline           = $this->base_options->get_validator_pipeline();
-			$this->form_session = $this->form_service->start_session(array(), $pipeline);
+			$this->form_session = $this->form_service->start_session(array(
+				'section-wrapper' => $this->_get_section_template(),
+			), $pipeline);
 		}
 	}
 

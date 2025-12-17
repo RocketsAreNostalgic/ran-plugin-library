@@ -12,8 +12,8 @@ namespace Ran\PluginLib\Forms;
 use Ran\PluginLib\Util\WPWrappersTrait;
 use Ran\PluginLib\Util\Validate;
 use Ran\PluginLib\Util\Logger;
-use Ran\PluginLib\Forms\Services\FormsCallbackInvoker;
 use Ran\PluginLib\Forms\Validation\ValidatorPipelineService;
+use Ran\PluginLib\Forms\Services\FormsCallbackInvoker;
 use Ran\PluginLib\Forms\Component\TemplateOverrideCollection;
 use Ran\PluginLib\Forms\Component\TemplateOverride;
 use Ran\PluginLib\Forms\Component\ComponentRenderResult;
@@ -74,7 +74,8 @@ class FormsServiceSession {
 
 		// Step 1: Resolve template key via FormsTemplateOverrideResolver
 		try {
-			$template_key = $this->template_resolver->resolve_template($element_type, $context);
+			$resolver_context = array_merge($element_config, $context);
+			$template_key     = $this->template_resolver->resolve_template($element_type, $resolver_context);
 			if (isset($element_config['root_override']) && is_string($element_config['root_override']) && $element_config['root_override'] !== '') {
 				$template_key = $element_config['root_override'];
 			}
