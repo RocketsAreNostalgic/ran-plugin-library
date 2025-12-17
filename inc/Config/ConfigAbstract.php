@@ -893,10 +893,10 @@ abstract class ConfigAbstract implements ConfigInterface {
 			return $cached['buf'];
 		}
 		// Read first 8KB of the file for header parsing
-			$logger->debug("{$context} - Config header transient cache MISS.", array('file' => $file_path));
+		$logger->debug("{$context} - Config header transient cache MISS.", array('file' => $file_path));
 		$buf = file_get_contents( $file_path, false, null, 0, 8 * 1024 );
 		if ( $buf === false ) {
-				$logger->warning("{$context} - Failed to read header content.", array('file' => $file_path));
+			$logger->warning("{$context} - Failed to read header content.", array('file' => $file_path));
 		}
 
 		// Cache only successful reads to avoid storing false values
