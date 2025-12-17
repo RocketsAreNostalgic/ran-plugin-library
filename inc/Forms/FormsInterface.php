@@ -83,7 +83,7 @@ interface FormsInterface {
 	 * Override specific form-wide defaults for AdminForms context.
 	 * Allows developers to customize specific templates without replacing all defaults.
 	 *
-	 * @param array<string, string> $overrides Template type => template key mappings
+	 * @param array<string, string|callable> $overrides Template type => template key mappings
 	 * @return void
 	 */
 	public function override_form_defaults(array $overrides): void;

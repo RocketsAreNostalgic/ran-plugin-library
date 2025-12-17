@@ -269,7 +269,7 @@ class FormsServiceSession {
 	 *
 	 * @internal
 	 *
-	 * @param array<string, string> $defaults Template type => template key mappings
+	 * @param array<string, string|callable> $defaults Template type => template key mappings
 	 * @return void
 	 */
 	public function set_form_defaults(array $defaults): void {
@@ -318,7 +318,7 @@ class FormsServiceSession {
 	 *
 	 * @internal
 	 *
-	 * @param array<string, string> $overrides Template type => template key mappings
+	 * @param array<string, string|callable> $overrides Template type => template key mappings
 	 * @return void
 	 */
 	public function override_form_defaults(array $overrides): void {
@@ -330,7 +330,7 @@ class FormsServiceSession {
 	 *
 	 * @internal
 	 *
-	 * @return array<string, string> Template type => template key mappings
+	 * @return array<string, string|callable> Template type => template key mappings
 	 */
 	public function get_form_defaults(): array {
 		return $this->template_resolver->get_form_defaults();
@@ -357,7 +357,7 @@ class FormsServiceSession {
 	 *
 	 * @param string $element_type The element type (field, section, group, root)
 	 * @param string $element_id The element ID
-	 * @param array<string, string> $overrides Template type => template key mappings
+	 * @param array<string, string|callable> $overrides Template type => template key mappings
 	 * @return void
 	 */
 	public function set_individual_element_override(string $element_type, string $element_id, array $overrides): void {
@@ -386,7 +386,7 @@ class FormsServiceSession {
 	 *
 	 * @param string $element_type The element type (field, section, group, root)
 	 * @param string $element_id The element ID
-	 * @return array<string, string> Template type => template key mappings
+	 * @return array<string, string|callable> Template type => template key mappings
 	 */
 	public function get_individual_element_overrides(string $element_type, string $element_id): array {
 		switch ($element_type) {

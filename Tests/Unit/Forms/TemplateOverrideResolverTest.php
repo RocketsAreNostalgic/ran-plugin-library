@@ -232,6 +232,126 @@ class FormsTemplateOverrideResolverTest extends TestCase {
 		$this->assertEquals(array(), $this->resolver->get_field_template_overrides('field-1'));
 	}
 
+	public function test_tier_2_callable_override_invoked_with_context(): void {
+		$this->resolver->set_form_defaults(array(
+			'field-wrapper' => 'default.field-wrapper'
+		));
+
+		$captured_context = null;
+		$this->resolver->set_field_template_overrides('field-1', array(
+			'field-wrapper' => static function (array $ctx) use (&$captured_context): string {
+				$captured_context = $ctx;
+				return 'callable.field-wrapper';
+			},
+		));
+
+		$resolved = $this->resolver->resolve_template('field-wrapper', array(
+			'field_id' => 'field-1',
+			'values'   => array('example' => 'value'),
+		));
+
+		$this->assertSame('callable.field-wrapper', $resolved);
+		$this->assertIsArray($captured_context);
+		$this->assertSame('field-1', $captured_context['field_id'] ?? null);
+		$this->assertEquals(array('example' => 'value'), $captured_context['values'] ?? null);
+	}
+
+	public function test_tier_2_callable_override_throwing_falls_back_to_form_default(): void {
+		$this->logger->expects($this->once())
+			->method('warning');
+
+		$this->resolver->set_form_defaults(array(
+			'field-wrapper' => 'default.field-wrapper',
+		));
+
+		$this->resolver->set_field_template_overrides('field-1', array(
+			'field-wrapper' => static function (): string {
+				throw new \RuntimeException('boom');
+			},
+		));
+
+		$resolved = $this->resolver->resolve_template('field-wrapper', array(
+			'field_id' => 'field-1',
+		));
+
+		$this->assertSame('default.field-wrapper', $resolved);
+	}
+
+	public function test_tier_2_callable_override_empty_string_falls_back_to_form_default(): void {
+		$this->logger->expects($this->once())
+			->method('warning');
+
+		$this->resolver->set_form_defaults(array(
+			'field-wrapper' => 'default.field-wrapper',
+		));
+
+		$this->resolver->set_field_template_overrides('field-1', array(
+			'field-wrapper' => static function (): string {
+				return '   ';
+			},
+		));
+
+		$resolved = $this->resolver->resolve_template('field-wrapper', array(
+			'field_id' => 'field-1',
+		));
+
+		$this->assertSame('default.field-wrapper', $resolved);
+	}
+
+	public function test_tier_1_form_default_callable_is_invoked_and_can_use_context(): void {
+		$captured_context = null;
+		$this->resolver->set_form_defaults(array(
+			'field-wrapper' => static function (array $ctx) use (&$captured_context): string {
+				$captured_context = $ctx;
+				return 'defaults.callable.field-wrapper';
+			},
+		));
+
+		$resolved = $this->resolver->resolve_template('field-wrapper', array(
+			'field_id' => 'field-1',
+			'values'   => array('k' => 'v'),
+		));
+
+		$this->assertSame('defaults.callable.field-wrapper', $resolved);
+		$this->assertIsArray($captured_context);
+		$this->assertSame('field-1', $captured_context['field_id'] ?? null);
+		$this->assertEquals(array('k' => 'v'), $captured_context['values'] ?? null);
+	}
+
+	public function test_tier_1_form_default_callable_throwing_falls_back_to_system_default(): void {
+		$this->logger->expects($this->once())
+			->method('warning');
+
+		$this->resolver->set_form_defaults(array(
+			'field-wrapper' => static function (): string {
+				throw new \RuntimeException('boom');
+			},
+		));
+
+		$resolved = $this->resolver->resolve_template('field-wrapper', array(
+			'field_id' => 'field-1',
+		));
+
+		$this->assertSame('layout.field.field-wrapper', $resolved);
+	}
+
+	public function test_tier_1_form_default_callable_empty_string_falls_back_to_system_default(): void {
+		$this->logger->expects($this->once())
+			->method('warning');
+
+		$this->resolver->set_form_defaults(array(
+			'field-wrapper' => static function (): string {
+				return '';
+			},
+		));
+
+		$resolved = $this->resolver->resolve_template('field-wrapper', array(
+			'field_id' => 'field-1',
+		));
+
+		$this->assertSame('layout.field.field-wrapper', $resolved);
+	}
+
 	/**
 	 * Test get_all_overrides debugging functionality
 	 */

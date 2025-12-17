@@ -51,7 +51,7 @@ class FormsTemplateOverrideResolver {
 	 * Tier 1: Form-wide Defaults
 	 * Set by form classes and can be overridden by developers to customize the entire form instance
 	 *
-	 * @var array<string, string> Template type => template key mappings
+	 * @var array<string, string|callable> Template type => template key mappings
 	 */
 	private array $form_defaults = array();
 
@@ -59,7 +59,7 @@ class FormsTemplateOverrideResolver {
 	 * Tier 2: Individual Element Overrides - Root Level (Pages/Collections)
 	 * Set via fluent builders for specific root elements, indexed by root_id
 	 *
-	 * @var array<string, array<string, string>> root_id => [template_type => template_key]
+	 * @var array<string, array<string, string|callable>> root_id => [template_type => template_key]
 	 */
 	private array $root_template_overrides = array();
 
@@ -67,7 +67,7 @@ class FormsTemplateOverrideResolver {
 	 * Tier 2: Individual Element Overrides - Section Level
 	 * Set via fluent builders for specific sections, indexed by section_id
 	 *
-	 * @var array<string, array<string, string>> section_id => [template_type => template_key]
+	 * @var array<string, array<string, string|callable>> section_id => [template_type => template_key]
 	 */
 	private array $section_template_overrides = array();
 
@@ -75,7 +75,7 @@ class FormsTemplateOverrideResolver {
 	 * Tier 2: Individual Element Overrides - Group Level
 	 * Set via fluent builders for specific groups, indexed by group_id
 	 *
-	 * @var array<string, array<string, string>> group_id => [template_type => template_key]
+	 * @var array<string, array<string, string|callable>> group_id => [template_type => template_key]
 	 */
 	private array $group_template_overrides = array();
 
@@ -83,7 +83,7 @@ class FormsTemplateOverrideResolver {
 	 * Tier 2: Individual Element Overrides - Field Level
 	 * Set via fluent builders for specific fields, indexed by field_id
 	 *
-	 * @var array<string, array<string, string>> field_id => [template_type => template_key]
+	 * @var array<string, array<string, string|callable>> field_id => [template_type => template_key]
 	 */
 	private array $field_template_overrides = array();
 
@@ -217,7 +217,10 @@ class FormsTemplateOverrideResolver {
 		// for a simplified two-tier system
 		// Note: No logging here - this is the expected/common path. Only log overrides and fallbacks.
 		if (isset($this->form_defaults[$template_type])) {
-			return $this->form_defaults[$template_type];
+			$resolved = $this->resolve_template_override_value($this->form_defaults[$template_type], $context, $template_type);
+			if ($resolved !== null) {
+				return $resolved;
+			}
 		}
 
 		// SYSTEM FALLBACK: If no form-wide default is set, use system fallback
@@ -292,7 +295,7 @@ class FormsTemplateOverrideResolver {
 	 * Set form-wide defaults (Tier 1)
 	 * These are the base defaults set by form classes and can be customized by developers
 	 *
-	 * @param array<string, string> $defaults Template type => template key mappings
+	 * @param array<string, string|callable> $defaults Template type => template key mappings
 	 * @return void
 	 */
 	public function set_form_defaults(array $defaults): void {
@@ -303,7 +306,7 @@ class FormsTemplateOverrideResolver {
 	 * Override specific form-wide defaults (Tier 1)
 	 * Allows developers to customize specific templates without replacing all defaults
 	 *
-	 * @param array<string, string> $overrides Template type => template key mappings
+	 * @param array<string, string|callable> $overrides Template type => template key mappings
 	 * @return void
 	 */
 	public function override_form_defaults(array $overrides): void {
@@ -313,7 +316,7 @@ class FormsTemplateOverrideResolver {
 	/**
 	 * Get form-wide defaults (Tier 1)
 	 *
-	 * @return array<string, string> Template type => template key mappings
+	 * @return array<string, string|callable> Template type => template key mappings
 	 */
 	public function get_form_defaults(): array {
 		return $this->form_defaults;
@@ -324,7 +327,7 @@ class FormsTemplateOverrideResolver {
 	 * These have highest precedence for the specific root element (Tier 2)
 	 *
 	 * @param string $root_id The unique identifier for the root element
-	 * @param array<string, string> $overrides Template type => template key mappings
+	 * @param array<string, string|callable> $overrides Template type => template key mappings
 	 * @return void
 	 */
 	public function set_root_template_overrides(string $root_id, array $overrides): void {
@@ -335,7 +338,7 @@ class FormsTemplateOverrideResolver {
 	 * Get template overrides for a specific root element
 	 *
 	 * @param string $root_id The unique identifier for the root element
-	 * @return array<string, string> Template type => template key mappings
+	 * @return array<string, string|callable> Template type => template key mappings
 	 */
 	public function get_root_template_overrides(string $root_id): array {
 		return $this->root_template_overrides[$root_id] ?? array();
@@ -370,7 +373,7 @@ class FormsTemplateOverrideResolver {
 	 * These have highest precedence for the specific section (Tier 2)
 	 *
 	 * @param string $section_id The unique identifier for the section
-	 * @param array<string, string> $overrides Template type => template key mappings
+	 * @param array<string, string|callable> $overrides Template type => template key mappings
 	 * @return void
 	 */
 	public function set_section_template_overrides(string $section_id, array $overrides): void {
@@ -381,7 +384,7 @@ class FormsTemplateOverrideResolver {
 	 * Get template overrides for a specific section
 	 *
 	 * @param string $section_id The unique identifier for the section
-	 * @return array<string, string> Template type => template key mappings
+	 * @return array<string, string|callable> Template type => template key mappings
 	 */
 	public function get_section_template_overrides(string $section_id): array {
 		return $this->section_template_overrides[$section_id] ?? array();
@@ -392,7 +395,7 @@ class FormsTemplateOverrideResolver {
 	 * These have highest precedence for the specific group (Tier 2)
 	 *
 	 * @param string $group_id The unique identifier for the group
-	 * @param array<string, string> $overrides Template type => template key mappings
+	 * @param array<string, string|callable> $overrides Template type => template key mappings
 	 * @return void
 	 */
 	public function set_group_template_overrides(string $group_id, array $overrides): void {
@@ -403,7 +406,7 @@ class FormsTemplateOverrideResolver {
 	 * Get template overrides for a specific group
 	 *
 	 * @param string $group_id The unique identifier for the group
-	 * @return array<string, string> Template type => template key mappings
+	 * @return array<string, string|callable> Template type => template key mappings
 	 */
 	public function get_group_template_overrides(string $group_id): array {
 		return $this->group_template_overrides[$group_id] ?? array();
@@ -414,7 +417,7 @@ class FormsTemplateOverrideResolver {
 	 * These have highest precedence for the specific field (Tier 2)
 	 *
 	 * @param string $field_id The unique identifier for the field
-	 * @param array<string, string> $overrides Template type => template key mappings
+	 * @param array<string, string|callable> $overrides Template type => template key mappings
 	 * @return void
 	 */
 	public function set_field_template_overrides(string $field_id, array $overrides): void {
@@ -425,7 +428,7 @@ class FormsTemplateOverrideResolver {
 	 * Get template overrides for a specific field
 	 *
 	 * @param string $field_id The unique identifier for the field
-	 * @return array<string, string> Template type => template key mappings
+	 * @return array<string, string|callable> Template type => template key mappings
 	 */
 	public function get_field_template_overrides(string $field_id): array {
 		return $this->field_template_overrides[$field_id] ?? array();
