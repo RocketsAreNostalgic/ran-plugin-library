@@ -399,11 +399,21 @@ class UserSettings extends FormsCore {
 
 		// Render before/after callbacks for the collection
 		$before_html = $this->_render_callback_output($collection_meta['before'] ?? null, array(
+			'field_id'     => '',
 			'container_id' => $id_slug,
+			'root_id'      => $id_slug,
+			'section_id'   => '',
+			'group_id'     => '',
+			'value'        => null,
 			'values'       => $options,
 		)) ?? '';
 		$after_html = $this->_render_callback_output($collection_meta['after'] ?? null, array(
+			'field_id'     => '',
 			'container_id' => $id_slug,
+			'root_id'      => $id_slug,
+			'section_id'   => '',
+			'group_id'     => '',
+			'value'        => null,
 			'values'       => $options,
 		)) ?? '';
 

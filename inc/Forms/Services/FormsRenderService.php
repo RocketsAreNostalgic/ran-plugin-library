@@ -139,6 +139,7 @@ class FormsRenderService implements FormsRenderServiceInterface {
 							'root_id'      => $id_slug,
 							'section_id'   => $section_id,
 							'group_id'     => $group['group_id'] ?? '',
+							'value'        => isset($group_field['id']) && array_key_exists((string) $group_field['id'], $values) ? $values[(string) $group_field['id']] : null,
 							'values'       => $values,
 						)),
 						'after' => $this->render_callback_output($group_field['after'] ?? null, array(
@@ -147,6 +148,7 @@ class FormsRenderService implements FormsRenderServiceInterface {
 							'root_id'      => $id_slug,
 							'section_id'   => $section_id,
 							'group_id'     => $group['group_id'] ?? '',
+							'value'        => isset($group_field['id']) && array_key_exists((string) $group_field['id'], $values) ? $values[(string) $group_field['id']] : null,
 							'values'       => $values,
 						)),
 						'group_type' => $group['type'] ?? 'group',
@@ -155,16 +157,22 @@ class FormsRenderService implements FormsRenderServiceInterface {
 				}
 
 				$group_before = $this->render_callback_output($group['before'] ?? null, array(
-					'group_id'     => $group['group_id'] ?? '',
-					'section_id'   => $section_id,
+					'field_id'     => '',
 					'container_id' => $id_slug,
+					'root_id'      => $id_slug,
+					'section_id'   => $section_id,
+					'group_id'     => $group['group_id'] ?? '',
+					'value'        => null,
 					'fields'       => $group_fields,
 					'values'       => $values,
 				)) ?? '';
 				$group_after = $this->render_callback_output($group['after'] ?? null, array(
-					'group_id'     => $group['group_id'] ?? '',
-					'section_id'   => $section_id,
+					'field_id'     => '',
 					'container_id' => $id_slug,
+					'root_id'      => $id_slug,
+					'section_id'   => $section_id,
+					'group_id'     => $group['group_id'] ?? '',
+					'value'        => null,
 					'fields'       => $group_fields,
 					'values'       => $values,
 				)) ?? '';
@@ -213,6 +221,8 @@ class FormsRenderService implements FormsRenderServiceInterface {
 						'container_id' => $id_slug,
 						'root_id'      => $id_slug,
 						'section_id'   => $section_id,
+						'group_id'     => '',
+						'value'        => isset($field['id']) && array_key_exists((string) $field['id'], $values) ? $values[(string) $field['id']] : null,
 						'values'       => $values,
 					)),
 					'after' => $this->render_callback_output($field['after'] ?? null, array(
@@ -220,6 +230,8 @@ class FormsRenderService implements FormsRenderServiceInterface {
 						'container_id' => $id_slug,
 						'root_id'      => $id_slug,
 						'section_id'   => $section_id,
+						'group_id'     => '',
+						'value'        => isset($field['id']) && array_key_exists((string) $field['id'], $values) ? $values[(string) $field['id']] : null,
 						'values'       => $values,
 					)),
 				);
@@ -234,15 +246,21 @@ class FormsRenderService implements FormsRenderServiceInterface {
 				'description' => is_callable($description_cb) ? (string) ($description_cb)() : (string) ($description_cb ?? ''),
 				'inner_html'  => $section_content,
 				'before'      => $this->render_callback_output($meta['before'] ?? null, array(
+					'field_id'     => '',
 					'container_id' => $id_slug,
 					'root_id'      => $id_slug,
 					'section_id'   => $section_id,
+					'group_id'     => '',
+					'value'        => null,
 					'values'       => $values,
 				)) ?? '',
 				'after' => $this->render_callback_output($meta['after'] ?? null, array(
+					'field_id'     => '',
 					'container_id' => $id_slug,
 					'root_id'      => $id_slug,
 					'section_id'   => $section_id,
+					'group_id'     => '',
+					'value'        => null,
 					'values'       => $values,
 				)) ?? '',
 				'style'        => trim($section_style),
@@ -354,6 +372,8 @@ class FormsRenderService implements FormsRenderServiceInterface {
 			$this->logger->warning('FormsCore: Callback provided is not callable', array('context_keys' => array_keys($context)));
 			return null;
 		}
+
+		$this->assert_min_callback_ctx($context);
 
 		$context_keys = array_keys($context);
 
@@ -467,6 +487,7 @@ class FormsRenderService implements FormsRenderServiceInterface {
 		$content = $field['component_context']['content'] ?? '';
 
 		if (is_callable($content)) {
+			$this->assert_min_callback_ctx($context);
 			return (string) FormsCallbackInvoker::invoke($content, $context);
 		}
 
@@ -476,6 +497,8 @@ class FormsRenderService implements FormsRenderServiceInterface {
 	public function render_hr_content(array $field, array $context): string {
 		$component_context = $field['component_context'] ?? array();
 		$style_classes     = trim($component_context['style'] ?? '');
+
+		$this->assert_min_callback_ctx($context);
 
 		$before = '';
 		if (isset($field['before']) && is_callable($field['before'])) {
@@ -492,6 +515,24 @@ class FormsRenderService implements FormsRenderServiceInterface {
 		$hr = '<hr class="' . esc_attr($class_attr) . '">';
 
 		return $before . $hr . $after;
+	}
+
+	private function assert_min_callback_ctx(array $context): void {
+		$required_keys = array('field_id', 'container_id', 'root_id', 'section_id', 'group_id', 'value', 'values');
+		$missing       = array();
+		foreach ($required_keys as $key) {
+			if (!array_key_exists($key, $context)) {
+				$missing[] = $key;
+			}
+		}
+
+		if ($missing !== array()) {
+			throw new \InvalidArgumentException('FormsCore: Callback context missing required keys: ' . implode(', ', $missing));
+		}
+
+		if (!is_array($context['values'])) {
+			throw new \InvalidArgumentException('FormsCore: Callback context "values" must be an array.');
+		}
 	}
 
 	public function render_default_field_wrapper_warning(string $message): string {

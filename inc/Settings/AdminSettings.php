@@ -370,11 +370,21 @@ class AdminSettings extends FormsCore {
 
 		// Render before/after callbacks for the page
 		$before_html = $this->_render_callback_output($meta['before'] ?? null, array(
+			'field_id'     => '',
 			'container_id' => $id_slug,
+			'root_id'      => $id_slug,
+			'section_id'   => '',
+			'group_id'     => '',
+			'value'        => null,
 			'values'       => $options,
 		)) ?? '';
 		$after_html = $this->_render_callback_output($meta['after'] ?? null, array(
+			'field_id'     => '',
 			'container_id' => $id_slug,
+			'root_id'      => $id_slug,
+			'section_id'   => '',
+			'group_id'     => '',
+			'value'        => null,
 			'values'       => $options,
 		)) ?? '';
 
@@ -950,7 +960,13 @@ class AdminSettings extends FormsCore {
 		}
 
 		$callback_context = array(
+			'field_id'     => '',
 			'container_id' => $page_slug,
+			'root_id'      => $page_slug,
+			'section_id'   => '',
+			'group_id'     => '',
+			'value'        => null,
+			'values'       => $this->_do_get_option($this->main_option, array()),
 			'zone_id'      => $zone_id,
 			'controls'     => $controls,
 		);
