@@ -3,14 +3,14 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\Tests\Unit\Forms\Builders;
 
-use PHPUnit\Framework\TestCase;
-use Ran\PluginLib\Forms\Builders\BuilderContextInterface;
-use Ran\PluginLib\Forms\Builders\BuilderRootInterface;
-use Ran\PluginLib\Forms\Builders\FieldsetBuilder;
-use Ran\PluginLib\Forms\Builders\GroupBuilder;
-use Ran\PluginLib\Forms\Builders\SectionBuilder;
-use Ran\PluginLib\Forms\Builders\GenericFieldBuilder;
 use Ran\PluginLib\Forms\FormsInterface;
+use Ran\PluginLib\Forms\Builders\SectionBuilder;
+use Ran\PluginLib\Forms\Builders\GroupBuilder;
+use Ran\PluginLib\Forms\Builders\GenericFieldBuilder;
+use Ran\PluginLib\Forms\Builders\FieldsetBuilder;
+use Ran\PluginLib\Forms\Builders\BuilderRootInterface;
+use Ran\PluginLib\Forms\Builders\BuilderContextInterface;
+use PHPUnit\Framework\TestCase;
 
 /**
  * @covers \Ran\PluginLib\Forms\Builders\SectionBuilder
@@ -117,12 +117,13 @@ final class SectionBuilderTest extends TestCase {
 	public function test_style_accepts_callable_resolver(): void {
 		$builder = $this->createSectionBuilder();
 
-		$builder->style(static fn (): string => '  callable-style  ');
+		$style = static fn (): string => '  callable-style  ';
+		$builder->style($style);
 
 		$sectionUpdates = array_values(array_filter($this->updates, static fn(array $entry): bool => $entry['type'] === 'section_metadata'));
 		self::assertNotEmpty($sectionUpdates, 'Expected section metadata updates.');
 		$payload = $sectionUpdates[count($sectionUpdates) - 1]['payload'];
-		self::assertSame('callable-style', $payload['group_data']['style']);
+		self::assertSame($style, $payload['group_data']['style']);
 	}
 
 	public function test_template_throws_when_key_is_blank(): void {

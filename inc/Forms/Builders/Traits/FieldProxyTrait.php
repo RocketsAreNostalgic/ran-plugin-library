@@ -14,7 +14,6 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\Forms\Builders\Traits;
 
-use Ran\PluginLib\Forms\Component\Build\ComponentBuilderInterface;
 use Ran\PluginLib\Forms\Component\Build\ComponentBuilderDefinitionInterface;
 use Ran\PluginLib\Forms\Component\Build\ComponentBuilderBase;
 use BadMethodCallException;
@@ -28,8 +27,8 @@ use BadMethodCallException;
  * 3. Store their own parent reference with a concrete type
  */
 trait FieldProxyTrait {
-	/** @var ComponentBuilderDefinitionInterface&ComponentBuilderInterface */
-	private ComponentBuilderDefinitionInterface $builder;
+	/** @var ComponentBuilderBase */
+	private ComponentBuilderBase $builder;
 
 	/** @var callable */
 	private $updateFn;
@@ -53,7 +52,7 @@ trait FieldProxyTrait {
 	/** @var callable|null */
 	private $after_callback = null;
 
-	private string $style = '';
+	private mixed $style = '';
 
 	/**
 	 * Initialize the proxy with common properties.
@@ -122,8 +121,10 @@ trait FieldProxyTrait {
 	 * @return static
 	 */
 	public function id(string $id): static {
-		$this->builder->id($id);
 		$this->field_id = $id;
+		if (method_exists($this->builder, 'id')) {
+			call_user_func(array($this->builder, 'id'), $id);
+		}
 		$this->_emit_field_update();
 		return $this;
 	}
@@ -136,7 +137,10 @@ trait FieldProxyTrait {
 	 * @return static
 	 */
 	public function disabled(bool|callable $disabled = true): static {
-		$this->builder->disabled($disabled);
+		if (!method_exists($this->builder, 'disabled')) {
+			throw new BadMethodCallException('Field builder does not support disabled().');
+		}
+		call_user_func(array($this->builder, 'disabled'), $disabled);
 		$this->_emit_field_update();
 		return $this;
 	}
@@ -149,7 +153,10 @@ trait FieldProxyTrait {
 	 * @return static
 	 */
 	public function required(bool|callable $required = true): static {
-		$this->builder->required($required);
+		if (!method_exists($this->builder, 'required')) {
+			throw new BadMethodCallException('Field builder does not support required().');
+		}
+		call_user_func(array($this->builder, 'required'), $required);
 		$this->_emit_field_update();
 		return $this;
 	}
@@ -162,7 +169,40 @@ trait FieldProxyTrait {
 	 * @return static
 	 */
 	public function readonly(bool|callable $readonly = true): static {
-		$this->builder->readonly($readonly);
+		if (!method_exists($this->builder, 'readonly')) {
+			throw new BadMethodCallException('Field builder does not support readonly().');
+		}
+		call_user_func(array($this->builder, 'readonly'), $readonly);
+		$this->_emit_field_update();
+		return $this;
+	}
+
+	/**
+	 * Sets a default value for the input element.
+	 *
+	 * @param string|callable|null $value A string value or callable that returns a string.
+	 * @return static
+	 */
+	public function default(string|callable|null $value): static {
+		if (!method_exists($this->builder, 'default')) {
+			throw new BadMethodCallException('Field builder does not support default().');
+		}
+		call_user_func(array($this->builder, 'default'), $value);
+		$this->_emit_field_update();
+		return $this;
+	}
+
+	/**
+	 * Sets the name attribute for the input element.
+	 *
+	 * @param string|null $name
+	 * @return static
+	 */
+	public function name(?string $name): static {
+		if (!method_exists($this->builder, 'name')) {
+			throw new BadMethodCallException('Field builder does not support name().');
+		}
+		call_user_func(array($this->builder, 'name'), $name);
 		$this->_emit_field_update();
 		return $this;
 	}
@@ -204,8 +244,7 @@ trait FieldProxyTrait {
 	 * @return static
 	 */
 	public function aria_label(string $aria_label): static {
-		$this->builder->aria_label($aria_label);
-		$this->_emit_field_update();
+		$this->attribute('aria-label', $aria_label);
 		return $this;
 	}
 
@@ -217,8 +256,7 @@ trait FieldProxyTrait {
 	 * @return static
 	 */
 	public function aria_described_by(string $aria_described_by): static {
-		$this->builder->aria_described_by($aria_described_by);
-		$this->_emit_field_update();
+		$this->attribute('aria-describedby', $aria_described_by);
 		return $this;
 	}
 
@@ -247,7 +285,19 @@ trait FieldProxyTrait {
 	 * @return static
 	 */
 	public function style(string|callable $style): static {
-		$this->style = $style === '' ? '' : $this->_resolve_proxy_style_arg($style);
+		if ($style === '') {
+			$this->style = '';
+			$this->_emit_field_update();
+			return $this;
+		}
+
+		if (is_callable($style)) {
+			$this->style = $style;
+			$this->_emit_field_update();
+			return $this;
+		}
+
+		$this->style = trim($style);
 		$this->_emit_field_update();
 		return $this;
 	}
@@ -362,7 +412,7 @@ trait FieldProxyTrait {
 		$field['component_context'] = array_merge($context, $this->pending_context);
 		$field['component']         = $this->component_alias;
 		$field['order']             = $this->_resolve_field_order($field);
-		$field['id']                = $field['id']    ?? $this->field_id;
+		$field['id']                = $this->field_id !== '' ? $this->field_id : ($field['id'] ?? '');
 		$field['label']             = $field['label'] ?? null;
 
 		if ($this->before_callback !== null) {
@@ -489,23 +539,6 @@ trait FieldProxyTrait {
 		$key        = ucwords(strtolower($key));
 		$normalized = lcfirst(str_replace(' ', '', $key));
 		return $normalized;
-	}
-
-	/**
-	 * Normalize a style argument to a trimmed string.
-	 *
-	 * @param string|callable $style Style value or resolver callback returning a string.
-	 *
-	 * @return string
-	 *
-	 * @throws \InvalidArgumentException When the resolved value is not a string.
-	 */
-	protected function _resolve_proxy_style_arg(string|callable $style): string {
-		$resolved = is_callable($style) ? $style() : $style;
-		if (!is_string($resolved)) {
-			throw new \InvalidArgumentException('Field style callback must return a string.');
-		}
-		return trim($resolved);
 	}
 
 	/**

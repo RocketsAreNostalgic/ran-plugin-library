@@ -158,8 +158,9 @@ class UserSettingsFluentBuilderApiTest extends TestCase {
 	public function test_user_settings_fieldset_builder_persists_metadata(): void {
 		$user = $this->createUserSettings();
 
+		$collection_style = static fn (): string => '  collection-style  ';
 		$user->collection('profile')
-			->style(static fn (): string => '  collection-style  ')
+			->style($collection_style)
 			->section('preferences', 'Preferences Section')
 				->fieldset('profile-details', 'Profile Details', null, array('style' => 'highlighted'))
 					->disabled(true)
@@ -183,7 +184,7 @@ class UserSettingsFluentBuilderApiTest extends TestCase {
 
 		$collections = $this->getProperty($user, 'collections');
 		self::assertArrayHasKey('profile', $collections);
-		self::assertSame('collection-style', $collections['profile']['style'] ?? null);
+		self::assertSame($collection_style, $collections['profile']['style'] ?? null);
 	}
 
 	/**

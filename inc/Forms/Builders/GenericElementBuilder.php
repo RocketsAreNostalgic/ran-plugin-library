@@ -56,7 +56,7 @@ class GenericElementBuilder {
 	/** @var callable|null */
 	private $after_callback = null;
 
-	private string $style = '';
+	private mixed $style = '';
 
 	/**
 	 * Constructor.
@@ -121,7 +121,19 @@ class GenericElementBuilder {
 	 * @param string $style CSS class name(s).
 	 * @return static
 	 */
-	public function style(string $style): static {
+	public function style(string|callable $style): static {
+		if ($style === '') {
+			$this->style = '';
+			$this->_emit();
+			return $this;
+		}
+
+		if (is_callable($style)) {
+			$this->style = $style;
+			$this->_emit();
+			return $this;
+		}
+
 		$this->style = trim($style);
 		$this->_emit();
 		return $this;

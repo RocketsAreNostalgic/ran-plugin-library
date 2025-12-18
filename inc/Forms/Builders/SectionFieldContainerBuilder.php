@@ -39,7 +39,7 @@ abstract class SectionFieldContainerBuilder {
 	/** @var callable|null */
 	protected $after;
 	protected ?int $order;
-	protected string $style = '';
+	protected mixed $style = '';
 
 	/**
 	 * Default field template for fields added to this container.
@@ -71,13 +71,7 @@ abstract class SectionFieldContainerBuilder {
 		$this->after          = $args['after']  ?? null;
 		$order                = $args['order']  ?? null;
 		$this->order          = $order === null ? null : (int) $order;
-
-		if (array_key_exists('style', $args)) {
-			$styleArg    = $args['style'];
-			$this->style = $styleArg === '' ? '' : $this->_resolve_style_arg($styleArg);
-		} else {
-			$this->style = '';
-		}
+		$this->style          = $args['style'] ?? '';
 
 		$this->emit_group_metadata();
 	}
@@ -129,8 +123,11 @@ abstract class SectionFieldContainerBuilder {
 	 * @return static
 	 */
 	public function style(string|callable $style): static {
-		$normalized = $style === '' ? '' : $this->_resolve_style_arg($style);
-		$this->_update_meta('style', $normalized);
+		if ($style === '') {
+			$this->_update_meta('style', '');
+			return $this;
+		}
+		$this->_update_meta('style', $style);
 		return $this;
 	}
 
@@ -310,7 +307,7 @@ abstract class SectionFieldContainerBuilder {
 				$this->order = $value === null ? null : (int) $value;
 				break;
 			case 'style':
-				$this->style = (string) $value;
+				$this->style = $value;
 				break;
 		}
 
@@ -360,22 +357,6 @@ abstract class SectionFieldContainerBuilder {
 			'group_id'     => $this->group_id,
 			'group_data'   => $group_data,
 		);
-	}
-
-	/**
-	 * Normalize a style argument to a trimmed string.
-	 *
-	 * @param string|callable $style Style value or resolver callback returning a string.
-	 *
-	 * @return string
-	 * @throws \InvalidArgumentException When the resolved value is not a string.
-	 */
-	protected function _resolve_style_arg(string|callable $style): string {
-		$resolved = is_callable($style) ? $style() : $style;
-		if (!is_string($resolved)) {
-			throw new \InvalidArgumentException('Style callback must return a string.');
-		}
-		return trim($resolved);
 	}
 
 	/**

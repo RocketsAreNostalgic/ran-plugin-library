@@ -59,6 +59,11 @@ abstract class ComponentBuilderBase implements ComponentBuilderDefinitionInterfa
 		return $this;
 	}
 
+	public function id(string $id): static {
+		$this->id = trim($id);
+		return $this;
+	}
+
 	/**
 	 * Sets a single attribute for the component.
 	 *
@@ -69,6 +74,14 @@ abstract class ComponentBuilderBase implements ComponentBuilderDefinitionInterfa
 	public function attribute(string $key, string $value): static {
 		$this->attributes[$key] = (string) $value;
 		return $this;
+	}
+
+	public function aria_label(string $label): static {
+		return $this->attribute('aria-label', $label);
+	}
+
+	public function aria_described_by(string $id): static {
+		return $this->attribute('aria-describedby', $id);
 	}
 
 	/**

@@ -3,8 +3,8 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\Tests\Unit\Forms\Builders;
 
-use Ran\PluginLib\Forms\Builders\FieldsetBuilder;
 use Ran\PluginLib\Forms\Builders\GenericBuilderContext;
+use Ran\PluginLib\Forms\Builders\FieldsetBuilder;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -46,16 +46,17 @@ final class FieldsetBuilderTest extends TestCase {
 		$builder->style(' inline ');
 
 		$metadata = $this->latestUpdateOfType('group_metadata');
-		self::assertSame('inline', $metadata['group_data']['style']);
+		self::assertSame(' inline ', $metadata['group_data']['style']);
 	}
 
 	public function test_style_accepts_callable_resolver(): void {
 		$builder = $this->createFieldsetBuilder();
 
-		$builder->style(static fn (): string => '  dynamic-style  ');
+		$style = static fn (): string => '  dynamic-style  ';
+		$builder->style($style);
 
 		$metadata = $this->latestUpdateOfType('group_metadata');
-		self::assertSame('dynamic-style', $metadata['group_data']['style']);
+		self::assertSame($style, $metadata['group_data']['style']);
 	}
 
 	public function test_disabled_update_sets_flag(): void {

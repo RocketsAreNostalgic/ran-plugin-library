@@ -33,7 +33,7 @@ class AdminSettingsPageBuilder implements AdminSettingsBuilderRootInterface {
 	private const DEFAULT_BUTTON_LABEL    = 'Save Changes';
 	private AdminSettingsMenuGroupBuilder $menu_group;
 	private string $container_id;
-	/** @var array{heading:string, description:?string, menu_title:string, capability:string, order:int} */
+	/** @var array{heading:string, description:?string, menu_title:string, capability:string, order:int, style?:string|callable} */
 	private array $meta;
 	/** @var callable */
 	private $updateFn;
@@ -240,8 +240,11 @@ class AdminSettingsPageBuilder implements AdminSettingsBuilderRootInterface {
 	 * @return self
 	 */
 	public function style(string|callable $style): static {
-		$normalized = $style === '' ? '' : $this->_resolve_style_arg($style);
-		$this->_update_meta('style', $normalized);
+		if ($style === '') {
+			$this->_update_meta('style', '');
+			return $this;
+		}
+		$this->_update_meta('style', $style);
 		return $this;
 	}
 
@@ -381,7 +384,7 @@ class AdminSettingsPageBuilder implements AdminSettingsBuilderRootInterface {
 				$this->meta['order'] = $value === null ? 0 : max(0, (int) $value);
 				break;
 			case 'style':
-				$this->meta['style'] = trim((string) $value);
+				$this->meta['style'] = $value;
 				break;
 			default:
 				$this->meta[$key] = $value;
@@ -444,21 +447,5 @@ class AdminSettingsPageBuilder implements AdminSettingsBuilderRootInterface {
 		));
 
 		$this->submit_zone_emitted = true;
-	}
-
-	/**
-	 * Normalize a style argument to a trimmed string.
-	 *
-	 * @param string|callable $style
-	 *
-	 * @return string
-	 * @throws \InvalidArgumentException When the resolved value is not a string.
-	 */
-	protected function _resolve_style_arg(string|callable $style): string {
-		$resolved = is_callable($style) ? $style() : $style;
-		if (!is_string($resolved)) {
-			throw new \InvalidArgumentException('AdminSettings style callback must return a string.');
-		}
-		return trim($resolved);
 	}
 }

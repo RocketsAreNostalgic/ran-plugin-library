@@ -9,7 +9,7 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\Forms\Component\Build;
 
-abstract class ComponentBuilderInputBase extends ComponentBuilderBase {
+abstract class ComponentBuilderInputBase extends ComponentBuilderBase implements InputComponentBuilderInterface, ReadonlyComponentBuilderInterface {
 	protected ?string $placeholder = null;
 	/** @var string|callable|null */
 	protected mixed $default = null;
@@ -21,7 +21,8 @@ abstract class ComponentBuilderInputBase extends ComponentBuilderBase {
 	protected mixed $required = false;
 	protected bool $autofocus = false;
 	protected ?string $name   = null;
-	protected string $style   = '';
+	/** @var string|callable */
+	protected mixed $style = '';
 	/** @var array<string,mixed> */
 	private array $base_metadata;
 
@@ -120,25 +121,16 @@ abstract class ComponentBuilderInputBase extends ComponentBuilderBase {
 	public function style(string|callable $style): static {
 		if ($style === '') {
 			$this->style = '';
-		} elseif (is_callable($style)) {
-			$resolved = $style();
-			if (!is_string($resolved)) {
-				throw new \InvalidArgumentException('Field style callback must return a string.');
-			}
-			$this->style = trim($resolved);
-		} else {
-			$this->style = trim($style);
+			return $this;
 		}
-		return $this;
-	}
 
-	/**
-	 * Get the style css classes for this field.
-	 *
-	 * @return string
-	 */
-	public function get_style(): string {
-		return $this->style;
+		if (is_callable($style)) {
+			$this->style = $style;
+			return $this;
+		}
+
+		$this->style = trim($style);
+		return $this;
 	}
 
 	/**
@@ -158,6 +150,11 @@ abstract class ComponentBuilderInputBase extends ComponentBuilderBase {
 			$this->_add_if_not_empty($context, 'default', $this->default);
 		}
 		$this->_add_if_not_empty($context, 'name', $this->name ?? $this->id);
+		if (is_callable($this->style)) {
+			$context['style'] = $this->style;
+		} else {
+			$this->_add_if_not_empty($context, 'style', trim((string) $this->style));
+		}
 
 		// Add boolean flags (resolve callables)
 		if (is_callable($this->disabled)) {
@@ -181,32 +178,6 @@ abstract class ComponentBuilderInputBase extends ComponentBuilderBase {
 	}
 
 	/**
-	 * Resolve a bool|callable to a bool value.
-	 *
-	 * @param bool|callable $value
-	 * @return bool
-	 */
-	protected function _resolve_bool_callable(mixed $value): bool {
-		if (is_callable($value)) {
-			return (bool) $value();
-		}
-		return (bool) $value;
-	}
-
-	/**
-	 * Resolve a callable to its value, or return the value as-is.
-	 *
-	 * @param mixed $value
-	 * @return mixed
-	 */
-	protected function _resolve_callable(mixed $value): mixed {
-		if (is_callable($value)) {
-			return $value();
-		}
-		return $value;
-	}
-
-	/**
 	 * Get the name that will be used for the input.
 	 *
 	 * @return string
@@ -216,49 +187,12 @@ abstract class ComponentBuilderInputBase extends ComponentBuilderBase {
 	}
 
 	/**
-	 * Get the default value (resolves callable if set).
-	 *
-	 * @return string|null
-	 */
-	public function get_default(): ?string {
-		$resolved = $this->_resolve_callable($this->default);
-		return $resolved !== null ? (string) $resolved : null;
-	}
-
-	/**
 	 * Get the placeholder text.
 	 *
 	 * @return string|null
 	 */
 	public function get_placeholder(): ?string {
 		return $this->placeholder;
-	}
-
-	/**
-	 * Check if the input is required (resolves callable if set).
-	 *
-	 * @return bool
-	 */
-	public function is_required(): bool {
-		return $this->_resolve_bool_callable($this->required);
-	}
-
-	/**
-	 * Check if the input is disabled (resolves callable if set).
-	 *
-	 * @return bool
-	 */
-	public function is_disabled(): bool {
-		return $this->_resolve_bool_callable($this->disabled);
-	}
-
-	/**
-	 * Check if the input is readonly (resolves callable if set).
-	 *
-	 * @return bool
-	 */
-	public function is_readonly(): bool {
-		return $this->_resolve_bool_callable($this->readonly);
 	}
 
 	/**

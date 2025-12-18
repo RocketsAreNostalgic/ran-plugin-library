@@ -20,6 +20,7 @@ use Ran\PluginLib\Options\RegisterOptions;
 use Ran\PluginLib\Options\OptionScope;
 use Ran\PluginLib\Forms\Validation\ValidatorPipelineService;
 use Ran\PluginLib\Forms\Services\FormsErrorHandlerInterface;
+use Ran\PluginLib\Forms\Services\FormsCallbackInvoker;
 use Ran\PluginLib\Forms\Services\AdminFormsErrorHandler;
 use Ran\PluginLib\Forms\Renderer\FormMessageHandler;
 use Ran\PluginLib\Forms\Renderer\FormElementRenderer;
@@ -390,8 +391,23 @@ class AdminSettings extends FormsCore {
 
 		$rendered_content = $this->_render_default_sections_wrapper($id_slug, $sections, $options);
 		$submit_controls  = $this->_get_submit_controls_for_page($id_slug);
-
-		$page_style = isset($meta['style']) ? trim((string) $meta['style']) : '';
+		$page_style_raw   = $meta['style'] ?? '';
+		$page_style       = '';
+		if (is_callable($page_style_raw)) {
+			$style_ctx = array(
+				'field_id'     => '',
+				'container_id' => $id_slug,
+				'root_id'      => $id_slug,
+				'section_id'   => '',
+				'group_id'     => '',
+				'value'        => null,
+				'values'       => $options,
+			);
+			$resolved_style = (string) FormsCallbackInvoker::invoke($page_style_raw, $style_ctx);
+			$page_style     = trim($resolved_style);
+		} else {
+			$page_style = trim((string) $page_style_raw);
+		}
 
 		// Check if page has file upload fields
 		$has_files = $this->_container_has_file_uploads($ref['page']);
@@ -853,7 +869,10 @@ class AdminSettings extends FormsCore {
 		$container_id = $data['container_id'] ?? '';
 		$page_data    = $data['page_data']    ?? array();
 		if (array_key_exists('style', $page_data)) {
-			$page_data['style'] = trim((string) $page_data['style']);
+			$style = $page_data['style'];
+			if (is_string($style)) {
+				$page_data['style'] = trim($style);
+			}
 		}
 		$group_id = $data['group_id'] ?? '';
 

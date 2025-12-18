@@ -49,7 +49,7 @@ trait SectionBuilderTrait {
 	private $after;
 
 	private ?int $order;
-	private string $style = '';
+	private mixed $style = '';
 
 	/** @var array<string, callable>|null */
 	private ?array $componentBuilderFactories = null;
@@ -164,8 +164,12 @@ trait SectionBuilderTrait {
 	 * @return static
 	 */
 	public function style(string|callable $style): static {
-		$normalized = $style === '' ? '' : $this->_resolve_section_style_arg($style);
-		$this->_update_meta('style', $normalized);
+		if ($style === '') {
+			$this->_update_meta('style', '');
+			return $this;
+		}
+
+		$this->_update_meta('style', $style);
 		return $this;
 	}
 
@@ -409,7 +413,7 @@ trait SectionBuilderTrait {
 				$this->order = $value === null ? null : (int) $value;
 				break;
 			case 'style':
-				$this->style = (string) $value;
+				$this->style = $value;
 				break;
 		}
 
@@ -434,23 +438,6 @@ trait SectionBuilderTrait {
 				'style'       => $this->style,
 			),
 		);
-	}
-
-	/**
-	 * Normalize a style argument to a trimmed string.
-	 *
-	 * @param string|callable $style Style value or resolver callback returning a string.
-	 *
-	 * @return string
-	 *
-	 * @throws \InvalidArgumentException When the resolved value is not a string.
-	 */
-	protected function _resolve_section_style_arg(string|callable $style): string {
-		$resolved = is_callable($style) ? $style() : $style;
-		if (!is_string($resolved)) {
-			throw new \InvalidArgumentException('Section style callback must return a string.');
-		}
-		return trim($resolved);
 	}
 
 	/**

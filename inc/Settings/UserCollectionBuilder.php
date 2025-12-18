@@ -109,10 +109,10 @@ class UserCollectionBuilder {
 	/**
 	 * Set a custom CSS class/style identifier.
 	 *
-	 * @param string $style Style identifier.
+	 * @param string|callable $style Style identifier.
 	 * @return static
 	 */
-	public function style(string $style): static {
+	public function style(string|callable $style): static {
 		$this->meta['style'] = $style;
 		return $this;
 	}

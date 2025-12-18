@@ -27,7 +27,7 @@ class MenuRegistryPageBuilder {
 	private Logger $logger;
 
 	/**
-	 * @var array{heading: string, menu_title: string, capability: ?string}
+	 * @var array{heading: string, menu_title: string, capability: ?string, style?: string|callable}
 	 */
 	private array $meta = array(
 		'heading'    => '',
@@ -104,7 +104,7 @@ class MenuRegistryPageBuilder {
 	 * @param string $style Style identifier.
 	 * @return self
 	 */
-	public function style(string $style): self {
+	public function style(string|callable $style): self {
 		$this->meta['style'] = $style;
 		return $this;
 	}

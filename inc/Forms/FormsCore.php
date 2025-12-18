@@ -1104,9 +1104,8 @@ abstract class FormsCore implements FormsInterface {
 			'after'          => $section_data['after']          ?? null,
 			'order'          => (int) ($section_data['order'] ?? 0),
 			'index'          => $this->__section_index++,
-			'style'          => trim((string) ($section_data['style'] ?? '')),
+			'style'          => $section_data['style'] ?? '',
 		);
-
 		$this->_get_state_store()->set_section($container_id, $section_id, $section_entry);
 	}
 
@@ -1140,7 +1139,7 @@ abstract class FormsCore implements FormsInterface {
 			$section['order'] = (int) $group_data['order'];
 		}
 		if (array_key_exists('style', $group_data)) {
-			$section['style'] = trim((string) $group_data['style']);
+			$section['style'] = $group_data['style'];
 		}
 
 		$this->_get_state_store()->set_section($container_id, $section_id, $section);
@@ -1296,7 +1295,7 @@ abstract class FormsCore implements FormsInterface {
 			'before'   => $group_data['before'] ?? null,
 			'after'    => $group_data['after']  ?? null,
 			'order'    => (int) ($group_data['order'] ?? 0),
-			'style'    => trim((string) ($group_data['style'] ?? '')),
+			'style'    => $group_data['style'] ?? '',
 			'required' => (bool) ($group_data['required'] ?? false),
 			'index'    => $this->__group_index++,
 		);
@@ -1450,7 +1449,7 @@ abstract class FormsCore implements FormsInterface {
 			$group['after'] = $group_data['after'];
 		}
 		$group['order'] = (int) ($group_data['order'] ?? 0);
-		$group['style'] = trim((string) ($group_data['style'] ?? ''));
+		$group['style'] = $group_data['style'] ?? '';
 		$group['type']  = (string) ($group_data['type'] ?? 'group');
 		// Fieldset-specific attributes
 		$group['form']     = (string) ($group_data['form'] ?? '');

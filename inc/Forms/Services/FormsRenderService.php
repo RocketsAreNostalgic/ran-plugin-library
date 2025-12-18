@@ -232,7 +232,25 @@ class FormsRenderService implements FormsRenderServiceInterface {
 				$section_content .= $this->render_default_field_wrapper($field_item, $values);
 			}
 
-			$section_style   = trim((string) ($meta['style'] ?? ''));
+			$section_style_raw = $meta['style'] ?? '';
+			$section_style     = '';
+			if (is_callable($section_style_raw)) {
+				$style_ctx = array(
+					'field_id'     => '',
+					'container_id' => $id_slug,
+					'root_id'      => $id_slug,
+					'section_id'   => $section_id,
+					'group_id'     => '',
+					'value'        => null,
+					'values'       => $values,
+				);
+				$this->assert_min_callback_ctx($style_ctx);
+				$resolved_style = (string) FormsCallbackInvoker::invoke($section_style_raw, $style_ctx);
+				$section_style  = trim($resolved_style);
+			} else {
+				$section_style = trim((string) $section_style_raw);
+			}
+
 			$description_cb  = $meta['description_cb'] ?? null;
 			$section_context = array(
 				'section_id'  => $section_id,
@@ -257,7 +275,7 @@ class FormsRenderService implements FormsRenderServiceInterface {
 					'value'        => null,
 					'values'       => $values,
 				)) ?? '',
-				'style'        => trim($section_style),
+				'style'        => $section_style,
 				'values'       => $values,
 				'root_id'      => $id_slug,
 				'container_id' => $id_slug,
@@ -296,9 +314,26 @@ class FormsRenderService implements FormsRenderServiceInterface {
 	}
 
 	public function render_group_wrapper(array $group, string $fields_content, string $before_content, string $after_content, array $values): string {
-		$group_id     = $group['group_id'] ?? '';
-		$title        = $group['title']    ?? '';
-		$style        = trim((string) ($group['style'] ?? ''));
+		$group_id  = $group['group_id'] ?? '';
+		$title     = $group['title']    ?? '';
+		$style_raw = $group['style']    ?? '';
+		$style     = '';
+		if (is_callable($style_raw)) {
+			$style_ctx = array(
+				'field_id'     => '',
+				'container_id' => isset($group['container_id']) ? (string) $group['container_id'] : '',
+				'root_id'      => isset($group['root_id']) ? (string) $group['root_id'] : '',
+				'section_id'   => isset($group['section_id']) ? (string) $group['section_id'] : '',
+				'group_id'     => (string) $group_id,
+				'value'        => null,
+				'values'       => $values,
+			);
+			$this->assert_min_callback_ctx($style_ctx);
+			$resolved_style = (string) FormsCallbackInvoker::invoke($style_raw, $style_ctx);
+			$style          = trim($resolved_style);
+		} else {
+			$style = trim((string) $style_raw);
+		}
 		$section_id   = isset($group['section_id']) ? (string) $group['section_id'] : '';
 		$container_id = isset($group['container_id']) ? (string) $group['container_id'] : '';
 		$root_id      = isset($group['root_id']) ? (string) $group['root_id'] : '';
@@ -492,6 +527,18 @@ class FormsRenderService implements FormsRenderServiceInterface {
 				}
 			}
 
+			if (isset($field_context['style'])) {
+				if (is_callable($field_context['style'])) {
+					$resolved_style         = FormsCallbackInvoker::invoke($field_context['style'], $callback_ctx);
+					$field_context['style'] = trim((string) $resolved_style);
+				} else {
+					$field_context['style'] = trim((string) $field_context['style']);
+				}
+				if ($field_context['style'] === '') {
+					unset($field_context['style']);
+				}
+			}
+
 			if (isset($field_context['options']) && is_array($field_context['options'])) {
 				foreach ($field_context['options'] as $idx => $option) {
 					if (!is_array($option)) {
@@ -567,7 +614,15 @@ class FormsRenderService implements FormsRenderServiceInterface {
 
 	public function render_hr_content(array $field, array $context): string {
 		$component_context = $field['component_context'] ?? array();
-		$style_classes     = trim($component_context['style'] ?? '');
+		$style_raw         = $component_context['style'] ?? '';
+		$style_classes     = '';
+		if (is_callable($style_raw)) {
+			$this->assert_min_callback_ctx($context);
+			$resolved_style = (string) FormsCallbackInvoker::invoke($style_raw, $context);
+			$style_classes  = trim($resolved_style);
+		} else {
+			$style_classes = trim((string) $style_raw);
+		}
 
 		$this->assert_min_callback_ctx($context);
 

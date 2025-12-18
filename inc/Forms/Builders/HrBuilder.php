@@ -29,7 +29,7 @@ class HrBuilder {
 	private ?string $group_id;
 	private string $hr_id;
 
-	private string $style = '';
+	private mixed $style = '';
 
 	/** @var callable|null */
 	private $before_callback = null;
@@ -73,7 +73,19 @@ class HrBuilder {
 	 * @param string $style CSS class name(s) to apply.
 	 * @return static
 	 */
-	public function style(string $style): static {
+	public function style(string|callable $style): static {
+		if ($style === '') {
+			$this->style = '';
+			$this->_emit();
+			return $this;
+		}
+
+		if (is_callable($style)) {
+			$this->style = $style;
+			$this->_emit();
+			return $this;
+		}
+
 		$this->style = trim($style);
 		$this->_emit();
 		return $this;

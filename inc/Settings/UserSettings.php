@@ -19,6 +19,7 @@ use Ran\PluginLib\Options\Storage\StorageContext;
 use Ran\PluginLib\Options\RegisterOptions;
 use Ran\PluginLib\Options\OptionScope;
 use Ran\PluginLib\Forms\Services\FormsErrorHandlerInterface;
+use Ran\PluginLib\Forms\Services\FormsCallbackInvoker;
 use Ran\PluginLib\Forms\Services\AdminFormsErrorHandler;
 use Ran\PluginLib\Forms\Renderer\FormMessageHandler;
 use Ran\PluginLib\Forms\Renderer\FormElementRenderer;
@@ -415,9 +416,24 @@ class UserSettings extends FormsCore {
 			'group_id'     => '',
 			'value'        => null,
 			'values'       => $options,
-		)) ?? '';
-
-		$collection_style = isset($collection_meta['style']) ? trim((string) $collection_meta['style']) : '';
+		))                                                ?? '';
+		$collection_style_raw = $collection_meta['style'] ?? '';
+		$collection_style     = '';
+		if (is_callable($collection_style_raw)) {
+			$style_ctx = array(
+				'field_id'     => '',
+				'container_id' => $id_slug,
+				'root_id'      => $id_slug,
+				'section_id'   => '',
+				'group_id'     => '',
+				'value'        => null,
+				'values'       => $options,
+			);
+			$resolved_style   = (string) FormsCallbackInvoker::invoke($collection_style_raw, $style_ctx);
+			$collection_style = trim($resolved_style);
+		} else {
+			$collection_style = trim((string) $collection_style_raw);
+		}
 
 		// Check if collection has file upload fields
 		$has_files = $this->_container_has_file_uploads($id_slug);
@@ -723,7 +739,10 @@ class UserSettings extends FormsCore {
 				$container_id    = $data['container_id']    ?? '';
 				$collection_data = $data['collection_data'] ?? array();
 				if (array_key_exists('style', $collection_data)) {
-					$collection_data['style'] = trim((string) $collection_data['style']);
+					$style = $collection_data['style'];
+					if (is_string($style)) {
+						$collection_data['style'] = trim($style);
+					}
 				}
 
 				if ($container_id === '') {

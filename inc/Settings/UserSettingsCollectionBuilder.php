@@ -226,8 +226,11 @@ class UserSettingsCollectionBuilder implements UserSettingsBuilderRootInterface 
 	 * @return self
 	 */
 	public function style(string|callable $style): static {
-		$normalized = $style === '' ? '' : $this->_resolve_style_arg($style);
-		$this->_update_meta('style', $normalized);
+		if ($style === '') {
+			$this->_update_meta('style', '');
+			return $this;
+		}
+		$this->_update_meta('style', $style);
 		return $this;
 	}
 
@@ -329,7 +332,7 @@ class UserSettingsCollectionBuilder implements UserSettingsBuilderRootInterface 
 				$this->meta['order'] = $value === null ? 0 : max(0, (int) $value);
 				break;
 			case 'style':
-				$this->meta['style'] = trim((string) $value);
+				$this->meta['style'] = $value;
 				break;
 			default:
 				$this->meta[$key] = $value;
@@ -381,21 +384,5 @@ class UserSettingsCollectionBuilder implements UserSettingsBuilderRootInterface 
 			'container_id' => $this->container_id,
 		));
 		$this->committed = true;
-	}
-
-	/**
-	 * Normalize a style argument to a trimmed string.
-	 *
-	 * @param string|callable $style Style value or resolver callback returning a string.
-	 *
-	 * @return string
-	 * @throws \InvalidArgumentException When the resolved value is not a string.
-	 */
-	protected function _resolve_style_arg(string|callable $style): string {
-		$resolved = is_callable($style) ? $style() : $style;
-		if (!is_string($resolved)) {
-			throw new \InvalidArgumentException('Collection style callback must return a string.');
-		}
-		return trim($resolved);
 	}
 }
