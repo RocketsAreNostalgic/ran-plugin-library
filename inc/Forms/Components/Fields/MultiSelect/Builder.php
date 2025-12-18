@@ -130,15 +130,24 @@ final class Builder extends ComponentBuilderBase {
 		$context['attributes']['multiple'] = 'multiple';
 
 		// Add required properties (resolve callable if needed)
-		$context['options'] = $this->_resolve_options();
+		$context['options'] = $this->options;
 
 		// Add optional properties using base class helpers
 		$this->_add_if_not_empty($context, 'name', $this->name);
 		$this->_add_if_not_empty($context, 'id', $this->element_id);
 		$this->_add_if_not_empty($context, 'description_id', $this->description_id);
 		$this->_add_if_not_empty($context, 'values', $this->values);
-		$this->_add_if_not_empty($context, 'default', $this->_resolve_default_values());
-		$this->_add_if_true($context, 'disabled', $this->_resolve_bool_callable($this->disabled));
+		if (is_callable($this->default_values)) {
+			$context['default'] = $this->default_values;
+		} else {
+			$resolved_defaults = array_map('strval', $this->default_values);
+			$this->_add_if_not_empty($context, 'default', $resolved_defaults);
+		}
+		if (is_callable($this->disabled)) {
+			$context['disabled'] = $this->disabled;
+		} else {
+			$this->_add_if_true($context, 'disabled', (bool) $this->disabled);
+		}
 
 		return $context;
 	}

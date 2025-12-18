@@ -505,6 +505,8 @@ class FormElementRenderer {
 		$template_context = array(
 			'field_id'            => $field_id,
 			'label'               => $label,
+			'before'              => $context['before'] ?? '',
+			'after'               => $context['after']  ?? '',
 			'inner_html'          => $component_html,
 			'validation_warnings' => $context['validation_warnings'] ?? array(),
 			'display_notices'     => $context['display_notices']     ?? array(),

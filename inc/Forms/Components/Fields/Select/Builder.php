@@ -138,16 +138,28 @@ final class Builder extends ComponentBuilderBase {
 		$context = $this->_build_base_context();
 
 		// Add required properties (resolve callable if needed)
-		$context['options'] = $this->_resolve_options();
+		$context['options'] = $this->options;
 
 		// Add optional properties using base class helpers
 		$this->_add_if_not_empty($context, 'name', $this->name);
 		$this->_add_if_not_empty($context, 'id', $this->element_id);
 		$this->_add_if_not_empty($context, 'description_id', $this->description_id);
 		$this->_add_if_not_empty($context, 'value', $this->value);
-		$this->_add_if_not_empty($context, 'default', $this->_resolve_callable($this->default));
-		$this->_add_if_true($context, 'disabled', $this->_resolve_bool_callable($this->disabled));
-		$this->_add_if_true($context, 'required', $this->_resolve_bool_callable($this->required));
+		if (is_callable($this->default)) {
+			$context['default'] = $this->default;
+		} else {
+			$this->_add_if_not_empty($context, 'default', $this->default);
+		}
+		if (is_callable($this->disabled)) {
+			$context['disabled'] = $this->disabled;
+		} else {
+			$this->_add_if_true($context, 'disabled', (bool) $this->disabled);
+		}
+		if (is_callable($this->required)) {
+			$context['required'] = $this->required;
+		} else {
+			$this->_add_if_true($context, 'required', (bool) $this->required);
+		}
 
 		return $context;
 	}

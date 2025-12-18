@@ -423,7 +423,6 @@ class AdminSettings extends FormsCore {
 			'heading'  => $payload['heading'],
 			'group'    => $group,
 			'has_meta' => array_keys($meta),
-			'callback' => $this->form_session->get_root_template_callback($id_slug) !== null,
 		));
 		$this->logger->debug('admin_settings.render.schema_trace', array(
 			'page'   => $id_slug,

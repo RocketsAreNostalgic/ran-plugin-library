@@ -13,7 +13,8 @@ final class Builder extends ComponentBuilderBase {
 	private string $name;
 	private string $value         = 'on';
 	private bool $default_checked = false;
-	private bool $disabled        = false;
+	/** @var bool|callable */
+	private mixed $disabled = false;
 
 	public function __construct(string $id, string $label, string $name) {
 		parent::__construct($id, $label);
@@ -34,7 +35,7 @@ final class Builder extends ComponentBuilderBase {
 		return $this;
 	}
 
-	public function disabled(bool $disabled = true): static {
+	public function disabled(bool|callable $disabled = true): static {
 		$this->disabled = $disabled;
 		return $this;
 	}
@@ -63,7 +64,7 @@ final class Builder extends ComponentBuilderBase {
 		// Override attributes to include required fields
 		$context['attributes']['name']  = $this->name;
 		$context['attributes']['value'] = $this->value;
-		if ($this->disabled) {
+		if ($this->disabled && !is_callable($this->disabled)) {
 			$context['attributes']['disabled'] = 'disabled';
 		}
 
@@ -74,7 +75,11 @@ final class Builder extends ComponentBuilderBase {
 
 		// Add optional properties using base class helpers
 		$this->_add_if_true($context, 'default_checked', $this->default_checked);
-		$this->_add_if_true($context, 'disabled', $this->disabled);
+		if (is_callable($this->disabled)) {
+			$context['disabled'] = $this->disabled;
+		} else {
+			$this->_add_if_true($context, 'disabled', (bool) $this->disabled);
+		}
 
 		return $context;
 	}

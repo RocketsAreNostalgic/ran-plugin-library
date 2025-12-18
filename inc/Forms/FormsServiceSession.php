@@ -26,14 +26,17 @@ use Psr\Log\LoggerInterface;
 class FormsServiceSession {
 	use WPWrappersTrait;
 
+	/** @var ComponentManifest */
 	private ComponentManifest $manifest;
+	/** @var FormsTemplateOverrideResolver */
 	private FormsTemplateOverrideResolver $template_resolver;
+	/** @var Logger */
 	private Logger $logger;
 	private ValidatorPipelineService $pipeline;
+	/** @var array<string, string|callable> */
+	private array $form_defaults = array();
 	/** @var array<string,bool> */
 	private array $used_component_aliases = array();
-	/** @var array<string,callable> */
-	private array $root_template_callbacks = array();
 
 	public function __construct(
 		ComponentManifest $manifest,
@@ -64,14 +67,6 @@ class FormsServiceSession {
 	 * @return string Rendered HTML markup
 	 */
 	public function render_element(string $element_type, array $element_config = array(), array $context = array()): string {
-		if ($element_type === 'root-wrapper') {
-			$root_id = isset($context['root_id']) ? (string) $context['root_id'] : ($context['page_slug'] ?? ($context['id_slug'] ?? ''));
-			if ($root_id !== '' && isset($this->root_template_callbacks[$root_id])) {
-				$callback = $this->root_template_callbacks[$root_id];
-				return $this->_execute_root_callback($callback, array_merge($element_config, $context));
-			}
-		}
-
 		// Step 1: Resolve template key via FormsTemplateOverrideResolver
 		try {
 			$resolver_context                  = array();
@@ -84,6 +79,14 @@ class FormsServiceSession {
 				}
 				if (array_key_exists($key, $element_config)) {
 					$resolver_context[$key] = $element_config[$key];
+				}
+			}
+
+			if ($element_type === 'submit-controls-wrapper') {
+				if (array_key_exists('zone_id', $context)) {
+					$resolver_context['zone_id'] = $context['zone_id'];
+				} elseif (array_key_exists('zone_id', $element_config)) {
+					$resolver_context['zone_id'] = $element_config['zone_id'];
 				}
 			}
 
@@ -289,39 +292,12 @@ class FormsServiceSession {
 	}
 
 	/**
-	 * Register a root-level template callback override.
-	 *
-	 * @param string   $root_id
-	 * @param callable $callback
-	 * @return void
-	 */
-	public function set_root_template_callback(string $root_id, ?callable $callback): void {
-		if ($callback === null) {
-			unset($this->root_template_callbacks[$root_id]);
-			return;
-		}
-
-		$this->root_template_callbacks[$root_id] = $callback;
-	}
-
-	/**
-	 * Retrieve root-level callback if registered.
-	 *
-	 * @param string $root_id
-	 * @return callable|null
-	 */
-	public function get_root_template_callback(string $root_id): ?callable {
-		return $this->root_template_callbacks[$root_id] ?? null;
-	}
-
-	/**
 	 * Clear all overrides for a root element.
 	 *
 	 * @param string $root_id
 	 * @return void
 	 */
 	public function clear_root_template_override(string $root_id): void {
-		unset($this->root_template_callbacks[$root_id]);
 		$this->template_resolver->set_root_template_overrides($root_id, array());
 	}
 
@@ -468,19 +444,5 @@ class FormsServiceSession {
 				'merged_context_keys'     => array_keys($mergedContext),
 			));
 		}
-	}
-
-	/**
-	 * Execute a root-level callback while capturing its output.
-	 *
-	 * @param callable $callback
-	 * @param array<string,mixed> $payload
-	 * @return string
-	 */
-	private function _execute_root_callback(callable $callback, array $payload): string {
-		ob_start();
-		FormsCallbackInvoker::invoke($callback, $payload);
-		$output = (string) ob_get_clean();
-		return $output;
 	}
 }

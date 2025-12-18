@@ -446,7 +446,6 @@ class UserSettings extends FormsCore {
 			'collection' => $id_slug,
 			'heading'    => $payload['heading'],
 			'has_meta'   => array_keys($collection_meta),
-			'callback'   => $this->form_session->get_root_template_callback($id_slug) !== null,
 		));
 		$this->logger->debug('user_settings.render.schema_trace', array(
 			'collection' => $id_slug,

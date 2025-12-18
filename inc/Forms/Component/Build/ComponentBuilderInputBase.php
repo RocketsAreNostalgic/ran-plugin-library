@@ -152,13 +152,29 @@ abstract class ComponentBuilderInputBase extends ComponentBuilderBase {
 
 		// Add input-specific properties
 		$this->_add_if_not_empty($context, 'placeholder', $this->placeholder);
-		$this->_add_if_not_empty($context, 'default', $this->_resolve_callable($this->default));
+		if (is_callable($this->default)) {
+			$context['default'] = $this->default;
+		} else {
+			$this->_add_if_not_empty($context, 'default', $this->default);
+		}
 		$this->_add_if_not_empty($context, 'name', $this->name ?? $this->id);
 
 		// Add boolean flags (resolve callables)
-		$this->_add_if_true($context, 'disabled', $this->_resolve_bool_callable($this->disabled));
-		$this->_add_if_true($context, 'readonly', $this->_resolve_bool_callable($this->readonly));
-		$this->_add_if_true($context, 'required', $this->_resolve_bool_callable($this->required));
+		if (is_callable($this->disabled)) {
+			$context['disabled'] = $this->disabled;
+		} else {
+			$this->_add_if_true($context, 'disabled', (bool) $this->disabled);
+		}
+		if (is_callable($this->readonly)) {
+			$context['readonly'] = $this->readonly;
+		} else {
+			$this->_add_if_true($context, 'readonly', (bool) $this->readonly);
+		}
+		if (is_callable($this->required)) {
+			$context['required'] = $this->required;
+		} else {
+			$this->_add_if_true($context, 'required', (bool) $this->required);
+		}
 		$this->_add_if_true($context, 'autofocus', $this->autofocus);
 
 		return $context;

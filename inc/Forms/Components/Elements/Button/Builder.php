@@ -11,7 +11,7 @@ use Ran\PluginLib\Forms\Component\Build\ComponentBuilderBase;
 
 final class Builder extends ComponentBuilderBase {
 	private string $type       = 'button';
-	private bool $disabled     = false;
+	private mixed $disabled    = false;
 	private string $variant    = 'primary';
 	private ?string $icon_html = null;
 
@@ -32,9 +32,9 @@ final class Builder extends ComponentBuilderBase {
 	/**
 	 * Disables the button.
 	 *
-	 * @param bool $disabled
+	 * @param bool|callable $disabled
 	 */
-	public function disabled(bool $disabled = true): static {
+	public function disabled(bool|callable $disabled = true): static {
 		$this->disabled = $disabled;
 		return $this;
 	}
@@ -74,7 +74,10 @@ final class Builder extends ComponentBuilderBase {
 	 * @return bool
 	 */
 	public function is_disabled(): bool {
-		return $this->disabled;
+		if (is_callable($this->disabled)) {
+			return (bool) ($this->disabled)();
+		}
+		return (bool) $this->disabled;
 	}
 
 	/**
@@ -104,7 +107,11 @@ final class Builder extends ComponentBuilderBase {
 
 		// Add optional properties using base class helpers
 		$this->_add_if_not_empty($context, 'type', $this->type !== 'button' ? $this->type : null);
-		$this->_add_if_true($context, 'disabled', $this->disabled);
+		if (is_callable($this->disabled)) {
+			$context['disabled'] = $this->disabled;
+		} else {
+			$this->_add_if_true($context, 'disabled', (bool) $this->disabled);
+		}
 		$this->_add_if_not_empty($context, 'variant', $this->variant !== 'primary' ? $this->variant : null);
 		$this->_add_if_not_empty($context, 'icon_html', $this->icon_html);
 

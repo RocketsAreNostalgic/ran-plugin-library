@@ -58,17 +58,11 @@ class FormsRenderService implements FormsRenderServiceInterface {
 		if (!isset($payload['values']) && isset($element_context['values'])) {
 			$payload['values'] = $element_context['values'];
 		}
-		$callback = $session->get_root_template_callback($container_id);
-		if ($callback !== null) {
-			ob_start();
-			FormsCallbackInvoker::invoke($callback, $payload);
-			echo (string) ob_get_clean();
-		} else {
-			echo $session->render_element('root-wrapper', $payload, array(
-				'root_id' => $container_id,
-				...$element_context,
-			));
-		}
+		echo $session->render_element('root-wrapper', $payload, array(
+			'root_id'      => $container_id,
+			'container_id' => $container_id,
+			...$element_context,
+		));
 		$session->enqueue_assets();
 	}
 
@@ -458,6 +452,83 @@ class FormsRenderService implements FormsRenderServiceInterface {
 			$field_context['root_id']        = isset($field_item['root_id']) ? (string) $field_item['root_id'] : '';
 			$field_context['section_id']     = isset($field_item['section_id']) ? (string) $field_item['section_id'] : '';
 			$field_context['group_id']       = isset($field_item['group_id']) ? (string) $field_item['group_id'] : '';
+
+			$callback_ctx = array(
+				'field_id'     => $field_id,
+				'container_id' => $field_context['container_id'],
+				'root_id'      => $field_context['root_id'],
+				'section_id'   => $field_context['section_id'],
+				'group_id'     => $field_context['group_id'],
+				'value'        => $values[$field_id] ?? null,
+				'values'       => $values,
+			);
+			$this->assert_min_callback_ctx($callback_ctx);
+
+			$bool_keys = array('disabled', 'readonly', 'required');
+			foreach ($bool_keys as $key) {
+				if (!isset($field_context[$key]) || !is_callable($field_context[$key])) {
+					continue;
+				}
+
+				$resolved = FormsCallbackInvoker::invoke($field_context[$key], $callback_ctx);
+				if ($resolved) {
+					$field_context[$key] = true;
+				} else {
+					unset($field_context[$key]);
+				}
+			}
+
+			$value_keys = array('default', 'options');
+			foreach ($value_keys as $key) {
+				if (!isset($field_context[$key]) || !is_callable($field_context[$key])) {
+					continue;
+				}
+
+				$resolved = FormsCallbackInvoker::invoke($field_context[$key], $callback_ctx);
+				if ($resolved === null || $resolved === '' || $resolved === array()) {
+					unset($field_context[$key]);
+				} else {
+					$field_context[$key] = $resolved;
+				}
+			}
+
+			if (isset($field_context['options']) && is_array($field_context['options'])) {
+				foreach ($field_context['options'] as $idx => $option) {
+					if (!is_array($option)) {
+						continue;
+					}
+
+					if (isset($option['disabled']) && is_callable($option['disabled'])) {
+						$resolved = FormsCallbackInvoker::invoke($option['disabled'], $callback_ctx);
+						if ($resolved) {
+							$option['disabled'] = true;
+							if (!isset($option['attributes']) || !is_array($option['attributes'])) {
+								$option['attributes'] = array();
+							}
+							$option['attributes']['disabled'] = 'disabled';
+						} else {
+							unset($option['disabled']);
+							if (isset($option['attributes']) && is_array($option['attributes'])) {
+								unset($option['attributes']['disabled']);
+							}
+						}
+					}
+
+					$field_context['options'][$idx] = $option;
+				}
+			}
+
+			if ($component === 'radio-group' && isset($field_context['default']) && is_string($field_context['default']) && isset($field_context['options']) && is_array($field_context['options'])) {
+				foreach ($field_context['options'] as $idx => $option) {
+					if (!is_array($option) || !isset($option['value'])) {
+						continue;
+					}
+					if ((string) $option['value'] === $field_context['default']) {
+						$option['checked']              = true;
+						$field_context['options'][$idx] = $option;
+					}
+				}
+			}
 
 			$group_type  = $field_item['group_type'] ?? 'group';
 			$wrapper_key = $group_type === 'fieldset' ? 'fieldset-field-wrapper' : 'field-wrapper';

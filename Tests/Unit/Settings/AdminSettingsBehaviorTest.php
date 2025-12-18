@@ -383,16 +383,22 @@ final class AdminSettingsBehaviorTest extends PluginLibTestCase {
 
 	public function test_render_uses_custom_template_when_callable_provided(): void {
 		$callbackCalled = false;
+		$payloadHeading = null;
 
-		$renderOverride = static function (array $payload) use (&$callbackCalled): void {
+		$this->manifest->register('admin.pages.custom-template-callback', static function (array $context) use (&$payloadHeading): ComponentRenderResult {
+			$payloadHeading = isset($context['heading']) ? (string) $context['heading'] : '';
+			return new ComponentRenderResult('<div class="custom-template">' . htmlspecialchars($payloadHeading, ENT_QUOTES) . '</div>');
+		});
+
+		$templateResolver = static function (array $payload) use (&$callbackCalled): string {
 			$callbackCalled = true;
-			echo '<div class="custom-template">' . htmlspecialchars($payload['page_meta']['heading'], ENT_QUOTES) . '</div>';
+			return 'admin.pages.custom-template-callback';
 		};
 
 		$this->settings->menu_group('behavior-group')
 		    ->page('behavior-page')
 		        ->heading('Behavior Page')
-		        ->template($renderOverride)
+		        ->template($templateResolver)
 		    ->end_page()
 		->end_menu();
 
@@ -404,6 +410,7 @@ final class AdminSettingsBehaviorTest extends PluginLibTestCase {
 
 		$this->assertStringContainsString('custom-template', $output);
 		$this->assertTrue($callbackCalled);
+		$this->assertSame('Behavior Page', $payloadHeading);
 	}
 
 	public function test_page_convenience_method_populates_group(): void {

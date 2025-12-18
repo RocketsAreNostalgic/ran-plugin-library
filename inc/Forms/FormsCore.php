@@ -1490,7 +1490,7 @@ abstract class FormsCore implements FormsInterface {
 		$element_id   = $data['element_id']   ?? '';
 		$overrides    = $data['overrides']    ?? array();
 
-		if ($element_type === '' || $element_id === '' || (empty($overrides) && !isset($data['callback']))) {
+		if ($element_type === '' || $element_id === '') {
 			$this->logger->warning('FormsCore: Template override missing required data', $data);
 			return;
 		}
@@ -1509,22 +1509,6 @@ abstract class FormsCore implements FormsInterface {
 			$should_clear_overrides = empty($overrides);
 			if ($should_clear_overrides) {
 				$this->form_session->clear_root_template_override($element_id);
-			} elseif (!array_key_exists('callback', $data)) {
-				// Switching to a string override should remove any previously registered callback.
-				$this->form_session->set_root_template_callback($element_id, null);
-			}
-			if (array_key_exists('callback', $data)) {
-				$callback = $data['callback'];
-				if (is_callable($callback)) {
-					$this->form_session->set_root_template_callback($element_id, $callback);
-				} elseif ($callback === null) {
-					$this->form_session->set_root_template_callback($element_id, null);
-				} else {
-					$this->logger->warning('FormsCore: Template override callback must be callable', array(
-						'element_id' => $element_id,
-						'callback'   => $callback,
-					));
-				}
 			}
 		}
 

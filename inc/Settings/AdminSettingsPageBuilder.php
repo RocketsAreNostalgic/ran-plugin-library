@@ -183,7 +183,6 @@ class AdminSettingsPageBuilder implements AdminSettingsBuilderRootInterface {
 				'element_type' => 'root',
 				'element_id'   => $this->container_id,
 				'overrides'    => array(),
-				'callback'     => null,
 			));
 
 			return $this;
@@ -193,8 +192,7 @@ class AdminSettingsPageBuilder implements AdminSettingsBuilderRootInterface {
 			($this->updateFn)('template_override', array(
 				'element_type' => 'root',
 				'element_id'   => $this->container_id,
-				'overrides'    => array(),
-				'callback'     => $template,
+				'overrides'    => array('root-wrapper' => $template),
 			));
 
 			return $this;

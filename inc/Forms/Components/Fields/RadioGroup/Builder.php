@@ -10,9 +10,10 @@ namespace Ran\PluginLib\Forms\Components\Fields\RadioGroup;
 use Ran\PluginLib\Forms\Component\Build\ComponentBuilderBase;
 
 final class Builder extends ComponentBuilderBase {
-	protected ?string $legend  = null;
-	protected ?string $name    = null;
-	protected ?string $default = null;
+	protected ?string $legend = null;
+	protected ?string $name   = null;
+	/** @var string|callable|null */
+	protected mixed $default = null;
 	/** @var array<int,array{value:string,label:string,description:?string,attributes:array<string,string>,disabled:bool,label_attributes:array<string,string>}> */
 	protected array $options = array();
 
@@ -28,7 +29,7 @@ final class Builder extends ComponentBuilderBase {
 		return $this;
 	}
 
-	public function default(string $value): static {
+	public function default(string|callable|null $value): static {
 		$this->default = $value;
 		return $this;
 	}
@@ -62,10 +63,7 @@ final class Builder extends ComponentBuilderBase {
 		foreach ($this->options as $option) {
 			$optionContext         = $option;
 			$optionContext['name'] = $name;
-			if ($this->default !== null && $this->default === $option['value']) {
-				$optionContext['checked'] = true;
-			}
-			$options[] = $optionContext;
+			$options[]             = $optionContext;
 		}
 
 		// Start with base context (attributes, description)
@@ -77,7 +75,11 @@ final class Builder extends ComponentBuilderBase {
 		$context['options'] = $options;
 
 		// Add optional properties using base class helpers
-		$this->_add_if_not_empty($context, 'default', $this->default);
+		if (is_callable($this->default)) {
+			$context['default'] = $this->default;
+		} else {
+			$this->_add_if_not_empty($context, 'default', $this->default);
+		}
 
 		return $context;
 	}

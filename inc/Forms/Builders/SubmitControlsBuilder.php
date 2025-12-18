@@ -60,7 +60,6 @@ final class SubmitControlsBuilder {
 				'element_id'   => $this->root_id,
 				'zone_id'      => $this->zone_id,
 				'overrides'    => array(),
-				'callback'     => null,
 			));
 			$this->template_key        = 'layout/zone/submit-controls-wrapper';
 			$this->has_custom_template = false;
@@ -72,8 +71,7 @@ final class SubmitControlsBuilder {
 				'element_type' => 'root',
 				'element_id'   => $this->root_id,
 				'zone_id'      => $this->zone_id,
-				'overrides'    => array(),
-				'callback'     => $template,
+				'overrides'    => array('submit-controls-wrapper' => $template),
 			));
 			$this->has_custom_template = true;
 			return $this;

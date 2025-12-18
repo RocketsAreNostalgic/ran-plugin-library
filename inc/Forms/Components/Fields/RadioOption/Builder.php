@@ -12,8 +12,9 @@ use Ran\PluginLib\Forms\Component\Build\ComponentBuilderBase;
 final class Builder extends ComponentBuilderBase {
 	private string $name;
 	private string $value;
-	private bool $checked  = false;
-	private bool $disabled = false;
+	private bool $checked = false;
+	/** @var bool|callable */
+	private mixed $disabled = false;
 	/** @var array<string,string> */
 	private array $label_attributes = array();
 
@@ -30,7 +31,7 @@ final class Builder extends ComponentBuilderBase {
 		return $this;
 	}
 
-	public function disabled(bool $disabled = true): static {
+	public function disabled(bool|callable $disabled = true): static {
 		$this->disabled = $disabled;
 		return $this;
 	}
@@ -66,7 +67,7 @@ final class Builder extends ComponentBuilderBase {
 		if ($this->checked) {
 			$context['attributes']['checked'] = 'checked';
 		}
-		if ($this->disabled) {
+		if ($this->disabled && !is_callable($this->disabled)) {
 			$context['attributes']['disabled'] = 'disabled';
 		}
 
@@ -76,7 +77,11 @@ final class Builder extends ComponentBuilderBase {
 
 		// Add optional properties using base class helpers
 		$this->_add_if_true($context, 'checked', $this->checked);
-		$this->_add_if_true($context, 'disabled', $this->disabled);
+		if (is_callable($this->disabled)) {
+			$context['disabled'] = $this->disabled;
+		} else {
+			$this->_add_if_true($context, 'disabled', (bool) $this->disabled);
+		}
 
 		return $context;
 	}

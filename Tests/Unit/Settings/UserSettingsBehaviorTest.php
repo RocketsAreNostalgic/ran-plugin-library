@@ -301,13 +301,17 @@ final class UserSettingsBehaviorTest extends PluginLibTestCase {
 
 	public function test_render_payload_includes_structured_messages_after_validation_failure(): void {
 		$capturedPayload = null;
-		$callback        = static function (array $payload) use (&$capturedPayload): void {
-			$capturedPayload = $payload;
+		$this->manifest->register('user.collections.payload-capture', static function (array $context) use (&$capturedPayload): ComponentRenderResult {
+			$capturedPayload = $context;
+			return new ComponentRenderResult('');
+		});
+		$templateResolver = static function (array $payload): string {
+			return 'user.collections.payload-capture';
 		};
 
 		$user_settings = $this->createUserSettings();
 		$collection    = $user_settings->collection('profile');
-		$collection->template($callback);
+		$collection->template($templateResolver);
 		$collection->section('basic', 'Basic Info')
 			->field('profile_name', 'Profile Name', 'fields.input')
 		->end_field()->end_section();

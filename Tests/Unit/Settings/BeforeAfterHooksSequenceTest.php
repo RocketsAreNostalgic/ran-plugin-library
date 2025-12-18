@@ -202,8 +202,8 @@ final class BeforeAfterHooksSequenceTest extends PluginLibTestCase {
 		self::assertNotFalse($beforePos, 'Before hook should be present');
 		self::assertNotFalse($afterPos, 'After hook should be present');
 		self::assertNotFalse($fieldPos, 'Field content should be present');
-		self::assertLessThan($fieldPos, $beforePos, 'Before hook should appear before field content');
-		self::assertGreaterThan($fieldPos, $afterPos, 'After hook should appear after field content');
+		self::assertTrue($beforePos < $fieldPos, 'Before hook should appear before field content');
+		self::assertTrue($fieldPos < $afterPos, 'After hook should appear after field content');
 	}
 
 	// =========================================================================
@@ -286,8 +286,8 @@ final class BeforeAfterHooksSequenceTest extends PluginLibTestCase {
 		self::assertNotFalse($beforePos, 'Before hook should be present');
 		self::assertNotFalse($afterPos, 'After hook should be present');
 		self::assertNotFalse($fieldPos, 'Field content should be present');
-		self::assertLessThan($fieldPos, $beforePos, 'Before hook should appear before field content');
-		self::assertGreaterThan($fieldPos, $afterPos, 'After hook should appear after field content');
+		self::assertTrue($beforePos < $fieldPos, 'Before hook should appear before field content');
+		self::assertTrue($fieldPos < $afterPos, 'After hook should appear after field content');
 	}
 
 	// =========================================================================
