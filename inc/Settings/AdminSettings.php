@@ -371,14 +371,14 @@ class AdminSettings extends FormsCore {
 		// Render before/after callbacks for the page
 		$before_html = $this->_render_callback_output($meta['before'] ?? null, array(
 			'container_id' => $id_slug,
-			'values'       => $effective_values,
+			'values'       => $options,
 		)) ?? '';
 		$after_html = $this->_render_callback_output($meta['after'] ?? null, array(
 			'container_id' => $id_slug,
-			'values'       => $effective_values,
+			'values'       => $options,
 		)) ?? '';
 
-		$rendered_content = $this->_render_default_sections_wrapper($id_slug, $sections, $effective_values);
+		$rendered_content = $this->_render_default_sections_wrapper($id_slug, $sections, $options);
 		$submit_controls  = $this->_get_submit_controls_for_page($id_slug);
 
 		$page_style = isset($meta['style']) ? trim((string) $meta['style']) : '';
@@ -396,7 +396,7 @@ class AdminSettings extends FormsCore {
 			'style'             => $page_style,
 			'options'           => $options,
 			'section_meta'      => $sections,
-			'values'            => $effective_values,
+			'values'            => $options,
 			'inner_html'        => $rendered_content,
 			'submit_controls'   => $submit_controls,
 			'render_submit'     => fn (): string => $this->_render_default_submit_controls($id_slug, $submit_controls),

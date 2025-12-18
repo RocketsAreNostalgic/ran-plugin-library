@@ -400,11 +400,11 @@ class UserSettings extends FormsCore {
 		// Render before/after callbacks for the collection
 		$before_html = $this->_render_callback_output($collection_meta['before'] ?? null, array(
 			'container_id' => $id_slug,
-			'values'       => $effective_values,
+			'values'       => $options,
 		)) ?? '';
 		$after_html = $this->_render_callback_output($collection_meta['after'] ?? null, array(
 			'container_id' => $id_slug,
-			'values'       => $effective_values,
+			'values'       => $options,
 		)) ?? '';
 
 		$collection_style = isset($collection_meta['style']) ? trim((string) $collection_meta['style']) : '';
@@ -421,8 +421,8 @@ class UserSettings extends FormsCore {
 				'id_slug'           => $id_slug,
 				'collection_meta'   => $collection_meta,
 				'sections'          => $sections,
-				'values'            => $effective_values,
-				'inner_html'        => $this->_render_default_sections_wrapper($id_slug, $sections, $effective_values),
+				'values'            => $options,
+				'inner_html'        => $this->_render_default_sections_wrapper($id_slug, $sections, $options),
 				'messages_by_field' => $this->message_handler->get_all_messages(),
 				'has_files'         => $has_files,
 				'before'            => $before_html,

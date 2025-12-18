@@ -363,4 +363,77 @@ class FormRenderingPipelineTest extends PluginLibTestCase {
 		$this->assertStringContainsString('Template failure while rendering "layout.field.field-wrapper". Check logs for details.', $wrapped_html);
 		$this->assertSame(array('fields.custom'), $session->get_used_component_aliases());
 	}
+
+	public function test_callable_wrapper_override_receives_stored_values_snapshot(): void {
+		$captured_context = null;
+		$stored_values    = array(
+			'other_field' => 'stored',
+			'field-1'     => 'stored-value',
+		);
+		$pending_values = array(
+			'other_field' => 'pending',
+			'field-1'     => 'pending-value',
+		);
+
+		$component_result = new ComponentRenderResult('<input type="text" name="field-1" />');
+		$wrapper_result   = new ComponentRenderResult('<div class="wrapper">wrapped</div>');
+
+		$mock_manifest = Mockery::mock(ComponentManifest::class);
+		$mock_manifest->shouldReceive('render')
+			->with('fields.text', Mockery::type('array'))
+			->andReturn($component_result);
+		$mock_manifest->shouldReceive('render')
+			->with('wrapper.stored', Mockery::type('array'))
+			->andReturn($wrapper_result);
+
+		$form_service = new FormsService($mock_manifest, $this->logger);
+		$session      = $form_service->start_session(array(
+			'field-wrapper' => 'layout.field.field-wrapper',
+		));
+
+		$session->template_resolver()->set_field_template_overrides('field-1', array(
+			'field-wrapper' => static function (array $ctx) use (&$captured_context): string {
+				$captured_context = $ctx;
+				$other            = $ctx['values']['other_field'] ?? null;
+				return $other === 'stored' ? 'wrapper.stored' : 'wrapper.pending';
+			},
+		));
+
+		$renderer = new FormElementRenderer(
+			$mock_manifest,
+			$form_service,
+			$this->component_manifest->get_component_loader(),
+			$this->logger
+		);
+		$message_handler = new FormMessageHandler($this->logger);
+		$message_handler->set_pending_values($pending_values);
+		$renderer->set_message_handler($message_handler);
+
+		$field = array(
+			'field_id'          => 'field-1',
+			'component'         => 'fields.text',
+			'label'             => 'Field 1',
+			'component_context' => array(),
+		);
+
+		$context                   = $renderer->prepare_field_context($field, $stored_values, array());
+		$context['_stored_values'] = $stored_values;
+
+		$html = $renderer->render_field_with_wrapper(
+			'fields.text',
+			'field-1',
+			'Field 1',
+			$context,
+			'layout.field.field-wrapper',
+			'field-wrapper',
+			$session
+		);
+
+		$this->assertSame('<div class="wrapper">wrapped</div>', $html);
+		$this->assertIsArray($captured_context);
+		$this->assertSame('field-wrapper', $captured_context['template_type'] ?? null);
+		$this->assertSame('field-1', $captured_context['field_id'] ?? null);
+		$this->assertSame($stored_values, $captured_context['values'] ?? null);
+		$this->assertSame('pending-value', $captured_context['value'] ?? null);
+	}
 }

@@ -74,8 +74,20 @@ class FormsServiceSession {
 
 		// Step 1: Resolve template key via FormsTemplateOverrideResolver
 		try {
-			$resolver_context = array_merge($element_config, $context);
-			$template_key     = $this->template_resolver->resolve_template($element_type, $resolver_context);
+			$resolver_context                  = array();
+			$resolver_context['template_type'] = $element_type;
+			$allowed_keys                      = array('field_id', 'container_id', 'section_id', 'group_id', 'root_id', 'value', 'values');
+			foreach ($allowed_keys as $key) {
+				if (array_key_exists($key, $context)) {
+					$resolver_context[$key] = $context[$key];
+					continue;
+				}
+				if (array_key_exists($key, $element_config)) {
+					$resolver_context[$key] = $element_config[$key];
+				}
+			}
+
+			$template_key = $this->template_resolver->resolve_template($element_type, $resolver_context);
 			if (isset($element_config['root_override']) && is_string($element_config['root_override']) && $element_config['root_override'] !== '') {
 				$template_key = $element_config['root_override'];
 			}

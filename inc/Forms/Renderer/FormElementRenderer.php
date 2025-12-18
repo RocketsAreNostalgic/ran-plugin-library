@@ -518,9 +518,22 @@ class FormElementRenderer {
 		if (isset($template_context['context']) && is_array($template_context['context'])) {
 			$context = $template_context['context'];
 		}
-		$resolver_context                  = $context;
-		$resolver_context['field_id']      = $resolver_context['field_id'] ?? $field_id;
+
+		$resolver_context                  = array();
 		$resolver_context['template_type'] = $template_type;
+		$resolver_context['field_id']      = $field_id;
+		$allowed_keys                      = array('container_id', 'section_id', 'group_id', 'root_id', 'value');
+		foreach ($allowed_keys as $key) {
+			if (array_key_exists($key, $context)) {
+				$resolver_context[$key] = $context[$key];
+			}
+		}
+
+		if (array_key_exists('_stored_values', $context) && is_array($context['_stored_values'])) {
+			$resolver_context['values'] = $context['_stored_values'];
+		} elseif (array_key_exists('values', $context) && is_array($context['values'])) {
+			$resolver_context['values'] = $context['values'];
+		}
 
 		if ($session instanceof FormsServiceSession) {
 			$element_config = $template_context;

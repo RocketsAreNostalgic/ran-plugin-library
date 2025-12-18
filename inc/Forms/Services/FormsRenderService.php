@@ -103,9 +103,12 @@ class FormsRenderService implements FormsRenderServiceInterface {
 				foreach ($group_fields as $group_field) {
 					if (($group_field['component'] ?? '') === '_raw_html') {
 						$group_fields_content .= $this->render_raw_html_content($group_field, array(
+							'field_id'     => isset($group_field['id']) ? (string) $group_field['id'] : '',
 							'container_id' => $id_slug,
+							'root_id'      => $id_slug,
 							'section_id'   => $section_id,
 							'group_id'     => $group['group_id'] ?? '',
+							'value'        => null,
 							'values'       => $values,
 						));
 						continue;
@@ -113,19 +116,27 @@ class FormsRenderService implements FormsRenderServiceInterface {
 
 					if (($group_field['component'] ?? '') === '_hr') {
 						$group_fields_content .= $this->render_hr_content($group_field, array(
+							'field_id'     => isset($group_field['id']) ? (string) $group_field['id'] : '',
 							'container_id' => $id_slug,
+							'root_id'      => $id_slug,
 							'section_id'   => $section_id,
 							'group_id'     => $group['group_id'] ?? '',
+							'value'        => null,
 							'values'       => $values,
 						));
 						continue;
 					}
 
 					$field_item = array(
-						'field'  => $group_field,
-						'before' => $this->render_callback_output($group_field['before'] ?? null, array(
+						'field'        => $group_field,
+						'container_id' => $id_slug,
+						'root_id'      => $id_slug,
+						'section_id'   => $section_id,
+						'group_id'     => $group['group_id'] ?? '',
+						'before'       => $this->render_callback_output($group_field['before'] ?? null, array(
 							'field_id'     => $group_field['id'] ?? '',
 							'container_id' => $id_slug,
+							'root_id'      => $id_slug,
 							'section_id'   => $section_id,
 							'group_id'     => $group['group_id'] ?? '',
 							'values'       => $values,
@@ -133,6 +144,7 @@ class FormsRenderService implements FormsRenderServiceInterface {
 						'after' => $this->render_callback_output($group_field['after'] ?? null, array(
 							'field_id'     => $group_field['id'] ?? '',
 							'container_id' => $id_slug,
+							'root_id'      => $id_slug,
 							'section_id'   => $section_id,
 							'group_id'     => $group['group_id'] ?? '',
 							'values'       => $values,
@@ -166,8 +178,12 @@ class FormsRenderService implements FormsRenderServiceInterface {
 			foreach ($fields as $field) {
 				if (($field['component'] ?? '') === '_raw_html') {
 					$section_content .= $this->render_raw_html_content($field, array(
+						'field_id'     => isset($field['id']) ? (string) $field['id'] : '',
 						'container_id' => $id_slug,
+						'root_id'      => $id_slug,
 						'section_id'   => $section_id,
+						'group_id'     => '',
+						'value'        => null,
 						'values'       => $values,
 					));
 					continue;
@@ -175,24 +191,34 @@ class FormsRenderService implements FormsRenderServiceInterface {
 
 				if (($field['component'] ?? '') === '_hr') {
 					$section_content .= $this->render_hr_content($field, array(
+						'field_id'     => isset($field['id']) ? (string) $field['id'] : '',
 						'container_id' => $id_slug,
+						'root_id'      => $id_slug,
 						'section_id'   => $section_id,
+						'group_id'     => '',
+						'value'        => null,
 						'values'       => $values,
 					));
 					continue;
 				}
 
 				$field_item = array(
-					'field'  => $field,
-					'before' => $this->render_callback_output($field['before'] ?? null, array(
+					'field'        => $field,
+					'container_id' => $id_slug,
+					'root_id'      => $id_slug,
+					'section_id'   => $section_id,
+					'group_id'     => '',
+					'before'       => $this->render_callback_output($field['before'] ?? null, array(
 						'field_id'     => $field['id'] ?? '',
 						'container_id' => $id_slug,
+						'root_id'      => $id_slug,
 						'section_id'   => $section_id,
 						'values'       => $values,
 					)),
 					'after' => $this->render_callback_output($field['after'] ?? null, array(
 						'field_id'     => $field['id'] ?? '',
 						'container_id' => $id_slug,
+						'root_id'      => $id_slug,
 						'section_id'   => $section_id,
 						'values'       => $values,
 					)),
@@ -209,16 +235,20 @@ class FormsRenderService implements FormsRenderServiceInterface {
 				'inner_html'  => $section_content,
 				'before'      => $this->render_callback_output($meta['before'] ?? null, array(
 					'container_id' => $id_slug,
+					'root_id'      => $id_slug,
 					'section_id'   => $section_id,
 					'values'       => $values,
 				)) ?? '',
 				'after' => $this->render_callback_output($meta['after'] ?? null, array(
 					'container_id' => $id_slug,
+					'root_id'      => $id_slug,
 					'section_id'   => $section_id,
 					'values'       => $values,
 				)) ?? '',
-				'style'  => trim($section_style),
-				'values' => $values,
+				'style'        => trim($section_style),
+				'values'       => $values,
+				'root_id'      => $id_slug,
+				'container_id' => $id_slug,
 			);
 
 			$section_template = '';
@@ -402,6 +432,12 @@ class FormsRenderService implements FormsRenderServiceInterface {
 				$values,
 				$extras
 			);
+
+			$field_context['_stored_values'] = $values;
+			$field_context['container_id']   = isset($field_item['container_id']) ? (string) $field_item['container_id'] : '';
+			$field_context['root_id']        = isset($field_item['root_id']) ? (string) $field_item['root_id'] : '';
+			$field_context['section_id']     = isset($field_item['section_id']) ? (string) $field_item['section_id'] : '';
+			$field_context['group_id']       = isset($field_item['group_id']) ? (string) $field_item['group_id'] : '';
 
 			$group_type  = $field_item['group_type'] ?? 'group';
 			$wrapper_key = $group_type === 'fieldset' ? 'fieldset-field-wrapper' : 'field-wrapper';
