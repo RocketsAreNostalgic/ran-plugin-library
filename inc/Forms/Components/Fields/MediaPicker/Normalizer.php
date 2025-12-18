@@ -54,6 +54,7 @@ final class Normalizer extends NormalizerBase {
 		$removeId     = $this->session->reserve_id($removeIdBase, 'media_remove');
 
 		// Build template context
+		unset($context['attributes']['required'], $context['attributes']['aria-required']);
 		$context['input_attributes'] = $this->session->format_attributes($context['attributes']);
 		$context['select_label']     = $this->_sanitize_string($context['select_label'] ?? 'Select media', 'select_label');
 		$context['replace_label']    = $this->_sanitize_string($context['replace_label'] ?? 'Replace media', 'replace_label');

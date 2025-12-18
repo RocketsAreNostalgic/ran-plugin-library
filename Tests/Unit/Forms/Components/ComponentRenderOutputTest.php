@@ -319,6 +319,32 @@ final class ComponentRenderOutputTest extends PluginLibTestCase {
 		self::assertStringContainsString('checked="checked"', $html);
 	}
 
+	public function test_radio_group_does_not_render_required_on_fieldset(): void {
+		$html = $this->manifest->render_to_string('fields.radio-group', array(
+			'name'     => 'size',
+			'required' => true,
+			'options'  => array(
+				array('value' => 'sm', 'label' => 'Small'),
+				array('value' => 'md', 'label' => 'Medium'),
+			),
+		));
+
+		self::assertDoesNotMatchRegularExpression('/<fieldset[^>]*\srequired(\s|=|>)/', $html);
+		self::assertStringNotContainsString('aria-required', $html);
+	}
+
+	public function test_radio_group_renders_disabled_on_fieldset(): void {
+		$html = $this->manifest->render_to_string('fields.radio-group', array(
+			'name'     => 'size',
+			'disabled' => true,
+			'options'  => array(
+				array('value' => 'sm', 'label' => 'Small'),
+			),
+		));
+
+		self::assertMatchesRegularExpression('/<fieldset[^>]*\sdisabled(\s|=|>)/', $html);
+	}
+
 	// =========================================================================
 	// Checkbox Group Component
 	// =========================================================================
@@ -339,6 +365,31 @@ final class ComponentRenderOutputTest extends PluginLibTestCase {
 		self::assertStringContainsString('Blue', $html);
 	}
 
+	public function test_checkbox_group_does_not_render_required_on_fieldset(): void {
+		$html = $this->manifest->render_to_string('fields.checkbox-group', array(
+			'name'     => 'colors',
+			'required' => true,
+			'options'  => array(
+				array('value' => 'red', 'label' => 'Red'),
+			),
+		));
+
+		self::assertDoesNotMatchRegularExpression('/<fieldset[^>]*\srequired(\s|=|>)/', $html);
+		self::assertStringNotContainsString('aria-required', $html);
+	}
+
+	public function test_checkbox_group_renders_disabled_on_fieldset(): void {
+		$html = $this->manifest->render_to_string('fields.checkbox-group', array(
+			'name'     => 'colors',
+			'disabled' => true,
+			'options'  => array(
+				array('value' => 'red', 'label' => 'Red'),
+			),
+		));
+
+		self::assertMatchesRegularExpression('/<fieldset[^>]*\sdisabled(\s|=|>)/', $html);
+	}
+
 	// =========================================================================
 	// MultiSelect Component
 	// =========================================================================
@@ -354,6 +405,19 @@ final class ComponentRenderOutputTest extends PluginLibTestCase {
 
 		self::assertStringContainsString('<select', $html);
 		self::assertStringContainsString('multiple', $html);
+	}
+
+	public function test_multiselect_renders_required(): void {
+		$html = $this->manifest->render_to_string('fields.multi-select', array(
+			'name'     => 'tags',
+			'required' => true,
+			'options'  => array(
+				array('value' => 'php', 'label' => 'PHP'),
+			),
+		));
+
+		self::assertMatchesRegularExpression('/<select[^>]*\srequired(\s|=|>)/', $html);
+		self::assertStringContainsString('aria-required="true"', $html);
 	}
 
 	// =========================================================================
@@ -450,6 +514,16 @@ final class ComponentRenderOutputTest extends PluginLibTestCase {
 
 		// Media picker should have a hidden input for the value
 		self::assertStringContainsString('name="featured_image"', $html);
+	}
+
+	public function test_media_picker_does_not_render_required_on_hidden_input(): void {
+		$html = $this->manifest->render_to_string('fields.media-picker', array(
+			'name'     => 'featured_image',
+			'required' => true,
+		));
+
+		self::assertDoesNotMatchRegularExpression('/<input[^>]*\srequired(\s|=|>)/', $html);
+		self::assertStringNotContainsString('aria-required', $html);
 	}
 
 	// =========================================================================

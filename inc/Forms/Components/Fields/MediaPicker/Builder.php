@@ -24,6 +24,8 @@ final class Builder extends ComponentBuilderBase {
 	private ?string $preview_html   = null;
 	private bool $multiple          = false;
 	private ?bool $has_selection    = null;
+	/** @var bool|callable */
+	private mixed $required = false;
 
 	public function __construct(string $id, string $label) {
 		parent::__construct($id, $label);
@@ -60,6 +62,11 @@ final class Builder extends ComponentBuilderBase {
 
 	public function value(?string $value): static {
 		$this->value = $value;
+		return $this;
+	}
+
+	public function required(bool|callable $required = true): static {
+		$this->required = $required;
 		return $this;
 	}
 
@@ -119,6 +126,11 @@ final class Builder extends ComponentBuilderBase {
 		$this->_add_if_not_empty($context, 'replace_label', $this->replace_label);
 		$this->_add_if_not_empty($context, 'remove_label', $this->remove_label);
 		$this->_add_if_not_empty($context, 'preview_html', $this->preview_html);
+		if (is_callable($this->required)) {
+			$context['required'] = $this->required;
+		} else {
+			$this->_add_if_true($context, 'required', (bool) $this->required);
+		}
 
 		// Add boolean properties
 		$this->_add_if_true($context, 'multiple', $this->multiple);
