@@ -9,14 +9,12 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\Forms\Component\Build;
 
-abstract class ComponentBuilderInputBase extends ComponentBuilderBase implements InputComponentBuilderInterface, ReadonlyComponentBuilderInterface {
+abstract class ComponentBuilderInputBase extends ComponentBuilderBase implements InputComponentBuilderInterface {
 	protected ?string $placeholder = null;
 	/** @var string|callable|null */
 	protected mixed $default = null;
 	/** @var bool|callable */
 	protected mixed $disabled = false;
-	/** @var bool|callable */
-	protected mixed $readonly = false;
 	/** @var bool|callable */
 	protected mixed $required = false;
 	protected bool $autofocus = false;
@@ -76,17 +74,6 @@ abstract class ComponentBuilderInputBase extends ComponentBuilderBase implements
 	 */
 	public function disabled(bool|callable $disabled = true): static {
 		$this->disabled = $disabled;
-		return $this;
-	}
-
-	/**
-	 * Marks the input as readonly.
-	 *
-	 * @param bool|callable $readonly Boolean or callable that returns bool.
-	 * @return static
-	 */
-	public function readonly(bool|callable $readonly = true): static {
-		$this->readonly = $readonly;
 		return $this;
 	}
 
@@ -161,11 +148,6 @@ abstract class ComponentBuilderInputBase extends ComponentBuilderBase implements
 			$context['disabled'] = $this->disabled;
 		} else {
 			$this->_add_if_true($context, 'disabled', (bool) $this->disabled);
-		}
-		if (is_callable($this->readonly)) {
-			$context['readonly'] = $this->readonly;
-		} else {
-			$this->_add_if_true($context, 'readonly', (bool) $this->readonly);
 		}
 		if (is_callable($this->required)) {
 			$context['required'] = $this->required;

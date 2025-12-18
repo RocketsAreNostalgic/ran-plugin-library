@@ -14,6 +14,8 @@ final class Builder extends ComponentBuilderBase {
 	protected ?string $name   = null;
 	/** @var string|callable|null */
 	protected mixed $default = null;
+	/** @var bool|callable */
+	protected mixed $disabled = false;
 	/** @var array<int,array{value:string,label:string,description:?string,attributes:array<string,string>,disabled:bool,label_attributes:array<string,string>}> */
 	protected array $options = array();
 
@@ -31,6 +33,11 @@ final class Builder extends ComponentBuilderBase {
 
 	public function default(string|callable|null $value): static {
 		$this->default = $value;
+		return $this;
+	}
+
+	public function disabled(bool|callable $disabled = true): static {
+		$this->disabled = $disabled;
 		return $this;
 	}
 
@@ -79,6 +86,11 @@ final class Builder extends ComponentBuilderBase {
 			$context['default'] = $this->default;
 		} else {
 			$this->_add_if_not_empty($context, 'default', $this->default);
+		}
+		if (is_callable($this->disabled)) {
+			$context['disabled'] = $this->disabled;
+		} else {
+			$this->_add_if_true($context, 'disabled', (bool) $this->disabled);
 		}
 
 		return $context;

@@ -3,9 +3,9 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\Tests\Unit\Forms\Builders;
 
-use Ran\PluginLib\Forms\Component\Build\ComponentBuilderInputBase;
+use Ran\PluginLib\Forms\Component\Build\ComponentBuilderTextBase;
 
-final class StubComponentBuilder extends ComponentBuilderInputBase {
+final class StubComponentBuilder extends ComponentBuilderTextBase {
 	public function __construct(string $id, string $label, private string $componentAlias) {
 		parent::__construct($id, $label);
 	}

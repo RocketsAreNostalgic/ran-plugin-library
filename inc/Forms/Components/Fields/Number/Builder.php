@@ -9,12 +9,37 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\Forms\Components\Fields\Number;
 
+use Ran\PluginLib\Forms\Component\Build\ReadonlyComponentBuilderInterface;
 use Ran\PluginLib\Forms\Component\Build\ComponentBuilderInputBase;
 
-final class Builder extends ComponentBuilderInputBase {
+final class Builder extends ComponentBuilderInputBase implements ReadonlyComponentBuilderInterface {
+	/** @var bool|callable */
+	protected mixed $readonly = false;
+
+	/**
+	 * Marks the input as readonly.
+	 *
+	 * @param bool|callable $readonly Boolean or callable that returns bool.
+	 * @return static
+	 */
+	public function readonly(bool|callable $readonly = true): static {
+		$this->readonly = $readonly;
+		return $this;
+	}
+
 	protected int|float|null $min  = null;
 	protected int|float|null $max  = null;
 	protected int|float|null $step = null;
+
+	protected function _build_input_context(): array {
+		$context = parent::_build_input_context();
+		if (is_callable($this->readonly)) {
+			$context['readonly'] = $this->readonly;
+		} else {
+			$this->_add_if_true($context, 'readonly', (bool) $this->readonly);
+		}
+		return $context;
+	}
 
 	/**
 	 * Sets the minimum allowed value.

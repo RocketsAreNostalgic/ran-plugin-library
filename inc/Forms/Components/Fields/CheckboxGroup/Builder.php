@@ -15,7 +15,9 @@ final class Builder extends ComponentBuilderBase {
 	/** @var array<int,CheckboxOptionBuilder|array<string,mixed>> */
 	private array $options = array();
 	/** @var array<int,string> */
-	private array $defaults     = array();
+	private array $defaults = array();
+	/** @var bool|callable */
+	private mixed $disabled     = false;
 	private int $__option_index = 0;
 
 	public function __construct(string $id, string $label) {
@@ -31,6 +33,11 @@ final class Builder extends ComponentBuilderBase {
 
 	public function defaults(array $values): static {
 		$this->defaults = array_map('strval', $values);
+		return $this;
+	}
+
+	public function disabled(bool|callable $disabled = true): static {
+		$this->disabled = $disabled;
 		return $this;
 	}
 
@@ -84,6 +91,11 @@ final class Builder extends ComponentBuilderBase {
 
 		// Add optional properties using base class helpers
 		$this->_add_if_not_empty($context, 'defaults', $this->defaults);
+		if (is_callable($this->disabled)) {
+			$context['disabled'] = $this->disabled;
+		} else {
+			$this->_add_if_true($context, 'disabled', (bool) $this->disabled);
+		}
 
 		return $context;
 	}

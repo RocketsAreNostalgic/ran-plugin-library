@@ -19,6 +19,8 @@ final class Builder extends ComponentBuilderBase {
 	private mixed $default_values = array();
 	/** @var bool|callable */
 	private mixed $disabled = false;
+	/** @var bool|callable */
+	private mixed $required = false;
 	/** @var array<int,array<string,mixed>>|callable */
 	private mixed $options = array();
 
@@ -79,6 +81,16 @@ final class Builder extends ComponentBuilderBase {
 	 */
 	public function disabled(bool|callable $disabled = true): static {
 		$this->disabled = $disabled;
+		return $this;
+	}
+
+	/**
+	 * Set the required state.
+	 *
+	 * @param bool|callable $required Boolean or callable that returns bool.
+	 */
+	public function required(bool|callable $required = true): static {
+		$this->required = $required;
 		return $this;
 	}
 
@@ -147,6 +159,11 @@ final class Builder extends ComponentBuilderBase {
 			$context['disabled'] = $this->disabled;
 		} else {
 			$this->_add_if_true($context, 'disabled', (bool) $this->disabled);
+		}
+		if (is_callable($this->required)) {
+			$context['required'] = $this->required;
+		} else {
+			$this->_add_if_true($context, 'required', (bool) $this->required);
 		}
 
 		return $context;

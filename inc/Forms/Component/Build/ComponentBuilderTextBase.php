@@ -8,13 +8,37 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\Forms\Component\Build;
 
-abstract class ComponentBuilderTextBase extends ComponentBuilderInputBase {
+abstract class ComponentBuilderTextBase extends ComponentBuilderInputBase implements ReadonlyComponentBuilderInterface {
+	/** @var bool|callable */
+	protected mixed $readonly = false;
+
+	/**
+	 * Marks the input as readonly.
+	 *
+	 * @param bool|callable $readonly Boolean or callable that returns bool.
+	 * @return static
+	 */
+	public function readonly(bool|callable $readonly = true): static {
+		$this->readonly = $readonly;
+		return $this;
+	}
+
 	protected ?string $autocomplete   = null;
 	protected ?string $autocapitalize = null;
 	protected ?bool $spellcheck       = null;
 	protected ?int $minlength         = null;
 	protected ?int $maxlength         = null;
 	protected ?string $pattern        = null;
+
+	protected function _build_input_context(): array {
+		$context = parent::_build_input_context();
+		if (is_callable($this->readonly)) {
+			$context['readonly'] = $this->readonly;
+		} else {
+			$this->_add_if_true($context, 'readonly', (bool) $this->readonly);
+		}
+		return $context;
+	}
 
 	/**
 	 * Sets the autocomplete attribute for the input.

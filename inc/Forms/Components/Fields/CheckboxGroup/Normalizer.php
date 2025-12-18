@@ -44,6 +44,8 @@ final class Normalizer extends NormalizerBase {
 			$renderedOptions[] = $this->_render_option($option, $fieldsetId, $index, $groupName, $selectedValues);
 		}
 
+		unset($context['attributes']['required'], $context['attributes']['aria-required']);
+
 		// Build template context
 		$context['attributes']   = $this->session->format_attributes($context['attributes']);
 		$context['legend']       = $this->_sanitize_string($context['legend'] ?? '', 'legend');
