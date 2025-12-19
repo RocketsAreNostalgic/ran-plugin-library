@@ -127,6 +127,15 @@ final class FormsRenderServiceTest extends TestCase {
 
 		$session = $this->createMock(FormsServiceSession::class);
 		$session->method('resolve_template')->willReturn('layout.zone.section-wrapper');
+		$registry = new \Ran\PluginLib\Forms\CallableRegistry();
+		$registry->register_bool_key('disabled');
+		$registry->register_bool_key('readonly');
+		$registry->register_bool_key('required');
+		$registry->register_value_key('default');
+		$registry->register_value_key('options');
+		$registry->register_string_key('style');
+		$registry->register_nested_rule('options.*.disabled', 'bool');
+		$session->method('callable_registry')->willReturn($registry);
 		$session->method('note_component_used');
 		$session->method('render_element')->willReturn('wrapped');
 
@@ -294,6 +303,15 @@ final class FormsRenderServiceTest extends TestCase {
 
 		$session = $this->createMock(FormsServiceSession::class);
 		$session->method('resolve_template')->willReturn('layout.zone.section-wrapper');
+		$registry = new \Ran\PluginLib\Forms\CallableRegistry();
+		$registry->register_bool_key('disabled');
+		$registry->register_bool_key('readonly');
+		$registry->register_bool_key('required');
+		$registry->register_value_key('default');
+		$registry->register_value_key('options');
+		$registry->register_string_key('style');
+		$registry->register_nested_rule('options.*.disabled', 'bool');
+		$session->method('callable_registry')->willReturn($registry);
 		$session->method('note_component_used');
 		$session->method('render_element')->willReturn('wrapped');
 
@@ -393,6 +411,15 @@ final class FormsRenderServiceTest extends TestCase {
 
 		$session = $this->createMock(FormsServiceSession::class);
 		$session->method('resolve_template')->willReturn('layout.zone.section-wrapper');
+		$registry = new \Ran\PluginLib\Forms\CallableRegistry();
+		$registry->register_bool_key('disabled');
+		$registry->register_bool_key('readonly');
+		$registry->register_bool_key('required');
+		$registry->register_value_key('default');
+		$registry->register_value_key('options');
+		$registry->register_string_key('style');
+		$registry->register_nested_rule('options.*.disabled', 'bool');
+		$session->method('callable_registry')->willReturn($registry);
 		$session->method('note_component_used');
 		$session->method('render_element')->willReturn('wrapped');
 

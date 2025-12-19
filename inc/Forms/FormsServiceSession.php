@@ -37,6 +37,7 @@ class FormsServiceSession {
 	private array $form_defaults = array();
 	/** @var array<string,bool> */
 	private array $used_component_aliases = array();
+	private CallableRegistry $callable_registry;
 
 	public function __construct(
 		ComponentManifest $manifest,
@@ -49,11 +50,23 @@ class FormsServiceSession {
 		$this->template_resolver = $template_resolver;
 		$this->logger            = $logger;
 		$this->pipeline          = $pipeline ?? new ValidatorPipelineService();
+		$this->callable_registry = new CallableRegistry();
+		$this->callable_registry->register_bool_key('disabled');
+		$this->callable_registry->register_bool_key('readonly');
+		$this->callable_registry->register_bool_key('required');
+		$this->callable_registry->register_value_key('default');
+		$this->callable_registry->register_value_key('options');
+		$this->callable_registry->register_string_key('style');
+		$this->callable_registry->register_nested_rule('options.*.disabled', 'bool');
 
 		// Set form-wide defaults if provided
 		if (!empty($form_defaults)) {
 			$this->template_resolver->set_form_defaults($form_defaults);
 		}
+	}
+
+	public function callable_registry(): CallableRegistry {
+		return $this->callable_registry;
 	}
 
 	/**

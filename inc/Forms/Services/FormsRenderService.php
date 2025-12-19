@@ -466,7 +466,8 @@ class FormsRenderService implements FormsRenderServiceInterface {
 		}
 
 		try {
-			$session = $this->_ensure_session();
+			$session           = $this->_ensure_session();
+			$callable_registry = $session->callable_registry();
 
 			$extras = array();
 			if (array_key_exists('before', $field_item) && $field_item['before'] !== null) {
@@ -499,7 +500,7 @@ class FormsRenderService implements FormsRenderServiceInterface {
 			);
 			$this->assert_min_callback_ctx($callback_ctx);
 
-			$bool_keys = array('disabled', 'readonly', 'required');
+			$bool_keys = $callable_registry->bool_keys();
 			foreach ($bool_keys as $key) {
 				if (!isset($field_context[$key]) || !is_callable($field_context[$key])) {
 					continue;
@@ -513,7 +514,7 @@ class FormsRenderService implements FormsRenderServiceInterface {
 				}
 			}
 
-			$value_keys = array('default', 'options');
+			$value_keys = $callable_registry->value_keys();
 			foreach ($value_keys as $key) {
 				if (!isset($field_context[$key]) || !is_callable($field_context[$key])) {
 					continue;
@@ -528,9 +529,12 @@ class FormsRenderService implements FormsRenderServiceInterface {
 			}
 
 			if (isset($field_context['style'])) {
+				$style_key_list = $callable_registry->string_keys();
 				if (is_callable($field_context['style'])) {
-					$resolved_style         = FormsCallbackInvoker::invoke($field_context['style'], $callback_ctx);
-					$field_context['style'] = trim((string) $resolved_style);
+					if (in_array('style', $style_key_list, true)) {
+						$resolved_style         = FormsCallbackInvoker::invoke($field_context['style'], $callback_ctx);
+						$field_context['style'] = trim((string) $resolved_style);
+					}
 				} else {
 					$field_context['style'] = trim((string) $field_context['style']);
 				}
@@ -539,6 +543,8 @@ class FormsRenderService implements FormsRenderServiceInterface {
 				}
 			}
 
+			$nested_rules = $callable_registry->nested_rules();
+
 			if (isset($field_context['options']) && is_array($field_context['options'])) {
 				foreach ($field_context['options'] as $idx => $option) {
 					if (!is_array($option)) {
@@ -546,6 +552,9 @@ class FormsRenderService implements FormsRenderServiceInterface {
 					}
 
 					if (isset($option['disabled']) && is_callable($option['disabled'])) {
+						if (!isset($nested_rules['options.*.disabled']) || $nested_rules['options.*.disabled'] !== 'bool') {
+							continue;
+						}
 						$resolved = FormsCallbackInvoker::invoke($option['disabled'], $callback_ctx);
 						if ($resolved) {
 							$option['disabled'] = true;
