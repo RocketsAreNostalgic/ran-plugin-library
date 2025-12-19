@@ -294,6 +294,167 @@ final class AdminSettingsSubmitControlsRenderTest extends TestCase {
 		self::assertNotEmpty($storedControls['empty-fallback-page']['controls'] ?? array(), 'Fallback controls should be stored after render.');
 	}
 
+	public function test_submit_control_callables_receive_canonical_callback_ctx_with_extra_keys(): void {
+		$settings = $this->createAdminSettings();
+
+		$seen_ctx = null;
+
+		$settings->menu_group('ctx-group')
+			->page('ctx-page')
+				->heading('CTX Page')
+				->submit_controls()
+					->button('ctx-button', 'CTX Button')
+						->disabled(function (array $ctx) use (&$seen_ctx): bool {
+							$seen_ctx = $ctx;
+							return false;
+						})
+					->end_submit_controls()
+			->end_page()
+		->end_menu();
+
+		$this->setOptionValues(array('example_field' => 'stored'));
+
+		ob_start();
+		$settings->__render('ctx-page');
+		ob_end_clean();
+
+		self::assertIsArray($seen_ctx, 'Expected submit control callable to be invoked with callback ctx.');
+
+		$required_keys = array('field_id', 'container_id', 'root_id', 'section_id', 'group_id', 'value', 'values');
+		foreach ($required_keys as $key) {
+			self::assertArrayHasKey($key, $seen_ctx);
+		}
+		self::assertArrayHasKey('zone_id', $seen_ctx);
+		self::assertArrayHasKey('controls', $seen_ctx);
+
+		self::assertSame('ctx-button', $seen_ctx['field_id']);
+		self::assertSame('ctx-page', $seen_ctx['container_id']);
+		self::assertSame('ctx-page', $seen_ctx['root_id']);
+		self::assertSame('primary-controls', $seen_ctx['zone_id']);
+		self::assertSame(array('example_field' => 'stored'), $seen_ctx['values']);
+		self::assertIsArray($seen_ctx['controls']);
+	}
+
+	public function test_submit_control_supports_zero_arg_default_and_options_callables(): void {
+		$settings = $this->createAdminSettings();
+
+		$seen_context   = null;
+		$seen_default   = false;
+		$seen_options   = false;
+		$expectedValues = array(
+			array('value' => 'a', 'label' => 'A'),
+		);
+
+		$this->manifest->register('components.select', function (array $context) use (&$seen_context): ComponentRenderResult {
+			$seen_context = $context;
+			return new ComponentRenderResult('');
+		});
+
+		$settings->menu_group('zero-arg-group')
+			->page('zero-arg-page')
+				->heading('Zero Arg Page')
+				->submit_controls()
+					->field('select-control', '', 'components.select', array(
+						'context' => array(
+							'default' => function () use (&$seen_default): string {
+								$seen_default = true;
+								return 'd0';
+							},
+							'options' => function () use (&$seen_options, $expectedValues): array {
+								$seen_options = true;
+								return $expectedValues;
+							},
+						),
+						'order' => 1,
+					))
+				->end_submit_controls()
+			->end_page()
+		->end_menu();
+
+		$this->setOptionValues(array('example_field' => 'stored'));
+
+		ob_start();
+		$settings->__render('zero-arg-page');
+		ob_end_clean();
+
+		self::assertTrue($seen_default, 'Expected zero-arg default callable to be invoked.');
+		self::assertTrue($seen_options, 'Expected zero-arg options callable to be invoked.');
+		self::assertIsArray($seen_context);
+		self::assertSame('d0', $seen_context['default'] ?? null);
+		self::assertSame($expectedValues, $seen_context['options'] ?? null);
+		self::assertIsString($seen_context['field_id'] ?? null);
+		self::assertSame('select-control', $seen_context['field_id'] ?? null);
+	}
+
+	public function test_submit_controls_zone_before_after_supports_zero_arg_callbacks(): void {
+		$settings = $this->createAdminSettings();
+
+		$settings->menu_group('zone-before-after-group')
+			->page('zone-before-after-page')
+				->heading('Zone Before/After')
+				->submit_controls()
+					->before(static function (): string {
+						return '<span class="zone-before">Before</span>';
+					})
+					->after(static function (): string {
+						return '<span class="zone-after">After</span>';
+					})
+					->button('zone-before-after-button', 'Save Changes')
+				->end_submit_controls()
+			->end_page()
+		->end_menu();
+
+		$this->setOptionValues(array('example_field' => 'stored'));
+
+		ob_start();
+		$settings->__render('zone-before-after-page');
+		$output = (string) ob_get_clean();
+
+		self::assertStringContainsString('<span class="zone-before">Before</span>', $output);
+		self::assertStringContainsString('<span class="zone-after">After</span>', $output);
+		self::assertStringContainsString('<button type="submit">Save Changes</button>', $output);
+	}
+
+	public function test_submit_control_style_supports_zero_arg_callable(): void {
+		$settings = $this->createAdminSettings();
+
+		$seen_context = null;
+		$seen_style   = false;
+
+		$this->manifest->register('components.style-capture', function (array $context) use (&$seen_context): ComponentRenderResult {
+			$seen_context = $context;
+			return new ComponentRenderResult('');
+		});
+
+		$settings->menu_group('style-group')
+			->page('style-page')
+				->heading('Style Page')
+				->submit_controls()
+					->field('style-control', '', 'components.style-capture', array(
+						'context' => array(
+							'style' => function () use (&$seen_style): string {
+								$seen_style = true;
+								return '  foo  ';
+							},
+						),
+						'order' => 1,
+					))
+				->end_submit_controls()
+			->end_page()
+		->end_menu();
+
+		$this->setOptionValues(array('example_field' => 'stored'));
+
+		ob_start();
+		$settings->__render('style-page');
+		ob_end_clean();
+
+		self::assertTrue($seen_style, 'Expected zero-arg style callable to be invoked.');
+		self::assertIsArray($seen_context);
+		self::assertSame('foo', $seen_context['style'] ?? null);
+		self::assertSame('style-control', $seen_context['field_id'] ?? null);
+	}
+
 	private function createAdminSettings(): \Ran\PluginLib\Settings\AdminSettings {
 		$options = RegisterOptions::site(self::OPTION_KEY, true, $this->logger);
 		$options->register_schema(array(

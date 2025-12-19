@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\Tests\Unit\Forms\Components\Fields\MediaPicker;
 
-use Ran\PluginLib\Forms\Components\Fields\MediaPicker\Validator;
-use Ran\PluginLib\Tests\Unit\PluginLibTestCase;
 use WP_Mock;
+use Ran\PluginLib\Tests\Unit\PluginLibTestCase;
+use Ran\PluginLib\Forms\Components\Fields\MediaPicker\Validator;
 
 final class ValidatorTest extends PluginLibTestCase {
 	private Validator $validator;

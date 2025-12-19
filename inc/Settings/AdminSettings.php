@@ -364,9 +364,6 @@ class AdminSettings extends FormsCore {
 		$options        = $this->_do_get_option($this->main_option, array());
 		$sections       = $this->sections[$ref['page']] ?? array();
 
-		// Get effective values from message handler (handles pending values)
-		$effective_values = $this->message_handler->get_effective_values($options);
-
 		// Render before/after callbacks for the page
 		$before_html = $this->_render_callback_output($meta['before'] ?? null, array(
 			'field_id'     => '',
@@ -987,11 +984,6 @@ class AdminSettings extends FormsCore {
 			$this->_start_form_session();
 		}
 
-		$content = '';
-		foreach ($controls as $control) {
-			$content .= $this->_render_submit_control($control);
-		}
-
 		$callback_context = array(
 			'field_id'     => '',
 			'container_id' => $page_slug,
@@ -1003,6 +995,14 @@ class AdminSettings extends FormsCore {
 			'zone_id'      => $zone_id,
 			'controls'     => $controls,
 		);
+
+		$content = '';
+		foreach ($controls as $control) {
+			$control_ctx             = $callback_context;
+			$control_id              = $control['id'] ?? '';
+			$control_ctx['field_id'] = is_string($control_id) ? $control_id : (string) $control_id;
+			$content .= $this->_render_submit_control_with_ctx($control, $control_ctx);
+		}
 
 		$before_markup = $this->_render_callback_output($zone_meta['before'] ?? null, $callback_context) ?? '';
 		$after_markup  = $this->_render_callback_output($zone_meta['after'] ?? null, $callback_context)  ?? '';
@@ -1023,12 +1023,14 @@ class AdminSettings extends FormsCore {
 	}
 
 	/**
-	 * Render a submit control button via component manifest.
+	 * Render a submit control button via component manifest, resolving whitelisted callables using
+	 * the canonical stored-only callback context.
 	 *
 	 * @param array{id:string,label:string,component:string,component_context:array<string,mixed>,order:int} $control
+	 * @param array<string,mixed> $callback_ctx
 	 * @return string
 	 */
-	protected function _render_submit_control(array $control): string {
+	protected function _render_submit_control_with_ctx(array $control, array $callback_ctx): string {
 		if ($this->form_session === null) {
 			$this->_start_form_session();
 		}
@@ -1038,8 +1040,96 @@ class AdminSettings extends FormsCore {
 		$control_id = $control['id']                ?? '';
 		$label      = $control['label']             ?? '';
 
+		if (!is_array($context)) {
+			$context = array();
+		}
+
 		$context['field_id'] = $control_id;
 		$context['label']    = $label;
+
+		try {
+			$registry = $this->form_session->callable_registry();
+
+			$bool_keys = $registry->bool_keys();
+			foreach ($bool_keys as $key) {
+				if (!isset($context[$key]) || !is_callable($context[$key])) {
+					continue;
+				}
+
+				$resolved = FormsCallbackInvoker::invoke($context[$key], $callback_ctx);
+				if ($resolved) {
+					$context[$key] = true;
+				} else {
+					unset($context[$key]);
+				}
+			}
+
+			$value_keys = $registry->value_keys();
+			foreach ($value_keys as $key) {
+				if (!isset($context[$key]) || !is_callable($context[$key])) {
+					continue;
+				}
+
+				$resolved = FormsCallbackInvoker::invoke($context[$key], $callback_ctx);
+				if ($resolved === null || $resolved === '' || $resolved === array()) {
+					unset($context[$key]);
+				} else {
+					$context[$key] = $resolved;
+				}
+			}
+
+			$string_keys = $registry->string_keys();
+			foreach ($string_keys as $key) {
+				if (!isset($context[$key])) {
+					continue;
+				}
+				if (is_callable($context[$key])) {
+					$resolved      = (string) FormsCallbackInvoker::invoke($context[$key], $callback_ctx);
+					$context[$key] = trim($resolved);
+				} else {
+					$context[$key] = trim((string) $context[$key]);
+				}
+				if ($context[$key] === '') {
+					unset($context[$key]);
+				}
+			}
+
+			$nested_rules = $registry->nested_rules();
+			if (isset($context['options']) && is_array($context['options'])) {
+				foreach ($context['options'] as $idx => $option) {
+					if (!is_array($option)) {
+						continue;
+					}
+					if (isset($option['disabled']) && is_callable($option['disabled'])) {
+						if (!isset($nested_rules['options.*.disabled']) || $nested_rules['options.*.disabled'] !== 'bool') {
+							continue;
+						}
+						$resolved = FormsCallbackInvoker::invoke($option['disabled'], $callback_ctx);
+						if ($resolved) {
+							$option['disabled'] = true;
+							if (!isset($option['attributes']) || !is_array($option['attributes'])) {
+								$option['attributes'] = array();
+							}
+							$option['attributes']['disabled'] = 'disabled';
+						} else {
+							unset($option['disabled']);
+							if (isset($option['attributes']) && is_array($option['attributes'])) {
+								unset($option['attributes']['disabled']);
+							}
+						}
+					}
+					$context['options'][$idx] = $option;
+				}
+			}
+		} catch (\Throwable $e) {
+			$this->logger->warning('AdminSettings: Submit control context callable resolution failed', array(
+				'control_id'        => $control_id,
+				'component'         => $component,
+				'exception_class'   => get_class($e),
+				'exception_code'    => $e->getCode(),
+				'exception_message' => $e->getMessage(),
+			));
+		}
 
 		try {
 			$this->logger->debug('admin_settings.submit_control.render.start', array(

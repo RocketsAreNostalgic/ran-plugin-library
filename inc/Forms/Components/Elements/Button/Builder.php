@@ -69,18 +69,6 @@ final class Builder extends ComponentBuilderBase {
 	}
 
 	/**
-	 * Gets the button disabled state.
-	 *
-	 * @return bool
-	 */
-	public function is_disabled(): bool {
-		if (is_callable($this->disabled)) {
-			return (bool) ($this->disabled)();
-		}
-		return (bool) $this->disabled;
-	}
-
-	/**
 	 * Gets the button variant.
 	 *
 	 * @return string

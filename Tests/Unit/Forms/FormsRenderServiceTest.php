@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Ran\PluginLib\Tests\Unit\Forms;
 
 use Ran\PluginLib\Util\CollectingLogger;
-use Ran\PluginLib\Forms\Services\FormsStateStoreInterface;
+use Ran\PluginLib\Forms\Services\FormsStateStore;
 use Ran\PluginLib\Forms\Services\FormsRenderService;
 use Ran\PluginLib\Forms\Renderer\FormElementRenderer;
 use Ran\PluginLib\Forms\FormsServiceSession;
@@ -18,7 +18,7 @@ use PHPUnit\Framework\TestCase;
 final class FormsRenderServiceTest extends TestCase {
 	public function test_render_callback_output_throws_when_missing_required_keys(): void {
 		$svc = new FormsRenderService(
-			$this->createMock(FormsStateStoreInterface::class),
+			$this->createMock(FormsStateStore::class),
 			new CollectingLogger(),
 			$this->createMock(ComponentLoader::class),
 			$this->createMock(FormElementRenderer::class),
@@ -69,7 +69,7 @@ final class FormsRenderServiceTest extends TestCase {
 			),
 		);
 
-		$state_store = $this->createMock(FormsStateStoreInterface::class);
+		$state_store = $this->createMock(FormsStateStore::class);
 		$state_store->method('get_groups_map')->willReturn(array(
 			'sec1' => array(
 				array(
@@ -209,7 +209,7 @@ final class FormsRenderServiceTest extends TestCase {
 			),
 		);
 
-		$state_store = $this->createMock(FormsStateStoreInterface::class);
+		$state_store = $this->createMock(FormsStateStore::class);
 		$state_store->method('get_groups_map')->willReturn(array('sec1' => array()));
 		$state_store->method('get_fields_map')->willReturn(array('sec1' => array()));
 
@@ -259,8 +259,299 @@ final class FormsRenderServiceTest extends TestCase {
 		self::assertSame('desc0', $captured['section_render_context']['description'] ?? null);
 	}
 
+	public function test_render_default_sections_wrapper_group_description_supports_ctx_callable(): void {
+		$seen_ctx             = null;
+		$seen_group_context   = null;
+		$seen_element_context = null;
+
+		$values = array(
+			'f1' => 'v1',
+		);
+
+		$sections = array(
+			'sec1' => array(
+				'title'          => 'Section',
+				'description_cb' => null,
+				'before'         => null,
+				'after'          => null,
+				'order'          => 0,
+				'index'          => 0,
+			),
+		);
+
+		$state_store = $this->createMock(FormsStateStore::class);
+		$state_store->method('get_groups_map')->willReturn(array(
+			'sec1' => array(
+				array(
+					'group_id'    => 'g1',
+					'type'        => 'group',
+					'title'       => 'Group',
+					'description' => function (array $ctx) use (&$seen_ctx): string {
+						$seen_ctx = $ctx;
+						return ' group desc ';
+					},
+					'fields' => array(),
+					'before' => null,
+					'after'  => null,
+					'order'  => 0,
+					'index'  => 0,
+				),
+			),
+		));
+		$state_store->method('get_fields_map')->willReturn(array('sec1' => array()));
+
+		$session = $this->createMock(FormsServiceSession::class);
+		$session->method('resolve_template')->willReturn('layout.zone.section-wrapper');
+		$registry = new \Ran\PluginLib\Forms\CallableRegistry();
+		$registry->register_bool_key('disabled');
+		$registry->register_bool_key('readonly');
+		$registry->register_bool_key('required');
+		$registry->register_value_key('default');
+		$registry->register_value_key('options');
+		$registry->register_string_key('style');
+		$registry->register_nested_rule('options.*.disabled', 'bool');
+		$session->method('callable_registry')->willReturn($registry);
+		$session->method('note_component_used');
+		$session->method('render_element')->willReturnCallback(function (string $element_type, array $element_config = array(), array $context = array()) use (&$seen_group_context, &$seen_element_context): string {
+			$seen_group_context   = $element_config;
+			$seen_element_context = $context;
+			return 'wrapped';
+		});
+
+		$views = $this->createMock(ComponentLoader::class);
+		$views->method('render')->willReturn(new \Ran\PluginLib\Forms\Component\ComponentRenderResult(''));
+
+		$field_renderer = $this->createMock(FormElementRenderer::class);
+		$field_renderer->method('prepare_field_context')->willReturn(array());
+		$field_renderer->method('render_field_with_wrapper')->willReturn('field');
+
+		$svc = new FormsRenderService(
+			$state_store,
+			new CollectingLogger(),
+			$views,
+			$field_renderer,
+			'opt',
+			static function (): void {
+			},
+			static function () use ($session): ?FormsServiceSession {
+				return $session;
+			},
+			static function (): string {
+				return 'layout.zone.section-wrapper';
+			}
+		);
+
+		$svc->render_default_sections_wrapper('container', $sections, $values);
+
+		self::assertIsArray($seen_ctx, 'Expected group description callable to be invoked with callback ctx.');
+		$required_keys = array('field_id', 'container_id', 'root_id', 'section_id', 'group_id', 'value', 'values');
+		foreach ($required_keys as $key) {
+			self::assertArrayHasKey($key, $seen_ctx);
+		}
+		self::assertSame('', $seen_ctx['field_id']);
+		self::assertSame('container', $seen_ctx['container_id']);
+		self::assertSame('container', $seen_ctx['root_id']);
+		self::assertSame('sec1', $seen_ctx['section_id']);
+		self::assertSame('g1', $seen_ctx['group_id']);
+		self::assertNull($seen_ctx['value']);
+		self::assertSame($values, $seen_ctx['values']);
+
+		self::assertIsArray($seen_group_context);
+		self::assertSame('group desc', $seen_group_context['description'] ?? null);
+		self::assertIsArray($seen_element_context);
+		self::assertSame('container', $seen_element_context['container_id'] ?? null);
+	}
+
+	public function test_render_default_sections_wrapper_fieldset_description_supports_ctx_callable(): void {
+		$seen_ctx             = null;
+		$seen_group_context   = null;
+		$seen_element_context = null;
+		$seen_element_type    = null;
+
+		$values = array(
+			'f1' => 'v1',
+		);
+
+		$sections = array(
+			'sec1' => array(
+				'title'          => 'Section',
+				'description_cb' => null,
+				'before'         => null,
+				'after'          => null,
+				'order'          => 0,
+				'index'          => 0,
+			),
+		);
+
+		$state_store = $this->createMock(FormsStateStore::class);
+		$state_store->method('get_groups_map')->willReturn(array(
+			'sec1' => array(
+				array(
+					'group_id'    => 'fs1',
+					'type'        => 'fieldset',
+					'title'       => 'Fieldset',
+					'description' => function (array $ctx) use (&$seen_ctx): string {
+						$seen_ctx = $ctx;
+						return ' fieldset desc ';
+					},
+					'fields' => array(),
+					'before' => null,
+					'after'  => null,
+					'order'  => 0,
+					'index'  => 0,
+				),
+			),
+		));
+		$state_store->method('get_fields_map')->willReturn(array('sec1' => array()));
+
+		$session = $this->createMock(FormsServiceSession::class);
+		$session->method('resolve_template')->willReturn('layout.zone.section-wrapper');
+		$registry = new \Ran\PluginLib\Forms\CallableRegistry();
+		$registry->register_bool_key('disabled');
+		$registry->register_bool_key('readonly');
+		$registry->register_bool_key('required');
+		$registry->register_value_key('default');
+		$registry->register_value_key('options');
+		$registry->register_string_key('style');
+		$registry->register_nested_rule('options.*.disabled', 'bool');
+		$session->method('callable_registry')->willReturn($registry);
+		$session->method('note_component_used');
+		$session->method('render_element')->willReturnCallback(function (string $element_type, array $element_config = array(), array $context = array()) use (&$seen_group_context, &$seen_element_context, &$seen_element_type): string {
+			$seen_element_type    = $element_type;
+			$seen_group_context   = $element_config;
+			$seen_element_context = $context;
+			return 'wrapped';
+		});
+
+		$views = $this->createMock(ComponentLoader::class);
+		$views->method('render')->willReturn(new \Ran\PluginLib\Forms\Component\ComponentRenderResult(''));
+
+		$field_renderer = $this->createMock(FormElementRenderer::class);
+		$field_renderer->method('prepare_field_context')->willReturn(array());
+		$field_renderer->method('render_field_with_wrapper')->willReturn('field');
+
+		$svc = new FormsRenderService(
+			$state_store,
+			new CollectingLogger(),
+			$views,
+			$field_renderer,
+			'opt',
+			static function (): void {
+			},
+			static function () use ($session): ?FormsServiceSession {
+				return $session;
+			},
+			static function (): string {
+				return 'layout.zone.section-wrapper';
+			}
+		);
+
+		$svc->render_default_sections_wrapper('container', $sections, $values);
+
+		self::assertIsArray($seen_ctx, 'Expected fieldset description callable to be invoked with callback ctx.');
+		$required_keys = array('field_id', 'container_id', 'root_id', 'section_id', 'group_id', 'value', 'values');
+		foreach ($required_keys as $key) {
+			self::assertArrayHasKey($key, $seen_ctx);
+		}
+		self::assertSame('', $seen_ctx['field_id']);
+		self::assertSame('container', $seen_ctx['container_id']);
+		self::assertSame('container', $seen_ctx['root_id']);
+		self::assertSame('sec1', $seen_ctx['section_id']);
+		self::assertSame('fs1', $seen_ctx['group_id']);
+		self::assertNull($seen_ctx['value']);
+		self::assertSame($values, $seen_ctx['values']);
+
+		self::assertSame('fieldset-wrapper', $seen_element_type);
+		self::assertIsArray($seen_group_context);
+		self::assertSame('fieldset desc', $seen_group_context['description'] ?? null);
+		self::assertIsArray($seen_element_context);
+		self::assertSame('container', $seen_element_context['container_id'] ?? null);
+	}
+
+	public function test_render_default_sections_wrapper_group_description_supports_string_value(): void {
+		$seen_group_context = null;
+
+		$values = array(
+			'f1' => 'v1',
+		);
+
+		$sections = array(
+			'sec1' => array(
+				'title'          => 'Section',
+				'description_cb' => null,
+				'before'         => null,
+				'after'          => null,
+				'order'          => 0,
+				'index'          => 0,
+			),
+		);
+
+		$state_store = $this->createMock(FormsStateStore::class);
+		$state_store->method('get_groups_map')->willReturn(array(
+			'sec1' => array(
+				array(
+					'group_id'    => 'g1',
+					'type'        => 'group',
+					'title'       => 'Group',
+					'description' => '  group desc  ',
+					'fields'      => array(),
+					'before'      => null,
+					'after'       => null,
+					'order'       => 0,
+					'index'       => 0,
+				),
+			),
+		));
+		$state_store->method('get_fields_map')->willReturn(array('sec1' => array()));
+
+		$session = $this->createMock(FormsServiceSession::class);
+		$session->method('resolve_template')->willReturn('layout.zone.section-wrapper');
+		$registry = new \Ran\PluginLib\Forms\CallableRegistry();
+		$registry->register_bool_key('disabled');
+		$registry->register_bool_key('readonly');
+		$registry->register_bool_key('required');
+		$registry->register_value_key('default');
+		$registry->register_value_key('options');
+		$registry->register_string_key('style');
+		$registry->register_nested_rule('options.*.disabled', 'bool');
+		$session->method('callable_registry')->willReturn($registry);
+		$session->method('note_component_used');
+		$session->method('render_element')->willReturnCallback(function (string $element_type, array $element_config = array()) use (&$seen_group_context): string {
+			$seen_group_context = $element_config;
+			return 'wrapped';
+		});
+
+		$views = $this->createMock(ComponentLoader::class);
+		$views->method('render')->willReturn(new \Ran\PluginLib\Forms\Component\ComponentRenderResult(''));
+
+		$field_renderer = $this->createMock(FormElementRenderer::class);
+		$field_renderer->method('prepare_field_context')->willReturn(array());
+		$field_renderer->method('render_field_with_wrapper')->willReturn('field');
+
+		$svc = new FormsRenderService(
+			$state_store,
+			new CollectingLogger(),
+			$views,
+			$field_renderer,
+			'opt',
+			static function (): void {
+			},
+			static function () use ($session): ?FormsServiceSession {
+				return $session;
+			},
+			static function (): string {
+				return 'layout.zone.section-wrapper';
+			}
+		);
+
+		$svc->render_default_sections_wrapper('container', $sections, $values);
+
+		self::assertIsArray($seen_group_context);
+		self::assertSame('group desc', $seen_group_context['description'] ?? null);
+	}
+
 	public function test_container_has_file_uploads_detects_file_fields(): void {
-		$state_store = $this->createMock(FormsStateStoreInterface::class);
+		$state_store = $this->createMock(FormsStateStore::class);
 		$state_store->method('get_fields_map')->willReturn(array(
 			'section' => array(
 				array('component' => 'fields.file-upload'),
@@ -288,7 +579,7 @@ final class FormsRenderServiceTest extends TestCase {
 	}
 
 	public function test_container_has_file_uploads_detects_group_file_fields(): void {
-		$state_store = $this->createMock(FormsStateStoreInterface::class);
+		$state_store = $this->createMock(FormsStateStore::class);
 		$state_store->method('get_fields_map')->willReturn(array(
 			'section' => array(
 				array('component' => 'fields.text'),
@@ -324,7 +615,7 @@ final class FormsRenderServiceTest extends TestCase {
 	}
 
 	public function test_container_has_file_uploads_returns_false_when_no_file_fields(): void {
-		$state_store = $this->createMock(FormsStateStoreInterface::class);
+		$state_store = $this->createMock(FormsStateStore::class);
 		$state_store->method('get_fields_map')->willReturn(array(
 			'section' => array(
 				array('component' => 'fields.text'),
@@ -359,6 +650,88 @@ final class FormsRenderServiceTest extends TestCase {
 		self::assertFalse($svc->container_has_file_uploads('container'));
 	}
 
+	public function test_render_default_field_wrapper_supports_zero_arg_default_and_options_callables(): void {
+		$captured = array(
+			'context' => null,
+		);
+
+		$values = array(
+			'f1' => 'stored',
+		);
+
+		$field_item = array(
+			'id'           => 'f1',
+			'label'        => 'Field',
+			'component'    => 'fields.select',
+			'root_id'      => 'root',
+			'container_id' => 'container',
+			'section_id'   => 'section',
+			'group_id'     => 'group',
+		);
+
+		$state_store = $this->createMock(FormsStateStore::class);
+		$views       = $this->createMock(ComponentLoader::class);
+		$views->method('render')->willReturn(new \Ran\PluginLib\Forms\Component\ComponentRenderResult(''));
+
+		$session = $this->createMock(FormsServiceSession::class);
+		$session->method('resolve_template')->willReturn('layout.zone.section-wrapper');
+		$registry = new \Ran\PluginLib\Forms\CallableRegistry();
+		$registry->register_bool_key('disabled');
+		$registry->register_bool_key('readonly');
+		$registry->register_bool_key('required');
+		$registry->register_value_key('default');
+		$registry->register_value_key('options');
+		$registry->register_string_key('style');
+		$registry->register_nested_rule('options.*.disabled', 'bool');
+		$session->method('callable_registry')->willReturn($registry);
+		$session->method('note_component_used');
+		$session->method('render_element')->willReturn('wrapped');
+
+		$field_renderer = $this->createMock(FormElementRenderer::class);
+		$field_renderer->method('prepare_field_context')->willReturn(array(
+			'default' => static function (): string {
+				return 'd0';
+			},
+			'options' => static function (): array {
+				return array(
+					array('value' => 'a', 'label' => 'A'),
+				);
+			},
+		));
+		$field_renderer->method('render_field_with_wrapper')->willReturnCallback(function (
+			string $component,
+			string $field_id,
+			string $label,
+			array $context
+		) use (&$captured): string {
+			$captured['context'] = $context;
+			return 'field';
+		});
+
+		$svc = new FormsRenderService(
+			$state_store,
+			new CollectingLogger(),
+			$views,
+			$field_renderer,
+			'opt',
+			static function (): void {
+			},
+			static function () use ($session): ?FormsServiceSession {
+				return $session;
+			},
+			static function (): string {
+				return 'layout.zone.section-wrapper';
+			}
+		);
+
+		$svc->render_default_field_wrapper($field_item, $values);
+
+		self::assertIsArray($captured['context']);
+		self::assertSame('d0', $captured['context']['default']);
+		self::assertIsArray($captured['context']['options']);
+		self::assertSame('a', $captured['context']['options'][0]['value']);
+	}
+
 	public function test_render_default_field_wrapper_resolves_component_builder_callables_with_stored_only_ctx(): void {
 		$captured = array(
 			'ctx'     => null,
@@ -380,7 +753,7 @@ final class FormsRenderServiceTest extends TestCase {
 			'group_id'     => 'group',
 		);
 
-		$state_store = $this->createMock(FormsStateStoreInterface::class);
+		$state_store = $this->createMock(FormsStateStore::class);
 		$views       = $this->createMock(ComponentLoader::class);
 		$views->method('render')->willReturn(new \Ran\PluginLib\Forms\Component\ComponentRenderResult(''));
 
@@ -488,7 +861,7 @@ final class FormsRenderServiceTest extends TestCase {
 			'group_id'     => 'group',
 		);
 
-		$state_store = $this->createMock(FormsStateStoreInterface::class);
+		$state_store = $this->createMock(FormsStateStore::class);
 		$views       = $this->createMock(ComponentLoader::class);
 		$views->method('render')->willReturn(new \Ran\PluginLib\Forms\Component\ComponentRenderResult(''));
 
@@ -566,5 +939,178 @@ final class FormsRenderServiceTest extends TestCase {
 		self::assertSame('disabled', $captured['context']['options'][1]['attributes']['disabled']);
 		self::assertArrayHasKey('checked', $captured['context']['options'][1]);
 		self::assertTrue($captured['context']['options'][1]['checked']);
+	}
+
+	public function test_render_default_field_wrapper_resolves_nested_option_disabled_supports_zero_arg_callable(): void {
+		$captured = array(
+			'context' => null,
+		);
+
+		$values = array(
+			'f1' => 'stored',
+		);
+
+		$field_item = array(
+			'id'           => 'f1',
+			'label'        => 'Field',
+			'component'    => 'radio-group',
+			'root_id'      => 'root',
+			'container_id' => 'container',
+			'section_id'   => 'section',
+			'group_id'     => 'group',
+		);
+
+		$state_store = $this->createMock(FormsStateStore::class);
+		$views       = $this->createMock(ComponentLoader::class);
+		$views->method('render')->willReturn(new \Ran\PluginLib\Forms\Component\ComponentRenderResult(''));
+
+		$session = $this->createMock(FormsServiceSession::class);
+		$session->method('resolve_template')->willReturn('layout.zone.section-wrapper');
+		$registry = new \Ran\PluginLib\Forms\CallableRegistry();
+		$registry->register_bool_key('disabled');
+		$registry->register_bool_key('readonly');
+		$registry->register_bool_key('required');
+		$registry->register_value_key('default');
+		$registry->register_value_key('options');
+		$registry->register_string_key('style');
+		$registry->register_nested_rule('options.*.disabled', 'bool');
+		$session->method('callable_registry')->willReturn($registry);
+		$session->method('note_component_used');
+		$session->method('render_element')->willReturn('wrapped');
+
+		$field_renderer = $this->createMock(FormElementRenderer::class);
+		$field_renderer->method('prepare_field_context')->willReturn(array(
+			'default' => static function (): string {
+				return 'b';
+			},
+			'options' => array(
+				array(
+					'value'    => 'a',
+					'label'    => 'A',
+					'disabled' => static function (): bool {
+						return false;
+					},
+				),
+				array(
+					'value'    => 'b',
+					'label'    => 'B',
+					'disabled' => static function (): bool {
+						return true;
+					},
+				),
+			),
+		));
+		$field_renderer->method('render_field_with_wrapper')->willReturnCallback(function (
+			string $component,
+			string $field_id,
+			string $label,
+			array $context
+		) use (&$captured): string {
+			$captured['context'] = $context;
+			return 'field';
+		});
+
+		$svc = new FormsRenderService(
+			$state_store,
+			new CollectingLogger(),
+			$views,
+			$field_renderer,
+			'opt',
+			static function (): void {
+			},
+			static function () use ($session): ?FormsServiceSession {
+				return $session;
+			},
+			static function (): string {
+				return 'layout.zone.section-wrapper';
+			}
+		);
+
+		$svc->render_default_field_wrapper($field_item, $values);
+
+		self::assertIsArray($captured['context']);
+		self::assertIsArray($captured['context']['options']);
+		self::assertArrayNotHasKey('disabled', $captured['context']['options'][0]);
+		self::assertArrayHasKey('disabled', $captured['context']['options'][1]);
+		self::assertTrue($captured['context']['options'][1]['disabled']);
+		self::assertIsArray($captured['context']['options'][1]['attributes']);
+		self::assertSame('disabled', $captured['context']['options'][1]['attributes']['disabled']);
+		self::assertArrayHasKey('checked', $captured['context']['options'][1]);
+		self::assertTrue($captured['context']['options'][1]['checked']);
+	}
+
+	public function test_render_default_field_wrapper_resolves_style_supports_zero_arg_callable(): void {
+		$captured = array(
+			'context' => null,
+		);
+
+		$values = array(
+			'f1' => 'stored',
+		);
+
+		$field_item = array(
+			'id'           => 'f1',
+			'label'        => 'Field',
+			'component'    => 'fields.input',
+			'root_id'      => 'root',
+			'container_id' => 'container',
+			'section_id'   => 'section',
+			'group_id'     => 'group',
+		);
+
+		$state_store = $this->createMock(FormsStateStore::class);
+		$views       = $this->createMock(ComponentLoader::class);
+		$views->method('render')->willReturn(new \Ran\PluginLib\Forms\Component\ComponentRenderResult(''));
+
+		$session = $this->createMock(FormsServiceSession::class);
+		$session->method('resolve_template')->willReturn('layout.zone.section-wrapper');
+		$registry = new \Ran\PluginLib\Forms\CallableRegistry();
+		$registry->register_bool_key('disabled');
+		$registry->register_bool_key('readonly');
+		$registry->register_bool_key('required');
+		$registry->register_value_key('default');
+		$registry->register_value_key('options');
+		$registry->register_string_key('style');
+		$registry->register_nested_rule('options.*.disabled', 'bool');
+		$session->method('callable_registry')->willReturn($registry);
+		$session->method('note_component_used');
+		$session->method('render_element')->willReturn('wrapped');
+
+		$field_renderer = $this->createMock(FormElementRenderer::class);
+		$field_renderer->method('prepare_field_context')->willReturn(array(
+			'style' => static function (): string {
+				return '  foo  ';
+			},
+		));
+		$field_renderer->method('render_field_with_wrapper')->willReturnCallback(function (
+			string $component,
+			string $field_id,
+			string $label,
+			array $context
+		) use (&$captured): string {
+			$captured['context'] = $context;
+			return 'field';
+		});
+
+		$svc = new FormsRenderService(
+			$state_store,
+			new CollectingLogger(),
+			$views,
+			$field_renderer,
+			'opt',
+			static function (): void {
+			},
+			static function () use ($session): ?FormsServiceSession {
+				return $session;
+			},
+			static function (): string {
+				return 'layout.zone.section-wrapper';
+			}
+		);
+
+		$svc->render_default_field_wrapper($field_item, $values);
+
+		self::assertIsArray($captured['context']);
+		self::assertSame('foo', $captured['context']['style'] ?? null);
 	}
 }

@@ -172,36 +172,4 @@ final class Builder extends ComponentBuilderBase {
 	protected function _get_component(): string {
 		return 'fields.multi-select';
 	}
-
-	/**
-	 * Resolve options, handling callable if set.
-	 *
-	 * Returns raw options array - normalization is handled by the Normalizer.
-	 *
-	 * @return array Raw options array (key-value or structured format).
-	 */
-	private function _resolve_options(): array {
-		return is_callable($this->options) ? ($this->options)() : $this->options;
-	}
-
-	/**
-	 * Resolve default values, handling callable if set.
-	 *
-	 * @return array<int,string>
-	 */
-	private function _resolve_default_values(): array {
-		$values = is_callable($this->default_values) ? ($this->default_values)() : $this->default_values;
-		return array_map('strval', $values);
-	}
-
-
-	/**
-	 * Resolve a bool|callable to a bool value.
-	 */
-	private function _resolve_bool_callable(mixed $value): bool {
-		if (is_callable($value)) {
-			return (bool) $value();
-		}
-		return (bool) $value;
-	}
 }

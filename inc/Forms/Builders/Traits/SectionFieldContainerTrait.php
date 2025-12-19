@@ -289,7 +289,11 @@ trait SectionFieldContainerTrait {
 				$this->heading = (string) $value;
 				break;
 			case 'description':
-				$this->description_cb = $value === null || !is_callable($value) ? null : $value;
+				if ($value === null) {
+					$this->description_cb = null;
+					break;
+				}
+				$this->description_cb = is_callable($value) ? $value : (string) $value;
 				break;
 			case 'before':
 				$this->before = $value;
@@ -315,10 +319,8 @@ trait SectionFieldContainerTrait {
 	 */
 	protected function _build_container_payload(): array {
 		// Render the callback
-		if (is_callable($this->description_cb)) {
-			$description_cb = $this->description_cb;
-			$description    = $description_cb();
-		} else {
+		$description = $this->description_cb;
+		if ($description === null) {
 			$description = '';
 		}
 

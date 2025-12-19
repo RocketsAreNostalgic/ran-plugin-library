@@ -10,6 +10,7 @@
  * @package RanPluginLib\Forms\Views\Form
  */
 
+use Ran\PluginLib\Forms\Services\FormsCallbackInvoker;
 use Ran\PluginLib\Forms\Component\ComponentRenderResult;
 
 // Prevent direct access
@@ -74,7 +75,17 @@ ob_start();
 
 		<?php if (is_callable($renderSubmit)): ?>
 			<div class="kplr-form__submit">
-				<?php echo (string) $renderSubmit(); ?>
+				<?php
+				$callback_ctx = array();
+			$allowed_keys  = array('field_id', 'container_id', 'root_id', 'section_id', 'group_id', 'value', 'values');
+			foreach ($allowed_keys as $key) {
+				if (!array_key_exists($key, $context)) {
+					continue;
+				}
+				$callback_ctx[$key] = $context[$key];
+			}
+			echo (string) FormsCallbackInvoker::invoke($renderSubmit, $callback_ctx);
+			?>
 			</div>
 		<?php endif; ?>
 	</form>

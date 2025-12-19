@@ -1448,9 +1448,10 @@ abstract class FormsCore implements FormsInterface {
 		if (array_key_exists('after', $group_data)) {
 			$group['after'] = $group_data['after'];
 		}
-		$group['order'] = (int) ($group_data['order'] ?? 0);
-		$group['style'] = $group_data['style'] ?? '';
-		$group['type']  = (string) ($group_data['type'] ?? 'group');
+		$group['order']       = (int) ($group_data['order'] ?? 0);
+		$group['style']       = $group_data['style'] ?? '';
+		$group['type']        = (string) ($group_data['type'] ?? 'group');
+		$group['description'] = $group_data['description'] ?? '';
 		// Fieldset-specific attributes
 		$group['form']     = (string) ($group_data['form'] ?? '');
 		$group['name']     = (string) ($group_data['name'] ?? '');

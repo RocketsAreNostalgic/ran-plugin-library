@@ -395,9 +395,6 @@ class UserSettings extends FormsCore {
 		));
 		$internalSchema = $bundle['schema'];
 
-		// Get effective values from message handler (handles pending values)
-		$effective_values = $this->message_handler->get_effective_values($options);
-
 		// Render before/after callbacks for the collection
 		$before_html = $this->_render_callback_output($collection_meta['before'] ?? null, array(
 			'field_id'     => '',
@@ -808,73 +805,6 @@ class UserSettings extends FormsCore {
 	 */
 	protected function _get_section_template(): string {
 		return 'user.section-wrapper';
-	}
-
-	/**
-	 * Render a group/fieldset using the appropriate user template.
-	 *
-	 * This overrides the default implementation in FormsCore.
-	 *
-	 * Groups use user.group-wrapper (table rows).
-	 * Fieldsets use user.fieldset-wrapper (semantic fieldset with nested table).
-	 *
-	 * @param array<string,mixed> $group Group metadata
-	 * @param string $fields_content Pre-rendered fields HTML
-	 * @param string $before_content Pre-rendered before hook HTML
-	 * @param string $after_content Pre-rendered after hook HTML
-	 * @param array<string,mixed> $values Current field values
-	 *
-	 * @return string Rendered group HTML
-	 */
-	protected function _render_group_wrapper(array $group, string $fields_content, string $before_content, string $after_content, array $values): string {
-		$type          = $group['type'] ?? 'group';
-		$group_context = array(
-			'group_id'    => $group['group_id']    ?? '',
-			'title'       => $group['title']       ?? '',
-			'description' => $group['description'] ?? '',
-			'inner_html'  => $fields_content,
-			'before'      => $before_content,
-			'after'       => $after_content,
-			'style'       => $group['style']    ?? 'bordered',
-			'required'    => $group['required'] ?? false,
-			'values'      => $values,
-		);
-
-		// Select template based on type
-		$template = $type === 'fieldset' ? 'user.fieldset-wrapper' : 'user.group-wrapper';
-
-		try {
-			$result = $this->views->render($template, $group_context);
-			if ($result->markup !== '') {
-				return $result->markup;
-			}
-		} catch (\Throwable $e) {
-			$this->logger->warning('UserSettings: ' . $template . ' template failed, using fallback', array(
-				'group_id'          => $group_context['group_id'],
-				'type'              => $type,
-				'exception_message' => $e->getMessage(),
-			));
-		}
-
-		// Fallback if template fails
-		$output   = '';
-		$title    = $group_context['title'];
-		$group_id = $group_context['group_id'];
-
-		if ($title !== '') {
-			$output .= '<tr class="group-header-row" data-group-id="' . esc_attr($group_id) . '">';
-			$output .= '<td colspan="2"><h4 class="group-title">' . esc_html($title) . '</h4></td>';
-			$output .= '</tr>';
-		}
-		if ($before_content !== '') {
-			$output .= '<tr class="group-before-row"><td colspan="2">' . $before_content . '</td></tr>';
-		}
-		$output .= $fields_content;
-		if ($after_content !== '') {
-			$output .= '<tr class="group-after-row"><td colspan="2">' . $after_content . '</td></tr>';
-		}
-
-		return $output;
 	}
 
 	/**

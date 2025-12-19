@@ -355,10 +355,29 @@ class FormsRenderService implements FormsRenderServiceInterface {
 		$container_id = isset($group['container_id']) ? (string) $group['container_id'] : '';
 		$root_id      = isset($group['root_id']) ? (string) $group['root_id'] : '';
 
+		$description_raw = $group['description'] ?? '';
+		$description     = '';
+		if (is_callable($description_raw)) {
+			$description_ctx = array(
+				'field_id'     => '',
+				'container_id' => $container_id,
+				'root_id'      => $root_id,
+				'section_id'   => $section_id,
+				'group_id'     => (string) $group_id,
+				'value'        => null,
+				'values'       => $values,
+			);
+			$this->assert_min_callback_ctx($description_ctx);
+			$resolved_description = (string) FormsCallbackInvoker::invoke($description_raw, $description_ctx);
+			$description          = trim($resolved_description);
+		} else {
+			$description = trim((string) $description_raw);
+		}
+
 		$group_context = array(
 			'group_id'    => $group_id,
 			'title'       => $title,
-			'description' => '',
+			'description' => $description,
 			'inner_html'  => $fields_content,
 			'before'      => $before_content,
 			'after'       => $after_content,
