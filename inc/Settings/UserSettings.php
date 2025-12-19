@@ -416,7 +416,24 @@ class UserSettings extends FormsCore {
 			'group_id'     => '',
 			'value'        => null,
 			'values'       => $options,
-		))                                                ?? '';
+		))                                                            ?? '';
+		$collection_description_raw = $collection_meta['description'] ?? '';
+		$collection_description     = '';
+		if (is_callable($collection_description_raw)) {
+			$description_ctx = array(
+				'field_id'     => '',
+				'container_id' => $id_slug,
+				'root_id'      => $id_slug,
+				'section_id'   => '',
+				'group_id'     => '',
+				'value'        => null,
+				'values'       => $options,
+			);
+			$resolved_description   = (string) FormsCallbackInvoker::invoke($collection_description_raw, $description_ctx);
+			$collection_description = trim($resolved_description);
+		} else {
+			$collection_description = trim((string) $collection_description_raw);
+		}
 		$collection_style_raw = $collection_meta['style'] ?? '';
 		$collection_style     = '';
 		if (is_callable($collection_style_raw)) {
@@ -440,8 +457,8 @@ class UserSettings extends FormsCore {
 
 		$payload = array(
 			...($context ?? array()),
-			'heading'     => $collection_meta['heading']     ?? '',
-			'description' => $collection_meta['description'] ?? '',
+			'heading'     => $collection_meta['heading'] ?? '',
+			'description' => $collection_description,
 			'style'       => $collection_style,
 			...array(
 				'id_slug'           => $id_slug,

@@ -251,11 +251,28 @@ class FormsRenderService implements FormsRenderServiceInterface {
 				$section_style = trim((string) $section_style_raw);
 			}
 
-			$description_cb  = $meta['description_cb'] ?? null;
+			$description_cb      = $meta['description_cb'] ?? null;
+			$section_description = '';
+			if (is_callable($description_cb)) {
+				$description_ctx = array(
+					'field_id'     => '',
+					'container_id' => $id_slug,
+					'root_id'      => $id_slug,
+					'section_id'   => $section_id,
+					'group_id'     => '',
+					'value'        => null,
+					'values'       => $values,
+				);
+				$this->assert_min_callback_ctx($description_ctx);
+				$resolved_description = (string) FormsCallbackInvoker::invoke($description_cb, $description_ctx);
+				$section_description  = trim($resolved_description);
+			} else {
+				$section_description = trim((string) ($description_cb ?? ''));
+			}
 			$section_context = array(
 				'section_id'  => $section_id,
 				'title'       => (string) $meta['title'],
-				'description' => is_callable($description_cb) ? (string) ($description_cb)() : (string) ($description_cb ?? ''),
+				'description' => $section_description,
 				'inner_html'  => $section_content,
 				'before'      => $this->render_callback_output($meta['before'] ?? null, array(
 					'field_id'     => '',

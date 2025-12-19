@@ -326,7 +326,7 @@ class UserSettingsCollectionBuilder implements UserSettingsBuilderRootInterface 
 				$this->meta['heading'] = (string) $value;
 				break;
 			case 'description':
-				$this->meta['description'] = (string) $value;
+				$this->meta['description'] = $value;
 				break;
 			case 'order':
 				$this->meta['order'] = $value === null ? 0 : max(0, (int) $value);

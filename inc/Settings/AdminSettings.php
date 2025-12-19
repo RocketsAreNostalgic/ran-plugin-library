@@ -387,10 +387,27 @@ class AdminSettings extends FormsCore {
 			'values'       => $options,
 		)) ?? '';
 
-		$rendered_content = $this->_render_default_sections_wrapper($id_slug, $sections, $options);
-		$submit_controls  = $this->_get_submit_controls_for_page($id_slug);
-		$page_style_raw   = $meta['style'] ?? '';
-		$page_style       = '';
+		$rendered_content     = $this->_render_default_sections_wrapper($id_slug, $sections, $options);
+		$submit_controls      = $this->_get_submit_controls_for_page($id_slug);
+		$page_description_raw = $meta['description'] ?? '';
+		$page_description     = '';
+		if (is_callable($page_description_raw)) {
+			$description_ctx = array(
+				'field_id'     => '',
+				'container_id' => $id_slug,
+				'root_id'      => $id_slug,
+				'section_id'   => '',
+				'group_id'     => '',
+				'value'        => null,
+				'values'       => $options,
+			);
+			$resolved_description = (string) FormsCallbackInvoker::invoke($page_description_raw, $description_ctx);
+			$page_description     = trim($resolved_description);
+		} else {
+			$page_description = trim((string) $page_description_raw);
+		}
+		$page_style_raw = $meta['style'] ?? '';
+		$page_style     = '';
 		if (is_callable($page_style_raw)) {
 			$style_ctx = array(
 				'field_id'     => '',
@@ -412,8 +429,8 @@ class AdminSettings extends FormsCore {
 
 		$payload = array(
 			...($context ?? array()),
-			'heading'           => $meta['heading']     ?? '',
-			'description'       => $meta['description'] ?? '',
+			'heading'           => $meta['heading'] ?? '',
+			'description'       => $page_description,
 			'group'             => $group,
 			'page_slug'         => $id_slug,
 			'page_meta'         => $meta,

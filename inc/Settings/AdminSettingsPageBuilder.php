@@ -372,7 +372,7 @@ class AdminSettingsPageBuilder implements AdminSettingsBuilderRootInterface {
 				$this->meta['heading'] = (string) $value;
 				break;
 			case 'description':
-				$this->meta['description'] = $value === null ? null : (string) $value;
+				$this->meta['description'] = $value;
 				break;
 			case 'menu_title':
 				$this->meta['menu_title'] = (string) $value;
