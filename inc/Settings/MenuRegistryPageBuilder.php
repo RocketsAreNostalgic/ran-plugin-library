@@ -136,7 +136,7 @@ class MenuRegistryPageBuilder {
 	 * @param callable $callback Callback returning HTML string.
 	 * @return self
 	 */
-	public function before(callable $callback): self {
+	public function before(?callable $callback): self {
 		if ($this->deferred->hasCalls()) {
 			// We're in deferred mode (after section/field calls)
 			$this->deferred->record('before', func_get_args());
@@ -156,7 +156,7 @@ class MenuRegistryPageBuilder {
 	 * @param callable $callback Callback returning HTML string.
 	 * @return self
 	 */
-	public function after(callable $callback): self {
+	public function after(?callable $callback): self {
 		if ($this->deferred->hasCalls()) {
 			// We're in deferred mode (after section/field calls)
 			$this->deferred->record('after', func_get_args());

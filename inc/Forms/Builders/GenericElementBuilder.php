@@ -185,10 +185,10 @@ class GenericElementBuilder {
 	/**
 	 * Register a callback to run before rendering the element.
 	 *
-	 * @param callable $before The before callback.
+	 * @param callable|null $before The before callback.
 	 * @return static
 	 */
-	public function before(callable $before): static {
+	public function before(?callable $before): static {
 		$this->before_callback = $before;
 		$this->_emit();
 		return $this;
@@ -197,10 +197,10 @@ class GenericElementBuilder {
 	/**
 	 * Register a callback to run after rendering the element.
 	 *
-	 * @param callable $after The after callback.
+	 * @param callable|null $after The after callback.
 	 * @return static
 	 */
-	public function after(callable $after): static {
+	public function after(?callable $after): static {
 		$this->after_callback = $after;
 		$this->_emit();
 		return $this;
@@ -282,13 +282,8 @@ class GenericElementBuilder {
 		$element['id']                = $element['id']    ?? $this->element_id;
 		$element['label']             = $element['label'] ?? '';
 		$element['is_element']        = true;
-
-		if ($this->before_callback !== null) {
-			$element['before'] = $this->before_callback;
-		}
-		if ($this->after_callback !== null) {
-			$element['after'] = $this->after_callback;
-		}
+		$element['before']            = $this->before_callback;
+		$element['after']             = $this->after_callback;
 		if ($this->style !== '') {
 			$element['style'] = $this->style;
 		}

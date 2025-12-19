@@ -94,10 +94,10 @@ class HrBuilder {
 	/**
 	 * Register a callback to run before rendering the hr.
 	 *
-	 * @param callable $before The before callback.
+	 * @param callable|null $before The before callback.
 	 * @return static
 	 */
-	public function before(callable $before): static {
+	public function before(?callable $before): static {
 		$this->before_callback = $before;
 		$this->_emit();
 		return $this;
@@ -106,10 +106,10 @@ class HrBuilder {
 	/**
 	 * Register a callback to run after rendering the hr.
 	 *
-	 * @param callable $after The after callback.
+	 * @param callable|null $after The after callback.
 	 * @return static
 	 */
-	public function after(callable $after): static {
+	public function after(?callable $after): static {
 		$this->after_callback = $after;
 		$this->_emit();
 		return $this;

@@ -188,11 +188,11 @@ trait SectionBuilderTrait {
 	/**
 	 * Set a callback to render content after this section.
 	 *
-	 * @param callable $after The after callback.
+	 * @param callable|null $after The after callback.
 	 *
 	 * @return static
 	 */
-	public function after(callable $after): static {
+	public function after(?callable $after): static {
 		$this->_update_meta('after', $after);
 		return $this;
 	}

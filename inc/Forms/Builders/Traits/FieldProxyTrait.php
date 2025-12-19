@@ -43,7 +43,8 @@ trait FieldProxyTrait {
 	/** @var array<string,mixed> */
 	private array $pending_context;
 
-	private ?int $pending_order = null;
+	private ?int $pending_order        = null;
+	private bool $pending_order_is_set = false;
 	private string $field_id;
 
 	/** @var callable|null */
@@ -354,13 +355,14 @@ trait FieldProxyTrait {
 	/**
 	 * Set the order for this field.
 	 *
-	 * @param int $order The order.
+	 * @param int|null $order The order.
 	 *
 	 * @return static
 	 */
-	public function order(int $order): static {
-		$this->pending_order = $order;
-		if (method_exists($this->builder, 'order')) {
+	public function order(?int $order): static {
+		$this->pending_order_is_set = true;
+		$this->pending_order        = $order;
+		if ($order !== null && method_exists($this->builder, 'order')) {
 			call_user_func(array($this->builder, 'order'), $order);
 		}
 		$this->_emit_field_update();
@@ -414,13 +416,8 @@ trait FieldProxyTrait {
 		$field['order']             = $this->_resolve_field_order($field);
 		$field['id']                = $this->field_id !== '' ? $this->field_id : ($field['id'] ?? '');
 		$field['label']             = $field['label'] ?? null;
-
-		if ($this->before_callback !== null) {
-			$field['before'] = $this->before_callback;
-		}
-		if ($this->after_callback !== null) {
-			$field['after'] = $this->after_callback;
-		}
+		$field['before']            = $this->before_callback;
+		$field['after']             = $this->after_callback;
 		if ($this->style !== '') {
 			$field['style'] = $this->style;
 		}
@@ -464,6 +461,9 @@ trait FieldProxyTrait {
 	 * @return int
 	 */
 	protected function _resolve_field_order(array $field): int {
+		if ($this->pending_order_is_set) {
+			return $this->pending_order === null ? 0 : (int) $this->pending_order;
+		}
 		if ($this->pending_order !== null) {
 			return $this->pending_order;
 		}

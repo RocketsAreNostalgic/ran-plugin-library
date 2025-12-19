@@ -84,7 +84,7 @@ class UserCollectionBuilder {
 	 * @param string $description Collection description.
 	 * @return static
 	 */
-	public function description(string $description): static {
+	public function description(string|callable $description): static {
 		if ($this->hasDeferred()) {
 			// We're in deferred mode - record for field/section
 			$this->deferred->record('description', func_get_args());
@@ -98,10 +98,10 @@ class UserCollectionBuilder {
 	/**
 	 * Set the display order (priority for WordPress hooks).
 	 *
-	 * @param int $order Display order (lower = earlier).
+	 * @param int|null $order Display order (lower = earlier).
 	 * @return static
 	 */
-	public function order(int $order): static {
+	public function order(?int $order): static {
 		$this->meta['order'] = $order;
 		return $this;
 	}
@@ -155,7 +155,7 @@ class UserCollectionBuilder {
 	 * @param callable $callback Callback returning HTML string.
 	 * @return static
 	 */
-	public function before(callable $callback): static {
+	public function before(?callable $callback): static {
 		if ($this->hasDeferred()) {
 			$this->deferred->record('before', func_get_args());
 		} else {
@@ -173,7 +173,7 @@ class UserCollectionBuilder {
 	 * @param callable $callback Callback returning HTML string.
 	 * @return static
 	 */
-	public function after(callable $callback): static {
+	public function after(?callable $callback): static {
 		if ($this->hasDeferred()) {
 			$this->deferred->record('after', func_get_args());
 		} else {

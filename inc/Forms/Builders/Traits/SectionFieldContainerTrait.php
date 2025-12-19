@@ -41,9 +41,11 @@ trait SectionFieldContainerTrait {
 
 	/** @var callable|null */
 	protected $before;
+	protected bool $before_is_set = false;
 
 	/** @var callable|null */
 	protected $after;
+	protected bool $after_is_set = false;
 
 	protected ?int $order;
 	protected mixed $style = '';
@@ -82,9 +84,11 @@ trait SectionFieldContainerTrait {
 		$this->heading        = $heading;
 		$this->description_cb = $description_cb ?? null;
 		$this->updateFn       = $updateFn;
-		$this->before         = $args['before'] ?? null;
-		$this->after          = $args['after']  ?? null;
-		$order                = $args['order']  ?? null;
+		$this->before_is_set  = array_key_exists('before', $args);
+		$this->after_is_set   = array_key_exists('after', $args);
+		$this->before         = $this->before_is_set ? ($args['before'] ?? null) : null;
+		$this->after          = $this->after_is_set ? ($args['after'] ?? null) : null;
+		$order                = $args['order'] ?? null;
 		$this->order          = $order === null ? null : (int) $order;
 
 		$this->style = $args['style'] ?? '';
@@ -185,6 +189,7 @@ trait SectionFieldContainerTrait {
 	 * @return static
 	 */
 	public function before(?callable $before): static {
+		$this->before_is_set = true;
 		$this->_update_meta('before', $before);
 		return $this;
 	}
@@ -197,6 +202,7 @@ trait SectionFieldContainerTrait {
 	 * @return static
 	 */
 	public function after(?callable $after): static {
+		$this->after_is_set = true;
 		$this->_update_meta('after', $after);
 		return $this;
 	}
@@ -333,11 +339,11 @@ trait SectionFieldContainerTrait {
 			'style'       => $this->style,
 		);
 
-		// Only include before/after if they're set (avoid overwriting with null)
-		if ($this->before !== null) {
+		// Only include before/after if explicitly set
+		if ($this->before_is_set) {
 			$group_data['before'] = $this->before;
 		}
-		if ($this->after !== null) {
+		if ($this->after_is_set) {
 			$group_data['after'] = $this->after;
 		}
 

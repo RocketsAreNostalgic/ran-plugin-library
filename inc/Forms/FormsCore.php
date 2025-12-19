@@ -13,6 +13,7 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\Forms;
 
+use WP_Error;
 use Ran\PluginLib\Util\WPWrappersTrait;
 use Ran\PluginLib\Util\Logger;
 use Ran\PluginLib\Options\RegisterOptions;
@@ -226,13 +227,13 @@ abstract class FormsCore implements FormsInterface {
 		$this->__file_upload_service = new FormsFileUploadService(
 			$this->logger,
 			$this->main_option,
-			fn (string $path): bool                                                                     => \is_uploaded_file($path),
-			fn (array $file, array $overrides = array(), string $time = ''): array                      => $this->_do_wp_handle_upload($file, $overrides, $time),
-			fn (string $filename): string                                                               => $this->_do_sanitize_file_name($filename),
-			fn (array $args, string $file = '', int $parent = 0, bool $wp_error = false): int|\WP_Error => $this->_do_wp_insert_attachment($args, $file, $parent, $wp_error),
-			fn (mixed $thing): bool                                                                     => $this->_do_is_wp_error($thing),
-			fn (int $attachment_id, string $file): array                                                => $this->_do_wp_generate_attachment_metadata($attachment_id, $file),
-			fn (int $attachment_id, array $data): int|false                                             => $this->_do_wp_update_attachment_metadata($attachment_id, $data),
+			fn (string $path): bool                                                                    => \is_uploaded_file($path),
+			fn (array $file, array $overrides = array(), string $time = ''): array                     => $this->_do_wp_handle_upload($file, $overrides, $time),
+			fn (string $filename): string                                                              => $this->_do_sanitize_file_name($filename),
+			fn (array $args, string $file = '', int $parent = 0, bool $wp_error = false): int|WP_Error => $this->_do_wp_insert_attachment($args, $file, $parent, $wp_error),
+			fn (mixed $thing): bool                                                                    => $this->_do_is_wp_error($thing),
+			fn (int $attachment_id, string $file): array                                               => $this->_do_wp_generate_attachment_metadata($attachment_id, $file),
+			fn (int $attachment_id, array $data): int|false                                            => $this->_do_wp_update_attachment_metadata($attachment_id, $data),
 			function (): void {
 				require_once ABSPATH . 'wp-admin/includes/image.php';
 			}
@@ -1362,6 +1363,13 @@ abstract class FormsCore implements FormsInterface {
 				continue;
 			}
 
+			$before = array_key_exists('before', $field_data)
+				? $field_data['before']
+				: ($existing_field['before'] ?? null);
+			$after = array_key_exists('after', $field_data)
+				? $field_data['after']
+				: ($existing_field['after'] ?? null);
+
 			$fields[$idx] = array(
 				'id'                => $field_id,
 				'label'             => (string) ($field_data['label'] ?? ''),
@@ -1370,8 +1378,8 @@ abstract class FormsCore implements FormsInterface {
 				'component_context' => $context,
 				'order'             => $orderProvided ? $orderValue : (int) ($existing_field['order'] ?? 0),
 				'index'             => $existing_field['index'] ?? $existing_field['order'] ?? $idx,
-				'before'            => $field_data['before']    ?? ($existing_field['before'] ?? null),
-				'after'             => $field_data['after']     ?? ($existing_field['after'] ?? null),
+				'before'            => $before,
+				'after'             => $after,
 			);
 			$updated = true;
 			break;
@@ -1455,7 +1463,7 @@ abstract class FormsCore implements FormsInterface {
 		// Fieldset-specific attributes
 		$group['form']     = (string) ($group_data['form'] ?? '');
 		$group['name']     = (string) ($group_data['name'] ?? '');
-		$group['disabled'] = (bool) ($group_data['disabled'] ?? false);
+		$group['disabled'] = $group_data['disabled'] ?? false;
 
 		$this->_get_state_store()->set_group($container_id, $section_id, $group_id, $group);
 	}

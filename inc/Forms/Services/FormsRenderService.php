@@ -354,6 +354,31 @@ class FormsRenderService implements FormsRenderServiceInterface {
 		$section_id   = isset($group['section_id']) ? (string) $group['section_id'] : '';
 		$container_id = isset($group['container_id']) ? (string) $group['container_id'] : '';
 		$root_id      = isset($group['root_id']) ? (string) $group['root_id'] : '';
+		$is_fieldset  = ($group['type'] ?? 'group') === 'fieldset';
+
+		$fieldset_form     = '';
+		$fieldset_name     = '';
+		$fieldset_disabled = false;
+		if ($is_fieldset) {
+			$fieldset_form = isset($group['form']) ? (string) $group['form'] : '';
+			$fieldset_name = isset($group['name']) ? (string) $group['name'] : '';
+			$disabled_raw  = $group['disabled'] ?? false;
+			if (is_callable($disabled_raw)) {
+				$disabled_ctx = array(
+					'field_id'     => '',
+					'container_id' => $container_id,
+					'root_id'      => $root_id,
+					'section_id'   => $section_id,
+					'group_id'     => (string) $group_id,
+					'value'        => null,
+					'values'       => $values,
+				);
+				$this->assert_min_callback_ctx($disabled_ctx);
+				$fieldset_disabled = (bool) FormsCallbackInvoker::invoke($disabled_raw, $disabled_ctx);
+			} else {
+				$fieldset_disabled = (bool) $disabled_raw;
+			}
+		}
 
 		$description_raw = $group['description'] ?? '';
 		$description     = '';
@@ -387,6 +412,11 @@ class FormsRenderService implements FormsRenderServiceInterface {
 			'values'      => $values,
 			'section_id'  => $section_id,
 		);
+		if ($is_fieldset) {
+			$group_context['form']     = $fieldset_form;
+			$group_context['name']     = $fieldset_name;
+			$group_context['disabled'] = $fieldset_disabled;
+		}
 
 		try {
 			$element_type = ($group['type'] ?? 'group') === 'fieldset' ? 'fieldset-wrapper' : 'group-wrapper';

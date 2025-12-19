@@ -27,15 +27,15 @@ final class StubRootBuilder implements BuilderRootInterface {
 		return $this;
 	}
 
-	public function order(int $order): static {
+	public function order(?int $order): static {
 		return $this;
 	}
 
-	public function before(callable $before): static {
+	public function before(?callable $before): static {
 		return $this;
 	}
 
-	public function after(callable $after): static {
+	public function after(?callable $after): static {
 		return $this;
 	}
 

@@ -100,12 +100,14 @@ class UserSettingsCollectionBuilder implements UserSettingsBuilderRootInterface 
 	 * after all core sections. There is no WordPress hook to insert content between
 	 * core profile sections.
 	 *
-	 * @param int $order The hook priority (must be >= 0). Default is 10.
+	 * @param int|null $order The hook priority (must be >= 0). Default is 10.
 	 *
 	 * @return UserSettingsCollectionBuilder The UserSettingsCollectionBuilder instance.
 	 */
-	public function order(int $order): static {
-		$order = $order < 0 ? 0 : $order;
+	public function order(?int $order): static {
+		if ($order !== null) {
+			$order = $order < 0 ? 0 : $order;
+		}
 		$this->_update_meta('order', $order);
 
 		return $this;
@@ -194,11 +196,11 @@ class UserSettingsCollectionBuilder implements UserSettingsBuilderRootInterface 
 	 * The callback receives an array with 'container_id' and 'values' keys
 	 * and should return an HTML string.
 	 *
-	 * @param callable $before Callback that returns HTML string.
+	 * @param callable|null $before Callback that returns HTML string.
 	 *
 	 * @return UserSettingsCollectionBuilder The UserSettingsCollectionBuilder instance.
 	 */
-	public function before(callable $before): static {
+	public function before(?callable $before): static {
 		$this->_update_meta('before', $before);
 		return $this;
 	}
@@ -209,11 +211,11 @@ class UserSettingsCollectionBuilder implements UserSettingsBuilderRootInterface 
 	 * The callback receives an array with 'container_id' and 'values' keys
 	 * and should return an HTML string.
 	 *
-	 * @param callable $after Callback that returns HTML string.
+	 * @param callable|null $after Callback that returns HTML string.
 	 *
 	 * @return UserSettingsCollectionBuilder The UserSettingsCollectionBuilder instance.
 	 */
-	public function after(callable $after): static {
+	public function after(?callable $after): static {
 		$this->_update_meta('after', $after);
 		return $this;
 	}
@@ -329,7 +331,7 @@ class UserSettingsCollectionBuilder implements UserSettingsBuilderRootInterface 
 				$this->meta['description'] = $value;
 				break;
 			case 'order':
-				$this->meta['order'] = $value === null ? 0 : max(0, (int) $value);
+				$this->meta['order'] = $value === null ? 10 : max(0, (int) $value);
 				break;
 			case 'style':
 				$this->meta['style'] = $value;

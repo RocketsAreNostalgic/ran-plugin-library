@@ -167,10 +167,9 @@ trait DeferredBuilderTrait {
 	/**
 	 * Set description on current element (deferred).
 	 *
-	 * @param string $description Description text.
 	 * @return static
 	 */
-	public function description(string $description): static {
+	public function description(string|callable $description): static {
 		$this->deferred->record('description', func_get_args());
 		return $this;
 	}
@@ -189,10 +188,9 @@ trait DeferredBuilderTrait {
 	/**
 	 * Set default value on current field (deferred).
 	 *
-	 * @param mixed $value Default value.
 	 * @return static
 	 */
-	public function default(mixed $value): static {
+	public function default(string|callable|null $value): static {
 		$this->deferred->record('default', func_get_args());
 		return $this;
 	}
@@ -200,10 +198,9 @@ trait DeferredBuilderTrait {
 	/**
 	 * Set options on current field (deferred).
 	 *
-	 * @param array $options Options array.
 	 * @return static
 	 */
-	public function options(array $options): static {
+	public function options(array|callable $options): static {
 		$this->deferred->record('options', func_get_args());
 		return $this;
 	}
@@ -241,7 +238,7 @@ trait DeferredBuilderTrait {
 	 * @param callable $callback Callback returning HTML string.
 	 * @return static
 	 */
-	public function before(callable $callback): static {
+	public function before(?callable $callback): static {
 		$this->deferred->record('before', func_get_args());
 		return $this;
 	}
@@ -255,7 +252,7 @@ trait DeferredBuilderTrait {
 	 * @param callable $callback Callback returning HTML string.
 	 * @return static
 	 */
-	public function after(callable $callback): static {
+	public function after(?callable $callback): static {
 		$this->deferred->record('after', func_get_args());
 		return $this;
 	}

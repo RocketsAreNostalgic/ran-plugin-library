@@ -13,12 +13,17 @@
 
 namespace Ran\PluginLib\Forms\Builders;
 
+use Ran\PluginLib\Forms\Builders\Capabilities\HasOrderInterface;
+use Ran\PluginLib\Forms\Builders\Capabilities\HasHtmlInterface;
+use Ran\PluginLib\Forms\Builders\Capabilities\HasDescriptionInterface;
+use Ran\PluginLib\Forms\Builders\Capabilities\HasBeforeAfterInterface;
+
 /**
  * @template TGroup of GroupBuilderInterface
  * @template TFieldset of FieldsetBuilderInterface
  * @template TSection of SectionBuilderInterface
  */
-interface SectionBuilderInterface {
+interface SectionBuilderInterface extends HasDescriptionInterface, HasOrderInterface, HasBeforeAfterInterface, HasHtmlInterface {
 	/**
 	 * Set the heading for the current section.
 	 *
@@ -54,7 +59,7 @@ interface SectionBuilderInterface {
 	 *
 	 * @return static
 	 */
-	public function order(int $order): static;
+	public function order(?int $order): static;
 
 	/**
 	 * Register a callback to run before rendering the section.
@@ -63,7 +68,7 @@ interface SectionBuilderInterface {
 	 *
 	 * @return static
 	 */
-	public function before(callable $before): static;
+	public function before(?callable $before): static;
 
 	/**
 	 * Register a callback to run after rendering the section.
@@ -72,7 +77,7 @@ interface SectionBuilderInterface {
 	 *
 	 * @return static
 	 */
-	public function after(callable $after): static;
+	public function after(?callable $after): static;
 	/**
 	 * Add a field with a component builder to this section.
 	 *

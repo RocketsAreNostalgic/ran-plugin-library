@@ -25,9 +25,9 @@ use InvalidArgumentException;
  * 3. Implement abstract methods for context-specific behavior
  */
 trait FieldsetBuilderTrait {
-	private string $form   = '';
-	private string $name   = '';
-	private bool $disabled = false;
+	private string $form    = '';
+	private string $name    = '';
+	private mixed $disabled = false;
 
 	/**
 	 * Initialize fieldset-specific properties.
@@ -39,7 +39,8 @@ trait FieldsetBuilderTrait {
 	protected function _init_fieldset(array $args = array()): void {
 		$this->form     = isset($args['form']) ? (string) $args['form'] : '';
 		$this->name     = isset($args['name']) ? (string) $args['name'] : '';
-		$this->disabled = (bool) ($args['disabled'] ?? false);
+		$disabled       = $args['disabled'] ?? false;
+		$this->disabled = is_callable($disabled) ? $disabled : (bool) $disabled;
 
 		// Fields inside fieldsets use a div-based wrapper (no <tr>)
 		$this->default_field_template = 'layout.field.field-wrapper';
@@ -81,11 +82,11 @@ trait FieldsetBuilderTrait {
 	 * Set the disabled state for this fieldset.
 	 * When disabled, all form controls within the fieldset are disabled.
 	 *
-	 * @param bool $disabled Whether the fieldset is disabled.
+	 * @param bool|callable $disabled Whether the fieldset is disabled.
 	 *
 	 * @return static
 	 */
-	public function disabled(bool $disabled = true): static {
+	public function disabled(bool|callable $disabled = true): static {
 		$this->_update_meta('disabled', $disabled);
 		return $this;
 	}
@@ -109,7 +110,7 @@ trait FieldsetBuilderTrait {
 				$this->name = (string) $value;
 				return true;
 			case 'disabled':
-				$this->disabled = (bool) $value;
+				$this->disabled = is_callable($value) ? $value : (bool) $value;
 				return true;
 		}
 		return false;

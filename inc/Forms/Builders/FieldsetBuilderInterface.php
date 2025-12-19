@@ -11,10 +11,17 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\Forms\Builders;
 
+use Ran\PluginLib\Forms\Builders\Capabilities\HasStyleInterface;
+use Ran\PluginLib\Forms\Builders\Capabilities\HasOrderInterface;
+use Ran\PluginLib\Forms\Builders\Capabilities\HasHtmlInterface;
+use Ran\PluginLib\Forms\Builders\Capabilities\HasDisabledInterface;
+use Ran\PluginLib\Forms\Builders\Capabilities\HasDescriptionInterface;
+use Ran\PluginLib\Forms\Builders\Capabilities\HasBeforeAfterInterface;
+
 /**
  * @template TSection of SectionBuilderInterface
  */
-interface FieldsetBuilderInterface {
+interface FieldsetBuilderInterface extends HasDescriptionInterface, HasStyleInterface, HasOrderInterface, HasBeforeAfterInterface, HasHtmlInterface, HasDisabledInterface {
 	/**
 	 * Set the container heading.
 	 *
@@ -50,21 +57,21 @@ interface FieldsetBuilderInterface {
 	 *
 	 * @return static
 	 */
-	public function order(int $order): static;
+	public function order(?int $order): static;
 
 	/**
 	 * Register a callback to run before rendering the container.
 	 *
 	 * @return static
 	 */
-	public function before(callable $before): static;
+	public function before(?callable $before): static;
 
 	/**
 	 * Register a callback to run after rendering the container.
 	 *
 	 * @return static
 	 */
-	public function after(callable $after): static;
+	public function after(?callable $after): static;
 
 	/**
 	 * Add a field with a component builder.
@@ -129,7 +136,7 @@ interface FieldsetBuilderInterface {
 	 * Set the disabled state for this fieldset.
 	 * When disabled, all form controls within the fieldset are disabled.
 	 */
-	public function disabled(bool $disabled = true): static;
+	public function disabled(bool|callable $disabled = true): static;
 
 	/**
 	 * Open a sibling fieldset on the same section.

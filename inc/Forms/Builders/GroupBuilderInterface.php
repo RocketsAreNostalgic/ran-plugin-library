@@ -13,10 +13,16 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\Forms\Builders;
 
+use Ran\PluginLib\Forms\Builders\Capabilities\HasStyleInterface;
+use Ran\PluginLib\Forms\Builders\Capabilities\HasOrderInterface;
+use Ran\PluginLib\Forms\Builders\Capabilities\HasHtmlInterface;
+use Ran\PluginLib\Forms\Builders\Capabilities\HasDescriptionInterface;
+use Ran\PluginLib\Forms\Builders\Capabilities\HasBeforeAfterInterface;
+
 /**
  * @template TSection of SectionBuilderInterface
  */
-interface GroupBuilderInterface {
+interface GroupBuilderInterface extends HasDescriptionInterface, HasStyleInterface, HasOrderInterface, HasBeforeAfterInterface, HasHtmlInterface {
 	/**
 	 * Set the container heading.
 	 *
@@ -52,21 +58,21 @@ interface GroupBuilderInterface {
 	 *
 	 * @return static
 	 */
-	public function order(int $order): static;
+	public function order(?int $order): static;
 
 	/**
 	 * Register a callback to run before rendering the container.
 	 *
 	 * @return static
 	 */
-	public function before(callable $before): static;
+	public function before(?callable $before): static;
 
 	/**
 	 * Register a callback to run after rendering the container.
 	 *
 	 * @return static
 	 */
-	public function after(callable $after): static;
+	public function after(?callable $after): static;
 
 	/**
 	 * Add a field with a component builder.

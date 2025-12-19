@@ -30,6 +30,9 @@ $description = $context['description'] ?? '';
 $inner_html  = $context['inner_html']  ?? '';
 $style       = $context['style']       ?? 'bordered';
 $required    = $context['required']    ?? false;
+$form        = isset($context['form']) ? (string) $context['form'] : '';
+$name        = isset($context['name']) ? (string) $context['name'] : '';
+$disabled    = isset($context['disabled']) && $context['disabled'];
 
 $before = (string) ($context['before'] ?? '');
 $after  = (string) ($context['after'] ?? '');
@@ -43,9 +46,22 @@ if ($style !== '') {
 	$fieldset_classes[] = $style;
 }
 
+$fieldset_attrs = array(
+	'class' => implode(' ', array_filter($fieldset_classes)),
+);
+if ($form !== '') {
+	$fieldset_attrs['form'] = $form;
+}
+if ($name !== '') {
+	$fieldset_attrs['name'] = $name;
+}
+if ($disabled) {
+	$fieldset_attrs['disabled'] = 'disabled';
+}
+
 ob_start();
 ?>
-<fieldset class="<?php echo esc_attr(implode(' ', array_filter($fieldset_classes))); ?>" data-kplr-group-id="<?php echo esc_attr($group_id); ?>">
+<fieldset <?php foreach ($fieldset_attrs as $attr => $val) : ?><?php echo esc_attr($attr); ?>="<?php echo esc_attr($val); ?>" <?php endforeach; ?>data-kplr-group-id="<?php echo esc_attr($group_id); ?>">
     <?php if (!empty($title)): ?>
         <legend class="kplr-fieldset__legend<?php echo $required ? ' kplr-fieldset__legend--required' : ''; ?>">
             <?php echo esc_html($title); ?>

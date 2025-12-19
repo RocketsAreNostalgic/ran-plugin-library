@@ -123,7 +123,9 @@ class AdminSettingsPageBuilder implements AdminSettingsBuilderRootInterface {
 	 * @return AdminSettingsPageBuilder The AdminSettingsPageBuilder instance.
 	 */
 	public function order(?int $order): static {
-		$order = $order < 0 ? 0 : $order;
+		if ($order !== null) {
+			$order = $order < 0 ? 0 : $order;
+		}
 		$this->_update_meta('order', $order);
 
 		return $this;
@@ -217,7 +219,7 @@ class AdminSettingsPageBuilder implements AdminSettingsBuilderRootInterface {
 	 *
 	 * @return AdminSettingsPageBuilder The AdminSettingsPageBuilder instance.
 	 */
-	public function before(callable $before): static {
+	public function before(?callable $before): static {
 		$this->_update_meta('before', $before);
 		return $this;
 	}
@@ -227,7 +229,7 @@ class AdminSettingsPageBuilder implements AdminSettingsBuilderRootInterface {
 	 *
 	 * @return AdminSettingsPageBuilder The AdminSettingsPageBuilder instance.
 	 */
-	public function after(callable $after): static {
+	public function after(?callable $after): static {
 		$this->_update_meta('after', $after);
 		return $this;
 	}

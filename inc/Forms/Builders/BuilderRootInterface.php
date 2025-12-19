@@ -16,6 +16,9 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\Forms\Builders;
 
+use Ran\PluginLib\Forms\Builders\Capabilities\HasBeforeAfterInterface;
+use Ran\PluginLib\Forms\Builders\Capabilities\HasDescriptionInterface;
+use Ran\PluginLib\Forms\Builders\Capabilities\HasOrderInterface;
 use Ran\PluginLib\Forms\FormsInterface;
 
 /**
@@ -24,7 +27,7 @@ use Ran\PluginLib\Forms\FormsInterface;
  * Provides consistent API for building structures with sections,
  * template overrides, and priority/ordering across different WordPress contexts.
  */
-interface BuilderRootInterface {
+interface BuilderRootInterface extends HasDescriptionInterface, HasOrderInterface, HasBeforeAfterInterface {
 	/**
 	 * Set the heading for the current container.
 	 *
@@ -60,7 +63,7 @@ interface BuilderRootInterface {
 	 *
 	 * @return static
 	 */
-	public function order(int $order): static;
+	public function order(?int $order): static;
 
 	/**
 	 * Register a callback to run before rendering the container.
@@ -69,7 +72,7 @@ interface BuilderRootInterface {
 	 *
 	 * @return static
 	 */
-	public function before(callable $before): static;
+	public function before(?callable $before): static;
 
 	/**
 	 * Register a callback to run after rendering the container.
@@ -78,7 +81,7 @@ interface BuilderRootInterface {
 	 *
 	 * @return static
 	 */
-	public function after(callable $after): static;
+	public function after(?callable $after): static;
 
 	/**
 	 * Define a new section within this settings container.
