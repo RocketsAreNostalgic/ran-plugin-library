@@ -321,6 +321,26 @@ class UserSettingsRegistry implements SettingsRegistryInterface {
 			dirname(__DIR__) . '/Forms/Components',
 			$this->logger
 		);
+
+		if ($this->config !== null) {
+			$registrations = array();
+			foreach ($this->collections as $meta) {
+				if (!is_array($meta)) {
+					continue;
+				}
+				$register_components = $meta['register_components'] ?? array();
+				if (!is_array($register_components)) {
+					continue;
+				}
+				foreach ($register_components as $options) {
+					if (!is_array($options)) {
+						continue;
+					}
+					$registrations[] = $options;
+				}
+			}
+			$componentDir->register_components_batch($registrations, $this->config);
+		}
 		$manifest = new ComponentManifest($componentDir, $this->logger);
 
 		// Create UserSettings

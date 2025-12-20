@@ -662,6 +662,32 @@ class AdminMenuRegistry implements SettingsRegistryInterface {
 				dirname(__DIR__) . '/Forms/Components',
 				$this->logger
 			);
+
+			if ($this->config !== null) {
+				$registrations = array();
+				foreach ($this->menu_groups as $group) {
+					$pages = $group['pages'] ?? array();
+					if (!is_array($pages)) {
+						continue;
+					}
+					foreach ($pages as $page_meta) {
+						if (!is_array($page_meta)) {
+							continue;
+						}
+						$register_components = $page_meta['register_components'] ?? array();
+						if (!is_array($register_components)) {
+							continue;
+						}
+						foreach ($register_components as $options) {
+							if (!is_array($options)) {
+								continue;
+							}
+							$registrations[] = $options;
+						}
+					}
+				}
+				$component_loader->register_components_batch($registrations, $this->config);
+			}
 			$manifest = new ComponentManifest($component_loader, $this->logger);
 
 			$this->settings = new AdminSettings(

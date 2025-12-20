@@ -76,6 +76,23 @@ class ComponentLoader {
 	}
 
 	/**
+	 * Register multiple components from an array of registration options.
+	 *
+	 * @param array $registrations Array of component registration options
+	 * @param ConfigInterface $config Configuration instance
+	 * @return self
+	 */
+	public function register_components_batch(array $registrations, ConfigInterface $config): self {
+		foreach ($registrations as $options) {
+			if (!is_array($options)) {
+				continue;
+			}
+			$this->register_components($options, $config);
+		}
+		return $this;
+	}
+
+	/**
 	 * Register a template with an absolute path.
 	 *
 	 * Unlike register() which treats paths as relative to the base directory,

@@ -146,6 +146,18 @@ class UserCollectionBuilder {
 		return $this;
 	}
 
+	public function register_components(array $options): static {
+		$path = isset($options['path']) ? trim((string) $options['path']) : '';
+		if ($path === '') {
+			return $this;
+		}
+		if (!isset($this->meta['register_components']) || !is_array($this->meta['register_components'])) {
+			$this->meta['register_components'] = array();
+		}
+		$this->meta['register_components'][] = $options;
+		return $this;
+	}
+
 	/**
 	 * Set a before callback for wrapping content.
 	 *
