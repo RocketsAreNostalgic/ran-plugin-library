@@ -4,14 +4,14 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\Tests\Unit\Forms;
 
-use PHPUnit\Framework\TestCase;
-use Ran\PluginLib\Forms\Component\ComponentManifest;
-use Ran\PluginLib\Forms\FormsServiceSession;
-use Ran\PluginLib\Forms\FormsTemplateOverrideResolver;
-use Ran\PluginLib\Forms\Renderer\FormElementRenderer;
-use Ran\PluginLib\Forms\Services\FormsRenderService;
-use Ran\PluginLib\Forms\Services\FormsStateStore;
 use Ran\PluginLib\Util\CollectingLogger;
+use Ran\PluginLib\Forms\Services\FormsStateStore;
+use Ran\PluginLib\Forms\Services\FormsRenderService;
+use Ran\PluginLib\Forms\Renderer\FormElementRenderer;
+use Ran\PluginLib\Forms\FormsTemplateOverrideResolver;
+use Ran\PluginLib\Forms\FormsServiceSession;
+use Ran\PluginLib\Forms\Component\ComponentManifest;
+use PHPUnit\Framework\TestCase;
 
 final class CallableKeysConstantRegistrationTest extends TestCase {
 	public function test_callable_keys_constant_nested_rules_are_registered_and_resolved(): void {

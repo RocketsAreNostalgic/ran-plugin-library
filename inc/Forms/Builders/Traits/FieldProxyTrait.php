@@ -194,6 +194,21 @@ trait FieldProxyTrait {
 	}
 
 	/**
+	 * Sets default values for multi-value fields.
+	 *
+	 * @param array|callable $values Array of values or callable that returns an array.
+	 * @return static
+	 */
+	public function default_values(array|callable $values): static {
+		if (!method_exists($this->builder, 'default_values')) {
+			throw new BadMethodCallException('Field builder does not support default_values().');
+		}
+		call_user_func(array($this->builder, 'default_values'), $values);
+		$this->_emit_field_update();
+		return $this;
+	}
+
+	/**
 	 * Sets the name attribute for the input element.
 	 *
 	 * @param string|null $name
@@ -507,8 +522,25 @@ trait FieldProxyTrait {
 				continue;
 			}
 
-			$method = $this->_normalize_to_method($key);
-			if (method_exists($this->builder, $method)) {
+			$method                = $this->_normalize_to_method($key);
+			$has_exact_method      = method_exists($this->builder, (string) $key);
+			$has_normalized_method = $method !== $key && method_exists($this->builder, $method);
+			if ($has_exact_method && $has_normalized_method) {
+				throw new BadMethodCallException(sprintf(
+					'Ambiguous builder hydration for key "%s": both "%s" and "%s" exist on %s.',
+					(string) $key,
+					(string) $key,
+					(string) $method,
+					get_class($this->builder)
+				));
+			}
+			if ($has_exact_method) {
+				$result = call_user_func(array($this->builder, (string) $key), $value);
+				if ($result instanceof ComponentBuilderDefinitionInterface || $result === $this->builder) {
+					continue;
+				}
+			}
+			if ($has_normalized_method) {
 				$result = call_user_func(array($this->builder, $method), $value);
 				if ($result instanceof ComponentBuilderDefinitionInterface || $result === $this->builder) {
 					continue;

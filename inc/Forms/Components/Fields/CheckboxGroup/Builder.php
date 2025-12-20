@@ -7,10 +7,10 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\Forms\Components\Fields\CheckboxGroup;
 
-use Ran\PluginLib\Forms\CallableRegistry;
 use Ran\PluginLib\Forms\Components\Fields\CheckboxOption\Builder as CheckboxOptionBuilder;
-use Ran\PluginLib\Forms\Component\Build\CallableKeysProviderInterface;
 use Ran\PluginLib\Forms\Component\Build\ComponentBuilderBase;
+use Ran\PluginLib\Forms\Component\Build\CallableKeysProviderInterface;
+use Ran\PluginLib\Forms\CallableRegistry;
 
 final class Builder extends ComponentBuilderBase implements CallableKeysProviderInterface {
 	private ?string $legend = null;

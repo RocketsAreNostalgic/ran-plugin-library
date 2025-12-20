@@ -7,9 +7,9 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\Forms\Components\Fields\MultiSelect;
 
-use Ran\PluginLib\Forms\CallableRegistry;
-use Ran\PluginLib\Forms\Component\Build\CallableKeysProviderInterface;
 use Ran\PluginLib\Forms\Component\Build\ComponentBuilderBase;
+use Ran\PluginLib\Forms\Component\Build\CallableKeysProviderInterface;
+use Ran\PluginLib\Forms\CallableRegistry;
 
 final class Builder extends ComponentBuilderBase implements CallableKeysProviderInterface {
 	private ?string $name           = null;
