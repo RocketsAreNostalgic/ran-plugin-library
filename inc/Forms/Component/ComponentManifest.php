@@ -470,6 +470,51 @@ class ComponentManifest {
 	}
 
 	/**
+	 * Returns a list of builder class names discovered for registered components.
+	 *
+	 * Note: This method only returns builders registered as class strings in metadata.
+	 * Components that register a builder factory callable are not included.
+	 *
+	 * @return array<int,string>
+	 */
+	public function builder_classes(): array {
+		// Discover any newly registered components before building list
+		$this->_discover_new_aliases();
+
+		$classes = array();
+		foreach ($this->componentMetadata as $alias => $meta) {
+			if (!is_array($meta)) {
+				$this->logger->warning('ComponentManifest: Skipping cached metadata (invalid format)', array(
+					'alias'         => $alias,
+					'metadata_type' => gettype($meta),
+				));
+				continue;
+			}
+			if (!array_key_exists('builder', $meta)) {
+				$this->logger->warning('ComponentManifest: Skipping cached metadata (missing builder key)', array(
+					'alias' => $alias,
+					'keys'  => array_keys($meta),
+				));
+				continue;
+			}
+
+			$builder = $meta['builder'];
+			if (!is_string($builder) || $builder === '') {
+				continue;
+			}
+			if (!is_subclass_of($builder, ComponentBuilderDefinitionInterface::class)) {
+				continue;
+			}
+
+			$classes[$builder] = true;
+		}
+
+		$res = array_keys($classes);
+		sort($res);
+		return $res;
+	}
+
+	/**
 	 * Returns a map of validator factories for each component.
 	 *
 	 * Uses two-level caching:

@@ -56,6 +56,7 @@ class FormElementRendererAssetCollectionMinimalTest extends PluginLibTestCase {
 
 		// Mock ComponentManifest
 		$mock_manifest = Mockery::mock(ComponentManifest::class);
+		$mock_manifest->shouldReceive('builder_classes')->andReturn(array());
 		$mock_manifest->shouldReceive('render')
 			->with('test-component', Mockery::type('array'))
 			->andReturn($render_result);
@@ -99,6 +100,7 @@ class FormElementRendererAssetCollectionMinimalTest extends PluginLibTestCase {
 
 		// Mock ComponentManifest
 		$mock_manifest = Mockery::mock(ComponentManifest::class);
+		$mock_manifest->shouldReceive('builder_classes')->andReturn(array());
 		$mock_manifest->shouldReceive('render')
 			->with('test-component', Mockery::type('array'))
 			->andThrow(new \RuntimeException('Component render failed'));
@@ -132,6 +134,7 @@ class FormElementRendererAssetCollectionMinimalTest extends PluginLibTestCase {
 
 		// Mock ComponentManifest
 		$mock_manifest = Mockery::mock(ComponentManifest::class);
+		$mock_manifest->shouldReceive('builder_classes')->andReturn(array());
 		$mock_manifest->shouldReceive('render')
 			->with('fields.text', Mockery::type('array'))
 			->andReturn($render_result);

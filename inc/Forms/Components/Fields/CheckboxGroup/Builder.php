@@ -7,10 +7,12 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\Forms\Components\Fields\CheckboxGroup;
 
+use Ran\PluginLib\Forms\CallableRegistry;
 use Ran\PluginLib\Forms\Components\Fields\CheckboxOption\Builder as CheckboxOptionBuilder;
+use Ran\PluginLib\Forms\Component\Build\CallableKeysProviderInterface;
 use Ran\PluginLib\Forms\Component\Build\ComponentBuilderBase;
 
-final class Builder extends ComponentBuilderBase {
+final class Builder extends ComponentBuilderBase implements CallableKeysProviderInterface {
 	private ?string $legend = null;
 	/** @var array<int,CheckboxOptionBuilder|array<string,mixed>> */
 	private array $options = array();
@@ -22,6 +24,11 @@ final class Builder extends ComponentBuilderBase {
 
 	public function __construct(string $id, string $label) {
 		parent::__construct($id, $label);
+	}
+
+	public static function register_callable_keys(CallableRegistry $registry): void {
+		$registry->register_bool_key('disabled');
+		$registry->register_nested_rule('options.*.disabled', 'bool');
 	}
 
 	public function legend(?string $legend): static {

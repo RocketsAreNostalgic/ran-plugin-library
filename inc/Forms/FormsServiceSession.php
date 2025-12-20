@@ -18,6 +18,7 @@ use Ran\PluginLib\Forms\Component\TemplateOverrideCollection;
 use Ran\PluginLib\Forms\Component\TemplateOverride;
 use Ran\PluginLib\Forms\Component\ComponentRenderResult;
 use Ran\PluginLib\Forms\Component\ComponentManifest;
+use Ran\PluginLib\Forms\Component\Build\CallableKeysProviderInterface;
 use Psr\Log\LoggerInterface;
 
 /**
@@ -58,6 +59,61 @@ class FormsServiceSession {
 		$this->callable_registry->register_value_key('options');
 		$this->callable_registry->register_string_key('style');
 		$this->callable_registry->register_nested_rule('options.*.disabled', 'bool');
+
+		$builder_classes = $this->manifest->builder_classes();
+		foreach ($builder_classes as $builder_class) {
+			$has_callable_keys = defined($builder_class . '::CALLABLE_KEYS');
+			if (is_subclass_of($builder_class, CallableKeysProviderInterface::class)) {
+				if ($has_callable_keys) {
+					$this->logger->warning('FormsServiceSession: Builder defines CALLABLE_KEYS but also implements CallableKeysProviderInterface; CALLABLE_KEYS ignored.', array(
+						'builder_class' => $builder_class,
+					));
+				}
+				$builder_class::register_callable_keys($this->callable_registry);
+				continue;
+			}
+
+			if (!$has_callable_keys) {
+				continue;
+			}
+
+			$definitions = $builder_class::CALLABLE_KEYS;
+			if (!is_array($definitions)) {
+				throw new \InvalidArgumentException(sprintf('FormsServiceSession: %s::CALLABLE_KEYS must be an array.', $builder_class));
+			}
+
+			$bool_keys = $definitions['bool'] ?? array();
+			if (!is_array($bool_keys)) {
+				throw new \InvalidArgumentException(sprintf('FormsServiceSession: %s::CALLABLE_KEYS["bool"] must be an array.', $builder_class));
+			}
+			foreach ($bool_keys as $key) {
+				$this->callable_registry->register_bool_key((string) $key);
+			}
+
+			$value_keys = $definitions['value'] ?? array();
+			if (!is_array($value_keys)) {
+				throw new \InvalidArgumentException(sprintf('FormsServiceSession: %s::CALLABLE_KEYS["value"] must be an array.', $builder_class));
+			}
+			foreach ($value_keys as $key) {
+				$this->callable_registry->register_value_key((string) $key);
+			}
+
+			$string_keys = $definitions['string'] ?? array();
+			if (!is_array($string_keys)) {
+				throw new \InvalidArgumentException(sprintf('FormsServiceSession: %s::CALLABLE_KEYS["string"] must be an array.', $builder_class));
+			}
+			foreach ($string_keys as $key) {
+				$this->callable_registry->register_string_key((string) $key);
+			}
+
+			$nested_rules = $definitions['nested_rules'] ?? array();
+			if (!is_array($nested_rules)) {
+				throw new \InvalidArgumentException(sprintf('FormsServiceSession: %s::CALLABLE_KEYS["nested_rules"] must be an array.', $builder_class));
+			}
+			foreach ($nested_rules as $path => $type) {
+				$this->callable_registry->register_nested_rule((string) $path, (string) $type);
+			}
+		}
 
 		// Set form-wide defaults if provided
 		if (!empty($form_defaults)) {

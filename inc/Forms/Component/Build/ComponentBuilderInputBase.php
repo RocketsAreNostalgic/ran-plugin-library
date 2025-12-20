@@ -9,7 +9,9 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\Forms\Component\Build;
 
-abstract class ComponentBuilderInputBase extends ComponentBuilderBase implements InputComponentBuilderInterface {
+use Ran\PluginLib\Forms\CallableRegistry;
+
+abstract class ComponentBuilderInputBase extends ComponentBuilderBase implements InputComponentBuilderInterface, CallableKeysProviderInterface {
 	protected ?string $placeholder = null;
 	/** @var string|callable|null */
 	protected mixed $default = null;
@@ -30,6 +32,13 @@ abstract class ComponentBuilderInputBase extends ComponentBuilderBase implements
 		if (isset($base_metadata['order'])) {
 			$this->order((int) $base_metadata['order']);
 		}
+	}
+
+	public static function register_callable_keys(CallableRegistry $registry): void {
+		$registry->register_bool_key('disabled');
+		$registry->register_bool_key('required');
+		$registry->register_value_key('default');
+		$registry->register_string_key('style');
 	}
 
 	/**

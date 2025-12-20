@@ -34,6 +34,7 @@ class FormsServiceSessionTest extends TestCase {
 		$logger = new CollectingLogger();
 		/** @var ComponentManifest&MockObject $manifest */
 		$manifest = $this->createMock(ComponentManifest::class);
+		$manifest->method('builder_classes')->willReturn(array());
 		$resolver = new FormsTemplateOverrideResolver($logger);
 		$session  = new FormsServiceSession($manifest, $resolver, $logger);
 
@@ -66,7 +67,8 @@ class FormsServiceSessionTest extends TestCase {
 
 	protected function setUp(): void {
 		/** @var ComponentManifest&MockObject $manifest */
-		$manifest       = $this->createMock(ComponentManifest::class);
+		$manifest = $this->createMock(ComponentManifest::class);
+		$manifest->method('builder_classes')->willReturn(array());
 		$this->manifest = $manifest;
 		/** @var Logger&MockObject $logger */
 		$logger         = $this->createMock(Logger::class);

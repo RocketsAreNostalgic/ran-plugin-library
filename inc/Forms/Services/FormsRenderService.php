@@ -594,51 +594,32 @@ class FormsRenderService implements FormsRenderServiceInterface {
 				}
 			}
 
-			if (isset($field_context['style'])) {
-				$style_key_list = $callable_registry->string_keys();
-				if (is_callable($field_context['style'])) {
-					if (in_array('style', $style_key_list, true)) {
-						$resolved_style         = FormsCallbackInvoker::invoke($field_context['style'], $callback_ctx);
-						$field_context['style'] = trim((string) $resolved_style);
-					}
-				} else {
-					$field_context['style'] = trim((string) $field_context['style']);
+			$string_keys = $callable_registry->string_keys();
+			foreach ($string_keys as $key) {
+				if (!array_key_exists($key, $field_context)) {
+					continue;
 				}
-				if ($field_context['style'] === '') {
-					unset($field_context['style']);
+
+				$value = $field_context[$key];
+				if (is_callable($value)) {
+					$resolved = FormsCallbackInvoker::invoke($value, $callback_ctx);
+					$value    = $resolved;
 				}
+
+				if (is_array($value) || is_object($value)) {
+					continue;
+				}
+
+				$trimmed = trim((string) $value);
+				if ($trimmed === '') {
+					unset($field_context[$key]);
+					continue;
+				}
+
+				$field_context[$key] = $trimmed;
 			}
 
-			$nested_rules = $callable_registry->nested_rules();
-
-			if (isset($field_context['options']) && is_array($field_context['options'])) {
-				foreach ($field_context['options'] as $idx => $option) {
-					if (!is_array($option)) {
-						continue;
-					}
-
-					if (isset($option['disabled']) && is_callable($option['disabled'])) {
-						if (!isset($nested_rules['options.*.disabled']) || $nested_rules['options.*.disabled'] !== 'bool') {
-							continue;
-						}
-						$resolved = FormsCallbackInvoker::invoke($option['disabled'], $callback_ctx);
-						if ($resolved) {
-							$option['disabled'] = true;
-							if (!isset($option['attributes']) || !is_array($option['attributes'])) {
-								$option['attributes'] = array();
-							}
-							$option['attributes']['disabled'] = 'disabled';
-						} else {
-							unset($option['disabled']);
-							if (isset($option['attributes']) && is_array($option['attributes'])) {
-								unset($option['attributes']['disabled']);
-							}
-						}
-					}
-
-					$field_context['options'][$idx] = $option;
-				}
-			}
+			$this->_resolve_nested_callable_rules($field_context, $callable_registry->nested_rules(), $callback_ctx);
 
 			if ($component === 'radio-group' && isset($field_context['default']) && is_string($field_context['default']) && isset($field_context['options']) && is_array($field_context['options'])) {
 				foreach ($field_context['options'] as $idx => $option) {
@@ -674,6 +655,103 @@ class FormsRenderService implements FormsRenderServiceInterface {
 			));
 			return $this->render_default_field_wrapper_warning($e->getMessage());
 		}
+	}
+
+	private function _resolve_nested_callable_rules(array &$context, array $rules, array $callback_ctx): void {
+		foreach ($rules as $path => $type) {
+			$path = trim((string) $path);
+			$type = trim((string) $type);
+			if ($path === '' || $type === '') {
+				continue;
+			}
+
+			$parts = array_values(array_filter(explode('.', $path), fn($p) => trim((string) $p) !== ''));
+			if ($parts === array()) {
+				continue;
+			}
+
+			$this->_resolve_nested_callable_rule_on_node($context, $parts, $type, $callback_ctx, $path);
+		}
+	}
+
+	private function _resolve_nested_callable_rule_on_node(array &$node, array $parts, string $type, array $callback_ctx, string $full_path): void {
+		$seg = array_shift($parts);
+		if ($seg === null) {
+			return;
+		}
+
+		if ($seg === '*') {
+			foreach ($node as $idx => &$child) {
+				if (!is_array($child)) {
+					continue;
+				}
+				$this->_resolve_nested_callable_rule_on_node($child, $parts, $type, $callback_ctx, $full_path);
+			}
+			unset($child);
+			return;
+		}
+
+		if (!array_key_exists($seg, $node)) {
+			return;
+		}
+
+		if ($parts === array()) {
+			$value = $node[$seg];
+			if (is_callable($value)) {
+				$value = FormsCallbackInvoker::invoke($value, $callback_ctx);
+			}
+
+			if ($type === 'bool') {
+				if ($value) {
+					$node[$seg] = true;
+					if ($full_path === 'options.*.disabled') {
+						if (!isset($node['attributes']) || !is_array($node['attributes'])) {
+							$node['attributes'] = array();
+						}
+						$node['attributes']['disabled'] = 'disabled';
+					}
+				} else {
+					unset($node[$seg]);
+					if ($full_path === 'options.*.disabled') {
+						if (isset($node['attributes']) && is_array($node['attributes'])) {
+							unset($node['attributes']['disabled']);
+						}
+					}
+				}
+				return;
+			}
+
+			if ($type === 'value') {
+				if ($value === null || $value === '' || $value === array()) {
+					unset($node[$seg]);
+				} else {
+					$node[$seg] = $value;
+				}
+				return;
+			}
+
+			if ($type === 'string') {
+				if (is_array($value) || is_object($value)) {
+					return;
+				}
+				$trimmed = trim((string) $value);
+				if ($trimmed === '') {
+					unset($node[$seg]);
+				} else {
+					$node[$seg] = $trimmed;
+				}
+				return;
+			}
+
+			return;
+		}
+
+		$child = &$node[$seg];
+		if (!is_array($child)) {
+			unset($child);
+			return;
+		}
+		$this->_resolve_nested_callable_rule_on_node($child, $parts, $type, $callback_ctx, $full_path);
 	}
 
 	public function render_raw_html_content(array $field, array $context): string {

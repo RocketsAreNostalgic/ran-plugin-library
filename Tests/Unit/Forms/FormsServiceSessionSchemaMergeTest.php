@@ -46,6 +46,7 @@ final class FormsServiceSessionSchemaMergeTest extends PluginLibTestCase {
 		);
 
 		$manifest = Mockery::mock(ComponentManifest::class);
+		$manifest->shouldReceive('builder_classes')->andReturn(array());
 		$manifest->shouldReceive('get_defaults_for')
 			->once()
 			->with('components.merge')
@@ -93,6 +94,7 @@ final class FormsServiceSessionSchemaMergeTest extends PluginLibTestCase {
 
 	public function test_merge_schema_without_defaults_returns_coerced_structure(): void {
 		$manifest = Mockery::mock(ComponentManifest::class);
+		$manifest->shouldReceive('builder_classes')->andReturn(array());
 		$manifest->shouldReceive('get_defaults_for')
 			->once()
 			->with('components.empty')
@@ -142,6 +144,7 @@ final class FormsServiceSessionSchemaMergeTest extends PluginLibTestCase {
 		};
 
 		$manifest = Mockery::mock(ComponentManifest::class);
+		$manifest->shouldReceive('builder_classes')->andReturn(array());
 		$manifest->shouldReceive('get_defaults_for')
 			->once()
 			->with('fields.text')
@@ -174,6 +177,7 @@ final class FormsServiceSessionSchemaMergeTest extends PluginLibTestCase {
 		);
 
 		$manifest = Mockery::mock(ComponentManifest::class);
+		$manifest->shouldReceive('builder_classes')->andReturn(array());
 		$manifest->shouldReceive('get_defaults_for')
 			->once()
 			->with('layout.wrapper')
@@ -222,6 +226,7 @@ final class FormsServiceSessionSchemaMergeTest extends PluginLibTestCase {
 		);
 
 		$manifest = Mockery::mock(ComponentManifest::class);
+		$manifest->shouldReceive('builder_classes')->andReturn(array());
 		$manifest->shouldReceive('get_defaults_for')
 			->once()
 			->with('fields.merge')
@@ -280,7 +285,8 @@ final class FormsServiceSessionSchemaMergeTest extends PluginLibTestCase {
 		self::assertContains('Schema validator failed', $messages['field']['warnings'] ?? array());
 
 		$rendererManifest = Mockery::mock(ComponentManifest::class);
-		$capturedContext  = null;
+		$rendererManifest->shouldReceive('builder_classes')->andReturn(array());
+		$capturedContext = null;
 		$rendererManifest->shouldReceive('render')
 			->once()
 			->with('fields.merge', Mockery::on(function ($renderContext) use (&$capturedContext) {

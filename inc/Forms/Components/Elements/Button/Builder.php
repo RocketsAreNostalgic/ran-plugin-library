@@ -7,9 +7,11 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\Forms\Components\Elements\Button;
 
+use Ran\PluginLib\Forms\CallableRegistry;
+use Ran\PluginLib\Forms\Component\Build\CallableKeysProviderInterface;
 use Ran\PluginLib\Forms\Component\Build\ComponentBuilderBase;
 
-final class Builder extends ComponentBuilderBase {
+final class Builder extends ComponentBuilderBase implements CallableKeysProviderInterface {
 	private string $type       = 'button';
 	private mixed $disabled    = false;
 	private string $variant    = 'primary';
@@ -17,6 +19,14 @@ final class Builder extends ComponentBuilderBase {
 
 	public function __construct(string $id, string $label) {
 		parent::__construct($id, $label);
+	}
+
+	public static function register_callable_keys(CallableRegistry $registry): void {
+		$registry->register_bool_key('disabled');
+		$registry->register_value_key('default');
+		$registry->register_value_key('options');
+		$registry->register_string_key('style');
+		$registry->register_nested_rule('options.*.disabled', 'bool');
 	}
 
 	/**

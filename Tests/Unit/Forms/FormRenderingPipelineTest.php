@@ -106,6 +106,7 @@ class FormRenderingPipelineTest extends PluginLibTestCase {
 
 		// Mock ComponentManifest to return different results for different components
 		$mock_manifest = Mockery::mock(ComponentManifest::class);
+		$mock_manifest->shouldReceive('builder_classes')->andReturn(array());
 		$mock_manifest->shouldReceive('render')
 			->with('fields.text', Mockery::type('array'))
 			->andReturn($text_result);
@@ -195,6 +196,7 @@ class FormRenderingPipelineTest extends PluginLibTestCase {
 
 		// Mock ComponentManifest for template resolution
 		$mock_manifest = Mockery::mock(ComponentManifest::class);
+		$mock_manifest->shouldReceive('builder_classes')->andReturn(array());
 		$mock_manifest->shouldReceive('render')
 			->with('fields.complex', Mockery::on(function($context) {
 				// Verify context contains expected field data
@@ -292,6 +294,7 @@ class FormRenderingPipelineTest extends PluginLibTestCase {
 
 		// Mock ComponentManifest
 		$mock_manifest = Mockery::mock(ComponentManifest::class);
+		$mock_manifest->shouldReceive('builder_classes')->andReturn(array());
 		$mock_manifest->shouldReceive('render')
 			->with('fields.custom', Mockery::type('array'))
 			->andReturn($render_result);
@@ -379,6 +382,7 @@ class FormRenderingPipelineTest extends PluginLibTestCase {
 		$wrapper_result   = new ComponentRenderResult('<div class="wrapper">wrapped</div>');
 
 		$mock_manifest = Mockery::mock(ComponentManifest::class);
+		$mock_manifest->shouldReceive('builder_classes')->andReturn(array());
 		$mock_manifest->shouldReceive('render')
 			->with('fields.text', Mockery::type('array'))
 			->andReturn($component_result);

@@ -65,6 +65,7 @@ class FormElementRendererIntegrationTest extends PluginLibTestCase {
 
 		// Mock ComponentManifest to return our test result
 		$mock_manifest = Mockery::mock(ComponentManifest::class);
+		$mock_manifest->shouldReceive('builder_classes')->andReturn(array());
 		$mock_manifest->shouldReceive('render')
 			->with('fields.text', Mockery::type('array'))
 			->andReturn($render_result);
@@ -127,6 +128,7 @@ class FormElementRendererIntegrationTest extends PluginLibTestCase {
 
 		// Mock ComponentManifest
 		$mock_manifest = Mockery::mock(ComponentManifest::class);
+		$mock_manifest->shouldReceive('builder_classes')->andReturn(array());
 		$mock_manifest->shouldReceive('render')
 			->with('simple.component', Mockery::type('array'))
 			->andReturn($render_result);
@@ -184,6 +186,7 @@ class FormElementRendererIntegrationTest extends PluginLibTestCase {
 
 		// Mock ComponentManifest
 		$mock_manifest = Mockery::mock(ComponentManifest::class);
+		$mock_manifest->shouldReceive('builder_classes')->andReturn(array());
 		$mock_manifest->shouldReceive('render')
 			->with('fields.text', Mockery::type('array'))
 			->andReturn($result1);

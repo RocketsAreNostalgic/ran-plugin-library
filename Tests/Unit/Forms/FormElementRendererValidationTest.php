@@ -160,6 +160,7 @@ class FormElementRendererValidationTest extends PluginLibTestCase {
 
 	public function test_render_component_with_assets_wraps_exceptions(): void {
 		$manifest = Mockery::mock(ComponentManifest::class);
+		$manifest->shouldReceive('builder_classes')->andReturn(array());
 		$manifest->shouldReceive('render')->andThrow(new \RuntimeException('render failed'));
 
 		$renderer = $this->createRenderer($manifest);
@@ -174,6 +175,7 @@ class FormElementRendererValidationTest extends PluginLibTestCase {
 
 	public function test_render_field_component_applies_wrapper_and_handles_override(): void {
 		$manifest = Mockery::mock(ComponentManifest::class);
+		$manifest->shouldReceive('builder_classes')->andReturn(array());
 		$manifest->shouldReceive('render')
 			->with('fields.text', Mockery::type('array'))
 			->andReturn(new ComponentRenderResult('<input />'));
@@ -224,6 +226,7 @@ class FormElementRendererValidationTest extends PluginLibTestCase {
 
 	public function test_render_field_component_falls_back_when_wrapper_fails(): void {
 		$manifest = Mockery::mock(ComponentManifest::class);
+		$manifest->shouldReceive('builder_classes')->andReturn(array());
 		$manifest->shouldReceive('render')
 			->with('fields.text', Mockery::type('array'))
 			->andReturn(new ComponentRenderResult('<input />'));
@@ -261,6 +264,7 @@ class FormElementRendererValidationTest extends PluginLibTestCase {
 		$render_result = new ComponentRenderResult('<div>Rendered</div>');
 
 		$manifest = Mockery::mock(ComponentManifest::class);
+		$manifest->shouldReceive('builder_classes')->andReturn(array());
 		$manifest->shouldReceive('render')
 			->with('test-component', Mockery::type('array'))
 			->andReturn($render_result);
@@ -278,6 +282,7 @@ class FormElementRendererValidationTest extends PluginLibTestCase {
 
 	public function test_render_field_with_wrapper_uses_default_session_when_missing(): void {
 		$manifest = Mockery::mock(ComponentManifest::class);
+		$manifest->shouldReceive('builder_classes')->andReturn(array());
 		$manifest->shouldReceive('render')->andReturn(new ComponentRenderResult('<div>component</div>'));
 
 		$service  = new FormsService($manifest, $this->logger);
@@ -303,6 +308,7 @@ class FormElementRendererValidationTest extends PluginLibTestCase {
 
 	public function test_render_field_with_wrapper_wraps_exceptions(): void {
 		$manifest = Mockery::mock(ComponentManifest::class);
+		$manifest->shouldReceive('builder_classes')->andReturn(array());
 		$manifest->shouldReceive('render')->andThrow(new \RuntimeException('render failed'));
 
 		$service  = new FormsService($manifest, $this->logger);
@@ -329,6 +335,7 @@ class FormElementRendererValidationTest extends PluginLibTestCase {
 
 	public function test_render_field_component_wraps_render_exceptions(): void {
 		$manifest = Mockery::mock(ComponentManifest::class);
+		$manifest->shouldReceive('builder_classes')->andReturn(array());
 		$manifest->shouldReceive('render')->andThrow(new \RuntimeException('render failed'));
 
 		$service  = new FormsService($manifest, $this->logger);

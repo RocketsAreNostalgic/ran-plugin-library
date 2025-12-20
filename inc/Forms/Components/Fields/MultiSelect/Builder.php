@@ -7,9 +7,11 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\Forms\Components\Fields\MultiSelect;
 
+use Ran\PluginLib\Forms\CallableRegistry;
+use Ran\PluginLib\Forms\Component\Build\CallableKeysProviderInterface;
 use Ran\PluginLib\Forms\Component\Build\ComponentBuilderBase;
 
-final class Builder extends ComponentBuilderBase {
+final class Builder extends ComponentBuilderBase implements CallableKeysProviderInterface {
 	private ?string $name           = null;
 	private ?string $element_id     = null;
 	private ?string $description_id = null;
@@ -26,6 +28,14 @@ final class Builder extends ComponentBuilderBase {
 
 	public function __construct(string $id, string $label) {
 		parent::__construct($id, $label);
+	}
+
+	public static function register_callable_keys(CallableRegistry $registry): void {
+		$registry->register_bool_key('disabled');
+		$registry->register_bool_key('required');
+		$registry->register_value_key('default');
+		$registry->register_value_key('options');
+		$registry->register_nested_rule('options.*.disabled', 'bool');
 	}
 
 	public function name(?string $name): static {

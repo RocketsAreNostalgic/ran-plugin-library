@@ -8,9 +8,16 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\Forms\Component\Build;
 
+use Ran\PluginLib\Forms\CallableRegistry;
+
 abstract class ComponentBuilderTextBase extends ComponentBuilderInputBase implements ReadonlyComponentBuilderInterface {
 	/** @var bool|callable */
 	protected mixed $readonly = false;
+
+	public static function register_callable_keys(CallableRegistry $registry): void {
+		parent::register_callable_keys($registry);
+		$registry->register_bool_key('readonly');
+	}
 
 	/**
 	 * Marks the input as readonly.
