@@ -587,13 +587,33 @@ trait FieldProxyTrait {
 	 * @throws BadMethodCallException If the method doesn't exist on the builder.
 	 */
 	public function __call(string $name, array $arguments): static {
-		if (method_exists($this->builder, $name)) {
-			$this->builder->$name(...$arguments);
-			$this->_emit_field_update();
-			return $this;
+		if (!is_callable(array($this->builder, $name))) {
+			throw new BadMethodCallException(sprintf(
+				'Method "%s" does not exist on %s or its underlying builder (%s). Field id: "%s". Component: "%s". Container: "%s". Section: "%s".',
+				$name,
+				static::class,
+				get_class($this->builder),
+				$this->field_id,
+				$this->component_alias,
+				$this->container_id,
+				$this->section_id
+			));
 		}
-		throw new BadMethodCallException(
-			sprintf('Method %s::%s does not exist.', static::class, $name)
-		);
+
+		$result = $this->builder->$name(...$arguments);
+		if ($result !== $this->builder) {
+			throw new BadMethodCallException(sprintf(
+				'Proxied builder method "%s" on %s must return $this for fluent chaining. Field id: "%s". Component: "%s". Container: "%s". Section: "%s".',
+				$name,
+				get_class($this->builder),
+				$this->field_id,
+				$this->component_alias,
+				$this->container_id,
+				$this->section_id
+			));
+		}
+
+		$this->_emit_field_update();
+		return $this;
 	}
 }

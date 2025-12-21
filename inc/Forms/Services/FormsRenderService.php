@@ -298,33 +298,15 @@ class FormsRenderService implements FormsRenderServiceInterface {
 				'container_id' => $id_slug,
 			);
 
-			$section_template = '';
-			try {
-				$section_template = $session->resolve_template('section-wrapper', array_merge($section_context, array(
-					'root_id'      => (string) $id_slug,
-					'container_id' => (string) $id_slug,
-					'section_id'   => (string) $section_id,
-					'values'       => $values,
-				)));
-			} catch (\Throwable $e) {
-				$this->logger->warning('FormsCore: Section wrapper template resolution failed, using fallback', array(
-					'section_id'        => $section_id,
-					'exception_message' => $e->getMessage(),
-				));
-			}
-
-			if ($section_template === '') {
-				$section_template = (string) ($this->get_section_template)();
-			}
-
-			$sectionComponent = $this->views->render($section_template, $section_context);
-
-			if (!($sectionComponent instanceof ComponentRenderResult)) {
-				throw new \UnexpectedValueException('Section template must return a ComponentRenderResult instance.');
-			}
-			$session->note_component_used($section_template);
-
-			$all_sections_markup .= $sectionComponent->markup;
+			$all_sections_markup .= $session->render_element('section-wrapper', $section_context, array(
+				'field_id'     => '',
+				'container_id' => (string) $id_slug,
+				'root_id'      => (string) $id_slug,
+				'section_id'   => (string) $section_id,
+				'group_id'     => '',
+				'value'        => null,
+				'values'       => $values,
+			));
 		}
 
 		return $all_sections_markup;

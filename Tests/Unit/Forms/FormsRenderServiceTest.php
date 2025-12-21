@@ -142,11 +142,15 @@ final class FormsRenderServiceTest extends TestCase {
 		$registry->register_nested_rule('options.*.disabled', 'bool');
 		$session->method('callable_registry')->willReturn($registry);
 		$session->method('note_component_used');
-		$session->method('render_element')->willReturn('wrapped');
+		$session->method('render_element')->willReturnCallback(function (string $element_type, array $element_config = array()) use (&$captured): string {
+			if ($element_type === 'section-wrapper') {
+				$captured['section_render_context'] = $element_config;
+			}
+			return 'wrapped';
+		});
 
 		$views = $this->createMock(ComponentLoader::class);
 		$views->method('render')->willReturnCallback(function (string $key, array $ctx) use (&$captured) {
-			$captured['section_render_context'] = $ctx;
 			return new \Ran\PluginLib\Forms\Component\ComponentRenderResult('');
 		});
 
@@ -225,11 +229,15 @@ final class FormsRenderServiceTest extends TestCase {
 		$registry->register_nested_rule('options.*.disabled', 'bool');
 		$session->method('callable_registry')->willReturn($registry);
 		$session->method('note_component_used');
-		$session->method('render_element')->willReturn('wrapped');
+		$session->method('render_element')->willReturnCallback(function (string $element_type, array $element_config = array()) use (&$captured): string {
+			if ($element_type === 'section-wrapper') {
+				$captured['section_render_context'] = $element_config;
+			}
+			return 'wrapped';
+		});
 
 		$views = $this->createMock(ComponentLoader::class);
 		$views->method('render')->willReturnCallback(function (string $key, array $ctx) use (&$captured) {
-			$captured['section_render_context'] = $ctx;
 			return new \Ran\PluginLib\Forms\Component\ComponentRenderResult('');
 		});
 
@@ -313,8 +321,10 @@ final class FormsRenderServiceTest extends TestCase {
 		$session->method('callable_registry')->willReturn($registry);
 		$session->method('note_component_used');
 		$session->method('render_element')->willReturnCallback(function (string $element_type, array $element_config = array(), array $context = array()) use (&$seen_group_context, &$seen_element_context): string {
-			$seen_group_context   = $element_config;
-			$seen_element_context = $context;
+			if ($element_type === 'group-wrapper') {
+				$seen_group_context   = $element_config;
+				$seen_element_context = $context;
+			}
 			return 'wrapped';
 		});
 
@@ -417,9 +427,11 @@ final class FormsRenderServiceTest extends TestCase {
 		$session->method('callable_registry')->willReturn($registry);
 		$session->method('note_component_used');
 		$session->method('render_element')->willReturnCallback(function (string $element_type, array $element_config = array(), array $context = array()) use (&$seen_group_context, &$seen_element_context, &$seen_element_type): string {
-			$seen_element_type    = $element_type;
-			$seen_group_context   = $element_config;
-			$seen_element_context = $context;
+			if ($element_type === 'fieldset-wrapper') {
+				$seen_element_type    = $element_type;
+				$seen_group_context   = $element_config;
+				$seen_element_context = $context;
+			}
 			return 'wrapped';
 		});
 
@@ -517,7 +529,9 @@ final class FormsRenderServiceTest extends TestCase {
 		$session->method('callable_registry')->willReturn($registry);
 		$session->method('note_component_used');
 		$session->method('render_element')->willReturnCallback(function (string $element_type, array $element_config = array()) use (&$seen_group_context): string {
-			$seen_group_context = $element_config;
+			if ($element_type === 'group-wrapper') {
+				$seen_group_context = $element_config;
+			}
 			return 'wrapped';
 		});
 

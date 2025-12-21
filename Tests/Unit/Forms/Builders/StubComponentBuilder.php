@@ -29,4 +29,8 @@ final class StubComponentBuilder extends ComponentBuilderTextBase {
 		$this->customOption = $value;
 		return $this;
 	}
+
+	public function nonFluentMethod(): string {
+		return 'not-fluent';
+	}
 }

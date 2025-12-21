@@ -258,15 +258,32 @@ class GenericElementBuilder {
 	 * @throws BadMethodCallException If method doesn't exist on builder.
 	 */
 	public function __call(string $name, array $arguments): static {
-		if (!method_exists($this->builder, $name)) {
+		if (!is_callable(array($this->builder, $name))) {
 			throw new BadMethodCallException(sprintf(
-				'Method "%s" does not exist on %s or its underlying builder.',
+				'Method "%s" does not exist on %s or its underlying builder (%s). Element id: "%s". Component: "%s". Container: "%s". Section: "%s".',
 				$name,
-				static::class
+				static::class,
+				get_class($this->builder),
+				$this->element_id,
+				$this->component_alias,
+				$this->container_id,
+				$this->section_id
 			));
 		}
 
-		call_user_func_array(array($this->builder, $name), $arguments);
+		$result = $this->builder->$name(...$arguments);
+		if ($result !== $this->builder) {
+			throw new BadMethodCallException(sprintf(
+				'Proxied builder method "%s" on %s must return $this for fluent chaining. Element id: "%s". Component: "%s". Container: "%s". Section: "%s".',
+				$name,
+				get_class($this->builder),
+				$this->element_id,
+				$this->component_alias,
+				$this->container_id,
+				$this->section_id
+			));
+		}
+
 		$this->_emit();
 		return $this;
 	}

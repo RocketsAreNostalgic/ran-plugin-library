@@ -344,6 +344,18 @@ final class ElementBuilderMethodsTest extends TestCase {
 		self::assertTrue(true);
 	}
 
+	public function test_element_throws_for_non_fluent_proxied_builder_method(): void {
+		$builder = $this->createSectionBuilder(array(
+			'elements.button' => fn(string $id, string $label): StubElementComponentBuilder => new StubElementComponentBuilder($id, $label, 'elements.button'),
+		));
+
+		$this->expectException(\BadMethodCallException::class);
+		$this->expectExceptionMessage('must return $this for fluent chaining');
+
+		$builder->element('test-button', 'Click Me', 'elements.button')
+			->nonFluentMethod();
+	}
+
 	public function test_element_throws_for_unknown_method_not_on_builder(): void {
 		$builder = $this->createSectionBuilder(array(
 			'elements.button' => fn(string $id, string $label): StubElementComponentBuilder => new StubElementComponentBuilder($id, $label, 'elements.button'),

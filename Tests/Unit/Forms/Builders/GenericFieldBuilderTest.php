@@ -3,10 +3,10 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\Tests\Unit\Forms\Builders;
 
-use PHPUnit\Framework\TestCase;
 use Ran\PluginLib\Forms\Component\Build\ComponentBuilderBase;
 use Ran\PluginLib\Forms\Builders\GenericFieldBuilder;
 use Ran\PluginLib\Forms\Builders\GenericBuilderContext;
+use PHPUnit\Framework\TestCase;
 
 /**
  * @covers \Ran\PluginLib\Forms\Builders\GenericFieldBuilder
@@ -85,6 +85,14 @@ final class GenericFieldBuilderTest extends TestCase {
 
 		$this->expectException(\BadMethodCallException::class);
 		$proxy->unsupportedMethod();
+	}
+
+	public function test_throws_for_non_fluent_proxied_builder_method(): void {
+		$proxy = $this->createProxy();
+
+		$this->expectException(\BadMethodCallException::class);
+		$this->expectExceptionMessage('must return $this for fluent chaining');
+		$proxy->nonFluentMethod();
 	}
 
 	public function test_apply_context_hydrates_builder_and_emits_update(): void {

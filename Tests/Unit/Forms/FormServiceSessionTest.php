@@ -490,4 +490,28 @@ class FormsServiceSessionTest extends TestCase {
 		$this->session->note_component_used('sample.component');
 		$this->session->enqueue_assets();
 	}
+
+	public function test_render_element_returns_fallback_markup_when_manifest_render_throws(): void {
+		$logger = new CollectingLogger();
+		/** @var ComponentManifest&MockObject $manifest */
+		$manifest = $this->createMock(ComponentManifest::class);
+		$manifest->method('builder_classes')->willReturn(array());
+		$manifest->method('render')->willThrowException(new \RuntimeException('boom'));
+
+		$resolver = new FormsTemplateOverrideResolver($logger);
+		$session  = new FormsServiceSession($manifest, $resolver, $logger);
+
+		$markup = $session->render_element('section-wrapper', array(
+			'inner_html' => '<div>inner</div>',
+		), array(
+			'section_id'   => 'sec1',
+			'container_id' => 'container',
+			'root_id'      => 'container',
+			'values'       => array(),
+		));
+
+		$this->assertIsString($markup);
+		$this->assertStringContainsString('<div>inner</div>', $markup);
+		$this->assertStringContainsString('kepler-template-fallback', $markup);
+	}
 }

@@ -24,4 +24,8 @@ final class StubElementComponentBuilder extends ComponentBuilderBase {
 		$this->customOption = $value;
 		return $this;
 	}
+
+	public function nonFluentMethod(): string {
+		return 'not-fluent';
+	}
 }

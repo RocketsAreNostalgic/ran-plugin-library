@@ -835,6 +835,15 @@ final class AdminSettingsBehaviorTest extends PluginLibTestCase {
 
 	private function registerTemplateStubs(): void {
 		$this->manifest->register('layout.zone.section-wrapper', static function (array $context): ComponentRenderResult {
+			if (isset($context['inner_html']) && $context['inner_html'] !== '') {
+				$before = (string) ($context['before'] ?? '');
+				$after  = (string) ($context['after'] ?? '');
+				$markup = $before . '<section class="admin-section">' . (string) $context['inner_html'] . '</section>' . $after;
+				return new ComponentRenderResult(
+					$markup
+				);
+			}
+
 			$renderer = $context['field_renderer'] ?? null;
 			$markup   = '<div class="admin-sections">';
 			foreach ($context['sections'] ?? array() as $section) {
