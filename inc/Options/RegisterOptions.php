@@ -1544,7 +1544,8 @@ class RegisterOptions {
 			(string) ($ctx->user_storage ?? 'meta'),
 			(bool) ($ctx->user_global ?? false),
 			$to_save,
-			$merge_from_db
+			$merge_from_db,
+			$ctx->post_id
 		);
 		$allowed = $this->_apply_write_gate($this->__persist_origin ?? 'save_all', $wc);
 		if (!$allowed) {

@@ -83,6 +83,181 @@ trait WPWrappersTrait {
 	}
 
 	/**
+	 * Public wrapper for WordPress add_meta_box()
+	 * Availability-guarded: Yes
+	 *
+	 * @param string $id
+	 * @param string $title
+	 * @param callable $callback
+	 * @param string|object|null $screen
+	 * @param string $context
+	 * @param string $priority
+	 * @param array $callback_args
+	 * @internal
+	 * @return void
+	 */
+	protected function _do_add_meta_box(
+		string $id,
+		string $title,
+		callable $callback,
+		string|object|null $screen = null,
+		string $context = 'advanced',
+		string $priority = 'default',
+		array $callback_args = array()
+	): void {
+		$handled = false;
+		if (\defined('WP_MOCK') && \class_exists(\WP_Mock\Functions\Handler::class)) {
+			try {
+				\WP_Mock\Functions\Handler::handleFunction('add_meta_box', array(
+					$id,
+					$title,
+					$callback,
+					$screen,
+					$context,
+					$priority,
+					$callback_args,
+				));
+				$handled = true;
+			} catch (\PHPUnit\Framework\ExpectationFailedException $e) {
+				if (!\function_exists('add_meta_box')) {
+					throw $e;
+				}
+			}
+		}
+
+		if (!$handled && \function_exists('add_meta_box')) {
+			\add_meta_box($id, $title, $callback, $screen, $context, $priority, $callback_args);
+		}
+	}
+
+	/**
+	 * Public wrapper for WordPress wp_verify_nonce()
+	 * Availability-guarded: Yes
+	 *
+	 * @param string|int $nonce
+	 * @param string|int $action
+	 * @internal
+	 * @return int|false
+	 */
+	protected function _do_wp_verify_nonce(string|int $nonce, string|int $action): int|false {
+		$handled = false;
+		$result  = false;
+		if (\defined('WP_MOCK') && \class_exists(\WP_Mock\Functions\Handler::class)) {
+			try {
+				/** @var int|false $mocked */
+				$mocked  = \WP_Mock\Functions\Handler::handleFunction('wp_verify_nonce', array($nonce, $action));
+				$result  = $mocked;
+				$handled = true;
+			} catch (\PHPUnit\Framework\ExpectationFailedException $e) {
+				if (!\function_exists('wp_verify_nonce')) {
+					throw $e;
+				}
+			}
+		}
+
+		if (!$handled && \function_exists('wp_verify_nonce')) {
+			/** @var int|false $res */
+			$res = \wp_verify_nonce($nonce, $action);
+			return $res;
+		}
+		return $result;
+	}
+
+	/**
+	 * Public wrapper for WordPress wp_is_post_autosave()
+	 * Availability-guarded: Yes
+	 *
+	 * @param int $post_id
+	 * @internal
+	 * @return int|false
+	 */
+	protected function _do_wp_is_post_autosave(int $post_id): int|false {
+		$handled = false;
+		$result  = false;
+		if (\defined('WP_MOCK') && \class_exists(\WP_Mock\Functions\Handler::class)) {
+			try {
+				/** @var int|false $mocked */
+				$mocked  = \WP_Mock\Functions\Handler::handleFunction('wp_is_post_autosave', array($post_id));
+				$result  = $mocked;
+				$handled = true;
+			} catch (\PHPUnit\Framework\ExpectationFailedException $e) {
+				if (!\function_exists('wp_is_post_autosave')) {
+					throw $e;
+				}
+			}
+		}
+
+		if (!$handled && \function_exists('wp_is_post_autosave')) {
+			/** @var int|false $res */
+			$res = \wp_is_post_autosave($post_id);
+			return $res;
+		}
+		return $result;
+	}
+
+	/**
+	 * Public wrapper for WordPress wp_is_post_revision()
+	 * Availability-guarded: Yes
+	 *
+	 * @param int $post_id
+	 * @internal
+	 * @return int|false
+	 */
+	protected function _do_wp_is_post_revision(int $post_id): int|false {
+		$handled = false;
+		$result  = false;
+		if (\defined('WP_MOCK') && \class_exists(\WP_Mock\Functions\Handler::class)) {
+			try {
+				/** @var int|false $mocked */
+				$mocked  = \WP_Mock\Functions\Handler::handleFunction('wp_is_post_revision', array($post_id));
+				$result  = $mocked;
+				$handled = true;
+			} catch (\PHPUnit\Framework\ExpectationFailedException $e) {
+				if (!\function_exists('wp_is_post_revision')) {
+					throw $e;
+				}
+			}
+		}
+
+		if (!$handled && \function_exists('wp_is_post_revision')) {
+			/** @var int|false $res */
+			$res = \wp_is_post_revision($post_id);
+			return $res;
+		}
+		return $result;
+	}
+
+	/**
+	 * Public wrapper for WordPress get_post_type_object()
+	 * Availability-guarded: Yes
+	 *
+	 * @param string $post_type
+	 * @internal
+	 * @return object|null
+	 */
+	protected function _do_get_post_type_object(string $post_type): ?object {
+		$handled = false;
+		$result  = null;
+		if (\defined('WP_MOCK') && \class_exists(\WP_Mock\Functions\Handler::class)) {
+			try {
+				/** @var object|null $mocked */
+				$mocked  = \WP_Mock\Functions\Handler::handleFunction('get_post_type_object', array($post_type));
+				$result  = $mocked;
+				$handled = true;
+			} catch (\PHPUnit\Framework\ExpectationFailedException $e) {
+				if (!\function_exists('get_post_type_object')) {
+					throw $e;
+				}
+			}
+		}
+
+		if (!$handled && \function_exists('get_post_type_object')) {
+			return \get_post_type_object($post_type);
+		}
+		return $result;
+	}
+
+	/**
 	 * Wrapper for WordPress did_action() function.
 	 *
 	 * This wrapper makes the code more testable by allowing the did_action

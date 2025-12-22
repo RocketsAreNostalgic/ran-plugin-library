@@ -4,9 +4,9 @@ declare(strict_types=1);
 namespace Ran\PluginLib\Tests\Unit\Options\Storage;
 
 use WP_Mock;
-use Ran\PluginLib\Options\OptionScope;
 use Ran\PluginLib\Tests\Unit\PluginLibTestCase;
 use Ran\PluginLib\Options\Storage\PostMetaStorage;
+use Ran\PluginLib\Options\OptionScope;
 
 final class PostMetaStorageTest extends PluginLibTestCase {
 	/**

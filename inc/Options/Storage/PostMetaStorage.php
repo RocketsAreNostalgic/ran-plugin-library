@@ -13,8 +13,8 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\Options\Storage;
 
-use Ran\PluginLib\Options\OptionScope;
 use Ran\PluginLib\Util\WPWrappersTrait;
+use Ran\PluginLib\Options\OptionScope;
 
 final class PostMetaStorage implements OptionStorageInterface {
 	use WPWrappersTrait;

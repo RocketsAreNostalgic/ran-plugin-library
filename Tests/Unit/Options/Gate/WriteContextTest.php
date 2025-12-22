@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\Tests\Unit\Options;
 
-use PHPUnit\Framework\TestCase;
 use Ran\PluginLib\Options\WriteContext;
+use PHPUnit\Framework\TestCase;
 
 final class WriteContextTest extends TestCase {
 	public function test_for_set_option_sets_fields_and_op(): void {

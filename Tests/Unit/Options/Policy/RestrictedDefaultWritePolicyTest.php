@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\Tests\Unit\Options;
 
-use Mockery;
 use WP_Mock;
 use Ran\PluginLib\Tests\Unit\PluginLibTestCase;
 use Ran\PluginLib\Options\Policy\RestrictedDefaultWritePolicy;
+use Mockery;
 
 /**
  * Test coverage for RestrictedDefaultWritePolicy

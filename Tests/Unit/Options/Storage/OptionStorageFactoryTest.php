@@ -3,16 +3,16 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\Tests\Unit\Options\Storage;
 
-use Ran\PluginLib\Options\OptionScope;
-use Ran\PluginLib\Options\RegisterOptions;
 use Ran\PluginLib\Tests\Unit\PluginLibTestCase;
-use Ran\PluginLib\Options\Storage\StorageContext;
-use Ran\PluginLib\Options\Storage\UserMetaStorage;
-use Ran\PluginLib\Options\Storage\BlogOptionStorage;
-use Ran\PluginLib\Options\Storage\SiteOptionStorage;
 use Ran\PluginLib\Options\Storage\UserOptionStorage;
-use Ran\PluginLib\Options\Storage\NetworkOptionStorage;
+use Ran\PluginLib\Options\Storage\UserMetaStorage;
+use Ran\PluginLib\Options\Storage\StorageContext;
+use Ran\PluginLib\Options\Storage\SiteOptionStorage;
 use Ran\PluginLib\Options\Storage\PostMetaStorage;
+use Ran\PluginLib\Options\Storage\NetworkOptionStorage;
+use Ran\PluginLib\Options\Storage\BlogOptionStorage;
+use Ran\PluginLib\Options\RegisterOptions;
+use Ran\PluginLib\Options\OptionScope;
 
 /**
  * @covers \Ran\PluginLib\Options\RegisterOptions::_make_storage
