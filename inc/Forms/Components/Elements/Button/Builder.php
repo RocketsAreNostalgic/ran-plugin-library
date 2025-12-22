@@ -69,33 +69,6 @@ final class Builder extends ComponentBuilderBase implements CallableKeysProvider
 		return $this;
 	}
 
-	/**
-	 * Gets the button type.
-	 *
-	 * @return string
-	 */
-	public function get_type(): string {
-		return $this->type;
-	}
-
-	/**
-	 * Gets the button variant.
-	 *
-	 * @return string
-	 */
-	public function get_variant(): string {
-		return $this->variant;
-	}
-
-	/**
-	 * Gets the button icon HTML.
-	 *
-	 * @return string|null
-	 */
-	public function get_icon_html(): ?string {
-		return $this->icon_html;
-	}
-
 	protected function _build_component_context(): array {
 		// Start with base context (attributes, description)
 		$context = $this->_build_base_context();

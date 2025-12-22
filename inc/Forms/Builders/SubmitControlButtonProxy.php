@@ -28,18 +28,21 @@ final class SubmitControlButtonProxy {
 	 * @return mixed
 	 */
 	public function __call(string $name, array $arguments) {
-		if (method_exists($this->builder, $name)) {
+		if (is_callable(array($this->builder, $name))) {
 			$result = $this->builder->$name(...$arguments);
-			$this->parent->update_button($this->builder);
-
-			if ($result instanceof ButtonBuilder || $result === $this->builder) {
-				return $this;
+			if ($result !== $this->builder) {
+				throw new BadMethodCallException(sprintf(
+					'Proxied builder method "%s" on %s must return $this for fluent chaining.',
+					$name,
+					get_class($this->builder)
+				));
 			}
 
-			return $result;
+			$this->parent->update_button($this->builder);
+			return $this;
 		}
 
-		if (method_exists($this->parent, $name)) {
+		if (is_callable(array($this->parent, $name))) {
 			$this->parent->update_button($this->builder);
 			return $this->parent->$name(...$arguments);
 		}

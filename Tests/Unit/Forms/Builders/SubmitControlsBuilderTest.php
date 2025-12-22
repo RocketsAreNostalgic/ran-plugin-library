@@ -111,6 +111,30 @@ final class SubmitControlsBuilderTest extends TestCase {
 		self::assertTrue($payload['controls'][0]['component_context']['disabled']);
 	}
 
+	public function test_button_proxy_throws_for_removed_getters(): void {
+		$builder = $this->createBuilder();
+		$proxy   = $builder->button('primary', 'Save Changes');
+
+		$this->expectException(\BadMethodCallException::class);
+		$proxy->get_type();
+	}
+
+	public function test_button_proxy_throws_for_non_callable_builder_method(): void {
+		$builder = $this->createBuilder();
+		$proxy   = $builder->button('primary', 'Save Changes');
+
+		$this->expectException(\BadMethodCallException::class);
+		$proxy->_build_component_context();
+	}
+
+	public function test_button_proxy_throws_for_non_fluent_public_builder_method(): void {
+		$builder = $this->createBuilder();
+		$proxy   = $builder->button('primary', 'Save Changes');
+
+		$this->expectException(\BadMethodCallException::class);
+		$proxy->to_array();
+	}
+
 	public function test_field_requires_id(): void {
 		$builder = $this->createBuilder();
 
