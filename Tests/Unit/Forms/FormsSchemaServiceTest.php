@@ -83,7 +83,24 @@ final class FormsSchemaServiceTest extends TestCase {
 
 		$bundle3 = $svc->resolve_schema_bundle($user_options);
 		self::assertNotSame($bundle1, $bundle3);
-		self::assertCount(2, $schema_bundle_cache);
+
+		$post_options_1 = $this->createMock(RegisterOptions::class);
+		$post_options_1->expects(self::once())->method('get_main_option_name')->willReturn('opt');
+		$post_options_1->expects(self::once())->method('get_storage_context')->willReturn(StorageContext::forPost(88));
+		$post_options_1->expects(self::once())->method('__get_schema_internal')->willReturn(array());
+
+		$bundle4 = $svc->resolve_schema_bundle($post_options_1);
+		self::assertNotSame($bundle1, $bundle4);
+
+		$post_options_2 = $this->createMock(RegisterOptions::class);
+		$post_options_2->expects(self::once())->method('get_main_option_name')->willReturn('opt');
+		$post_options_2->expects(self::once())->method('get_storage_context')->willReturn(StorageContext::forPost(99));
+		$post_options_2->expects(self::once())->method('__get_schema_internal')->willReturn(array());
+
+		$bundle5 = $svc->resolve_schema_bundle($post_options_2);
+		self::assertNotSame($bundle1, $bundle5);
+
+		self::assertCount(4, $schema_bundle_cache);
 	}
 
 	public function test_merge_schema_bundle_sources_seeds_and_overlays_defaults(): void {

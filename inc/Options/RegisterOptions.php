@@ -26,6 +26,7 @@ use Ran\PluginLib\Options\Storage\NetworkOptionStorage;
 use Ran\PluginLib\Options\Storage\BlogOptionStorage;
 use Ran\PluginLib\Options\Storage\UserMetaStorage;
 use Ran\PluginLib\Options\Storage\UserOptionStorage;
+use Ran\PluginLib\Options\Storage\PostMetaStorage;
 use Ran\PluginLib\Options\Storage\StorageContext;
 use Ran\PluginLib\Options\OptionScope;
 use Ran\PluginLib\Forms\Validation\ValidatorPipelineService;
@@ -1299,6 +1300,8 @@ class RegisterOptions {
 	private function _make_storage(): OptionStorageInterface {
 		$ctx = $this->_get_storage_context();
 		switch ($ctx->scope) {
+			case OptionScope::Post:
+				return new PostMetaStorage((int) $ctx->post_id);
 			case OptionScope::Network:
 				return new NetworkOptionStorage();
 			case OptionScope::Blog:

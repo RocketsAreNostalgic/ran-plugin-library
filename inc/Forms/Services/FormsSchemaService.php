@@ -100,6 +100,8 @@ class FormsSchemaService implements FormsSchemaServiceInterface {
 			$cacheKeyParts[] = (string) $storage->blog_id;
 		} elseif ($storage->scope === OptionScope::User && $storage->user_id !== null) {
 			$cacheKeyParts[] = (string) $storage->user_id;
+		} elseif ($storage->scope === OptionScope::Post && $storage->post_id !== null) {
+			$cacheKeyParts[] = (string) $storage->post_id;
 		}
 
 		$cacheKey = implode('|', $cacheKeyParts);

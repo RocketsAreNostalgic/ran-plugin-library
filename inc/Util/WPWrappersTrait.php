@@ -576,6 +576,18 @@ trait WPWrappersTrait {
 		return (bool) \delete_user_meta($user_id, $key);
 	}
 
+	protected function _do_get_post_meta(int $post_id, string $key, bool $single = true): mixed {
+		return \get_post_meta($post_id, $key, $single);
+	}
+
+	protected function _do_update_post_meta(int $post_id, string $key, mixed $value, mixed $prev_value = ''): int|bool {
+		return \update_post_meta($post_id, $key, $value, $prev_value);
+	}
+
+	protected function _do_delete_post_meta(int $post_id, string $key): bool {
+		return (bool) \delete_post_meta($post_id, $key);
+	}
+
 	/**
 	 * Public wrapper for WordPress wp_load_alloptions() with availability guard
 	 * Returns autoloaded options map when available; null when WP function is unavailable.

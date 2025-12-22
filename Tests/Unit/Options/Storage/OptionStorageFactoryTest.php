@@ -12,6 +12,7 @@ use Ran\PluginLib\Options\Storage\BlogOptionStorage;
 use Ran\PluginLib\Options\Storage\SiteOptionStorage;
 use Ran\PluginLib\Options\Storage\UserOptionStorage;
 use Ran\PluginLib\Options\Storage\NetworkOptionStorage;
+use Ran\PluginLib\Options\Storage\PostMetaStorage;
 
 /**
  * @covers \Ran\PluginLib\Options\RegisterOptions::_make_storage
@@ -74,6 +75,19 @@ final class RegisterOptionsMakeStorageTest extends PluginLibTestCase {
 		$storage = $m->invoke($ro);
 		$this->assertInstanceOf(BlogOptionStorage::class, $storage);
 		$this->assertSame(123, $storage->blog_id());
+	}
+
+	/**
+	 * @covers \Ran\PluginLib\Options\RegisterOptions::_make_storage
+	 */
+	public function test_post_scope(): void {
+		$ro  = $this->makeRO(StorageContext::forPost(777));
+		$ref = new \ReflectionClass($ro);
+		$m   = $ref->getMethod('_make_storage');
+		$m->setAccessible(true);
+		$storage = $m->invoke($ro);
+		$this->assertInstanceOf(PostMetaStorage::class, $storage);
+		$this->assertSame(OptionScope::Post, $storage->scope());
 	}
 
 	/**
