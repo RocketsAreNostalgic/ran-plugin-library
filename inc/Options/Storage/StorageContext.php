@@ -20,6 +20,9 @@ final class StorageContext {
 	/** @var int|null */
 	public readonly ?int $user_id;
 
+	/** @var int|null */
+	public readonly ?int $post_id;
+
 	/** @var string */
 	public readonly string $user_storage; // 'meta' | 'option'
 
@@ -30,12 +33,14 @@ final class StorageContext {
         OptionScope $scope,
         ?int $blog_id = null,
         ?int $user_id = null,
+		?int $post_id = null,
         string $user_storage = 'meta',
         bool $user_global = false
     ) {
 		$this->scope        = $scope;
 		$this->blog_id      = $blog_id;
 		$this->user_id      = $user_id;
+		$this->post_id      = $post_id;
 		$this->user_storage = $user_storage;
 		$this->user_global  = $user_global;
 	}
@@ -99,6 +104,13 @@ final class StorageContext {
 		return new self(OptionScope::User, user_id: $user_id, user_storage: $storage_kind, user_global: $user_global);
 	}
 
+	public static function forPost(int $post_id): self {
+		if ($post_id <= 0) {
+			throw new \InvalidArgumentException('StorageContext::forPost requires a positive post_id.');
+		}
+		return new self(OptionScope::Post, post_id: $post_id);
+	}
+
 	/**
 	 * Generate a unique cache key for this storage context.
 	 *
@@ -112,6 +124,9 @@ final class StorageContext {
 		}
 		if ($this->user_id !== null) {
 			$parts[] = 'user:' . $this->user_id;
+		}
+		if ($this->post_id !== null) {
+			$parts[] = 'post:' . $this->post_id;
 		}
 		if ($this->user_storage !== 'meta') {
 			$parts[] = 'storage:' . $this->user_storage;

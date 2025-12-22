@@ -52,6 +52,26 @@ class RestrictedDefaultWritePolicyTest extends PluginLibTestCase {
 		$this->assertFalse($this->policy->allow('flush', $ctx));
 	}
 
+	public function test_post_scope_allows_with_edit_post_capability(): void {
+		$postId = 123;
+		WP_Mock::userFunction('current_user_can')
+			->with('edit_post', $postId)
+			->andReturn(true);
+
+		$ctx = \Ran\PluginLib\Options\WriteContext::for_clear('dummy', 'post', null, null, 'meta', false, $postId);
+		$this->assertTrue($this->policy->allow('flush', $ctx));
+	}
+
+	public function test_post_scope_denies_without_edit_post_capability(): void {
+		$postId = 123;
+		WP_Mock::userFunction('current_user_can')
+			->with('edit_post', $postId)
+			->andReturn(false);
+
+		$ctx = \Ran\PluginLib\Options\WriteContext::for_clear('dummy', 'post', null, null, 'meta', false, $postId);
+		$this->assertFalse($this->policy->allow('flush', $ctx));
+	}
+
 	/**
 	 * Test user scope allows when user has edit_user capability for the specified user
 	 * @covers \Ran\PluginLib\Options\Policy\RestrictedDefaultWritePolicy::allow (lines 32-34)
@@ -239,6 +259,13 @@ class RestrictedDefaultWritePolicyTest extends PluginLibTestCase {
 			->with('manage_network_options')
 			->andReturn(true);
 		$ctx = \Ran\PluginLib\Options\WriteContext::for_clear('dummy', 'network', null, null, 'meta', false);
+		$this->assertTrue($this->policy->allow('test', $ctx));
+
+		// Test post scope path
+		WP_Mock::userFunction('current_user_can')
+			->with('edit_post', 123)
+			->andReturn(true);
+		$ctx = \Ran\PluginLib\Options\WriteContext::for_clear('dummy', 'post', null, null, 'meta', false, 123);
 		$this->assertTrue($this->policy->allow('test', $ctx));
 
 		// Test user scope path (lines 34-36)

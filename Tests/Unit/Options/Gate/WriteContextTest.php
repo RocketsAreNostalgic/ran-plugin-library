@@ -19,6 +19,22 @@ final class WriteContextTest extends TestCase {
 		$this->assertFalse($wc->merge_from_db());
 	}
 
+	public function test_post_scope_requires_post_id(): void {
+		$this->expectException(\InvalidArgumentException::class);
+		$this->expectExceptionMessage('WriteContext: post scope requires postId');
+		WriteContext::for_clear('main', 'post', null, null, 'meta', false);
+	}
+
+	public function test_post_scope_sets_post_id_and_normalizes_other_fields(): void {
+		$wc = WriteContext::for_clear('main', 'post', null, null, 'meta', false, 123);
+		$this->assertSame('clear', $wc->op());
+		$this->assertSame('post', $wc->scope());
+		$this->assertSame(123, $wc->post_id());
+		$this->assertNull($wc->blog_id());
+		$this->assertNull($wc->user_id());
+		$this->assertNull($wc->user_storage());
+	}
+
 	public function test_ssert_non_empty_throws_on_empty_main_option(): void {
 		$this->expectException(\InvalidArgumentException::class);
 		$this->expectExceptionMessage('WriteContext: field main_option must be non-empty');

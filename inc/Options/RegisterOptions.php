@@ -502,7 +502,8 @@ class RegisterOptions {
 					$ctx->user_id,
 					$ctx->user_storage ?? 'meta',
 					(bool) $ctx->user_global,
-					$seedKeys
+					$seedKeys,
+					$ctx->post_id
 				);
 				if ($this->_apply_write_gate('register_schema', $wcSeed)) {
 					foreach ($toSeed as $k => $entry) {
@@ -533,7 +534,8 @@ class RegisterOptions {
 					$ctx->user_id,
 					$ctx->user_storage ?? 'meta',
 					(bool) $ctx->user_global,
-					$normalizedKeys
+					$normalizedKeys,
+					$ctx->post_id
 				);
 				if ($this->_apply_write_gate('register_schema', $wcNorm)) {
 					foreach ($normalizedChanges as $k => $nv) {
@@ -652,7 +654,8 @@ class RegisterOptions {
 			$ctx->user_id,
 			(string)($ctx->user_storage ?? 'meta'),
 			(bool)($ctx->user_global ?? false),
-			$key
+			$key,
+			$ctx->post_id
 		);
 		if (!$this->_apply_write_gate('add_option', $wc)) {
 			return $this; // veto: no mutation
@@ -687,7 +690,7 @@ class RegisterOptions {
 
 		// Only create WriteContext and apply gate if we have keys to process
 		if (!empty($keys)) {
-			$wc2 = WriteContext::for_stage_options($this->main_wp_option_name, $ctx->scope->value, $ctx->blog_id, $ctx->user_id, $ctx->user_storage ?? 'meta', (bool) $ctx->user_global, $keys);
+			$wc2 = WriteContext::for_stage_options($this->main_wp_option_name, $ctx->scope->value, $ctx->blog_id, $ctx->user_id, $ctx->user_storage ?? 'meta', (bool) $ctx->user_global, $keys, $ctx->post_id);
 			if (!$this->_apply_write_gate('stage_options', $wc2)) {
 				return $this; // veto: no mutation
 			}
@@ -752,7 +755,8 @@ class RegisterOptions {
 			$ctx->user_id,
 			(string)($ctx->user_storage ?? 'meta'),
 			(bool)($ctx->user_global ?? false),
-			$key
+			$key,
+			$ctx->post_id
 		);
 		if (!$this->_apply_write_gate('delete_option', $wc)) {
 			return false; // veto: no mutation
@@ -783,7 +787,8 @@ class RegisterOptions {
 			$ctx->blog_id,
 			$ctx->user_id,
 			(string)($ctx->user_storage ?? 'meta'),
-			(bool)($ctx->user_global ?? false)
+			(bool)($ctx->user_global ?? false),
+			$ctx->post_id
 		);
 		if (!$this->_apply_write_gate('clear', $wc)) {
 			return false; // veto
@@ -862,7 +867,8 @@ class RegisterOptions {
 			$ctx->user_id,
 			(string)($ctx->user_storage ?? 'meta'),
 			(bool)($ctx->user_global ?? false),
-			array_keys($normalized)
+			array_keys($normalized),
+			$ctx->post_id
 		);
 		if (!$this->_apply_write_gate('seed_if_missing', $wc)) {
 			$this->_get_logger()->debug('RegisterOptions: seed_if_missing vetoed by write gate');
@@ -937,7 +943,8 @@ class RegisterOptions {
 			$ctx->user_id,
 			(string)($ctx->user_storage ?? 'meta'),
 			(bool)($ctx->user_global ?? false),
-			array_keys($normalized)
+			array_keys($normalized),
+			$ctx->post_id
 		);
 		if (!$this->_apply_write_gate('migrate', $wc)) {
 			return $this; // veto: do not write/mutate

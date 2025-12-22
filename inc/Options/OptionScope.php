@@ -35,4 +35,9 @@ enum OptionScope: string {
 	 * Represents a user-level option.
 	 */
 	case User = 'user';
+
+	/**
+	 * Represents a post-level option.
+	 */
+	case Post = 'post';
 }

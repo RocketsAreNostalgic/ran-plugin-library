@@ -15,11 +15,13 @@ final class WriteContext {
 	/** @var string */
 	private string $main_option;
 	/** @var string */
-	private string $scope; // 'site'|'network'|'blog'|'user'
+	private string $scope; // 'site'|'network'|'blog'|'user'|'post'
 	/** @var int|null */
 	private ?int $blog_id;
 	/** @var int|null */
 	private ?int $user_id;
+	/** @var int|null */
+	private ?int $post_id;
 	/** @var string|null */
 	private ?string $user_storage; // 'meta'|'option' when scope=user
 	/** @var bool */
@@ -61,6 +63,7 @@ final class WriteContext {
 		string $scope,
 		?int $blogId,
 		?int $userId,
+		?int $postId,
 		?string $user_storage,
 		bool $user_global,
 		bool $merge_from_db,
@@ -74,6 +77,7 @@ final class WriteContext {
 		$this->scope         = $scope;
 		$this->blog_id       = $blogId;
 		$this->user_id       = $userId;
+		$this->post_id       = $postId;
 		$this->user_storage  = $user_storage;
 		$this->user_global   = $user_global;
 		$this->merge_from_db = $merge_from_db;
@@ -123,6 +127,15 @@ final class WriteContext {
 	 */
 	public function user_id(): ?int {
 		return $this->user_id;
+	}
+
+	/**
+	 * Get the target post ID when scope is 'post'.
+	 *
+	 * @return int|null Post ID or null when not applicable.
+	 */
+	public function post_id(): ?int {
+		return $this->post_id;
 	}
 	/**
 	 * Get the user storage backend when scope is 'user'.
@@ -204,12 +217,13 @@ final class WriteContext {
 		string $user_storage,
 		bool $user_global,
 		array $options,
-		bool $merge_from_db
+		bool $merge_from_db,
+		?int $postId = null
 	): self {
 		self::ssert_non_empty($main_option, 'main_option');
-		$scope                            = self::normalize_scope($scope);
-		[$blogId, $userId, $user_storage] = self::validate_scope_triplet($scope, $blogId, $userId, $user_storage);
-		return new self('save_all', $main_option, $scope, $blogId, $userId, $user_storage, $user_global, $merge_from_db, null, null, $options, null);
+		$scope                                     = self::normalize_scope($scope);
+		[$blogId, $userId, $postId, $user_storage] = self::validate_scope_quadlet($scope, $blogId, $userId, $postId, $user_storage);
+		return new self('save_all', $main_option, $scope, $blogId, $userId, $postId, $user_storage, $user_global, $merge_from_db, null, null, $options, null);
 	}
 
 	/**
@@ -232,13 +246,14 @@ final class WriteContext {
 		?int $userId,
 		string $user_storage,
 		bool $user_global,
-		string $key
+		string $key,
+		?int $postId = null
 	): self {
 		self::ssert_non_empty($main_option, 'main_option');
 		self::ssert_non_empty($key, 'key');
-		$scope                            = self::normalize_scope($scope);
-		[$blogId, $userId, $user_storage] = self::validate_scope_triplet($scope, $blogId, $userId, $user_storage);
-		return new self('set_option', $main_option, $scope, $blogId, $userId, $user_storage, $user_global, false, $key, null, null, null);
+		$scope                                     = self::normalize_scope($scope);
+		[$blogId, $userId, $postId, $user_storage] = self::validate_scope_quadlet($scope, $blogId, $userId, $postId, $user_storage);
+		return new self('set_option', $main_option, $scope, $blogId, $userId, $postId, $user_storage, $user_global, false, $key, null, null, null);
 	}
 
 	/**
@@ -261,13 +276,14 @@ final class WriteContext {
 		?int $userId,
 		string $user_storage,
 		bool $user_global,
-		array $keys
+		array $keys,
+		?int $postId = null
 	): self {
 		self::ssert_non_empty($main_option, 'main_option');
 		self::ssert_non_emptyArray($keys, 'keys');
-		$scope                            = self::normalize_scope($scope);
-		[$blogId, $userId, $user_storage] = self::validate_scope_triplet($scope, $blogId, $userId, $user_storage);
-		return new self('stage_options', $main_option, $scope, $blogId, $userId, $user_storage, $user_global, false, null, array_values(array_map('strval', $keys)), null, null);
+		$scope                                     = self::normalize_scope($scope);
+		[$blogId, $userId, $postId, $user_storage] = self::validate_scope_quadlet($scope, $blogId, $userId, $postId, $user_storage);
+		return new self('stage_options', $main_option, $scope, $blogId, $userId, $postId, $user_storage, $user_global, false, null, array_values(array_map('strval', $keys)), null, null);
 	}
 
 	/**
@@ -290,13 +306,14 @@ final class WriteContext {
 		?int $userId,
 		string $user_storage,
 		bool $user_global,
-		string $key
+		string $key,
+		?int $postId = null
 	): self {
 		self::ssert_non_empty($main_option, 'main_option');
 		self::ssert_non_empty($key, 'key');
-		$scope                            = self::normalize_scope($scope);
-		[$blogId, $userId, $user_storage] = self::validate_scope_triplet($scope, $blogId, $userId, $user_storage);
-		return new self('add_option', $main_option, $scope, $blogId, $userId, $user_storage, $user_global, false, $key, null, null, null);
+		$scope                                     = self::normalize_scope($scope);
+		[$blogId, $userId, $postId, $user_storage] = self::validate_scope_quadlet($scope, $blogId, $userId, $postId, $user_storage);
+		return new self('add_option', $main_option, $scope, $blogId, $userId, $postId, $user_storage, $user_global, false, $key, null, null, null);
 	}
 
 	/**
@@ -319,13 +336,14 @@ final class WriteContext {
 		?int $userId,
 		string $user_storage,
 		bool $user_global,
-		string $key
+		string $key,
+		?int $postId = null
 	): self {
 		self::ssert_non_empty($main_option, 'main_option');
 		self::ssert_non_empty($key, 'key');
-		$scope                            = self::normalize_scope($scope);
-		[$blogId, $userId, $user_storage] = self::validate_scope_triplet($scope, $blogId, $userId, $user_storage);
-		return new self('delete_option', $main_option, $scope, $blogId, $userId, $user_storage, $user_global, false, $key, null, null, null);
+		$scope                                     = self::normalize_scope($scope);
+		[$blogId, $userId, $postId, $user_storage] = self::validate_scope_quadlet($scope, $blogId, $userId, $postId, $user_storage);
+		return new self('delete_option', $main_option, $scope, $blogId, $userId, $postId, $user_storage, $user_global, false, $key, null, null, null);
 	}
 
 	/**
@@ -346,12 +364,13 @@ final class WriteContext {
 		?int $blogId,
 		?int $userId,
 		string $user_storage,
-		bool $user_global
+		bool $user_global,
+		?int $postId = null
 	): self {
 		self::ssert_non_empty($main_option, 'main_option');
-		$scope                            = self::normalize_scope($scope);
-		[$blogId, $userId, $user_storage] = self::validate_scope_triplet($scope, $blogId, $userId, $user_storage);
-		return new self('clear', $main_option, $scope, $blogId, $userId, $user_storage, $user_global, false, null, null, null, null);
+		$scope                                     = self::normalize_scope($scope);
+		[$blogId, $userId, $postId, $user_storage] = self::validate_scope_quadlet($scope, $blogId, $userId, $postId, $user_storage);
+		return new self('clear', $main_option, $scope, $blogId, $userId, $postId, $user_storage, $user_global, false, null, null, null, null);
 	}
 
 	/**
@@ -374,13 +393,14 @@ final class WriteContext {
 		?int $userId,
 		string $user_storage,
 		bool $user_global,
-		array $keys // defaults keys snapshot
+		array $keys, // defaults keys snapshot
+		?int $postId = null
 	): self {
 		self::ssert_non_empty($main_option, 'main_option');
 		self::ssert_non_emptyArray($keys, 'keys');
-		$scope                            = self::normalize_scope($scope);
-		[$blogId, $userId, $user_storage] = self::validate_scope_triplet($scope, $blogId, $userId, $user_storage);
-		return new self('seed_if_missing', $main_option, $scope, $blogId, $userId, $user_storage, $user_global, false, null, array_values(array_map('strval', $keys)), null, null);
+		$scope                                     = self::normalize_scope($scope);
+		[$blogId, $userId, $postId, $user_storage] = self::validate_scope_quadlet($scope, $blogId, $userId, $postId, $user_storage);
+		return new self('seed_if_missing', $main_option, $scope, $blogId, $userId, $postId, $user_storage, $user_global, false, null, array_values(array_map('strval', $keys)), null, null);
 	}
 
 	/**
@@ -403,13 +423,14 @@ final class WriteContext {
 		?int $userId,
 		string $user_storage,
 		bool $user_global,
-		array $changed_keys
+		array $changed_keys,
+		?int $postId = null
 	): self {
 		self::ssert_non_empty($main_option, 'main_option');
 		self::ssert_non_emptyArray($changed_keys, 'changed_keys');
-		$scope                            = self::normalize_scope($scope);
-		[$blogId, $userId, $user_storage] = self::validate_scope_triplet($scope, $blogId, $userId, $user_storage);
-		return new self('migrate', $main_option, $scope, $blogId, $userId, $user_storage, $user_global, false, null, null, null, array_values(array_map('strval', $changed_keys)));
+		$scope                                     = self::normalize_scope($scope);
+		[$blogId, $userId, $postId, $user_storage] = self::validate_scope_quadlet($scope, $blogId, $userId, $postId, $user_storage);
+		return new self('migrate', $main_option, $scope, $blogId, $userId, $postId, $user_storage, $user_global, false, null, null, null, array_values(array_map('strval', $changed_keys)));
 	}
 
 	// ---------- Validation helpers ----------
@@ -450,7 +471,7 @@ final class WriteContext {
 	 */
 	private static function normalize_scope(string $scope): string {
 		$scope = strtolower($scope);
-		if ($scope !== 'site' && $scope !== 'network' && $scope !== 'blog' && $scope !== 'user') {
+		if ($scope !== 'site' && $scope !== 'network' && $scope !== 'blog' && $scope !== 'user' && $scope !== 'post') {
 			throw new \InvalidArgumentException('WriteContext: invalid scope ' . $scope);
 		}
 		return $scope;
@@ -466,12 +487,12 @@ final class WriteContext {
 	 *
 	 * @return array{0:?int,1:?int,2:?string} Tuple of [blogId|null, userId|null, user_storage|null].
 	 */
-	private static function validate_scope_triplet(string $scope, ?int $blogId, ?int $userId, ?string $user_storage): array {
+	private static function validate_scope_quadlet(string $scope, ?int $blogId, ?int $userId, ?int $postId, ?string $user_storage): array {
 		if ($scope === 'blog') {
 			if (!is_int($blogId)) {
 				throw new \InvalidArgumentException('WriteContext: blog scope requires blogId');
 			}
-			return array($blogId, null, null);
+			return array($blogId, null, null, null);
 		}
 		if ($scope === 'user') {
 			if (!is_int($userId)) {
@@ -481,9 +502,15 @@ final class WriteContext {
 			if ($user_storage !== 'meta' && $user_storage !== 'option') {
 				throw new \InvalidArgumentException('WriteContext: user_storage must be meta|option');
 			}
-			return array(null, $userId, $user_storage);
+			return array(null, $userId, null, $user_storage);
+		}
+		if ($scope === 'post') {
+			if (!is_int($postId)) {
+				throw new \InvalidArgumentException('WriteContext: post scope requires postId');
+			}
+			return array(null, null, $postId, null);
 		}
 		// site/network
-		return array(null, null, null);
+		return array(null, null, null, null);
 	}
 }
