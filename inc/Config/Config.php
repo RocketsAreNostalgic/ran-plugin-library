@@ -188,11 +188,16 @@ class Config extends ConfigAbstract implements ConfigInterface {
 	 *
 	 * @param StorageContext|null $context  Typed storage context; when null defaults to site scope.
 	 * @param bool                $autoload Whether to autoload on create (site/blog storages only).
+	 * @param string|null         $option_key_override Optional override for the main option key used by the returned registry.
 	 * @return SettingsRegistryInterface
 	 */
-	public function settings(?StorageContext $context = null, bool $autoload = true): SettingsRegistryInterface {
-		$context  = $context ?? StorageContext::forSite('option');
-		$cacheKey = $context->get_cache_key();
+	public function settings(?StorageContext $context = null, bool $autoload = true, ?string $option_key_override = null): SettingsRegistryInterface {
+		$context = $context ?? StorageContext::forSite();
+
+		$option_key_override = $option_key_override !== null ? trim($option_key_override) : null;
+		$option_key          = $option_key_override !== null && $option_key_override !== '' ? $option_key_override : $this->get_options_key();
+
+		$cacheKey = $context->get_cache_key() . '|opt:' . rawurlencode($option_key);
 
 		// Return cached registry if available
 		if (isset($this->settings_cache[$cacheKey])) {
@@ -204,7 +209,7 @@ class Config extends ConfigAbstract implements ConfigInterface {
 		// User scope → UserSettingsRegistry
 		if ($scope === OptionScope::User) {
 			$registry = new UserSettingsRegistry(
-				$this->get_options_key(),
+				$option_key,
 				$context,
 				$autoload,
 				$this->get_logger(),
@@ -213,7 +218,7 @@ class Config extends ConfigAbstract implements ConfigInterface {
 		} else {
 			// Site, Network, Blog → AdminMenuRegistry
 			$registry = new AdminMenuRegistry(
-				$this->get_options_key(),
+				$option_key,
 				$context,
 				$autoload,
 				$this->get_logger(),
