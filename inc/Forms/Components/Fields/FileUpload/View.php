@@ -33,6 +33,10 @@ if (empty($existingFiles) && !empty($value)) {
 	}
 }
 
+if (!empty($existingFiles)) {
+	unset($attributes['required'], $attributes['aria-required']);
+}
+
 if (!isset($name)) {
 	if (isset($context['id'])) {
 		$name = $context['id'];

@@ -10,11 +10,11 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\Users;
 
-use Ran\PluginLib\Config\ConfigInterface;
-use Ran\PluginLib\Options\RegisterOptions;
-use Ran\PluginLib\Options\Entity\UserEntity;
 use Ran\PluginLib\Options\Storage\StorageContext;
+use Ran\PluginLib\Options\RegisterOptions;
 use Ran\PluginLib\Options\Policy\WritePolicyInterface;
+use Ran\PluginLib\Options\Entity\UserEntity;
+use Ran\PluginLib\Config\ConfigInterface;
 
 final class UserOptionsStore implements UserOptionsStoreInterface {
 	private ConfigInterface $config;

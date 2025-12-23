@@ -174,6 +174,33 @@ final class MetaboxesSavePostBehaviorTest extends PluginLibTestCase {
 		self::assertTrue(true);
 	}
 
+	public function test_save_post_checks_nonce_when_files_present_but_payload_missing(): void {
+		$metaboxes = $this->createMetaboxes();
+		$metaboxes->metabox('book_details', 'Book Details', 'book_meta', array(
+			'post_types' => array('post'),
+		));
+
+		WP_Mock::userFunction('wp_is_post_autosave')->with(123)->andReturn(false);
+		WP_Mock::userFunction('wp_is_post_revision')->with(123)->andReturn(false);
+		WP_Mock::userFunction('current_user_can')->with('edit_post', 123)->andReturn(true);
+
+		$_FILES['book_meta'] = array(
+			'name' => array(
+				'file_required' => 'example.pdf',
+			),
+		);
+		$_POST['book_meta__nonce'] = 'bad_nonce';
+
+		WP_Mock::userFunction('wp_verify_nonce')
+			->with('bad_nonce', \WP_Mock\Functions::type('string'))
+			->andReturn(false);
+
+		WP_Mock::userFunction('update_post_meta')->times(0);
+
+		$metaboxes->__save_metaboxes(123, (object) array('post_type' => 'post'), true);
+		self::assertTrue(true);
+	}
+
 	public function test_save_post_skips_metabox_when_nonce_missing(): void {
 		$metaboxes = $this->createMetaboxes();
 		$metaboxes->metabox('book_details', 'Book Details', 'book_meta', array(

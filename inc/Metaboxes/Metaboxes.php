@@ -10,13 +10,13 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\Metaboxes;
 
-use Ran\PluginLib\Config\ConfigInterface;
-use Ran\PluginLib\Forms\FormsInterface;
-use Ran\PluginLib\Forms\FormsServiceSession;
-use Ran\PluginLib\Options\RegisterOptions;
-use Ran\PluginLib\Forms\Component\ComponentManifest;
 use Ran\PluginLib\Util\WPWrappersTrait;
 use Ran\PluginLib\Util\Logger;
+use Ran\PluginLib\Options\RegisterOptions;
+use Ran\PluginLib\Forms\FormsServiceSession;
+use Ran\PluginLib\Forms\FormsInterface;
+use Ran\PluginLib\Forms\Component\ComponentManifest;
+use Ran\PluginLib\Config\ConfigInterface;
 
 /**
  * Metabox manager.
@@ -258,11 +258,12 @@ class Metaboxes implements FormsInterface {
 				continue;
 			}
 
-			// Only process a metabox if its payload key is present.
-			if (!isset($_POST[$meta_key]) || !is_array($_POST[$meta_key])) {
+			$has_post_payload  = isset($_POST[$meta_key]) && is_array($_POST[$meta_key]);
+			$has_files_payload = isset($_FILES[$meta_key]) && is_array($_FILES[$meta_key]);
+			if (!$has_post_payload && !$has_files_payload) {
 				continue;
 			}
-			$payload = $_POST[$meta_key];
+			$payload = $has_post_payload ? $_POST[$meta_key] : array();
 
 			// Verify nonce for this metabox.
 			$nonce_name   = $form->get_nonce_name();

@@ -16,6 +16,7 @@ use Ran\PluginLib\Settings\AdminMenuRegistry;
 use Ran\PluginLib\Options\Storage\StorageContext;
 use Ran\PluginLib\Options\RegisterOptions;
 use Ran\PluginLib\Options\OptionScope;
+use Ran\PluginLib\Metaboxes\MetaboxesRegistry;
 use Ran\PluginLib\Config\ConfigInterface;
 use Ran\PluginLib\Config\ConfigAbstract;
 
@@ -29,6 +30,13 @@ class Config extends ConfigAbstract implements ConfigInterface {
 	 * @var array<string, SettingsRegistryInterface>
 	 */
 	private array $settings_cache = array();
+
+	/**
+	 * Cache of metabox registries by context key.
+	 *
+	 * @var array<string, MetaboxesRegistry>
+	 */
+	private array $metaboxes_cache = array();
 
 	/**
 	 * Static cache of Config instances by plugin file path.
@@ -227,6 +235,39 @@ class Config extends ConfigAbstract implements ConfigInterface {
 		}
 
 		$this->settings_cache[$cacheKey] = $registry;
+		return $registry;
+	}
+
+	/**
+	 * Accessor: get a MetaboxesRegistry for lazy metabox registration.
+	 *
+	 * Hooks are registered immediately (lightweight), but expensive dependencies
+	 * (RegisterOptions, ComponentManifest) are only created when actually needed.
+	 *
+	 * @param StorageContext|null $context Typed storage context; when null defaults to site scope.
+	 * @param string|null         $option_key_override Optional override for the main option key used by the returned registry.
+	 * @return MetaboxesRegistry
+	 */
+	public function metaboxes(?StorageContext $context = null, ?string $option_key_override = null): MetaboxesRegistry {
+		$context = $context ?? StorageContext::forSite();
+
+		$option_key_override = $option_key_override !== null ? trim($option_key_override) : null;
+		$option_key          = $option_key_override !== null && $option_key_override !== '' ? $option_key_override : $this->get_options_key();
+
+		$cacheKey = $context->get_cache_key() . '|opt:' . rawurlencode($option_key);
+
+		if (isset($this->metaboxes_cache[$cacheKey])) {
+			return $this->metaboxes_cache[$cacheKey];
+		}
+
+		$registry = new MetaboxesRegistry(
+			$option_key,
+			$context,
+			$this->get_logger(),
+			$this
+		);
+
+		$this->metaboxes_cache[$cacheKey] = $registry;
 		return $registry;
 	}
 }

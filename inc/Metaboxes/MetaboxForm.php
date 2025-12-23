@@ -13,6 +13,7 @@ namespace Ran\PluginLib\Metaboxes;
 use Ran\PluginLib\Util\Logger;
 use Ran\PluginLib\Options\Storage\StorageContext;
 use Ran\PluginLib\Options\RegisterOptions;
+use Ran\PluginLib\Forms\Services\FormsCallbackInvoker;
 use Ran\PluginLib\Forms\Renderer\FormMessageHandler;
 use Ran\PluginLib\Forms\Renderer\FormElementRenderer;
 use Ran\PluginLib\Forms\FormsService;
@@ -110,6 +111,10 @@ class MetaboxForm extends FormsCore implements BuilderRootInterface {
 		return $this->main_option;
 	}
 
+	public function get_options(): RegisterOptions {
+		return $this->base_options;
+	}
+
 	/**
 	 * @return array<string,mixed>
 	 */
@@ -180,6 +185,24 @@ class MetaboxForm extends FormsCore implements BuilderRootInterface {
 			'fields'     => $schemaSummary,
 		));
 
+		$style_raw = $this->metabox_args['style'] ?? '';
+		$style     = '';
+		if (is_callable($style_raw)) {
+			$style_ctx = array(
+				'field_id'     => '',
+				'container_id' => $this->metabox_id,
+				'root_id'      => $this->metabox_id,
+				'section_id'   => '',
+				'group_id'     => '',
+				'value'        => null,
+				'values'       => $values,
+			);
+			$resolved_style = (string) FormsCallbackInvoker::invoke($style_raw, $style_ctx);
+			$style          = trim($resolved_style);
+		} else {
+			$style = trim((string) $style_raw);
+		}
+
 		$base_css_url = $this->_do_apply_filter(
 			'ran_plugin_lib_forms_base_stylesheet_url',
 			$this->_do_plugins_url('../Forms/assets/forms.base.css', __FILE__),
@@ -200,6 +223,7 @@ class MetaboxForm extends FormsCore implements BuilderRootInterface {
 			'metabox_id'        => $this->metabox_id,
 			'meta_key'          => $this->main_option,
 			'title'             => $this->title,
+			'style'             => $style,
 			'options'           => $values,
 			'values'            => $values,
 			'inner_html'        => $rendered_content,
@@ -347,6 +371,15 @@ class MetaboxForm extends FormsCore implements BuilderRootInterface {
 
 	public function order(?int $order): static {
 		$this->metabox_args['order'] = $order;
+		return $this;
+	}
+
+	public function style(string|callable $style): static {
+		if ($style === '') {
+			$this->metabox_args['style'] = '';
+			return $this;
+		}
+		$this->metabox_args['style'] = $style;
 		return $this;
 	}
 
