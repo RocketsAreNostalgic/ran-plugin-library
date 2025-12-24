@@ -1,7 +1,7 @@
 {
   "name": "ran/plugin-lib",
   "description": "RocketsAreNostalgic: A shared library of plugin classes to interact with WordPress",
-  "version": "0.8.0",
+  "version": "0.8.1",
   "type": "library",
   "license": "MIT",
   "authors": [
