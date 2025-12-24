@@ -147,6 +147,14 @@ final class Settings implements FormsInterface {
 		return $this->inner->resolve_options($context);
 	}
 
+	public function get_value(string $field_id, mixed $default = null, ?array $context = null): mixed {
+		return $this->inner->get_value($field_id, $default, $context);
+	}
+
+	public function get_values(?array $context = null): array {
+		return $this->inner->get_values($context);
+	}
+
 	/**
 	 * Override specific form-wide template defaults for this settings instance.
 	 *

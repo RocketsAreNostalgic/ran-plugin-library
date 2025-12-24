@@ -71,9 +71,9 @@ final class UserSettingsBehaviorTest extends PluginLibTestCase {
 		    : new CollectingLogger(array());
 		$this->logger->collected_logs = array();
 
-		WP_Mock::userFunction('get_user_meta')->andReturn(array());
+		WP_Mock::userFunction('get_user_meta')->andReturn(array())->byDefault();
 		WP_Mock::userFunction('get_option')->andReturn(array());
-		WP_Mock::userFunction('get_user_option')->andReturn(array());
+		WP_Mock::userFunction('get_user_option')->andReturn(array())->byDefault();
 		WP_Mock::userFunction('update_option')->andReturn(true);
 		WP_Mock::userFunction('delete_user_meta')->andReturn(true);
 		WP_Mock::userFunction('update_user_meta')->andReturn(true);
@@ -636,6 +636,71 @@ final class UserSettingsBehaviorTest extends PluginLibTestCase {
 			return $entry['message'] === 'UserSettings::resolve_options requires a valid user_id.';
 		});
 		self::assertNotEmpty($warningLogs, 'Expected warning log when user_id resolution fails.');
+	}
+
+	public function test_get_value_reads_from_user_meta_storage(): void {
+		$user_settings = $this->createUserSettings();
+
+		WP_Mock::userFunction('get_user_meta')
+			->with(123, 'behavior_user_options', true)
+			->andReturn(array(
+				'profile_name' => 'Tom',
+			));
+
+		$result = $user_settings->get_value('profile_name', null, array(
+			'user_id' => 123,
+			'storage' => 'meta',
+		));
+		self::assertSame('Tom', $result);
+	}
+
+	public function test_get_values_reads_from_user_meta_storage(): void {
+		$user_settings = $this->createUserSettings();
+
+		WP_Mock::userFunction('get_user_meta')
+			->with(123, 'behavior_user_options', true)
+			->andReturn(array(
+				'profile_name' => 'Tom',
+			));
+
+		$values = $user_settings->get_values(array(
+			'user_id' => 123,
+			'storage' => 'meta',
+		));
+
+		self::assertIsArray($values);
+		self::assertSame('Tom', $values['profile_name'] ?? null);
+	}
+
+	public function test_get_value_reads_from_user_option_storage(): void {
+		$user_settings = $this->createUserSettings();
+
+		WP_Mock::userFunction('get_user_option')
+			->with('behavior_user_options', 123, '')
+			->andReturn(array(
+				'profile_name' => 'TomOpt',
+			));
+
+		$result = $user_settings->get_value('profile_name', null, array(
+			'user_id' => 123,
+			'storage' => 'option',
+			'global'  => true,
+		));
+		self::assertSame('TomOpt', $result);
+	}
+
+	public function test_get_value_throws_when_user_id_missing_and_unresolvable(): void {
+		$user_settings = $this->createUserSettings();
+
+		unset($GLOBALS['profileuser']);
+		WP_Mock::userFunction('get_current_user_id')->andReturn(0);
+
+		try {
+			$user_settings->get_value('profile_name', null, array('user_id' => 0));
+			self::fail('Expected InvalidArgumentException when user_id cannot be resolved.');
+		} catch (\InvalidArgumentException $exception) {
+			self::assertSame('UserSettings::resolve_options requires a valid user_id.', $exception->getMessage());
+		}
 	}
 
 	public function test_resolve_context_accepts_explicit_option_storage(): void {

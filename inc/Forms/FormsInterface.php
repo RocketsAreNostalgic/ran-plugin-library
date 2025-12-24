@@ -47,6 +47,10 @@ interface FormsInterface {
 	 */
 	public function resolve_options(?array $context = null): RegisterOptions;
 
+	public function get_value(string $field_id, mixed $default = null, ?array $context = null): mixed;
+
+	public function get_values(?array $context = null): array;
+
 	/**
 	 * Bootstrap the settings.
 	 *

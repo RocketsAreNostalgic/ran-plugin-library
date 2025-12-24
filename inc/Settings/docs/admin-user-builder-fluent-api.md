@@ -58,6 +58,33 @@
 | Fieldset          | `end_fieldset`                                         | `end_fieldset()`                                                                                                         | `UserSettingsSectionBuilder`                             | Commits fieldset and returns to section scope.                |
 | Fieldset          | `end_section`                                          | `end_section()`                                                                                                          | `UserSettingsCollectionBuilder`                          | Returns to the collection builder.                            |
 
+## Reading Saved Values (`get_value` / `get_values`)
+
+All settings forms implement read helpers via `FormsInterface`:
+
+- **`get_value`**
+    - Signature: `get_value(string $field_id, mixed $default = null, ?array $context = null): mixed`
+    - Returns the stored value for a single field ID.
+- **`get_values`**
+    - Signature: `get_values(?array $context = null): array`
+    - Returns the full stored values array for the resolved context.
+
+Context requirements differ by implementation:
+
+- **AdminSettings**
+    - **Context**: optional.
+- **UserSettings**
+    - **Context**: must resolve a target user.
+    - Common keys:
+        - `user_id` (required unless resolvable from current request)
+        - `storage` (`meta` or `option`)
+        - `global` (bool; only relevant when `storage` is `option`)
+- **Metaboxes**
+    - **Context**: required.
+    - Common keys:
+        - `metabox_id` (required; alternatively `id_slug`)
+        - `post_id` (required for post-meta reads)
+
 ## Component Builder Proxy (Fields)
 
 When `field()` resolves to a registered component builder, the method returns a `ComponentBuilderProxy`. The proxy exposes the component-specific fluent API (e.g. `order()`, `variant()`, `attributes()`) while routing template overrides through the shared session pipeline, preserving last-call-wins semantics.
