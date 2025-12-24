@@ -517,6 +517,16 @@ abstract class FormsCore implements FormsInterface {
 		return $opts;
 	}
 
+	public function get_value(string $field_id, mixed $default = null, ?array $context = null): mixed {
+		$opts = $this->resolve_options($context);
+		return $opts->get_option($field_id, $default);
+	}
+
+	public function get_values(?array $context = null): array {
+		$opts = $this->resolve_options($context);
+		return $opts->get_options();
+	}
+
 	// -- Messages --
 
 	/**

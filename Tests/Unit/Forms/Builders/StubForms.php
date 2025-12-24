@@ -3,9 +3,9 @@ declare(strict_types=1);
 
 namespace Ran\PluginLib\Tests\Unit\Forms\Builders;
 
-use Ran\PluginLib\Forms\FormsInterface;
-use Ran\PluginLib\Forms\FormsServiceSession;
 use Ran\PluginLib\Options\RegisterOptions;
+use Ran\PluginLib\Forms\FormsServiceSession;
+use Ran\PluginLib\Forms\FormsInterface;
 
 final class StubForms implements FormsInterface {
 	public function __construct(private ?FormsServiceSession $session = null) {
@@ -17,6 +17,14 @@ final class StubForms implements FormsInterface {
 
 	public function resolve_options(?array $context = null): RegisterOptions {
 		throw new \BadMethodCallException('StubForms::resolve_options() should not be called during these tests.');
+	}
+
+	public function get_value(string $field_id, mixed $default = null, ?array $context = null): mixed {
+		throw new \BadMethodCallException('StubForms::get_value() should not be called during these tests.');
+	}
+
+	public function get_values(?array $context = null): array {
+		throw new \BadMethodCallException('StubForms::get_values() should not be called during these tests.');
 	}
 
 	public function boot(bool $eager = false): void {

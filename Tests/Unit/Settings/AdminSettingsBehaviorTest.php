@@ -187,6 +187,35 @@ final class AdminSettingsBehaviorTest extends PluginLibTestCase {
 		$this->assertSame(array(), $messages);
 	}
 
+	public function test_get_value_reads_current_site_option_value(): void {
+		$this->setOptionValues(array(
+			'valid_field' => 'hello',
+		));
+
+		$result = $this->settings->get_value('valid_field');
+		self::assertSame('hello', $result);
+	}
+
+	public function test_get_value_returns_default_when_missing(): void {
+		$this->setOptionValues(array());
+
+		$result = $this->settings->get_value('missing', 'fallback');
+		self::assertSame('fallback', $result);
+	}
+
+	public function test_get_values_returns_full_array(): void {
+		$this->setOptionValues(array(
+			'valid_field'   => 'hello',
+			'integer_field' => 9,
+		));
+
+		$values = $this->settings->get_values();
+		self::assertSame(array(
+			'valid_field'   => 'hello',
+			'integer_field' => 9,
+		), $values);
+	}
+
 	public function test_menu_group_commit_populates_reference_only_pages_map(): void {
 		$menu_group = $this->settings->menu_group('reference-group')
 			->heading('Reference Heading')

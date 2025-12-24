@@ -167,6 +167,50 @@ class Metaboxes implements FormsInterface {
 		return $this->base_options;
 	}
 
+	public function get_value(string $field_id, mixed $default = null, ?array $context = null): mixed {
+		$context = $context ?? array();
+
+		$metabox_id = '';
+		if (isset($context['metabox_id'])) {
+			$metabox_id = (string) $context['metabox_id'];
+		} elseif (isset($context['id_slug'])) {
+			$metabox_id = (string) $context['id_slug'];
+		}
+
+		if ($metabox_id === '') {
+			throw new \InvalidArgumentException('Metaboxes::get_value requires context[metabox_id].');
+		}
+
+		$form = $this->metaboxes[$metabox_id] ?? null;
+		if (!$form instanceof MetaboxForm) {
+			throw new \InvalidArgumentException('Metaboxes::get_value unknown metabox_id: ' . $metabox_id);
+		}
+
+		return $form->get_value($field_id, $default, $context);
+	}
+
+	public function get_values(?array $context = null): array {
+		$context = $context ?? array();
+
+		$metabox_id = '';
+		if (isset($context['metabox_id'])) {
+			$metabox_id = (string) $context['metabox_id'];
+		} elseif (isset($context['id_slug'])) {
+			$metabox_id = (string) $context['id_slug'];
+		}
+
+		if ($metabox_id === '') {
+			throw new \InvalidArgumentException('Metaboxes::get_values requires context[metabox_id].');
+		}
+
+		$form = $this->metaboxes[$metabox_id] ?? null;
+		if (!$form instanceof MetaboxForm) {
+			throw new \InvalidArgumentException('Metaboxes::get_values unknown metabox_id: ' . $metabox_id);
+		}
+
+		return $form->get_values($context);
+	}
+
 	public function override_form_defaults(array $overrides): void {
 		// Not supported on the manager.
 	}
@@ -258,7 +302,7 @@ class Metaboxes implements FormsInterface {
 				continue;
 			}
 
-			$has_post_payload  = isset($_POST[$meta_key]) && is_array($_POST[$meta_key]);
+			$has_post_payload  = isset($_POST[$meta_key])  && is_array($_POST[$meta_key]);
 			$has_files_payload = isset($_FILES[$meta_key]) && is_array($_FILES[$meta_key]);
 			if (!$has_post_payload && !$has_files_payload) {
 				continue;

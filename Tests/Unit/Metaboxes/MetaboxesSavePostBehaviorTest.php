@@ -291,6 +291,76 @@ final class MetaboxesSavePostBehaviorTest extends PluginLibTestCase {
 		self::assertSame('hello', $captured['valid_field'] ?? null);
 	}
 
+	public function test_get_value_reads_from_post_meta_storage(): void {
+		$metaboxes = $this->createMetaboxes();
+		$metaboxes->metabox('book_details', 'Book Details', 'book_meta', array(
+			'post_types' => array('post'),
+		));
+
+		WP_Mock::userFunction('get_post_meta')
+			->with(123, 'book_meta', true)
+			->andReturn(array(
+				'valid_field' => 'hello',
+			));
+
+		$value = $metaboxes->get_value('valid_field', null, array(
+			'post_id'    => 123,
+			'metabox_id' => 'book_details',
+		));
+
+		self::assertSame('hello', $value);
+	}
+
+	public function test_get_values_reads_from_post_meta_storage(): void {
+		$metaboxes = $this->createMetaboxes();
+		$metaboxes->metabox('book_details', 'Book Details', 'book_meta', array(
+			'post_types' => array('post'),
+		));
+
+		WP_Mock::userFunction('get_post_meta')
+			->with(123, 'book_meta', true)
+			->andReturn(array(
+				'valid_field' => 'hello',
+			));
+
+		$values = $metaboxes->get_values(array(
+			'post_id'    => 123,
+			'metabox_id' => 'book_details',
+		));
+
+		self::assertIsArray($values);
+		self::assertSame('hello', $values['valid_field'] ?? null);
+	}
+
+	public function test_get_value_throws_when_metabox_id_missing(): void {
+		$metaboxes = $this->createMetaboxes();
+		$metaboxes->metabox('book_details', 'Book Details', 'book_meta', array(
+			'post_types' => array('post'),
+		));
+
+		$this->expectException(\InvalidArgumentException::class);
+		$this->expectExceptionMessage('Metaboxes::get_value requires context[metabox_id].');
+
+		$metaboxes->get_value('valid_field', null, array(
+			'post_id' => 123,
+		));
+	}
+
+	public function test_get_value_throws_when_metabox_id_unknown(): void {
+		$metaboxes = $this->createMetaboxes();
+		$metaboxes->metabox('book_details', 'Book Details', 'book_meta', array(
+			'post_types' => array('post'),
+		));
+
+		$this->expectException(\InvalidArgumentException::class);
+		$this->expectExceptionMessage('Metaboxes::get_value unknown metabox_id: missing_metabox');
+
+		$metaboxes->get_value('valid_field', null, array(
+			'post_id'    => 123,
+			'metabox_id' => 'missing_metabox',
+		));
+	}
+
 	private function createMetaboxes(): Metaboxes {
 		return new Metaboxes($this->baseOptions, $this->manifest, null, $this->logger);
 	}
