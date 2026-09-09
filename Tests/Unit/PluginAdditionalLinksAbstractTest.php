@@ -58,6 +58,33 @@ final class PluginAdditionalLinksAbstractTest extends PluginLibTestCase {
 	}
 
 	/**
+	 * Plugin hook identity trims incidental whitespace in normalized config.
+	 */
+	public function test_init_trims_normalized_plugin_basename(): void {
+		$config = $this->createMock( ConfigInterface::class );
+		$config->method( 'get_config' )->willReturn(
+			array(
+				'Basename' => '  mock-plugin/mock-plugin.php  ',
+			)
+		);
+
+		$subject = $this->subject( $config );
+
+		WP_Mock::expectFilterAdded(
+			'plugin_action_links_mock-plugin/mock-plugin.php',
+			array( $subject, 'plugin_action_links_callback' )
+		);
+		WP_Mock::expectFilterAdded(
+			'plugin_row_meta',
+			array( $subject, 'plugin_meta_links_callback' ),
+			10,
+			4
+		);
+
+		$this->assertSame( $subject, $subject->init() );
+	}
+
+	/**
 	 * Plugin-row identity matching uses the normalized plugin basename.
 	 */
 	public function test_meta_callback_uses_normalized_basename_for_plugin_identity(): void {
