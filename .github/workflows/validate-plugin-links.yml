@@ -28,6 +28,6 @@ jobs:
       - name: Install dependencies
         run: composer install --no-interaction --prefer-dist --no-progress
       - name: Run focused PHPUnit coverage
-        run: vendor/bin/phpunit --no-coverage Tests/Unit/PluginAdditionalLinksAbstractTest.php
+        run: vendor/bin/phpunit --no-configuration --bootstrap tests/test_bootstrap.php --no-coverage Tests/Unit/PluginAdditionalLinksAbstractTest.php
       - name: Run focused coding standards
         run: vendor/bin/phpcs --standard=.phpcs.xml inc/PluginAdditionalLinksAbstract.php Tests/Unit/PluginAdditionalLinksAbstractTest.php
