@@ -1,4 +1,9 @@
 <?php
+/**
+ * Unit tests for plugin additional links configuration.
+ *
+ * @package RanPluginLib
+ */
 
 declare(strict_types = 1);
 
@@ -9,12 +14,15 @@ use Ran\PluginLib\Config\ConfigInterface;
 use Ran\PluginLib\PluginAdditionalLinksAbstract;
 use WP_Mock;
 
-final class ConcretePluginAdditionalLinksForTesting extends PluginAdditionalLinksAbstract {
-}
-
+/**
+ * Tests the normalized configuration contract used by plugin additional links.
+ */
 final class PluginAdditionalLinksAbstractTest extends PluginLibTestCase {
+	/**
+	 * The action/meta hooks use the normalized plugin basename.
+	 */
 	public function test_init_registers_hooks_from_normalized_basename(): void {
-		$subject = new ConcretePluginAdditionalLinksForTesting( $this->config_mock );
+		$subject = $this->subject( $this->config_mock );
 
 		WP_Mock::expectFilterAdded(
 			'plugin_action_links_' . $this->mock_plugin_basename,
@@ -30,6 +38,9 @@ final class PluginAdditionalLinksAbstractTest extends PluginLibTestCase {
 		$this->assertSame( $subject, $subject->init() );
 	}
 
+	/**
+	 * Plugin-only link handling rejects configuration without plugin identity.
+	 */
 	public function test_init_rejects_config_without_plugin_basename(): void {
 		$config = $this->createMock( ConfigInterface::class );
 		$config->method( 'get_config' )->willReturn(
@@ -38,7 +49,7 @@ final class PluginAdditionalLinksAbstractTest extends PluginLibTestCase {
 			)
 		);
 
-		$subject = new ConcretePluginAdditionalLinksForTesting( $config );
+		$subject = $this->subject( $config );
 
 		$this->expectException( LogicException::class );
 		$this->expectExceptionMessage( 'requires plugin configuration with a non-empty Basename' );
@@ -46,8 +57,11 @@ final class PluginAdditionalLinksAbstractTest extends PluginLibTestCase {
 		$subject->init();
 	}
 
+	/**
+	 * Plugin-row identity matching uses the normalized plugin basename.
+	 */
 	public function test_meta_callback_uses_normalized_basename_for_plugin_identity(): void {
-		$subject = new ConcretePluginAdditionalLinksForTesting( $this->config_mock );
+		$subject = $this->subject( $this->config_mock );
 		$meta    = array( '<a href="#">Existing</a>' );
 
 		$this->assertSame(
@@ -58,5 +72,15 @@ final class PluginAdditionalLinksAbstractTest extends PluginLibTestCase {
 			$meta,
 			$subject->plugin_meta_links_callback( $meta, $this->mock_plugin_basename, array(), 'active' )
 		);
+	}
+
+	/**
+	 * Create a concrete anonymous implementation of the abstract link feature.
+	 *
+	 * @param ConfigInterface $config Configuration supplied to the inherited feature controller.
+	 */
+	private function subject( ConfigInterface $config ): PluginAdditionalLinksAbstract {
+		return new class( $config ) extends PluginAdditionalLinksAbstract {
+		};
 	}
 }
