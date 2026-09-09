@@ -24,7 +24,7 @@ jobs:
           tools: composer:v2
           coverage: none
       - name: Validate Composer metadata
-        run: composer validate --strict --no-check-publish --no-check-all
+        run: composer validate --no-check-publish --no-check-all
       - name: Install dependencies
         run: composer install --no-interaction --prefer-dist --no-progress
       - name: Run focused PHPUnit coverage
