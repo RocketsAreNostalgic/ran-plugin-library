@@ -9,6 +9,7 @@ declare(strict_types = 1);
 
 namespace Ran\PluginLib;
 
+use LogicException;
 use Ran\PluginLib\FeaturesAPI\FeatureControllerAbstract;
 use Ran\PluginLib\FeaturesAPI\RegistrableFeatureInterface;
 
@@ -34,7 +35,7 @@ abstract class PluginAdditionalLinksAbstract extends FeatureControllerAbstract i
 	 * Our init hook to add_filter hooks.
 	 */
 	public function init(): PluginAdditionalLinksAbstract {
-		add_filter( 'plugin_action_links_' . $this->plugin_array['Basename'], array( $this, 'plugin_action_links_callback' ) );
+		add_filter( 'plugin_action_links_' . $this->plugin_basename(), array( $this, 'plugin_action_links_callback' ) );
 		add_filter( 'plugin_row_meta', array( $this, 'plugin_meta_links_callback' ), 10, 4 );
 		// Silence is golden.
 		defined( 'ABSPATH' ) || die( '' );
@@ -53,7 +54,7 @@ abstract class PluginAdditionalLinksAbstract extends FeatureControllerAbstract i
 		/**
 		 * We can modify the links array here, but must return the array.
 		 *
-		 * * $links[] = '<a href="admin.php?page=' . $this->plugin_data['TextDomain'] . '">Settings</a>';
+		 * * $links[] = '<a href="admin.php?page=' . $this->config_array['TextDomain'] . '">Settings</a>';
 		 */
 
 		// You must return the links array.
@@ -79,7 +80,7 @@ abstract class PluginAdditionalLinksAbstract extends FeatureControllerAbstract i
 		array $plugin_data,
 		string $status
 	): array {
-		if ( stripos( $plugin_file, $this->plugin_array['Basename'] ) === false ) {
+		if ( stripos( $plugin_file, $this->plugin_basename() ) === false ) {
 			return $plugin_meta;
 		}
 
@@ -90,5 +91,20 @@ abstract class PluginAdditionalLinksAbstract extends FeatureControllerAbstract i
 
 		// You must return the meta array.
 		return $plugin_meta;
+	}
+
+	/**
+	 * Return the normalized plugin basename required by WordPress plugin-link hooks.
+	 *
+	 * @throws LogicException When this feature is constructed without plugin configuration.
+	 */
+	private function plugin_basename(): string {
+		$basename = $this->config_array['Basename'] ?? null;
+
+		if ( ! is_string( $basename ) || '' === trim( $basename ) ) {
+			throw new LogicException( 'PluginAdditionalLinksAbstract requires plugin configuration with a non-empty Basename.' );
+		}
+
+		return $basename;
 	}
 }
