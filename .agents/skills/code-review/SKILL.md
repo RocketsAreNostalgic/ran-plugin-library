@@ -190,7 +190,7 @@ For free-form Markdown reviews, a useful fallback is:
 - Base SHA: [...]
 - Head SHA: [...]
 - [Checks observed or run]
-+- [Checks not run and why]
+- [Checks not run and why]
 
 ### Verdict
 - Approve / Request changes
