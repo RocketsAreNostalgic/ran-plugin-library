@@ -80,7 +80,7 @@ abstract class PluginAdditionalLinksAbstract extends FeatureControllerAbstract i
 		array $plugin_data,
 		string $status
 	): array {
-		if ( stripos( $plugin_file, $this->plugin_basename() ) === false ) {
+		if ( $plugin_file !== $this->plugin_basename() ) {
 			return $plugin_meta;
 		}
 
@@ -101,7 +101,12 @@ abstract class PluginAdditionalLinksAbstract extends FeatureControllerAbstract i
 	private function plugin_basename(): string {
 		$basename = $this->config_array['Basename'] ?? null;
 
-		if ( ! is_string( $basename ) || '' === trim( $basename ) ) {
+		if ( ! is_string( $basename ) ) {
+			throw new LogicException( 'PluginAdditionalLinksAbstract requires plugin configuration with a non-empty Basename.' );
+		}
+
+		$basename = trim( $basename );
+		if ( '' === $basename ) {
 			throw new LogicException( 'PluginAdditionalLinksAbstract requires plugin configuration with a non-empty Basename.' );
 		}
 
