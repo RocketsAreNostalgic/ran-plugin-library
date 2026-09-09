@@ -125,6 +125,8 @@ Never claim a check passed without evidence.
 
 At review start, record the exact base SHA and head SHA. Review and verification evidence apply only to that pair.
 
+Verification must also bind to the exact checked-out tree, not merely ref names. Before running local checks, prefer a clean isolated checkout/worktree at the recorded head SHA; verify `HEAD` equals that SHA and that no pre-existing tracked or untracked files can alter the result. If checks intentionally generate files for later checks, distinguish those artifacts from pre-existing worktree changes and record the sequence. For trusted CI, confirm the workflow run head SHA and checkout correspond to the recorded head. Do not attribute results from a dirty, different-commit, or otherwise divergent worktree to the reviewed head.
+
 If either SHA changes:
 
 - invalidate the prior verdict;
@@ -143,8 +145,8 @@ Confirm the pair is still unchanged immediately before the final verdict.
 6. Review dependencies, lockfile changes, licensing, maintenance status, changelogs/migrations, and supply-chain risk.
 7. Check dead code, duplicate helpers, compatibility shims, circular dependencies, and abstractions that merely relocate complexity.
 8. Check change/file size and whether feature logic is leaking into shared modules.
-9. Execute the complete applicable verification matrix safely.
-10. Confirm the exact base/head pair is unchanged and issue the verdict.
+9. Execute the complete applicable verification matrix safely against the exact verified worktree/tree.
+10. Confirm the exact base/head pair and tested tree are unchanged and issue the verdict.
 
 Prefer structural remedies that remove moving parts: split orchestration from business logic, extract focused modules, collapse duplicate branches, reuse canonical helpers, clarify type boundaries, replace repeated conditionals with an explicit model/dispatcher where justified, and delete pass-through abstractions.
 
@@ -194,4 +196,4 @@ For free-form Markdown reviews, a useful fallback is:
 - Approve / Request changes
 ```
 
-When there are no required findings, say so explicitly and still record the exact reviewed base/head pair and verification evidence.
+When there are no required findings, say so explicitly and still record the exact reviewed base/head pair, tested tree/worktree identity, and verification evidence.
