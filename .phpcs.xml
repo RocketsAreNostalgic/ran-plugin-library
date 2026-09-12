@@ -14,7 +14,7 @@
 			- https://github.com/slevomat/coding-standard/blob/master/doc/type-hints.md
 			- https://github.com/slevomat/coding-standard/blob/master/doc/classes.md
 	-->
-	<config name="minimum_supported_wp_version" value="6.7.0"/>
+	<config name="minimum_wp_version" value="6.7.0"/>
 
 	<!-- How to scan -->
 	<arg value="sp"/>
