@@ -158,7 +158,7 @@ For ordinary maintained RAN repositories, the organization default is **merge + 
 - Use a **merge commit** when the pull request's internal commit sequence is deliberately meaningful and worth preserving.
 - Do not infer the merge method from this organization default when reviewed repository instructions or release automation specify an exception. Repository-specific reviewed rules remain authoritative.
 - Explicit exceptions include `.github`, which is merge-only to preserve infrastructure/pinnable history, and generated Release Please/version pull requests in repositories whose publisher requires a normal two-parent merge.
-- Before the final handoff, identify the intended merge method for the exact reviewed PR. If the repository's live merge/ruleset configuration unexpectedly conflicts with reviewed repository guidance, treat that as governance drift to resolve rather than working around it.
+- For reviews associated with a pull request, identify the intended merge method before the final handoff. For direct commit, patch, or other non-PR reviews, record this merge-method check as not applicable. If the repository's live merge/ruleset configuration unexpectedly conflicts with reviewed repository guidance, treat that as governance drift to resolve rather than working around it.
 
 ## Conventional Commits
 
