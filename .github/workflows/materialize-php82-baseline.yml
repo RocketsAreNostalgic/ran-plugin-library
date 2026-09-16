@@ -1,0 +1,59 @@
+name: Materialize PHP 8.2 baseline cleanup
+
+on:
+  push:
+    branches:
+      - ci/adopt-php-quality-v2
+
+permissions:
+  contents: write
+
+jobs:
+  materialize:
+    if: ${{ github.actor != 'github-actions[bot]' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out migration branch
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ci/adopt-php-quality-v2
+          fetch-depth: 0
+
+      - name: Set up actual PHP floor
+        uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
+        with:
+          php-version: '8.2'
+          coverage: none
+          extensions: zip
+          tools: composer:v2
+
+      - name: Refresh lock metadata and apply configured formatter
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config --global url."https://github.com/".insteadOf git@github.com:
+          composer update --no-interaction --prefer-dist --no-progress --no-scripts
+          composer validate --strict --no-check-publish --no-check-all
+          composer cs
+          composer cs:check
+
+      - name: Commit only lock and formatter output
+        shell: bash
+        run: |
+          set -euo pipefail
+          while IFS= read -r path; do
+            case "$path" in
+              composer.lock|*.php) ;;
+              *) echo "Unexpected formatter/materializer change: $path" >&2; exit 1 ;;
+            esac
+          done < <(git diff --name-only)
+          git add composer.lock
+          git add -- '*.php'
+          if git diff --cached --quiet; then
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'style: satisfy the PHP 8.2 quality baseline'
+          git push origin HEAD:ci/adopt-php-quality-v2
