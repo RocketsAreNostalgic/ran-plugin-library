@@ -14,7 +14,7 @@ jobs:
   baseline:
     uses: RocketsAreNostalgic/.github/.github/workflows/quality-php-library-v2.yml@788f783d2998994f7aab9691710911ed1bd762c9
     with:
-      php-floor: '8.1'
+      php-floor: '8.2'
       php-current: '8.5'
       php-extensions: zip
       node-version: ''
