@@ -216,7 +216,7 @@ class RestrictedDefaultWritePolicyTest extends PluginLibTestCase {
 			->andReturnUsing(function ($capability) {
 				return match ($capability) {
 					'manage_options', 'manage_network_options' => true,
-					default => false,
+					default                                    => false,
 				};
 			});
 

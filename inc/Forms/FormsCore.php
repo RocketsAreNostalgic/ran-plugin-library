@@ -187,12 +187,12 @@ abstract class FormsCore implements FormsInterface {
 			$this->logger,
 			$this->main_option,
 			$pending_values,
-			fn (string $key): string                        => $this->_do_sanitize_key($key),
-			fn (): int                                      => (int) $this->_do_get_current_user_id(),
+			fn (string $key): string => $this->_do_sanitize_key($key),
+			fn (): int => (int) $this->_do_get_current_user_id(),
 			fn (string $key, mixed $value, int $ttl): mixed => $this->_do_set_transient($key, $value, $ttl),
-			fn (string $key): mixed                         => $this->_do_get_transient($key),
-			fn (string $key): mixed                         => $this->_do_delete_transient($key),
-			fn (): string                                   => $this->_get_form_type_suffix()
+			fn (string $key): mixed => $this->_do_get_transient($key),
+			fn (string $key): mixed => $this->_do_delete_transient($key),
+			fn (): string => $this->_get_form_type_suffix()
 		);
 
 		return $this->__message_service;
@@ -213,7 +213,7 @@ abstract class FormsCore implements FormsInterface {
 				$this->_start_form_session();
 			},
 			fn (): ?FormsServiceSession => $this->get_form_session(),
-			fn (): string               => $this->_get_section_template()
+			fn (): string => $this->_get_section_template()
 		);
 
 		return $this->__render_service;
@@ -227,13 +227,13 @@ abstract class FormsCore implements FormsInterface {
 		$this->__file_upload_service = new FormsFileUploadService(
 			$this->logger,
 			$this->main_option,
-			fn (string $path): bool                                                                    => \is_uploaded_file($path),
-			fn (array $file, array $overrides = array(), string $time = ''): array                     => $this->_do_wp_handle_upload($file, $overrides, $time),
-			fn (string $filename): string                                                              => $this->_do_sanitize_file_name($filename),
+			fn (string $path): bool => \is_uploaded_file($path),
+			fn (array $file, array $overrides = array(), string $time = ''): array => $this->_do_wp_handle_upload($file, $overrides, $time),
+			fn (string $filename): string => $this->_do_sanitize_file_name($filename),
 			fn (array $args, string $file = '', int $parent = 0, bool $wp_error = false): int|WP_Error => $this->_do_wp_insert_attachment($args, $file, $parent, $wp_error),
-			fn (mixed $thing): bool                                                                    => $this->_do_is_wp_error($thing),
-			fn (int $attachment_id, string $file): array                                               => $this->_do_wp_generate_attachment_metadata($attachment_id, $file),
-			fn (int $attachment_id, array $data): int|false                                            => $this->_do_wp_update_attachment_metadata($attachment_id, $data),
+			fn (mixed $thing): bool => $this->_do_is_wp_error($thing),
+			fn (int $attachment_id, string $file): array => $this->_do_wp_generate_attachment_metadata($attachment_id, $file),
+			fn (int $attachment_id, array $data): int|false => $this->_do_wp_update_attachment_metadata($attachment_id, $data),
 			function (): void {
 				require_once ABSPATH . 'wp-admin/includes/image.php';
 			}

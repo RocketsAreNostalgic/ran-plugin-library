@@ -30,18 +30,18 @@ class Sanitizer extends SanitizerBase {
 		$type = isset($context['input_type']) ? (string) $context['input_type'] : 'text';
 
 		return match ($type) {
-			'email' => $this->_sanitize_email($value),
-			'url'   => $this->_sanitize_url($value),
-			'tel'   => $this->_sanitize_phone($value),
-			'number', 'range' => $this->_sanitize_number($value, $context, $emitNotice),
-			'date'           => $this->_sanitize_date($value),
-			'datetime-local' => $this->_sanitize_datetime($value),
-			'time'           => $this->_sanitize_time($value),
-			'color'          => $this->_sanitize_color($value),
+			'email'             => $this->_sanitize_email($value),
+			'url'               => $this->_sanitize_url($value),
+			'tel'               => $this->_sanitize_phone($value),
+			'number', 'range'   => $this->_sanitize_number($value, $context, $emitNotice),
+			'date'              => $this->_sanitize_date($value),
+			'datetime-local'    => $this->_sanitize_datetime($value),
+			'time'              => $this->_sanitize_time($value),
+			'color'             => $this->_sanitize_color($value),
 			'checkbox', 'radio' => $this->_sanitize_choice($value, $context),
-			'hidden'   => $this->_sanitize_text($value),
-			'password' => $this->_sanitize_password($value),
-			default    => $this->_sanitize_text($value),
+			'hidden'            => $this->_sanitize_text($value),
+			'password'          => $this->_sanitize_password($value),
+			default             => $this->_sanitize_text($value),
 		};
 	}
 

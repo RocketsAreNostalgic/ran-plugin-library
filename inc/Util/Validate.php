@@ -71,14 +71,14 @@ final class Validate {
 	public static function validatorForType(string $type): ?callable {
 		return match (strtolower($type)) {
 			'bool', 'boolean' => static fn(mixed $v): bool => \is_bool($v),
-			'int', 'integer' => static fn(mixed $v): bool => \is_int($v),
+			'int', 'integer'  => static fn(mixed $v): bool => \is_int($v),
 			'float', 'double' => static fn(mixed $v): bool => \is_float($v),
-			'string'   => static fn(mixed $v): bool => \is_string($v),
-			'array'    => static fn(mixed $v): bool => \is_array($v),
-			'object'   => static fn(mixed $v): bool => \is_object($v),
-			'null'     => static fn(mixed $v): bool => $v === null,
-			'callable' => static fn(mixed $v): bool => \is_callable($v),
-			default    => null,
+			'string'          => static fn(mixed $v): bool => \is_string($v),
+			'array'           => static fn(mixed $v): bool => \is_array($v),
+			'object'          => static fn(mixed $v): bool => \is_object($v),
+			'null'            => static fn(mixed $v): bool => $v === null,
+			'callable'        => static fn(mixed $v): bool => \is_callable($v),
+			default           => null,
 		};
 	}
 

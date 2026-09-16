@@ -385,8 +385,8 @@ trait BlockAssetTrait {
 	protected function _get_asset_type_from_string(string $asset_type_string): ?AssetType {
 		return match ($asset_type_string) {
 			'scripts', 'editor_scripts', 'frontend_scripts', 'dynamic_scripts' => AssetType::Script,
-			'styles', 'editor_styles', 'frontend_styles', 'dynamic_styles' => AssetType::Style,
-			default => null,
+			'styles', 'editor_styles', 'frontend_styles', 'dynamic_styles'     => AssetType::Style,
+			default                                                            => null,
 		};
 	}
 }

@@ -95,10 +95,10 @@ final class ScopeResolver {
 		$key = strtolower(trim($scope));
 		return match ($key) {
 			'site', '' => OptionScope::Site,
-			'network' => OptionScope::Network,
-			'blog'    => OptionScope::Blog,
-			'user'    => OptionScope::User,
-			default   => OptionScope::Site, // fallback to site instead of throwing
+			'network'  => OptionScope::Network,
+			'blog'     => OptionScope::Blog,
+			'user'     => OptionScope::User,
+			default    => OptionScope::Site, // fallback to site instead of throwing
 		};
 	}
 }
