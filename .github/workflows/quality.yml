@@ -1,0 +1,31 @@
+name: Quality
+
+on:
+  workflow_dispatch:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  baseline:
+    uses: RocketsAreNostalgic/.github/.github/workflows/quality-php-library-v2.yml@788f783d2998994f7aab9691710911ed1bd762c9
+    with:
+      php-floor: '8.1'
+      php-current: '8.5'
+      php-extensions: zip
+      node-version: ''
+
+  quality:
+    name: quality
+    if: ${{ always() }}
+    needs: baseline
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require normalized PHP quality baseline
+        env:
+          BASELINE_RESULT: ${{ needs.baseline.result }}
+        run: test "$BASELINE_RESULT" = success
