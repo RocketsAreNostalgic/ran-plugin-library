@@ -1,4 +1,4 @@
-name: Materialize PHP 8.2 baseline cleanup
+name: Normalize PHP 8.2 Composer lock
 
 on:
   push:
@@ -9,7 +9,7 @@ permissions:
   contents: write
 
 jobs:
-  materialize:
+  normalize:
     if: ${{ github.actor != 'github-actions[bot]' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -28,32 +28,27 @@ jobs:
           extensions: zip
           tools: composer:v2
 
-      - name: Refresh lock metadata and apply configured formatter
+      - name: Preserve resolved versions and refresh lock metadata
         shell: bash
         run: |
           set -euo pipefail
           git config --global url."https://github.com/".insteadOf git@github.com:
-          composer update --no-interaction --prefer-dist --no-progress --no-scripts
+          git show 70dabc70eae3e62b0fa2e585d8edb181cc982e64:composer.lock > composer.lock
+          composer update --lock --no-install --no-interaction --no-progress --no-scripts
           composer validate --strict --no-check-publish --no-check-all
-          composer cs
-          composer cs:check
+          composer install --no-interaction --prefer-dist --no-progress
+          composer check
 
-      - name: Commit only lock and formatter output
+      - name: Commit lock metadata only
         shell: bash
         run: |
           set -euo pipefail
-          while IFS= read -r path; do
-            case "$path" in
-              composer.lock|*.php) ;;
-              *) echo "Unexpected formatter/materializer change: $path" >&2; exit 1 ;;
-            esac
-          done < <(git diff --name-only)
+          test "$(git diff --name-only)" = composer.lock
           git add composer.lock
-          git add -- '*.php'
           if git diff --cached --quiet; then
             exit 0
           fi
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git commit -m 'style: satisfy the PHP 8.2 quality baseline'
+          git commit -m 'chore: normalize Composer lock for PHP 8.2'
           git push origin HEAD:ci/adopt-php-quality-v2
