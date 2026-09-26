@@ -29,7 +29,7 @@
 	<!-- What to scan -->
 	<file>./</file>
 	<file>./inc</file>
-	<file>./tests</file>
+	<file>./Tests</file>
 	<file>./scripts</file>
 	<exclude-pattern>/vendor/</exclude-pattern>
 	<exclude-pattern>/node_modules/</exclude-pattern>
