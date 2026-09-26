@@ -11,7 +11,6 @@ cache
 *.sass-cache
 
 # Dependencies
-composer.lock
 vendor/
 !vendor/autoload.php
 node_modules/
