@@ -24,7 +24,7 @@ An example implementation is available at github.com/RocketsAreNostalgic/ran-sta
 
 ### Prerequisites
 
-- PHP 8.1+
+- PHP 8.2+
 - WordPress 6.7+
 - Composer (for managing dependencies if you distribute your library this way)
 
@@ -561,7 +561,7 @@ Our project follows a modified version of the WordPress Coding Standards, enforc
 
 - **Global Prefix:** All global PHP constructs (functions, classes, constants, hooks) must be prefixed with `ran_plugLib` to avoid conflicts (as defined in `.phpcs.xml`).
 - **File Naming:** We follow PSR-4 autoloading standards, so class file names should match the class name (e.g., `MyClass.php`). This means standard WordPress hyphenated file naming rules are relaxed for class files.
-- **PHP Version:** Code should be compatible with PHP 8.1+ as per the library's requirements.
+- **PHP Version:** Code should be compatible with PHP 8.2+ as per the library's requirements.
 - **WordPress;guidelines Version:** The library targets WordPress `6.7.0` and above (as configured in `.phpcs.xml`).
 
 While the `WordPress.WP.I18n` sniff is currently excluded from strict linting in `.phpcs.xml`, contributions are encouraged to follow WordPress internationalization best practices for broader plugin usability.

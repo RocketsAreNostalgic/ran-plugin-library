@@ -11,7 +11,6 @@ cache
 *.sass-cache
 
 # Dependencies
-composer.lock
 vendor/
 !vendor/autoload.php
 node_modules/
@@ -45,7 +44,7 @@ dev-debug.log
 .phpunit.cache
 .phpunit.result.cache
 .php-cs-fixer.cache
-tests/coverage/html-coverage/*
+Tests/coverage/html-coverage/*
 coverage/
 
 # Task files
